@@ -3035,15 +3035,18 @@ ha_innobase::estimate_number_of_rows(void)
 
  	DBUG_ENTER("info");
 
- 	dict_update_statistics(prebuilt->table);
-
 	index = dict_table_get_first_index_noninline(prebuilt->table);
  	
 	data_file_length = ((ulonglong) index->stat_n_leaf_pages)
     							* UNIV_PAGE_SIZE;
-	/* Calculate a minimum length for a clustered index record */
 
-	estimate = data_file_length / dict_index_calc_min_rec_len(index);
+	/* Calculate a minimum length for a clustered index record and from
+	that an upper bound for the number of rows. Since we only calculate
+	new statistics in row0mysql.c when a tablehas grown
+        by a threshold factor, we must add a safety factor 2 in front
+	of the formula below. */
+
+	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
 	
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = "";
