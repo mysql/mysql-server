@@ -355,6 +355,13 @@ int vio_close_pipe(Vio * vio)
   DBUG_RETURN(r);
 }
 
+
+void vio_ignore_timeout(Vio *vio __attribute__((unused)),
+			uint timeout __attribute__((unused)))
+{
+}
+
+
 #ifdef HAVE_SMEM
 
 int vio_read_shared_memory(Vio * vio, gptr buf, int size)

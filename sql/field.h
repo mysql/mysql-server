@@ -327,11 +327,6 @@ public:
 	       unireg_check_arg, field_name_arg, table_arg,
 	       dec_arg, zero_arg,unsigned_arg)
     {}
-  Field_decimal(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-		struct st_table *table_arg,bool unsigned_arg)
-    :Field_num((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg,0,0,unsigned_arg)
-    {}
   enum_field_types type() const { return FIELD_TYPE_DECIMAL;}
   enum ha_base_keytype key_type() const
   { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
@@ -361,11 +356,6 @@ public:
     :Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg,
 	       0, zero_arg,unsigned_arg)
-    {}
-  Field_tiny(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg,bool unsigned_arg)
-    :Field_num((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg,0,0,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TINY;}
@@ -608,13 +598,9 @@ public:
     :Field_str(ptr_arg, len_arg, null, 1,
 	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
-  Field_null(uint32 len_arg, const char *field_name_arg,
-	     struct st_table *table_arg, CHARSET_INFO *cs)
-    :Field_str((char*) 0, len_arg, null, 1,
-	       NONE, field_name_arg, table_arg, cs)
-    {}
   enum_field_types type() const { return FIELD_TYPE_NULL;}
-  int  store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; return 0; }
+  int  store(const char *to, uint length, CHARSET_INFO *cs)
+  { null[0]=1; return 0; }
   int  store(double nr)   { null[0]=1; return 0; }
   int  store(longlong nr) { null[0]=1; return 0; }
   void reset(void)	  {}
@@ -683,10 +669,6 @@ public:
 	     struct st_table *table_arg)
     :Field_tiny(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		unireg_check_arg, field_name_arg, table_arg, 1, 1)
-    {}
-  Field_year(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
-    :Field_tiny(len_arg,maybe_null_arg,field_name_arg,table_arg,1)
     {}
   enum_field_types type() const { return FIELD_TYPE_YEAR;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
