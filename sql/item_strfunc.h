@@ -310,7 +310,11 @@ class Item_func_database :public Item_str_func
 public:
   Item_func_database() {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= MAX_FIELD_NAME; }
+  void fix_length_and_dec() 
+  { 
+    max_length= MAX_FIELD_NAME * thd_charset()->mbmaxlen; 
+    set_charset(thd_charset());
+  }
   const char *func_name() const { return "database"; }
 };
 
@@ -319,7 +323,11 @@ class Item_func_user :public Item_str_func
 public:
   Item_func_user() {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= USERNAME_LENGTH+HOSTNAME_LENGTH+1; }
+  void fix_length_and_dec() 
+  { 
+    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*thd_charset()->mbmaxlen; 
+    set_charset(thd_charset());
+  }
   const char *func_name() const { return "user"; }
 };
 
@@ -567,7 +575,8 @@ public:
   const char *func_name() const { return "charset"; }
   void fix_length_and_dec() 
   {
-     max_length=20; // should be enough
+     max_length=40; // should be enough
+     set_charset(thd_charset());
   };
 };
 
