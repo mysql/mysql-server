@@ -34,3 +34,10 @@ extern pthread_mutex_t THR_LOCK_charset;
 #include <my_no_pthread.h>
 #endif
 
+/*
+  EDQUOT is used only in 3 C files only in mysys/. If it does not exist on
+  system, we set it to some value which can never happen.
+*/
+#ifndef EDQUOT
+#define EDQUOT (-1)
+#endif

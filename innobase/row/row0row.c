@@ -343,6 +343,7 @@ row_build_row_ref(
 	ulint		ref_len;
 	ulint		pos;
 	byte*		buf;
+	ulint		clust_col_prefix_len;
 	ulint		i;
 	
 	ut_ad(index && rec && heap);
@@ -375,6 +376,22 @@ row_build_row_ref(
 		field = rec_get_nth_field(rec, pos, &len);
 
 		dfield_set_data(dfield, field, len);
+
+		/* If the primary key contains a column prefix, then the
+		secondary index may contain a longer prefix of the same
+		column, or the full column, and we must adjust the length
+		accordingly. */
+
+		clust_col_prefix_len =
+			dict_index_get_nth_field(clust_index, i)->prefix_len;
+
+		if (clust_col_prefix_len > 0) {
+		    	if (len != UNIV_SQL_NULL
+			    && len > clust_col_prefix_len) {
+
+				dfield_set_len(dfield, clust_col_prefix_len);
+			}
+		}
 	}
 
 	ut_ad(dtuple_check_typed(ref));
@@ -406,6 +423,7 @@ row_build_row_ref_in_tuple(
 	ulint		len;
 	ulint		ref_len;
 	ulint		pos;
+	ulint		clust_col_prefix_len;
 	ulint		i;
 	
 	ut_a(ref && index && rec);
@@ -443,6 +461,22 @@ row_build_row_ref_in_tuple(
 		field = rec_get_nth_field(rec, pos, &len);
 
 		dfield_set_data(dfield, field, len);
+
+		/* If the primary key contains a column prefix, then the
+		secondary index may contain a longer prefix of the same
+		column, or the full column, and we must adjust the length
+		accordingly. */
+
+		clust_col_prefix_len =
+			dict_index_get_nth_field(clust_index, i)->prefix_len;
+
+		if (clust_col_prefix_len > 0) {
+		    	if (len != UNIV_SQL_NULL
+			    && len > clust_col_prefix_len) {
+
+				dfield_set_len(dfield, clust_col_prefix_len);
+			}
+		}
 	}
 
 	ut_ad(dtuple_check_typed(ref));

@@ -70,6 +70,12 @@ int mi_close(register MI_INFO *info)
       error=my_errno;
     if (share->kfile >= 0)
     {
+      /*
+        If we are crashed, we can safely flush the current state as it will
+        not change the crashed state.
+        We can NOT write the state in other cases as other threads
+        may be using the file at this point
+      */
       if (share->mode != O_RDONLY && mi_is_crashed(info))
 	mi_state_info_write(share->kfile, &share->state, 1);
       if (my_close(share->kfile,MYF(0)))

@@ -30,7 +30,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ scripts man tests SSL\
+			@sql_server_dirs@ scripts @man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 

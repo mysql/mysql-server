@@ -101,7 +101,7 @@ SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 #
 # Connect without a database
 create table t1 select 1 as a;
-connect (con1,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,master.sock);
+connect (con1,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection con1;
 --error 1046
 select 2 as a from (select * from t1) b;
