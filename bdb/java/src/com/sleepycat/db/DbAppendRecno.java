@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000
- *	Sleepycat Software.  All rights reserved.
+ * Copyright (c) 2000-2002
+ *      Sleepycat Software.  All rights reserved.
  *
- *	$Id: DbAppendRecno.java,v 11.1 2000/07/31 20:28:30 dda Exp $
+ * $Id: DbAppendRecno.java,v 11.5 2002/01/11 15:52:33 bostic Exp $
  */
 
 package com.sleepycat.db;
 
 /*
  * This interface is used by Db.set_append_recno()
- * 
+ *
  */
 public interface DbAppendRecno
 {

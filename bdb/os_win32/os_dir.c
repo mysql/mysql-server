@@ -1,18 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_dir.c,v 11.4 2000/03/28 21:50:17 ubell Exp $";
+static const char revid[] = "$Id: os_dir.c,v 11.12 2002/07/12 18:56:54 bostic Exp $";
 #endif /* not lint */
 
 #include "db_int.h"
-#include "os_jump.h"
 
 /*
  * __os_dirlist --
@@ -26,12 +25,16 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 	int *cntp;
 {
 	struct _finddata_t fdata;
+#ifdef _WIN64
+	intptr_t dirhandle;
+#else
 	long dirhandle;
+#endif
 	int arraysz, cnt, finished, ret;
 	char **names, filespec[MAXPATHLEN];
 
-	if (__db_jump.j_dirlist != NULL)
-		return (__db_jump.j_dirlist(dir, namesp, cntp));
+	if (DB_GLOBAL(j_dirlist) != NULL)
+		return (DB_GLOBAL(j_dirlist)(dir, namesp, cntp));
 
 	(void)snprintf(filespec, sizeof(filespec), "%s/*", dir);
 	if ((dirhandle = _findfirst(filespec, &fdata)) == -1)
@@ -43,12 +46,12 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 		if (cnt >= arraysz) {
 			arraysz += 100;
 			if ((ret = __os_realloc(dbenv,
-			    arraysz * sizeof(names[0]), NULL, &names)) != 0)
+			    arraysz * sizeof(names[0]), &names)) != 0)
 				goto nomem;
 		}
 		if ((ret = __os_strdup(dbenv, fdata.name, &names[cnt])) != 0)
 			goto nomem;
-		if (_findnext(dirhandle,&fdata) != 0)
+		if (_findnext(dirhandle, &fdata) != 0)
 			finished = 1;
 	}
 	_findclose(dirhandle);
@@ -58,7 +61,7 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 	return (0);
 
 nomem:	if (names != NULL)
-		__os_dirfree(names, cnt);
+		__os_dirfree(dbenv, names, cnt);
 	return (ret);
 }
 
@@ -67,16 +70,17 @@ nomem:	if (names != NULL)
  *	Free the list of files.
  */
 void
-__os_dirfree(names, cnt)
+__os_dirfree(dbenv, names, cnt)
+	DB_ENV *dbenv;
 	char **names;
 	int cnt;
 {
-	if (__db_jump.j_dirfree != NULL) {
-		__db_jump.j_dirfree(names, cnt);
+	if (DB_GLOBAL(j_dirfree) != NULL) {
+		DB_GLOBAL(j_dirfree)(names, cnt);
 		return;
 	}
 
 	while (cnt > 0)
-		__os_free(names[--cnt], 0);
-	__os_free(names, 0);
+		__os_free(dbenv, names[--cnt]);
+	__os_free(dbenv, names);
 }

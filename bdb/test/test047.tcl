@@ -1,15 +1,17 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test047.tcl,v 11.10 2000/08/25 14:21:56 sue Exp $
+# $Id: test047.tcl,v 11.19 2002/08/05 19:23:51 sandstro Exp $
 #
-# DB Test 47: test of the SET_RANGE interface to DB->c_get.
+# TEST	test047
+# TEST	DBcursor->c_get get test with SET_RANGE option.
 proc test047 { method args } {
 	source ./include.tcl
 
 	set tstn 047
+	set args [convert_args $method $args]
 
 	if { [is_btree $method] != 1 } {
 		puts "Test$tstn skipping for method $method"
@@ -27,6 +29,7 @@ proc test047 { method args } {
 
 	puts "\tTest$tstn.a: Create $method database."
 	set eindex [lsearch -exact $args "-env"]
+	set txnenv 0
 	#
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
@@ -41,26 +44,44 @@ proc test047 { method args } {
 		set testfile2 test0$tstn.b.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 
-	set oflags "-create -truncate -mode 0644 -dup $args $method"
+	set oflags "-create -mode 0644 -dup $args $method"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
-
-	# open curs to db
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
 
 	set nkeys 20
 	# Fill page w/ small key/data pairs
 	#
 	puts "\tTest$tstn.b: Fill page with $nkeys small key/data pairs."
 	for { set i 0 } { $i < $nkeys } { incr i } {
-		set ret [$db put $key$i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i $data$i}]
 		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	# open curs to db
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	puts "\tTest$tstn.c: Get data with SET_RANGE, then delete by cursor."
 	set i 0
@@ -77,13 +98,14 @@ proc test047 { method args } {
 
 	puts "\tTest$tstn.d: \
 	    Use another cursor to fix item on page, delete by db."
-	set dbcurs2 [$db cursor]
-	error_check_good db:cursor2 [is_substr $dbcurs2 $db] 1
+	set dbcurs2 [eval {$db cursor} $txn]
+	error_check_good db:cursor2 [is_valid_cursor $dbcurs2 $db] TRUE
 
 	set ret [$dbcurs2 get -set [lindex [lindex $ret 0] 0]]
 	error_check_bad dbc_get(2):set [llength $ret] 0
 	set curr $ret
-	error_check_good db:del [$db del [lindex [lindex $ret 0] 0]] 0
+	error_check_good db:del [eval {$db del} $txn \
+	    {[lindex [lindex $ret 0] 0]}] 0
 
 	# make sure item is gone
 	set ret [$dbcurs2 get -set_range [lindex [lindex $curr 0] 0]]
@@ -93,6 +115,9 @@ proc test047 { method args } {
 	puts "\tTest$tstn.e: Close for second part of test, close db/cursors."
 	error_check_good dbc:close [$dbc close] 0
 	error_check_good dbc2:close [$dbcurs2 close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good dbclose [$db close] 0
 
 	# open db
@@ -103,27 +128,48 @@ proc test047 { method args } {
 	puts "\tTest$tstn.f: Fill page with $nkeys pairs, one set of dups."
 	for {set i 0} { $i < $nkeys } {incr i} {
 		# a pair
-		set ret [$db put $key$i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i $data$i}]
 		error_check_good dbput($i) $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 
 	set j 0
 	for {set i 0} { $i < $nkeys } {incr i} {
 		# a dup set for same  1 key
-		set ret [$db put $key$i DUP_$data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i DUP_$data$i}]
 		error_check_good dbput($i):dup $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 
 	puts "\tTest$tstn.g: \
 	    Get dups key w/ SET_RANGE, pin onpage with another cursor."
 	set i 0
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 	set ret [$dbc get -set_range $key$i]
 	error_check_bad dbc_get:set_range [llength $ret] 0
 
-	set dbc2 [$db cursor]
-	error_check_good db_cursor2 [is_substr $dbc2 $db] 1
+	set dbc2 [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc2 $db] TRUE
 	set ret2 [$dbc2 get -set_range $key$i]
 	error_check_bad dbc2_get:set_range [llength $ret] 0
 
@@ -138,14 +184,13 @@ proc test047 { method args } {
 
 	error_check_good dbc_close [$dbc close] 0
 	error_check_good dbc2_close [$dbc2 close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	set db [eval {berkdb_open} $oflags $testfile2]
 	error_check_good dbopen [is_valid_db $db] TRUE
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
-	set dbc2 [$db cursor]
-	error_check_good db_cursor2 [is_substr $dbc2 $db] 1
 
 	set nkeys 10
 	set ndups 1000
@@ -153,18 +198,36 @@ proc test047 { method args } {
 	puts "\tTest$tstn.i: Fill page with $nkeys pairs and $ndups dups."
 	for {set i 0} { $i < $nkeys } { incr i} {
 		# a pair
-		set ret [$db put $key$i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i $data$i}]
 		error_check_good dbput $ret 0
 
 		# dups for single pair
 		if { $i == 0} {
 			for {set j 0} { $j < $ndups } { incr j } {
-				set ret [$db put $key$i DUP_$data$i:$j]
+				set ret [eval {$db put} $txn \
+				    {$key$i DUP_$data$i:$j}]
 				error_check_good dbput:dup $ret 0
 			}
 		}
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 	set i 0
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
+	set dbc2 [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc2 $db] TRUE
 	puts "\tTest$tstn.j: \
 	    Get key of first dup with SET_RANGE, fix with 2 curs."
 	set ret [$dbc get -set_range $key$i]
@@ -186,6 +249,9 @@ proc test047 { method args } {
 	puts "\tTest$tstn.l: Cleanup."
 	error_check_good dbc_close [$dbc close] 0
 	error_check_good dbc2_close [$dbc2 close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	puts "\tTest$tstn complete."

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: bt_conv.c,v 11.6 2000/03/31 00:30:26 ubell Exp $";
+static const char revid[] = "$Id: bt_conv.c,v 11.13 2002/08/06 06:11:12 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -16,20 +16,21 @@ static const char revid[] = "$Id: bt_conv.c,v 11.6 2000/03/31 00:30:26 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "btree.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_swap.h"
+#include "dbinc/btree.h"
 
 /*
  * __bam_pgin --
  *	Convert host-specific page layout from the host-independent format
  *	stored on disk.
  *
- * PUBLIC: int __bam_pgin __P((DB_ENV *, db_pgno_t, void *, DBT *));
+ * PUBLIC: int __bam_pgin __P((DB_ENV *, DB *, db_pgno_t, void *, DBT *));
  */
 int
-__bam_pgin(dbenv, pg, pp, cookie)
+__bam_pgin(dbenv, dummydbp, pg, pp, cookie)
 	DB_ENV *dbenv;
+	DB *dummydbp;
 	db_pgno_t pg;
 	void *pp;
 	DBT *cookie;
@@ -38,12 +39,12 @@ __bam_pgin(dbenv, pg, pp, cookie)
 	PAGE *h;
 
 	pginfo = (DB_PGINFO *)cookie->data;
-	if (!pginfo->needswap)
+	if (!F_ISSET(pginfo, DB_AM_SWAP))
 		return (0);
 
 	h = pp;
 	return (TYPE(h) == P_BTREEMETA ?  __bam_mswap(pp) :
-	     __db_byteswap(dbenv, pg, pp, pginfo->db_pagesize, 1));
+	    __db_byteswap(dbenv, dummydbp, pg, pp, pginfo->db_pagesize, 1));
 }
 
 /*
@@ -51,11 +52,12 @@ __bam_pgin(dbenv, pg, pp, cookie)
  *	Convert host-specific page layout to the host-independent format
  *	stored on disk.
  *
- * PUBLIC: int __bam_pgout __P((DB_ENV *, db_pgno_t, void *, DBT *));
+ * PUBLIC: int __bam_pgout __P((DB_ENV *, DB *, db_pgno_t, void *, DBT *));
  */
 int
-__bam_pgout(dbenv, pg, pp, cookie)
+__bam_pgout(dbenv, dummydbp, pg, pp, cookie)
 	DB_ENV *dbenv;
+	DB *dummydbp;
 	db_pgno_t pg;
 	void *pp;
 	DBT *cookie;
@@ -64,12 +66,12 @@ __bam_pgout(dbenv, pg, pp, cookie)
 	PAGE *h;
 
 	pginfo = (DB_PGINFO *)cookie->data;
-	if (!pginfo->needswap)
+	if (!F_ISSET(pginfo, DB_AM_SWAP))
 		return (0);
 
 	h = pp;
 	return (TYPE(h) == P_BTREEMETA ?  __bam_mswap(pp) :
-	    __db_byteswap(dbenv, pg, pp, pginfo->db_pagesize, 0));
+	    __db_byteswap(dbenv, dummydbp, pg, pp, pginfo->db_pagesize, 0));
 }
 
 /*
@@ -93,6 +95,8 @@ __bam_mswap(pg)
 	SWAP32(p);		/* re_len */
 	SWAP32(p);		/* re_pad */
 	SWAP32(p);		/* root */
+	p += 92 * sizeof(u_int32_t); /* unused */
+	SWAP32(p);		/* crypto_magic */
 
 	return (0);
 }

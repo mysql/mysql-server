@@ -1,98 +1,82 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: java_locked.h,v 11.9 2000/10/25 19:54:55 dda Exp $
+ * $Id: java_locked.h,v 11.18 2002/05/07 16:12:42 dda Exp $
  */
 
 #ifndef _JAVA_LOCKED_H_
 #define	_JAVA_LOCKED_H_
 
 /*
- * Used internally by LockedDBT constructor.
+ * Used as argument to locked_dbt_get().
  */
 typedef enum _OpKind {
-	inOp,     /* setting data in database (passing data in) */
-	outOp,    /* getting data from database to user memory */
-	inOutOp   /* both getting/setting data */
+	inOp,		/* setting data in database (passing data in) */
+	outOp,		/* getting data from database to user memory */
+	inOutOp		/* both getting/setting data */
 } OpKind;
 
 /*
+ * LOCKED_DBT
  *
- * Declaration of JDBT
- *
- * A JDBT object exists during a
- * single native call to the DB API.  Its constructor's job is
- * to temporarily convert any java array found in the DBT_JAVAINFO
- * to actual bytes in memory that remain locked in place.  These
- * bytes are used during the call to the underlying DB C layer,
- * and are released and/or copied back by the destructor.
- * Thus, a LockedDBT must be declared as a stack object to
- * function properly.
+ * A stack variable LOCKED_DBT should be declared for each Dbt used in a
+ * native call to the DB API.  Before the DBT can be used, locked_dbt_get()
+ * must be called to temporarily convert any java array found in the
+ * Dbt (which has a pointer to a DBT_JAVAINFO struct) to actual bytes
+ * in memory that remain locked in place.  These bytes are used during
+ * the call to the DB C API, and are released and/or copied back when
+ * locked_dbt_put is called.
  */
-typedef struct _jdbt
+typedef struct _locked_dbt
 {
-	/* these are accessed externally to ldbt_ functions */
-	DBT_JAVAINFO *dbt;
-	unsigned int java_array_len_;
+	/* these are accessed externally to locked_dbt_ functions */
+	DBT_JAVAINFO *javainfo;
+	unsigned int java_array_len;
+	jobject jdbt;
 
-	/* these are for used internally by ldbt_ functions */
-	jobject obj_;
-	jbyte *java_data_;
-	jbyte *before_data_;
-	int has_error_;
-	int do_realloc_;
-	OpKind kind_;
-} JDBT;
+	/* these are for used internally by locked_dbt_ functions */
+	jbyte *java_data;
+	jbyte *before_data;
+	OpKind kind;
 
-extern int jdbt_lock(JDBT *, JNIEnv *jnienv, jobject obj, OpKind kind);
-extern void jdbt_unlock(JDBT *, JNIEnv *jnienv); /* this unlocks and frees the memory */
-extern int jdbt_realloc(JDBT *, JNIEnv *jnienv); /* returns 1 if reallocation took place */
+#define	LOCKED_ERROR		0x01	/* error occurred */
+#define	LOCKED_CREATE_DATA	0x02	/* must create data on the fly */
+#define	LOCKED_REALLOC_NONNULL	0x04	/* DB_DBT_REALLOC flag, nonnull data */
+	u_int32_t flags;
+} LOCKED_DBT;
 
-/****************************************************************
+/* Fill the LOCKED_DBT struct and lock the Java byte array */
+extern int locked_dbt_get(LOCKED_DBT *, JNIEnv *, DB_ENV *, jobject, OpKind);
+
+/* unlock the Java byte array */
+extern void locked_dbt_put(LOCKED_DBT *, JNIEnv *, DB_ENV *);
+
+/* realloc the Java byte array */
+extern int locked_dbt_realloc(LOCKED_DBT *, JNIEnv *, DB_ENV *);
+
+/*
+ * LOCKED_STRING
  *
- * Declaration of JSTR
- *
- * A JSTR exists temporarily to convert a java jstring object
+ * A LOCKED_STRING exists temporarily to convert a java jstring object
  * to a char *.  Because the memory for the char * string is
  * managed by the JVM, it must be released when we are done
- * looking at it.  Typically, jstr_lock() is called at the
- * beginning of a function for each jstring object, and jstr_unlock
- * is called at the end of each function for each JSTR.
+ * looking at it.  Typically, locked_string_get() is called at the
+ * beginning of a function for each jstring object, and locked_string_put
+ * is called at the end of each function for each LOCKED_STRING.
  */
-typedef struct _jstr
+typedef struct _locked_string
 {
-	/* this accessed externally to jstr_ functions */
+	/* this accessed externally to locked_string_ functions */
 	const char *string;
 
-	/* this is used internally by jstr_ functions */
-	jstring jstr_;
-} JSTR;
+	/* this is used internally by locked_string_ functions */
+	jstring jstr;
+} LOCKED_STRING;
 
-extern int jstr_lock(JSTR *, JNIEnv *jnienv, jstring jstr);
-extern void jstr_unlock(JSTR *, JNIEnv *jnienv);  /* this unlocks and frees mem */
-
-/****************************************************************
- *
- * Declaration of class LockedStrarray
- *
- * Given a java jobjectArray object (that must be a String[]),
- * we extract the individual strings and build a const char **
- * When the LockedStrarray object is destroyed, the individual
- * strings are released.
- */
-typedef struct _jstrarray
-{
-	/* this accessed externally to jstrarray_ functions */
-	const char **array;
-
-	/* this is used internally by jstrarray_ functions */
-	jobjectArray arr_;
-} JSTRARRAY;
-
-extern int jstrarray_lock(JSTRARRAY *, JNIEnv *jnienv, jobjectArray arr);
-extern void jstrarray_unlock(JSTRARRAY *, JNIEnv *jnienv);  /* this unlocks and frees mem */
+extern int locked_string_get(LOCKED_STRING *, JNIEnv *jnienv, jstring jstr);
+extern void locked_string_put(LOCKED_STRING *, JNIEnv *jnienv);  /* this unlocks and frees mem */
 
 #endif /* !_JAVA_LOCKED_H_ */

@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test072.tcl,v 11.13 2000/12/11 17:24:55 sue Exp $
+# $Id: test072.tcl,v 11.27 2002/07/01 15:40:48 krinsky Exp $
 #
-# DB Test 72: Test of cursor stability when duplicates are moved off-page.
+# TEST	test072
+# TEST	Test of cursor stability when duplicates are moved off-page.
 proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	source ./include.tcl
 	global alphabet
@@ -13,6 +14,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
 
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -24,6 +26,11 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 		set testfile test0$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
 
@@ -36,8 +43,6 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	# alphabets used for the $key's data.
 	set predatum "1234567890"
 	set postdatum "0987654321"
-
-	append args " -pagesize $pagesize "
 
 	puts -nonewline "Test0$tnum $omethod ($args): "
 	if { [is_record_based $method] || [is_rbtree $method] } {
@@ -53,57 +58,73 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 		return
 	}
 
-	foreach dupopt { "-dup" "-dup -dupsort" } {
-		set db [eval {berkdb_open -create -truncate -mode 0644} \
-	 	    $omethod $args $dupopt $testfile]
+	append args " -pagesize $pagesize "
+	set txn ""
+
+	set dlist [list "-dup" "-dup -dupsort"]
+	set testid 0
+	foreach dupopt $dlist {
+		incr testid
+		set duptestfile $testfile$testid
+		set db [eval {berkdb_open -create -mode 0644} \
+		    $omethod $args $dupopt {$duptestfile}]
 		error_check_good "db open" [is_valid_db $db] TRUE
 
 		puts \
 "\tTest0$tnum.a: ($dupopt) Set up surrounding keys and cursors."
-		error_check_good pre_put [$db put $prekey $predatum] 0
-		error_check_good post_put [$db put $postkey $postdatum] 0
-		set precursor [$db cursor]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$prekey $predatum}]
+		error_check_good pre_put $ret 0
+		set ret [eval {$db put} $txn {$postkey $postdatum}]
+		error_check_good post_put $ret 0
+
+		set precursor [eval {$db cursor} $txn]
 		error_check_good precursor [is_valid_cursor $precursor \
 		    $db] TRUE
-		set postcursor [$db cursor]
+		set postcursor [eval {$db cursor} $txn]
 		error_check_good postcursor [is_valid_cursor $postcursor \
 		    $db] TRUE
 		error_check_good preset [$precursor get -set $prekey] \
 			[list [list $prekey $predatum]]
 		error_check_good postset [$postcursor get -set $postkey] \
 			[list [list $postkey $postdatum]]
-	
+
 		puts "\tTest0$tnum.b: Put/create cursor/verify all cursor loop."
-	
+
 		for { set i 0 } { $i < $ndups } { incr i } {
 			set datum [format "%4d$alphabet" [expr $i + 1000]]
 			set data($i) $datum
-	
+
 			# Uncomment these lines to see intermediate steps.
-			error_check_good db_sync($i) [$db sync] 0
-			error_check_good db_dump($i) \
-			    [catch {exec $util_path/db_dump \
-				-da $testfile > TESTDIR/out.$i}] 0
-	
-			error_check_good "db put ($i)" [$db put $key $datum] 0
-	
-			set dbc($i) [$db cursor]
+			# error_check_good db_sync($i) [$db sync] 0
+			# error_check_good db_dump($i) \
+			#     [catch {exec $util_path/db_dump \
+			#	-da $duptestfile > $testdir/out.$i}] 0
+
+			set ret [eval {$db put} $txn {$key $datum}]
+			error_check_good "db put ($i)" $ret 0
+
+			set dbc($i) [eval {$db cursor} $txn]
 			error_check_good "db cursor ($i)"\
 			    [is_valid_cursor $dbc($i) $db] TRUE
-	
+
 			error_check_good "dbc get -get_both ($i)"\
 			    [$dbc($i) get -get_both $key $datum]\
 			    [list [list $key $datum]]
-	
+
 			for { set j 0 } { $j < $i } { incr j } {
 				set dbt [$dbc($j) get -current]
 				set k [lindex [lindex $dbt 0] 0]
 				set d [lindex [lindex $dbt 0] 1]
-	
+
 				#puts "cursor $j after $i: $d"
-	
+
 				eval {$db sync}
-	
+
 				error_check_good\
 				    "cursor $j key correctness after $i puts" \
 				    $k $key
@@ -111,8 +132,8 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 				    "cursor $j data correctness after $i puts" \
 				    $d $data($j)
 			}
-	
-			# Check correctness of pre- and post- cursors.  Do an 
+
+			# Check correctness of pre- and post- cursors.  Do an
 			# error_check_good on the lengths first so that we don't
 			# spew garbage as the "got" field and screw up our
 			# terminal.  (It's happened here.)
@@ -121,7 +142,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			error_check_good \
 			    "key earlier cursor correctness after $i puts" \
 			    [string length [lindex [lindex $pre_dbt 0] 0]] \
-			    [string length $prekey] 
+			    [string length $prekey]
 			error_check_good \
 			    "data earlier cursor correctness after $i puts" \
 			    [string length [lindex [lindex $pre_dbt 0] 1]] \
@@ -129,12 +150,11 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			error_check_good \
 			    "key later cursor correctness after $i puts" \
 			    [string length [lindex [lindex $post_dbt 0] 0]] \
-			    [string length $postkey] 
+			    [string length $postkey]
 			error_check_good \
 			    "data later cursor correctness after $i puts" \
 			    [string length [lindex [lindex $post_dbt 0] 1]]\
 			    [string length $postdatum]
-	
 
 			error_check_good \
 			    "earlier cursor correctness after $i puts" \
@@ -143,38 +163,40 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			    "later cursor correctness after $i puts" \
 			    $post_dbt [list [list $postkey $postdatum]]
 		}
-	
+
 		puts "\tTest0$tnum.c: Reverse Put/create cursor/verify all cursor loop."
 		set end [expr $ndups * 2 - 1]
-		for { set i $end } { $i > $ndups } { set i [expr $i - 1] } {
+		for { set i $end } { $i >= $ndups } { set i [expr $i - 1] } {
 			set datum [format "%4d$alphabet" [expr $i + 1000]]
 			set data($i) $datum
-	
+
 			# Uncomment these lines to see intermediate steps.
-			error_check_good db_sync($i) [$db sync] 0
-			error_check_good db_dump($i) \
-			    [catch {exec $util_path/db_dump \
-				-da $testfile > TESTDIR/out.$i}] 0
-	
-			error_check_good "db put ($i)" [$db put $key $datum] 0
-	
-			set dbc($i) [$db cursor]
+			# error_check_good db_sync($i) [$db sync] 0
+			# error_check_good db_dump($i) \
+			#     [catch {exec $util_path/db_dump \
+			# 	-da $duptestfile > $testdir/out.$i}] 0
+
+			set ret [eval {$db put} $txn {$key $datum}]
+			error_check_good "db put ($i)" $ret 0
+
+			error_check_bad dbc($i)_stomped [info exists dbc($i)] 1
+			set dbc($i) [eval {$db cursor} $txn]
 			error_check_good "db cursor ($i)"\
 			    [is_valid_cursor $dbc($i) $db] TRUE
-	
+
 			error_check_good "dbc get -get_both ($i)"\
 			    [$dbc($i) get -get_both $key $datum]\
 			    [list [list $key $datum]]
-	
+
 			for { set j $i } { $j < $end } { incr j } {
 				set dbt [$dbc($j) get -current]
 				set k [lindex [lindex $dbt 0] 0]
 				set d [lindex [lindex $dbt 0] 1]
-	
+
 				#puts "cursor $j after $i: $d"
-	
+
 				eval {$db sync}
-	
+
 				error_check_good\
 				    "cursor $j key correctness after $i puts" \
 				    $k $key
@@ -182,8 +204,8 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 				    "cursor $j data correctness after $i puts" \
 				    $d $data($j)
 			}
-	
-			# Check correctness of pre- and post- cursors.  Do an 
+
+			# Check correctness of pre- and post- cursors.  Do an
 			# error_check_good on the lengths first so that we don't
 			# spew garbage as the "got" field and screw up our
 			# terminal.  (It's happened here.)
@@ -192,7 +214,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			error_check_good \
 			    "key earlier cursor correctness after $i puts" \
 			    [string length [lindex [lindex $pre_dbt 0] 0]] \
-			    [string length $prekey] 
+			    [string length $prekey]
 			error_check_good \
 			    "data earlier cursor correctness after $i puts" \
 			    [string length [lindex [lindex $pre_dbt 0] 1]] \
@@ -200,12 +222,11 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			error_check_good \
 			    "key later cursor correctness after $i puts" \
 			    [string length [lindex [lindex $post_dbt 0] 0]] \
-			    [string length $postkey] 
+			    [string length $postkey]
 			error_check_good \
 			    "data later cursor correctness after $i puts" \
 			    [string length [lindex [lindex $post_dbt 0] 1]]\
 			    [string length $postdatum]
-	
 
 			error_check_good \
 			    "earlier cursor correctness after $i puts" \
@@ -217,8 +238,14 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 
 		# Close cursors.
 		puts "\tTest0$tnum.d: Closing cursors."
-		for { set i 0 } { $i < $ndups } { incr i } {
+		for { set i 0 } { $i <= $end } { incr i } {
 			error_check_good "dbc close ($i)" [$dbc($i) close] 0
+		}
+		unset dbc
+		error_check_good precursor_close [$precursor close] 0
+		error_check_good postcursor_close [$postcursor close] 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
 		}
 		error_check_good "db close" [$db close] 0
 	}

@@ -1,37 +1,47 @@
 #!/bin/sh -
-#	$Id: s_perm,v 1.9 2001/01/24 15:55:38 bostic Exp $
+#	$Id: s_perm,v 1.23 2002/09/09 15:03:06 bostic Exp $
 
+d=..
 echo 'Updating Berkeley DB source tree permissions...'
 
 run()
 {
 	echo "	$1 ($2)"
-	if [ -f "../$1" ]; then
-		chmod "$2" "../$1"
+	if [ -f "$d/$1" ]; then
+		chmod "$2" "$d/$1"
 	else
-		echo "$1: no such file or directory"
+		echo "$d/$1: no such file or directory"
 		exit 1
 	fi
 }
 
-run dist/build/chk.def 0555
-run dist/build/chk.define 0555
-run dist/build/chk.offt 0555
-run dist/build/chk.srcfiles 0555
-run dist/build/chk.tags 0555
-run dist/config.guess 0555
-run dist/config.sub 0555
-run dist/configure 0555
-run dist/install-sh 0555
-run dist/s_config 0555
-run dist/s_include 0555
-run dist/s_java 0555
-run dist/s_perm 0555
-run dist/s_readme 0555
-run dist/s_recover 0555
-run dist/s_symlink 0555
-run dist/s_tags 0555
-run dist/s_tcl 0555
-run dist/s_win32 0555
-run perl.BerkeleyDB/dbinfo 0555
-run perl.BerkeleyDB/mkpod 0555
+run build_win32/include.tcl 664
+run dist/config.guess 555
+run dist/config.sub 555
+run dist/configure 555
+run dist/install-sh 555
+run dist/s_all 555
+run dist/s_config 555
+run dist/s_include 555
+run dist/s_java 555
+run dist/s_javah 555
+run dist/s_perm 555
+run dist/s_readme 555
+run dist/s_recover 555
+run dist/s_rpc 555
+run dist/s_symlink 555
+run dist/s_tags 555
+run dist/s_test 555
+run dist/s_vxworks 555
+run dist/s_win32 555
+run dist/s_win32_dsp 555
+run dist/vx_buildcd 555
+
+run perl/BerkeleyDB/dbinfo 555
+run perl/BerkeleyDB/mkpod 555
+
+for i in `cd $d && find build_vxworks \
+    -name '*.wsp' -o -name '*.cdf' -o -name '*.wpj'`; do
+	echo "	$i (775)"
+	chmod 775 $d/$i
+done
