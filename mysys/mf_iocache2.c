@@ -23,7 +23,6 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
-#include <assert.h>
 
 my_off_t my_b_append_tell(IO_CACHE* info)
 {
