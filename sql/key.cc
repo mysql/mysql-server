@@ -293,7 +293,7 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
     f.rewind();
     while ((field=(Item_field*) f++))
     {
-      if (key_part->field == field->field)
+      if (key_part->field->eq(field->field))
 	return 1;
     }
   }
