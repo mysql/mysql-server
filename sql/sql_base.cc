@@ -837,25 +837,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
-      MEM_ROOT* glob_alloc;
-      LINT_INIT(glob_alloc);
-
-      if (errno == ENOENT &&
-	 (glob_alloc = my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC)))
-	// Sasha: needed for replication
-	// remember the name of the non-existent table
-	// so we can try to download it from the master
-      {
-	int table_name_len = (uint) strlen(table_name);
-	int db_len = (uint) strlen(db);
-	thd->last_nx_db = alloc_root(glob_alloc,db_len + table_name_len + 2);
-	if(thd->last_nx_db)
-	{
-	  thd->last_nx_table = thd->last_nx_db + db_len + 1;
-	  memcpy(thd->last_nx_table, table_name, table_name_len + 1);
-	  memcpy(thd->last_nx_db, db, db_len + 1);
-	}
-      }
       table->next=table->prev=table;
       free_cache_entry(table);
       VOID(pthread_mutex_unlock(&LOCK_open));

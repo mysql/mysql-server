@@ -1,2 +1,32 @@
 n	m
 4	15
+Database
+bar
+foo
+mysql
+test
+Database
+mysql
+test
+Database
+bar
+foo
+mysql
+test
+Tables_in_foo
+Tables_in_bar
+t1
+t2
+n	s
+1	one bar
+2	two bar
+3	three bar
+n	s
+11	eleven bar
+12	twelve bar
+13	thirteen bar
+n	s
+1	one bar
+2	two bar
+3	three bar
+4	four bar
