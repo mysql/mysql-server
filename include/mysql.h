@@ -564,8 +564,8 @@ typedef struct st_mysql_methods
   int (STDCALL *stmt_execute)(MYSQL_STMT *stmt);
   MYSQL_DATA *(STDCALL *read_binary_rows)(MYSQL_STMT *stmt);
   int (STDCALL *unbuffered_fetch)(MYSQL *mysql, char **row);
+  void (STDCALL *free_embedded_thd)(MYSQL *mysql);
 #endif
-
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
