@@ -332,6 +332,8 @@ const char *sql_mode_str="OFF";
 const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 
+uint rpl_recovery_rank=0;
+
 #ifdef HAVE_GEMINI_DB
 const char *gemini_recovery_options_str="FULL";
 #endif
@@ -2608,7 +2610,8 @@ enum options {
                OPT_DO_PSTACK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE
+               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
+	       OPT_RPL_RECOVERY_RANK
 };
 
 static struct option long_options[] = {
@@ -2733,6 +2736,7 @@ static struct option long_options[] = {
   {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
+  {"rpl-recovery-rank",     required_argument, 0, (int) OPT_RPL_RECOVERY_RANK},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
@@ -3032,6 +3036,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
+  {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -3451,6 +3456,9 @@ static void get_options(int argc,char **argv)
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
       safemalloc_mem_limit = atoi(optarg);
 #endif      
+      break;
+    case OPT_RPL_RECOVERY_RANK:
+      rpl_recovery_rank=atoi(optarg);
       break;
     case OPT_SLAVE_LOAD_TMPDIR:
       slave_load_tmpdir = my_strdup(optarg, MYF(MY_FAE));
