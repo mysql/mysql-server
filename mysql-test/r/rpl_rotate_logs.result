@@ -203,7 +203,7 @@ master-bin.000001	9190	Query	1	9016	use `test`; insert into t1 values(4 + 4)
 master-bin.000001	9282	Query	1	9108	use `test`; insert into t1 values(3 + 4)
 master-bin.000001	9374	Query	1	9200	use `test`; insert into t1 values(2 + 4)
 master-bin.000001	9466	Query	1	9292	use `test`; insert into t1 values(1 + 4)
-master-bin.000001	9558	Xid	1	9319	COMMIT /* xid=146 */
+master-bin.000001	9558	Xid	1	9585	COMMIT /* xid=146 */
 master-bin.000001	9585	Rotate	1	9629	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

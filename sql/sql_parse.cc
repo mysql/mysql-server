@@ -129,13 +129,13 @@ static bool end_active_trans(THD *thd)
 		      OPTION_TABLE_LOCK))
   {
     DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
   }
   DBUG_RETURN(error);
 }
@@ -1337,9 +1337,9 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
      even if there is a problem with the OPTION_AUTO_COMMIT flag
      (Which of course should never happen...)
     */
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
