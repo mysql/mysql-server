@@ -33,6 +33,7 @@ DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\"" \
+			-DNDB_PORT="\"@ndb_port@\"" \
 			-DNDB_BASE_PORT="\"@ndb_port_base@\""
 
 include $(top_srcdir)/ndb/config/common.mk.am

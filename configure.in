@@ -3052,9 +3052,15 @@ AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
 
 
+if test X"$ndb_port" = Xdefault
+then
+  ndb_port="1186"
+fi
+AC_SUBST([ndb_port])
+
 if test X"$ndb_port_base" = Xdefault
 then
-  ndb_port_base="2200"
+  ndb_port_base="2202"
 fi
 AC_SUBST([ndb_port_base])
 

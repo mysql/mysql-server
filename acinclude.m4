@@ -1614,9 +1614,14 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
               [ndb_docs="$withval"],
               [ndb_docs=no])
+  AC_ARG_WITH([ndb-port],
+              [
+  --with-ndb-port       Port for NDB Cluster management server],
+              [ndb_port="$withval"],
+              [ndb_port="default"])
   AC_ARG_WITH([ndb-port-base],
               [
-  --with-ndb-port-base  Base port for NDB Cluster],
+  --with-ndb-port-base  Base port for NDB Cluster transporters],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
                                                                                 

@@ -17,17 +17,6 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 
-// copied from mysql.cc to get readline
-extern "C" {
-#if defined( __WIN__) || defined(OS2)
-#include <conio.h>
-#elif !defined(__NETWARE__)
-#include <readline/readline.h>
-extern "C" int add_history(const char *command); /* From readline directory */
-#define HAVE_READLINE
-#endif
-}
-
 //#define HAVE_GLOBAL_REPLICATION
 
 #include <Vector.hpp>
@@ -65,7 +54,6 @@ public:
    *
    *   @return true until quit/bye/exit has been typed
    */
-  int readAndExecute(int _try_reconnect=-1);
   int execute(const char *_line, int _try_reconnect=-1);
 
 private:
@@ -106,6 +94,7 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
+  void executePurge(char* parameters);
   void executeShutdown(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
@@ -179,6 +168,7 @@ private:
  */
 
 #include "ndb_mgmclient.hpp"
+#include "ndb_mgmclient.h"
 
 Ndb_mgmclient::Ndb_mgmclient(const char *host)
 {
@@ -187,10 +177,6 @@ Ndb_mgmclient::Ndb_mgmclient(const char *host)
 Ndb_mgmclient::~Ndb_mgmclient()
 {
   delete m_cmd;
-}
-int Ndb_mgmclient::read_and_execute(int _try_reconnect)
-{
-  return m_cmd->readAndExecute(_try_reconnect);
 }
 int Ndb_mgmclient::execute(const char *_line, int _try_reconnect)
 {
@@ -202,7 +188,20 @@ Ndb_mgmclient::disconnect()
   return m_cmd->disconnect();
 }
 
-
+extern "C" {
+  Ndb_mgmclient_handle ndb_mgmclient_handle_create(const char *connect_string)
+  {
+    return (Ndb_mgmclient_handle) new Ndb_mgmclient(connect_string);
+  }
+  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, const char** argv)
+  {
+    return ((Ndb_mgmclient*)h)->execute(argc, argv, 1);
+  }
+  int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle h)
+  {
+    delete (Ndb_mgmclient*)h;
+  }
+}
 /*
  * The CommandInterpreter
  */
@@ -226,6 +225,17 @@ Ndb_mgmclient::disconnect()
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
+int Ndb_mgmclient::execute(int argc, const char** argv, int _try_reconnect)
+{
+  if (argc <= 0)
+    return 0;
+  BaseString _line(argv[0]);
+  for (int i= 1; i < argc; i++)
+  {
+    _line.appfmt(" %s", argv[i]);
+  }
+  return m_cmd->execute(_line.c_str(),_try_reconnect);
+}
 
 /*****************************************************************************
  * HELP
@@ -264,6 +274,7 @@ static const char* helpText =
 #ifdef HAVE_GLOBAL_REPLICATION
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
 #endif
+"PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -455,39 +466,6 @@ CommandInterpreter::disconnect()
 //*****************************************************************************
 
 int 
-CommandInterpreter::readAndExecute(int _try_reconnect) 
-{
-  static char *line_read = (char *)NULL;
-
-  /* If the buffer has already been allocated, return the memory
-     to the free pool. */
-  if (line_read)
-  {
-    free (line_read);
-    line_read = (char *)NULL;
-  }
-#ifdef HAVE_READLINE
-  /* Get a line from the user. */
-  line_read = readline ("ndb_mgm> ");    
-  /* If the line has any text in it, save it on the history. */
-  if (line_read && *line_read)
-    add_history (line_read);
-#else
-  static char linebuffer[254];
-  fputs("ndb_mgm> ", stdout);
-  linebuffer[sizeof(linebuffer)-1]=0;
-  line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
-  if (line_read == linebuffer) {
-    char *q=linebuffer;
-    while (*q > 31) q++;
-    *q=0;
-    line_read= strdup(linebuffer);
-  }
-#endif
-  return execute(line_read,_try_reconnect);
-}
-
-int 
 CommandInterpreter::execute(const char *_line, int _try_reconnect) 
 {
   if (_try_reconnect >= 0)
@@ -541,6 +519,10 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
     executeAbortBackup(allAfterFirstToken);
     return true;
   }
+  else if (strcmp(firstToken, "PURGE") == 0) {
+    executePurge(allAfterFirstToken);
+    return true;
+  } 
 #ifdef HAVE_GLOBAL_REPLICATION
   else if(strcmp(firstToken, "REPLICATION") == 0 ||
 	  strcmp(firstToken, "REP") == 0) {
@@ -980,6 +962,46 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
     }
   }
   ndbout << endl;
+}
+
+void
+CommandInterpreter::executePurge(char* parameters) 
+{ 
+  int command_ok= 0;
+  do {
+    if (emptyString(parameters))
+      break;
+    char* firstToken = strtok(parameters, " ");
+    char* nextToken = strtok(NULL, " \0");
+    if (strcmp(firstToken,"STALE") == 0 &&
+	nextToken &&
+	strcmp(nextToken, "SESSIONS") == 0) {
+      command_ok= 1;
+      break;
+    }
+  } while(0);
+
+  if (!command_ok) {
+    ndbout_c("Unexpected command, expected: PURGE STALE SESSIONS");
+    return;
+  }
+
+  int i;
+  char *str;
+  connect();
+  
+  if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
+    ndbout_c("Command failed");
+    return;
+  }
+  if (str) {
+    ndbout_c("Purged sessions with node id's: %s", str);
+    free(str);
+  }
+  else
+  {
+    ndbout_c("No sessions purged");
+  }
 }
 
 void

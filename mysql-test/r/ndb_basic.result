@@ -400,6 +400,13 @@ b	attr1
 9413	9412
 drop table test.t1, t2;
 drop database mysqltest;
+drop database if exists ndbtest1;
+create database ndbtest1;
+use ndbtest1;
+create table t1(id int) engine=ndbcluster;
+drop database ndbtest1;
+drop database ndbtest1;
+ERROR HY000: Can't drop database 'ndbtest1'; database doesn't exist
 use test;
 create table t1 (a int primary key, b char(0));
 insert into t1 values (1,"");
