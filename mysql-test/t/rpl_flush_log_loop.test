@@ -4,14 +4,17 @@
 source include/master-slave.inc
 
 connection slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
 slave start;
 connection master;
 slave stop;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$SLAVE_MYPORT;
 slave start;
 flush logs;
 sleep 5;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 show slave status;
