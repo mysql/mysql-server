@@ -17,7 +17,9 @@ libreadline_a_SOURCES =	readline.c funmap.c keymaps.c \
 			histfile.c nls.c search.c \
 			shell.c tilde.c misc.c text.c mbutil.c
 
-pkginclude_HEADERS =	readline.h chardefs.h keymaps.h history.h tilde.h
+pkginclude_HEADERS =	readline.h chardefs.h keymaps.h \
+			history.h tilde.h rlmbutil.h rltypedefs.h rlprivate.h \
+			rlshell.h xmalloc.h
 
 noinst_HEADERS =	rldefs.h histlib.h rlwinsize.h \
 			posixstat.h posixdir.h posixjmp.h \

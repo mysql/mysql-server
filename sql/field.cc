@@ -798,10 +798,8 @@ int Field_decimal::store(longlong nr)
 
 double Field_decimal::val_real(void)
 {
-  char temp= *(ptr+field_length); *(ptr+field_length) = '\0';
-  double nr=atod(ptr);
-  *(ptr+field_length)=temp;
-  return(nr);
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,ptr,field_length,NULL);
 }
 
 longlong Field_decimal::val_int(void)

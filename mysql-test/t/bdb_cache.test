@@ -48,3 +48,4 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 commit;
 show status like "Qcache_queries_in_cache";
+drop table if exists t1, t2, t3;
