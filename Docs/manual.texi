@@ -13663,7 +13663,7 @@ year/month combination, with automatic removal of duplicate entries.
 @subsection Using @code{AUTO_INCREMENT}
 
 @cindex AUTO_INCREMENT
-The @code{AUTO_INCREMENT} attribute can be used to generate an unique
+The @code{AUTO_INCREMENT} attribute can be used to generate a unique
 identity for new rows:
 
 @example
@@ -20596,7 +20596,7 @@ For a simple character set do the following:
 @enumerate
 @item
 Add MYSET to the end of the @file{sql/share/charsets/Index} file
-Assign an unique number to it.
+Assign a unique number to it.
 
 @item
 Create the file @file{sql/share/charsets/MYSET.conf}.
@@ -20638,7 +20638,7 @@ distribution.
 
 @item
 Add MYSET to the end of the @file{sql/share/charsets/Index} file.
-Assign an unique number to it.
+Assign a unique number to it.
 
 @item
 Look at one of the existing @file{ctype-*.c} files to see what needs to
@@ -22750,8 +22750,8 @@ will be put in the output.  This will make loading the data into a MySQL
 4.0 server faster as the indexes are created after all data are inserted.
 @item -n, --no-create-db
 @code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
-output. The above line will be added otherwise, if --databases or
---all-databases option was given.
+output. The above line will be added otherwise, if a @code{--databases} or
+@code{--all-databases} option was given.
 @item -t, --no-create-info
 Don't write table creation information (the @code{CREATE TABLE} statement).
 @item -d, --no-data
@@ -22776,8 +22776,8 @@ to do this.
 Quote table and column names within @samp{`} characters.
 @item -r, --result-file=...
 Direct output to a given file. This option should be used in MSDOS,
-because it prevents new line '\n' from being converted to '\n\r' (new
-line + carriage return).
+because it prevents new line @samp{\n} from being converted to @samp{\n\r}
+(new line + carriage return).
 @item --single-transaction
 This option issues a @code{BEGIN} SQL command before dumping data from
 server. It is mostly useful with @code{InnoDB} tables and
@@ -22884,8 +22884,8 @@ mysqldump --all-databases > all_databases.sql
 
 @code{mysqlhotcopy} is a Perl script that uses @code{LOCK TABLES},
 @code{FLUSH TABLES} and @code{cp} or @code{scp} to quickly make a backup
-of a database.  It's the fastest way to make a backup of the database,
-of single tables but it can only be run on the same machine where the
+of a database.  It's the fastest way to make a backup of the database
+or single tables, but it can only be run on the same machine where the
 database directories are.
 
 @example
@@ -22936,7 +22936,7 @@ Flush logs once all tables are locked.
 Temporary directory (instead of /tmp).
 @end table
 
-You can use @code{perldoc mysqlhotcopy} to get a more complete
+You can use @code{perldoc mysqlhotcopy} to get more complete
 documentation for @code{mysqlhotcopy}.
 
 @code{mysqlhotcopy} reads the groups @code{[client]} and  @code{[mysqlhotcopy]}
@@ -23620,7 +23620,7 @@ if all the tables on the master are @code{MyISAM} type, and will acquire a
 global read lock, so no writes are possible while the tables are being
 transferred from the master. This limitation is of a temporary nature, and is
 due to the fact that we have not yet implemented hot lock-free table backup.
-It will be removed in the future 4.0 branch versions once we implemented hot
+It will be removed in the future 4.0 branch versions once we implement hot
 backup enabling @code{LOAD DATA FROM MASTER} to work without blocking master
 updates.
 
@@ -23809,8 +23809,8 @@ argument to @code{RAND()}.
 @item
 You have to use the same character set (@code{--default-character-set})
 on the master and the slave. If not, you may get duplicate key errors on
-the slave, because a key that is regarded as unique on the master may
-not be that in the other character set.
+the slave, because a key that is regarded as unique in the master character
+set may not be unique in the slave character set.
 @item
 In 3.23, @code{LOAD DATA INFILE} will be handled properly as long as the file
 still resides on the master server at the time of update
@@ -23978,7 +23978,7 @@ case there is a problem  your mission critical applications will not be
 disrupted.
 
 On both master and slave you need to use the @code{server-id} option.
-This sets an unique replication id. You should pick a unique value in the
+This sets a unique replication id. You should pick a unique value in the
 range between 1 to 2^32-1 for each master and slave.
 Example: @code{server-id=3}
 
@@ -40351,7 +40351,7 @@ on InnoDB tables, except for the physical size reserved by the table.
 The row count is only a rough estimate used in SQL optimisation.
 
 @item
-If you try to create an unique index on a prefix of a column you will get an
+If you try to create a unique index on a prefix of a column you will get an
 error:
 
 @example
