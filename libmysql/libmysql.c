@@ -4186,7 +4186,7 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
   *param->buffer= (uchar) **row;
-  *row++;
+  (*row)++;
 }
 
 static void fetch_result_short(MYSQL_BIND *param, uchar **row)
