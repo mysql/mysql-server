@@ -39,7 +39,12 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,NOTLIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC,COND_OR_FUNC,BETWEEN,IN_FUNC,INTERVAL_FUNC};
+		  COND_AND_FUNC,COND_OR_FUNC,BETWEEN,IN_FUNC,INTERVAL_FUNC,
+		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
+		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
+		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
+		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
+		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -942,6 +947,86 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+};
+
+
+class Item_func_dimension :public Item_int_func
+{
+  String value;
+public:
+  Item_func_dimension(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "dimension"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
+class Item_func_x :public Item_real_func
+{
+  String value;
+public:
+  Item_func_x(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "x"; }
+};
+
+
+class Item_func_y :public Item_real_func
+{
+  String value;
+public:
+  Item_func_y(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "y"; }
+};
+
+
+class Item_func_numgeometries :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numgeometries(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numgeometries"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+class Item_func_numinteriorring :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numinteriorring(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numinteriorring"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+class Item_func_numpoints :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numpoints(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numpoints"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+class Item_func_area :public Item_real_func
+{
+  String value;
+public:
+  Item_func_area(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "area"; }
+};
+
+class Item_func_glength :public Item_real_func
+{
+  String value;
+public:
+  Item_func_glength(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "glength"; }
 };
 
 class Item_func_match_nl :public Item_func_match

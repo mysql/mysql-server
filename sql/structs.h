@@ -64,6 +64,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
 typedef struct st_key {
   uint	key_length;			/* Tot length of key */
   uint	flags;				/* dupp key and pack flags */
+  enum  ha_key_alg key_alg;		/* +BAR Algorithm BTREE or RTREE */
   uint	key_parts;			/* How many key_parts */
   uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */

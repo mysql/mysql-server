@@ -28,6 +28,7 @@
 #include "../srclib/myisam/myisamdef.h"
 #else
 #include "../myisam/myisamdef.h"
+#include "../myisam/rt_index.h"
 #endif
 
 ulong myisam_sort_buffer_size;
@@ -763,7 +764,7 @@ int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error=mi_rkey(file,buf,active_index, key, key_len, (enum ha_rkey_function)find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -772,7 +773,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 			      uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,index, key, key_len, find_flag);
+  int error=mi_rkey(file,buf,index, key, key_len, (enum ha_rkey_function)find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -1008,7 +1009,8 @@ int ha_myisam::create(const char *name, register TABLE *table,
   pos=table->key_info;
   for (i=0; i < table->keys ; i++, pos++)
   {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT));
+    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].key_alg=pos->key_alg; // +BAR
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)
