@@ -25,7 +25,8 @@
 #include <direct.h>
 #endif
 
-static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
+static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
+				 const char *db, const char *path,
 				 uint level);
 
 /* db-name is already validated when we come here */
@@ -121,17 +122,20 @@ exit:
   DBUG_RETURN(error);
 }
 
-const char *del_exts[]=
-{".frm",".ISM",".ISD",".ISM",".HSH",".DAT",".MRG",".MYI",".MYD", ".db", ".BAK", NullS};
+const char *del_exts[]= {".frm", ".BAK", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
 
-/* db-name is already validated when we come here */
-/* If thd == 0, do not write any messages
-   This is useful in replication when we want to remove
-   a stale database before replacing it with the new one
+/*
+  Drop all tables in a database.
+
+  db-name is already validated when we come here
+  If thd == 0, do not write any messages; This is useful in replication
+  when we want to remove a stale database before replacing it with the new one
 */
+
+
 int mysql_rm_db(THD *thd,char *db,bool if_exists)
 {
   long deleted=0;
@@ -144,31 +148,15 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
   VOID(pthread_mutex_lock(&LOCK_open));
 
   // do not drop database if another thread is holding read lock
-  if (global_read_lock)
-  {
-    if (thd->global_read_lock)
-    {
-      net_printf(&thd->net, ER_DROP_DB_WITH_READ_LOCK);
-      goto exit;
-    }
-    while (global_read_lock && ! thd->killed)
-    {
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    }
-
-    if (thd->killed)
-    {
-      net_printf(&thd->net, ER_SERVER_SHUTDOWN);
-      goto exit;
-    }
-  }
+  if (wait_if_global_read_lock(thd,0))
+    goto exit;
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   unpack_dirname(path,path);			// Convert if not unix
   /* See if the directory exists */
   if (!(dirp = my_dir(path,MYF(MY_WME | MY_DONT_SORT))))
   {
-    if(thd)
+    if (thd)
     {
       if (!if_exists)
 	net_printf(&thd->net,ER_DB_DROP_EXISTS,db);
@@ -180,7 +168,8 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
   }
   remove_db_from_cache(db);
 
-  if ((deleted=mysql_rm_known_files(thd, dirp, path,0)) >= 0 && thd)
+  error = -1;
+  if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
   {
     if (!thd->query)
     {
@@ -206,27 +195,31 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
 exit:
   VOID(pthread_mutex_unlock(&LOCK_open));
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
+  start_waiting_global_read_lock(thd);
+
   DBUG_RETURN(error);
 }
 
 /*
   Removes files with known extensions plus all found subdirectories that
   are 2 digits (raid directories).
+  thd MUST be set when calling this function!
 */
 
-/* This one also needs to work with thd == 0 for replication */
-static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
-				 uint level)
+static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
+				 const char *org_path, uint level)
 {
   long deleted=0;
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
+  TABLE_LIST *tot_list=0, **tot_list_next;
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
-  /* remove all files with known extensions */
+
+  tot_list_next= &tot_list;
 
   for (uint idx=2 ;
-       idx < (uint) dirp->number_off_files && (!thd || !thd->killed) ;
+       idx < (uint) dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
@@ -243,7 +236,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd,new_dirp,newpath,1)) < 0)
+	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
 	{
 	  my_dirend(dirp);
 	  DBUG_RETURN(-1);
@@ -257,24 +250,39 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    unpack_filename(filePath,filePath);
-    if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+    if (db && !strcasecmp(fn_ext(file->name), reg_ext))
     {
-      if(thd)
-        net_printf(&thd->net,ER_DB_DROP_DELETE,filePath,my_error);
-      my_dirend(dirp);
-      DBUG_RETURN(-1);
+      /* Drop the table nicely */
+      *fn_ext(file->name)=0;			// Remove extension
+      TABLE_LIST *table_list=(TABLE_LIST*)
+	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+1);
+      if (!table_list)
+      {
+	my_dirend(dirp);
+	DBUG_RETURN(-1);
+      }
+      table_list->db= (char*) (table_list+1);
+      strmov(table_list->real_name=strmov(table_list->db,db)+1,
+	     file->name);
+      /* Link into list */
+      (*tot_list_next)= table_list;
+      tot_list_next= &table_list->next;
     }
-    deleted++;
-  }
+    else
+    {
 
+      if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+      {
+	my_dirend(dirp);
+	DBUG_RETURN(-1);
+      }
+      deleted++;
+    }
+  }
   my_dirend(dirp);
 
-  if (thd && thd->killed)
-  {
-    send_error(&thd->net,ER_SERVER_SHUTDOWN);
+  if (thd->killed || (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 1)))
     DBUG_RETURN(-1);
-  }
 
   /*
     If the directory is a symbolic link, remove the link first, then
@@ -294,22 +302,19 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
 	/* Don't give errors if we can't delete 'RAID' directory */
 	if (level)
 	  DBUG_RETURN(deleted);
-	if(thd)
-	  send_error(&thd->net);
 	DBUG_RETURN(-1);
       }
       path=filePath;
     }
 #endif
-    /* Remove last FN_LIBCHAR to not cause a probelm on OS/2 */
+    /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
     char *pos=strend(path);
     if (pos > path && pos[-1] == FN_LIBCHAR)
       *--pos=0;
     /* Don't give errors if we can't delete 'RAID' directory */
     if (rmdir(path) < 0 && !level)
     {
-      if(thd)
-        net_printf(&thd->net,ER_DB_DROP_RMDIR, path,errno);
+      my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
       DBUG_RETURN(-1);
     }
   }
