@@ -3530,9 +3530,9 @@ interval:
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 date_time_type:
-	DATE_SYM		{$$=TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=TIMESTAMP_TIME;}
-	| DATETIME		{$$=TIMESTAMP_DATETIME;};
+	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
+	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */

@@ -427,6 +427,10 @@ SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 # End Source File
 # Begin Source File
