@@ -340,6 +340,8 @@ sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 #ifdef HAVE_REPLICATION
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
+sys_var_long_ptr	sys_slave_trans_retries("slave_transaction_retries",
+                                                &slave_trans_retries);
 #endif
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
@@ -652,6 +654,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_REPLICATION
   &sys_slave_compressed_protocol,
   &sys_slave_net_timeout,
+  &sys_slave_trans_retries,
   &sys_slave_skip_counter,
 #endif
   &sys_slow_launch_time,
@@ -931,6 +934,7 @@ struct show_var_st init_vars[]= {
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
+  {sys_slave_trans_retries.name,(char*) &sys_slave_trans_retries,   SHOW_SYS},
 #endif
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
 #ifdef HAVE_SYS_UN_H
