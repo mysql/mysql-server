@@ -639,8 +639,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     DBUG_PRINT("info",("Creating tmp table"));
     thd->proc_info="Creating tmp table";
 
-    join.tmp_table_param.hidden_field_count=(all_fields.elements-
-					     fields.elements);
+    join.tmp_table_param.hidden_field_count= 
+      (all_fields.elements > fields.elements) ?   (all_fields.elements- fields.elements) : 0;
     if (!(tmp_table =
 	  create_tmp_table(thd,&join.tmp_table_param,all_fields,
 			   ((!simple_group && !procedure &&
