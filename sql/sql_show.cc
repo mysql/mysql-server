@@ -56,7 +56,7 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
-  Item_string *field=new Item_string("",0,default_charset_info);
+  Item_string *field=new Item_string("",0,thd->charset());
   List<Item> field_list;
   char *end;
   List<char> files;
@@ -141,7 +141,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 
 int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 {
-  Item_string *field=new Item_string("",0,default_charset_info);
+  Item_string *field=new Item_string("",0,thd->charset());
   List<Item> field_list;
   char path[FN_LEN],*end;
   List<char> files;
@@ -734,7 +734,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp),default_charset_info);
+          type.set(tmp,sizeof(tmp),&my_charset_bin);
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length());
         }
@@ -1041,7 +1041,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
-  String type(tmp, sizeof(tmp),default_charset_info);
+  String type(tmp, sizeof(tmp),&my_charset_bin);
   if (table->tmp_table)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
@@ -1061,7 +1061,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp),default_charset_info);
+      type.set(tmp, sizeof(tmp),&my_charset_bin);
 
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
@@ -1088,7 +1088,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp),default_charset_info);
+        type.set(tmp,sizeof(tmp),&my_charset_bin);
         field->val_str(&type,&type);
 	if (type.length())
           append_unescaped(packet, type.ptr(), type.length());
@@ -1409,7 +1409,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 int mysqld_show_charsets(THD *thd, const char *wild)
 {
   char buff[8192];
-  String packet2(buff,sizeof(buff),default_charset_info);
+  String packet2(buff,sizeof(buff),thd->charset());
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;

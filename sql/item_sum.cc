@@ -188,12 +188,13 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     max_length=float_length(decimals);
   else
   {
-    str_cmp_function= binary() ? stringcmp : sortcmp;
+    str_cmp_function= item->binary() ? stringcmp : sortcmp;
     max_length=item->max_length;
   }
   decimals=item->decimals;
   maybe_null=item->maybe_null;
   unsigned_flag=item->unsigned_flag;
+  set_charset(item->charset());
   result_field=0;
   null_value=1;
   fix_length_and_dec();

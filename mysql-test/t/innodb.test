@@ -698,6 +698,12 @@ create table t1 (a varchar(10) not null) type=myisam;
 create table t2 (b varchar(10) not null unique) type=innodb;
 select t1.a from t1,t2 where t1.a=t2.b;
 drop table t1,t2;
+create table t1 (a int not null, b int, primary key (a)) type = innodb;
+create table t2 (a int not null, b int, primary key (a)) type = innodb;
+insert into t1 values (10, 20);
+insert into t2 values (10, 20);
+update t1, t2 set t1.b = 150, t2.b = t1.b where t2.a = t1.a and t1.a = 10;
+drop table t1,t2;
 
 #
 # Test of multi-table-delete with foreign key constraints

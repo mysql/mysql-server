@@ -402,6 +402,8 @@ void end_thr_alarm(void)
 void thr_alarm_kill(pthread_t thread_id)
 {
   uint i;
+  if (alarm_aborted)
+    return;
   pthread_mutex_lock(&LOCK_alarm);
   for (i=0 ; i < alarm_queue.elements ; i++)
   {

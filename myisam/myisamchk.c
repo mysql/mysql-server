@@ -962,11 +962,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  uint key;
 	  /*
 	    We can't update the index in mi_sort_records if we have a
-	    prefix compressed index
+	    prefix compressed or fulltext index
 	  */
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
-	    if (share->keyinfo[key].flag & HA_BINARY_PACK_KEY)
+	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
 	      update_index=0;
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
@@ -1413,6 +1413,13 @@ static int mi_sort_records(MI_CHECK *param,
   if (!(((ulonglong) 1 << sort_key) & share->state.key_map))
   {
     mi_check_print_error(param,"Can't sort table '%s' on key %d;  No such key",
+		name,sort_key+1);
+    param->error_printed=0;
+    DBUG_RETURN(-1);
+  }
+  if (keyinfo->flag & HA_FULLTEXT)
+  {
+    mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
 		name,sort_key+1);
     param->error_printed=0;
     DBUG_RETURN(-1);

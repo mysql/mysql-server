@@ -987,8 +987,8 @@ case $SYSTEM_TYPE in
     # Fixes for HPUX 11.0 compiler
     if test "$ac_cv_prog_gcc" = "no"
     then
-      CFLAGS="$CFLAGS +DD64 -DHAVE_BROKEN_INLINE"
-      CXXFLAGS="$CXXFLAGS +DD64 +O2"
+      CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
+      CXXFLAGS="$CXXFLAGS +O2"
       MAX_C_OPTIMIZE=""
       MAX_CXX_OPTIMIZE=""
     fi
@@ -2274,7 +2274,9 @@ AC_ARG_WITH(extra-charsets,
 
 AC_MSG_CHECKING("character sets")
 
-if test "$extra_charsets" = none; then
+if test "$extra_charsets" = no; then
+  CHARSETS=""
+elif test "$extra_charsets" = none; then
   CHARSETS=""
 elif test "$extra_charsets" = complex; then
   CHARSETS="$CHARSETS_COMPLEX"
@@ -2669,7 +2671,6 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
- netware/Makefile dnl
  include/mysql_version.h dnl
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h

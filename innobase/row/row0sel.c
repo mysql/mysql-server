@@ -1926,7 +1926,19 @@ row_sel_convert_mysql_key_to_innobase(
 
 		if (key_ptr > key_end) {
 			/* The last field in key was not a complete
-			field but a prefix of it */
+			field but a prefix of it.
+
+		        Print a warning about this! HA_READ_PREFIX_LAST
+		        does not currently work in InnoDB with partial-field
+		        key value prefixes. Since MySQL currently uses a
+		        padding trick to calculate LIKE 'abc%' type queries
+		        there should never be partial-field prefixes
+		        in searches. */
+
+		        ut_print_timestamp(stderr);
+			
+			fprintf(stderr,
+  "  InnoDB: Warning: using a partial-field key prefix in search\n");
 
 			ut_ad(dfield_get_len(dfield) != UNIV_SQL_NULL);
 			

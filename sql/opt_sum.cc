@@ -70,7 +70,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       if (tl->table->map & where_tables)
 	return 0;
     }
-    used_tables|= tl->table->map;
+    else
+      used_tables|= tl->table->map;
   }
 
   /*

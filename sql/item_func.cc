@@ -105,11 +105,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
-    CHARSET_INFO *charset= 0; 
-    /*
-      Set return character set to first argument if we are returning a
-      string.
-    */
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -117,20 +112,22 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
-      if ((*arg)->binary())
-	charset= &my_charset_bin;
-      else if (!charset && (*arg)->result_type() == STRING_RESULT)
-	charset= (*arg)->charset();
+      
+      if ((*arg)->result_type() == STRING_RESULT)
+      {
+	/*
+	  Set return character set to first argument if we are returning a
+	  string.
+	*/
+	if (args == arg)
+	  set_charset(args[0]->charset());
+	else if ((*arg)->binary() || (charset() != (*arg)->charset()) )
+          set_charset(&my_charset_bin);
+      }
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
-    /*
-      We must set charset here as fix_length_and_dec() may want to change
-      charset
-    */
-    if (charset && result_type() == STRING_RESULT)
-      set_charset(charset);
   }
   fix_length_and_dec();
   fixed= 1;

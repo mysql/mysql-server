@@ -247,7 +247,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
-      wrong_tables.append(String(table->real_name,default_charset_info));
+      wrong_tables.append(String(table->real_name,system_charset_info));
     }
   }
   thd->tmp_table_used= tmp_table_deleted;
@@ -1649,6 +1649,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db=db;
   used_fields=create_info->used_fields;
 
+  mysql_ha_closeall(thd, table_list);
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
