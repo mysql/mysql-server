@@ -18907,7 +18907,7 @@ by sorting the index), update them.
 @end itemize
 
 @code{OPTIMIZE TABLE} for @code{MyISAM} tables is equvialent of running
-@code{myisamchk --quick --check-changed-tables --sort-index --analyze}
+@code{myisamchk --quick --check-only-changed --sort-index --analyze}
 on the table.
 
 Note that the table is locked during the time @code{OPTIMIZE TABLE} is
@@ -50725,7 +50725,7 @@ Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
 @code{CHECK TABLES}.
 @item
 Changed @code{myisamchk} so that @code{--fast} and
-@code{--check-changed-tables} are also honored with @code{--sort-index} and
+@code{--check-only-changed} are also honored with @code{--sort-index} and
 @code{--analyze}.
 @item
 Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the
