@@ -332,7 +332,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	end= a+ min(key_length,(uint) length);
 
 #ifdef USE_STRCOLL
-        if (use_strcoll(default_charset_info)) {
+        if (use_strnxfrm(default_charset_info)) {
           if (((enum ha_base_keytype) keyseg->base.type) == HA_KEYTYPE_BINARY)
           {
             while (a < end)
@@ -383,7 +383,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
       else
       {
 #ifdef USE_STRCOLL
-        if (use_strcoll(default_charset_info)) {
+        if (use_strnxfrm(default_charset_info)) {
           if (((enum ha_base_keytype) keyseg->base.type) == HA_KEYTYPE_BINARY)
           {
             while (a < end)

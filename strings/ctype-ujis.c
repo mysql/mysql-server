@@ -32,7 +32,7 @@
 #ifdef HAVE_CHARSET_ujis
 
 
-uchar NEAR ctype_ujis[257] =
+static uchar NEAR ctype_ujis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ uchar NEAR ctype_ujis[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-uchar NEAR to_lower_ujis[]=
+static uchar NEAR to_lower_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ uchar NEAR to_lower_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-uchar NEAR to_upper_ujis[]=
+static uchar NEAR to_upper_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ uchar NEAR to_upper_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-uchar NEAR sort_order_ujis[]=
+static uchar NEAR sort_order_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -184,7 +184,7 @@ uchar NEAR sort_order_ujis[]=
 #define isujis_ss3(c) (((c)&0xff) == 0x8f)
 
 
-int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -194,12 +194,12 @@ int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-my_bool ismbhead_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static my_bool ismbhead_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c) || isujis_ss2(c) || isujis_ss3(c));
 }
 
-int mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 0);
 }
@@ -8257,7 +8257,7 @@ my_jisx0212_uni_onechar(int code){
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
-int
+static int
 my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int c1,c2,c3;
@@ -8344,7 +8344,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
   return MY_CS_ILSEQ;
 }
 
-int
+static int
 my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 {
   unsigned char buf[2];
@@ -8426,6 +8426,40 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 
   return MY_CS_ILUNI;
 }
+
+CHARSET_INFO my_charset_ujis =
+{
+    12,			/* number       */
+    MY_CS_COMPILED,	/* state      */
+    "ujis",		/* name         */
+    "",			/* comment    */
+    ctype_ujis,
+    to_lower_ujis,
+    to_upper_ujis,
+    sort_order_ujis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    0,			/* strxfrm_multiply */
+    NULL,		/* strnncoll    */
+    NULL,		/* strnxfrm     */
+    NULL,		/* like_range   */
+    3,			/* mbmaxlen     */
+    ismbchar_ujis,
+    ismbhead_ujis,
+    mbcharlen_ujis,
+    my_mb_wc_euc_jp,	 /* mb_wc       */
+    my_wc_mb_euc_jp,	 /* wc_mb       */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    my_tosort_8bit,
+    my_strcasecmp_mb,
+    my_strncasecmp_mb,
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
+    0
+};
 
 
 #endif

@@ -45,7 +45,7 @@
 #define gbkhead(e)     ((uchar)(e>>8))
 #define gbktail(e)     ((uchar)(e&0xff))
 
-uchar NEAR ctype_gbk[257] =
+static uchar NEAR ctype_gbk[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -66,7 +66,7 @@ uchar NEAR ctype_gbk[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-uchar NEAR to_lower_gbk[]=
+static uchar NEAR to_lower_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -102,7 +102,7 @@ uchar NEAR to_lower_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR to_upper_gbk[]=
+static uchar NEAR to_upper_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -138,7 +138,7 @@ uchar NEAR to_upper_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR sort_order_gbk[]=
+static uchar NEAR sort_order_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -9824,7 +9824,7 @@ static int func_uni_gbk_onechar(int code){
   return(0);
 }
 
-int
+static int
 my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
@@ -9847,7 +9847,7 @@ my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-int
+static int
 my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e)
 {
@@ -9870,5 +9870,40 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
   
 }
+
+CHARSET_INFO my_charset_gbk =
+{
+    28,			/* number */
+    MY_CS_COMPILED,	/* state      */
+    "gbk",		/* name */
+    "",			/* comment    */
+    ctype_gbk,
+    to_lower_gbk,
+    to_upper_gbk,
+    sort_order_gbk,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_gbk,
+    my_strnxfrm_gbk,
+    my_like_range_gbk,
+    2,			/* mbmaxlen */
+    ismbchar_gbk,
+    ismbhead_gbk,
+    mbcharlen_gbk,
+    my_mb_wc_gbk,	/* mb_wc      */
+    my_wc_mb_gbk,	/* wc_mb      */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    NULL,		/* tosort      */
+    my_strcasecmp_mb,
+    my_strncasecmp_mb,
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
+    0
+};
+
 
 #endif

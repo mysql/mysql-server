@@ -583,7 +583,6 @@ extern void allow_break(void);
 #endif
 
 extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
-extern void case_sort(CHARSET_INFO *cs, my_string str,uint length);
 extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
@@ -608,8 +607,6 @@ extern my_string my_path(my_string to,const char *progname,
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
 extern int wild_compare(const char *str,const char *wildstr);
-extern int my_sortcmp(CHARSET_INFO *cs, const char *s,const char *t,uint length);
-extern int my_sortncmp(CHARSET_INFO *cs, const char *s,uint s_len, const char *t,uint t_len);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);

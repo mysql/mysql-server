@@ -32,11 +32,22 @@ SUBSELECT TODO:
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
-			       select_subselect *result):
+Item_subselect::Item_subselect():
   Item(), engine_owner(1), value_assigned(0)
 {
-  DBUG_ENTER("Item_subselect::Item_subselect");
+  assign_null();
+  /*
+    item value is NULL if select_subselect not changed this value 
+    (i.e. some rows will be found returned)
+  */
+  null_value= 1;
+}
+
+void Item_subselect::init(THD *thd, st_select_lex *select_lex,
+		     select_subselect *result)
+{
+
+  DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
 
   if (select_lex->next_select())
@@ -45,12 +56,6 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
   else
     engine= new subselect_single_select_engine(thd, select_lex, result,
 					       this);
-  assign_null();
-  /*
-    item value is NULL if select_subselect not changed this value 
-    (i.e. some rows will be found returned)
-  */
-  null_value= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -76,15 +81,17 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  // Is it one field subselect?
-  if (engine->cols() > max_columns)
-  {  
-    my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
-    return 1;
-  }
   int res= engine->prepare();
   if (!res)
+  {
+    // Is it one field subselect?
+    if (engine->cols() > max_columns)
+    {  
+      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      return 1;
+    }
     fix_length_and_dec();
+  }
   return res;
 }
 
@@ -100,8 +107,9 @@ inline table_map Item_subselect::used_tables() const
 
 Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 						   st_select_lex *select_lex):
-  Item_subselect(thd, select_lex, new select_singleval_subselect(this))
+  Item_subselect()
 {
+  init(thd, select_lex, new select_singleval_subselect(this));
   max_columns= 1;
   maybe_null= 1;
 }
@@ -144,13 +152,16 @@ String *Item_singleval_subselect::val_str (String *str)
     assign_null();
     return 0;
   }
+  // Assign temporary buffer with stored value
+  str_value.set(string_value, 0, string_value.length());
   return &str_value;
 }
 
 Item_exists_subselect::Item_exists_subselect(THD *thd,
 					     st_select_lex *select_lex):
-  Item_subselect(thd, select_lex, new select_exists_subselect(this))
+  Item_subselect()
 {
+  init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
@@ -201,7 +212,7 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
 							       select_subselect *result,
 							       Item_subselect *item):
   subselect_engine(thd, item, result),
-   executed(0), optimized(0)
+    prepared(0), optimized(0), executed(0)
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -240,6 +251,9 @@ subselect_union_engine::subselect_union_engine(THD *thd,
 
 int subselect_single_select_engine::prepare()
 {
+  if (prepared)
+    return 0;
+  prepared= 1;
   SELECT_LEX *save_select= thd->lex.select;
   thd->lex.select= select_lex;
   if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
