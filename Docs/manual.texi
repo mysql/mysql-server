@@ -10151,30 +10151,12 @@ work).  You must also use the @code{egcs} C++ compiler
 @node Linux-IA64,  , Linux-MIPS, Linux
 @subsubsection Linux IA64 Notes
 
-To get MySQL to compile on Linux Ia64, we had to do the following
-(we assume that this will be easier when next gcc version for ia64 is
-released).
-
-Using @code{gcc-2.9-final}:
+To get MySQL to compile on Linux Ia64, we use the following compile line:
+Using @code{gcc-2.96}:
 
 @example
-CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex
+CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex
 @end example
-
-After @code{make} you will get an error that @code{sql/opt_range.cc}
-will not compile (internal compiler error).  To fix this, go to the sql
-directory and type @code{make} again.  Copy the compile line, but change
--O2 to -O0.  The file should now compile.
-
-Now you can do:
-
-@example
-cd ..
-make
-make_install
-@end example
-
-and @code{mysqld} should be ready to run.
 
 On Ia64 the MySQL client binaries are using shared libraries. This means
 that if you install our binary distribution in some other place than

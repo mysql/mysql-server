@@ -113,6 +113,11 @@ SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
+#
+# Set LD_LIBRARY_PATH if we are using shared libraries
+#
+LD_LIBRARY_PATH="$BASEDIR/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH
 
 MASTER_RUNNING=0
 MASTER_MYPORT=9306
@@ -574,17 +579,18 @@ start_slave()
     slave_args="--no-defaults $master_info \
     	    --exit-info=256 \
 	    --log-bin=slave-bin --log-slave-updates \
+            --log=$SLAVE_MYLOG \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG \
 	    --character-sets-dir=$CHARSETSDIR \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \
+	    --master-retry-count=5 \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
