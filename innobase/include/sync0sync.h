@@ -65,6 +65,15 @@ NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 #define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
+/**********************************************************************
+A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
+inlining of InnoDB functions, and no inlined functions should be called from
+there. That is why we need to duplicate the inlined function here. */
+
+void
+mutex_enter_noninline(
+/*==================*/
+	mutex_t*	mutex);	/* in: mutex */
 /******************************************************************
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
@@ -104,6 +113,13 @@ void
 mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/* in: pointer to mutex */
+/**********************************************************************
+Releases a mutex. */
+
+void
+mutex_exit_noninline(
+/*=================*/
+	mutex_t*	mutex);	/* in: mutex */
 /**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version. */
