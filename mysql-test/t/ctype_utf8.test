@@ -392,3 +392,28 @@ select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
 select c as c_a from t1 where c='б';
 drop table t1;
+
+
+# Bug#4594: column index make = failed for gbk, but like works
+# Check MYISAM
+#
+create table t1 (
+  str varchar(255) character set utf8 not null,
+  key str  (str(2))
+) engine=myisam;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+drop table t1;
+
+# the same for HEAP+BTREE
+#
+
+create table t1 (
+  str varchar(255) character set utf8 not null,
+  key str using btree (str(2))
+) engine=heap;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+drop table t1;
