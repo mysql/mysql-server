@@ -1219,7 +1219,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       select->quick=0;
       if (records != HA_POS_ERROR)
       {
-	s->found_records=records;
+	s->records=s->found_records=records;
 	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
       }
     }
@@ -1944,7 +1944,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    records
 		    This gives the formula:
 		    records= (x * (b-a) + a*c-b)/(c-1)
-		    
+
 		    b = records matched by whole key
 		    a = records matched by first key part (10% of all records?)
 		    c = number of key parts in key
