@@ -2158,7 +2158,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 }
 
 
-static int count_distinct_walk(void *elem, unsigned int count, void *arg)
+static int count_distinct_walk(void *elem, element_count count, void *arg)
 {
   (*((ulonglong*)arg))++;
   return 0;
