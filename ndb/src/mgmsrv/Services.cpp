@@ -318,7 +318,7 @@ MgmApiSession::runSession() {
       break;
     }
   }
-  if(m_socket >= 0)
+  if(m_socket != NDB_INVALID_SOCKET)
     NDB_CLOSE_SOCKET(m_socket);
 }
 
@@ -1547,7 +1547,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 
   m_stop= true;
   m_stopped= true; // force a stop (no closing socket)
-  m_socket= -1;   // so nobody closes it
+  m_socket= NDB_INVALID_SOCKET;   // so nobody closes it
 
   m_mgmsrv.transporter_connect(s);
 }
