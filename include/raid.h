@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
    version 2 of the License, or (at your option) any later version.
-   
+
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -18,14 +18,22 @@
 /* Parser needs these defines  always, even if USE_RAID is not defined */
 #define RAID_TYPE_0 1       // Striping
 #define RAID_TYPE_x 2       // Some new modes
-#define RAID_TYPE_y 3       // 
+#define RAID_TYPE_y 3       //
 
 #define RAID_DEFAULT_CHUNKS 4
 #define RAID_DEFAULT_CHUNKSIZE 256*1024 /* 256kB */
 
 extern const char *raid_type_string[];
 
-#if defined(USE_RAID)
+#ifdef __cplusplus
+extern "C" {
+#endif
+const char *my_raid_type(int raid_type);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef USE_RAID
 
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
@@ -84,7 +92,6 @@ extern "C" {
   int my_raid_close(File, myf MyFlags);
   int my_raid_fstat(int Filedes, struct stat *buf,  myf MyFlags);
 
-  const char *my_raid_type(int raid_type);
 
 #ifdef __cplusplus
 }

@@ -21,8 +21,6 @@
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
 #include <my_dir.h>
-#undef USE_RAID
-#define USE_RAID
 
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"			// For berkeley_show_logs
