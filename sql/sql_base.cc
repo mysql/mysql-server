@@ -841,6 +841,47 @@ void wait_for_refresh(THD *thd)
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 }
 
+TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
+{
+  DBUG_ENTER("reopen_name_locked_table");
+  if (thd->killed)
+    DBUG_RETURN(0);
+  TABLE* table;
+  if(!(table = table_list->table))
+    DBUG_RETURN(0);
+
+  char* db = thd->db ? thd->db : table_list->db;
+  char* table_name = table_list->name;
+  char	key[MAX_DBKEY_LENGTH];
+  uint	key_length;
+  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+
+  pthread_mutex_lock(&LOCK_open);
+  if(open_unireg_entry(table, db, table_name, table_name) ||
+     !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
+					     key_length)))
+    {
+      pthread_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(0);
+    }
+  
+  table->key_length=key_length;
+  table->version=refresh_version;
+  table->flush_version=flush_version;
+  if (!key_cache_inited)
+    ha_key_cache();
+  table->in_use = thd;
+  check_unused();
+  pthread_mutex_unlock(&LOCK_open);
+  table->tablenr=thd->current_tablenr++;
+  table->used_fields=0;
+  table->const_table=0;
+  table->outer_join=table->null_row=table->maybe_null=0;
+  table->status=STATUS_NO_RECORD;
+  table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
+  DBUG_RETURN(table);  
+}
+
 
 /******************************************************************************
 ** open a table
