@@ -83,7 +83,7 @@ static int do_test()
     n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*5,MAX_RECORDS));
     record= (char*) my_malloc(reclength,MYF(MY_FAE));
     sprintf(record,"%6d:%4d:%8d:Pos: %4d      ",n1,n2,n3,write_count);
-    if (hash_insert(&hash,record))
+    if (my_hash_insert(&hash,record))
     {
       printf("Error: %d in write at record: %d\n",my_errno,i);
       goto err;
@@ -199,7 +199,7 @@ static int do_test()
     record=(byte*) my_malloc(reclength,MYF(MY_FAE));
     memcpy(record,recpos,reclength);
     record[reclength-1]=rnd(5)+1;
-    if (hash_insert(&hash2,record))
+    if (my_hash_insert(&hash2,record))
     {
       printf("Got error when inserting record: %*s",reclength,record);
       goto err;

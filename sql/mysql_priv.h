@@ -577,6 +577,7 @@ void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
+void setup_param_functions(Item_param *param, uchar param_type);
 
 /* sql_error.cc */
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
@@ -794,7 +795,7 @@ extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern DATE_FORMAT dayord;
-extern String empty_string;
+extern String my_empty_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct show_table_type_st table_type_vars[];
 extern SHOW_COMP_OPTION have_isam;
@@ -803,6 +804,7 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+extern String null_string;
 
 /* optional things, have_* variables */
 

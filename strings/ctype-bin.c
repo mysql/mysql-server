@@ -262,8 +262,46 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
   return len;
 }
 
+static
+int my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
+                 const char *big,   uint b_length, 
+		 const char *small, uint s_length)
+{
+  register const uchar *str, *search, *end, *search_end;
+  
+  if (s_length <= b_length)
+  {
+    if (!s_length)
+      return 0;		/* Empty string is always found */
+    
+    str= (const uchar*) big;
+    search= (const uchar*) small;
+    end= (const uchar*) big+b_length-s_length+1;
+    search_end= (const uchar*) small + s_length;
+    
+skipp:
+    while (str != end)
+    {
+      if ( (*str++) == (*search))
+      {
+	register const uchar *i,*j;
+	
+	i= str; 
+	j= search+1;
+	
+	while (j != search_end)
+	  if ((*i++) != (*j++))
+            goto skipp;
+        
+	return (int) (str- (const uchar*)big) -1;
+      }
+    }
+  }
+  return -1;
+}
 
-MY_COLLATION_HANDLER my_collation_bin_handler =
+
+MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
     my_strnncoll_binary,
     my_strnncollsp_binary,
@@ -271,6 +309,7 @@ MY_COLLATION_HANDLER my_collation_bin_handler =
     my_like_range_simple,
     my_wildcmp_bin,
     my_strcasecmp_bin,
+    my_instr_bin,
     my_hash_sort_bin
 };
 
@@ -317,5 +356,5 @@ CHARSET_INFO my_charset_bin =
     1,				/* mbmaxlen      */
     (char) 255,			/* max_sort_char */
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_8bit_bin_handler
 };

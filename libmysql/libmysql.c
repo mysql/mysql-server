@@ -279,7 +279,7 @@ my_bool STDCALL mysql_master_query(MYSQL *mysql, const char *q,
   DBUG_ENTER("mysql_master_query");
   if (mysql_master_send_query(mysql, q, length))
     DBUG_RETURN(1);
-  DBUG_RETURN(mysql_read_query_result(mysql));
+  DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
 }
 
 my_bool STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
@@ -301,7 +301,7 @@ my_bool STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
   DBUG_ENTER("mysql_slave_query");
   if (mysql_slave_send_query(mysql, q, length))
     DBUG_RETURN(1);
-  DBUG_RETURN(mysql_read_query_result(mysql));
+  DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
 }
 
 
@@ -629,7 +629,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     }
   }
   else
-    *end++= '\0';                               // empty password
+    *end++= '\0';                               /* empty password */
   /* Add database if needed */
   end= strmov(end, db ? db : "") + 1;
 
@@ -973,6 +973,19 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
   DBUG_RETURN (mysql_store_result(mysql));
 }
 
+MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql)
+{
+  MYSQL_DATA *query;
+  if (!(query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
+			     protocol_41(mysql) ? 8 : 6)))
+    return NULL;
+
+  mysql->field_count= query->rows;
+  return unpack_fields(query,&mysql->field_alloc,
+		       query->rows, 1, mysql->server_capabilities);
+}
+
+
 /**************************************************************************
   List all fields in a table
   If wild is given then only the fields matching wild is returned
@@ -981,36 +994,29 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 **************************************************************************/
 
 MYSQL_RES * STDCALL
-cli_list_fields(MYSQL *mysql, const char *table, const char *wild)
+mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 {
-  MYSQL_RES *result;
-  MYSQL_DATA *query;
+  MYSQL_RES   *result;
+  MYSQL_FIELD *fields;
   char	     buff[257],*end;
   DBUG_ENTER("mysql_list_fields");
   DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
 
-  LINT_INIT(query);
-
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
+  free_old_query(mysql);
   if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
-      !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 
-			  protocol_41(mysql) ? 8 : 6)))
+      !(fields= (*mysql->methods->list_fields)(mysql)))
     DBUG_RETURN(NULL);
 
-  free_old_query(mysql);
   if (!(result = (MYSQL_RES *) my_malloc(sizeof(MYSQL_RES),
 					 MYF(MY_WME | MY_ZEROFILL))))
-  {
-    free_rows(query);
     DBUG_RETURN(NULL);
-  }
+
   result->methods= mysql->methods;
   result->field_alloc=mysql->field_alloc;
   mysql->fields=0;
-  result->field_count = (uint) query->rows;
-  result->fields= unpack_fields(query,&result->field_alloc,
-				result->field_count, 1,
-				mysql->server_capabilities);
+  result->field_count = mysql->field_count;
+  result->fields= fields;
   result->eof=1;
   DBUG_RETURN(result);
 }
@@ -1031,8 +1037,8 @@ mysql_list_processes(MYSQL *mysql)
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
-  if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0,
-			   protocol_41(mysql) ? 7 : 5)))
+  if (!(fields = (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*) 0,
+					      protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(NULL);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
@@ -1488,8 +1494,8 @@ static void set_stmt_error(MYSQL_STMT * stmt, int errcode,
   Copy error message to statement handler
 */
 
-static void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
-			    const char *sqlstate)
+void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
+		     const char *sqlstate)
 {
   DBUG_ENTER("set_stmt_error_msg");
   DBUG_PRINT("enter", ("error: %d/%s '%s'", errcode, sqlstate, err));
@@ -1563,7 +1569,7 @@ static my_bool my_realloc_str(NET *net, ulong length)
     1	error
 */
 
-static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count;
@@ -1586,25 +1592,16 @@ static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     mysql->extra_info= net_field_length_ll(&pos);
-    if (!(fields_data= read_rows(mysql, (MYSQL_FIELD*) 0, 7)))
+    if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
     if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
 				      field_count,0,
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);
   }
-  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
-						sizeof(MYSQL_BIND)*
-                                                (param_count + 
-                                                 field_count))))
-  {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
-  }
-  stmt->bind=	      (stmt->params + param_count);
   stmt->field_count=  (uint) field_count;
   stmt->param_count=  (ulong) param_count;
-  mysql->status=      MYSQL_STATUS_READY;
+
   DBUG_RETURN(0);
 }
 
@@ -1648,14 +1645,25 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   }
 
   init_alloc_root(&stmt->mem_root,8192,0);
-  if (read_prepare_result(mysql, stmt))
+  if ((*mysql->methods->read_prepare_result)(mysql, stmt))
   {
     stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
+
+  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
+						sizeof(MYSQL_BIND)*
+                                                (stmt->param_count + 
+                                                 stmt->field_count))))
+  {
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+  stmt->bind= stmt->params + stmt->param_count;
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
+  mysql->status= MYSQL_STATUS_READY;
   stmt->list.data= stmt;
   DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
   DBUG_RETURN(stmt);
@@ -1971,36 +1979,21 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff, 
-					  MYSQL_STMT_HEADER, packet, 
-					  length, 1) ||
-      mysql_read_query_result(mysql))
+  if (cli_advanced_command(mysql, COM_EXECUTE, buff, 
+			    MYSQL_STMT_HEADER, packet, 
+			    length, 1) ||
+      (*mysql->methods->read_query_result)(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
-  stmt->state= MY_ST_EXECUTE;
-  mysql_free_result(stmt->result);
-  stmt->result= (MYSQL_RES *)0;
-  stmt->result_buffered= 0;
-  stmt->current_row= 0;
   DBUG_RETURN(0);
 }
 
-
-/*
-  Execute the prepare query
-*/
-
-int STDCALL mysql_execute(MYSQL_STMT *stmt)
+int STDCALL cli_stmt_execute(MYSQL_STMT *stmt)
 {
-  DBUG_ENTER("mysql_execute");
+  DBUG_ENTER("cli_stmt_execute");
 
-  if (stmt->state == MY_ST_UNKNOWN)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
   if (stmt->param_count)
   {
     NET        *net= &stmt->mysql->net;
@@ -2059,6 +2052,30 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     DBUG_RETURN(result);
   }
   DBUG_RETURN((int) execute(stmt,0,0));
+}
+
+/*
+  Execute the prepare query
+*/
+
+int STDCALL mysql_execute(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_execute");
+
+  if (stmt->state == MY_ST_UNKNOWN)
+  {
+    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+  if ((*stmt->mysql->methods->stmt_execute)(stmt))
+    DBUG_RETURN(1);
+      
+  stmt->state= MY_ST_EXECUTE;
+  mysql_free_result(stmt->result);
+  stmt->result= (MYSQL_RES *)0;
+  stmt->result_buffered= 0;
+  stmt->current_row= 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2948,6 +2965,14 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   return 0;
 }
 
+int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row)
+{
+  if (packet_error == net_safe_read(mysql))
+    return 1;
+
+  *row= (mysql->net.read_pos[0] == 254) ? NULL : (mysql->net.read_pos+1);
+  return 0;
+}
 
 /*
   Fetch and return row data to bound buffers, if any
@@ -2977,20 +3002,20 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
   }
   else						/* un-buffered */
   {
-    if (packet_error == net_safe_read(mysql))
+    if((*mysql->methods->unbuffered_fetch)(mysql, ( char **)&row))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
 		      mysql->net.sqlstate);
       DBUG_RETURN(1);
     }
-    if (mysql->net.read_pos[0] == 254)
+    if (!row)
     {
       mysql->status= MYSQL_STATUS_READY;
       stmt->current_row= 0;
       goto no_data;
     }
-    row= mysql->net.read_pos+1;  
-  }  
+  }
+
   stmt->current_row= row;    
   DBUG_RETURN(stmt_fetch_row(stmt, row));
 
@@ -3063,7 +3088,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;
@@ -3159,7 +3184,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   }
   result->methods= mysql->methods;
   stmt->result_buffered= 1;
-  if (!(result->data= read_binary_rows(stmt)))
+  if (!(result->data= (*stmt->mysql->methods->read_binary_rows)(stmt)))
   {
     my_free((gptr) result,MYF(0));
     DBUG_RETURN(0);
@@ -3463,7 +3488,18 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql)
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    DBUG_RETURN(mysql_read_query_result(mysql));
+    DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
   
   DBUG_RETURN(0);
 }
+
+MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
+{
+  return (*mysql->methods->use_result)(mysql);
+}
+
+my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+{
+  return (*mysql->methods->read_query_result)(mysql);
+}
+

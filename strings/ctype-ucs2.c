@@ -90,7 +90,7 @@ static uchar to_upper_ucs2[] = {
 };
 
 
-static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)) , 
+static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)),
                  my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
@@ -1018,20 +1018,268 @@ uint my_lengthsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   return (uint) (end-ptr);
 }
 
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+static
+int my_wildcmp_ucs2(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many,
+		    MY_UNICASE_INFO **weights)
+{
+  int result= -1;				/* Not found, using wildcards */
+  my_wc_t s_wc, w_wc;
+  int scan, plane;
+  
+  while (wildstr != wildend)
+  {
+    
+    while (1)
+    {
+      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+      if (scan <= 0)
+        return 1;
+      wildstr+= scan;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        if (scan <= 0)
+          return 1;
+        wildstr+= scan;
+      }
+      
+      if (w_wc == (my_wc_t)w_many)
+      {
+        result= 1;				/* Found an anchor char     */
+        break;
+      }
+      
+      scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
+      if (scan <=0)
+        return 1;
+      str+= scan;
+      
+      if (w_wc == (my_wc_t)w_one)
+      {
+        result= 1;				/* Found an anchor char     */
+      }
+      else
+      {
+        if (weights)
+        {
+          plane=(s_wc>>8) & 0xFF;
+          s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+          plane=(w_wc>>8) & 0xFF;
+          w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+        }
+        if (s_wc != w_wc)
+          return 1;				/* No match */
+      }
+      if (wildstr == wildend)
+	return (str != str_end);		/* Match if both are at end */
+    }
+    
+    
+    if (w_wc == (my_wc_t)w_many)
+    {						/* Found w_many */
+    
+      /* Remove any '%' and '_' from the wild search string */
+      for ( ; wildstr != wildend ; )
+      {
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        if (scan <= 0)
+          return 1;
+        wildstr+= scan;
+        
+	if (w_wc == (my_wc_t)w_many)
+	  continue;
+	
+	if (w_wc == (my_wc_t)w_one)
+	{
+	  scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
+          if (scan <=0)
+            return 1;
+          str+= scan;
+	  continue;
+	}
+	break;					/* Not a wild character */
+      }
+      
+      if (wildstr == wildend)
+	return 0;				/* Ok if w_many is last */
+      
+      if (str == str_end)
+	return -1;
+      
+      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+      if (scan <= 0)
+        return 1;
+      wildstr+= scan;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        if (scan <= 0)
+          return 1;
+        wildstr+= scan;
+      }
+      
+      do
+      {
+        /* Skip until the first character from wildstr is found */
+        while (str != str_end)
+        {
+          scan= my_ucs2_uni(cs,&s_wc, (const uchar*)str, (const uchar*)str_end);
+          if (scan <= 0)
+            return 1;
+          str+= scan;
+          
+          if (weights)
+          {
+            plane=(s_wc>>8) & 0xFF;
+            s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+            plane=(w_wc>>8) & 0xFF;
+            w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+          }
+          
+          if (s_wc == w_wc)
+            break;
+        }
+        if (str == str_end)
+          return -1;
+        
+        result= my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,escape,
+                                w_one,w_many,weights);
+        if (result <= 0)
+          return result;
+        
+      } while (str != str_end && w_wc != (my_wc_t)w_many);
+      return -1;
+    }
+  }
+  return (str != str_end ? 1 : 0);
+}
 
 
-static MY_COLLATION_HANDLER my_collation_ci_handler =
+static
+int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  return my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,
+                         escape,w_one,w_many,uni_plane); 
+}
+
+static
+int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  return my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,
+                         escape,w_one,w_many,NULL); 
+}
+
+
+static
+int my_strnncoll_ucs2_bin(CHARSET_INFO *cs, 
+				 const uchar *s, uint slen,
+				 const uchar *t, uint tlen)
+{
+  int s_res,t_res;
+  my_wc_t s_wc,t_wc;
+  const uchar *se=s+slen;
+  const uchar *te=t+tlen;
+
+  while ( s < se && t < te )
+  {
+    s_res=my_ucs2_uni(cs,&s_wc, s, se);
+    t_res=my_ucs2_uni(cs,&t_wc, t, te);
+    
+    if ( s_res <= 0 || t_res <= 0 )
+    {
+      /* Incorrect string, compare by char value */
+      return ((int)s[0]-(int)t[0]); 
+    }
+    if ( s_wc != t_wc )
+    {
+      return  ((int) s_wc) - ((int) t_wc);
+    }
+    
+    s+=s_res;
+    t+=t_res;
+  }
+  return ( (se-s) - (te-t) );
+}
+
+static
+int my_strcasecmp_ucs2_bin(CHARSET_INFO *cs, const char *s, const char *t)
+{
+  uint s_len=strlen(s);
+  uint t_len=strlen(t);
+  uint len = (s_len > t_len) ? s_len : t_len;
+  return  my_strncasecmp_ucs2(cs, s, t, len);
+}
+
+static
+int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
+			 uchar *dst, uint dstlen,
+			 const uchar *src, uint srclen)
+{
+  if (dst != src)
+    memcpy(dst,src,srclen= min(dstlen,srclen));
+  return srclen;
+}
+
+static
+void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
+			   const uchar *key, uint len,ulong *nr1, ulong *nr2)
+{
+  const uchar *pos = key;
+  
+  key+= len;
+  
+  for (; pos < (uchar*) key ; pos++)
+  {
+    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
+	     ((uint)*pos)) + (nr1[0] << 8);
+    nr2[0]+=3;
+  }
+}
+
+
+static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     my_strnncoll_ucs2,
     my_strnncoll_ucs2,
     my_strnxfrm_ucs2,
     my_like_range_simple,
-    my_wildcmp_mb,
+    my_wildcmp_ucs2_ci,
     my_strcasecmp_ucs2,
+    my_instr_mb,
     my_hash_sort_ucs2
 };
 
-static MY_CHARSET_HANDLER my_charset_handler=
+static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
+{
+    my_strnncoll_ucs2_bin,
+    my_strnncoll_ucs2_bin,
+    my_strnxfrm_ucs2_bin,
+    my_like_range_simple,
+    my_wildcmp_ucs2_bin,
+    my_strcasecmp_ucs2_bin,
+    my_instr_mb,
+    my_hash_sort_ucs2_bin
+};
+
+static MY_CHARSET_HANDLER my_charset_ucs2_handler=
 {
     my_ismbchar_ucs2,	/* ismbchar     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
@@ -1076,8 +1324,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     1,			/* strxfrm_multiply */
     2,			/* mbmaxlen     */
     0,
-    &my_charset_handler,
-    &my_collation_ci_handler
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_general_ci_handler
 };
 
 
@@ -1099,8 +1347,8 @@ CHARSET_INFO my_charset_ucs2_bin=
     1,			/* strxfrm_multiply */
     2,			/* mbmaxlen     */
     0,
-    &my_charset_handler,
-    &my_collation_bin_handler
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_bin_handler
 };
 
 

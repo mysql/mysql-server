@@ -123,7 +123,7 @@ extern "C" unsigned long _System DllMain(unsigned long modhandle,
                                         unsigned long flag)
 {
    if (flag == 0) {
-      tzset();			// Set tzname
+      tzset();			/* Set tzname */
       time_t currentTime = time(NULL);
       struct tm *ts = localtime(&currentTime);
       if (ts->tm_isdst > 0)

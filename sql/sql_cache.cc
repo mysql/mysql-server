@@ -823,7 +823,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
 	Query_cache_query *header = query_block->query();
 	header->init_n_lock();
-	if (hash_insert(&queries, (byte*) query_block))
+	if (my_hash_insert(&queries, (byte*) query_block))
 	{
 	  refused++;
 	  DBUG_PRINT("qcache", ("insertion in query hash"));
@@ -2044,7 +2044,7 @@ Query_cache::insert_table(uint key_len, char *key,
     Query_cache_block_table *list_root = table_block->table(0);
     list_root->n = 0;
     list_root->next = list_root->prev = list_root;
-    if (hash_insert(&tables, (const byte *) table_block))
+    if (my_hash_insert(&tables, (const byte *) table_block))
     {
       DBUG_PRINT("qcache", ("Can't insert table to hash"));
       // write_block_data return locked block

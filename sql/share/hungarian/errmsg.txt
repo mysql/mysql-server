@@ -3,6 +3,8 @@
    Updated May, 2000
    This file is public domain and comes with NO WARRANTY of any kind */
 
+character-set=latin2
+
 "hashchk",
 "isamchk",
 "NEM",

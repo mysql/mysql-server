@@ -10,6 +10,8 @@
    2002-12-11	
 		*/
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "Nein",

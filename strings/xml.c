@@ -255,7 +255,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
         if(MY_XML_EQ==(lex=my_xml_scan(p,&b)))
         {
           lex=my_xml_scan(p,&b);
-          if ( (lex==MY_XML_IDENT) || (lex=MY_XML_STRING) )
+          if ( (lex==MY_XML_IDENT) || (lex==MY_XML_STRING) )
           {
             if((MY_XML_OK!=my_xml_enter(p,a.beg,a.end-a.beg))  ||
                (MY_XML_OK!=my_xml_value(p,b.beg,b.end-b.beg))  ||

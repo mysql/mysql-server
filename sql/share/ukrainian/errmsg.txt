@@ -6,6 +6,8 @@
  *  Version:	13/09/2001 mysql-3.23.41
  */
 
+character-set=koi8u
+
 "hashchk",
 "isamchk",
 "î¶",

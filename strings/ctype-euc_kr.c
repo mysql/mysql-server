@@ -8637,12 +8637,13 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-  my_strnncoll_simple,/* strnncoll  */
+  my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
-  my_like_range_simple,/* like_range */
+  my_like_range_simple, /* like_range */
   my_wildcmp_mb,	/* wildcmp    */
   my_strcasecmp_mb,
+  my_instr_mb,
   my_hash_sort_simple,
 };
 
@@ -8714,7 +8715,7 @@ CHARSET_INFO my_charset_euckr_bin=
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_mb_bin_handler
 };
 
 #endif

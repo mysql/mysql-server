@@ -636,10 +636,10 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-static my_bool STDCALL
+my_bool STDCALL
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		 const char *header, ulong header_length,
-		 const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
@@ -1008,7 +1008,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -1139,8 +1139,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
 /* Read all rows (fields or data) from server */
 
-MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			     uint fields)
+MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			  unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -1150,7 +1150,7 @@ MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   MYSQL_DATA *result;
   MYSQL_ROWS **prev_ptr,*cur;
   NET *net = &mysql->net;
-  DBUG_ENTER("read_rows");
+  DBUG_ENTER("cli_read_rows");
 
   if ((pkt_len= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
@@ -1397,17 +1397,22 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
-static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
   cli_mysql_read_query_result,
   cli_advanced_command,
-  cli_mysql_store_result,
+  cli_read_rows,
   cli_mysql_use_result,
-  cli_fetch_lengths,
-  cli_list_fields
+  cli_fetch_lengths
+#ifndef MYSQL_SERVER
+  ,cli_list_fields,
+  cli_read_prepare_result,
+  cli_stmt_execute,
+  cli_read_binary_rows,
+  cli_unbuffered_fetch
+#endif
 };
 
 MYSQL * STDCALL 
@@ -1996,7 +2001,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= mysql_use_result(mysql)))
+	if (!(res= cli_mysql_use_result(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }
@@ -2215,7 +2220,7 @@ static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
   ulong field_count;
   MYSQL_DATA *fields;
   ulong length;
-  DBUG_ENTER("mysql_read_query_result");
+  DBUG_ENTER("cli_mysql_read_query_result");
 
   /*
     Read from the connection which we actually used, which
@@ -2264,7 +2269,8 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
-  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0,protocol_41(mysql) ? 7 : 5)))
+  if (!(fields=(*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,
+					    protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
@@ -2317,7 +2323,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);
-  DBUG_RETURN((int) mysql_read_query_result(mysql));
+  DBUG_RETURN((int) (*mysql->methods->read_query_result)(mysql));
 }
 
 
@@ -2326,7 +2332,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
+MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
@@ -2355,7 +2361,8 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
   result->methods= mysql->methods;
   result->eof=1;				/* Marker for buffered */
   result->lengths=(ulong*) (result+1);
-  if (!(result->data=read_rows(mysql,mysql->fields,mysql->field_count)))
+  if (!(result->data=
+	(*mysql->methods->read_rows)(mysql,mysql->fields,mysql->field_count)))
   {
     my_free((gptr) result,MYF(0));
     DBUG_RETURN(0);
@@ -2385,7 +2392,7 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_use_result");
+  DBUG_ENTER("cli_mysql_use_result");
 
   mysql = mysql->last_used_con;
 

@@ -30,7 +30,7 @@ install-data-local:
 fix_errors:
 	for lang in @AVAILABLE_LANGUAGES@; \
 	do \
-	../../extra/comp_err $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
+	../../extra/comp_err -C$(srcdir)/charsets/ $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
         done
 
 # Don't update the files from bitkeeper

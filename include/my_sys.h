@@ -209,8 +209,10 @@ extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
-extern uint get_charset_number(const char *cs_name);
+extern uint get_charset_number(const char *cs_name, uint cs_flags);
+extern uint get_collation_number(const char *name);
 extern const char *get_charset_name(uint cs_number);
+
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,

@@ -70,3 +70,11 @@ SHOW TABLES IN РЕЯР;
 Tables_in_РЕЯР
 SET CHARACTER SET koi8r;
 DROP DATABASE тест;
+SET NAMES koi8r;
+SELECT hex('тест');
+hex('тест')
+D4C5D3D4
+SET character_set_connection=cp1251;
+SELECT hex('тест');
+hex('тест')
+F2E5F1F2

@@ -8,7 +8,7 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
 GetOptions(
@@ -36,6 +36,7 @@ GetOptions(
 	"perl-files=s",
 	"perl-options=s",
 	"raid",
+	"readline",
 	"stage=i",
 	"static-client",
 	"static-perl",
@@ -231,6 +232,7 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
   $opt_config_options.= " --with-raid" if ($opt_raid);
+  $opt_config_options.= " --with-readline" if ($opt_readline);
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
 
   # Only enable InnoDB when requested (required to be able to
@@ -448,10 +450,10 @@ $0 takes the following options:
 --bdb
 Compile with support for Berkeley DB tables
 
---config-env <environment for configure>
+--config-env=<environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
 
---config-options <options>
+--config-options=<options>
 To add some extra options to configure (e.g. '--with-perl=yes')
 
 --dbd-options <options>
@@ -463,7 +465,7 @@ Print all shell commands on stdout.
 --delete
 Delete the distribution file.
 
---distribution <distribution_file>
+--distribution=<distribution_file>
 Name of the MySQL source distribution file.
 
 --enable-shared
@@ -484,7 +486,7 @@ Compile with TCP wrapper support
 --local-perl
 Install Perl modules locally
 
---make-options <options>
+--make-options=<options>
 Options to make after configure. (Like 'CXXLD=gcc')
 
 --no-crash-me
@@ -502,16 +504,22 @@ Do not run the benchmark test (written in perl)
 --no-mysqltest
 Do not run the the mysql-test-run test (Same as 'make test')
 
---perl-files=list of files
+--no-perl
+Do not compile or install Perl modules, use the system installed ones
+
+--perl-files=<list of files>
 Compile and install the given perl modules.
 
---perl-options <options>
+--perl-options=<options>
 Build Perl modules with the additional options
 
 --raid
 Compile with RAID support
 
---stage (1-6)
+--readline
+Compile against readline library instead of libedit
+
+--stage=[1-6]
 Start script from some specific point.
 
 --static-client
@@ -526,18 +534,18 @@ Build statically linked server binary
 --tcpip
 Connect to the server to be tested via TCP/IP instead of socket
 
---tmp <directory>
+--tmp=<directory>
 Use a different temporary directory than /tmp
 
 --use-old-distribution
 Do not clean up the build environment and extract a fresh source
 distribution, use an existing one instead.
 
---user <user_name>
+--user=<user_name>
 Mail 'user_name'\@mysql.com if something went wrong.
 If user is empty then no mail is sent.
 
---version-suffix suffix
+--version-suffix=suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
 --with-debug
@@ -546,7 +554,7 @@ Build binaries with debug information (implies "--no-strip")
 --with-low-memory
 Use less memory when compiling.
 
---with-other-libc <path to libc>
+--with-other-libc=<path to libc>
 Link against libc and other standard libraries installed in the specified
 non-standard location overriding default.
 
