@@ -736,7 +736,7 @@ ha_innobase::open(
 	stored the string length as the first byte. */
 
 	buff_len = table->reclength + table->max_key_length
-							+ MAX_REF_PARTS * 2;
+							+ MAX_REF_PARTS * 3;
 	if (!(mysql_byte*) my_multi_malloc(MYF(MY_WME),
 				     &upd_buff, buff_len,
 				     &key_val_buff, buff_len,
@@ -2594,10 +2594,10 @@ ha_innobase::update_table_comment(
     return (char*)comment;
 
   sprintf(str,
-    "%s; (See manual about Innobase stats); Innobase free: %lu kB",
+    "%s; Innobase free: %lu kB",
 	  comment, (ulong) innobase_get_free_space());
 
-  return((char*) str);
+  return(str);
 }
 
 

@@ -482,9 +482,12 @@ check_or_range("id3","select_range_key2");
 
 # Check reading on direct key on id and id3
 
-check_select_key("id","select_key_prefix");
-check_select_key2("id","id2","select_key");
-check_select_key("id3","select_key2");
+check_select_key("*","id","select_key_prefix");
+check_select_key2("*","id","id2","select_key");
+check_select_key2("id,id2","id","id2","select_key_return_key");
+check_select_key("*","id3","select_key2");
+check_select_key("id3","id3","select_key2_return_key");
+check_select_key("id1,id2","id3","select_key2_return_prim");
 
 ####
 #### A lot of simple selects on ranges

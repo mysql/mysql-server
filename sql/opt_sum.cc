@@ -331,16 +331,15 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 	   part != part_end ;
 	   part++)
       {
-	if (!part_of_cond(cond,part->field))
+	if (!part_of_cond(cond,part->field) ||
+	    left_length < part->store_length)
 	  break;
 	// Save found constant
 	if (part->null_bit)
 	  *key_ptr++= (byte) test(part->field->is_null());
-	if (left_length - part->length < 0)
-	  break;				// Can't use this key
-	part->field->get_image((char*) key_ptr,part->length);
-	key_ptr+=part->length;
-	left_length-=part->length;
+	part->field->get_key_image((char*) key_ptr,part->length);
+	key_ptr+=part->store_length - test(part->null_bit);
+	left_length-=part->store_length;
       }
       if (part == part_end && part->field == field)
       {
