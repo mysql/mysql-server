@@ -129,7 +129,7 @@ typedef struct st_mysql_data {
   unsigned int fields;
   MYSQL_ROWS *data;
   MEM_ROOT alloc;
-#ifdef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
   MYSQL_ROWS **prev_ptr;
 #endif
 } MYSQL_DATA;
@@ -164,7 +164,7 @@ struct st_mysql_options {
    a read that is replication-aware
  */
   my_bool no_master_reads;
-#ifdef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
   my_bool separate_thread;
 #endif
   char *shared_memory_base_name;
@@ -176,7 +176,7 @@ enum mysql_option
   MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE, MYSQL_INIT_COMMAND,
   MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
   MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME
-#ifdef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
   , MYSQL_OPT_USE_RESULT
 #endif
 };
@@ -202,7 +202,7 @@ enum mysql_rpl_type
 };
 
 
-#ifndef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
 
 typedef struct st_mysql
 {
@@ -247,6 +247,12 @@ typedef struct st_mysql
   struct st_mysql* last_used_con;
 
   LIST  *stmts;                     /* list of all statements */
+#if !defined(CHECK_EMBEDDED_DIFFERENCES)
+  struct st_mysql_res *result;
+  void *thd;
+  unsigned int last_errno;
+  char *last_error;
+#endif
 } MYSQL;
 
 #else
