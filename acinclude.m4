@@ -1624,6 +1624,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-port-base  Base port for NDB Cluster transporters],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
+  AC_ARG_WITH([ndb-debug],
+              [
+  --without-ndb-debug   Disable special ndb debug features],
+              [ndb_debug="$withval"],
+              [ndb_debug="no"])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1660,6 +1665,24 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including ndbapi and mgmapi documentation])
+      ;;
+  esac
+
+  case "$ndb_debug" in
+    yes )
+      AC_MSG_RESULT([-- including ndb extra debug options])
+      with_ndb_debug="yes"
+      ;;
+    full )
+      AC_MSG_RESULT([-- including ndb extra extra debug options])
+      with_ndb_debug="full"
+      ;;
+    no )
+      AC_MSG_RESULT([-- not including ndb extra debug options])
+      with_ndb_debug="no"
+      ;;
+    * )
+      with_ndb_debug="default"
       ;;
   esac
 
