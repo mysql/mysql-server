@@ -575,11 +575,6 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 
   if (lex->describe)
   {
-    if (!(result= new select_send()))
-    {
-      send_error(thd, ER_OUT_OF_RESOURCES);
-      DBUG_RETURN(1);
-    }
     if (send_prep_stmt(stmt, 0) ||  send_item_params(stmt))
       DBUG_RETURN(1);      
   }   
