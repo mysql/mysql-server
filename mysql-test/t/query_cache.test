@@ -401,7 +401,6 @@ select * from t1 where id=2;
 #
 # Load data invalidation test
 #
-
 create table t1 (word char(20) not null);
 select * from t1;
 show status like "Qcache_queries_in_cache";
@@ -412,7 +411,6 @@ drop table t1;
 #
 # INTO OUTFILE/DUMPFILE test
 #
-
 drop table if exists t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
@@ -420,4 +418,17 @@ show status like "Qcache_queries_in_cache";
 select * from t1 into outfile "query_caceh.out.file";
 select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
+# test of SQL_SELECT_LIMIT
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+show status like "Qcache_queries_in_cache";
+select * from t1;
+SET OPTION SQL_SELECT_LIMIT=1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+SET OPTION SQL_SELECT_LIMIT=DEFAULT;
 drop table t1;
