@@ -23,7 +23,7 @@ DEFS= -DMYSQL_INSTANCE_MANAGER
 # default_options.h, generated from default_options.h.in)
 # See automake/autoconf docs for details
 
-noinst_LIBRARIES= liboptions.a libnet.a
+noinst_LIBRARIES= liboptions.a libnet.a libalarm.a
 
 liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_PID_FILE_NAME="$(localstatedir)/mysqlmanager.pid" \
@@ -45,7 +45,14 @@ liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
 nodist_libnet_a_SOURCES= password.c pack.c sql_state.c net_serv.cc
 nodist_libnet_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
 
-CLEANFILES= net_serv.cc password.c pack.c sql_state.c
+nodist_libalarm_a_SOURCES= thr_alarm.c
+nodist_libalarm_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
+libalarm_a_LIBADD=	$(top_builddir)/mysys/mf_qsort2.o \
+	$(top_builddir)/mysys/queues.o \
+	$(top_builddir)/mysys/my_new.o
+        
+
+CLEANFILES= net_serv.cc password.c pack.c sql_state.c thr_alarm.c
 
 net_serv.cc: Makefile
 	rm -f $(srcdir)/net_serv.cc
@@ -63,32 +70,35 @@ sql_state.c: Makefile
 	rm -f $(srcdir)/sql_state.c
 	@LN_CP_F@ $(top_srcdir)/sql/sql_state.c $(srcdir)/sql_state.c
 
+thr_alarm.c: Makefile
+	rm -f $(srcdir)/thr_alarm.c
+	@LN_CP_F@ $(top_srcdir)/mysys/thr_alarm.c $(srcdir)/thr_alarm.c
+
 bin_PROGRAMS= mysqlmanager
 
-mysqlmanager_SOURCES=	mysqlmanager.cc manager.h manager.cc log.h log.cc \
+mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
+			manager.h manager.cc log.h log.cc \
 			thread_registry.h thread_registry.cc \
-			listener.h listener.cc \
+			listener.h listener.cc protocol.h protocol.cc \
 			mysql_connection.h mysql_connection.cc \
-			protocol.h protocol.cc \
 			user_map.h user_map.cc \
 			messages.h messages.cc \
 			$(top_srcdir)/sql/sql_string.cc \
-			command.h command.cc \
 			commands.h commands.cc \
 			factory.h factory.cc \
 			instance.h instance.cc \
 			instance_map.h instance_map.cc\
 			instance_options.h instance_options.cc \
 			buffer.h buffer.cc parse.cc parse.h \
-			guardian.cc guardian.h mysql_manager_error.h
+			guardian.cc guardian.h common_structures.h \
+                        mysql_manager_error.h
 
 mysqlmanager_LDADD=	liboptions.a \
 			libnet.a \
+                        libalarm.a \
 			$(top_builddir)/vio/libvio.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/strings/libmystrings.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/libmysql/libmysqlclient.la
+			$(top_builddir)/libmysql_r/libmysqlclient_r.la \
+			$(top_builddir)/dbug/libdbug.a -lz
 
 
 tags:
