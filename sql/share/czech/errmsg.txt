@@ -10,6 +10,8 @@
 	Thu Nov 30 14:02:52 MET 2000		podle 3.23.28
 */
 
+character-set=latin2
+
 "hashchk",
 "isamchk",
 "NE",

@@ -24,11 +24,13 @@
 #define MAXLENGTH 1000
 #define MAX_ROWS  1000
 #define MAX_FILES 10
+#define MAX_CHARSET_NAME	64
 
 int	row_count;
 uint	file_pos[MAX_ROWS],file_row_pos[MAX_FILES];
 my_string saved_row[MAX_ROWS];
 uchar   file_head[]= { 254,254,2,1 };
+char    charset_name[MAX_CHARSET_NAME];
 
 static void get_options(int *argc,char **argv[]);
 static int count_rows(FILE *from,pchar c, pchar c2);
@@ -61,6 +63,13 @@ int main(int argc,char *argv[])
     }
 
     VOID(count_rows(from,'"','}'));	/* Calculate start-info */
+    if (!charset_name[0])
+    {
+      fprintf(stderr,"Character set is not specified in '%s'\n",*argv);
+      fclose(from);
+      goto end;
+    }
+    
     if (remember_rows(from,'}') < 0)	/* Remember rows */
     {
       fprintf(stderr,"Can't find textrows in '%s'\n",*argv);
@@ -134,6 +143,11 @@ static void get_options(register int *argc,register char **argv[])
     case 'V':
       printf("%s  (Compile errormessage)  Ver 1.3\n",progname);
       break;
+    case 'C':
+      printf("pos=%s\n", pos+1);
+      charsets_dir= pos+1;
+      *(pos--)= '\0';
+      break;
     case 'I':
     case '?':
       printf("         %s  (Compile errormessage)  Ver 1.3\n",progname);
@@ -168,8 +182,19 @@ static int count_rows(FILE *from, pchar c, pchar c2)
   DBUG_ENTER("count_rows");
 
   pos=ftell(from); count=0;
+  
+  charset_name[0]= '\0';
   while (fgets(rad,MAXLENGTH,from) != NULL)
   {
+    if (!strncmp(rad,"character-set=",14))
+    {
+      char *b= rad+14, *e;
+      for (e=b ; e[0] && e-b < MAX_CHARSET_NAME && 
+                 e[0] != ' '  && e[0] != '\r' && 
+                 e[0] != '\n' && e[0] != '\t' ; e++);
+      e[0]= '\0';
+      strcpy(charset_name, b);
+    }
     if (rad[0] == c || rad[0] == c2)
       break;
     count++;
