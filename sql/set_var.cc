@@ -859,6 +859,8 @@ void fix_max_relay_log_size(THD *thd, enum_var_type type)
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
@@ -878,6 +880,8 @@ void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
@@ -925,6 +929,8 @@ byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
@@ -964,6 +970,8 @@ byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
 bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ha_rows) tmp > max_system_variables.*offset)
@@ -1010,6 +1018,8 @@ byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
 
   if ((ulonglong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
@@ -1581,6 +1591,9 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
   NAMED_LIST *list;
   LEX_STRING *base_name= &var->base;
 
@@ -1676,7 +1689,11 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
-  thd->set_time((time_t) var->value->val_int());
+  time_t tmp= (time_t) var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
+  thd->set_time(tmp);
   return 0;
 }
 
@@ -1697,7 +1714,11 @@ byte *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 {
-  thd->insert_id(var->value->val_int());
+  ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
+  thd->insert_id(tmp);
   return 0;
 }
 
@@ -1712,7 +1733,11 @@ byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_insert_id::update(THD *thd, set_var *var)
 {
-  thd->next_insert_id=var->value->val_int();
+  ulonglong tmp= var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
+  thd->next_insert_id= tmp;
   return 0;
 }
 
@@ -1779,13 +1804,21 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 bool sys_var_rand_seed1::update(THD *thd, set_var *var)
 {
-  thd->rand.seed1= (ulong) var->value->val_int();
+  ulong tmp= (ulong) var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
+  thd->rand.seed1= tmp;
   return 0;
 }
 
 bool sys_var_rand_seed2::update(THD *thd, set_var *var)
 {
-  thd->rand.seed2= (ulong) var->value->val_int();
+  ulong tmp= (ulong) var->value->val_int();
+  if (thd->net.report_error)
+    return 1;
+
+  thd->rand.seed2= tmp;
   return 0;
 }
 
