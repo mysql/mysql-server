@@ -101,7 +101,7 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
       }
       if (num < (longlong) found->min_value)
 	num=(longlong) found->min_value;
-      else if (num > (longlong) (ulong) found->max_value)
+      else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) found->max_value)
 	num=(longlong) (ulong) found->max_value;
       num=((num- (longlong) found->sub_size) / (ulonglong) found->block_size);
       (*found->varptr)= (long) (num*(ulonglong) found->block_size);
