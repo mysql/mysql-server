@@ -1672,13 +1672,45 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
   connect();
   struct ndb_mgm_reply reply;
   unsigned int backupId;
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  int fd = ndb_mgm_listen_event(m_mgmsrv, filter);
   int result = ndb_mgm_start_backup(m_mgmsrv, &backupId, &reply);
   if (result != 0) {
     ndbout << "Start of backup failed" << endl;
     printError();
-  } else {
-    ndbout << "Backup started. Backup id " << backupId << "." << endl;
+    close(fd);
+    return;
   }
+
+  char *tmp;
+  char buf[1024];
+  {
+    SocketInputStream in(fd);
+    int count = 0;
+    do {
+      tmp = in.gets(buf, 1024);
+      if(tmp)
+      {
+	ndbout << tmp;
+	int id;
+	if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
+	  count++;
+	}
+      }
+    } while(count < 2);
+  }
+
+  SocketInputStream in(fd, 10);
+  do {
+    tmp = in.gets(buf, 1024);
+    if(tmp && tmp[0] != 0)
+    {
+      ndbout << tmp;
+    }
+  } while(tmp && tmp[0] != 0);
+  
+  close(fd);
 }
 
 void

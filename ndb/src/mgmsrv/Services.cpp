@@ -1411,6 +1411,7 @@ done:
   m_output->println("result: %d", result);
   if(result != 0)
     m_output->println("msg: %s", msg.c_str());
+  m_output->println("");
 }
 
 template class MutexVector<int>;
