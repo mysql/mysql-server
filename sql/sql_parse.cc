@@ -1192,20 +1192,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
       *passwd++ : strlen(passwd);
     db+= passwd_len + 1;
-    /* Convert database name to utf8 */
-    String convdb;
-    convdb.copy(db, strlen(db), thd->variables.character_set_client,
-                system_charset_info);
-    db= convdb.c_ptr();
-
-
-
     /* Small check for incomming packet */
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {
       send_error(thd, ER_UNKNOWN_COM_ERROR);
       break;
     }
+
+    /* Convert database name to utf8 */
+    String convdb;
+    convdb.copy(db, strlen(db), thd->variables.character_set_client,
+                system_charset_info);
+    db= convdb.c_ptr();
 
     /* Save user and privileges */
     uint save_master_access= thd->master_access;
