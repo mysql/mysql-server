@@ -21,7 +21,9 @@ select count(*) from t1;
 count(*)
 0
 select count(T1.a) from t1;
-Unknown table 'T1' in field list
+count(T1.a)
+0
 select count(bags.a) from t1 as Bags;
-Unknown table 'bags' in field list
+count(bags.a)
+0
 drop table t1;

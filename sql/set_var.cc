@@ -238,7 +238,6 @@ sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
 #endif
-sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
 sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",

@@ -58,7 +58,7 @@ connection slave;
 # Note that the above 'slave start' will cause a 3rd rotate event (a fake one)
 # to go into the relay log (the master always sends a fake one when replication
 # starts). 
-slave start;
+start slave;
 sync_with_master;
 flush logs;
 stop slave;
