@@ -17,11 +17,7 @@
 #ifndef NDB_OPT_DEFAULTS_H
 #define NDB_OPT_DEFAULTS_H
 
-#ifdef SIGRTMIN
-#define OPT_NDB_SHM_SIGNUM_DEFAULT SIGRTMIN+2
-#else
 #define OPT_NDB_SHM_SIGNUM_DEFAULT 0
-#endif
 #define OPT_NDB_SHM_DEFAULT 0
 
 #endif
