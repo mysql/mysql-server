@@ -1806,7 +1806,7 @@ String *Item_func_rpad::val_str(String *str)
   const char *ptr_pad;
   int32 count= (int32) args[1]->val_int();
   String *res =args[0]->val_str(str);
-  String *rpad = args[2]->val_str(str);
+  String *rpad = args[2]->val_str(&rpad_str);
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
@@ -1866,7 +1866,7 @@ String *Item_func_lpad::val_str(String *str)
   const char *ptr_pad;
   ulong count= (long) args[1]->val_int();
   String *res= args[0]->val_str(str);
-  String *lpad= args[2]->val_str(str);
+  String *lpad= args[2]->val_str(&lpad_str);
 
   if (!res || args[1]->null_value || !lpad)
     goto err;
