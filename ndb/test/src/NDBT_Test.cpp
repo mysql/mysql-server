@@ -1138,4 +1138,3 @@ template class Vector<NDBT_Verifier*>;
 template class Vector<NDBT_Initializer*>;
 template class Vector<NDBT_Finalizer*>;
 template class Vector<const NdbDictionary::Table*>;
-template class Vector<int>;
