@@ -534,7 +534,7 @@ row_purge_parse_undo_rec(
 
 		node->table = NULL;
 
-		return;
+		return(FALSE);
 	}
 
 	clust_index = dict_table_get_first_index(node->table);

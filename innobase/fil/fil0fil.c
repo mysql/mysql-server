@@ -1302,11 +1302,13 @@ fil_write_flushed_lsn_to_data_files(
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 	
 	while (space) {
-		/* We only write the lsn to the system tablespace
-		(space id == 0) files */
+		/* We only write the lsn to all existing data files which have
+		been open during the lifetime of the mysqld process; they are
+		represented by the space objects in the tablespace memory
+		cache. Note that all data files in the system tablespace 0 are
+		always open. */
 
-		if (space->id == 0) {
-			ut_a(space->purpose == FIL_TABLESPACE);
+		if (space->purpose == FIL_TABLESPACE) {
 			sum_of_sizes = 0;
 
 			node = UT_LIST_GET_FIRST(space->chain);
@@ -1326,8 +1328,6 @@ fil_write_flushed_lsn_to_data_files(
 				sum_of_sizes += node->size;
 				node = UT_LIST_GET_NEXT(chain, node);
 			}
-
-			break; /* there is only one space with id == 0 */
 		}
 		space = UT_LIST_GET_NEXT(space_list, space);
 	}
@@ -1938,6 +1938,147 @@ fil_create_new_single_table_tablespace(
 }
 
 /************************************************************************
+It is possible, though very improbable, that the lsn's in the tablespace to be
+imported have risen above the current system lsn, if a lengthy purge, ibuf
+merge, or rollback was performed on a backup taken with ibbackup. If that is
+the case, reset page lsn's in the file. We assume that mysqld was shut down
+after it performed these cleanup operations on the .ibd file, so that it at
+the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
+first page of the .ibd file, and we can determine whether we need to reset the
+lsn's just by looking at that flush lsn. */
+
+ibool
+fil_reset_too_high_lsns(
+/*====================*/
+				/* out: TRUE if success */
+	char*	name,		/* in: table name in the databasename/tablename
+				format */
+	dulint	current_lsn)	/* in: reset lsn's if the lsn stamped to
+				FIL_PAGE_FILE_FLUSH_LSN in the first page is
+				too high */
+{
+	os_file_t	file;
+	char*		filepath;
+	byte*		page;
+	dulint		flush_lsn;
+	ulint		space_id;
+	ib_longlong	file_size;
+	ib_longlong	offset;
+	ulint		page_no;
+	ibool		success;
+
+	filepath = ut_malloc(OS_FILE_MAX_PATH);
+
+	ut_a(strlen(name) < OS_FILE_MAX_PATH - 10);
+
+	sprintf(filepath, "./%s.ibd", name);
+					
+	srv_normalize_path_for_win(filepath);
+
+	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
+						OS_FILE_READ_WRITE, &success);
+	if (!success) {
+		ut_free(filepath);
+
+		return(FALSE);
+	}
+
+	/* Read the first page of the tablespace */
+
+	page = ut_malloc(UNIV_PAGE_SIZE);
+
+	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
+	if (!success) {
+
+		goto func_exit;
+	}
+
+	/* We have to read the file flush lsn from the header of the file */
+
+	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+
+	if (ut_dulint_cmp(current_lsn, flush_lsn) >= 0) {
+		/* Ok */
+		success = TRUE;
+
+		goto func_exit;
+	}
+
+	space_id = fsp_header_get_space_id(page);
+	
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+" InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
+"InnoDB: is %lu %lu, which exceeds current system lsn %lu %lu.\n"
+"InnoDB: We reset the lsn's in the file %s.\n",
+			    space_id,
+			    ut_dulint_get_high(flush_lsn),
+			    ut_dulint_get_low(flush_lsn),
+			    ut_dulint_get_high(current_lsn),
+			    ut_dulint_get_low(current_lsn), filepath);
+
+	/* Loop through all the pages in the tablespace and reset the lsn and
+	the page checksum if necessary */
+
+	file_size = os_file_get_size_as_iblonglong(file);
+
+	for (offset = 0; offset < file_size; offset += UNIV_PAGE_SIZE) {
+		success = os_file_read(file, page,
+				(ulint)(offset & 0xFFFFFFFFUL),
+				(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+		if (!success) {
+
+			goto func_exit;
+		}
+		if (ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
+				  current_lsn) > 0) {
+			/* We have to reset the lsn */
+			space_id = mach_read_from_4(page
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
+			
+			buf_flush_init_for_writing(page, current_lsn, space_id,
+								      page_no);
+			success = os_file_write(filepath, file, page,
+				(ulint)(offset & 0xFFFFFFFFUL),
+				(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+			if (!success) {
+
+				goto func_exit;
+			}
+		}
+	}
+
+	success = os_file_flush(file);
+	if (!success) {
+
+		goto func_exit;
+	}
+
+	/* We now update the flush_lsn stamp at the start of the file */
+	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
+	if (!success) {
+
+		goto func_exit;
+	}
+
+	mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+
+	success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
+	if (!success) {
+
+		goto func_exit;
+	}
+	success = os_file_flush(file);
+func_exit:
+	os_file_close(file);
+	ut_free(page);
+	ut_free(filepath);
+
+	return(success);
+}
+
+/************************************************************************
 Tries to open a single-table tablespace and checks the space id is right in
 it. If does not succeed, prints an error message to the .err log. This
 function is used to open the tablespace when we load a table definition
@@ -1982,7 +2123,9 @@ fil_open_single_table_tablespace(
 "InnoDB: open the tablespace file %s!\n", filepath);
 		fprintf(stderr,
 "InnoDB: have you moved InnoDB .ibd files around without using the\n"
-"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n");
+"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
+"InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"InnoDB: how to resolve the issue.\n");
 
 		ut_free(filepath);
 
@@ -2007,7 +2150,9 @@ fil_open_single_table_tablespace(
 "InnoDB: data dictionary it is %lu.\n", filepath, space_id, id);
 		fprintf(stderr,
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
-"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n");
+"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
+"InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"InnoDB: how to resolve the issue.\n");
 
 		ret = FALSE;
 
