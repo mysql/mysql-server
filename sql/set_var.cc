@@ -168,7 +168,11 @@ sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
+/* 
+   sys_pseudo_thread_id has its own class (instead of sys_var_thd_ulong) because
+   we want a check() function.
+*/
+sys_var_pseudo_thread_id sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id);
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
@@ -1452,6 +1456,17 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 {
   return (byte*) &thd->current_insert_id;
+}
+
+bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
+{
+  if (thd->master_access & SUPER_ACL)
+    return 0;
+  else
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
 }
 
 
