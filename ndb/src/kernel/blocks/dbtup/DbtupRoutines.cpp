@@ -187,14 +187,11 @@ int Dbtup::readAttributes(Page* const pagePtr,
       } else {
         return (Uint32)-1;
       }//if
-    } else if(attributeId == AttributeHeader::FRAGMENT){
-      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, 1);
-      outBuffer[tmpAttrBufIndex+1] = fragptr.p->fragmentId;
-      tOutBufIndex = tmpAttrBufIndex + 2;
-    } else if(attributeId == AttributeHeader::ROW_COUNT){
-      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, 2);
-      readRowcount(operPtr.p->userpointer, outBuffer+tmpAttrBufIndex+1);
-      tOutBufIndex = tmpAttrBufIndex + 3;
+    } else if(attributeId & AttributeHeader::PSUEDO){
+      Uint32 sz = read_psuedo(attributeId, 
+			      outBuffer+tmpAttrBufIndex+1);
+      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, sz);
+      tOutBufIndex = tmpAttrBufIndex + 1 + sz;
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
       return (Uint32)-1;
@@ -903,13 +900,24 @@ Dbtup::updateDynSmallVarSize(Uint32* inBuffer,
   return false;
 }//Dbtup::updateDynSmallVarSize()
 
-bool
-Dbtup::readRowcount(Uint32 userPtr, Uint32* outBuffer){
+Uint32 
+Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   Uint32 tmp[sizeof(SignalHeader)+25];
   Signal * signal = (Signal*)&tmp;
-  signal->theData[0] = userPtr;
-  
-  EXECUTE_DIRECT(DBLQH, GSN_READ_ROWCOUNT_REQ, signal, 1);
-  outBuffer[0] = signal->theData[0];
-  outBuffer[1] = signal->theData[1];
+  switch(attrId){
+  case AttributeHeader::FRAGMENT:
+    * outBuffer = operPtr.p->fragId;
+    return 1;
+  case AttributeHeader::ROW_COUNT:
+  case AttributeHeader::COMMIT_COUNT:
+    signal->theData[0] = operPtr.p->userpointer;
+    signal->theData[1] = attrId;
+
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
+    outBuffer[0] = signal->theData[0];
+    outBuffer[1] = signal->theData[1];
+    return 2;
+  default:
+    return 0;
+  }
 }

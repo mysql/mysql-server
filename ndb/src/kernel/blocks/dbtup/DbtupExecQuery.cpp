@@ -1985,7 +1985,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::EXIT_OK_LAST:
 	jam();
-#if 1
+#ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_ok_last");
 #endif
 	operPtr.p->lastRow = 1;

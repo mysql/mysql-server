@@ -17,6 +17,7 @@
 #define DBACC_C
 #include "Dbacc.hpp"
 
+#include <AttributeHeader.hpp>
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/AccLock.hpp>
@@ -1051,6 +1052,7 @@ void Dbacc::initRootfragrec(Signal* signal)
   rootfragrecptr.p->mytabptr = req->tableId;
   rootfragrecptr.p->roothashcheck = req->kValue + req->lhFragBits;
   rootfragrecptr.p->noOfElements = 0;
+  rootfragrecptr.p->m_commit_count = 0;
   for (Uint32 i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
     rootfragrecptr.p->scan[i] = RNIL;
   }//for
@@ -2335,46 +2337,51 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
   Toperation = operationRecPtr.p->operation;
   operationRecPtr.p->transactionstate = IDLE;
   operationRecPtr.p->operation = ZUNDEFINED_OP;
-  if (Toperation != ZINSERT) {
-    if (Toperation != ZDELETE) {
-      return;
+  if(Toperation != ZREAD){
+    rootfragrecptr.p->m_commit_count++;
+    if (Toperation != ZINSERT) {
+      if (Toperation != ZDELETE) {
+	return;
+      } else {
+	jam();
+	rootfragrecptr.i = fragrecptr.p->myroot;
+	ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+	rootfragrecptr.p->noOfElements--;
+	fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
+	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
+          /* TIME FOR JOIN BUCKETS PROCESS */
+	  if (fragrecptr.p->expandCounter > 0) {
+	    if (fragrecptr.p->expandFlag < 2) {
+	      jam();
+	      signal->theData[0] = fragrecptr.i;
+	      signal->theData[1] = fragrecptr.p->p;
+	      signal->theData[2] = fragrecptr.p->maxp;
+	      signal->theData[3] = fragrecptr.p->expandFlag;
+	      fragrecptr.p->expandFlag = 2;
+	      sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+	    }//if
+	  }//if
+	}//if
+      }//if
     } else {
-      jam();
+      jam();  /* EXPAND PROCESS HANDLING */
       rootfragrecptr.i = fragrecptr.p->myroot;
       ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
-      rootfragrecptr.p->noOfElements--;
-      fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
-      if (fragrecptr.p->slack > fragrecptr.p->slackCheck) {           /* TIME FOR JOIN BUCKETS PROCESS */
-        if (fragrecptr.p->expandCounter > 0) {
-	  if (fragrecptr.p->expandFlag < 2) {
-            jam();
-            signal->theData[0] = fragrecptr.i;
-            signal->theData[1] = fragrecptr.p->p;
-            signal->theData[2] = fragrecptr.p->maxp;
-	    signal->theData[3] = fragrecptr.p->expandFlag;
-            fragrecptr.p->expandFlag = 2;
-            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
-          }//if
-        }//if
+      rootfragrecptr.p->noOfElements++;
+      fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
+      if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { 
+	/* IT MEANS THAT IF SLACK < ZERO */
+	if (fragrecptr.p->expandFlag == 0) {
+	  jam();
+	  fragrecptr.p->expandFlag = 2;
+	  signal->theData[0] = fragrecptr.i;
+	  signal->theData[1] = fragrecptr.p->p;
+	  signal->theData[2] = fragrecptr.p->maxp;
+	  sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+	}//if
       }//if
     }//if
-  } else {
-    jam();                                                /* EXPAND PROCESS HANDLING */
-    rootfragrecptr.i = fragrecptr.p->myroot;
-    ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
-    rootfragrecptr.p->noOfElements++;
-    fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
-    if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { /* IT MEANS THAT IF SLACK < ZERO */
-      if (fragrecptr.p->expandFlag == 0) {
-        jam();
-        fragrecptr.p->expandFlag = 2;
-        signal->theData[0] = fragrecptr.i;
-        signal->theData[1] = fragrecptr.p->p;
-        signal->theData[2] = fragrecptr.p->maxp;
-        sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
-      }//if
-    }//if
-  }//if
+  }
   return;
 }//Dbacc::execACC_COMMITREQ()
 
@@ -13386,13 +13393,24 @@ void Dbacc::execSET_VAR_REQ(Signal* signal)
 }//execSET_VAR_REQ()
 
 void
-Dbacc::execREAD_ROWCOUNTREQ(Signal* signal){
+Dbacc::execREAD_PSUEDO_REQ(Signal* signal){
   jamEntry();
   fragrecptr.i = signal->theData[0];
+  Uint32 attrId = signal->theData[1];
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   rootfragrecptr.i = fragrecptr.p->myroot;
   ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
-  Uint64 tmp = rootfragrecptr.p->noOfElements;
+  Uint64 tmp;
+  switch(attrId){
+  case AttributeHeader::ROW_COUNT:
+    tmp = rootfragrecptr.p->noOfElements;
+    break;
+  case AttributeHeader::COMMIT_COUNT:
+    tmp = rootfragrecptr.p->m_commit_count;
+    break;
+  default:
+    tmp = 0;
+  }
   Uint32 * src = (Uint32*)&tmp;
   signal->theData[0] = src[0];
   signal->theData[1] = src[1];

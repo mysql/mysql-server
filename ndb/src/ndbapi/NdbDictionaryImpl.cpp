@@ -35,6 +35,7 @@
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbBlob.hpp"
+#include <AttributeHeader.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -197,32 +198,26 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   if(strcmp(m_defaultValue.c_str(), col.m_defaultValue.c_str()) != 0){
     return false;
   }
-  
+
   return true;
 }
 
-void
-NdbColumnImpl::assign(const NdbColumnImpl& org)
-{
-  m_attrId = org.m_attrId;
-  m_name.assign(org.m_name);
-  m_type = org.m_type;
-  m_precision = org.m_precision;
-  m_scale = org.m_scale;
-  m_length = org.m_length;
-  m_pk = org.m_pk;
-  m_tupleKey = org.m_tupleKey;
-  m_distributionKey = org.m_distributionKey;
-  m_distributionGroup = org.m_distributionGroup;
-  m_distributionGroupBits = org.m_distributionGroupBits;
-  m_nullable = org.m_nullable;
-  m_indexOnly = org.m_indexOnly;
-  m_autoIncrement = org.m_autoIncrement;
-  m_autoIncrementInitialValue = org.m_autoIncrementInitialValue;
-  m_defaultValue.assign(org.m_defaultValue);
-  m_keyInfoPos = org.m_keyInfoPos;
-  m_attrSize = org.m_attrSize;
-  m_arraySize = org.m_arraySize;
+NdbDictionary::Column *
+NdbColumnImpl::create_psuedo(const char * name){
+  NdbDictionary::Column * col = new NdbDictionary::Column();
+  col->setName(name);
+  if(!strcmp(name, "NDB$FRAGMENT")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::FRAGMENT;
+  } else if(!strcmp(name, "NDB$ROW_COUNT")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_COUNT;
+  } else if(!strcmp(name, "NDB$COMMIT_COUNT")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
+  } else {
+    abort();
+  }
 }
 
 /**
@@ -332,7 +327,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   for(unsigned i = 0; i<org.m_columns.size(); i++){
     NdbColumnImpl * col = new NdbColumnImpl();
     const NdbColumnImpl * iorg = org.m_columns[i];
-    col->assign(* iorg);
+    (* col) = (* iorg);
     m_columns.push_back(col);
   }
 
@@ -593,6 +588,8 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
   m_globalHash = 0;
 }
 
+static int f_dictionary_count = 0;
+
 NdbDictionaryImpl::~NdbDictionaryImpl()
 {
   NdbElement_t<NdbTableImpl> * curr = m_localHash.m_tableHash.getNext(0);
@@ -603,17 +600,20 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
     
     curr = m_localHash.m_tableHash.getNext(curr);
   }
+
+  m_globalHash->lock();
+  if(--f_dictionary_count == 0){
+    delete NdbDictionary::Column::FRAGMENT; 
+    delete NdbDictionary::Column::ROW_COUNT;
+    delete NdbDictionary::Column::COMMIT_COUNT;
+    NdbDictionary::Column::FRAGMENT= 0;
+    NdbDictionary::Column::ROW_COUNT= 0;
+    NdbDictionary::Column::COMMIT_COUNT= 0;
+  }
+  m_globalHash->unlock();
 }
 
-void 
-initDict(NdbDictionary::Dictionary & d)
-{
-  TransporterFacade * tf = TransporterFacade::instance();
-  NdbDictionaryImpl & impl = NdbDictionaryImpl::getImpl(d);
-  
-  impl.m_receiver.setTransporter(tf);
-}
-
+#if 0
 bool
 NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
 {
@@ -624,13 +624,25 @@ NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
   
   return false;
 }
+#endif
 
 bool
 NdbDictionaryImpl::setTransporter(class Ndb* ndb, 
 				  class TransporterFacade * tf)
 {
   m_globalHash = &tf->m_globalDictCache;
-  return m_receiver.setTransporter(ndb, tf);
+  if(m_receiver.setTransporter(ndb, tf)){
+    m_globalHash->lock();
+    if(f_dictionary_count++ == 0){
+      NdbDictionary::Column::FRAGMENT= 
+	NdbColumnImpl::create_psuedo("NDB$FRAGMENT");
+      NdbDictionary::Column::ROW_COUNT= 
+	NdbColumnImpl::create_psuedo("NDB$ROW_COUNT");
+      NdbDictionary::Column::COMMIT_COUNT= 
+	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
+    }
+    m_globalHash->unlock();
+  }
 }
 
 NdbTableImpl * 
@@ -1223,6 +1235,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     impl->m_columns[attrDesc.AttributeId] = col;
     it.next();
   }
+
   impl->m_noOfKeys = keyCount;
   impl->m_keyLenInWords = keyInfoPos;
   impl->m_sizeOfKeysInWords = keyInfoPos;

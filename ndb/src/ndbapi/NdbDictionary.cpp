@@ -30,7 +30,7 @@ NdbDictionary::Column::Column(const char * name)
 NdbDictionary::Column::Column(const NdbDictionary::Column & org)
   : m_impl(* new NdbColumnImpl(* this))
 {
-  m_impl.assign(org.m_impl);
+  m_impl = org.m_impl;
 }
 
 NdbDictionary::Column::Column(NdbColumnImpl& impl)
@@ -272,11 +272,8 @@ NdbDictionary::Table::getTableId() const {
 
 void 
 NdbDictionary::Table::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
   if(c.getPrimaryKey()){
     m_impl.m_noOfKeys++;
@@ -491,11 +488,8 @@ NdbDictionary::Index::getIndexColumn(int no) const {
 
 void
 NdbDictionary::Index::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
 }
 
@@ -605,11 +599,8 @@ NdbDictionary::Event::setDurability(const EventDurability d)
 
 void
 NdbDictionary::Event::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
 }
 
@@ -901,3 +892,8 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " NULL";
   return out;
 }
+
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
+
