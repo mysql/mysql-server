@@ -50125,10 +50125,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-Fixed bug in multi-table update when updating a table confused do_select
-in reading records from a cache
+Fixed bug in multi-table @code{UPDATE}: when updating a table,
+do_select confused in reading records from a cache
 @item
-Fixed bug in multi-table update when several fields are referenced
+Fixed bug in multi-table @code{UPDATE} when several fields were referenced
 from a single table
 @item
 Fixed bug in @code{REVOKE} that caused user resources to be randomly set.
