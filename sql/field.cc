@@ -5611,16 +5611,16 @@ create_field::create_field(Field *old_field,Field *orig_field)
         case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
         default: sql_type= FIELD_TYPE_LONG_BLOB; break;
       }
-      length /= charset->mbmaxlen;		// QQ: Probably not needed
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen; // QQ: Probably not needed
       break;
     case FIELD_TYPE_STRING:
     case FIELD_TYPE_VAR_STRING:
-      length /= charset->mbmaxlen;
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen;
       break;
     default:
       break;
   }
-  
+
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
