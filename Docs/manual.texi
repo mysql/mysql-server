@@ -14340,7 +14340,8 @@ privilege.
 
 @item --skip-stack-trace
 Don't write stack traces.  This option is useful when you are running
-@code{mysqld} under a debugger. @xref{Debugging server}.
+@code{mysqld} under a debugger. On some system you also have to use
+this option to get a core file. @xref{Debugging server}.
 
 @item --skip-thread-priority
 Disable using thread priorities for faster response time.
@@ -19981,7 +19982,7 @@ is automatically enlarged, up to @code{max_allowed_packet} bytes.)
 @item @code{net_read_timeout}
 Number of seconds to wait for more data from a connection before aborting
 the read.  Note that when we don't expect data from a connection, the timeout
-is defined by @code{write_timeout}. See also @code{slave_read_timeout}.
+is defined by @code{write_timeout}. See also @code{slave_net_timeout}.
 
 @item @code{net_retry_count}
 If a read on a communication port is interrupted, retry this many times
@@ -20060,7 +20061,7 @@ the @strong{process} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_database}.
 
-@item @code{slave_read_timeout}
+@item @code{slave_net_timeout}
 Number of seconds to wait for more data from a master/slave connection
 before aborting the read.
 
@@ -24057,7 +24058,7 @@ Example:
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
 
-@item @code{slave_read_timeout=#} @tab
+@item @code{slave_net_timeout=#} @tab
 Number of seconds to wait for more data from the master before aborting
 the read.
 @end multitable
