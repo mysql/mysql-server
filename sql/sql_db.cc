@@ -108,7 +108,7 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
     {
       char *pos= buf+nbytes-1;
       /* Remove end space and control characters */
-      while (pos > buf && !my_isgraph(system_charset_info, pos[-1]))
+      while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
 	pos--;
       *pos=0;
       if ((pos= strchr(buf, '=')))
@@ -414,8 +414,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (my_isdigit(system_charset_info,file->name[0]) && 
-        my_isdigit(system_charset_info,file->name[1]) &&
+    if (my_isdigit(&my_charset_latin1,file->name[0]) && 
+        my_isdigit(&my_charset_latin1,file->name[1]) &&
 	!file->name[2] && !level)
     {
       char newpath[FN_REFLEN];
@@ -440,7 +440,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(system_charset_info, 
+    if (db && !my_strcasecmp(&my_charset_latin1, 
                              fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
