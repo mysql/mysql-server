@@ -291,3 +291,10 @@ myisam/test1.MYD
 myisam/test1.MYI
 .gdbinit
 .vimrc
+client/log_event.cc
+client/log_event.h
+client/mf_iocache.c
+client/mf_iocache.cc
+client/mysqlbinlog
+client/mysys_priv.h
+mysql.kdevprj
