@@ -267,3 +267,21 @@ select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
 select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
 select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
 select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';
+
+drop table t1;
+
+# bug#7798
+create table t1(a int primary key, b int not null, index(b));
+insert into t1 values (1,1), (2,2);
+connect (con1,localhost,,,test);
+connect (con2,localhost,,,test);
+connection con1;
+set autocommit=0;
+begin;
+select count(*) from t1;
+connection con2;
+ALTER TABLE t1 ADD COLUMN c int;
+connection con1;
+select a from t1 where b = 2;
+show tables;
+drop table t1;

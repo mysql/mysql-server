@@ -54,7 +54,11 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
+#if (SIZEOF_CHARP == 8)
+  pthread_attr_setstacksize(&thread_attr, 2*thread_stack_size);
+#else
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
+#endif
 #ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */
   pthread_attr_setguardsize(&thread_attr, 2048);
