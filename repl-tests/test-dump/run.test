@@ -14,7 +14,7 @@ load data infile '/usr/dict/words' into table words;
 drop table if exists words1;
 create table words1 (word char(20) not null);
 load data infile '/usr/dict/words' into table words1;
-sleep 5;
+sleep 20;
 connection slave;
 use test;
 drop table if exists words;

@@ -18,7 +18,7 @@ insert into foo values(1),(2);
 @foo-dump-master.master select * from foo;
 @sum-wlen-master.master select sum(length(word)) from words;
 connection slave;
-sleep 5;
+sleep 15;
 use test;
 @sum-wlen-slave.master select sum(length(word)) from words;
 @foo-dump-slave.master select * from foo;
