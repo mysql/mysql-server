@@ -457,14 +457,13 @@ os_file_get_size(
 
 	offs = lseek(file, 0, SEEK_END);
 
-	if (sizeof(off_t) > 4) {
-	        *size = (ulint)(offs & 0xFFFFFFFF);
-		*size_high = (ulint)(offs >> 32);
-	} else {
-		*size = (ulint) offs;
-		*size_high = 0;
-	}
-	
+#if SIZEOF_OFF_T > 4
+	*size = (ulint)(offs & 0xFFFFFFFF);
+	*size_high = (ulint)(offs >> 32);
+#else
+	*size = (ulint) offs;
+	*size_high = 0;
+#endif	
 	return(TRUE);	
 #endif
 }
@@ -614,18 +613,16 @@ os_file_pread(
         /* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
 
-        if (sizeof(off_t) > 4) {
-	        offs = (off_t)offset + (((off_t)offset_high) << 32);
-        				
-        } else {
-        	offs = (off_t)offset;
+#if SIZEOF_OFF_T > 4
+	offs = (off_t)offset + (((off_t)offset_high) << 32);
+#else
+	offs = (off_t)offset;
 
-        	if (offset_high > 0) {
-        		fprintf(stderr,
-			"InnoDB: Error: file read at offset > 4 GB\n");
-		}
+	if (offset_high > 0) {
+	  fprintf(stderr,
+		  "InnoDB: Error: file read at offset > 4 GB\n");
         }
-
+#endif
 	os_n_file_reads++;
 
 #ifdef HAVE_PREAD
