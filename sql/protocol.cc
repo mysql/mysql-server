@@ -862,6 +862,8 @@ bool Protocol_simple::store(TIME *tm)
 			   (int) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
+  if (tm->second_part)
+    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
   return net_store_data((char*) buff, length);
 }
 
@@ -898,6 +900,8 @@ bool Protocol_simple::store_time(TIME *tm)
 			   (long) day*24L+(long) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
+  if (tm->second_part)
+    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
   return net_store_data((char*) buff, length);
 }
 

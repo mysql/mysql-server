@@ -844,6 +844,7 @@ longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 			   bool fuzzy_date);
 void localtime_to_TIME(TIME *to, struct tm *from);
+void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);

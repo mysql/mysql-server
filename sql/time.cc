@@ -567,7 +567,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   /* Get fractional second part */
   if ((end-str) >= 2 && *str == '.' && my_isdigit(&my_charset_latin1,str[1]))
   {
-    uint field_length=3;
+    uint field_length=5;
     str++; value=(uint) (uchar) (*str - '0');
     while (++str != end && 
            my_isdigit(&my_charset_latin1,str[0]) && 
@@ -590,6 +590,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   l_time->minute=date[2];
   l_time->second=date[3];
   l_time->second_part=date[4];
+  l_time->time_type= TIMESTAMP_TIME;
 
   /* Check if there is garbage at end of the TIME specification */
   if (str != end && current_thd->count_cuted_fields)
@@ -621,4 +622,14 @@ void localtime_to_TIME(TIME *to, struct tm *from)
   to->hour=	(int) from->tm_hour;
   to->minute=	(int) from->tm_min;
   to->second=   (int) from->tm_sec;
+}
+
+void calc_time_from_sec(TIME *to, long seconds, long microseconds)
+{
+  long t_seconds;
+  to->hour= seconds/3600L;
+  t_seconds= seconds%3600L;
+  to->minute= t_seconds/60L;
+  to->second= t_seconds%60L;
+  to->second_part= microseconds;
 }
