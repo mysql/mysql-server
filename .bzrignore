@@ -473,6 +473,7 @@ mysql-test/r/rpl_log.eval
 mysql-test/r/slave-running.eval
 mysql-test/r/slave-stopped.eval
 mysql-test/share/mysql
+mysql-test/std_data/*.pem
 mysql-test/var/*
 mysql.kdevprj
 mysql.proj
