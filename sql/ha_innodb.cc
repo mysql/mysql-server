@@ -1715,6 +1715,26 @@ innobase_close_connection(
 *****************************************************************************/
 
 /********************************************************************
+Get the record format from the data dictionary. */
+enum row_type
+ha_innobase::get_row_type() const
+/*=============================*/
+			/* out: ROW_TYPE_REDUNDANT or ROW_TYPE_COMPACT */
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	if (prebuilt && prebuilt->table) {
+		if (prebuilt->table->comp) {
+			return(ROW_TYPE_COMPACT);
+		} else {
+			return(ROW_TYPE_REDUNDANT);
+		}
+	}
+	ut_ad(0);
+	return(ROW_TYPE_NOT_USED);
+}
+
+/********************************************************************
 Gives the file extension of an InnoDB single-table tablespace. */
 
 const char**
