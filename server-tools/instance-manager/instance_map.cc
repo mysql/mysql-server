@@ -226,26 +226,20 @@ int Instance_map::load()
 }
 
 
-Instance *Instance_map::get_instance(uint instance_number)
-{
-  if (instance_number < hash.records)
-    return (Instance *) hash_element(&hash, instance_number);
-  else
-    return NULL;
-}
+/*--- Implementaton of the Instance map iterator class  ---*/
 
 
-/*--- Implementaton of the Instance map iterator class (Imap_iterator) ---*/
-
-
-void Imap_iterator::go_to_first()
+void Instance_map::Iterator::go_to_first()
 {
   current_instance=0;
 }
 
 
-Instance *Imap_iterator::next()
+Instance *Instance_map::Iterator::next()
 {
-  return instance_map->get_instance(current_instance++);
+  if (current_instance < instance_map->hash.records)
+    return (Instance *) hash_element(&instance_map->hash, current_instance++);
+  else
+    return NULL;
 }
 

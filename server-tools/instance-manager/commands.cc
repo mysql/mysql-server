@@ -60,7 +60,7 @@ int Show_instances::do_command(struct st_net *net)
 
   {
     Instance *instance;
-    Imap_iterator iterator(instance_map);
+    Instance_map::Iterator iterator(instance_map);
 
     instance_map->lock();
     while (instance= iterator.next())
@@ -110,9 +110,9 @@ int Flush_instances::execute(struct st_net *net, ulong connection_id)
 
 /* implementation for Show_instance_status: */
 
-Show_instance_status::Show_instance_status(Instance_map *imap_arg,
+Show_instance_status::Show_instance_status(Instance_map *instance_map_arg,
                                            const char *name, uint len)
-  :Command(imap_arg)
+  :Command(instance_map_arg)
 {
   Instance *instance;
 
@@ -212,9 +212,9 @@ int Show_instance_status::execute(struct st_net *net, ulong connection_id)
 
 /* Implementation for Show_instance_options */
 
-Show_instance_options::Show_instance_options(Instance_map *imap_arg,
+Show_instance_options::Show_instance_options(Instance_map *instance_map_arg,
                                              const char *name, uint len):
-  Command(imap_arg)
+  Command(instance_map_arg)
 {
   Instance *instance;
 
@@ -333,9 +333,9 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
 
 /* Implementation for Start_instance */
 
-Start_instance::Start_instance(Instance_map *imap_arg,
+Start_instance::Start_instance(Instance_map *instance_map_arg,
                                const char *name, uint len)
-  :Command(imap_arg)
+  :Command(instance_map_arg)
 {
   /* we make a search here, since we don't want t store the name */
   if (instance= instance_map->find(name, len))
@@ -366,9 +366,9 @@ int Start_instance::execute(struct st_net *net, ulong connection_id)
 
 /* Implementation for Stop_instance: */
 
-Stop_instance::Stop_instance(Instance_map *imap_arg,
+Stop_instance::Stop_instance(Instance_map *instance_map_arg,
                                const char *name, uint len)
-  :Command(imap_arg)
+  :Command(instance_map_arg)
 {
   /* we make a search here, since we don't want t store the name */
   if (instance= instance_map->find(name, len))

@@ -38,6 +38,22 @@ extern void free_groups(char **groups);
 
 class Instance_map
 {
+  friend class Iterator;
+public:
+  /* Instance_map iterator */
+  class Iterator
+  {
+  private:
+    uint current_instance;
+    Instance_map *instance_map;
+  public:
+    Iterator(Instance_map *instance_map_arg) :
+      instance_map(instance_map_arg), current_instance(0)
+    {}
+
+    void go_to_first();
+    Instance *next();
+  };
 public:
   /* returns a pointer to the instance or NULL, if there is no such instance */
   Instance *find(const char *name, uint name_len);
@@ -47,7 +63,6 @@ public:
   int cleanup();
   int lock();
   int unlock();
-  Instance *get_instance(uint instance_number);
 
   Instance_map();
   ~Instance_map();
@@ -71,23 +86,5 @@ private:
   pthread_mutex_t LOCK_instance_map;
   HASH hash;
 };
-
-
-/* Instance_map iterator */
-
-class Imap_iterator
-{
-private:
-  uint current_instance;
-  Instance_map *instance_map;
-public:
-  Imap_iterator(Instance_map *instance_map_arg) :
-    instance_map(instance_map_arg), current_instance(0)
-  {}
-
-  void go_to_first();
-  Instance *next();
-};
-
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_MAP_H */
