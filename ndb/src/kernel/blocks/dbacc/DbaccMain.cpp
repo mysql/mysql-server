@@ -6400,9 +6400,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     }//if
   }//if
 
-  ndbout_c("Expanding tab: %d frag: %d", 
-	   fragrecptr.p->myTableId, fragrecptr.p->myfid);
-
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE PAGE, THE PAGE INDEX AND THE PAGE DIRECTORY*/
   /*       OF THE NEW BUCKET WHICH SHALL RECEIVE THE ELEMENT WHICH HAVE A 1 IN*/
@@ -6535,7 +6532,7 @@ void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
       /**
        * Hmm... this means that it's alreay has been reenabled...
        */
-      //ndbassert(false);
+      ndbassert(false);
       continue;
     case 1:
       /**
@@ -7036,9 +7033,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     fragrecptr.p->p--;
   }//if
 
-  ndbout_c("Shrinking tab: %d frag: %d", 
-	   fragrecptr.p->myTableId, fragrecptr.p->myfid);
-  
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
@@ -7236,7 +7230,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
         signal->theData[2] = fragrecptr.p->maxp;
         signal->theData[3] = fragrecptr.p->expandFlag;
         fragrecptr.p->expandFlag = 2;
-        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 3, JBB);
+        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
       }//if
     }//if
   }//if
