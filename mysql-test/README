@@ -17,7 +17,7 @@ http://dev.mysql.com/doc/mysql/en/MySQL_test_suite.html
 
 You can create your own test cases. To create a test case:
 
- xeamacs t/test_case_name.test
+ xemacs t/test_case_name.test
 
  in the file, put a set of SQL commands that will create some tables,
  load test data, run some queries to manipulate it.
