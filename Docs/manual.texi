@@ -757,10 +757,10 @@ Large server clusters using replication are in production use, with
 good results. Work on enhanced replication features is continuing
 in @code{MySQL} 4.0.
 
-@item @code{InnoDB} tables -- Stable (in 3.23 from 3.23.48)
+@item @code{InnoDB} tables -- Stable (in 3.23 from 3.23.47)
 The @code{InnoDB} transactional table handler has now been declared
 stable in the @code{MySQL} 3.23 development tree, starting from
-version 3.23.48.
+version 3.23.47.
 @code{InnoDB} is being used in large, heavy load production systems.
 
 @item @code{BDB} tables -- Gamma
