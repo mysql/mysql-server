@@ -1295,7 +1295,6 @@ os_aio_array_create(
 #endif	
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
-	ut_a(n % n_segments == 0);
 
 	array = ut_malloc(sizeof(os_aio_array_t));
 
@@ -1403,6 +1402,50 @@ os_aio_init(
 
 	pthread_sigmask(SIG_BLOCK, &sigset, NULL); */
 #endif
+}
+
+#ifdef WIN_ASYNC_IO
+/****************************************************************************
+Wakes up all async i/o threads in the array in Windows async i/o at
+shutdown. */
+static
+void
+os_aio_array_wake_win_aio_at_shutdown(
+/*==================================*/
+	os_aio_array_t*	array)	/* in: aio array */
+{
+	ulint	i;
+
+	for (i = 0; i < array->n_slots; i++) {
+
+	        os_event_set(*(array->events + i));
+	}
+}
+#endif
+
+/****************************************************************************
+Wakes up all async i/o threads so that they know to exit themselves in
+shutdown. */
+
+void
+os_aio_wake_all_threads_at_shutdown(void)
+/*=====================================*/
+{
+	ulint	i;
+
+#ifdef WIN_ASYNC_IO
+        /* This code wakes up all ai/o threads in Windows native aio */
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_read_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_write_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_ibuf_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_log_array);
+#endif
+	/* This loop wakes up all simulated ai/o threads */
+
+	for (i = 0; i < os_aio_n_segments; i++) {
+	    	
+		os_event_set(os_aio_segment_wait_events[i]);
+	}	
 }
 				
 /****************************************************************************

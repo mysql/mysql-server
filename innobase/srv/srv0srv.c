@@ -1702,6 +1702,8 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	os_thread_count_mutex = os_mutex_create(NULL);
+
 	sync_init();
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
@@ -1720,6 +1722,8 @@ srv_general_free(void)
 /*==================*/
 {
   sync_close();
+
+  os_mutex_free(os_thread_count_mutex);
 }
 #endif /* __NETWARE__ */
 
@@ -2700,6 +2704,8 @@ loop:
 
 	srv_error_monitor_active = FALSE;
 
+	os_thread_exit(NULL);
+
 #ifndef __WIN__
         return(NULL);
 #else
@@ -3138,6 +3144,13 @@ suspend_thread:
 	srv_main_thread_op_info = (char*)"waiting for server activity";
 
 	os_event_wait(event);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        /* This is only extra safety, the thread should exit
+		already when the event wait ends */
+
+	        os_thread_exit(NULL);
+	}
 
 	/* When there is user activity, InnoDB will set the event and the main
 	thread goes back to loop: */

@@ -38,6 +38,13 @@ typedef os_mutex_str_t*		os_mutex_t;
 
 #define OS_SYNC_TIME_EXCEEDED	1
 
+/* Mutex protecting the thread count */
+extern os_mutex_t			os_thread_count_mutex;
+
+/* This is incremented by 1 in os_thread_create and decremented by 1 in
+os_thread_exit */
+extern ulint				os_thread_count;
+
 /*************************************************************
 Creates an event semaphore, i.e., a semaphore which may
 just have two states: signaled and nonsignaled.
@@ -85,7 +92,10 @@ os_event_free(
 /*==========*/
 	os_event_t	event);	/* in: event to free */
 /**************************************************************
-Waits for an event object until it is in the signaled state. */
+Waits for an event object until it is in the signaled state. If
+srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
+waiting thread when the event becomes signaled (or immediately if the
+event is already in the signaled state). */
 
 void
 os_event_wait(

@@ -17,6 +17,7 @@ Created 9/6/1995 Heikki Tuuri
 #endif
 
 #include "ut0mem.h"
+#include "srv0start.h"
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{ 
@@ -26,8 +27,15 @@ struct os_mutex_struct{
 				recursively lock the mutex: we
 				do not assume that the OS mutex
 				supports recursive locking, though
-				NT seems to do that */				
+				NT seems to do that */
 };
+
+/* Mutex protecting the thread count */
+os_mutex_t			os_thread_count_mutex;
+
+/* This is incremented by 1 in os_thread_create and decremented by 1 in
+os_thread_exit */
+ulint				os_thread_count		= 0;
 
 /*************************************************************
 Creates an event semaphore, i.e., a semaphore which may
@@ -190,7 +198,10 @@ os_event_free(
 }
 
 /**************************************************************
-Waits for an event object until it is in the signaled state. */
+Waits for an event object until it is in the signaled state. If
+srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
+waiting thread when the event becomes signaled (or immediately if the
+event is already in the signaled state). */
 
 void
 os_event_wait(
@@ -206,12 +217,20 @@ os_event_wait(
 	err = WaitForSingleObject(event, INFINITE);
 
 	ut_a(err == WAIT_OBJECT_0);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        os_thread_exit(NULL);
+	}
 #else
 	os_fast_mutex_lock(&(event->os_mutex));
 loop:
 	if (event->is_set == TRUE) {
 		os_fast_mutex_unlock(&(event->os_mutex));
 
+		if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+		        os_thread_exit(NULL);
+		}
 		/* Ok, we may return */
 
 		return;
@@ -298,6 +317,10 @@ os_event_wait_multiple(
 						   limit */
 	ut_a(index >= WAIT_OBJECT_0);
 	ut_a(index < WAIT_OBJECT_0 + n);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        os_thread_exit(NULL);
+	}
 
 	return(index - WAIT_OBJECT_0);
 #else
