@@ -2024,19 +2024,15 @@ row_sel_convert_mysql_key_to_innobase(
 
 			/* MySQL stores the actual data length to the first 2
 			bytes after the optional SQL NULL marker byte. The
-			storage format is little-endian. */
+			storage format is little-endian, that is, the most
+			significant byte at a higher address. In UTF-8, MySQL
+			seems to reserve field->prefix_len bytes for
+			storing this field in the key value buffer, even
+			though the actual value only takes data_len bytes
+			from the start. */
 
-			/* There are no key fields > 255 bytes currently in
-			MySQL */
-			if (key_ptr[data_offset + 1] != 0) {
-				ut_print_timestamp(stderr);
-				fputs(
-"  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table ", stderr);
-				ut_print_name(stderr, trx, index->table_name);
-				putc('\n', stderr);
-			}
-
-			data_len = key_ptr[data_offset];
+			data_len = key_ptr[data_offset]
+				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
 			data_offset += 2;
 			
@@ -2044,6 +2040,17 @@ row_sel_convert_mysql_key_to_innobase(
 					  store the column value like it would
 					  be a fixed char field */
 		} else if (field->prefix_len > 0) {
+			/* Looks like MySQL pads unused end bytes in the
+			prefix with space. Therefore, also in UTF-8, it is ok
+			to compare with a prefix containing full prefix_len
+			bytes, and no need to take at most prefix_len / 3
+			UTF-8 characters from the start.
+			If the prefix is used as the upper end of a LIKE
+			'abc%' query, then MySQL pads the end with chars
+			0xff. TODO: in that case does it any harm to compare
+			with the full prefix_len bytes. How do characters
+			0xff in UTF-8 behave? */
+
 		        data_len = field->prefix_len;
 			data_field_len = data_offset + data_len;
 		} else {

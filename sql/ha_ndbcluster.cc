@@ -3862,6 +3862,10 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     NdbDictionary::Dictionary::List::Element& t= list.elements[i];
     DBUG_PRINT("info", ("Found %s/%s in NDB", t.database, t.name));     
 
+    // Add only tables that belongs to db
+    if (my_strcasecmp(system_charset_info, t.database, db))
+      continue;
+
     // Apply wildcard to list of tables in NDB
     if (wild)
     {
