@@ -46833,6 +46833,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.49::                
 * News-3.23.48::                Changes in release 3.23.48
 * News-3.23.47::                Changes in release 3.23.47
 * News-3.23.46::                Changes in release 3.23.46
@@ -46885,7 +46886,15 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.48, News-3.23.47, News-3.23.x, News-3.23.x
+@node News-3.23.49, News-3.23.48, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.49
+@itemize @bullet
+@item
+Fixed unlikely caching bug when doing a join without keys. In this case
+the last used field for a table always returned @code{NULL}.
+@end itemize
+
+@node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
 @appendixsubsec Changes in release 3.23.48
 @itemize @bullet
 @item
