@@ -846,18 +846,22 @@ inline bool add_item_to_list(Item *item)
 {
   return current_lex->select->item_list.push_back(item);
 }
+
 inline bool add_value_to_list(Item *value)
 {
   return current_lex->value_list.push_back(value);
 }
+
 inline bool add_order_to_list(Item *item,bool asc)
 {
   return add_to_list(current_lex->select->order_list,item,asc);
 }
+
 inline bool add_group_to_list(Item *item,bool asc)
 {
   return add_to_list(current_lex->select->group_list,item,asc);
 }
+
 inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
