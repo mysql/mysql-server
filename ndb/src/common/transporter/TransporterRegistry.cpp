@@ -1531,12 +1531,16 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   Uint32 mgm_nodeid= ndb_mgm_get_mgmd_nodeid(*h);
 
   if(!mgm_nodeid)
+  {
+    ndbout_c("%s: %d", __FILE__, __LINE__);
     return false;
-
+  }
   Transporter * t = theTransporters[mgm_nodeid];
   if (!t)
+  {
+    ndbout_c("%s: %d", __FILE__, __LINE__);
     return false;
-
+  }
   DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
 }
 
@@ -1550,6 +1554,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 
   if ( h==NULL || *h == NULL )
   {
+    ndbout_c("%s: %d", __FILE__, __LINE__);
     return NDB_INVALID_SOCKET;
   }
 
@@ -1562,6 +1567,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
+      ndbout_c("Error: %s: %d",
+	       ndb_mgm_get_latest_error_desc(*h),
+	       ndb_mgm_get_latest_error(*h));
+      ndbout_c("%s: %d", __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
       return NDB_INVALID_SOCKET;
     }
@@ -1572,7 +1581,13 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
    */
   NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
   if ( sockfd == NDB_INVALID_SOCKET)
+  {
+    ndbout_c("Error: %s: %d",
+	     ndb_mgm_get_latest_error_desc(*h),
+	     ndb_mgm_get_latest_error(*h));
+    ndbout_c("%s: %d", __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
+  }
   return sockfd;
 }
 

@@ -8,11 +8,11 @@ LFLAGS = -Wall
 INCLUDE_DIR = ../../include
 LIB_DIR = -L../../src/.libs \
           -L../../../libmysql_r/.libs \
-          -L../../../mysys
+          -L../../../mysys -L../../../strings
 SYS_LIB = 
 
 $(TARGET): $(OBJS)
-	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lz $(SYS_LIB) -o $(TARGET)
+	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
