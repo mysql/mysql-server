@@ -1286,12 +1286,10 @@ bool st_select_lex::test_limit()
     !0 - error
 */
 bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
-					   TABLE_LIST **result_arg,
-					   bool check_derived)
+					   TABLE_LIST **result_arg)
 {
   *result_arg= 0;
-  res= create_total_list_n_last_return(thd_arg, lex, &result_arg,
-				       check_derived);
+  res= create_total_list_n_last_return(thd_arg, lex, &result_arg);
   return res;
 }
 
@@ -1303,8 +1301,7 @@ bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
     thd            THD pointer
     lex            pointer on LEX stricture
     result         pointer on pointer on result list of tables pointer
-    check_derived  force derived table chacking (used for creating 
-                   table list for derived query)
+
   DESCRIPTION
     This is used for UNION & subselect to create a new table list of all used 
     tables.
@@ -1318,8 +1315,7 @@ bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
 bool st_select_lex_unit::
 create_total_list_n_last_return(THD *thd_arg,
 				st_lex *lex,
-				TABLE_LIST ***result_arg,
-				bool check_derived)
+				TABLE_LIST ***result_arg)
 {
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
   TABLE_LIST **new_table_list= *result_arg, *aux;
@@ -1345,15 +1341,12 @@ create_total_list_n_last_return(THD *thd_arg,
       return 1;
     }
 
-    if (sl->linkage == DERIVED_TABLE_TYPE && !check_derived)
-      goto end;
-
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
 	 inner;
 	 inner= inner->next_unit())
     {
       if (inner->create_total_list_n_last_return(thd, lex,
-						 &slave_list_last, 0))
+						 &slave_list_last))
 	return 1;
     }
 
@@ -1400,45 +1393,54 @@ end:
   return 0;
 }
 
+
 st_select_lex_unit* st_select_lex_unit::master_unit()
 {
     return this;
 }
+
 
 st_select_lex* st_select_lex_unit::outer_select()
 {
   return (st_select_lex*) master;
 }
 
+
 bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, order_list, item, asc);
 }
+
 
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   return item_list.push_back(item);
 }
 
+
 bool st_select_lex::add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, group_list, item, asc);
 }
+
 
 bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)
 {
   return !func || ftfunc_list->push_back(func); // end of memory?
 }
 
+
 st_select_lex_unit* st_select_lex::master_unit()
 {
   return (st_select_lex_unit*) master;
 }
 
+
 st_select_lex* st_select_lex::outer_select()
 {
   return (st_select_lex*) master->get_master();
 }
+
 
 bool st_select_lex::set_braces(bool value)
 {
@@ -1446,16 +1448,19 @@ bool st_select_lex::set_braces(bool value)
   return 0; 
 }
 
+
 bool st_select_lex::inc_in_sum_expr()
 {
   in_sum_expr++;
   return 0;
 }
 
+
 uint st_select_lex::get_in_sum_expr()
 {
   return in_sum_expr;
 }
+
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
@@ -1467,20 +1472,24 @@ List<Item>* st_select_lex::get_item_list()
   return &item_list;
 }
 
+
 List<String>* st_select_lex::get_use_index()
 {
   return use_index_ptr;
 }
+
 
 List<String>* st_select_lex::get_ignore_index()
 {
   return ignore_index_ptr;
 }
 
+
 ulong st_select_lex::get_table_join_options()
 {
   return table_join_options;
 }
+
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
@@ -1492,6 +1501,58 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 			       select_n_having_items +
 			       order_group_num)* 5)) == 0;
 }
+
+
+/*
+  Find db.table which will be updated in this unit
+
+  SYNOPSIS
+    st_select_lex_unit::check_updateable()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+bool st_select_lex_unit::check_updateable(char *db, char *table)
+{
+  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    if (sl->check_updateable(db, table))
+      return 1;
+  return 0;
+}
+
+
+/*
+  Find db.table which will be updated in this select and 
+  underlayed ones (except derived tables)
+
+  SYNOPSIS
+    st_select_lex::check_updateable()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+bool st_select_lex::check_updateable(char *db, char *table)
+{
+  if (find_real_table_in_list(get_table_list(), db, table))
+    return 1;
+
+  for (SELECT_LEX_UNIT *un= first_inner_unit();
+       un;
+       un= un->next_unit())
+  {
+    if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
+	un->check_updateable(db, table))
+      return 1;
+  }
+  return 0;
+}
+
 
 void st_select_lex_unit::print(String *str)
 {
@@ -1535,6 +1596,7 @@ void st_select_lex::print_order(String *str, ORDER *order)
   }
 }
  
+
 void st_select_lex::print_limit(THD *thd, String *str)
 {
   if (!thd)
@@ -1561,7 +1623,11 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 /*
   There are st_select_lex::add_table_to_list & 
-  st_select_lex::set_lock_for_tables in sql_parse.cc
+  st_select_lex::set_lock_for_tables are in sql_parse.cc
 
   st_select_lex::print is in sql_select.h
+
+  st_select_lex_unit::prepare, st_select_lex_unit::exec,
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  are in sql_union.cc
 */

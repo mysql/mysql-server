@@ -484,6 +484,14 @@ longlong Item_in_optimizer::val_int()
   return tmp;
 }
 
+void Item_in_optimizer::cleanup()
+{
+  DBUG_ENTER("Item_in_optimizer::cleanup");
+  Item_bool_func::cleanup();
+  cache= 0;
+  DBUG_VOID_RETURN;
+}
+
 bool Item_in_optimizer::is_null()
 {
   cache->store(args[0]);
