@@ -22,7 +22,7 @@
 static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
-static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup,
+static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup, bool ignore,
 			 char *query, uint query_length, int log_on);
 static void end_delayed_insert(THD *thd);
 extern "C" pthread_handler_decl(handle_delayed_insert,arg);
@@ -111,7 +111,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
                  List<List_item> &values_list,
                  List<Item> &update_fields,
                  List<Item> &update_values,
-                 enum_duplicates duplic)
+                 enum_duplicates duplic,
+                 bool ignore)
 {
   int error, res;
   /*
@@ -222,9 +223,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
 
   info.records= info.deleted= info.copied= info.updated= 0;
+  info.ignore= ignore;
   info.handle_duplicates=duplic;
-  info.update_fields=&update_fields;
-  info.update_values=&update_values;
+  info.update_fields= &update_fields;
+  info.update_values= &update_values;
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -289,7 +291,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
-      error=write_delayed(thd,table,duplic,query, thd->query_length, log_on);
+      error=write_delayed(thd, table, duplic, ignore, query, thd->query_length, log_on);
       query=0;
     }
     else
@@ -395,7 +397,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
   {
     char buff[160];
-    if (duplic == DUP_IGNORE)
+    if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
@@ -592,7 +594,7 @@ int write_record(TABLE *table,COPY_INFO *info)
   }
   else if ((error=table->file->write_row(table->record[0])))
   {
-    if (info->handle_duplicates != DUP_IGNORE ||
+    if (!info->ignore ||
 	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
       goto err;
   }
@@ -648,14 +650,14 @@ public:
   char *record,*query;
   enum_duplicates dup;
   time_t start_time;
-  bool query_start_used,last_insert_id_used,insert_id_used;
+  bool query_start_used,last_insert_id_used,insert_id_used, ignore;
   int log_query;
   ulonglong last_insert_id;
   timestamp_auto_set_type timestamp_field_type;
   uint query_length;
 
-  delayed_row(enum_duplicates dup_arg, int log_query_arg)
-    :record(0),query(0),dup(dup_arg),log_query(log_query_arg) {}
+  delayed_row(enum_duplicates dup_arg, bool ignore_arg, int log_query_arg)
+    :record(0),query(0),dup(dup_arg),ignore(ignore_arg),log_query(log_query_arg) {}
   ~delayed_row()
   {
     x_free(record);
@@ -967,7 +969,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
 /* Put a question in queue */
 
-static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
+static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
 			 char *query, uint query_length, int log_on)
 {
   delayed_row *row=0;
@@ -980,7 +982,7 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
     pthread_cond_wait(&di->cond_client,&di->mutex);
   thd->proc_info="storing row into queue";
 
-  if (thd->killed || !(row= new delayed_row(duplic, log_on)))
+  if (thd->killed || !(row= new delayed_row(duplic, ignore, log_on)))
     goto err;
 
   if (!query)
@@ -1341,8 +1343,9 @@ bool delayed_insert::handle_inserts(void)
     thd.insert_id_used=row->insert_id_used;
     table->timestamp_field_type= row->timestamp_field_type;
 
+    info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
-    if (info.handle_duplicates == DUP_IGNORE ||
+    if (info.ignore ||
 	info.handle_duplicates == DUP_REPLACE)
     {
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -1460,7 +1463,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->cuted_fields=0;
-  if (info.handle_duplicates == DUP_IGNORE ||
+  if (info.ignore ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
@@ -1602,7 +1605,7 @@ bool select_insert::send_eof()
     DBUG_RETURN(1);
   }
   char buff[160];
-  if (info.handle_duplicates == DUP_IGNORE)
+  if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
@@ -1646,7 +1649,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   restore_record(table,default_values);			// Get empty record
   thd->cuted_fields=0;
-  if (info.handle_duplicates == DUP_IGNORE ||
+  if (info.ignore ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
