@@ -178,7 +178,7 @@ const char *Item_ident::full_name() const
   char *tmp;
   if (!table_name)
     return field_name ? field_name : name ? name : "tmp_field";
-  if (db_name)
+  if (db_name && db_name[0])
   {
     tmp=(char*) sql_alloc((uint) strlen(db_name)+(uint) strlen(table_name)+
 			  (uint) strlen(field_name)+3);
