@@ -169,7 +169,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   tables.name = tables.real_name = (char*)table_name;
   tables.lock_type = TL_WRITE;
   thd->proc_info = "Opening master dump table";
-  if(open_tables(thd, &tables) || !tables.table)
+  if(open_ltable(thd, &tables) || !tables.table)
     {
       // open tables will send the error
       sql_print_error("create_table_from_dump: could not open created table");
