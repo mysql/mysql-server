@@ -20,7 +20,8 @@
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 				$(openssl_includes)
 LIBS =				@CLIENT_LIBS@
-DEPLIB=				../libmysql/libmysqlclient.la
+DEPLIB=				../libmysql/libmysqlclient.la \
+				@ndb_mgmclient_libs@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
  mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen

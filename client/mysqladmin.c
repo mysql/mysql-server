@@ -16,7 +16,6 @@
 
 /* maintaince of mysql databases */
 
-
 #include "client_priv.h"
 #include <signal.h>
 #ifdef THREAD
@@ -24,6 +23,10 @@
 #endif
 #include <sys/stat.h>
 #include <mysql.h>
+
+#ifdef HAVE_NDBCLUSTER_DB
+#include "../ndb/src/mgmclient/ndb_mgmclient.h"
+#endif
 
 #define ADMIN_VERSION "8.41"
 #define MAX_MYSQL_VAR 256
@@ -42,6 +45,10 @@ static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
             opt_count_iterations= 0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
+#ifdef HAVE_NDBCLUSTER_DB
+static my_bool opt_ndbcluster=0;
+static char *opt_ndb_connectstring=0;
+#endif
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -94,6 +101,9 @@ enum commands {
   ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE,
   ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
+#ifdef HAVE_NDBCLUSTER_DB
+  ,ADMIN_NDB_MGM
+#endif
 };
 static const char *command_names[]= {
   "create",               "drop",                "shutdown",
@@ -104,6 +114,9 @@ static const char *command_names[]= {
   "ping",                 "extended-status",     "flush-status",
   "flush-privileges",     "start-slave",         "stop-slave",
   "flush-threads","old-password",
+#ifdef HAVE_NDBCLUSTER_DB
+  "ndb-mgm",
+#endif
   NullS
 };
 
@@ -184,6 +197,14 @@ static struct my_option my_long_options[] =
   {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (gptr*) &opt_shutdown_timeout,
    (gptr*) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
    SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"ndbcluster", OPT_NDBCLUSTER, ""
+   "", (gptr*) &opt_ndbcluster,
+   (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb-connectstring", OPT_NDB_CONNECTSTRING, ""
+   "", (gptr*) &opt_ndb_connectstring,
+   (gptr*) &opt_ndb_connectstring, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -882,6 +903,24 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       mysql->reconnect=1;	/* Automatic reconnect is default */
       break;
+#ifdef HAVE_NDBCLUSTER_DB
+    case ADMIN_NDB_MGM:
+    {
+      if (argc < 2)
+      {
+	my_printf_error(0,"Too few arguments to ndb-mgm",MYF(ME_BELL));
+	return 1;
+      }
+      {
+        Ndb_mgmclient_handle cmd=
+	  ndb_mgmclient_handle_create(opt_ndb_connectstring);
+        ndb_mgmclient_execute(cmd, --argc, ++argv);
+	ndb_mgmclient_handle_destroy(cmd);
+      }
+      argc= 0;
+    }
+    break;
+#endif
     default:
       my_printf_error(0,"Unknown command: '%-.60s'",MYF(ME_BELL),argv[0]);
       return 1;
@@ -1248,3 +1287,9 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
   }
   DBUG_RETURN(error);
 }
+#ifdef HAVE_NDBCLUSTER_DB
+/* lib linked in contains c++ code */
+#ifdef __GNUC__
+FIX_GCC_LINKING_PROBLEM
+#endif
+#endif
