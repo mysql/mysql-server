@@ -1,4 +1,4 @@
-/*	$NetBSD: emacs.c,v 1.9 2001/01/10 07:45:41 jdolecek Exp $	*/
+/*	$NetBSD: emacs.c,v 1.12 2002/11/15 14:32:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,12 +36,18 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: emacs.c,v 1.12 2002/11/15 14:32:33 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * emacs.c: Emacs functions
  */
-#include "sys.h"
 #include "el.h"
 
 /* em_delete_or_list():
@@ -209,7 +215,7 @@ em_copy_region(EditLine *el, int c __attribute__((unused)))
 {
 	char *kp, *cp;
 
-	if (el->el_chared.c_kill.mark)
+	if (!el->el_chared.c_kill.mark)
 		return (CC_ERROR);
 
 	if (el->el_chared.c_kill.mark > el->el_line.cursor) {
@@ -265,7 +271,7 @@ em_next_word(EditLine *el, int c __attribute__((unused)))
 	    ce__isword);
 
 	if (el->el_map.type == MAP_VI)
-		if (el->el_chared.c_vcmd.action & DELETE) {
+		if (el->el_chared.c_vcmd.action != NOP) {
 			cv_delfini(el);
 			return (CC_REFRESH);
 		}

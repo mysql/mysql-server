@@ -682,12 +682,12 @@ CommandInterpreter::executeShow(char* parameters)
     }
 
     ndbout << ndb_nodes
-	   << " NDB Node(s)" 
+	   << " [ndbd] node(s)" 
 	   << endl;
 
     for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB) {
-	ndbout << "DB node:\t" << state->node_states[i].node_id;
+	ndbout << "[ndbd]\t\tid=" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
 	  ndbout << "  (Version: "
 		 << getMajor(state->node_states[i].version) << "."
@@ -707,12 +707,12 @@ CommandInterpreter::executeShow(char* parameters)
     ndbout << endl;
     
     ndbout << mgm_nodes
-	   << " MGM Node(s)" 
+	   << " [ndb_mgmd] node(s)" 
 	   << endl;
 
     for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM) {
-	ndbout << "MGM node:\t" << state->node_states[i].node_id;
+	ndbout << "[ndb_mgmd]\tid=" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
 	  ndbout << "  (Version: "
 		 << getMajor(state->node_states[i].version) << "."
@@ -728,12 +728,12 @@ CommandInterpreter::executeShow(char* parameters)
     ndbout << endl;
 
     ndbout << api_nodes
-	   << " API Node(s)" 
+	   << " [mysqld] node(s)" 
 	   << endl;
 
     for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
-	ndbout << "API node:\t" << state->node_states[i].node_id;
+	ndbout << "[mysqld]\tid=" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
 	  ndbout << "  (Version: "
 		 << getMajor(state->node_states[i].version) << "."
