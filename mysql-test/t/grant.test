@@ -272,6 +272,19 @@ DROP DATABASE testdb8;
 DROP DATABASE testdb9;
 DROP DATABASE testdb10;
 
+#
+# Bug #6932: a problem with 'revoke ALL PRIVILEGES'
+#
+
+create table t1(a int, b int, c int, d int);
+grant insert(b), insert(c), insert(d), insert(a) on t1 to grant_user@localhost;
+show grants for grant_user@localhost;
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+revoke ALL PRIVILEGES on t1 from grant_user@localhost;
+show grants for grant_user@localhost;
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+drop user grant_user@localhost;
+drop table t1;
 
 #
 # just SHOW PRIVILEGES test

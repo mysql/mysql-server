@@ -1365,7 +1365,7 @@ where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
-2	SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using index
+2	SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	Using where; Using index for group-by

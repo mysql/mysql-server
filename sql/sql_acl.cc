@@ -446,7 +446,8 @@ void acl_free(bool end)
 
   SYNOPSIS
     acl_reload()
-    thd			Thread handle
+    thd			Thread handle. Note that this may be NULL if we refresh
+			because we got a signal    
 */
 
 void acl_reload(THD *thd)
@@ -1313,7 +1314,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
   thd->clear_error();
-  Query_log_event qinfo(thd, buff, query_length, 0);
+  Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
 }
@@ -2153,7 +2154,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0], (byte*) table->field[0]->ptr,
-				table->key_info[0].key_length,
+                                key_length,
 				HA_READ_KEY_EXACT))
       goto end;
 
