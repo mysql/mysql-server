@@ -3785,6 +3785,7 @@ ha_innobase::external_lock(
 	trx_t*		trx;
 
   	DBUG_ENTER("ha_innobase::external_lock");
+	DBUG_PRINT("enter",("lock_type: %d", lock_type));
 
 	update_thd(thd);
 

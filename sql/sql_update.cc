@@ -50,8 +50,7 @@ int mysql_update(THD *thd,
                  COND *conds,
                  ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates,
-		 thr_lock_type lock_type)
+		 enum enum_duplicates handle_duplicates)
 {
   bool 		using_limit=limit != HA_POS_ERROR;
   bool		used_key_is_modified, transactional_table, log_delayed;
@@ -66,7 +65,7 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(-1); /* purecov: inspected */
   save_time_stamp=table->time_stamp;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -316,9 +315,19 @@ int mysql_update(THD *thd,
     if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (transactional_table && ha_autocommit_or_rollback(thd, error >= 0))
-    error=1;
-  if (updated)
+  if (transactional_table)
+  {
+    if (ha_autocommit_or_rollback(thd, error >= 0))
+      error=1;
+  }
+  /*
+    Only invalidate the query cache if something changed or if we
+    didn't commit the transacion (query cache is automaticly
+    invalidated on commit)
+  */
+  if (updated &&
+      (!transactional_table ||
+       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     query_cache_invalidate3(thd, table_list, 1);
   }
@@ -350,10 +359,12 @@ int mysql_update(THD *thd,
   Update multiple tables from join 
 ***************************************************************************/
 
-multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
-			   enum enum_duplicates handle_duplicates,  thr_lock_type lock_option_arg, uint num)
-  : update_tables (ut), thd(thd_arg), updated(0), found(0), fields(fs), lock_option(lock_option_arg),
-    dupl(handle_duplicates), num_of_tables(num), num_fields(0), num_updated(0) , error(0),  do_update(false)
+multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 
+			   enum enum_duplicates handle_duplicates, 
+			   uint num)
+  : update_tables (ut), thd(thd_arg), updated(0), found(0), fields(fs),
+    dupl(handle_duplicates), num_of_tables(num), num_fields(0), num_updated(0),
+    error(0),  do_update(false)
 {
   save_time_stamps = (uint *) sql_calloc (sizeof(uint) * num_of_tables);
   tmp_tables = (TABLE **)NULL;

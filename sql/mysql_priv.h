@@ -413,14 +413,12 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds, 
                  ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates,
-		 thr_lock_type lock_type);
+		 enum enum_duplicates handle_duplicates);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
-		 List<List_item> &values, enum_duplicates flag,
-		 thr_lock_type lock_type);
+		 List<List_item> &values, enum_duplicates flag);
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
-                 ha_rows rows, thr_lock_type lock_type, ulong options);
+                 ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
@@ -496,6 +494,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
 			      thr_lock_type flags=TL_UNLOCK,
 			      List<String> *use_index=0,
 			      List<String> *ignore_index=0);
+void set_lock_for_tables(thr_lock_type lock_type);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
 bool add_proc_to_list(Item *item);
@@ -586,6 +585,8 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *index_file_name,
 	      enum_log_type type, bool read_append = 0,
 	      bool no_auto_events = 0);
+/* mysqld.cc */
+void clear_error_message(THD *thd);
 
 /*
   External variables

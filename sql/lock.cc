@@ -167,6 +167,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 
   for (i=1 ; i <= count ; i++, tables++)
   {
+    DBUG_ASSERT((*tables)->reginfo.lock_type >= TL_READ);
     lock_type=F_WRLCK;				/* Lock exclusive */
     if ((*tables)->db_stat & HA_READ_ONLY ||
 	((*tables)->reginfo.lock_type >= TL_READ &&
