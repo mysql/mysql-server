@@ -143,3 +143,24 @@ select * from t1 where 'a' in (a,b,c collate latin1_bin);
 a	b	c
 a	c	c
 drop table t1;
+select '1.0' in (1,2);
+'1.0' in (1,2)
+1
+select 1 in ('1.0',2);
+1 in ('1.0',2)
+1
+select 1 in (1,'2.0');
+1 in (1,'2.0')
+1
+select 1 in ('1.0',2.0);
+1 in ('1.0',2.0)
+1
+select 1 in (1.0,'2.0');
+1 in (1.0,'2.0')
+1
+select 1 in ('1.1',2);
+1 in ('1.1',2)
+0
+select 1 in ('1.1',2.0);
+1 in ('1.1',2.0)
+0
