@@ -6,20 +6,27 @@ INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
-show binlog events from 79;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	79	User var	1	79	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
-master-bin.000001	120	Query	1	120	use `test`; INSERT INTO t1 VALUES(@`a b`)
-master-bin.000001	184	User var	1	184	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
-master-bin.000001	226	User var	1	226	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
-master-bin.000001	264	Query	1	264	use `test`; insert into t1 values (@var1),(@var2)
+show binlog events from 98;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	98	User var	1	139	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
+master-bin.000001	139	Query	1	231	use `test`; INSERT INTO t1 VALUES(@`a b`)
+master-bin.000001	231	User var	1	273	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
+master-bin.000001	273	User var	1	311	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
+master-bin.000001	311	Query	1	411	use `test`; insert into t1 values (@var1),(@var2)
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+ROLLBACK;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`;
 use test;
 SET TIMESTAMP=10000;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
+SET @@session.sql_mode=0;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 INSERT INTO t1 VALUES(@`a b`);
 SET @`var1`:=_latin1 0x273B616161 COLLATE `latin1_swedish_ci`;
 SET @`var2`:=_latin1 0x61 COLLATE `latin1_swedish_ci`;
 SET TIMESTAMP=10000;
 insert into t1 values (@var1),(@var2);
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t1;

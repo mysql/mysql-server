@@ -20,9 +20,9 @@ convert_tz(b, 'Europe/Moscow', 'UTC')
 update t1, t2 set t1.b = convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC')
 where t1.a = t2.c and t2.d = (select max(d) from t2);
 select * from mysql.time_zone_name;
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
 select Name, convert_tz('2004-10-21 19:00:00', Name, 'UTC') from mysql.time_zone_name;
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 grant all privileges on test.t1 to mysqltest_1@localhost;
@@ -36,7 +36,9 @@ set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC');
 convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC')
-2004-12-01 09:00:00
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2004-11-31 12:00:00'
 select convert_tz(b, 'Europe/Moscow', 'UTC') from t1;
 convert_tz(b, 'Europe/Moscow', 'UTC')
 update t1, t2 set t1.b = convert_tz('2004-11-30 12:00:00', 'Europe/Moscow', 'UTC')
