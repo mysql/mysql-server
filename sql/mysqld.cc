@@ -211,7 +211,7 @@ SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
 
-static bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static ulong back_log,connect_timeout,concurrency;
@@ -231,8 +231,6 @@ bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
-extern MASTER_INFO glob_mi;
-extern int init_master_info(MASTER_INFO* mi);
 
 /*
   If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
@@ -244,7 +242,7 @@ static struct rand_struct sql_rand;
 static int cleanup_done;
 static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
-static char glob_hostname[FN_REFLEN];
+char glob_hostname[FN_REFLEN];
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
@@ -283,9 +281,11 @@ volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
-  master_info_file = (char*) "master.info", master_ssl_key=0, master_ssl_cert=0;
+  master_info_file = (char*) "master.info",
+  relay_log_info_file = (char*) "relay-log.info",
+  master_ssl_key=0, master_ssl_cert=0;
 my_string report_user = 0, report_password = 0, report_host=0;
-
+ 
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
@@ -315,7 +315,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
-
+  
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
@@ -330,6 +330,7 @@ bool mysql_embedded=1;
 #endif
 
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
+char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
@@ -365,8 +366,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-                LOCK_binlog_update, LOCK_slave, LOCK_server_id,
-		LOCK_user_conn, LOCK_slave_list;
+	        LOCK_server_id,
+		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 
 Query_cache query_cache;
 
@@ -776,6 +777,7 @@ void clean_up(bool print_message)
   my_free(allocated_mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
+  x_free(opt_relay_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
@@ -1112,6 +1114,8 @@ void end_thread(THD *thd, bool put_in_cache)
   DBUG_PRINT("info", ("sending a broadcast"))
 
   /* Tell main we are ready */
+    // TODO: explain why we broadcast outside of the lock or
+    // fix the bug - Sasha
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   (void) pthread_cond_broadcast(&COND_thread_count);
   DBUG_PRINT("info", ("unlocked thread_count mutex"))
@@ -1244,7 +1248,7 @@ static sig_handler handle_segfault(int sig)
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
     exit(1);
   }
-
+  
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
@@ -1267,7 +1271,7 @@ key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
 			     sortbuff_size) * max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-
+  
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
@@ -1283,6 +1287,7 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if(!(test_flags & TEST_NO_STACKTRACE))
   {
+    fprintf(stderr,"thd=%p\n",thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -1612,9 +1617,10 @@ const char *load_default_groups[]= { "mysqld","server",0 };
 char *libwrapName=NULL;
 #endif
 
-static void open_log(MYSQL_LOG *log, const char *hostname,
+void open_log(MYSQL_LOG *log, const char *hostname,
 		     const char *opt_name, const char *extension,
-		     enum_log_type type)
+		     enum_log_type type, bool read_append,
+	             bool no_auto_events)
 {
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
@@ -1638,7 +1644,8 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
       opt_name=tmp;
     }
   }
-  log->open(opt_name,type);
+  log->open(opt_name,type,0,(read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
+	    no_auto_events);
 }
 
 
@@ -1734,19 +1741,15 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_binlog_update, MY_MUTEX_INIT_FAST);	// QQ NOT USED
-  (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
-  (void) pthread_cond_init(&COND_binlog_update, NULL);
-  (void) pthread_cond_init(&COND_slave_stopped, NULL);
-  (void) pthread_cond_init(&COND_slave_start, NULL);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
   init_signals();
 
@@ -1846,20 +1849,9 @@ int main(int argc, char **argv)
 	     LOG_NEW);
     using_update_log=1;
   }
-
-  /*
-    make sure slave thread gets started if server_id is set,
-    valid master.info is present, and master_host has not been specified
-  */
-  if (server_id && !master_host)
-  {
-    char fname[FN_REFLEN+128];
-    MY_STAT stat_area;
-    fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-    if (my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
-      master_host = glob_mi.host;
-  }
-
+ 
+  init_slave();
+  
   if (opt_bin_log && !server_id)
   {
     server_id= !master_host ? 1 : 2;
@@ -2010,17 +2002,6 @@ The server will not act as a slave.");
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
       sql_print_error("Warning: Can't create thread to manage maintenance");
-  }
-
-  // slave thread
-  if (master_host)
-  {
-    pthread_t hThread;
-    if (!opt_skip_slave_start &&
-       pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-      sql_print_error("Warning: Can't create thread to handle slave");
-    else if(opt_skip_slave_start)
-      init_master_info(&glob_mi);
   }
 
   printf(ER(ER_READY),my_progname,server_version,"");
@@ -2693,7 +2674,8 @@ enum options {
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
-	       OPT_DES_KEY_FILE, OPT_SLAVE_SKIP_ERRORS
+	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
+               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE
 };
 
 static struct option long_options[] = {
@@ -2819,6 +2801,8 @@ static struct option long_options[] = {
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
   {"rpl-recovery-rank",     required_argument, 0, (int) OPT_RPL_RECOVERY_RANK},
+  {"relay-log",             required_argument, 0, (int) OPT_RELAY_LOG},
+  {"relay-log-index",       required_argument, 0, (int) OPT_RELAY_LOG_INDEX},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
@@ -2842,6 +2826,8 @@ static struct option long_options[] = {
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
+  {"relay-log-info-file",      required_argument, 0,
+   (int) OPT_RELAY_LOG_INFO_FILE},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
   {"slave-skip-errors", required_argument, 0,
    (int) OPT_SLAVE_SKIP_ERRORS},
@@ -3265,8 +3251,8 @@ struct show_var_st status_vars[]= {
   {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
   {"Select_range_check",       (char*) &select_range_check_count, SHOW_LONG},
   {"Select_scan",	       (char*) &select_scan_count,	SHOW_LONG},
-  {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
+  {"Slave_running",            (char*) 0, SHOW_SLAVE_RUNNING},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) &long_query_count,       SHOW_LONG},
   {"Sort_merge_passes",	       (char*) &filesort_merge_passes,  SHOW_LONG},
@@ -3678,6 +3664,14 @@ static void get_options(int argc,char **argv)
       opt_update_log=1;
       opt_update_logname=optarg;		// Use hostname.# if null
       break;
+   case (int) OPT_RELAY_LOG_INDEX:
+      opt_relaylog_index_name = optarg;
+      break;
+    case (int) OPT_RELAY_LOG:
+      x_free(opt_relay_logname);
+      if (optarg && optarg[0])
+	opt_relay_logname=my_strdup(optarg,MYF(0));
+      break;
     case (int) OPT_BIN_LOG_INDEX:
       opt_binlog_index_name = optarg;
       break;
@@ -3838,7 +3832,7 @@ static void get_options(int argc,char **argv)
       opt_slow_log=1;
       opt_slow_logname=optarg;
       break;
-    case (int) OPT_SKIP_SLAVE_START:
+    case (int)OPT_SKIP_SLAVE_START:
       opt_skip_slave_start = 1;
       break;
     case (int) OPT_SKIP_NEW:
@@ -4142,6 +4136,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_INFO_FILE:
       master_info_file=optarg;
+      break;
+    case OPT_RELAY_LOG_INFO_FILE:
+      relay_log_info_file=optarg;
       break;
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);

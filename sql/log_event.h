@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-
+   
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -34,7 +34,7 @@
 #define LOG_READ_TOO_LARGE -7
 
 #define LOG_EVENT_OFFSET 4
-#define BINLOG_VERSION    2
+#define BINLOG_VERSION    3
 
 /* we could have used SERVER_VERSION_LENGTH, but this introduces an
    obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
@@ -77,7 +77,7 @@ struct sql_ex_info
     char opt_flags; 
     char empty_flags;
     int cached_new_format;
-
+    
     // store in new format even if old is possible
     void force_new_format() { cached_new_format = 1;} 
     int data_size() { return new_format() ?
@@ -120,7 +120,7 @@ struct sql_ex_info
 #define EVENT_TYPE_OFFSET    4
 #define SERVER_ID_OFFSET     5
 #define EVENT_LEN_OFFSET     9
-#define LOG_SEQ_OFFSET       13
+#define LOG_POS_OFFSET       13
 #define FLAGS_OFFSET         17
 
 /* start event post-header */
@@ -206,7 +206,7 @@ class THD;
 
 extern uint32 server_id;
 
-struct st_master_info;
+struct st_relay_log_info;
 
 class Log_event
 {
@@ -214,7 +214,7 @@ public:
   time_t when;
   ulong exec_time;
   uint32 server_id;
-  uint32 log_seq;
+  uint32 log_pos;
   uint16 flags;
   int cached_event_len;
   char* temp_buf;
@@ -231,7 +231,7 @@ public:
   {
     my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
-
+  
   int write(IO_CACHE* file);
   int write_header(IO_CACHE* file);
   virtual int write_data(IO_CACHE* file)
@@ -244,51 +244,55 @@ public:
   virtual bool is_valid() = 0;
   virtual bool get_cache_stmt() { return 0; }
   Log_event(const char* buf, bool old_format);
+#ifndef MYSQL_CLIENT  
+  Log_event(THD* thd_arg, uint16 flags_arg = 0);
+#endif  
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
-  {
-    if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
-      temp_buf = 0;
+      if (temp_buf)
+      {
+        my_free(temp_buf, MYF(0));
+        temp_buf = 0;
+      }
     }
-  }
   virtual int get_data_size() { return 0;}
   virtual int get_data_body_offset() { return 0; }
   int get_event_len() { return cached_event_len ? cached_event_len :
     (cached_event_len = LOG_EVENT_HEADER_LEN + get_data_size()); }
-
+#ifdef MYSQL_CLIENT  
+  virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
+  void print_timestamp(FILE* file, time_t *ts = 0);
+  void print_header(FILE* file);
+#endif
+  
+#ifndef MYSQL_CLIENT  
+  // if mutex is 0, the read will proceed without mutex
+  static Log_event* read_log_event(IO_CACHE* file,
+				   pthread_mutex_t* log_lock,
+				   bool old_format);
+#else // avoid having to link mysqlbinlog against libpthread
+  static Log_event* read_log_event(IO_CACHE* file, bool old_format);
+#endif  
   static Log_event* read_log_event(const char* buf, int event_len,
 				   const char **error, bool old_format);
   const char* get_type_str();
 
 #ifndef MYSQL_CLIENT
-  // if mutex is 0, the read will proceed without mutex
-  Log_event(THD* thd_arg, uint16 flags_arg = 0);
-  static Log_event* read_log_event(IO_CACHE* file,
-				   pthread_mutex_t* log_lock,
-				   bool old_format);
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
-  void set_log_seq(THD* thd, MYSQL_LOG* log);
+  void set_log_pos(MYSQL_LOG* log);
   virtual void pack_info(String* packet);
   int net_send(THD* thd, const char* log_name, my_off_t pos);
   static void init_show_field_list(List<Item>* field_list);
-  virtual int exec_event(struct st_master_info* mi);
+  virtual int exec_event(struct st_relay_log_info* rli);
   virtual const char* get_db()
     {
       return thd ? thd->db : 0;
     }
-#else
-  // avoid having to link mysqlbinlog against libpthread
-  static Log_event* read_log_event(IO_CACHE* file, bool old_format);
-
-  virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
-  void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file);
 #endif
-
+  
 };
 
 
@@ -299,26 +303,21 @@ protected:
 public:
   const char* query;
   const char* db;
-  /*
-    If we already know the length of the query string
-    we pass it here, so we would not have to call strlen()
-    otherwise, set it to 0, in which case, we compute it with strlen()
-  */
-  uint32 q_len;
+  uint32 q_len; // if we already know the length of the query string
+  // we pass it here, so we would not have to call strlen()
+  // otherwise, set it to 0, in which case, we compute it with strlen()
   uint32 db_len;
   uint16 error_code;
   ulong thread_id;
-#ifndef MYSQL_CLIENT
+#if !defined(MYSQL_CLIENT)
   bool cache_stmt;
 
   Query_log_event(THD* thd_arg, const char* query_arg,
 		 bool using_trans=0);
   const char* get_db() { return db; }
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
   bool get_cache_stmt() { return cache_stmt; }
-#else
-  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
 
   Query_log_event(const char* buf, int event_len, bool old_format);
@@ -341,6 +340,9 @@ public:
       + 2	// error_code
       ;
   }
+#ifdef MYSQL_CLIENT
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 class Slave_log_event: public Log_event
@@ -350,22 +352,24 @@ protected:
   void init_from_mem_pool(int data_size);
 public:
   char* master_host;
-  char* master_log;
-  ulonglong master_pos;
   int master_host_len;
-  int master_log_len;
   uint16 master_port;
+  char* master_log;
+  int master_log_len;
+  ulonglong master_pos;
 
+#ifndef MYSQL_CLIENT  
+  Slave_log_event(THD* thd_arg, struct st_relay_log_info* rli);
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
+#endif
+  
   Slave_log_event(const char* buf, int event_len);
   ~Slave_log_event();
   int get_data_size();
   bool is_valid() { return master_host != 0; }
   Log_event_type get_type_code() { return SLAVE_EVENT; }
-#ifndef MYSQL_CLIENT  
-  Slave_log_event(THD* thd_arg, struct st_master_info* mi);
-  void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
   int write_data(IO_CACHE* file );
@@ -378,37 +382,36 @@ protected:
   int copy_log_event(const char *buf, ulong event_len, bool old_format);
 
 public:
-  const char* fields;
-  const uchar* field_lens;
-  const char* table_name;
-  const char* db;
-  const char* fname;
   ulong thread_id;
   uint32 table_name_len;
   uint32 db_len;
   uint32 fname_len;
   uint32 num_fields;
+  const char* fields;
+  const uchar* field_lens;
   uint32 field_block_len;
+
+  const char* table_name;
+  const char* db;
+  const char* fname;
   uint32 skip_lines;
   sql_ex_info sql_ex;
-
-#ifndef MYSQL_CLIENT  
+  
+#if !defined(MYSQL_CLIENT)
   String field_lens_buf;
   String fields_buf;
-
+  
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			       const char* table_name_arg,
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup);
   void set_fields(List<Item> &fields_arg);
   void pack_info(String* packet);
   const char* get_db() { return db; }
-  int exec_event(struct st_master_info* mi)
-  {
-    return exec_event(thd->slave_net,mi);
-  }
-  int exec_event(NET* net, struct st_master_info* mi);
-#else
-  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+  int exec_event(struct st_relay_log_info* rli)
+    {
+      return exec_event(thd->slave_net,rli);
+    }
+  int exec_event(NET* net, struct st_relay_log_info* rli);
 #endif
 
   Load_log_event(const char* buf, int event_len, bool old_format);
@@ -431,6 +434,9 @@ public:
       ;
   }
   int get_data_body_offset() { return LOAD_EVENT_OVERHEAD; }
+#ifdef MYSQL_CLIENT
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 extern char server_version[SERVER_VERSION_LENGTH];
@@ -441,7 +447,13 @@ public:
   uint32 created;
   uint16 binlog_version;
   char server_version[ST_SERVER_VER_LEN];
-
+#ifndef MYSQL_CLIENT  
+  Start_log_event() :Log_event((THD*)0),binlog_version(BINLOG_VERSION)
+  {
+    created = (uint32) when;
+    memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
+  }
+#endif  
   Start_log_event(const char* buf, bool old_format);
   ~Start_log_event() {}
   Log_event_type get_type_code() { return START_EVENT;}
@@ -452,14 +464,10 @@ public:
     return START_HEADER_LEN;
   }
 #ifndef MYSQL_CLIENT
-  Start_log_event() :Log_event((THD*)0),binlog_version(BINLOG_VERSION)
-  {
-    created = (uint32) when;
-    memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
-  }
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+  int exec_event(struct st_relay_log_info* rli);
+#endif
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
 };
@@ -469,7 +477,11 @@ class Intvar_log_event: public Log_event
 public:
   ulonglong val;
   uchar type;
-
+#ifndef MYSQL_CLIENT  
+  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
+    :Log_event(thd_arg),val(val_arg),type(type_arg)
+  {}
+#endif
   Intvar_log_event(const char* buf, bool old_format);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
@@ -478,12 +490,11 @@ public:
   int write_data(IO_CACHE* file);
   bool is_valid() { return 1; }
 #ifndef MYSQL_CLIENT
-  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(thd_arg),val(val_arg),type(type_arg)
-  {}
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+  int exec_event(struct st_relay_log_info* rli);
+#endif  
+  
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
 };
@@ -491,6 +502,10 @@ public:
 class Stop_log_event: public Log_event
 {
 public:
+#ifndef MYSQL_CLIENT  
+  Stop_log_event() :Log_event((THD*)0)
+  {}
+#endif  
   Stop_log_event(const char* buf, bool old_format):Log_event(buf,
 							     old_format)
   {
@@ -498,11 +513,11 @@ public:
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
   bool is_valid() { return 1; }
-#ifndef MYSQL_CLIENT  
-  Stop_log_event() :Log_event((THD*)0) {}
-  int exec_event(struct st_master_info* mi);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif
+#ifndef MYSQL_CLIENT
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -510,10 +525,19 @@ class Rotate_log_event: public Log_event
 {
 public:
   const char* new_log_ident;
+  uchar ident_len;
   ulonglong pos;
-  uint8 ident_len;
   bool alloced;
-
+#ifndef MYSQL_CLIENT  
+  Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
+		   uint ident_len_arg = 0,ulonglong pos_arg = 4) :
+    Log_event(thd_arg),
+    new_log_ident(new_log_ident_arg),
+    ident_len(ident_len_arg ? ident_len_arg :
+	      (uint) strlen(new_log_ident_arg)), pos(pos_arg),
+    alloced(0)
+  {}
+#endif  
   Rotate_log_event(const char* buf, int event_len, bool old_format);
   ~Rotate_log_event()
   {
@@ -524,80 +548,63 @@ public:
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   bool is_valid() { return new_log_ident != 0; }
   int write_data(IO_CACHE* file);
-#ifndef MYSQL_CLIENT  
-  Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
-		   uint8 ident_len_arg = 0,ulonglong pos_arg = 4) :
-    Log_event(thd_arg), new_log_ident(new_log_ident_arg),
-    pos(pos_arg),
-    ident_len(ident_len_arg ? ident_len_arg :
-	      (uint8) strlen(new_log_ident_arg)), 
-    alloced(0)
-  {}
-  void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
+#endif  
 };
-
 
 /* the classes below are for the new LOAD DATA INFILE logging */
 
 class Create_file_log_event: public Load_log_event
 {
 protected:
-  /*
-    Pretend we are Load event, so we can write out just
-    our Load part - used on the slave when writing event out to
-    SQL_LOAD-*.info file
-  */
+  // pretend we are Load event, so we can write out just
+  // our Load part - used on the slave when writing event out to
+  // SQL_LOAD-*.info file
   bool fake_base; 
 public:
   char* block;
   uint block_len;
   uint file_id;
-
-  Create_file_log_event(const char* buf, int event_len);
-  ~Create_file_log_event()
-  {
-  }
-  Log_event_type get_type_code()
-  {
-   return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
-  }
-  int get_data_size()
-  {
-    return  (fake_base ? Load_log_event::get_data_size() :
-	     Load_log_event::get_data_size() +
-	     4 + 1 + block_len);
-  }
-  int get_data_body_offset()
-  { 
-    return (fake_base ? LOAD_EVENT_OVERHEAD:
-	    LOAD_EVENT_OVERHEAD + CREATE_FILE_HEADER_LEN);
-  }
-  bool is_valid() { return block != 0; }
-  int write_data_header(IO_CACHE* file);
-  int write_data_body(IO_CACHE* file);
-  /*
-    Cut out Create_file extentions and write it as Load event - used on the
-    slave.
-  */
-  int write_base(IO_CACHE* file);
-
 #ifndef MYSQL_CLIENT
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
 			List<Item>& fields_arg,
 			enum enum_duplicates handle_dup,
 			char* block_arg, uint block_len_arg);
-  void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else  
+#endif  
+  
+  Create_file_log_event(const char* buf, int event_len);
+  ~Create_file_log_event()
+  {
+  }
+  Log_event_type get_type_code()
+    {
+     return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
+    }
+  int get_data_size() { return  fake_base ? Load_log_event::get_data_size() :
+			  Load_log_event::get_data_size() +
+			  4 + 1 + block_len;}
+  int get_data_body_offset() { return fake_base ? LOAD_EVENT_OVERHEAD:
+    LOAD_EVENT_OVERHEAD + CREATE_FILE_HEADER_LEN; }
+  bool is_valid() { return block != 0; }
+  int write_data_header(IO_CACHE* file);
+  int write_data_body(IO_CACHE* file);
+  int write_base(IO_CACHE* file); // cut out Create_file extentions and
+  // write it as Load event - used on the slave
+
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
+#endif  
 };
-
 
 class Append_block_log_event: public Log_event
 {
@@ -605,7 +612,13 @@ public:
   char* block;
   uint block_len;
   uint file_id;
-
+  
+#ifndef MYSQL_CLIENT
+  Append_block_log_event(THD* thd, char* block_arg,
+		       uint block_len_arg);
+  int exec_event(struct st_relay_log_info* rli);
+#endif  
+  
   Append_block_log_event(const char* buf, int event_len);
   ~Append_block_log_event()
   {
@@ -615,22 +628,23 @@ public:
   bool is_valid() { return block != 0; }
   int write_data(IO_CACHE* file);
 
-#ifndef MYSQL_CLIENT
-  Append_block_log_event(THD* thd, char* block_arg,
-		       uint block_len_arg);
-  int exec_event(struct st_master_info* mi);
-  void pack_info(String* packet);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+#endif  
 };
-
 
 class Delete_file_log_event: public Log_event
 {
 public:
   uint file_id;
-
+  
+#ifndef MYSQL_CLIENT
+  Delete_file_log_event(THD* thd);
+#endif  
+  
   Delete_file_log_event(const char* buf, int event_len);
   ~Delete_file_log_event()
   {
@@ -640,12 +654,12 @@ public:
   bool is_valid() { return file_id != 0; }
   int write_data(IO_CACHE* file);
 
-#ifndef MYSQL_CLIENT
-  Delete_file_log_event(THD* thd);
-  void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -653,7 +667,11 @@ class Execute_load_log_event: public Log_event
 {
 public:
   uint file_id;
-
+  
+#ifndef MYSQL_CLIENT
+  Execute_load_log_event(THD* thd);
+#endif  
+  
   Execute_load_log_event(const char* buf, int event_len);
   ~Execute_load_log_event()
   {
@@ -663,13 +681,16 @@ public:
   bool is_valid() { return file_id != 0; }
   int write_data(IO_CACHE* file);
 
-#ifndef MYSQL_CLIENT
-  Execute_load_log_event(THD* thd);
-  void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
-#else
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
-#endif /* _LOG_EVENT_H */
+#endif
+
+
+
