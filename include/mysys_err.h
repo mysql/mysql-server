@@ -56,7 +56,8 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_CANT_SYMLINK		25
 #define EE_REALPATH		26
 #define EE_SYNC			27
-#define EE_ERROR_LAST           27 /*Copy last error nr.*/
+#define EE_UNKNOWN_COLLATION	28
+#define EE_ERROR_LAST           28 /*Copy last error nr.*/
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
   /* exit codes for all MySQL programs */

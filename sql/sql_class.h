@@ -46,9 +46,9 @@ extern const char **errmesg;
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 extern uint opt_tc_log_size;
-extern uint tc_log_max_pages_used;
-extern uint tc_log_page_size;
-extern uint tc_log_page_waits;
+extern ulong tc_log_max_pages_used;
+extern ulong tc_log_page_size;
+extern ulong tc_log_page_waits;
 
 #define TC_HEURISTIC_RECOVER_COMMIT   1
 #define TC_HEURISTIC_RECOVER_ROLLBACK 2
@@ -1072,7 +1072,8 @@ public:
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
     void cleanup()
     {
-      changed_tables = 0;
+      changed_tables= 0;
+      savepoints= 0;
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
@@ -1612,10 +1613,12 @@ public:
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
   uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
+  bool schema_table;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0), convert_blob_length(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0),
+    schema_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {

@@ -94,6 +94,6 @@ d
 2002-10-24 14:50:40
 show status like "created_tmp%tables";
 Variable_name	Value
-Created_tmp_disk_tables	1
+Created_tmp_disk_tables	0
 Created_tmp_tables	2
 drop table t1;

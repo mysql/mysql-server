@@ -175,7 +175,7 @@ while ($1)
 commit;
 drop table t1;
 let $VERSION=`select version()`;
---replace_result $VERSION VERSION
+--replace_result $VERSION VERSION "xid=373" "xid=146"
 show binlog events in 'master-bin.000001';
 --replace_result $VERSION VERSION
 show binlog events in 'master-bin.000002';
