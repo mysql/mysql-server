@@ -1,4 +1,30 @@
 drop table if exists t1;
+select @@innodb_table_locks;
+@@innodb_table_locks
+0
+set @@innodb_table_locks=1;
+create table t1 (id integer, x integer) engine=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+id	x
+0	0
+set autocommit=0;
+lock table t1 write;
+update t1 set x=1 where id = 0;
+select * from t1;
+id	x
+0	1
+commit;
+update t1 set x=2 where id = 0;
+commit;
+unlock tables;
+select * from t1;
+id	x
+0	2
+commit;
+drop table t1;
+set @@innodb_table_locks=0;
 create table t1 (id integer, x integer) engine=INNODB;
 insert into t1 values(0, 0);
 set autocommit=0;
