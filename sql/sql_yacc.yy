@@ -1775,7 +1775,12 @@ sp_case:
 	      i= new sp_instr_jump_if_not(ip, $1);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
-	      Item *var= (Item*) new Item_splocal(ctx->current_framesize()-1);
+	      LEX_STRING ivar;
+
+	      ivar.str= "_tmp_";
+	      ivar.length= 5;
+	      Item *var= (Item*) new Item_splocal(ivar, 
+						  ctx->current_framesize()-1);
 	      Item *expr= new Item_func_eq(var, $1);
 
 	      i= new sp_instr_jump_if_not(ip, expr);
@@ -5503,11 +5508,11 @@ simple_ident:
 	  { /* We're compiling a stored procedure and found a variable */
 	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
 	    {
-	      net_printf(YYTHD, ER_SP_UNINIT_VAR, $1.str);
-	      YYABORT;
+	      push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+	                          ER_SP_UNINIT_VAR, ER(ER_SP_UNINIT_VAR),
+				  $1.str);
 	    }
-	    else
-	      $$ = (Item*) new Item_splocal(spv->offset);
+	    $$ = (Item*) new Item_splocal($1, spv->offset);
 	  }
 	  else
 	  {
