@@ -187,6 +187,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --includedir=/usr/include \
             --mandir=/usr/man \
 	    --with-embedded-server \
+	    --enable-thread-safe-client \
 	    --with-comment=\"Official MySQL RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
@@ -212,7 +213,7 @@ mkdir -p $RBR
 
 # Build the shared libraries and mysqld-max
 
-BuildMySQL "--enable-shared --enable-thread-safe-client --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
+BuildMySQL "--enable-shared --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .

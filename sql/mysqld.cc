@@ -3969,11 +3969,11 @@ static void get_options(int argc,char **argv)
       charsets_dir = mysql_charsets_dir;
       break;
 #include "sslopt-case.h"
-#ifdef HAVE_OPENSSL
     case OPT_DES_KEY_FILE:
+#ifdef HAVE_OPENSSL
       des_key_file=optarg;
-      break;
 #endif
+      break;
     case OPT_TX_ISOLATION:
     {
       int type;
