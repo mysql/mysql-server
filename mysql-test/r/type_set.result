@@ -3,12 +3,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('','a','b') NOT NULL default ''
-) TYPE=MyISAM
+) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 create table t1 (a set (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('','a','b') NOT NULL default 'b'
-) TYPE=MyISAM
+) TYPE=MyISAM CHARSET=latin1
 drop table t1;
