@@ -934,6 +934,12 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lpthread"
     fi
+    # Fixes for HPUX 11.0 compiler
+    if test "$ac_cv_prog_gcc" = "no"
+    then
+      CFLAGS="$CFLAGS +DD64 -DHAVE_BROKEN_INLINE"
+      CXXFLAGS="$CXXFLAGS +DD64 +O2"
+    fi
     ;;
   *rhapsody*)
     if test "$ac_cv_prog_gcc" = "yes"
