@@ -65,7 +65,6 @@ int handle_locking)
       end[-1]='\0';
     if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
     {
-      last_isam=isam;
       if (!test_if_hard_path(buff))
       {
 	VOID(strmake(name_buff+dir_length,buff,
@@ -75,14 +74,14 @@ int handle_locking)
       if (!(isam=mi_open(buff,mode,test(handle_locking))))
 	goto err;
       files++;
+      last_isam=isam;
+      if (info.reclength && info.reclength != isam->s->base.reclength)
+      {
+	my_errno=HA_ERR_WRONG_IN_RECORD;
+	goto err;
+      }
+      info.reclength=isam->s->base.reclength;
     }
-    last_isam=isam;
-    if (info.reclength && info.reclength != isam->s->base.reclength)
-    {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
-      goto err;
-    }
-    info.reclength=isam->s->base.reclength;
   }
   if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO)+
 				       files*sizeof(MYRG_TABLE),
