@@ -60,9 +60,9 @@ public:
 	utype unireg_check_arg, const char *field_name_arg,
 	struct st_table *table_arg);
   virtual ~Field() {}
-  virtual void store(const char *to,uint length,CHARSET_INFO *cs)=0;
-  virtual void store(double nr)=0;
-  virtual void store(longlong nr)=0;
+  virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
+  virtual int  store(double nr)=0;
+  virtual int  store(longlong nr)=0;
   virtual void store_time(TIME *ltime,timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
@@ -281,9 +281,9 @@ public:
   enum ha_base_keytype key_type() const
     { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   void reset(void);
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -310,9 +310,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -339,9 +339,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -368,9 +368,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -402,9 +402,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -438,9 +438,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -465,9 +465,9 @@ public:
     {}
   enum_field_types type() const { return FIELD_TYPE_FLOAT;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { bzero(ptr,sizeof(float)); }
   double val_real(void);
   longlong val_int(void);
@@ -497,9 +497,9 @@ public:
     {}
   enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { bzero(ptr,sizeof(double)); }
   double val_real(void);
   longlong val_int(void);
@@ -523,9 +523,9 @@ public:
 	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   enum_field_types type() const { return FIELD_TYPE_NULL;}
-  void store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; }
-  void store(double nr)   { null[0]=1; }
-  void store(longlong nr) { null[0]=1; }
+  int  store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; return 0; }
+  int  store(double nr)   { null[0]=1; return 0; }
+  int  store(longlong nr) { null[0]=1; return 0; }
   void reset(void)	  {}
   double val_real(void)		{ return 0.0;}
   longlong val_int(void)	{ return 0;}
@@ -547,9 +547,9 @@ public:
   enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -587,9 +587,9 @@ public:
 		unireg_check_arg, field_name_arg, table_arg, 1, 1)
     {}
   enum_field_types type() const { return FIELD_TYPE_YEAR;}
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -612,9 +612,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -639,9 +639,9 @@ public:
   enum_field_types real_type() const { return FIELD_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
@@ -673,9 +673,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -707,9 +707,9 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
@@ -761,9 +761,9 @@ public:
   bool zero_pack() const { return 0; }
   bool binary() const { return binary_flag; }
   void reset(void) { bfill(ptr,field_length,' '); }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -813,9 +813,9 @@ public:
   void reset(void) { bzero(ptr,field_length+2); }
   uint32 pack_length() const { return (uint32) field_length+2; }
   uint32 key_length() const { return (uint32) field_length; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -856,9 +856,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary_flag ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -962,9 +962,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr);
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr);
+  int  store(longlong nr);
   void reset() { bzero(ptr,packlength); }
   double val_real(void);
   longlong val_int(void);
@@ -997,9 +997,9 @@ public:
     {
       flags=(flags & ~ENUM_FLAG) | SET_FLAG;
     }
-  void store(const char *to,uint length,CHARSET_INFO *charset);
-  void store(double nr) { Field_set::store((longlong) nr); }
-  void store(longlong nr);
+  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(double nr) { return Field_set::store((longlong) nr); }
+  int  store(longlong nr);
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;

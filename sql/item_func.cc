@@ -26,6 +26,7 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
+#include <zlib.h>
 #include "slave.h" // for wait_for_master_pos
 #include "gstream.h"
 
@@ -799,6 +800,18 @@ longlong Item_func_min_max::val_int()
     }
   }
   return value;
+}
+
+longlong Item_func_crc32::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
 }
 
 

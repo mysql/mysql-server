@@ -167,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CHECK_SYM
 %token	CIPHER
 %token	COMMITTED_SYM
+%token	COLLATE_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONCURRENT
@@ -522,7 +523,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	'*' '/' '%'
 %left	NEG '~'
 %right	NOT
-%right	BINARY
+%right	BINARY COLLATE_SYM
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
@@ -1129,7 +1130,7 @@ charset:
 	{ 
 	  if (!(Lex->charset=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1);
+	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
 	};
@@ -1658,7 +1659,16 @@ expr_expr:
 	| expr '+' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| expr '-' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,1); };
+	  { $$= new Item_date_add_interval($1,$4,$5,1); }
+	| expr COLLATE_SYM ident 
+	  { 
+	    if (!(Lex->charset=get_charset_by_name($3.str,MYF(0))))
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3.str);
+	      YYABORT;
+	    }
+	    $$= new Item_func_set_collation($1,Lex->charset);
+	  };
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
@@ -3446,7 +3456,7 @@ option_value:
 	  CONVERT *tmp;
 	  if (!(tmp=get_convert_set($3.str)))
 	  {
-	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
+	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3.str);
 	    YYABORT;
 	  }
 	  current_thd->convert_set=tmp;

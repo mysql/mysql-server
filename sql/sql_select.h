@@ -338,7 +338,7 @@ public:
   {}
   bool copy()
   {
-    item->save_in_field(to_field);
+    (void) item->save_in_field(to_field);
     return err != 0;
   }
   const char *name() const { return "func"; }
@@ -362,7 +362,7 @@ public:
     if (!inited)
     {
       inited=1;
-      item->save_in_field(to_field);
+      (void)item->save_in_field(to_field);
     }
     return err != 0;
   }

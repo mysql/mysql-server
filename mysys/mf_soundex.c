@@ -44,13 +44,14 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 {
   char ch,last_ch;
   reg3 my_string end;
+  register uchar *map=cs->to_upper;
 
   if (remove_garbage)
   {
     while (*in_pntr && my_isspace(cs,*in_pntr))	/* Skipp pre-space */
       in_pntr++;
   }
-  *out_pntr++ = my_toupper(cs,*in_pntr);/* Copy first letter		 */
+  *out_pntr++ = map[(uchar)*in_pntr];	/* Copy first letter		 */
   last_ch = get_scode(cs,&in_pntr,0);	/* code of the first letter	 */
 					/* for the first 'double-letter  */
 					/* check.			 */

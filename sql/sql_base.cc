@@ -2115,7 +2115,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field))
+    if (value->save_in_field(field->field) > 0)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2133,7 +2133,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field))
+    if (value->save_in_field(field) == 1)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

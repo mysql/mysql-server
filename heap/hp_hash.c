@@ -217,11 +217,14 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
       if (seg->charset->hash_sort)
         seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
       else
-      for (; pos < (uchar*) key ; pos++)
       {
-	nr^=(ulong) ((((uint) nr & 63)+nr2) * 
-		     ((uint) seg->charset->sort_order[(uint) *pos])) + (nr << 8);
-	nr2+=3;
+        register uchar *sort_order=seg->charset->sort_order;
+        for (; pos < (uchar*) key ; pos++)
+        {
+	  nr^=(ulong) ((((uint) nr & 63)+nr2) * 
+		     ((uint) sort_order[(uint) *pos])) + (nr << 8);
+	  nr2+=3;
+        }
       }
     }
     else
@@ -260,11 +263,15 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
       if (seg->charset->hash_sort)
         seg->charset->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
       else
-      for (; pos < end ; pos++)
       {
-	nr^=(ulong) ((((uint) nr & 63)+nr2)*
-		     ((uint) seg->charset->sort_order[(uint) *pos]))+ (nr << 8);
-	nr2+=3;
+        register uchar *sort_order=seg->charset->sort_order;
+        
+        for (; pos < end ; pos++)
+        {
+	  nr^=(ulong) ((((uint) nr & 63)+nr2)*
+		     ((uint) sort_order[(uint) *pos]))+ (nr << 8);
+	  nr2+=3;
+        }
       }
     }
     else

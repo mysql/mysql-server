@@ -33,8 +33,10 @@
 
 void case_sort(CHARSET_INFO *cs, my_string str, uint length)
 {
+  register uchar *map=cs->sort_order;
+  
   for ( ; length>0 ; length--, str++)
-    *str= (char) cs->sort_order[(uchar) *str];
+    *str= (char) map[(uchar) *str];
 } /* case_sort */
 
 
@@ -46,11 +48,11 @@ int my_sortcmp(CHARSET_INFO *cs, const char *s, const char *t, uint len)
   else
 #endif
   {
+    register uchar *map=cs->sort_order;
     while (len--)
     {
-      if (cs->sort_order[(uchar) *s++] != cs->sort_order[(uchar) *t++])
-        return ((int) cs->sort_order[(uchar) s[-1]] -
-                (int) cs->sort_order[(uchar) t[-1]]);
+      if (map[(uchar) *s++] != map[(uchar) *t++])
+        return ((int) map[(uchar) s[-1]] - (int) map[(uchar) t[-1]]);
     }
     return 0;
   }
@@ -67,11 +69,12 @@ int my_sortncmp(CHARSET_INFO *cs,
 #endif
   {
     uint len= min(s_len,t_len);
+    register uchar *map=cs->sort_order;
+    
     while (len--)
     {
-      if (cs->sort_order[(uchar) *s++] != cs->sort_order[(uchar) *t++])
-        return ((int) cs->sort_order[(uchar) s[-1]] -
-                (int) cs->sort_order[(uchar) t[-1]]);
+      if (map[(uchar) *s++] != map[(uchar) *t++])
+        return ((int) map[(uchar) s[-1]] - (int) map[(uchar) t[-1]]);
     }
     return (int) (s_len - t_len);
   }

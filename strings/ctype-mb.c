@@ -24,13 +24,15 @@ void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
   register char *end=str+strlen(str); /* BAR TODO: remove strlen() call */
+  register uchar *map=cs->to_upper;
+  
   while (*str)
   {
     if ((l=my_ismbchar(cs, str,end)))
       str+=l;
     else
     { 
-      *str=(char)my_toupper(cs,(uchar)*str);
+      *str=(char) map[(uchar)*str];
       str++;
     }
   }
@@ -40,13 +42,15 @@ void my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
   register char *end=str+strlen(str);
+  register uchar *map=cs->to_lower;
+  
   while (*str)
   {
     if ((l=my_ismbchar(cs, str,end)))
       str+=l;
     else
     {
-      *str=(char)my_tolower(cs,(uchar)*str);
+      *str=(char) map[(uchar)*str];
       str++;
     }
   }
@@ -56,13 +60,15 @@ void my_caseup_mb(CHARSET_INFO * cs, char *str, uint length)
 {
   register uint32 l;
   register char *end=str+length;
+  register uchar *map=cs->to_upper;
+  
   while (str<end)
   {
     if ((l=my_ismbchar(cs, str,end)))
       str+=l;
     else 
     {
-      *str=(char)my_toupper(cs,(uchar)*str);
+      *str=(char) map[(uchar)*str];
       str++;
     }
   }
@@ -72,13 +78,15 @@ void my_casedn_mb(CHARSET_INFO * cs, char *str, uint length)
 {
   register uint32 l;
   register char *end=str+length;
+  register uchar *map=cs->to_lower;
+  
   while (str<end)
   {
     if ((l=my_ismbchar(cs, str,end)))
       str+=l;
     else
     {
-      *str=(char)my_tolower(cs,(uchar)*str);
+      *str=(char) map[(uchar)*str];
       str++;
     }
   }
@@ -88,6 +96,8 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 {
   register uint32 l;
   register const char *end=s+strlen(s);
+  register uchar *map=cs->to_upper;
+  
   while (s<end)
   {
     if ((l=my_ismbchar(cs, s,end)))
@@ -98,7 +108,7 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
     }
     else if (my_ismbhead(cs, *t)) 
       return 1;
-    else if (my_toupper(cs,(uchar) *s++) != my_toupper(cs,(uchar) *t++))
+    else if (map[(uchar) *s++] != map[(uchar) *t++])
       return 1;
   }
   return *t;
@@ -110,6 +120,8 @@ int my_strncasecmp_mb(CHARSET_INFO * cs,
 {
   register uint32 l;
   register const char *end=s+len;
+  register uchar *map=cs->to_upper;
+  
   while (s<end)
   {
     if ((l=my_ismbchar(cs, s,end)))
@@ -120,7 +132,7 @@ int my_strncasecmp_mb(CHARSET_INFO * cs,
     }
     else if (my_ismbhead(cs, *t)) 
       return 1;
-    else if (my_toupper(cs,(uchar) *s++) != my_toupper(cs,(uchar) *t++)) 
+    else if (map[(uchar) *s++] != map[(uchar) *t++]) 
       return 1;
   }
   return 0;

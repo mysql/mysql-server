@@ -518,6 +518,16 @@ public:
   const char *func_name() const { return "greatest"; }
 };
 
+class Item_func_crc32 :public Item_int_func
+{
+  String value;
+public:
+  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "crc32"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
 
 class Item_func_length :public Item_int_func
 {
