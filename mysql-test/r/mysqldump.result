@@ -68,7 +68,7 @@ INSERT INTO t1  VALUES (_ucs2 x'05D005D505DC05D9');
 --
 -- Host: localhost    Database: test
 -- ------------------------------------------------------
--- Server version	4.1.2-alpha-debug-log
+-- Server version	5.0.0-alpha-debug-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=utf8 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
