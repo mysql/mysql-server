@@ -160,8 +160,6 @@ public:
     { get_image(buff,length,cs); }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }
-  inline int cmp_image(char *buff,uint length)
-    { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
     {
       ptr+=row_offset;
@@ -265,7 +263,7 @@ public:
 	   unireg_check_arg, field_name_arg, table_arg)
     { 
       field_charset=charset;
-      if (binary())
+      if (charset->state & MY_CS_BINSORT)
         flags|=BINARY_FLAG;
     }
   Item_result result_type () const { return STRING_RESULT; }
@@ -277,13 +275,6 @@ public:
 
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
-  inline int cmp_image(char *buff,uint length)
-  {
-    if (binary())
-      return memcmp(ptr,buff,length);
-    else
-      return my_strncasecmp(field_charset,ptr,buff,length);
-  }
   friend class create_field;
 };
 
