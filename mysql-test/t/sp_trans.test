@@ -1,0 +1,35 @@
+#
+# tests that require InnoDB...
+#
+
+-- source include/have_innodb.inc
+
+#
+# BUG#8850
+#
+--disable_warnings
+drop procedure if exists sp1;
+--enable_warnings
+delimiter |;
+create table t1 (a int) engine=innodb|
+create procedure sp1 ()
+begin
+  truncate table t1; insert t1 values (1); rollback;
+end|
+delimiter ;|
+set autocommit=0;
+insert t1 values (2);
+--error 1192
+call sp1();
+commit;
+select * from t1;
+#
+# when CALL will be fixed to not start a transaction, the error should
+# go away
+--error 1192
+call sp1();
+set autocommit=1;
+select * from t1;
+drop table t1;
+drop procedure sp1;
+
