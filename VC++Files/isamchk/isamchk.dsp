@@ -97,7 +97,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../isam" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../isam" /D "_CONSOLE" /D "_WINDOWS" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /D LICENSE=Commerical /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../isam" /D "_CONSOLE" /D "_WINDOWS" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /D LICENSE=Commercial /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x41d /d "NDEBUG"
 # ADD RSC /l 0x41d /d "NDEBUG"
