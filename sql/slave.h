@@ -282,7 +282,7 @@ typedef struct st_master_info
      abort_slave(0),slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
-    bzero(&file, sizeof(file));
+    bzero((char *)&file, sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&data_cond, NULL);
