@@ -19,7 +19,7 @@ Access denied for user: 'grant_user@localhost' (Using password: NO)
 set password FOR grant_user=''
 Connecting grant_user
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		Y	N	N	N	N	N	N	N	N	N	N	N	N	N
+localhost	grant_user		Y	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
 
 select * from mysql.db where user = 'grant_user'
 grant select on *.* to grant_user@localhost,grant_user@localhost
@@ -48,7 +48,7 @@ Error in execute: The host or user argument to GRANT is too long
 grant select on grant_test.test to grant_user with grant option
 Error in execute: grant command denied to user: 'grant_user@localhost' for table 'test'
 set password FOR ''@''=''
-Error in execute: You are using MySQL as an anonymous users and anonymous users are not allowed to change passwords
+Error in execute: Can't find any matching row in the user table
 set password FOR root@localhost = password('test')
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke select on *.* from grant_user@localhost
@@ -93,7 +93,7 @@ delete from user where user='grant_user'
 flush privileges
 grant select on grant_test.* to grant_user@localhost
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N
+localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
 
 select * from mysql.db where user = 'grant_user'
 localhost	grant_test	grant_user	Y	N	N	N	N	N	N	N	N	N
@@ -152,7 +152,7 @@ insert into mysql.user (host,user) values ('error','grant_user',0)
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke ALL PRIVILEGES on grant_test.* from grant_user@localhost
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N
+localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
 
 select * from mysql.db where user = 'grant_user'
 Connecting grant_user
@@ -168,7 +168,7 @@ Error in execute: select command denied to user: 'grant_user@localhost' for tabl
 show keys from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 show columns from test2
-a	int(11)			0		
+a	int(11)			0	
 
 show keys from test2
 select * from test
@@ -311,8 +311,8 @@ revoke GRANT OPTION on grant_test.test from grant_user@localhost
 Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost' on table 'test'
 grant select(a) on grant_test.test to grant_user@localhost
 show columns from test
-a	int(11)	YES		NULL		select
-b	int(11)	YES		NULL		
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	
 
 grant insert (b), update (b) on grant_test.test to grant_user@localhost
 select count(a) from test
@@ -437,6 +437,13 @@ grant ALL PRIVILEGES on grant_test.test to grant_user@localhost identified by 'd
 Connecting grant_user
 grant SELECT on grant_test.* to grant_user@localhost identified by ''
 Connecting grant_user
+revoke SELECT on grant_test.* from grant_user@localhost identified by ''
+create table grant_test.test3 (a int)
+grant SELECT on grant_test.test3 to grant_user@localhost
+grant FILE on *.* to grant_user@localhost
+insert into grant_test.test3 values (1)
+Connecting grant_user
+select * into outfile '/tmp/grant-11047.test' from grant_test.test3
 drop database grant_test
 delete from user where user='grant_user'
 delete from db where user='grant_user'

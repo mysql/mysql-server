@@ -8,9 +8,10 @@ use DBI;
 use Getopt::Long;
 use strict;
 
-use vars qw($dbh $user_dbh $opt_help $opt_Information $opt_force $opt_debug 
-	    $opt_verbose $opt_server $opt_root_user $opt_password $opt_user 
-	    $opt_database $opt_host $version $user $tables_cols $columns_cols);
+use vars qw($dbh $user_dbh $opt_help $opt_Information $opt_force $opt_debug
+	    $opt_verbose $opt_server $opt_root_user $opt_password $opt_user
+	    $opt_database $opt_host $version $user $tables_cols $columns_cols
+	    $tmp_table);
 
 $version="1.0";
 $opt_help=$opt_Information=$opt_force=$opt_debug=$opt_verbose=0;
@@ -35,6 +36,7 @@ $|=1;
 
 $tables_cols="Host, Db, User, Table_name, Grantor, Table_priv, Column_priv";
 $columns_cols="Host, Db, User, Table_name, Column_name, Column_priv";
+$tmp_table="/tmp/grant-$$.test";
 
 #
 # clear grant tables
@@ -294,6 +296,7 @@ safe_query("select $tables_cols from mysql.tables_priv");
 safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user");
 safe_query("select $tables_cols from mysql.tables_priv");
 safe_query("revoke GRANT OPTION on $opt_database.test from $user",1);
+
 #
 # Test grants on database level
 #
@@ -387,11 +390,24 @@ safe_query("grant ALL PRIVILEGES on $opt_database.test to $user identified by 'd
 user_connect(0,"dummy");
 safe_query("grant SELECT on $opt_database.* to $user identified by ''");
 user_connect(0);
+safe_query("revoke SELECT on $opt_database.* from $user identified by ''");
+
+#
+# Test bug reported in SELECT INTO OUTFILE
+#
+
+safe_query("create table $opt_database.test3 (a int)");
+safe_query("grant SELECT on $opt_database.test3 to $user");
+safe_query("grant FILE on *.* to $user");
+safe_query("insert into $opt_database.test3 values (1)");
+user_connect(0);
+user_query("select * into outfile '$tmp_table' from $opt_database.test3");
 
 #
 # Clean up things
 #
 
+unlink($tmp_table);
 safe_query("drop database $opt_database");
 safe_query("delete from user where user='$opt_user'");
 safe_query("delete from db where user='$opt_user'");

@@ -2494,7 +2494,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
     *save_priv=thd->master_access;
     return FALSE;
   }
-  if ((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL) ||
+  if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
       ! db && dont_check_global_grants)
   {						// We can never grant this
     if (!no_errors)
@@ -2513,7 +2513,8 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 		      thd->priv_user, db); /* purecov: inspected */
   else
     db_access=thd->db_access;
-  want_access &= ~EXTRA_ACL;			// Remove SHOW attribute
+  // Remove SHOW attribute and access rights we already have
+  want_access &= ~(thd->master_access | EXTRA_ACL);
   db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
 
   /* grant_option is set if there exists a single table or column grant */
@@ -2567,16 +2568,7 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors | grant_option))
-    {
-      if (grant_option) 
-      {
-	if ( check_access(thd,want_access & (uint) ~TABLE_ACLS,tables->db,&tables->grant.privilege,
-			  0, no_errors))
-	return TRUE;			
-      }
-      else
-	return TRUE;
-    }
+      return TRUE;
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
