@@ -207,11 +207,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 			MYF(0),keyinfo->key_parts);
 	goto err;
       }
-      List_iterator_fast<Item> it_ke(*key_expr);
+      List_iterator<Item> it_ke(*key_expr);
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	if (item->fix_fields(thd, tables, &item))
+	// 'item' can be changed by fix_fields() call
+	if (item->fix_fields(thd, tables, it_ke.ref()) ||
+	    (item= *it_ke.ref())->check_cols(1))
 	  goto err;
 	if (item->used_tables() & ~RAND_TABLE_BIT)
         {
