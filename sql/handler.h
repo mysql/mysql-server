@@ -317,6 +317,7 @@ public:
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}
+  virtual int discard_or_import_tablespace(my_bool discard) {return -1;}
   // not implemented by default
   virtual int net_read_dump(NET* net)
   { return ER_DUMP_NOT_IMPLEMENTED; }

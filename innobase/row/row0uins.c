@@ -258,6 +258,13 @@ row_undo_ins_parse_undo_rec(
 		return;
 	}
 
+	if (node->table->ibd_file_missing) {
+		/* We skip undo operations to missing .ibd files */
+		node->table = NULL;
+
+		return;
+	}
+
 	clust_index = dict_table_get_first_index(node->table);
 	
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),

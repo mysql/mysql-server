@@ -2007,9 +2007,6 @@ row_import_tablespace_for_mysql(
 
 	success = fil_open_single_table_tablespace(table->space, table->name);
 
-	printf(
-"Remember to stop purge + undo if table->ibd_file_is_missing!!!\n");
-
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;

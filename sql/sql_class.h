@@ -502,6 +502,7 @@ public:
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
+  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
   struct st_transactions {
     IO_CACHE trans_log;
     THD_TRANS all;			// Trans since BEGIN WORK

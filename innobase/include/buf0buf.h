@@ -755,12 +755,16 @@ struct buf_block_struct{
 
 	UT_LIST_NODE_T(buf_block_t) free;
 					/* node of the free block list */
+	ibool		in_free_list;	/* TRUE if in the free list; used in
+					debugging */
 	UT_LIST_NODE_T(buf_block_t) LRU;
 					/* node of the LRU list */
 	UT_LIST_NODE_T(buf_block_t) awe_LRU_free_mapped;
 					/* in the AWE version node in the
 					list of free and LRU blocks which are
 					mapped to a frame */
+	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
+					used in debugging */
 	ulint		LRU_position;	/* value which monotonically
 					decreases (or may stay constant if
 					the block is in the old blocks) toward
@@ -821,6 +825,9 @@ struct buf_block_struct{
 					complete, though: there may have been
 					hash collisions, record deletions,
 					etc. */
+	ulint		n_pointers;	/* used in debugging: the number of
+					pointers in the adaptive hash index
+					pointing to this frame */
 	ulint		curr_n_fields;	/* prefix length for hash indexing:
 					number of full fields */
 	ulint		curr_n_bytes;	/* number of bytes in hash indexing */
