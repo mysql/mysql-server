@@ -359,3 +359,33 @@ select database();
 # Connect without a database
 connect (user4,localhost,mysqltest_1,,*NO-ONE*);
 select database();
+
+#
+# Test for Bug 856 'Naming a key "Primary" causes trouble'
+#
+
+use test;
+--error 1280
+create table t1 (a int, index `primary` (a));
+--error 1280
+create table t1 (a int, index `PRIMARY` (a));
+
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+
+create table t3 (a int);
+--error 1280
+alter table t3 add index `primary` (a);
+--error 1280
+alter table t3 add index `PRIMARY` (a);
+
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+
+drop table t1, t2, t3, t4, t5;
