@@ -223,7 +223,7 @@ static void client_disconnect()
 
   if (mysql)
   {
-    fprintf(stdout, "\n droping the test database '%s' ...", current_db);
+    fprintf(stdout, "\n dropping the test database '%s' ...", current_db);
     strxmov(query, "DROP DATABASE IF EXISTS ", current_db, NullS);
 
     mysql_query(mysql, query);
@@ -797,21 +797,21 @@ static void test_tran_bdb()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* now insert the second row, and rollback the transaction */
+  /* now insert the second row, and roll back the transaction */
   rc= mysql_query(mysql, "INSERT INTO my_demo_transaction VALUES(20, 'mysql')");
   myquery(rc);
 
   rc= mysql_rollback(mysql);
   myquery(rc);
 
-  /* delete first row, and rollback it */
+  /* delete first row, and roll it back */
   rc= mysql_query(mysql, "DELETE FROM my_demo_transaction WHERE col1= 10");
   myquery(rc);
 
   rc= mysql_rollback(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM my_demo_transaction");
   myquery(rc);
 
@@ -822,7 +822,7 @@ static void test_tran_bdb()
   my_process_result_set(result);
   mysql_free_result(result);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM my_demo_transaction");
   myquery(rc);
 
@@ -870,21 +870,21 @@ static void test_tran_innodb()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* now insert the second row, and rollback the transaction */
+  /* now insert the second row, and roll back the transaction */
   rc= mysql_query(mysql, "INSERT INTO my_demo_transaction VALUES(20, 'mysql')");
   myquery(rc);
 
   rc= mysql_rollback(mysql);
   myquery(rc);
 
-  /* delete first row, and rollback it */
+  /* delete first row, and roll it back */
   rc= mysql_query(mysql, "DELETE FROM my_demo_transaction WHERE col1= 10");
   myquery(rc);
 
   rc= mysql_rollback(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM my_demo_transaction");
   myquery(rc);
 
@@ -895,7 +895,7 @@ static void test_tran_innodb()
   my_process_result_set(result);
   mysql_free_result(result);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM my_demo_transaction");
   myquery(rc);
 
@@ -1158,7 +1158,7 @@ static void test_prepare()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   assert(tiny_data == (char) my_stmt_result("SELECT * FROM my_prepare"));
 
   stmt= mysql_simple_prepare(mysql, "SELECT * FROM my_prepare");
@@ -1304,7 +1304,7 @@ static void test_double_compare()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM test_double_compare");
   myquery(rc);
 
@@ -1740,7 +1740,7 @@ static void test_select()
   rc= mysql_query(mysql, "INSERT INTO test_select VALUES(10, 'venu')");
   myquery(rc);
 
-  /* now insert the second row, and rollback the transaction */
+  /* now insert the second row, and roll back the transaction */
   rc= mysql_query(mysql, "INSERT INTO test_select VALUES(20, 'mysql')");
   myquery(rc);
 
@@ -2259,7 +2259,7 @@ static void test_simple_update()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM test_update");
   myquery(rc);
 
@@ -2738,7 +2738,7 @@ static void test_simple_delete()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM test_simple_delete");
   myquery(rc);
 
@@ -2837,7 +2837,7 @@ static void test_update()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM test_update");
   myquery(rc);
 
@@ -2883,7 +2883,7 @@ static void test_prepare_noparam()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM my_prepare");
   myquery(rc);
 
@@ -3953,7 +3953,7 @@ static void test_insert()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
+  /* test the results now, only one row should exist */
   rc= mysql_query(mysql, "SELECT * FROM test_prep_insert");
   myquery(rc);
 
@@ -4906,7 +4906,7 @@ DROP TABLE IF EXISTS test_multi_tab";
 
   /*
     First test that we get an error for multi statements
-    (Becasue default connection is not opened with CLIENT_MULTI_STATEMENTS)
+    (Because default connection is not opened with CLIENT_MULTI_STATEMENTS)
   */
   rc= mysql_query(mysql, query); /* syntax error */
   myquery_r(rc);
@@ -4920,7 +4920,7 @@ DROP TABLE IF EXISTS test_multi_tab";
     exit(1);
   }
 
-  /* Create connection that supprot multi statements */
+  /* Create connection that supports multi statements */
   if (!(mysql_real_connect(mysql_local, opt_host, opt_user,
                            opt_password, current_db, opt_port,
                            opt_unix_socket, CLIENT_MULTI_STATEMENTS)))
