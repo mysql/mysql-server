@@ -1592,7 +1592,7 @@ static void test_select()
   nData=10;
   strcpy(szData,(char *)"venu");
   bind[1].buffer_type=FIELD_TYPE_STRING;
-  bind[1].buffer=(char *)&szData;
+  bind[1].buffer=(char *)szData;
   bind[1].buffer_length= 4;
   bind[1].length= &length[1];
   length[1]= 4;
@@ -2480,7 +2480,7 @@ static void test_bind_result_ext()
   bind[5].buffer=(char *)&d_data;
 
   bind[6].buffer_type=MYSQL_TYPE_STRING;
-  bind[6].buffer= (char *)&szData;
+  bind[6].buffer= (char *)szData;
   bind[6].buffer_length= sizeof(szData);
   bind[6].length= &szLength;
 
@@ -4946,6 +4946,154 @@ static void test_date_dt()
   test_bind_date_conv(2);
 }
 
+/*
+  Misc tests to keep pure coverage happy
+*/
+static void test_pure_coverage()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  int        rc;
+  ulong      length;
+  
+  myheader("test_pure_coverage");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_pure");
+  myquery(rc);
+  
+  rc = mysql_query(mysql,"CREATE TABLE test_pure(c1 int, c2 varchar(20))");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql,"insert into test_pure(c67788) values(10)",100);
+  mystmt_init_r(stmt);
+  
+  stmt = mysql_prepare(mysql,"insert into test_pure(c2) values(?)",100);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt_r(stmt, rc);/* No parameters supplied */
+
+  bind[0].length= &length;
+  bind[0].is_null= 0;
+  bind[0].buffer_length= 0;
+
+  bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
+  rc = mysql_bind_param(stmt, bind);
+  mystmt_r(stmt, rc); /* unsupported buffer type */
+  
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_send_long_data(stmt, 20, (char *)"venu", 4);
+  mystmt_r(stmt, rc); /* wrong param number */
+
+  rc = mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc); 
+
+  mysql_stmt_close(stmt);
+
+  stmt = mysql_prepare(mysql,"select * from test_pure",100);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc);
+  
+  rc = mysql_stmt_store_result(stmt);
+  mystmt_r(stmt, rc); /* commands out of sync */
+
+  mysql_stmt_close(stmt);
+
+  mysql_query(mysql,"DROP TABLE test_pure");
+  mysql_commit(mysql);
+}
+
+/*
+  test for string buffer fetch
+*/
+
+static void test_buffers()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  int        rc;
+  ulong      length;
+  my_bool    is_null;
+  char       buffer[20];
+  
+  myheader("test_buffers");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_buffer");
+  myquery(rc);
+  
+  rc = mysql_query(mysql,"CREATE TABLE test_buffer(str varchar(20))");
+  myquery(rc);
+
+  rc = mysql_query(mysql,"insert into test_buffer values('MySQL')\
+                          ,('Database'),('Open-Source'),('Popular')");
+  myquery(rc);
+  
+  stmt = mysql_prepare(mysql,"select str from test_buffer",100);
+  mystmt_init(stmt);
+  
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  bind[0].length= &length;
+  bind[0].is_null= &is_null;
+  bind[0].buffer_length= 1;
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char *)buffer;
+  
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc);
+
+  buffer[1]='X';
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+  myassert(buffer[0] == 'M');
+  myassert(buffer[1] == 'X');
+  myassert(length == 5);
+
+  bind[0].buffer_length=8;
+  rc = mysql_bind_result(stmt, bind);/* re-bind */
+  mystmt(stmt, rc);
+  
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+  myassert(strncmp(buffer,"Database",8) == 0);
+  myassert(length == 8);
+  
+  bind[0].buffer_length=12;
+  rc = mysql_bind_result(stmt, bind);/* re-bind */
+  mystmt(stmt, rc);
+  
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+  myassert(strcmp(buffer,"Open-Source") == 0);
+  myassert(length == 11);
+  
+  bind[0].buffer_length=6;
+  rc = mysql_bind_result(stmt, bind);/* re-bind */
+  mystmt(stmt, rc);
+  
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "\n data: %s (%lu)", buffer, length);
+  myassert(strncmp(buffer,"Popula",6) == 0);
+  myassert(length == 7);
+  
+  mysql_stmt_close(stmt);
+}
 
 static struct my_option myctest_long_options[] =
 {
@@ -5065,11 +5213,7 @@ int main(int argc, char **argv)
   {
     /* Start of tests */
     test_count= 0;
-    
-    test_select_show();     /* test show syntax */
-    test_prepare_alter();   /* change table schema in middle of prepare */
-    test_manual_sample();   /* sample in the manual */
-    test_bind_result();     /* result bind test */  
+
     test_fetch_null();      /* to fetch null data */
     test_fetch_date();      /* to fetch date,time and timestamp */
     test_fetch_str();       /* to fetch string to all types */
@@ -5086,7 +5230,6 @@ int main(int argc, char **argv)
     test_select();          /* simple select test */
     test_select_version();  /* select with variables */
     test_select_simple();   /* simple select prepare */
-    test_set_variable();    /* set variable prepare */
 #if NOT_USED
   /* 
      Enable this tests from 4.1.1 when mysql_param_result() is 
@@ -5096,28 +5239,20 @@ int main(int argc, char **argv)
     test_update_meta();     /* update param meta information */  
     test_insert_meta();     /* insert param meta information */
 #endif
-    test_simple_update();   /* simple update test */
     test_func_fields();     /* test for new 4.1 MYSQL_FIELD members */
     test_long_data();       /* test for sending text data in chunks */
     test_insert();          /* simple insert test - prepare */
     test_set_variable();    /* prepare with set variables */
-    test_tran_innodb();     /* test for mysql_commit(), rollback() and 
-                             autocommit() */
     test_select_show();     /* prepare - show test */
-    test_simple_update();   /* simple prepare - update */
     test_prepare_noparam(); /* prepare without parameters */
-    test_insert();          /* prepare with insert */
     test_bind_result();     /* result bind test */   
-    test_long_data();       /* long data handling in pieces */
     test_prepare_simple();  /* simple prepare */ 
     test_prepare();         /* prepare test */
     test_null();            /* test null data handling */
     test_debug_example();   /* some debugging case */
     test_update();          /* prepare-update test */
     test_simple_update();   /* simple prepare with update */
-    test_long_data();       /* long data handling in pieces */
     test_simple_delete();   /* prepare with delete */
-    test_field_names();     /* test for field names */
     test_double_compare();  /* float comparision */ 
     client_query();         /* simple client query test */
     client_store_result();  /* usage of mysql_store_result() */
@@ -5126,8 +5261,6 @@ int main(int argc, char **argv)
     test_tran_innodb();     /* transaction test on InnoDB table type */ 
     test_prepare_ext();     /* test prepare with all types conversion -- TODO */
     test_prepare_syntax();  /* syntax check for prepares */
-    test_prepare_field_result(); /* prepare meta info */
-    test_prepare_resultset(); /* prepare meta info test */
     test_field_names();     /* test for field names */
     test_field_flags();     /* test to help .NET provider team */
     test_long_data_str();   /* long data handling */
@@ -5136,7 +5269,6 @@ int main(int argc, char **argv)
     test_warnings();        /* show warnings test */
     test_errors();          /* show errors test */
     test_prepare_resultset();/* prepare meta info test */
-    test_func_fields();     /* FUNCTION field info */
     /*test_stmt_close(); */    /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test -TODO*/
@@ -5144,13 +5276,16 @@ int main(int argc, char **argv)
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
-    test_multi_stmt();      /* test multi stmt */
     test_subselect();       /* test subselect prepare -TODO*/
     test_date();            /* test the MYSQL_TIME conversion */
     test_date_date();       /* test conversion from DATE to all */
     test_date_time();       /* test conversion from TIME to all */
     test_date_ts()  ;       /* test conversion from TIMESTAMP to all */
     test_date_dt()  ;       /* test conversion from DATETIME to all */
+    test_prepare_alter();   /* change table schema in middle of prepare */
+    test_manual_sample();   /* sample in the manual */
+    test_pure_coverage();   /* keep pure coverage happy */
+    test_buffers();         /* misc buffer handling */
     /* End of tests */
   }
   

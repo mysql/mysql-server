@@ -3951,6 +3951,27 @@ mysql_prepare_result(MYSQL_STMT *stmt)
   DBUG_RETURN(result);
 }
 
+/*
+  Returns parameter columns meta information in the form of 
+  resultset.
+*/
+
+MYSQL_RES * STDCALL
+mysql_param_result(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_param_result");
+  
+  if (!stmt->param_count)
+    DBUG_RETURN(0);
+
+  /*
+    TODO: Fix this when server sends the information. 
+    Till then keep a dummy prototype 
+  */
+  DBUG_RETURN(0); 
+}
+
+
 
 /********************************************************************
  Prepare-execute, and param handling
@@ -4638,7 +4659,7 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     }
   default:
     {
-      uint length= sprintf(buffer,"%lld",value);
+      uint length= (uint)(longlong10_to_str(value,buffer,10)-buffer);
       *param->length= length;
       buffer[length]='\0';
     }
@@ -4678,7 +4699,7 @@ static void send_data_double(MYSQL_BIND *param, double value)
     }
   default:
     {
-      uint length= sprintf(buffer,"%g",value);
+      uint length= my_sprintf(buffer,(buffer,"%g",value));
       *param->length= length;
       buffer[length]='\0';
     }
@@ -5216,7 +5237,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_stmt_tore_result");
+  DBUG_ENTER("mysql_stmt_store_result");
 
   mysql= mysql->last_used_con;
 
@@ -5224,9 +5245,8 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
   {
-    strmov(mysql->net.last_error,
-	   ER(mysql->net.last_errno= CR_COMMANDS_OUT_OF_SYNC));
-    DBUG_RETURN(0);
+    set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC);
+    DBUG_RETURN(1);
   }
   mysql->status= MYSQL_STATUS_READY;		/* server is ready */
   if (!(result= (MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
@@ -5234,8 +5254,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 					      stmt->field_count),
 				      MYF(MY_WME | MY_ZEROFILL))))
   {
-    mysql->net.last_errno= CR_OUT_OF_MEMORY;
-    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY);
     DBUG_RETURN(1);
   }
   stmt->result_buffered= 1;
