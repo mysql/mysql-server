@@ -2094,6 +2094,34 @@ bool Item_param::convert_str_value(THD *thd)
   return rc;
 }
 
+bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  DBUG_ASSERT(fixed == 0);
+  SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
+
+  /*
+    Parameters in a subselect should mark the subselect as not constant
+    during prepare
+  */
+  if (state == NO_VALUE)
+  {
+    /*
+      SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
+      can be barrier to stop before derived table SELECT or very outer SELECT
+    */
+    for(;
+        cursel->master_unit()->item;
+        cursel= cursel->outer_select())
+    {
+      Item_subselect *subselect_item= cursel->master_unit()->item;
+      subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+      subselect_item->const_item_cache= 0;
+    }
+  }
+  fixed= 1;
+  return 0;
+}
+
 
 void Item_param::print(String *str)
 {
