@@ -1086,7 +1086,7 @@ public:
 };
 
 
-class Item_equal_iterator :List_iterator_fast<Item_field>
+class Item_equal_iterator : public List_iterator_fast<Item_field>
 {
 public:
   inline Item_equal_iterator(Item_equal &item_equal) 

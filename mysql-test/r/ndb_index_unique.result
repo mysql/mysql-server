@@ -77,8 +77,10 @@ a	b	c
 3	NULL	NULL
 select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
 a	b	c
+3	NULL	NULL
 select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
 a	b	c
+2	NULL	2
 select * from t1 use index (bc) where b < 4 order by a;
 a	b	c
 1	1	1
@@ -574,3 +576,39 @@ uid	gid	rid	cid
 1	1	2	3
 1	1	2	4
 drop table t1,t2,t3,t4,t5,t6,t7;
+CREATE TABLE t1 (   
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned,   
+c int unsigned, 
+UNIQUE bc(b,c) ) engine = ndb;
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 where b=1 and c=1;
+a	b	c
+1	1	1
+select * from t1 where b is null and c is null;
+a	b	c
+3	NULL	NULL
+select * from t1 where b is null and c = 2;
+a	b	c
+2	NULL	2
+select * from t1 where b = 4 and c is null;
+a	b	c
+4	4	NULL
+create table t8 as 
+select * from t1 where (b = 1 and c = 1)
+or (b is null and c is null) 
+or (b is null and c = 2)
+or (b = 4 and c is null);
+select * from t8 order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+drop table t1, t8;
