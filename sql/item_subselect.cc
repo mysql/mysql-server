@@ -148,7 +148,7 @@ void Item_subselect::fix_length_and_dec()
 inline table_map Item_subselect::used_tables() const
 {
   return (table_map) (engine->dependent() ? 1L :
-		      (engine->uncacheable() ? OUTER_REF_TABLE_BIT : 0L));
+		      (engine->uncacheable() ? RAND_TABLE_BIT : 0L));
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(THD *thd,

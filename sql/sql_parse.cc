@@ -3614,7 +3614,7 @@ mysql_new_select(LEX *lex, bool move_down)
   if (move_down)
   {
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit= new SELECT_LEX_UNIT();
+    SELECT_LEX_UNIT *unit= new(&lex->thd->mem_root) SELECT_LEX_UNIT();
     if (!unit)
       return 1;
     unit->init_query();
@@ -3638,7 +3638,7 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      fake= unit->fake_select_lex= new SELECT_LEX();
+      fake= unit->fake_select_lex= new(&lex->thd->mem_root) SELECT_LEX();
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
