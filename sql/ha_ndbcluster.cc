@@ -2357,22 +2357,21 @@ void ha_ndbcluster::print_results()
 
   if (!_db_on_)
     DBUG_VOID_RETURN;
-   
+
   char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
-  String type(buf_type, sizeof(buf_type), &my_charset_bin); 
+  String type(buf_type, sizeof(buf_type), &my_charset_bin);
   String val(buf_val, sizeof(buf_val), &my_charset_bin);
   for (uint f=0; f<table->s->fields;f++)
   {
-    // Use DBUG_PRINT since DBUG_FILE cannot be filtered out
+    /* Use DBUG_PRINT since DBUG_FILE cannot be filtered out */
     char buf[2000];
     Field *field;
     void* ptr;
-    const NDBCOL *col= NULL;
     NdbValue value;
     NdbBlob *ndb_blob;
 
     buf[0]= 0;
-    field= table->field[f];    
+    field= table->field[f];
     if (!(value= m_value[f]).ptr)
     {
       my_snprintf(buf, sizeof(buf), "not read");
@@ -2380,8 +2379,6 @@ void ha_ndbcluster::print_results()
     }
 
     ptr= field->ptr;
-    DBUG_DUMP("field->ptr", (char*)ptr, field->pack_length());
-    col= tab->getColumn(f);
 
     if (! (field->flags & BLOB_FLAG))
     {
@@ -2407,9 +2404,9 @@ void ha_ndbcluster::print_results()
         goto print_value;
       }
     }
-    
+
 print_value:
-    DBUG_PRINT("value", ("%u,%s: %s", f, col->getName(), buf));
+    DBUG_PRINT("value", ("%u,%s: %s", f, field->field_name, buf));
   }
 #endif
   DBUG_VOID_RETURN;
