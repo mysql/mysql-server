@@ -363,4 +363,30 @@ execute stmt using @v;
 drop table t1;
 deallocate prepare stmt;
 
-
+#
+# A test case for Bug#5985 prepare stmt from "select rand(?)" crashes
+# server. Check that Item_func_rand is prepared-statements friendly.
+#
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4);
+set @precision=10000000000;
+--replace_column 1 - 3 -
+select rand(), 
+       cast(rand(10)*@precision as unsigned integer),
+       cast(rand(a)*@precision as unsigned integer) from t1;
+prepare stmt from
+"select rand(), 
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(a)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
+set @var=1;
+--replace_column 1 - 3 -
+execute stmt using @var;
+set @var=2;
+--replace_column 1 -
+execute stmt using @var;
+set @var=3;
+--replace_column 1 -
+execute stmt using @var;
+drop table t1;
+deallocate prepare stmt;
