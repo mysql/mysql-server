@@ -60,7 +60,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
     my_errno = HA_ERR_OUT_OF_MEM;
     return -1;
   }
-  if (!_mi_fetch_keypage(info, keyinfo, page, page_buf, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 
@@ -257,7 +257,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
   
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
     return -1;
-  if (!_mi_fetch_keypage(info, keyinfo, page, page_buf, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 
@@ -429,7 +429,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     my_errno = HA_ERR_OUT_OF_MEM;
     return -1;
   }
-  if (!_mi_fetch_keypage(info, keyinfo, page, page_buf, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 
@@ -445,7 +445,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
       case 0: /* child was not split */
       {
         rtree_combine_rect(keyinfo->seg, k, key, k, key_length);
-        if (_mi_write_keypage(info, keyinfo, page, page_buf))
+        if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
           goto err1;
         goto ok;
       }
@@ -462,7 +462,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
           goto err1;
         res = rtree_add_key(info, keyinfo, new_key, key_length, 
                            page_buf, new_page);
-        if (_mi_write_keypage(info, keyinfo, page, page_buf))
+        if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
           goto err1;
         goto ok;
       }
@@ -476,7 +476,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   else
   { 
     res = rtree_add_key(info, keyinfo, key, key_length, page_buf, new_page);
-    if (_mi_write_keypage(info, keyinfo, page, page_buf))
+    if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
       goto err1;
     goto ok;
   }
@@ -509,12 +509,12 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
   {
     int res;
 
-    if ((old_root = _mi_new(info, keyinfo)) == HA_OFFSET_ERROR)
+    if ((old_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       return -1;
     info->buff_used = 1;
     mi_putint(info->buff, 2, 0);
     res = rtree_add_key(info, keyinfo, key, key_length, info->buff, NULL);
-    if (_mi_write_keypage(info, keyinfo, old_root, info->buff))
+    if (_mi_write_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, info->buff))
       return 1;
     info->s->state.key_root[keynr] = old_root;
     return res;
@@ -542,7 +542,8 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       }
 
       mi_putint(new_root_buf, 2, nod_flag);
-      if ((new_root = _mi_new(info, keyinfo)) == HA_OFFSET_ERROR)
+      if ((new_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) ==
+                                                             HA_OFFSET_ERROR)
         goto err1;
 
       new_key = new_root_buf + keyinfo->block_length + nod_flag;
@@ -559,7 +560,8 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       if (rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf, NULL) 
           == -1)
         goto err1;
-      if (_mi_write_keypage(info, keyinfo, new_root, new_root_buf))
+      if (_mi_write_keypage(info, keyinfo, new_root,
+                            DFLT_INIT_HITS, new_root_buf))
         goto err1;
       info->s->state.key_root[keynr] = new_root;
 
@@ -636,7 +638,7 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     my_errno = HA_ERR_OUT_OF_MEM;
     return -1;
   }
-  if (!_mi_fetch_keypage(info, keyinfo, page, page_buf, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 
@@ -662,7 +664,8 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
               if (rtree_set_key_mbr(info, keyinfo, k, key_length, 
                                   _mi_kpos(nod_flag, k)))
                 goto err1;
-              if (_mi_write_keypage(info, keyinfo, page, page_buf))
+              if (_mi_write_keypage(info, keyinfo, page,
+                                    DFLT_INIT_HITS, page_buf))
                 goto err1;
             }
             else
@@ -672,7 +675,8 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                                            level + 1))
                 goto err1;
               rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-              if (_mi_write_keypage(info, keyinfo, page, page_buf))
+              if (_mi_write_keypage(info, keyinfo, page,
+                                    DFLT_INIT_HITS, page_buf))
                 goto err1;
               *page_size = mi_getint(page_buf);
             }
@@ -686,7 +690,8 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
           case 2: /* vacuous case: last key in the leaf */
           {
             rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-            if (_mi_write_keypage(info, keyinfo, page, page_buf))
+            if (_mi_write_keypage(info, keyinfo, page,
+                                  DFLT_INIT_HITS, page_buf))
               goto err1;
             *page_size = mi_getint(page_buf);
             res = 0;
@@ -711,13 +716,13 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
         {
           /* last key in the leaf */
           res = 2;
-          if (_mi_dispose(info, keyinfo, page))
+          if (_mi_dispose(info, keyinfo, page, DFLT_INIT_HITS))
             goto err1;
         }
         else
         {
           res = 0;
-          if (_mi_write_keypage(info, keyinfo, page, page_buf))
+          if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
             goto err1;
         }
         goto ok;
@@ -783,7 +788,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           goto err1;
         }
         if (!_mi_fetch_keypage(info, keyinfo, ReinsertList.pages[i].offs, 
-                               page_buf, 0))
+                               DFLT_INIT_HITS, page_buf, 0))
           goto err1;
         nod_flag = mi_test_if_nod(page_buf);
         k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
@@ -798,7 +803,8 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           }
         }
         my_afree((byte*)page_buf);
-        if (_mi_dispose(info, keyinfo, ReinsertList.pages[i].offs))
+        if (_mi_dispose(info, keyinfo, ReinsertList.pages[i].offs,
+            DFLT_INIT_HITS))
           goto err1;
       }
       if (ReinsertList.pages)
@@ -807,7 +813,8 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
         goto err1;
-      if (!_mi_fetch_keypage(info, keyinfo, old_root, info->buff, 0))
+      if (!_mi_fetch_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, 
+                             info->buff, 0))
         goto err1;
       nod_flag = mi_test_if_nod(info->buff);
       page_size = mi_getint(info->buff);
@@ -816,7 +823,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
       {
         my_off_t new_root = _mi_kpos(nod_flag, 
                                      rt_PAGE_FIRST_KEY(info->buff, nod_flag));
-        if (_mi_dispose(info, keyinfo, old_root))
+        if (_mi_dispose(info, keyinfo, old_root, DFLT_INIT_HITS))
           goto err1;
         info->s->state.key_root[keynr] = new_root;
       }
@@ -863,7 +870,7 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
     return HA_POS_ERROR;
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
     return HA_POS_ERROR;
-  if (!_mi_fetch_keypage(info, keyinfo, root, page_buf, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, root, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 

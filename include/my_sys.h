@@ -111,8 +111,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WAIT_FOR_USER_TO_FIX_PANIC	60	/* in seconds */
 #define MY_WAIT_GIVE_USER_A_MESSAGE	10	/* Every 10 times of prev */
 #define MIN_COMPRESS_LENGTH		50	/* Don't compress small bl. */
-#define DEFAULT_KEYCACHE_BLOCK_SIZE	1024
-#define MAX_KEYCACHE_BLOCK_SIZE		16384
 
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
@@ -267,7 +265,8 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
+  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE, 
+  FLUSH_REMOVE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
@@ -504,13 +503,45 @@ my_off_t my_b_append_tell(IO_CACHE* info);
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
 
-/* key_cache_variables */
-typedef struct st_keycache
-{
-  ulonglong size;
-} KEY_CACHE;
-
 typedef uint32 ha_checksum;
+
+/* Pointer to a key cache data structure (see the key cache module) */
+typedef struct st_key_cache* KEY_CACHE_HANDLE;
+
+/* Key cache variable structure */
+/*
+   The structure contains the parameters of a key cache that can
+   be set and undated by regular set global statements.
+   It also contains read-only statistics parameters.
+   If the corresponding key cache data structure has been already
+   created the variable contains the key cache handle.
+   The variables are put into a named list called key_caches.
+   At present the variables are only added to this list.
+*/   
+typedef struct st_key_cache_var
+{
+  ulonglong buff_size;           /* size the memory allocated for the cache  */
+  ulong block_size;              /* size of the blocks in the key cache      */
+  ulong division_limit;          /* min. percentage of warm blocks           */
+  ulong age_threshold;           /* determines when hot block is downgraded  */
+  KEY_CACHE_HANDLE cache;        /* handles for the current and registered   */
+  ulong blocks_used;             /* number of currently used blocks          */
+  ulong blocks_changed;          /* number of currently dirty blocks         */
+  ulong cache_w_requests;        /* number of write requests (write hits)    */
+  ulong cache_write;             /* number of writes from the cache to files */
+  ulong cache_r_requests;        /* number of read requests (read hits)      */
+  ulong cache_read;              /* number of reads from files to the cache  */
+  int blocks;                    /* max number of blocks in the cache        */
+  struct st_key_cache_asmt *assign_list; /* list of assignments to the cache */
+  int assignments;               /* number of not completed assignments      */
+  void (*action)(void *);        /* optional call back function              */
+  void *extra_info;              /* ptr to extra info                        */
+} KEY_CACHE_VAR;
+
+#define DEFAULT_KEY_CACHE_NAME "default"
+extern KEY_CACHE_HANDLE *dflt_keycache;
+extern KEY_CACHE_VAR dflt_key_cache_var;
+#define DFLT_INIT_HITS  3
 
 #include <my_alloc.h>
 
@@ -650,16 +681,26 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern long my_clock(void);
 extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
-extern int init_key_cache(ulong use_mem);
-extern int resize_key_cache(ulong use_mem);
-extern byte *key_cache_read(File file,my_off_t filepos,byte* buff,uint length,
+extern int init_key_cache(KEY_CACHE_HANDLE *pkeycache,
+                          uint key_cache_block_size,
+                          ulong use_mem, KEY_CACHE_VAR* env);
+extern int resize_key_cache(KEY_CACHE_HANDLE *pkeycache,
+                            uint key_cache_block_size, ulong use_mem);
+extern void change_key_cache_param(KEY_CACHE_HANDLE keycache);
+extern byte *key_cache_read(KEY_CACHE_HANDLE keycache,
+                            File file, my_off_t filepos, int level,
+                            byte* buff, uint length,
 			    uint block_length,int return_buffer);
-extern int key_cache_insert(File file, my_off_t filepos,
+extern int key_cache_insert(KEY_CACHE_HANDLE keycache,
+                            File file, my_off_t filepos, int level,
                             byte *buff, uint length);
-extern int key_cache_write(File file,my_off_t filepos,byte* buff,uint length,
+extern int key_cache_write(KEY_CACHE_HANDLE keycache,
+                           File file, my_off_t filepos, int level,
+                           byte* buff, uint length,
 			   uint block_length,int force_write);
-extern int flush_key_blocks(int file, enum flush_type type);
-extern void end_key_cache(void);
+extern int flush_key_blocks(KEY_CACHE_HANDLE keycache,
+                            int file, enum flush_type type);
+extern void end_key_cache(KEY_CACHE_HANDLE *pkeycache,my_bool cleanup);
 extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(void *base,uint items,size_s size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,

@@ -46,6 +46,7 @@
 #define HA_OPEN_DELAY_KEY_WRITE		8	/* Don't update index  */
 #define HA_OPEN_ABORT_IF_CRASHED	16
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
+#define HA_OPEN_TO_ASSIGN               64    /* Open for key cache assignment */
 
 	/* The following is parameter to ha_rkey() how to use key */
 
@@ -131,7 +132,8 @@ enum ha_extra_function {
 					current query id */
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
-  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
+  HA_EXTRA_SET_KEY_CACHE                /* Set ref to assigned key cache  */
 };
 
 	/* The following is parameter to ha_panic() */

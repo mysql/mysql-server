@@ -283,7 +283,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(share->kfile,
+    if (flush_key_blocks(*share->keycache, share->kfile,
 			 (function == HA_EXTRA_FORCE_REOPEN ?
 			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
     {
@@ -329,7 +329,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->kfile,FLUSH_KEEP);
+      flush_key_blocks(*share->keycache,share->kfile,FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
 #endif
@@ -373,6 +373,9 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_PRELOAD_BUFFER_SIZE:
     info->preload_buff_size= *((ulong *) extra_arg); 
+    break;
+  case HA_EXTRA_SET_KEY_CACHE:
+    share->reg_keycache= share->keycache= (KEY_CACHE_HANDLE *) extra_arg;
     break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
