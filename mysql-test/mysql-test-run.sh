@@ -913,6 +913,41 @@ EOF
  abort_if_failed "Could not execute manager command"
 }
 
+start_ndbcluster()
+{
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    echo "Starting ndbcluster"
+    if [ "$DO_BENCH" = 1 ]
+    then
+      NDBCLUSTER_OPTS=""
+    else
+      NDBCLUSTER_OPTS="--small"
+    fi
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
+  else
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
+    echo "Using ndbcluster at $USE_NDBCLUSTER"
+  fi
+  fi
+
+}
+
+stop_ndbcluster()
+{
+ if [ ! -z "$USE_NDBCLUSTER" ]
+ then
+ if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+ then
+   # Kill any running ndbcluster stuff
+   ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
+ fi
+ fi
+}
+
 # The embedded server needs the cleanup so we do some of the start work
 # but stop before actually running mysqld or anything.
 
@@ -921,6 +956,7 @@ start_master()
   if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
+
   # Remove stale binary logs except for 2 tests which need them
   if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
   then
@@ -1156,6 +1192,7 @@ mysql_start ()
 #  start_master
 #  start_slave
   cd $MYSQL_TEST_DIR
+  start_ndbcluster
   return 1
 }
 
@@ -1242,7 +1279,7 @@ mysql_stop ()
  stop_slave 1
  stop_slave 2
  $ECHO "Slave shutdown finished"
-
+ stop_ndbcluster
  return 1
 }
 
@@ -1553,25 +1590,6 @@ then
   $ECHO "Installing Test Databases"
   mysql_install_db
 
-  if [ ! -z "$USE_NDBCLUSTER" ]
-  then
-  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-  then
-    echo "Starting ndbcluster"
-    if [ "$DO_BENCH" = 1 ]
-    then
-      NDBCLUSTER_OPTS=""
-    else
-      NDBCLUSTER_OPTS="--small"
-    fi
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
-  else
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
-    echo "Using ndbcluster at $USE_NDBCLUSTER"
-  fi
-  fi
-
   start_manager
 
 # Do not automagically start daemons if we are in gdb or running only one test
@@ -1667,16 +1685,6 @@ if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi
-
-if [ ! -z "$USE_NDBCLUSTER" ]
-then
-if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-then
-  # Kill any running ndbcluster stuff
-  ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
-fi
-fi
-
 stop_manager
 report_stats
 $ECHO
