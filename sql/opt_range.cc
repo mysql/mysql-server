@@ -2968,7 +2968,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
 			 ((field->type() == FIELD_TYPE_BLOB) ?
 			  HA_KEY_BLOB_LENGTH : 0),
 			 field->charset());
-    field->val_str(&tmp,&tmp);
+    field->val_str(&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }
 }

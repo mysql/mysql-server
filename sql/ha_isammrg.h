@@ -63,7 +63,6 @@ class ha_isammrg: public handler
   my_off_t row_position() { return mrg_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);

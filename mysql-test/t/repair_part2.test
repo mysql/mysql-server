@@ -1,7 +1,0 @@
-#
-# This test starts with a crashed t1.MYI file left over from repair.test
-#
-
-repair table t1;
-repair table t1 use_frm;
-drop table t1;

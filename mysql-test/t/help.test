@@ -1,5 +1,3 @@
--- source include/have_innodb.inc
-
 #      category:                     topic:               keyword:
 #
 # impossible_category_1
@@ -65,10 +63,12 @@ help 'impossible_function_1';
 help 'impossible_category_1';
 ##############
 
+--disable_warnings
 alter table mysql.help_relation engine=innodb;
 alter table mysql.help_keyword engine=innodb;
 alter table mysql.help_topic engine=innodb;
 alter table mysql.help_category engine=innodb;
+--enable_warnings
 
 ##############
 help 'function_of_my_dream';

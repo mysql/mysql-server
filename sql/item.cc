@@ -1971,7 +1971,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true
-    field->val_str(&field_tmp,&field_tmp);
+    field->val_str(&field_tmp);
     return !stringcmp(&field_tmp,item_result);
   }
   if (res_type == INT_RESULT)
