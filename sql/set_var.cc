@@ -201,6 +201,10 @@ sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
+#ifdef HAVE_REPLICATION
+sys_var_bool_ptr	sys_relay_log_purge("relay_log_purge",
+                                            &relay_log_purge);
+#endif
 sys_var_long_ptr	sys_rpl_recovery_rank("rpl_recovery_rank",
 					      &rpl_recovery_rank);
 sys_var_long_ptr	sys_query_cache_size("query_cache_size",
@@ -407,6 +411,9 @@ sys_var *sys_variables[]=
   &sys_rand_seed2,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
+#ifdef HAVE_REPLICATION
+  &sys_relay_log_purge,
+#endif
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
   &sys_select_limit,
@@ -563,6 +570,9 @@ struct show_var_st init_vars[]= {
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
+#ifdef HAVE_REPLICATION
+  {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
+#endif
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},

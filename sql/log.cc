@@ -592,24 +592,32 @@ err:
 
 
 /*
-  Delete the current log file, remove it from index file and start on next 
+  Delete relay log files prior to rli->group_relay_log_name
+  (i.e. all logs which are not involved in a non-finished group
+  (transaction)), remove them from the index file and start on next relay log.
 
   SYNOPSIS
     purge_first_log()
-    rli		Relay log information
-
+    rli		 Relay log information
+    included     If false, all relay logs that are strictly before
+                 rli->group_relay_log_name are deleted ; if true, the latter is
+                 deleted too (i.e. all relay logs
+                 read by the SQL slave thread are deleted).
+    
   NOTE
     - This is only called from the slave-execute thread when it has read
-      all commands from a log and want to switch to a new log.
-    - When this happens, we should never be in an active transaction as
-      a transaction is always written as a single block to the binary log.
+      all commands from a relay log and want to switch to a new relay log.
+    - When this happens, we can be in an active transaction as
+      a transaction can span over two relay logs
+      (although it is always written as a single block to the master's binary 
+      log, hence cannot span over two master's binary logs).
 
   IMPLEMENTATION
     - Protects index file with LOCK_index
-    - Delete first log file,
-    - Copy all file names after this one to the front of the index file
+    - Delete relevant relay log files
+    - Copy all file names after these ones to the front of the index file
     - If the OS has truncate, truncate the file, else fill it with \n'
-    - Read the first file name from the index file and store in rli->linfo
+    - Read the next file name from the index file and store in rli->linfo
 
   RETURN VALUES
     0			ok
@@ -620,66 +628,68 @@ err:
 
 #ifdef HAVE_REPLICATION
 
-int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
+int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included) 
 {
   int error;
   DBUG_ENTER("purge_first_log");
 
-  /*
-    Test pre-conditions.
-
-    Assume that we have previously read the first log and
-    stored it in rli->relay_log_name
-  */
   DBUG_ASSERT(is_open());
   DBUG_ASSERT(rli->slave_running == 1);
-  DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->relay_log_name));
-  DBUG_ASSERT(rli->linfo.index_file_offset ==
-	      strlen(rli->relay_log_name) + 1);
+  DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->event_relay_log_name));
 
-  /* We have already processed the relay log, so it's safe to delete it */
-  my_delete(rli->relay_log_name, MYF(0));
   pthread_mutex_lock(&LOCK_index);
-  if (copy_up_file_and_fill(&index_file, rli->linfo.index_file_offset))
-  {
-    error= LOG_INFO_IO;
-    goto err;
-  }
+  pthread_mutex_lock(&rli->log_space_lock);
+  rli->relay_log.purge_logs(rli->group_relay_log_name, included,
+                            0, 0, &rli->log_space_total);
+  // Tell the I/O thread to take the relay_log_space_limit into account
+  rli->ignore_log_space_limit= 0;
+  pthread_mutex_unlock(&rli->log_space_lock);
 
   /*
-    Update the space counter used by all relay logs
     Ok to broadcast after the critical region as there is no risk of
     the mutex being destroyed by this thread later - this helps save
     context switches
   */
-  pthread_mutex_lock(&rli->log_space_lock);
-  rli->log_space_total -= rli->relay_log_pos;
-  //tell the I/O thread to take the relay_log_space_limit into account
-  rli->ignore_log_space_limit= 0;
-  pthread_mutex_unlock(&rli->log_space_lock);
   pthread_cond_broadcast(&rli->log_space_cond);
   
   /*
     Read the next log file name from the index file and pass it back to
     the caller
+    If included is true, we want the first relay log;
+    otherwise we want the one after event_relay_log_name.
   */
-  if ((error=find_log_pos(&rli->linfo, NullS, 0 /*no mutex*/)))
+  if ((included && (error=find_log_pos(&rli->linfo, NullS, 0))) ||
+      (!included &&
+       ((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) ||
+        (error=find_next_log(&rli->linfo, 0)))))
   {
     char buff[22];
-    sql_print_error("next log error: %d  offset: %s  log: %s",
-		    error,
-		    llstr(rli->linfo.index_file_offset,buff),
-		    rli->linfo.log_file_name);
+    sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
+                    error,
+                    llstr(rli->linfo.index_file_offset,buff),
+                    rli->group_relay_log_name,
+                    included);
     goto err;
   }
+
   /*
-    Reset position to current log.  This involves setting both of the
-    position variables:
+    Reset rli's coordinates to the current log.
   */
-  rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
-  rli->pending = 0;
-  strmake(rli->relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->relay_log_name)-1);
+  rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
+  strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
+	  sizeof(rli->event_relay_log_name)-1);
+
+  /*
+    If we removed the rli->group_relay_log_name file,
+    we must update the rli->group* coordinates, otherwise do not touch it as the
+    group's execution is not finished (e.g. COMMIT not executed)
+  */
+  if (included)
+  {
+    rli->group_relay_log_pos = BIN_LOG_HEADER_SIZE;
+    strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
+            sizeof(rli->group_relay_log_name)-1);
+  }
 
   /* Store where we are in the new file for the execution thread */
   flush_relay_log_info(rli);
@@ -693,13 +703,14 @@ err:
   Update log index_file
 */
 
-int MYSQL_LOG::update_log_index(LOG_INFO* log_info)
+int MYSQL_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads)
 {
   if (copy_up_file_and_fill(&index_file, log_info->index_file_start_offset))
     return LOG_INFO_IO;
 
   // now update offsets in index file for running threads
-  adjust_linfo_offsets(log_info->index_file_start_offset);
+  if (need_update_threads)
+    adjust_linfo_offsets(log_info->index_file_start_offset);
   return 0;
 }
 
@@ -708,9 +719,13 @@ int MYSQL_LOG::update_log_index(LOG_INFO* log_info)
 
   SYNOPSIS
     purge_logs()
-    thd		Thread pointer
-    to_log	Delete all log file name before this file. This file is not
-		deleted
+    to_log	        Delete all log file name before this file. 
+    included            If true, to_log is deleted too.
+    need_mutex
+    need_update_threads If we want to update the log coordinates of
+                        all threads. False for relay logs, true otherwise.
+    freed_log_space     If not null, decrement this variable of
+                        the amount of log space freed
 
   NOTES
     If any of the logs before the deleted one is in use,
@@ -722,31 +737,59 @@ int MYSQL_LOG::update_log_index(LOG_INFO* log_info)
     LOG_INFO_EOF		to_log not found
 */
 
-int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
+int MYSQL_LOG::purge_logs(const char *to_log, 
+                          bool included,
+                          bool need_mutex, 
+                          bool need_update_threads, 
+                          ulonglong *decrease_log_space)
 {
   int error;
+  bool exit_loop= 0;
   LOG_INFO log_info;
   DBUG_ENTER("purge_logs");
+  DBUG_PRINT("info",("to_log= %s",to_log));
 
   if (no_rotate)
     DBUG_RETURN(LOG_INFO_PURGE_NO_ROTATE);
 
-  pthread_mutex_lock(&LOCK_index);
+  if (need_mutex)
+    pthread_mutex_lock(&LOCK_index);
   if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))
     goto err;
 
   /*
-    File name exists in index file; Delete until we find this file
+    File name exists in index file; delete until we find this file
     or a file that is used.
   */
   if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
     goto err;
-  while (strcmp(to_log,log_info.log_file_name) &&
-	 !log_in_use(log_info.log_file_name))
+  while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
+         !log_in_use(log_info.log_file_name))
   {
-    /* It's not fatal even if we can't delete a log file */
-    my_delete(log_info.log_file_name, MYF(0));
-    if (find_next_log(&log_info, 0))
+    ulong tmp;
+    if (decrease_log_space) //stat the file we want to delete
+    {
+      MY_STAT s;
+      if (my_stat(log_info.log_file_name,&s,MYF(0)))
+        tmp= s.st_size;
+      else
+      {
+        /* 
+           If we could not stat, we can't know the amount
+           of space that deletion will free. In most cases,
+           deletion won't work either, so it's not a problem.
+        */
+        tmp= 0; 
+      }
+    }
+    /*
+      It's not fatal if we can't delete a log file ;
+      if we could delete it, take its size into account
+    */
+    DBUG_PRINT("info",("purging %s",log_info.log_file_name));
+    if (!my_delete(log_info.log_file_name, MYF(0)) && decrease_log_space)
+      *decrease_log_space-= tmp;
+    if (find_next_log(&log_info, 0) || exit_loop)
       break;
   }
 
@@ -754,10 +797,11 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     If we get killed -9 here, the sysadmin would have to edit
     the log index file after restart - otherwise, this should be safe
   */
-  error= update_log_index(&log_info);
+  error= update_log_index(&log_info, need_update_threads);
 
 err:
-  pthread_mutex_unlock(&LOCK_index);
+  if (need_mutex)
+    pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -779,7 +823,7 @@ err:
     LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
 */
 
-int MYSQL_LOG::purge_logs_before_date(THD* thd, time_t purge_time)
+int MYSQL_LOG::purge_logs_before_date(time_t purge_time)
 {
   int error;
   LOG_INFO log_info;
@@ -816,7 +860,7 @@ int MYSQL_LOG::purge_logs_before_date(THD* thd, time_t purge_time)
     If we get killed -9 here, the sysadmin would have to edit
     the log index file after restart - otherwise, this should be safe
   */
-  error= update_log_index(&log_info);
+  error= update_log_index(&log_info, 1);
 
 err:
   pthread_mutex_unlock(&LOCK_index);
@@ -1269,7 +1313,7 @@ err:
   {
     long purge_time= time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
-      error= purge_logs_before_date(current_thd, purge_time);
+      error= purge_logs_before_date(purge_time);
   }
 
 #endif
@@ -1533,7 +1577,6 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     exit_cond().
     If you don't do it this way, you will get a deadlock in THD::awake()
 */
-
 
 void MYSQL_LOG:: wait_for_update(THD* thd)
 {

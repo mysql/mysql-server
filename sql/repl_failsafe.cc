@@ -873,7 +873,6 @@ int load_master_data(THD* thd)
 	// don't hit the magic number
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
-	active_mi->rli.pending = 0;
 	flush_master_info(active_mi);
       }
       mc_mysql_free_result(master_status_res);
@@ -897,9 +896,13 @@ int load_master_data(THD* thd)
     return 1;
   }
   pthread_mutex_lock(&active_mi->rli.data_lock);
-  active_mi->rli.master_log_pos = active_mi->master_log_pos;
-  strmake(active_mi->rli.master_log_name,active_mi->master_log_name,
-	  sizeof(active_mi->rli.master_log_name)-1);
+  active_mi->rli.group_master_log_pos = active_mi->master_log_pos;
+  strmake(active_mi->rli.group_master_log_name,active_mi->master_log_name,
+	  sizeof(active_mi->rli.group_master_log_name)-1);
+  /*
+    No need to update rli.event* coordinates, they will be when the slave
+    threads start ; only rli.group* coordinates are necessary here.
+  */
   flush_relay_log_info(&active_mi->rli);
   pthread_cond_broadcast(&active_mi->rli.data_cond);
   pthread_mutex_unlock(&active_mi->rli.data_lock);
