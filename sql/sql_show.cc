@@ -1140,6 +1140,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (!found_primary)
      append_identifier(thd,packet,key_info->name);
 
+    if (table->db_type == DB_TYPE_HEAP &&
+	key_info->algorithm == HA_KEY_ALG_BTREE)
+      packet->append(" USING BTREE", 12);
+
     // +BAR: send USING only in non-default case: non-spatial rtree
     if((key_info->algorithm == HA_KEY_ALG_RTREE) &&
        !(key_info->flags & HA_SPATIAL))
