@@ -36019,6 +36019,10 @@ set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
+Note that data files must be < 4G, and < 2G on
+some file systems! InnoDB does not create directories:
+you have to create them yourself.
+
 Suppose you have a Linux machine with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
 @file{/dr2} and @file{/dr3}).
@@ -36129,13 +36133,6 @@ resolve the situation.
 (Available from 3.23.40 up.)
 The default value for this is @code{fdatasync}.
 Another option is @code{O_DSYNC}.
-Options @code{littlesync} and @code{nosync} have the
-risk that in an operating system crash or a power outage you may easily
-end up with a half-written database page, and you have to do a recovery
-from a backup. See the section "InnoDB performance tuning", item 6, below
-for tips on how to set this parameter. If you are happy with your database
-performance it is wisest not to specify this parameter at all, in which
-case it will get the default value.
 @end multitable
  
 
@@ -36495,6 +36492,7 @@ transaction.
 * InnoDB Next-key locking::     
 * InnoDB Locks set::            
 * InnoDB Deadlock detection::   
+* InnoDB Consistent read example::
 @end menu
 
 
@@ -36690,7 +36688,7 @@ locks. But that does not put transaction integerity into danger.
 @end itemize
 
 
-@node InnoDB Deadlock detection,  , InnoDB Locks set, InnoDB transaction model
+@node InnoDB Deadlock detection, InnoDB Consistent read example , InnoDB Locks set, InnoDB transaction model
 @subsubsection Deadlock detection and rollback
 
 InnoDB automatically detects a deadlock of transactions and rolls
@@ -36708,6 +36706,56 @@ statement is rolled back as a result of an error, some of the locks
 set by the SQL statement may be preserved. This is because InnoDB
 stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
+
+@node InnoDB Consistent read example,  , InnoDB Deadlock detection, InnoDB transaction model
+@subsubsection An example of how the consistent read works in InnoDB
+
+When you issue a consistent read, that is, an ordinary @code{SELECT}
+statement, InnoDB will give your transaction a timepoint according
+to which your query sees the database. Thus, if transaction B deletes
+a row and commits after your timepoint was assigned, then you will
+not see the row deleted. Similarly with inserts and updates.
+
+You can advance your timepoint by committing your transaction
+and then doing another @code{SELECT}.
+
+This is called multiversioned concurrency control.
+
+@example
+                  User A                 User B
+
+              set autocommit=0;      set autocommit=0;
+time
+|             SELECT * FROM t;
+|             empty set
+|                                    INSERT INTO t VALUES (1, 2);
+|
+v             SELECT * FROM t;
+              empty set
+                                     COMMIT;
+
+              SELECT * FROM t;
+              empty set;
+
+              COMMIT;
+
+              SELECT * FROM t;
+              ----------------------
+              |     1    |    2   |
+              ----------------------
+@end example
+
+Thus user A sees the row inserted by B only when B has committed the
+insert, and A has committed his own transaction so that the timepoint
+is advanced past the the commit of B.
+
+If you want to see the 'freshest' state of the database, you should use
+a locking read:
+
+@example
+SELECT * FROM t LOCK IN SHARE MODE;
+@end example
+
 
 @subsection Performance tuning tips
 
@@ -36751,15 +36799,6 @@ The default method InnoDB uses is the @code{fdatasync} function.
 If you are not satisfied with the database write performance, you may
 try setting @code{innodb_flush_method} in @file{my.cnf}
 to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
-You can also try setting it to @code{littlesync}, which means that
-InnoDB does not call the file flush for every write it does to a
-file, but only
-in log flush at transaction commits and data file flush at a checkpoint.
-The drawback in @code{littlesync} is that if the operating system
-crashes, you can easily end up with a half-written database page,
-and you have to
-do a recovery from a backup. With @code{nosync} you have even less safety:
-InnoDB will only flush the database files to disk at database shutdown
 
 @strong{7.} In importing data to InnoDB, make sure that MySQL does not have
 @code{autocommit=1} on. Then every insert requires a log flush to disk.
@@ -36806,6 +36845,153 @@ INSERT INTO yourtable VALUES (1, 2), (5, 5);
 
 This tip is of course valid for inserts into any table type, not just InnoDB.
 
+@subsubsection The InnoDB Monitor
+
+Starting from version 3.23.41 InnoDB includes the InnoDB
+Monitor which prints information on the InnoDB internal state.
+When swithed on, InnoDB Monitor
+will make the MySQL server to print data to the standard
+output about once every 10 seconds. This data is useful in
+performance tuning.
+
+The printed information includes data on:
+@itemize @bullet
+@item
+table and record locks held by each active transaction,
+@item
+lock waits of a transactions,
+@item
+semaphore waits of threads,
+@item
+pending file i/o requests,
+@item
+buffer pool statistics, and
+@item
+purge and insert buffer merge activity of the main thread
+of InnoDB.
+@end itemize
+
+You can start InnoDB Monitor through the following
+SQL command:
+
+@example
+CREATE TABLE innodb_monitor(a int) type = innodb;
+@end example
+
+and stop it by
+
+@example
+DROP TABLE innodb_monitor;
+@end example
+
+The @code{CREATE TABLE} syntax is just a way to pass a command
+to the InnoDB engine through the MySQL SQL parser: the created
+table is not relevant at all for InnoDB Monitor. If you shut down
+the database when the monitor is running, and you want to start
+the monitor again, you have to drop the
+table before you can issue a new @code{CREATE TABLE}
+to start the monitor.
+This syntax may change in a future release.
+
+
+A sample output of the InnoDB Monitor:
+
+@example
+================================
+010809 18:45:06 INNODB MONITOR OUTPUT
+================================
+--------------------------
+LOCKS HELD BY TRANSACTIONS
+--------------------------
+LOCK INFO:
+Number of locks in the record hash table 1294
+LOCKS FOR TRANSACTION ID 0 579342744
+TABLE LOCK table test/mytable trx id 0 582333343 lock_mode IX
+
+RECORD LOCKS space id 0 page no 12758 n bits 104 table test/mytable index
+PRIMARY trx id 0 582333343 lock_mode X
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 74; 1-byte offs FALSE;
+info bits 0
+ 0: len 4; hex 0001a801; asc ;; 1: len 6; hex 000022b5b39f; asc ";; 2: len 7;
+hex 000002001e03ec; asc ;; 3: len 4; hex 00000001;
+...
+-----------------------------------------------
+CURRENT SEMAPHORES RESERVED AND SEMAPHORE WAITS
+-----------------------------------------------
+SYNC INFO:
+Sorry, cannot give mutex list info in non-debug version!
+Sorry, cannot give rw-lock list info in non-debug version!
+-----------------------------------------------------
+SYNC ARRAY INFO: reservation count 6041054, signal count 2913432
+4a239430 waited for by thread 49627477 op. S-LOCK file NOT KNOWN line 0 
+Mut ex 0 sp 5530989 r 62038708 sys 2155035; rws 0 8257574 8025336; rwx 0 1121090 1848344
+-----------------------------------------------------
+CURRENT PENDING FILE I/O'S
+--------------------------
+Pending normal aio reads:
+Reserved slot, messages 40157658 4a4a40b8
+Reserved slot, messages 40157658 4a477e28
+...
+Reserved slot, messages 40157658 4a4424a8
+Reserved slot, messages 40157658 4a39ea38
+Total of 36 reserved aio slots
+Pending aio writes:
+Total of 0 reserved aio slots
+Pending insert buffer aio reads:
+Total of 0 reserved aio slots
+Pending log writes or reads:
+Reserved slot, messages 40158c98 40157f98
+Total of 1 reserved aio slots
+Pending synchronous reads or writes:
+Total of 0 reserved aio slots
+-----------
+BUFFER POOL
+-----------
+LRU list length 8034 
+Free list length 0 
+Flush list length 999 
+Buffer pool size in pages 8192
+Pending reads 39 
+Pending writes: LRU 0, flush list 0, single page 0
+Pages read 31383918, created 51310, written 2985115
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
+010809 18:45:22 InnoDB starts purge
+010809 18:45:22 InnoDB purged 0 pages
+@end example
+
+Some notes on the output:
+
+@itemize @bullet
+@item
+If the section LOCKS HELD
+BY TRANSACTIONS reports lock waits, then your application
+may have lock contention. The output can also help to
+trace reasons for transaction deadlocks.
+@item
+Section SYNC INFO will report reserved semaphores
+if you compile InnoDB with <code>UNIV_SYNC_DEBUG</code>
+defined in <tt>univ.i</tt>.
+@item
+Section SYNC ARRAY INFO reports threads waiting
+for a semaphore and statistics on how many times
+threads have needed a spin or a wait on a mutex or
+a rw-lock semaphore. A big number of threads waiting
+for semaphores may be a result of disk i/o, or
+contention problems inside InnoDB. Contention can be
+due to heavy parallelism of queries, or problems in
+operating system thread scheduling.
+@item
+Section CURRENT PENDING FILE I/O'S lists pending
+file i/o requests. A large number of these indicates
+that the workload is disk i/o -bound.
+@item
+Section BUFFER POOL gives you statistics
+on pages read and written. You can calculate from these
+numbers how many data file i/o's your queries are
+currently doing.
+@end itemize
 
 @node Implementation, Table and index, InnoDB transaction model, InnoDB
 @subsection Implementation of multiversioning
@@ -37044,12 +37230,42 @@ On Windows NT InnoDB uses non-buffered i/o. That means that the disk
 pages InnoDB reads or writes are not buffered in the operating system
 file cache. This saves some memory bandwidth.
 
-You can also use a raw disk in InnoDB, though this has not been tested yet:
-just define the raw disk in place of a data file in @file{my.cnf}.
-You must give the exact size in bytes of the raw disk in @file{my.cnf},
-because at startup InnoDB checks that the size of the file
-is the same as specified in the configuration file. Using a raw disk
-you can on some versions of Unix perform non-buffered i/o.
+Starting from 3.23.41 InnoDB uses a novel file flush technique
+called doublewrite.
+It adds safety to crash recovery after an operating system crash
+or a power outage, and improves performance on most Unix flavors
+by reducing the need for fsync operations.
+
+Doublewrite means that InnoDB before writing pages to a data file
+first writes them to a contiguous tablespace area called the
+doublewrite buffer. Only after the write and the flush to the doublewrite
+buffer has completed, InnoDB writes the pages to their proper
+positions in the data file. If the operating system crashes in the
+middle of a page write, InnoDB will in recovery find a good
+copy of the page from the doublewrite buffer.
+
+Starting from 3.23.41
+you can also use a raw disk partition as a data file, though this has
+not been tested yet. When you create a new data file you have
+to put the keyword @code{newraw} immediately after the data
+file size in @code{innodb_data_file_path}. The partition must be
+>= than you specify as the size. Note that 1M in InnoDB is
+1024 x 1024 bytes, while in disk specifications 1 MB usually means
+1000 000 bytes.
+
+@example
+innodb_data_file_path=hdd1:3Gnewraw;hdd2:2Gnewraw
+@end example
+
+When you start the database again you MUST change the keyword
+to @code{raw}. Otherwise InnoDB will write over your
+partition!
+
+@example
+innodb_data_file_path=hdd1:3Graw;hdd2:2Graw
+@end example
+
+Using a raw disk you can on some Unixes perform non-buffered i/o.
 
 There are two read-ahead heuristics in InnoDB: sequential read-ahead
 and random read-ahead. In sequential read-ahead InnoDB notices that
@@ -37212,11 +37428,14 @@ the individual InnoDB tables first.
 @item
 The default database page size in InnoDB is 16 kB. By recompiling the
 code one can set it from 8 kB to 64 kB.
-The maximun row length is slightly less than a half of a database page,
-the row length also includes @code{BLOB} and @code{TEXT} type
-columns. The restriction on the size of @code{BLOB} and
-@code{TEXT} columns will be removed by June 2001 in a future version of
-InnoDB.
+The maximun row length is slightly less than half of a database page
+in versions <= 3.23.40 of InnoDB. Starting from source
+release 3.23.41 BLOB and
+TEXT columns are allowed to be < 4 GB, the total row length must also be
+< 4 GB. InnoDB does not store fields whose size is <= 30 bytes on separate
+pages. After InnoDB has modified the row by storing long fields on
+separate pages, the remaining length of the row must be slightly less
+than half a database page.
 @item
 The maximum data or log file size is 2 GB or 4 GB depending on how large
 files your operating system supports. Support for > 4 GB files will
