@@ -32,7 +32,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "mem0pool.h"
 #include "sync0sync.h"
-#include "sync0ipm.h"
 #include "thr0loc.h"
 #include "que0que.h"
 #include "srv0que.h"
@@ -1524,13 +1523,6 @@ srv_printf_innodb_monitor(
 	"; in additional pool allocated " ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
-
-	if (mem_out_of_mem_err_msg_count > 0) {
-	        fprintf(file,
-	"Mem allocation has spilled out of additional mem pool" ULINTPF
-						"times\n",
-					mem_out_of_mem_err_msg_count);
-	}
 
 	if (srv_use_awe) {
 		fprintf(file,
