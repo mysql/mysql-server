@@ -1776,6 +1776,14 @@ end loop;
 end|
 call bug5287(1)|
 drop procedure bug5287|
+create procedure bug5307()
+begin
+end; set @x = 3|
+call bug5307()|
+select @x|
+@x
+3
+drop procedure bug5307|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
