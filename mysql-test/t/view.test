@@ -900,3 +900,13 @@ drop view v1;
 #
 -- error 1060
 create view v1 (a,a) as select 'a','a';
+
+#
+# check 'use index' on view with temporary table
+#
+create table t1 (a int, b int);
+create view v1 as select a, sum(b) from t1 group by a;
+-- error 1072
+select b from v1 use index (some_index) where b=1;
+drop view v1;
+drop table t1;
