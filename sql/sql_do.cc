@@ -22,7 +22,6 @@
 
 int mysql_do(THD *thd, List<Item> &values)
 {
-  int error;
   List_iterator<Item> li(values);
   Item *value;
   DBUG_ENTER("mysql_do");
