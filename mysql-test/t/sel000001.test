@@ -16,3 +16,16 @@ CREATE TABLE t1 (s CHAR(20) PRIMARY KEY, id INT);
 INSERT INTO t1 VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77);
 SELECT s, id FROM t1 WHERE s = 'mouse';
 drop table t1;
+
+#
+#test for bug #717
+#
+CREATE TABLE t1 (
+  node int(11) NOT NULL default '0',
+  maxchild int(11) NOT NULL default '0',
+  PRIMARY KEY  (`node`)
+);
+INSERT INTO t1 (node, maxchild) VALUES (4,4),(5,5),(1,244);
+SELECT * FROM t1 g1, t1 g2 
+ WHERE g1.node <= g2.node and g2.node <= g1.maxchild and g2.node = g2.maxchild;
+DROP TABLE t1;
