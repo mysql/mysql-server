@@ -14,19 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/**
- * O_DIRECT
- */
-#if 0
-//#ifdef NDB_LINUX
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
-
 #include <ndb_global.h>
+#include <my_sys.h>
+#include <my_pthread.h>
 
-#include "Error.hpp"
+#include <Error.hpp>
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
@@ -34,15 +26,6 @@
 #include <NdbMem.h>
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
-
-#if 0
-#ifdef HAVE_PREAD
-// This is for pread and pwrite
-#ifndef __USE_UNIX98
-#define __USE_UNIX98
-#endif
-#endif
-#endif
 
 #if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
 #else
@@ -91,6 +74,7 @@ static int numAsyncFiles = 0;
 
 extern "C" void * runAsyncFile(void* arg)
 {
+  my_thread_init();
   ((AsyncFile*)arg)->run();
   return (NULL);
 }
@@ -419,7 +403,7 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
 #elif defined NDB_OSE || defined NDB_SOFTOSE
     return_value = ::read(theFd, buf, size);
 #else // UNIX
-    return_value = ::pread(theFd, buf, size, offset);
+    return_value = my_pread(theFd, buf, size, offset,0);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
@@ -653,7 +637,7 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
 #elif defined NDB_OSE || defined NDB_SOFTOSE
     return_value = ::write(theFd, buf, bytes_to_write);
 #else // UNIX
-    return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
+    return_value = my_pwrite(theFd, buf, bytes_to_write, offset, 0);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
@@ -889,6 +873,7 @@ void AsyncFile::endReq()
 {
   // Thread is ended with return
   if (theWriteBuffer) NdbMem_Free(theWriteBuffer);
+  my_thread_end();
   NdbThread_Exit(0);
 }
 
