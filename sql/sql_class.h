@@ -326,11 +326,9 @@ public:
 			  const char* msg)
   {
     const char* old_msg = proc_info;
-    pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
-    pthread_mutex_unlock(&mysys_var->mutex);
     return old_msg;
   }
   inline void exit_cond(const char* old_msg)

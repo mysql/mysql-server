@@ -575,12 +575,14 @@ extern int pthread_dummy(int);
 struct st_my_thread_var
 {
   int thr_errno;
-  pthread_cond_t suspend, *current_cond;
-  pthread_mutex_t mutex,  *current_mutex;
+  pthread_cond_t suspend;
+  pthread_mutex_t mutex;
+  pthread_mutex_t * volatile current_mutex;
+  pthread_cond_t * volatile current_cond;
   pthread_t pthread_self;
   long id;
   int cmp_length;
-  volatile int abort;
+  int volatile abort;
 #ifndef DBUG_OFF
   gptr dbug;
   char name[THREAD_NAME_SIZE+1];
