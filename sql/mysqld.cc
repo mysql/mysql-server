@@ -1679,8 +1679,8 @@ pthread_handler_decl(handle_shutdown,arg)
   abort_loop = 1;
 
   // unblock select()
-  so_cancel( ip_sock);
-  so_cancel( unix_sock);
+  so_cancel(ip_sock);
+  so_cancel(unix_sock);
 
   return 0;
 }

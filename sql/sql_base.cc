@@ -554,6 +554,7 @@ void close_temporary_tables(THD *thd)
     *--end = 0;					// Remove last ','
     thd->query_length = (uint)(end-query);
     Query_log_event qinfo(thd, query);
+    qinfo.error_code=0;
     mysql_bin_log.write(&qinfo);
     thd->query_length = save_query_len;
   }

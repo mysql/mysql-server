@@ -31453,7 +31453,7 @@ mysql> SELECT 'David!' LIKE 'David_';
         -> 1
 mysql> SELECT 'David!' LIKE '%D%v%';
         -> 1
-mysql> select TRUNCATE(-1,999,1);
+mysql> select TRUNCATE(-1.999,1);
         -> -1.9
 @end example
 
