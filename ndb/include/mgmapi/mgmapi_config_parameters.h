@@ -6,6 +6,7 @@
 #define CFG_SYS_PRIMARY_MGM_NODE      1
 #define CFG_SYS_CONFIG_GENERATION     2
 #define CFG_SYS_REPLICATION_ROLE      7
+#define CFG_SYS_PORT_BASE             8
 
 #define CFG_NODE_ID                   3
 #define CFG_NODE_BYTE_ORDER           4

@@ -506,7 +506,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _ownReference(0),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  theConfCount(0) {
+  theConfCount(0),
+  m_allocated_resources(*this) {
 
   _config     = NULL;
   _isStatPortActive = false;
@@ -578,11 +579,15 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _props = NULL;
 
   _ownNodeId= 0;
-  NodeId tmp= nodeId > 0 ? nodeId-1 : 0;
-  if (getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM)){
+  NodeId tmp= nodeId;
+  if (getFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
     _ownNodeId= tmp;
-    if (nodeId != 0 && nodeId != tmp)
+    if (nodeId != 0 && nodeId != tmp) {
+      ndbout << "Unable to obtain requested nodeid " << nodeId
+	     << " nodeid " << tmp << " available\n";
       _ownNodeId= 0; // did not get nodeid requested
+    }
+    m_allocated_resources.reserve_node(_ownNodeId);
   } else
     NDB_ASSERT(0, "Unable to retrieve own node id");
 }
@@ -671,8 +676,7 @@ MgmtSrvr::~MgmtSrvr()
 
   stopEventLog();
 
-  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);
-  NdbMutex_Destroy(m_configMutex);
+  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);  NdbMutex_Destroy(m_configMutex);
 
   if(m_newConfig != NULL)
     free(m_newConfig);
@@ -916,7 +920,7 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
     return 0;
   }
   
-  TransporterFacade::instance()->lock_mutex();
+  theFacade->lock_mutex();
   int waitTime = timeOut/m_stopRec.sentCount;
   if (receiveOptimisedResponse(waitTime) != 0) {
     m_stopRec.inUse = false;
@@ -1091,8 +1095,7 @@ MgmtSrvr::version(int * stopCount, bool abort,
   }
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = 
-	TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+      node = theFacade->theClusterMgr->getNodeInfo(i);
       version = node.m_info.m_version;
       if(theFacade->theClusterMgr->getNodeInfo(i).connected)
 	m_versionRec.callback(i, version, this,0);
@@ -1246,7 +1249,7 @@ MgmtSrvr::stop(int * stopCount, bool abort, StopCallback callback,
   
   if(m_stopRec.sentCount > 0){
     if(callback == 0){
-      TransporterFacade::instance()->lock_mutex();
+      theFacade->lock_mutex();
       receiveOptimisedResponse(timeOut / m_stopRec.sentCount);
     } else {
       return 0;
@@ -1276,7 +1279,7 @@ MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId,
 
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+      node = theFacade->theClusterMgr->getNodeInfo(i);
       if((node.m_state.startLevel != NodeState::SL_STARTED) && 
 	 (node.m_state.startLevel != NodeState::SL_NOTHING)) {
 	return 5063;
@@ -1435,7 +1438,7 @@ MgmtSrvr::status(int processId,
   }
 
   const ClusterMgr::Node node = 
-    TransporterFacade::instance()->theClusterMgr->getNodeInfo(processId);
+    theFacade->theClusterMgr->getNodeInfo(processId);
 
   if(!node.connected){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
@@ -2099,8 +2102,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
       req->senderData = 19;
       req->backupDataLen = 0;
       
-      int i = TransporterFacade::instance()->sendSignalUnCond(&aSignal, 
-							      aNodeId);
+      int i = theFacade->sendSignalUnCond(&aSignal, aNodeId);
       if(i == 0){
 	return;
       }
@@ -2182,7 +2184,7 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
     bool failure = true;
     for(Uint32 i = 0; i<MAX_NODES; i++) {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-	node = TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+	node = theFacade->theClusterMgr->getNodeInfo(i);
 	if((node.m_state.startLevel == NodeState::SL_NOTHING))
 	  failure = true;
 	else
@@ -2287,30 +2289,60 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 }
 
 bool
-MgmtSrvr::getNextFreeNodeId(NodeId * nodeId,
-			    enum ndb_mgm_node_type type) const 
+MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
+			struct sockaddr *client_addr, socklen_t *client_addr_len) const 
 {
 #if 0
-  ndbout << "MgmtSrvr::getNextFreeNodeId type=" << type
+  ndbout << "MgmtSrvr::getFreeNodeId type=" << type
 	 << " *nodeid=" << *nodeId << endl;
 #endif
 
-  NodeId tmp= *nodeId;
+  NodeBitmask connected_nodes(m_reserved_nodes);
   if (theFacade && theFacade->theClusterMgr) {
-    while(getNextNodeId(&tmp, type)){
-      if (theFacade->theClusterMgr->m_connected_nodes.get(tmp))
-	continue;
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	if (node.connected)
+	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
+      }
+  }
+
+  ndb_mgm_configuration_iterator iter(*(ndb_mgm_configuration *)_config->m_configValues,
+				      CFG_SECTION_NODE);
+  for(iter.first(); iter.valid(); iter.next()) {
+    unsigned tmp= 0;
+    if(iter.get(CFG_NODE_ID, &tmp)) abort();
+    if (connected_nodes.get(tmp))
+      continue;
+    if (*nodeId && *nodeId != tmp)
+      continue;
+    unsigned type_c;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) abort();
+    if(type_c != type)
+      continue;
+    const char *config_hostname = 0;
+    if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
+
+    //  getsockname(int s, struct sockaddr *name, socklen_t *namelen);
+
+   if (config_hostname && config_hostname[0] != 0) {
+     // check hostname compatability
+     struct in_addr config_addr;
+     if(Ndb_getInAddr(&config_addr, config_hostname) != 0
+	|| memcmp(&config_addr, &(((sockaddr_in*)client_addr)->sin_addr),
+		  sizeof(config_addr)) != 0) {
 #if 0
-      ndbout << "MgmtSrvr::getNextFreeNodeId ret=" << tmp << endl;
+       ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
+	      << "\" id=" << tmp << endl;
 #endif
-      *nodeId= tmp;
-      return true;
+       continue;
+     }
     }
-  } else if (getNextNodeId(&tmp, type)){
-#if 0
-    ndbout << "MgmtSrvr::getNextFreeNodeId (theFacade==0) ret=" << tmp << endl;
-#endif
     *nodeId= tmp;
+#if 0
+  ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
+	 << " *nodeid=" << *nodeId << endl;
+#endif
     return true;
   }
   return false;
@@ -2702,3 +2734,22 @@ MgmtSrvr::getPrimaryNode() const {
   return 0;
 #endif
 }
+
+
+MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
+  : m_mgmsrv(m)
+{
+}
+
+MgmtSrvr::Allocated_resources::~Allocated_resources()
+{
+  m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
+}
+
+void
+MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
+{
+  m_reserved_nodes.set(id);
+  m_mgmsrv.m_reserved_nodes.set(id);
+}
+

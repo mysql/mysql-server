@@ -69,7 +69,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   {
     unsigned short tmp_port= 3307+rNodeId;
     m_socket_client= new SocketClient(remoteHostName, tmp_port,
-				      new SocketAuthSimple("ndbd passwd"));
+				      new SocketAuthSimple("ndbd", "ndbd passwd"));
   }
 }
 

@@ -68,6 +68,18 @@ public:
     virtual void println_statistics(const BaseString &s) = 0;
   };
 
+  class Allocated_resources {
+  public:
+    Allocated_resources(class MgmtSrvr &m);
+    ~Allocated_resources();
+    // methods to reserve/allocate resources which
+    // will be freed when running destructor
+    void reserve_node(NodeId id);
+  private:
+    MgmtSrvr &m_mgmsrv;
+    NodeBitmask m_reserved_nodes;
+  };
+
   /**
    * Set a reference to the socket server.
    */
@@ -450,7 +462,8 @@ public:
    *   @return false if none found
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
-  bool getNextFreeNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
+  bool getFreeNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type,
+		     struct sockaddr *client_addr, socklen_t *client_addr_len) const ;
   
   /**
    *
@@ -501,7 +514,6 @@ public:
    */
   int getPort() const;
 
-
   //**************************************************************************
 private:
   //**************************************************************************
@@ -538,12 +550,13 @@ private:
   BaseString m_configFilename;
   BaseString m_localNdbConfigFilename;
   Uint32 m_nextConfigGenerationNumber;
+  
+  NodeBitmask m_reserved_nodes;
+  Allocated_resources m_allocated_resources;
 
   int _setVarReqResult; // The result of the SET_VAR_REQ response
   Statistics _statistics; // handleSTATISTICS_CONF store the result here, 
                           // and getStatistics reads it.
-
-
 
   //**************************************************************************
   // Specific signal handling methods

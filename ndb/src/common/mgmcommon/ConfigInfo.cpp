@@ -149,14 +149,14 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			  struct InitConfigFileParser::Context &ctx, 
 			  const char * rule_data);
-bool add_db_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		  struct InitConfigFileParser::Context &ctx, 
-		  const char * rule_data);
+bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		      struct InitConfigFileParser::Context &ctx, 
+		      const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
   { add_node_connections, 0 },
-  { add_db_ports, 0 },
+  { add_server_ports, 0 },
   { 0, 0 }
 };
 	  
@@ -326,6 +326,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     0,
+    0,
+    0x7FFFFFFF },
+
+  {
+    CFG_SYS_PORT_BASE,
+    "PortBase",
+    "SYSTEM",
+    "Base port for system",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    2202,
     0,
     0x7FFFFFFF },
 
@@ -2527,6 +2539,17 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
     require(ctx.m_currentSection->put("HostName", ""));
+
+    const char * type;
+    if(ctx.m_currentSection->get("Type", &type) &&
+       strcmp(type,"DB") == 0) 
+    {
+      ctx.reportError("Parameter \"ExecuteOnComputer\" missing from DB section "
+			"[%s] starting at line: %d",
+			ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
+
     return true;
 #if 0
     ctx.reportError("Parameter \"ExecuteOnComputer\" missing from section "
@@ -3261,10 +3284,42 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   return true;
 }
-bool add_db_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		  struct InitConfigFileParser::Context &ctx, 
-		  const char * rule_data)
+bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		      struct InitConfigFileParser::Context &ctx, 
+		      const char * rule_data)
 {
+#if 0
+  Properties * props= ctx.m_config;
+  Properties computers;
+  Uint32 port_base = 2202;
+
+  Uint32 nNodes;
+  ctx.m_userProperties.get("NoOfNodes", &nNodes);
+
+  for (Uint32 i= 0, n= 0; n < nNodes; i++){
+    Properties * tmp;
+    if(!props->get("Node", i, &tmp)) continue;
+    n++;
+
+    const char * type;
+    if(!tmp->get("Type", &type)) continue;
+
+    Uint32 port;
+    if (tmp->get("ServerPort", &port)) continue;
+
+    Uint32 computer;
+    if (!tmp->get("ExecuteOnComputer", &computer)) continue;
+
+    Uint32 adder= 0;
+    computers.get("",computer, &adder);
+
+    if (strcmp(type,"DB") == 0) {
+      adder++;
+      tmp->put("ServerPort", port_base+adder);
+      computers.put("",computer, adder);
+    }
+  }
+#endif
   return true;
 }
 
