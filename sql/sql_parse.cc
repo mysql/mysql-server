@@ -3731,6 +3731,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                       db ? db : "", want_access, thd->master_access));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
+  bool  db_is_pattern= test(want_access & GRANT_ACL);
 #endif
   ulong dummy;
   if (save_priv)
@@ -3757,9 +3758,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     db_access= thd->db_access;
     if (!(thd->master_access & SELECT_ACL) &&
-	(db && (!thd->db || strcmp(db,thd->db))))
-      db_access=acl_get(thd->host, thd->ip,
-			thd->priv_user, db, test(want_access & GRANT_ACL));
+	(db && (!thd->db || db_is_pattern || strcmp(db,thd->db))))
+      db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -3777,9 +3777,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (db == any_db)
     DBUG_RETURN(FALSE);				// Allow select on anything
 
-  if (db && (!thd->db || strcmp(db,thd->db)))
-    db_access=acl_get(thd->host, thd->ip,
-		      thd->priv_user, db, test(want_access & GRANT_ACL));
+  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
+    db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
   else
     db_access=thd->db_access;
   DBUG_PRINT("info",("db_access: %lu", db_access));
