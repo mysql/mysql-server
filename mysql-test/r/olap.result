@@ -15,13 +15,13 @@ insert into sales  values ( 'Computer', 'India',2000, 1200),
 ( 'Computer', 'United States', 2000,1500),
 ( 'Calculator', 'United States', 2000,75);
 select product, country , year, sum(profit) from sales group by product, country, year with cube;
-This version of MySQL doesn't yet support 'CUBE',
+This version of MySQL doesn't yet support 'CUBE'
 explain select product, country , year, sum(profit) from sales group by product, country, year with cube;
-This version of MySQL doesn't yet support 'CUBE',
+This version of MySQL doesn't yet support 'CUBE'
 select product, country , year, sum(profit) from sales group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'ROLLUP',
+This version of MySQL doesn't yet support 'ROLLUP'
 explain select product, country , year, sum(profit) from sales group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'ROLLUP',
+This version of MySQL doesn't yet support 'ROLLUP'
 select product, country , year, sum(profit) from sales group by product, country, year with cube union all select product, country , year, sum(profit) from sales group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'CUBE',
+This version of MySQL doesn't yet support 'CUBE'
 drop table sales;

@@ -296,6 +296,7 @@ struct system_variables
   ulong net_read_timeout;
   ulong net_wait_timeout;
   ulong net_write_timeout;
+  ulong net_retry_count;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;

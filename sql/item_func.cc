@@ -166,6 +166,36 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 }
 
 
+Field *Item_func::tmp_table_field(TABLE *t_arg)
+{
+  Field *res;
+  LINT_INIT(res);
+
+  if (!t_arg)
+    return result_field;
+  switch (args[0]->result_type()) {
+  case INT_RESULT:
+    if (max_length > 11)
+      res= new Field_longlong(max_length, maybe_null, name, t_arg,
+			      unsigned_flag);
+    else
+      res= new Field_long(max_length, maybe_null, name, t_arg,
+			  unsigned_flag);
+    break;
+  case REAL_RESULT:
+    res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
+    break;
+  case STRING_RESULT:
+    if (max_length > 255)
+      res= new Field_blob(max_length, maybe_null, name, t_arg, binary);
+    else
+      res= new Field_string(max_length, maybe_null, name, t_arg, binary);
+    break;
+  }
+  return res;
+}
+
+
 String *Item_real_func::val_str(String *str)
 {
   double nr=val();

@@ -72,6 +72,7 @@ static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
+static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
@@ -167,6 +168,9 @@ sys_var_thd_ulong	sys_net_read_timeout("net_read_timeout",
 sys_var_thd_ulong	sys_net_write_timeout("net_write_timeout",
 					      &SV::net_write_timeout,
 					      fix_net_write_timeout);
+sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
+					    &SV::net_retry_count,
+					    fix_net_retry_count);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
@@ -332,6 +336,7 @@ sys_var *sys_variables[]=
   &sys_myisam_sort_buffer_size,
   &sys_net_buffer_length,
   &sys_net_read_timeout,
+  &sys_net_retry_count,
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_query_cache_size,
@@ -472,7 +477,7 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
-  {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
+  {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
@@ -597,6 +602,12 @@ static void fix_net_write_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
     thd->net.write_timeout=thd->variables.net_write_timeout;
+}
+
+static void fix_net_retry_count(THD *thd, enum_var_type type)
+{
+  if (type != OPT_GLOBAL)
+    thd->net.retry_count=thd->variables.net_retry_count;
 }
 
 

@@ -116,7 +116,7 @@ typedef struct st_net {
   my_socket fd;					/* For Perl DBI/dbd */
   unsigned long max_packet,max_packet_size;
   unsigned int last_errno,pkt_nr,compress_pkt_nr;
-  unsigned int write_timeout,read_timeout;
+  unsigned int write_timeout, read_timeout, retry_count;
   int fcntl;
   char last_error[MYSQL_ERRMSG_SIZE];
   unsigned char error;
