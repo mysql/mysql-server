@@ -7823,12 +7823,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
     sprintf(filename, "%s_%lx_%i", tmp_file_prefix,
             current_pid, temp_pool_slot);
-  else // if we run out of slots or we are not using tempool
+  else
+  {
+    /* if we run out of slots or we are not using tempool */
     sprintf(filename,"%s%lx_%lx_%x",tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+  }
 
-  if (lower_case_table_names)
-    my_casedn_str(files_charset_info, path);
+  /*
+    No need for change table name to lower case as we are only creating
+    MyISAM or HEAP tables here
+  */
   sprintf(path, "%s%s", mysql_tmpdir, filename);
 
   if (group)
