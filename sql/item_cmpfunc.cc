@@ -2151,49 +2151,62 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (Item_bool_func2::fix_fields(thd, tlist, ref))
+  if (Item_bool_func2::fix_fields(thd, tlist, ref) ||
+      escape_item->fix_fields(thd, tlist, &escape_item))
     return 1;
 
-  /*
-    We could also do boyer-more for non-const items, but as we would have to
-    recompute the tables for each row it's not worth it.
-  */
-  if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-      !(specialflag & SPECIAL_NO_NEW_FUNC))
+  if (!escape_item->const_during_execution())
   {
-    String* res2 = args[1]->val_str(&tmp_value2);
-    if (!res2)
-      return 0;					// Null argument
-
-    const size_t len   = res2->length();
-    const char*  first = res2->ptr();
-    const char*  last  = first + len - 1;
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
+    return 1;
+  }
+  
+  if (escape_item->const_item())
+  {
+    /* If we are on execution stage */
+    String *escape_str= escape_item->val_str(&tmp_value1);
+    escape= escape_str ? *(escape_str->ptr()) : '\\';
+ 
     /*
-      len must be > 2 ('%pattern%')
-      heuristic: only do TurboBM for pattern_len > 2
+      We could also do boyer-more for non-const items, but as we would have to
+      recompute the tables for each row it's not worth it.
     */
-
-    if (len > MIN_TURBOBM_PATTERN_LEN + 2 &&
-	*first == wild_many &&
-	*last  == wild_many)
+    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
+       !(specialflag & SPECIAL_NO_NEW_FUNC))
     {
-      const char* tmp = first + 1;
-      for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-      canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
-    }
-
-    if (canDoTurboBM)
-    {
-      pattern     = first + 1;
-      pattern_len = len - 2;
-      DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
-      int *suff = (int*) thd->alloc(sizeof(int)*((pattern_len + 1)*2+
-						 alphabet_size));
-      bmGs      = suff + pattern_len + 1;
-      bmBc      = bmGs + pattern_len + 1;
-      turboBM_compute_good_suffix_shifts(suff);
-      turboBM_compute_bad_character_shifts();
-      DBUG_PRINT("info",("done"));
+      String* res2 = args[1]->val_str(&tmp_value2);
+      if (!res2)
+        return 0;				// Null argument
+      
+      const size_t len   = res2->length();
+      const char*  first = res2->ptr();
+      const char*  last  = first + len - 1;
+      /*
+        len must be > 2 ('%pattern%')
+        heuristic: only do TurboBM for pattern_len > 2
+      */
+      
+      if (len > MIN_TURBOBM_PATTERN_LEN + 2 &&
+          *first == wild_many &&
+          *last  == wild_many)
+      {
+        const char* tmp = first + 1;
+        for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
+        canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
+      }
+      if (canDoTurboBM)
+      {
+        pattern     = first + 1;
+        pattern_len = len - 2;
+        DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
+        int *suff = (int*) thd->alloc(sizeof(int)*((pattern_len + 1)*2+
+                                      alphabet_size));
+        bmGs      = suff + pattern_len + 1;
+        bmBc      = bmGs + pattern_len + 1;
+        turboBM_compute_good_suffix_shifts(suff);
+        turboBM_compute_bad_character_shifts();
+        DBUG_PRINT("info",("done"));
+      }
     }
   }
   return 0;
