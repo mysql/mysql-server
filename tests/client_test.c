@@ -9454,9 +9454,9 @@ static void test_bug1664()
     myquery(rc);
     
     stmt= mysql_stmt_init(mysql);
-    mystmt_init(stmt);
+    check_stmt(stmt);
     rc= mysql_stmt_prepare(stmt, query, strlen(query));
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     verify_param_count(stmt, 2);
    
@@ -9470,7 +9470,7 @@ static void test_bug1664()
     bind[1].buffer_type= FIELD_TYPE_LONG;
     
     rc= mysql_stmt_bind_param(stmt,bind);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     int_data= 1;
 
@@ -9480,11 +9480,10 @@ static void test_bug1664()
     */
     data= "";
     rc= mysql_stmt_send_long_data(stmt,0,data,strlen(data));
-    mystmt(stmt,rc);
+    check_execute(stmt,rc);
 
     rc= mysql_stmt_execute(stmt);
-    fprintf(stdout," mysql_execute() returned %d\n",rc);
-    mystmt(stmt,rc);
+    check_execute(stmt,rc);
     
     verify_col_data("test_long_data","col1","1");
     verify_col_data("test_long_data","col2","");
@@ -9495,11 +9494,10 @@ static void test_bug1664()
     /* This should pass OK */
     data= (char *)"Data";
     rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
 
     rc= mysql_stmt_execute(stmt);
-    fprintf(stdout," mysql_execute() returned %d\n",rc);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     verify_col_data("test_long_data", "col1", "1");
     verify_col_data("test_long_data", "col2", "Data");
@@ -9517,8 +9515,7 @@ static void test_bug1664()
     int_data= 2;
     /* execute */
     rc = mysql_stmt_execute(stmt);
-    fprintf(stdout, " mysql_execute() returned %d\n", rc);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
   
     verify_col_data("test_long_data", "col1", "2");
     verify_col_data("test_long_data", "col2", str_data);
@@ -9534,11 +9531,10 @@ static void test_bug1664()
 
     data= (char *)"SomeOtherData";
     rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     rc= mysql_stmt_execute(stmt);
-    fprintf(stdout, " mysql_execute() returned %d\n", rc);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
 
     verify_col_data("test_long_data", "col1", "2");
     verify_col_data("test_long_data", "col2", "SomeOtherData");
@@ -9551,22 +9547,21 @@ static void test_bug1664()
     
     /* Now let us test how mysql_stmt_reset works. */
     stmt= mysql_stmt_init(mysql);
-    mystmt_init(stmt);
+    check_stmt(stmt);
     rc= mysql_stmt_prepare(stmt, query, strlen(query));
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     rc= mysql_bind_param(stmt, bind);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     data= (char *)"SomeData";
     rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
 
     rc= mysql_stmt_reset(stmt);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
 
     rc= mysql_stmt_execute(stmt);
-    fprintf(stdout," mysql_execute() returned %d\n",rc);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     
     verify_col_data("test_long_data", "col1", "2");
     verify_col_data("test_long_data", "col2", str_data);
