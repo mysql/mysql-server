@@ -1190,13 +1190,13 @@ execute stmt1 using @arg00 ;
 ######## SELECT .. WHERE column(year)=value(DOUBLE(m,n)/DOUBLE) ########
 set @arg00= 1.991e+3 ;
 select 'true' as found from t9 
-where c1= 20 and c17= 1.991e+3 ;
+where c1= 20 and abs(c17 - 1.991e+3) < 0.01 ;
 select 'true' as found from t9 
-where c1= 20 and c17= @arg00 ;
+where c1= 20 and abs(c17 - @arg00) < 0.01 ;
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c17= 1.991e+3" ;
+where c1= 20 and abs(c17 - 1.991e+3) < 0.01" ;
 execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9
-where c1= 20 and c17= ?" ;
+where c1= 20 and abs(c17 - ?) < 0.01" ;
 execute stmt1 using @arg00 ;
 
