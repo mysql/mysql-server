@@ -733,6 +733,7 @@ extern "C" {
 				  int param, unsigned long long * value);
   int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
 				   int param, const char  ** value);
+  int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
 #ifdef __cplusplus
 }
 #endif

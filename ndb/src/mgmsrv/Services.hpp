@@ -28,7 +28,9 @@
 /** Undefine this to remove backwards compatibility for "GET CONFIG". */
 #define MGM_GET_CONFIG_BACKWARDS_COMPAT
 
-class MgmApiSession : public SocketServer::Session {
+class MgmApiSession : public SocketServer::Session
+{
+  static void stop_session_if_not_connected(SocketServer::Session *_s, void *data);
 private:
   typedef Parser<MgmApiSession> Parser_t;
 
@@ -84,6 +86,8 @@ public:
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
+
+  void purge_stale_sessions(Parser_t::Context &ctx, const class Properties &args);
   
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
