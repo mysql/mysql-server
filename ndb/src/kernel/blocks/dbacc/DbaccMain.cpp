@@ -4555,7 +4555,12 @@ void Dbacc::getElement(Signal* signal)
   tgeResult = ZFALSE;
   tgeCompareLen = fragrecptr.p->keyLength;
   const Uint32 isAccLockReq = operationRecPtr.p->isAccLockReq; // wl-2066 remove
-  const bool  compareLocalKey =
+  /*
+   * The value seached is
+   * - table key for ACCKEYREQ, stored in TUP
+   * - local key (1 word) for ACC_LOCKREQ and UNDO, stored in ACC
+   */
+  const bool compareLocalKey =
     operationRecPtr.p->isAccLockReq || operationRecPtr.p->isUndoLogReq;
 
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + fragrecptr.p->localkeylen);
@@ -10448,11 +10453,15 @@ void Dbacc::srDoUndoLab(Signal* signal)
 	       ((fragrecptr.p->keyLength != 0) &&
 		(fragrecptr.p->keyLength == tkeylen)));
     
-    // Read keydata from undo page
+    // Read localkey1 from undo page
+    signal->theData[7 + 0] = undopageptr.p->undoword[tmpindex];
+    tmpindex = tmpindex + 1;
+#if 0 // wl-2066 remove
     for (Uint32 tmp = 0; tmp < tkeylen; tmp++) {
       signal->theData[7+tmp] = undopageptr.p->undoword[tmpindex];
       tmpindex = tmpindex + 1;
     }//for
+#endif
     arrGuard((tmpindex - 1), 8192);
     getElement(signal);
     if (tgeResult != ZTRUE) {
