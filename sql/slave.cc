@@ -1579,7 +1579,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   save_proc_info= thd->enter_cond(&rli->log_space_cond,
 				  &rli->log_space_lock, 
 				  "\
-Waiting for the SQL slave thread to free enough relay log space");
+Waiting for the slave SQL thread to free enough relay log space");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
@@ -2291,7 +2291,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for the SQL slave thread to \
+                                      "Waiting for the slave SQL thread to \
 advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
