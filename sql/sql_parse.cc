@@ -3252,27 +3252,6 @@ create_error:
       thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
     thd->in_lock_tables=0;
     break;
-  case SQLCOM_LOCK_TABLES_TRANSACTIONAL:
-  {
-    uint counter = 0;
-
-    if (check_db_used(thd, all_tables))
-      goto error;
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
-      goto error;
-
-    thd->in_lock_tables=1;
-    thd->options|= OPTION_TABLE_LOCK;
-
-    if (open_tables(thd, all_tables, &counter) == 0 &&
-        transactional_lock_tables(thd, all_tables, counter) == 0)
-        send_ok(thd);
-    else
-      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
-
-    thd->in_lock_tables=0;
-    break;
-  }
   case SQLCOM_CREATE_DB:
   {
     char *alias;
@@ -3284,12 +3263,12 @@ create_error:
     /*
       If in a slave thread :
       CREATE DATABASE DB was certainly not preceded by USE DB.
-      For that reason, db_ok() in sql/slave.cc did not check the 
+      For that reason, db_ok() in sql/slave.cc did not check the
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread && 
+    if (thd->slave_thread &&
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
     {
