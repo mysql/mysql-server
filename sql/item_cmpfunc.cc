@@ -273,8 +273,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   owner= item;
   func= comparator_matrix[type]
                          [test(owner->functype() == Item_func::EQUAL_FUNC)];
-  switch(type)
-  {
+  switch(type) {
   case ROW_RESULT:
   {
     uint n= (*a)->cols();
@@ -877,25 +876,43 @@ void Item_func_interval::fix_length_and_dec()
 
 
 /*
-  return -1 if null value,
-	  0 if lower than lowest
-	  1 - arg_count-1 if between args[n] and args[n+1]
-	  arg_count if higher than biggest argument
+  Execute Item_func_interval()
+
+  SYNOPSIS
+    Item_func_interval::val_int()
+
+  NOTES
+    If we are doing a decimal comparison, we are
+    evaluating the first item twice.
+
+  RETURN
+    -1 if null value,
+    0 if lower than lowest
+    1 - arg_count-1 if between args[n] and args[n+1]
+    arg_count if higher than biggest argument
 */
 
 longlong Item_func_interval::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= row->el(0)->val_real();
+  double value;
   my_decimal dec_buf, *dec= NULL;
+  uint i;
+
   if (use_decimal_comparison)
   {
     dec= row->el(0)->val_decimal(&dec_buf);
+    if (row->el(0)->null_value)
+      return -1;
+    my_decimal2double(E_DEC_FATAL_ERROR, dec, &value);
   }
-  uint i;
+  else
+  {
+    value= row->el(0)->val_real();
+    if (row->el(0)->null_value)
+      return -1;
+  }
 
-  if (row->el(0)->null_value)
-    return -1;				// -1 if null
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
@@ -906,6 +923,11 @@ longlong Item_func_interval::val_int()
       uint mid= (start + end + 1) / 2;
       interval_range *range= intervals + mid;
       my_bool cmp_result;
+      /*
+        The values in the range intervall may have different types,
+        Only do a decimal comparision of the first argument is a decimal
+        and we are comparing against a decimal
+      */
       if (dec && range->type == DECIMAL_RESULT)
         cmp_result= my_decimal_cmp(&range->dec, dec) <= 0;
       else
@@ -917,7 +939,7 @@ longlong Item_func_interval::val_int()
     }
     interval_range *range= intervals+start;
     return ((dec && range->type == DECIMAL_RESULT) ?
-      my_decimal_cmp(dec, &range->dec) < 0 :
+            my_decimal_cmp(dec, &range->dec) < 0 :
             value < range->dbl) ? 0 : start + 1;
   }
 
@@ -932,12 +954,12 @@ longlong Item_func_interval::val_int()
       if (my_decimal_cmp(e_dec, dec) > 0)
         return i-1;
     }
-    else
-      if (row->el(i)->val_real() > value)
-        return i-1;
+    else if (row->el(i)->val_real() > value)
+      return i-1;
   }
   return i-1;
 }
+
 
 void Item_func_between::fix_length_and_dec()
 {
@@ -1087,8 +1109,7 @@ Item_func_ifnull::fix_length_and_dec()
                    args[1]->max_length - args[1]->decimals) +
                decimals);
   agg_result_type(&cached_result_type, args, 2);
-  switch (cached_result_type)
-  {
+  switch (cached_result_type) {
   case STRING_RESULT:
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
     break;
@@ -1164,7 +1185,6 @@ my_decimal *Item_func_ifnull::val_decimal(my_decimal *decimal_value)
     return 0;
   return value;
 }
-
 
 
 String *
@@ -1454,7 +1474,6 @@ Item *Item_func_case::find_item(String *str)
   // No, WHEN clauses all missed, return ELSE expression
   return else_expr_num != -1 ? args[else_expr_num] : 0;
 }
-
 
 
 String *Item_func_case::val_str(String *str)
@@ -2037,7 +2056,8 @@ int cmp_item_row::compare(cmp_item *c)
 void cmp_item_decimal::store_value(Item *item)
 {
   my_decimal *val= item->val_decimal(&value);
-  if (val != &value)
+  /* val may be zero if item is nnull */
+  if (val && val != &value)
     my_decimal2decimal(val, &value);
 }
 
@@ -2051,9 +2071,9 @@ int cmp_item_decimal::cmp(Item *arg)
 }
 
 
-int cmp_item_decimal::compare(cmp_item *c)
+int cmp_item_decimal::compare(cmp_item *arg)
 {
-  cmp_item_decimal *cmp= (cmp_item_decimal *)c;
+  cmp_item_decimal *cmp= (cmp_item_decimal*) arg;
   return my_decimal_cmp(&value, &cmp->value);
 }
 

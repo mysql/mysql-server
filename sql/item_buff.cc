@@ -28,8 +28,7 @@ Item_buff *new_Item_buff(Item *item)
   if (item->type() == Item::FIELD_ITEM &&
       !(((Item_field *) item)->field->flags & BLOB_FLAG))
     return new Item_field_buff((Item_field *) item);
-  switch (item->result_type())
-  {
+  switch (item->result_type()) {
   case STRING_RESULT:
     return new Item_str_buff((Item_field *) item);
   case INT_RESULT:

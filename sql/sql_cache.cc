@@ -1438,7 +1438,7 @@ ulong Query_cache::init_cache()
     init();
   approx_additional_data_size = (sizeof(Query_cache) +
 				 sizeof(gptr)*(def_query_hash_size+
-					       def_query_hash_size));
+					       def_table_hash_size));
   if (query_cache_size < approx_additional_data_size)
     goto err;
 
