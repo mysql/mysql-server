@@ -506,6 +506,10 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 typedef uint32 ha_checksum;
 
+/* Define the type of function to be passed to process_default_option_files */
+typedef int (*Process_option_func)(void *ctx, const char *group_name,
+                                    const char *option);
+
 #include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
@@ -740,6 +744,9 @@ extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
+extern int process_default_option_files(const char *conf_file,
+                                        Process_option_func func,
+                                        void *func_ctx);
 extern void free_defaults(char **argv);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
