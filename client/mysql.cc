@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.12";
+const char *VER= "12.13";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1318,11 +1318,13 @@ com_help (String *buffer __attribute__((unused)),
 {
   reg1 int i;
 
-  put_info("\nFull documentation of MySQL is available at\nhttp://www.mysql.com/documentation/mysql/bychapter/\n", INFO_INFO);
-  put_info("For technical support contracts, visit https://order.mysql.com/\n", INFO_INFO);
-  put_info("MySQL commands:",INFO_INFO);
+  put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
+  put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
+  put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+  put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
-    put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
+    put_info("   (Commands must appear first on line and end with ';')\n",
+	     INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
     if (commands[i].func)

@@ -210,10 +210,16 @@ int handle_options(int *argc, char ***argv,
 		  switch (i) {
 		  case OPT_SKIP:
 		  case OPT_DISABLE: /* fall through */
-		    optend= disabled_my_option;
+		    /*
+		      double negation is actually enable again,
+		      for example: --skip-option=0 -> option = TRUE
+		    */
+		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
+		      (char*) "1" : disabled_my_option;
 		    break;
 		  case OPT_ENABLE:
-		    optend= (char*) "1";
+		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
+ 		      disabled_my_option : (char*) "1";
 		    break;
 		  case OPT_MAXIMUM:
 		    set_maximum_value= 1;
@@ -278,7 +284,8 @@ int handle_options(int *argc, char ***argv,
 	}
 	if (optp->arg_type == NO_ARG)
 	{
-	  if (optend && special_used)
+	  //	  if (optend && special_used)
+	  if (optend && optp->var_type != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
