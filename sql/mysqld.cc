@@ -2115,10 +2115,10 @@ int main(int argc, char **argv)
     if (lower_case_table_names_used)
     {
       sql_print_error("\
-Warning: You have forced lower_case_table_names to 0 through a command line \
-option, even if your file system '%s' is case insensitive.  This means that \
-you can corrupt an MyISAM table by accessing it with different cases.  You \
-should consider changing lower_case_table_names to 1 or 2",
+Warning: You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
 		      mysql_real_data_home);
     }
     else
