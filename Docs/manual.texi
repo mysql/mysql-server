@@ -38966,6 +38966,10 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Added new script, mysql-multi.server.sh.  Thanks to
+Tim Bunce <Tim.Bunce@ig.co.uk> for modifying mysql.server to
+easily handle hosts running many mysqlds.
+@item
 safe_mysqld, mysql.server and mysql_install_db have been modified
 to use mysql_print_defaults instead of various hacks to read the
 my.cnf files.  In addition, the handling of various paths has been
