@@ -382,7 +382,7 @@ SQL_SELECT::~SQL_SELECT()
 #undef index					// Fix for Unixware 7
 
 QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
-  :error(0),index(key_nr),max_used_key_length(0),head(table),
+  :dont_free(0),error(0),index(key_nr),max_used_key_length(0),head(table),
    it(ranges),range(0)
 {
   if (!no_alloc)
@@ -399,8 +399,11 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
 
 QUICK_SELECT::~QUICK_SELECT()
 {
-  file->index_end();
-  free_root(&alloc,MYF(0));
+  if (!dont_free)
+  {
+    file->index_end();
+    free_root(&alloc,MYF(0));
+  }
 }
 
 int QUICK_SELECT::init()
@@ -2516,6 +2519,7 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
   return (range->flag & NEAR_MAX) ? 1 : 0;		// Exact match
 }
 
+
 /*
  * This is a hack: we inherit from QUICK_SELECT so that we can use the
  * get_next() interface, but we have to hold a pointer to the original
@@ -2525,20 +2529,35 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
  * which handle the ranges and implement the get_next() function.  But
  * for now, this seems to work right at least.
  */
-QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q)
-  : QUICK_SELECT(*q), quick(q), rev_it(rev_ranges)
+
+QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
+  : QUICK_SELECT(*q), rev_it(rev_ranges)
 {
   bool not_read_after_key = file->option_flag() & HA_NOT_READ_AFTER_KEY;
   for (QUICK_RANGE *r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);
-    if (not_read_after_key && range_reads_after_key(r))
+    if (not_read_after_key && range_reads_after_key(r) ||
+	test_if_null_range(r,used_key_parts))
     {
+      it.rewind();				// Reset range
       error = HA_ERR_UNSUPPORTED;
-      break;
+      dont_free=1;				// Don't free memory from 'q'
+      return;
     }
   }
+  /* Remove EQ_RANGE flag for keys that are not using the full key */
+  for (QUICK_RANGE *r = rev_it++; r; r = rev_it++)
+  {
+    if ((r->flag & EQ_RANGE) &&
+	head->key_info[index].key_length != r->max_length)
+      r->flag&= ~EQ_RANGE;
+  }
+  rev_it.rewind();
+  q->dont_free=1;				// Don't free shared mem
+  delete q;
 }
+
 
 int QUICK_SELECT_DESC::get_next()
 {
@@ -2546,8 +2565,8 @@ int QUICK_SELECT_DESC::get_next()
 
   /* The max key is handled as follows:
    *   - if there is NO_MAX_RANGE, start at the end and move backwards
-   *   - if it is an EQ_RANGE and max key covers the entire key, go directly
-   *     to the key and read through it (sorting backwards is
+   *   - if it is an EQ_RANGE, which means that max key covers the entire
+   *     key, go directly to the key and read through it (sorting backwards is
    *     same as sorting forwards)
    *   - if it is NEAR_MAX, go to the key or next, step back once, and
    *     move backwards
@@ -2560,9 +2579,9 @@ int QUICK_SELECT_DESC::get_next()
     int result;
     if (range)
     {						// Already read through key
-      result = ((range->flag & EQ_RANGE) ?
-		file->index_next_same(record, (byte*) range->min_key,
-				      range->min_length) :
+      result = ((range->flag & EQ_RANGE)
+		? file->index_next_same(record, (byte*) range->min_key,
+					range->min_length) :
 		file->index_prev(record));
       if (!result)
       {
@@ -2587,8 +2606,7 @@ int QUICK_SELECT_DESC::get_next()
       continue;
     }
 
-    if (range->flag & EQ_RANGE &&
-	head->key_info[index].key_length == range->max_length)
+    if (range->flag & EQ_RANGE)
     {
       result = file->index_read(record, (byte*) range->max_key,
 				range->max_length, HA_READ_KEY_EXACT);
@@ -2598,9 +2616,10 @@ int QUICK_SELECT_DESC::get_next()
       dbug_assert(range->flag & NEAR_MAX || range_reads_after_key(range));
       /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
        * do the right thing - go past all keys which match the prefix */
-      file->index_read(record, (byte*) range->max_key, range->max_length,
-		       ((range->flag & NEAR_MAX) ?
-			HA_READ_KEY_OR_PREV : HA_READ_AFTER_KEY));
+      result=file->index_read(record, (byte*) range->max_key,
+			      range->max_length,
+			      ((range->flag & NEAR_MAX) ?
+			       HA_READ_KEY_EXACT : HA_READ_AFTER_KEY));
       result = file->index_prev(record);
     }
     if (result)
@@ -2629,7 +2648,7 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
   if (range->flag & NO_MIN_RANGE)
     return (0);					/* key can't be to small */
 
-  KEY_PART *key_part = quick->key_parts;
+  KEY_PART *key_part = key_parts;
   for (char *key = range->min_key, *end = key + range->min_length;
        key < end;
        key += key_part++->part_length)
@@ -2659,14 +2678,63 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
 
 /*
  * True if this range will require using HA_READ_AFTER_KEY
+   See comment in get_next() about this
  */
+
 bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range)
 {
-  // See comment in get_next()
-  return range->flag & (NO_MAX_RANGE | NEAR_MAX) ? 1 :
-    (range->flag & EQ_RANGE &&
-     head->key_info[index].key_length == range->max_length) ? 0 : 1;
+  return ((range->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
+	  !(range->flag & EQ_RANGE) ||
+	  head->key_info[index].key_length != range->max_length) ? 1 : 0;
 }
+
+/* True if we are reading over a key that may have a NULL value */
+
+bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
+					   uint used_key_parts)
+{
+  uint offset,end;
+  KEY_PART *key_part = key_parts,
+           *key_part_end= key_part+used_key_parts;
+
+  for (offset= 0,  end = min(range->min_length, range->max_length) ;
+       offset < end && key_part != key_part_end ;
+       offset += key_part++->part_length)
+  {
+    uint null_length=test(key_part->null_bit);
+    if (!memcmp((char*) range->min_key+offset, (char*) range->max_key+offset,
+		key_part->part_length + null_length))
+    {
+      offset+=null_length;
+      continue;
+    }
+    if (null_length && range->min_key[offset])
+      return 1;				// min_key is null and max_key isn't
+    // Range doesn't cover NULL. This is ok if there is no more null parts
+    break;
+  }
+  /*
+    If the next min_range is > NULL, then we can use this, even if
+    it's a NULL key
+    Example:  SELECT * FROM t1 WHERE a = 2 AND b >0 ORDER BY a DESC,b DESC;
+
+  */
+  if (key_part != key_part_end && key_part->null_bit)
+  {
+    if (offset >= range->min_length || range->min_key[offset])
+      return 1;					// Could be null
+    key_part++;
+  }
+  /*
+    If any of the key parts used in the ORDER BY could be NULL, we can't
+    use the key to sort the data.
+  */
+  for (; key_part != key_part_end ; key_part++)
+    if (key_part->null_bit)
+      return 1;					// Covers null part
+  return 0;
+}
+
 
 /*****************************************************************************
 ** Print a quick range for debugging

@@ -54,9 +54,10 @@ class QUICK_RANGE :public Sql_alloc {
     {}
 };
 
+
 class QUICK_SELECT {
 public:
-  bool next;
+  bool next,dont_free;
   int error;
   uint index,max_used_key_length;
   TABLE *head;
@@ -80,16 +81,17 @@ public:
   bool unique_key_range();
 };
 
+
 class QUICK_SELECT_DESC: public QUICK_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_SELECT *q);
+  QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts);
   int get_next();
 private:
   int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
-
-  QUICK_SELECT *quick;
+  bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
+  void reset(void) { next=0; rev_it.rewind(); }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
 };

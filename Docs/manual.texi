@@ -410,6 +410,7 @@ MySQL Language Reference
 * SET OPTION::                  @code{SET OPTION} syntax
 * SET TRANSACTION::             @code{SET TRANSACTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
+* HANDLER::                     @code{HANDLER} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
 * Comments::                    Comment syntax
@@ -664,6 +665,7 @@ Replication in MySQL
 
 MySQL Full-text Search
 
+* Fulltext Search::
 * Fulltext Fine-tuning::        
 * Fulltext Features to Appear in MySQL 4.0::  
 * Fulltext TODO::               
@@ -14139,6 +14141,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * SET OPTION::                  @code{SET OPTION} syntax
 * SET TRANSACTION::             @code{SET TRANSACTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
+* HANDLER::                     @code{HANDLER} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
 * Comments::                    Comment syntax
@@ -19410,6 +19413,8 @@ alter_specification:
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
+  or    DISABLE KEYS
+  or    ENABLE KEYS
   or    RENAME [TO] new_tbl_name
   or    ORDER BY col
   or    table_options
@@ -19570,6 +19575,15 @@ performance.
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
+
+@item
+Since @strong{MySQL 4.0} this feature could be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes @strong{MySQL} to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As @strong{MySQL} does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @findex mysql_info()
@@ -21880,6 +21894,9 @@ differ somewhat:
 | delayed_queue_size      | 1000                      |
 | flush                   | OFF                       |
 | flush_time              | 0                         |
+| ft_min_word_len         | 4                         |
+| ft_max_word_len         | 254                       |
+| ft_max_word_len_for_sort| 20                        |
 | have_bdb                | YES                       |
 | have_gemini             | NO                        |
 | have_innodb             | YES                       |
@@ -22062,6 +22079,31 @@ If this is set to a non-zero value, then every @code{flush_time} seconds all
 tables will be closed (to free up resources and sync things to disk). We
 only recommend this option on Win95, Win98, or on systems where you have
 very little resources.
+
+@item @code{ft_min_word_len}
+The minimum length of the word to be included in a @code{FULLTEXT} index.
+@strong{Note: @code{FULLTEXT} index have to be rebuilt (e.g. with
+@code{OPTIMIZE TABLE}) after changing this variable.}
+
+@item @code{ft_max_word_len}
+The maximum length of the word to be included in a @code{FULLTEXT} index.
+@strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
+this variable.}
+
+@item @code{ft_max_word_len_sort}
+The maximum length of the word in a @code{FULLTEXT} index
+to be used in fast index recreation method in
+@code{REPAIR}, @code{CREATE INDEX}, @code{OPTIMIZE TABLE}, or
+@code{ALTER TABLE}.  Longer words are inserted the slow way.
+The rule of the thumb is as follows: with @code{ft_max_word_len_sort}
+increasing, @strong{MySQL} will create bigger temporary files
+(thus slowing the process down, due to disk I/O), and will put
+fewer keys in one sort block (againg, decreasing the efficiency).
+When @code{ft_max_word_len_sort} is too small, instead,
+@strong{MySQL} will insert a lot of words into index the slow way -
+but short words will be inserted very fast. It applies only to
+index recreation during @code{REPAIR}, @code{CREATE INDEX},
+@code{OPTIMIZE TABLE}, or @code{ALTER TABLE}.
 
 @item @code{have_bdb}
 @code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
@@ -23156,7 +23198,7 @@ You can set the default isolation level for @code{mysqld} with
 
 @findex GRANT
 @findex REVOKE
-@node GRANT, CREATE INDEX, SET TRANSACTION, Reference
+@node GRANT, HANDLER, SET TRANSACTION, Reference
 @section @code{GRANT} and @code{REVOKE} Syntax
 
 @example
@@ -23386,11 +23428,52 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 @strong{MySQL} grant tables.
 @end itemize
 
+@findex HANDLER
+@node HANDLER, CREATE INDEX, GRANT, Reference
+@section @code{HANDLER} Syntax
+
+@example
+HANDLER table OPEN [ AS alias ]
+HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
+HANDLER table CLOSE
+@end example
+
+The @code{HANDLER} statement provides direct access to @strong{MySQL} table
+interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
+
+The first form of @code{HANDLER} statement opens a table, making
+in accessible via the following @code{HANDLER ... READ} routines.
+
+The second form fetches one (or, specified by @code{LIMIT} clause) row
+where the index specified complies to the condition and @code{WHERE}
+condition is met. If the index consists of several parts (spans over
+several columns) the values are specified in comma-separated list,
+providing values only for few first columns is possible.
+
+The third form fetches one (or, specified by @code{LIMIT} clause) row
+from the table in index order, matching @code{WHERE} condition.
+
+The fourth form (without index specification) fetches one (or, specified
+by @code{LIMIT} clause) row from the table in natural row order (as stored
+in data file) matching @code{WHERE} condition. It is faster than
+@code{HANDLER table READ index} when full table scan is desired.
+
+The last form closes the table, opened with @code{HANDLER ... OPEN}.
+
+@code{HANDLER} is somewhat low-level statement, for example it does not
+provide consistency. That is @code{HANDLER ... OPEN} does @strong{not}
+takes a snapshot of the table, and does @strong{not} locks the table. The
+above means,  that after @code{HANDLER ... OPEN} table data can be
+modified (by this or other thread) and these modifications may appear only
+partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+
 @cindex indexes
 @cindex indexes, multi-part
 @cindex multi-part index
 @findex CREATE INDEX
-@node CREATE INDEX, DROP INDEX, GRANT, Reference
+@node CREATE INDEX, DROP INDEX, HANDLER, Reference
 @section @code{CREATE INDEX} Syntax
 
 @example
@@ -30809,13 +30892,10 @@ unless you know what you are doing!
 @itemize
 
 @item
-Minimal length of word to be indexed is defined in
-@code{myisam/ftdefs.h} file by the line
-@example
-#define MIN_WORD_LEN 4
-@end example
-Change it to the value you prefer, recompile @strong{MySQL}, and rebuild
-your @code{FULLTEXT} indexes.
+Minimal length of word to be indexed is defined by @strong{MySQL}
+variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
+Change it to the value you prefer, and rebuild
+your @code{FULLTEXT} indexes (e.g. with @code{OPTIMIZE TABLE}).
 
 @item
 The stopword list is defined in @code{myisam/ft_static.c}
@@ -30881,9 +30961,6 @@ index operations (querying/dumping/statistics).
 @itemize @bullet
 @item Make all operations with @code{FULLTEXT} index @strong{faster}.
 @item Support for braces @code{()} in boolean full-text search.
-@item Phrase search, proximity operators
-@item Boolean search can work without @code{FULLTEXT} index
-(yes, @strong{very} slow).
 @item Support for "always-index words". They could be any strings
 the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Support for full-text search in @code{MERGE} tables.
@@ -32543,8 +32620,12 @@ Execute a @code{FLUSH TABLES} statement or the shell command @code{mysqladmin
 flush-tables}.
 @end enumerate
 
-This procedure will be built into @code{LOAD DATA INFILE} in some future
-version of @strong{MySQL}.
+Since @strong{MySQL 4.0} you can also use
+@code{ALTER TABLE tbl_name DISABLE KEYS} instead of
+@code{myisamchk --keys-used=0 -rq /path/to/db/tbl_name} and
+@code{ALTER TABLE tbl_name ENABLE KEYS} instead of
+@code{myisamchk -r -q /path/to/db/tbl_name}. This way you can also skip
+@code{FLUSH TABLES} steps.
 @item
 You can speed up insertions by locking your tables:
 
@@ -46004,6 +46085,8 @@ Responsible for @strong{MySQL} configure.
 Full-text search.
 @item
 Added keys to the @code{MERGE} library.
+@item
+@code{HANDLER} command.
 @end itemize
 
 @item Jeremy Cole
@@ -46344,6 +46427,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added @code{ALTER TABLE table_name DISABLE KEYS} and
+      @code{ALTER TABLE table_name ENABLE KEYS} commands.
+@item
+@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
 Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
@@ -46470,6 +46558,9 @@ not yet 100% confident in this code.
 @node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
+@item
+Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
+only prints the error @code{Aborted connection} if this option is used.
 @item
 Fixed parser to allow floats of type @code{1.0e1} (no sign after @code{e}).
 @item
@@ -51898,6 +51989,8 @@ Multiple result sets.
 @item
 Change the protocol to allow binary transfer of values. To do this
 efficiently, we need to add an API to allow binding of variables.
+@item
+Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
