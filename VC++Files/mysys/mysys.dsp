@@ -190,6 +190,10 @@ SOURCE=.\mf_keycache.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\mf_keycaches.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mf_loadpath.c
 # End Source File
 # Begin Source File
