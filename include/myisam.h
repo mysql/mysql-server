@@ -295,6 +295,12 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_QUICK                 (1L << 30)
 #define T_RETRY_WITHOUT_QUICK   (1L << 31)
 
+/* flags used by myisamchk.c or/and ha_myisam.cc that do NOT passed
+ * to mi_check.c follows:
+ * */
+
+#define TT_USEFRM               1
+
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
 #define O_DATA_LOST	4
