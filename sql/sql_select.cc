@@ -4121,7 +4121,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     bool not_used_in_distinct=join_tab->not_used_in_distinct;
     ha_rows found_records=join->found_records;
     READ_RECORD *info= &join_tab->read_record;
-    join->examined_rows++;
 
     do
     {
@@ -4130,6 +4129,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
 	return -2;				/* purecov: inspected */
       }
+      join->examined_rows++;
       if (!on_expr || on_expr->val_int())
       {
 	found=1;

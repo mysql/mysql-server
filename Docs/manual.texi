@@ -46843,6 +46843,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
 @item
+Fixed @code{Rows_examined} count in slow query log.
+@item
 Fixed bug when using a reference to a @code{AVG()} column in @code{HAVING}.
 @item
 Fixed that date functions that require correct dates, like
