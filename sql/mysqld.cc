@@ -2597,15 +2597,17 @@ enum options {
                OPT_INNODB_FLUSH_METHOD, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
-               OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
+               OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
-	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINK, OPT_REPORT_HOST,
+	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
+	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
+	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
+               OPT_DO_PSTACK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-               OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SQL_MODE,OPT_SAFE_USER_CREATE,
-               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE};
+               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE
+};
 
 static struct option long_options[] = {
   {"ansi",                  no_argument,       0, 'a'},
@@ -2703,10 +2705,10 @@ static struct option long_options[] = {
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
 #ifdef NOT_YET
-  {"no-mix-table-types",       no_argument,       0, (int)OPT_NO_MIX_TYPE},
+  {"no-mix-table-types",    no_argument,       0, (int) OPT_NO_MIX_TYPE},
 #endif
-  {"old-protocol",          no_argument,       0, 'o'},
-  {"old-rpl-compat",          no_argument,       0, (int)OPT_OLD_RPL_COMPAT},
+  {"old-protocol",	    no_argument,       0, 'o'},
+  {"old-rpl-compat",        no_argument,       0, (int) OPT_OLD_RPL_COMPAT},
 #ifdef ONE_THREAD
   {"one-thread",            no_argument,       0, (int) OPT_ONE_THREAD},
 #endif
@@ -2715,15 +2717,15 @@ static struct option long_options[] = {
   {"replicate-do-db",       required_argument, 0, (int) OPT_REPLICATE_DO_DB},
   {"replicate-do-table",       required_argument, 0,
    (int) OPT_REPLICATE_DO_TABLE},
-  {"replicate-wild-do-table",       required_argument, 0,
+  {"replicate-wild-do-table",  required_argument, 0,
    (int) OPT_REPLICATE_WILD_DO_TABLE},
-  {"replicate-ignore-db",   required_argument, 0,
+  {"replicate-ignore-db",      required_argument, 0,
    (int) OPT_REPLICATE_IGNORE_DB},
   {"replicate-ignore-table",   required_argument, 0,
    (int) OPT_REPLICATE_IGNORE_TABLE},
   {"replicate-wild-ignore-table",   required_argument, 0,
    (int) OPT_REPLICATE_WILD_IGNORE_TABLE},
-  {"replicate-rewrite-db",   required_argument, 0,
+  {"replicate-rewrite-db",     required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
     // In replication, we may need to tell the other servers how to connect
     // to us
@@ -2733,7 +2735,7 @@ static struct option long_options[] = {
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
-  {"socket",                required_argument, 0, (int) OPT_SOCKET},
+  {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
   {"show-slave-auth-info",  no_argument,       0,
@@ -2753,9 +2755,10 @@ static struct option long_options[] = {
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
-  {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINK},
+  {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
+  {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
 #include "sslopt-longopts.h"
@@ -3014,8 +3017,8 @@ struct show_var_st init_vars[]= {
   {"myisam_max_extra_sort_file_size", (char*) &myisam_max_extra_sort_file_size,
    SHOW_LONG},
   {"myisam_max_sort_file_size",(char*) &myisam_max_sort_file_size,  SHOW_LONG},
-  {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
+  {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
   {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
@@ -3710,7 +3713,7 @@ static void get_options(int argc,char **argv)
     case (int) OPT_SKIP_STACK_TRACE:
       test_flags|=TEST_NO_STACKTRACE;
       break;
-    case (int) OPT_SKIP_SYMLINK:
+    case (int) OPT_SKIP_SYMLINKS:
       my_disable_symlinks=1;
       my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;

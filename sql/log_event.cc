@@ -548,7 +548,10 @@ void Log_event::print_header(FILE* file)
 
 void Log_event::print_timestamp(FILE* file, time_t* ts)
 {
-  struct tm tm_tmp, *res;
+#ifdef MYSQL_SERVER
+  struct tm tm_tmp;
+#endif
+  struct tm *res;
   if (!ts)
   {
     ts = &when;
