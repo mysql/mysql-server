@@ -48,7 +48,7 @@ int ft_init_stopwords(const char **sws)
 
   for(;*sws;sws++)
   {
-    if( (sw.len= (uint) strlen(sw.pos=*sws)) < MIN_WORD_LEN) continue;
+    if( (sw.len= (uint) strlen(sw.pos=*sws)) < ft_min_word_len) continue;
     if(!tree_insert(stopwords3, &sw, 0))
     {
       delete_tree(stopwords3); /* purecov: inspected */

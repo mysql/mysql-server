@@ -1875,10 +1875,10 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if (sort_info->keyinfo->flag & HA_FULLTEXT)
     {
       sort_param.max_records=sort_info->max_records=
-        (ha_rows) (sort_info->filelength/MAX_WORD_LEN_FOR_SORT+1);
+        (ha_rows) (sort_info->filelength/ft_max_word_len_for_sort+1);
 
       sort_param.key_read=sort_ft_key_read;
-      sort_param.key_length+=MAX_WORD_LEN_FOR_SORT-MAX_WORD_LEN;
+      sort_param.key_length+=ft_max_word_len_for_sort-ft_max_word_len;
     }
     else
       sort_param.key_read=sort_key_read;

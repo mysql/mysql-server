@@ -164,7 +164,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (word->len >= MIN_WORD_LEN && word->len < MAX_WORD_LEN &&
+    if (word->len >= ft_min_word_len && word->len < ft_max_word_len &&
         !is_stopword(word->pos, word->len))
     {
       *start=doc;
@@ -195,7 +195,7 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
 
     word->len= (uint)(doc-word->pos) - mwc;
 
-    if (word->len >= MIN_WORD_LEN && word->len < MAX_WORD_LEN &&
+    if (word->len >= ft_min_word_len && word->len < ft_max_word_len &&
         !is_stopword(word->pos, word->len))
     {
       *start=doc;

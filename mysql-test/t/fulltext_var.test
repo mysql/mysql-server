@@ -1,0 +1,5 @@
+#
+# Fulltext configurable parameters
+#
+
+show variables like "ft\_%";
