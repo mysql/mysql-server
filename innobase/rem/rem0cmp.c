@@ -104,7 +104,9 @@ cmp_types_are_equal(
         if ((type1->mtype == DATA_VARCHAR && type2->mtype == DATA_CHAR)
           || (type1->mtype == DATA_CHAR && type2->mtype == DATA_VARCHAR)
           || (type1->mtype == DATA_FIXBINARY && type2->mtype == DATA_BINARY)
-          || (type1->mtype == DATA_BINARY && type2->mtype == DATA_FIXBINARY)) {
+          || (type1->mtype == DATA_BINARY && type2->mtype == DATA_FIXBINARY)
+          || (type1->mtype == DATA_MYSQL && type2->mtype == DATA_VARMYSQL)
+          || (type1->mtype == DATA_VARMYSQL && type2->mtype == DATA_MYSQL)) {
 
                 return(TRUE);
         }
@@ -124,14 +126,9 @@ cmp_types_are_equal(
 		return(FALSE);
 	}
 
-	if (type1->mtype == DATA_MYSQL
-	   || type1->mtype == DATA_VARMYSQL) {
+        if (type1->mtype == DATA_INT && type1->len != type2->len) {
 	
-		if ((type1->prtype & ~DATA_NOT_NULL)
-			!= (type2->prtype & ~DATA_NOT_NULL)) {
-
-			return(FALSE);
-		}
+		return(FALSE);
 	}
 
 	return(TRUE);

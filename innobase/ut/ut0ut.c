@@ -111,6 +111,49 @@ ut_print_timestamp(
 }
 
 /**************************************************************
+Sprintfs a timestamp to a buffer. */
+
+void
+ut_sprintf_timestamp(
+/*=================*/
+	char*	buf) /* in: buffer where to sprintf */
+{
+#ifdef __WIN__
+  	SYSTEMTIME cal_tm;
+
+  	GetLocalTime(&cal_tm);
+
+  	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
+	  (int)cal_tm.wYear % 100,
+	  (int)cal_tm.wMonth,
+	  (int)cal_tm.wDay,
+	  (int)cal_tm.wHour,
+	  (int)cal_tm.wMinute,
+	  (int)cal_tm.wSecond);
+#else
+	struct tm  cal_tm;
+  	struct tm* cal_tm_ptr;
+  	time_t     tm;
+
+  	time(&tm);
+
+#ifdef HAVE_LOCALTIME_R
+  	localtime_r(&tm, &cal_tm);
+  	cal_tm_ptr = &cal_tm;
+#else
+  	cal_tm_ptr = localtime(&tm);
+#endif
+  	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
+	  cal_tm_ptr->tm_year % 100,
+	  cal_tm_ptr->tm_mon + 1,
+	  cal_tm_ptr->tm_mday,
+	  cal_tm_ptr->tm_hour,
+	  cal_tm_ptr->tm_min,
+	  cal_tm_ptr->tm_sec);
+#endif
+}
+
+/**************************************************************
 Returns current year, month, day. */
 
 void
@@ -258,3 +301,26 @@ ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high)
 	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
 								ut_ulint_cmp);
 }
+
+/*****************************************************************
+Calculates fast the number rounded up to the nearest power of 2. */
+
+ulint
+ut_2_power_up(
+/*==========*/
+			/* out: first power of 2 which is >= n */
+	ulint	n)	/* in: number != 0 */
+{
+	ulint	res;
+
+	res = 1;
+
+	ut_ad(n > 0);
+
+	while (res < n) {
+		res = res * 2;
+	}
+
+	return(res);
+}
+

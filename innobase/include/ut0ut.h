@@ -114,7 +114,7 @@ ut_2_exp(
 	ulint	n);	/* in: number */
 /*****************************************************************
 Calculates fast the number rounded up to the nearest power of 2. */
-UNIV_INLINE
+
 ulint
 ut_2_power_up(
 /*==========*/
@@ -154,6 +154,13 @@ void
 ut_print_timestamp(
 /*===============*/
 	FILE*  file); /* in: file where to print */
+/**************************************************************
+Sprintfs a timestamp to a buffer. */
+
+void
+ut_sprintf_timestamp(
+/*=================*/
+	char*	buf); /* in: buffer where to sprintf */
 /**************************************************************
 Returns current year, month, day. */
 

@@ -22,6 +22,16 @@ Created 10/21/1995 Heikki Tuuri
 
 #endif
 
+/* This specifies the file permissions InnoDB uses when it craetes files in
+Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
+my_umask */
+
+#ifndef __WIN__
+ulint	os_innodb_umask		= S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+#else
+ulint	os_innodb_umask		= 0;
+#endif
+
 /* If the following is set to TRUE, we do not call os_file_flush in every
 os_file_write. We can set this TRUE if the doublewrite buffer is used. */
 ibool	os_do_not_call_flush_at_each_write	= FALSE;
@@ -32,13 +42,15 @@ OS does not provide an atomic pread or pwrite, or similar */
 os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
-#define OS_AIO_MERGE_N_CONSECUTIVE	32
+#define OS_AIO_MERGE_N_CONSECUTIVE	64
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads */
 
 ibool	os_aio_use_native_aio	= FALSE;
+
+ibool	os_aio_print_debug	= FALSE;
 
 /* The aio array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
@@ -115,7 +127,12 @@ os_aio_array_t*	os_aio_sync_array	= NULL;
 
 ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
+/* If the following is TRUE, read i/o handler threads try to
+wait until a batch of new read requests have been posted */
+ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+
 ulint	os_n_file_reads		= 0;
+ulint	os_bytes_read_since_printout = 0;
 ulint	os_n_file_writes	= 0;
 ulint	os_n_fsyncs		= 0;
 ulint	os_n_file_reads_old	= 0;
@@ -412,8 +429,8 @@ try_again:
 	}
 
 	if (create_mode == OS_FILE_CREATE) {
-	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
-			                     | S_IWGRP | S_IROTH | S_IWOTH);
+	        file = open(name, create_flag, S_IRUSR | S_IWUSR
+						| S_IRGRP | S_IWGRP);
         } else {
                 file = open(name, create_flag);
         }
@@ -548,8 +565,7 @@ try_again:
 	}
 #endif
 	if (create_mode == OS_FILE_CREATE) {
-	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
-			                     | S_IWGRP | S_IROTH | S_IWOTH);
+	        file = open(name, create_flag, os_innodb_umask);
         } else {
                 file = open(name, create_flag);
         }
@@ -734,6 +750,8 @@ os_file_flush(
 	BOOL	ret;
 
 	ut_a(file);
+
+	os_n_fsyncs++;
 
 	ret = FlushFileBuffers(file);
 
@@ -957,6 +975,7 @@ os_file_read(
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
 	os_n_file_reads++;
+	os_bytes_read_since_printout += n;
 
 try_again:	
 	ut_ad(file);
@@ -1626,10 +1645,37 @@ os_aio_simulated_wake_handler_threads(void)
 		/* We do not use simulated aio: do nothing */
 
 		return;
-	}
+	}	
+
+	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
 	for (i = 0; i < os_aio_n_segments; i++) {
 		os_aio_simulated_wake_handler_thread(i);
+	}
+}
+
+/**************************************************************************
+This function can be called if one wants to post a batch of reads and
+prefers an i/o-handler thread to handle them all at once later. You must
+call os_aio_simulated_wake_handler_threads later to ensure the threads
+are not left sleeping! */
+
+void
+os_aio_simulated_put_read_threads_to_sleep(void)
+/*============================================*/
+{
+	os_aio_array_t*	array;
+	ulint		g;
+
+	os_aio_recommend_sleep_for_read_threads	= TRUE;
+
+	for (g = 0; g < os_aio_n_segments; g++) {
+		os_aio_get_array_and_local_segment(&array, g);
+
+		if (array == os_aio_read_array) {
+		
+			os_event_reset(os_aio_segment_wait_events[g]);
+		}
 	}
 }
 
@@ -2042,15 +2088,10 @@ os_aio_simulated_handle(
 	ibool		ret;
 	ulint		n;
 	ulint		i;
-
+	
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 	
 restart:
-	/* Give other threads chance to add several i/os to the array
-	at once */
-	
-	os_thread_yield();
-
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
@@ -2061,6 +2102,15 @@ restart:
 
 	/* Look through n slots after the segment * n'th slot */
 
+	if (array == os_aio_read_array
+	    && os_aio_recommend_sleep_for_read_threads) {
+
+		/* Give other threads chance to add several i/os to the array
+		at once. */
+
+		goto recommended_sleep;
+	}
+	
 	os_mutex_enter(array->mutex);
 
 	/* Check if there is a slot for which the i/o has already been
@@ -2070,6 +2120,11 @@ restart:
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
 		if (slot->reserved && slot->io_already_done) {
+
+			if (os_aio_print_debug) {
+				fprintf(stderr,
+"InnoDB: i/o for slot %lu already done, returning\n", i);
+			}
 
 			ret = TRUE;
 			
@@ -2177,6 +2232,13 @@ consecutive_loop:
 
 	srv_io_thread_op_info[global_segment] = (char*) "doing file i/o";
 
+	if (os_aio_print_debug) {
+		fprintf(stderr,
+"InnoDB: doing i/o of type %lu at offset %lu %lu, length %lu\n",
+			slot->type, slot->offset_high, slot->offset,
+			total_len);
+	}
+
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
 		ret = os_file_write(slot->name, slot->file, combined_buf,
@@ -2244,10 +2306,18 @@ wait_for_io:
 
 	os_mutex_exit(array->mutex);
 
-	srv_io_thread_op_info[global_segment] = (char*) "waiting for i/o request";
+recommended_sleep:
+	srv_io_thread_op_info[global_segment] =
+				(char*)"waiting for i/o request";
 
 	os_event_wait(os_aio_segment_wait_events[global_segment]);
 
+	if (os_aio_print_debug) {
+		fprintf(stderr,
+"InnoDB: i/o handler thread for i/o segment %lu wakes up\n",
+			global_segment);
+	}
+	
 	goto restart;
 }
 
@@ -2316,6 +2386,7 @@ os_aio_print(void)
 	ulint		n_reserved;
 	time_t		current_time;
 	double		time_elapsed;
+	double		avg_bytes_read;
 	ulint		i;
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
@@ -2392,9 +2463,19 @@ loop:
 	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
 	printf("%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
 		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
-	printf("%.2f reads/s, %.2f writes/s, %.2f fsyncs/s\n",
+
+	if (os_n_file_reads == os_n_file_reads_old) {
+		avg_bytes_read = 0.0;
+	} else {
+		avg_bytes_read = os_bytes_read_since_printout /
+				(os_n_file_reads - os_n_file_reads_old);
+	}
+
+	printf(
+"%.2f reads/s, %lu avg bytes/read, %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
+		(ulint)avg_bytes_read,
 		(os_n_file_writes - os_n_file_writes_old)
 		/ time_elapsed,
 		(os_n_fsyncs - os_n_fsyncs_old)
@@ -2403,6 +2484,7 @@ loop:
 	os_n_file_reads_old = os_n_file_reads;
 	os_n_file_writes_old = os_n_file_writes;
 	os_n_fsyncs_old = os_n_fsyncs;
+	os_bytes_read_since_printout = 0;
 	
 	os_last_printout = current_time;
 }

@@ -609,7 +609,7 @@ the caller must have a shared latch on dict_foreign_key_check_lock. */
 ulint
 row_ins_check_foreign_constraint(
 /*=============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				/* out: DB_SUCCESS,
 				DB_NO_REFERENCED_ROW,
 				or DB_ROW_IS_REFERENCED */
 	ibool		check_ref,/* in: TRUE if we want to check that
@@ -635,6 +635,7 @@ row_ins_check_foreign_constraint(
 	ulint		i;
 	mtr_t		mtr;
 
+run_again:
 	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
@@ -682,7 +683,7 @@ row_ins_check_foreign_constraint(
 
 		if (err != DB_SUCCESS) {
 
-			return(err);
+			goto do_possible_lock_wait;
 		}
 	}
 
@@ -727,6 +728,11 @@ row_ins_check_foreign_constraint(
 			if (!rec_get_deleted_flag(rec)) {
 				/* Found a matching record */
 
+/*				printf(
+"FOREIGN: Found matching record from %s %s\n",
+		check_index->table_name, check_index->name);
+				rec_print(rec);
+*/
 				if (check_ref) {			
 					err = DB_SUCCESS;
 
@@ -779,6 +785,17 @@ next_rec:
 	/* Restore old value */
 	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
 
+do_possible_lock_wait:
+	if (err == DB_LOCK_WAIT) {
+		thr_get_trx(thr)->error_state = err;
+
+		que_thr_stop_for_mysql(thr);
+	
+		row_mysql_handle_errors(&err, thr_get_trx(thr), thr, NULL);
+
+		goto run_again;
+	}
+
 	return(err);
 }
 
@@ -792,8 +809,7 @@ static
 ulint
 row_ins_check_foreign_constraints(
 /*==============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT, or error
-				code */
+				/* out: DB_SUCCESS or error code */
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry for index */

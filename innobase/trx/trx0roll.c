@@ -160,11 +160,13 @@ trx_rollback_last_sql_stat_for_mysql(
 }
 
 /***********************************************************************
-Rollback uncommitted transactions which have no user session. */
+Rollback or clean up transactions which have no user session. If the
+transaction already was committed, then we clean up a possible insert
+undo log. If the transaction was not yet committed, then we roll it back. */
 
 void
-trx_rollback_all_without_sess(void)
-/*===============================*/
+trx_rollback_or_clean_all_without_sess(void)
+/*========================================*/
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -217,6 +219,19 @@ loop:
 
 	trx->sess = trx_dummy_sess;
 	
+	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+
+		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
+					ut_dulint_get_high(trx->id),
+					ut_dulint_get_low(trx->id));
+
+		trx_cleanup_at_db_startup(trx);
+					
+		mem_heap_free(heap);
+
+		goto loop;
+	}
+
 	fork = que_fork_create(NULL, NULL, QUE_FORK_RECOVERY, heap);
 	fork->trx = trx;
 
@@ -264,9 +279,17 @@ loop:
 		/* If the transaction was for a dictionary operation, we
 		drop the relevant table, if it still exists */
 
+		fprintf(stderr,
+"InnoDB: Dropping table with id %lu %lu in recovery if it exists\n",
+			ut_dulint_get_high(trx->table_id),
+			ut_dulint_get_low(trx->table_id));
+
 		table = dict_table_get_on_id_low(trx->table_id, trx);
 
 		if (table) {		
+			fprintf(stderr,
+"InnoDB: Table found: dropping table %s in recovery\n", table->name);
+
 			err = row_drop_table_for_mysql(table->name, trx,
 								TRUE);
 			ut_a(err == (int) DB_SUCCESS);

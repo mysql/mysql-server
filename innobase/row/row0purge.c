@@ -511,6 +511,14 @@ row_purge_parse_undo_rec(
 
 	clust_index = dict_table_get_first_index(node->table);
 
+	if (clust_index == NULL) {
+		/* The table was corrupt in the data dictionary */
+
+		rw_lock_x_unlock(&(purge_sys->purge_is_running));
+
+		return(FALSE);
+	}
+
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 								node->heap);
 

@@ -64,6 +64,35 @@ dtuple_get_nth_field_noninline(
 	return(dtuple_get_nth_field(tuple, n));
 }
 
+/*************************************************************************
+Tests if dfield data length and content is equal to the given. */
+
+ibool
+dfield_data_is_binary_equal(
+/*========================*/
+				/* out: TRUE if equal */
+	dfield_t*	field,	/* in: field */
+	ulint		len,	/* in: data length or UNIV_SQL_NULL */
+	byte*		data)	/* in: data */
+{
+	if (len != field->len) {
+
+		return(FALSE);
+	}
+
+	if (len == UNIV_SQL_NULL) {
+
+		return(TRUE);
+	}
+
+	if (0 != ut_memcmp(field->data, data, len)) {
+	    	
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+
 /****************************************************************
 Returns TRUE if lengths of two dtuples are equal and respective data fields
 in them are equal when compared with collation in char fields (not as binary
@@ -154,6 +183,69 @@ dtuple_set_n_fields(
 }
 
 /**************************************************************
+Checks that a data field is typed. */
+static
+ibool
+dfield_check_typed_no_assert(
+/*=========================*/
+				/* out: TRUE if ok */
+	dfield_t*	field)	/* in: data field */
+{
+	if (dfield_get_type(field)->mtype > DATA_MYSQL
+	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+
+		fprintf(stderr,
+"InnoDB: Error: data field type %lu, len %lu\n",
+			dfield_get_type(field)->mtype, dfield_get_len(field));
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************
+Checks that a data tuple is typed. */
+
+ibool
+dtuple_check_typed_no_assert(
+/*=========================*/
+				/* out: TRUE if ok */
+	dtuple_t*	tuple)	/* in: tuple */
+{
+	dfield_t*	field;
+	ulint	 	i;
+	char		err_buf[1000];
+	
+	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
+		fprintf(stderr,
+"InnoDB: Error: index entry has %lu fields\n",
+			dtuple_get_n_fields(tuple));
+
+		dtuple_sprintf(err_buf, 900, tuple);
+		fprintf(stderr,
+"InnoDB: Tuple contents: %s\n", err_buf);	
+
+		return(FALSE);
+	}
+
+	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
+
+		field = dtuple_get_nth_field(tuple, i);
+
+		if (!dfield_check_typed_no_assert(field)) {
+
+			dtuple_sprintf(err_buf, 900, tuple);
+			fprintf(stderr,
+"InnoDB: Tuple contents: %s\n", err_buf);	
+
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************
 Checks that a data field is typed. Asserts an error if not. */
 
 ibool
@@ -162,8 +254,15 @@ dfield_check_typed(
 				/* out: TRUE if ok */
 	dfield_t*	field)	/* in: data field */
 {
-	ut_a(dfield_get_type(field)->mtype <= DATA_MYSQL);
-	ut_a(dfield_get_type(field)->mtype >= DATA_VARCHAR);
+	if (dfield_get_type(field)->mtype > DATA_MYSQL
+	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+
+		fprintf(stderr,
+"InnoDB: Error: data field type %lu, len %lu\n",
+			dfield_get_type(field)->mtype, dfield_get_len(field));
+
+		ut_a(0);
+	}
 
 	return(TRUE);
 }
@@ -460,8 +559,20 @@ dtuple_convert_big_rec(
 	ibool		is_externally_stored;
 	ulint		i;
 	ulint		j;
+	char		err_buf[1000];
 	
+	ut_a(dtuple_check_typed_no_assert(entry));
+
 	size = rec_get_converted_size(entry);
+
+	if (size > 1000000000) {
+		fprintf(stderr,
+"InnoDB: Warning: tuple size very big: %lu\n", size);
+		
+		dtuple_sprintf(err_buf, 900, entry);
+		fprintf(stderr,
+"InnoDB: Tuple contents: %s\n", err_buf);
+	}
 
 	heap = mem_heap_create(size + dtuple_get_n_fields(entry)
 					* sizeof(big_rec_field_t) + 1000);

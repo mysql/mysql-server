@@ -157,6 +157,14 @@ log_io_complete(
 /*============*/
 	log_group_t*	group);	/* in: log group */
 /**********************************************************
+Flushes the log files to the disk, using, for example, the Unix fsync.
+This function does the flush even if the user has set
+srv_flush_log_at_trx_commit = FALSE. */
+
+void
+log_flush_to_disk(void);
+/*===================*/
+/**********************************************************
 This function is called, e.g., when a transaction wants to commit. It checks
 that the log has been flushed to disk up to the last log entry written by the
 transaction. If there is a flush running, it waits and checks if the flush
@@ -260,7 +268,9 @@ log_reset_first_header_and_checkpoint(
 /*==================================*/
 	byte*	hdr_buf,/* in: buffer which will be written to the start
 			of the first log file */
-	dulint	lsn);	/* in: lsn of the start of the first log file */
+	dulint	start);	/* in: lsn of the start of the first log file;
+			we pretend that there is a checkpoint at
+			start + LOG_BLOCK_HDR_SIZE */
 /************************************************************************
 Starts an archiving operation. */
 
@@ -463,6 +473,15 @@ log_block_init(
 	byte*	log_block,	/* in: pointer to the log buffer */
 	dulint	lsn);		/* in: lsn within the log block */
 /****************************************************************
+Initializes a log block in the log buffer in the old, < 3.23.52 format, where
+there was no checksum yet. */
+UNIV_INLINE
+void
+log_block_init_in_old_format(
+/*=========================*/
+	byte*	log_block,	/* in: pointer to the log buffer */
+	dulint	lsn);		/* in: lsn within the log block */
+/****************************************************************
 Converts a lsn to a log block number. */
 UNIV_INLINE
 ulint
@@ -523,7 +542,10 @@ extern log_t*	log_sys;
 					bytes */
 
 /* Offsets of a log block trailer from the end of the block */
-#define	LOG_BLOCK_TRL_NO	4	/* log block number */
+#define	LOG_BLOCK_TRL_CHECKSUM	4	/* 1 byte checksum of the log block
+					contents */
+#define	LOG_BLOCK_TRL_NO	3	/* 3 lowest bytes of the log block
+					number */
 #define	LOG_BLOCK_TRL_SIZE	4	/* trailer size in bytes */
 
 /* Offsets for a checkpoint field */
@@ -558,11 +580,22 @@ extern log_t*	log_sys;
 #define LOG_GROUP_ID		0	/* log group number */
 #define LOG_FILE_START_LSN	4	/* lsn of the start of data in this
 					log file */
-#define LOG_FILE_NO		12	/* 4-byte archived log file number */
+#define LOG_FILE_NO		12	/* 4-byte archived log file number;
+					this field is only defined in an
+					archived log file */
+#define LOG_FILE_WAS_CREATED_BY_HOT_BACKUP 16
+					/* a 32-byte field which contains
+					the string 'ibbackup' and the
+					creation time if the log file was
+					created by ibbackup --restore;
+					when mysqld is first time started
+					on the restored database, it can
+					print helpful info for the user */
 #define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
 					/* this 4-byte field is TRUE when
 					the writing of an archived log file
-					has been completed */
+					has been completed; this field is
+					only defined in an archived log file */
 #define LOG_FILE_END_LSN	(OS_FILE_LOG_BLOCK_SIZE + 4)
 					/* lsn where the archived log file
 					at least extends: actually the
@@ -572,7 +605,14 @@ extern log_t*	log_sys;
 					is defined only when an archived log
 					file has been completely written */
 #define LOG_CHECKPOINT_1	OS_FILE_LOG_BLOCK_SIZE
+					/* first checkpoint field in the log
+					header; we write alternately to the
+					checkpoint fields when we make new
+					checkpoints; this field is only defined
+					in the first log file of a log group */
 #define LOG_CHECKPOINT_2	(3 * OS_FILE_LOG_BLOCK_SIZE)
+					/* second checkpoint field in the log
+					header */
 #define LOG_FILE_HDR_SIZE	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
 #define LOG_GROUP_OK		301
@@ -678,7 +718,7 @@ struct log_struct{
 					write i/o has been completed for all
 					log groups */
 	dulint		flush_lsn;	/* end lsn for the current flush */
-	ulint		flush_end_offset;/* the data in buffer ha been flushed
+	ulint		flush_end_offset;/* the data in buffer has been flushed
 					up to this offset when the current
 					flush ends: this field will then
 					be copied to buf_next_to_write */

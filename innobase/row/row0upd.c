@@ -129,8 +129,7 @@ static
 ulint
 row_upd_check_references_constraints(
 /*=================================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT, or an error
-				code */
+				/* out: DB_SUCCESS or an error code */
 	btr_pcur_t*	pcur,	/* in: cursor positioned on a record; NOTE: the
 				cursor position is lost in this function! */
 	dict_table_t*	table,	/* in: table in question */
@@ -626,7 +625,7 @@ row_upd_index_parse(
 
 /*******************************************************************
 Returns TRUE if ext_vec contains i. */
-UNIV_INLINE
+static
 ibool
 upd_ext_vec_contains(
 /*=================*/
@@ -738,6 +737,7 @@ row_upd_build_difference_binary(
 	ulint		n_diff;
 	ulint		roll_ptr_pos;
 	ulint		trx_id_pos;
+	ibool		extern_bit;
 	ulint		i;
 
 	/* This function is used only for a clustered index */
@@ -763,9 +763,10 @@ row_upd_build_difference_binary(
 
 			goto skip_compare;
 		}
+
+		extern_bit = rec_get_nth_field_extern_bit(rec, i);
 		
-		if (rec_get_nth_field_extern_bit(rec, i)
-		    != upd_ext_vec_contains(ext_vec, n_ext_vec, i)
+		if (extern_bit != upd_ext_vec_contains(ext_vec, n_ext_vec, i)
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -1362,7 +1363,7 @@ ulint
 row_upd_del_mark_clust_rec(
 /*=======================*/
 				/* out: DB_SUCCESS if operation successfully
-				completed, else error code or DB_LOCK_WAIT */
+				completed, else error code */
 	upd_node_t*	node,	/* in: row update node */
 	dict_index_t*	index,	/* in: clustered index */
 	que_thr_t*	thr,	/* in: query thread */
@@ -1381,8 +1382,6 @@ row_upd_del_mark_clust_rec(
 	pcur = node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
-	ut_ad(FALSE == rec_get_deleted_flag(btr_pcur_get_rec(pcur)));
-
 	/* Store row because we have to build also the secondary index
 	entries */
 	
@@ -1391,11 +1390,11 @@ row_upd_del_mark_clust_rec(
 	/* Mark the clustered index record deleted; we do not have to check
 	locks, because we assume that we have an x-lock on the record */
 
-	err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG, btr_cur,
-							TRUE, thr, mtr);
+	err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
+						btr_cur, TRUE, thr, mtr);
 	if (err == DB_SUCCESS && check_ref) {
-		/* NOTE that the following call loses
-		the position of pcur ! */
+		/* NOTE that the following call loses the position of pcur ! */
+
 		err = row_upd_check_references_constraints(pcur, index->table,
 							index, thr, mtr);
 		if (err != DB_SUCCESS) {

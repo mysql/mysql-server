@@ -17,6 +17,7 @@ Created 2/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "fut0lst.h"
 #include "btr0sea.h"
+#include "buf0buf.h"
 
 /* A cached template page used in page_create */
 page_t*	page_template	= NULL;
@@ -62,6 +63,65 @@ records, we have to reorganize the page.
 Assuming a page size of 8 kB, a typical index page of a secondary
 index contains 300 index entries, and the size of the page directory
 is 50 x 4 bytes = 200 bytes. */
+
+/*******************************************************************
+Looks for the directory slot which owns the given record. */
+
+ulint
+page_dir_find_owner_slot(
+/*=====================*/
+			/* out: the directory slot number */
+	rec_t*	rec)	/* in: the physical record */
+{
+	ulint			i;
+	ulint			steps		= 0;
+	page_t*			page;	
+	page_dir_slot_t*	slot;
+	rec_t*			original_rec	= rec;
+	char			err_buf[1000];
+	
+	ut_ad(page_rec_check(rec));
+
+	while (rec_get_n_owned(rec) == 0) {
+		steps++;
+		rec = page_rec_get_next(rec);
+	}
+	
+	page = buf_frame_align(rec);
+
+	i = page_dir_get_n_slots(page) - 1;
+	slot = page_dir_get_nth_slot(page, i); 
+
+	while (page_dir_slot_get_rec(slot) != rec) {
+
+ 		if (i == 0) {
+			fprintf(stderr,
+		"InnoDB: Probable data corruption on page %lu\n",
+			buf_frame_get_page_no(page));
+
+			rec_sprintf(err_buf, 900, original_rec);
+
+	  		fprintf(stderr,
+		"InnoDB: Original record %s\n"
+		"InnoDB: on that page. Steps %lu.\n", err_buf, steps);
+
+			rec_sprintf(err_buf, 900, rec);
+
+	  		fprintf(stderr,
+		"InnoDB: Cannot find the dir slot for record %s\n"
+		"InnoDB: on that page!\n", err_buf);
+
+			buf_page_print(page);
+
+	  		ut_a(0);
+	  	}
+
+		i--;
+		slot = page_dir_get_nth_slot(page, i); 
+	}
+
+	return(i);
+}
 
 /******************************************************************
 Used to check the consistency of a directory slot. */

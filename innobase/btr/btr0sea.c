@@ -15,6 +15,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "page0page.h"
 #include "page0cur.h"
 #include "btr0cur.h"
+#include "btr0pcur.h"
 #include "btr0btr.h"
 
 ulint	btr_search_n_succ	= 0;
@@ -145,6 +146,8 @@ btr_search_info_create(
 
 	info = mem_heap_alloc(heap, sizeof(btr_search_t));
 
+	info->magic_n = BTR_SEARCH_MAGIC_N;
+
 	info->last_search = NULL;
 	info->n_direction = 0;
 	info->root_guess = NULL;
@@ -158,6 +161,12 @@ btr_search_info_create(
 	info->n_hash_fail = 0;	
 	info->n_patt_succ = 0;	
 	info->n_searches = 0;	
+
+	/* Set some sensible values */
+	info->n_fields = 1;
+	info->n_bytes = 0;
+
+	info->side = BTR_SEARCH_LEFT_SIDE;
 
 	return(info);
 }
@@ -197,7 +206,7 @@ btr_search_info_update_hash(
 	/* Test if the search would have succeeded using the recommended
 	hash prefix */
 
-	if ((info->n_fields >= n_unique) && (cursor->up_match >= n_unique)) {
+	if (info->n_fields >= n_unique && cursor->up_match >= n_unique) {
 			
 		info->n_hash_potential++;
 
@@ -207,8 +216,8 @@ btr_search_info_update_hash(
 	cmp = ut_pair_cmp(info->n_fields, info->n_bytes,
 					cursor->low_match, cursor->low_bytes);
 
-	if (((info->side == BTR_SEARCH_LEFT_SIDE) && (cmp <= 0))
-		|| ((info->side == BTR_SEARCH_RIGHT_SIDE) && (cmp > 0))) {
+	if ((info->side == BTR_SEARCH_LEFT_SIDE && cmp <= 0)
+		|| (info->side == BTR_SEARCH_RIGHT_SIDE && cmp > 0)) {
 
 		goto set_new_recomm;
 	}
@@ -216,8 +225,8 @@ btr_search_info_update_hash(
 	cmp = ut_pair_cmp(info->n_fields, info->n_bytes,
 					cursor->up_match, cursor->up_bytes);
 
-	if (((info->side == BTR_SEARCH_LEFT_SIDE) && (cmp > 0))
-		|| ((info->side == BTR_SEARCH_RIGHT_SIDE) && (cmp <= 0))) {
+	if ((info->side == BTR_SEARCH_LEFT_SIDE && cmp > 0)
+		|| (info->side == BTR_SEARCH_RIGHT_SIDE && cmp <= 0)) {
 
 	    	goto set_new_recomm;
 	}
@@ -233,18 +242,17 @@ set_new_recomm:
 	
 	info->hash_analysis = 0;
 	
-	if ((cursor->up_match >= n_unique)
-					|| (cursor->low_match >= n_unique)) {
-		info->n_fields = n_unique;
-		info->n_bytes = 0;
-
-		info->side = BTR_SEARCH_LEFT_SIDE;
-	}
-
 	cmp = ut_pair_cmp(cursor->up_match, cursor->up_bytes,
 					cursor->low_match, cursor->low_bytes);
 	if (cmp == 0) {
 		info->n_hash_potential = 0;
+
+		/* For extra safety, we set some sensible values here */
+
+		info->n_fields = 1;
+		info->n_bytes = 0;
+
+		info->side = BTR_SEARCH_LEFT_SIDE;
 
 	} else if (cmp > 0) {
 		info->n_hash_potential = 1;
@@ -304,6 +312,9 @@ btr_search_update_block_hash_info(
 	ut_ad(cursor);
 
 	info->last_hash_succ = FALSE;
+
+	ut_a(block->magic_n == BUF_BLOCK_MAGIC_N);
+	ut_a(info->magic_n == BTR_SEARCH_MAGIC_N);
 
 	if ((block->n_hash_helps > 0)
 	    && (info->n_hash_potential > 0)
@@ -622,6 +633,7 @@ btr_search_guess_on_hash(
 	dulint		tree_id;
 #ifdef notdefined
 	btr_cur_t	cursor2;
+	btr_pcur_t	pcur;
 #endif
 	ut_ad(index && info && tuple && cursor && mtr);
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
@@ -754,7 +766,26 @@ btr_search_guess_on_hash(
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
 							&cursor2, 0, mtr);
-	ut_a(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
+	if (mode == PAGE_CUR_GE
+		&& btr_cur_get_rec(&cursor2) == page_get_supremum_rec(
+			buf_frame_align(btr_cur_get_rec(&cursor2)))) {
+
+		/* If mode is PAGE_CUR_GE, then the binary search
+		in the index tree may actually take us to the supremum
+		of the previous page */
+					
+		info->last_hash_succ = FALSE;
+
+		btr_pcur_open_on_user_rec(index, tuple, mode, latch_mode,
+				&pcur, mtr);
+		ut_a(btr_pcur_get_rec(&pcur) == btr_cur_get_rec(cursor));
+	} else {
+		ut_a(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
+	}
+
+	/* NOTE that it is theoretically possible that the above assertions
+	fail if the page of the cursor gets removed from the buffer pool
+	meanwhile! Thus it might not be a bug. */
 
 	info->last_hash_succ = TRUE;
 #endif
@@ -835,6 +866,8 @@ btr_search_drop_page_hash_index(
 	n_fields = block->curr_n_fields;
 	n_bytes = block->curr_n_bytes;
 
+	ut_a(n_fields + n_bytes > 0);
+
 	rw_lock_s_unlock(&btr_search_latch);
 	
 	n_recs = page_get_n_recs(page);
@@ -850,6 +883,14 @@ btr_search_drop_page_hash_index(
 
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
+
+	if (rec != sup) {
+		ut_a(n_fields <= rec_get_n_fields(rec));
+
+		if (n_bytes > 0) {
+			ut_a(n_fields < rec_get_n_fields(rec));
+		}
+	}
 
 	tree_id = btr_page_get_index_id(page);
 	
@@ -980,6 +1021,8 @@ btr_search_build_page_hash_index(
 		return;
 	}
 
+	ut_a(n_fields + n_bytes > 0);
+
 	/* Calculate and cache fold values and corresponding records into
 	an array for fast insertion to the hash index */
 
@@ -994,6 +1037,14 @@ btr_search_build_page_hash_index(
 
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
+
+	if (rec != sup) {
+		ut_a(n_fields <= rec_get_n_fields(rec));
+
+		if (n_bytes > 0) {
+			ut_a(n_fields < rec_get_n_fields(rec));
+		}
+	}
 
 	/* FIXME: in a mixed tree, all records may not have enough ordering
 	fields: */

@@ -932,6 +932,26 @@ innobase_start_or_create_for_mysql(void)
 	ulint	k;
 	mtr_t   mtr;
 
+#ifdef UNIV_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_SYNC_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_SEARCH_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_MEM_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
 
@@ -999,7 +1019,7 @@ innobase_start_or_create_for_mysql(void)
 	os_aio_use_native_aio = FALSE;
 	
 	if (!os_aio_use_native_aio) {
-		os_aio_init(4 * SRV_N_PENDING_IOS_PER_THREAD
+		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
 						* srv_n_file_io_threads,
 					srv_n_file_io_threads,
 					SRV_MAX_N_PENDING_SYNC_IOS);

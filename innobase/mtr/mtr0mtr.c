@@ -315,7 +315,7 @@ mtr_log_reserve_and_write(
 	}
 
 	data_size = dyn_array_get_data_size(mlog);
-	
+
 	/* Open the database log for log_write_low */
 	mtr->start_lsn = log_reserve_and_open(data_size); 
 
