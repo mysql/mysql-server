@@ -53,6 +53,18 @@
   to be any faster. For writes it is always a bit slower then MyISAM. It has no
   internal limits though for row length.
 
+  Examples between MyISAM and Archive.
+
+  Table with 76695844 identical rows:
+  29680807 a_archive.ARZ
+  920350317 a.MYD
+
+
+  Table with 8991478 rows (all of Slashdot's comments):
+  1922964506 comment_archive.ARZ
+  2944970297 comment_text.MYD
+
+
   TODO:
    Add bzip optional support.
    Allow users to set compression level.
@@ -225,7 +237,7 @@ int ha_archive::close(void)
   if (gzclose(archive) == Z_ERRNO)
     rc =-1;
   rc |= free_share(share);
-  DBUG_RETURN();
+  DBUG_RETURN(rc);
 }
 
 
@@ -276,7 +288,7 @@ int ha_archive::write_row(byte * buf)
 
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->timestamp_default_now)
-    update_timestamp(record+table->timestamp_default_now-1);
+    update_timestamp(buf+table->timestamp_default_now-1);
   written = gzwrite(share->archive_write, buf, table->reclength);
   share->dirty= true;
   if (written == 0 || written != table->reclength)
@@ -335,7 +347,7 @@ int ha_archive::rnd_init(bool scan)
     intact.
   */
   read= gzread(archive, &version, sizeof(version));
-  if (written == 0 || written != sizeof(version))
+  if (read == 0 || read != sizeof(version))
     DBUG_RETURN(-1);
   records = 0;
   DBUG_RETURN(0);

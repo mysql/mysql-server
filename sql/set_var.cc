@@ -639,6 +639,7 @@ struct show_var_st init_vars[]= {
   {"ft_query_expansion_limit",(char*) &ft_query_expansion_limit,    SHOW_LONG},
   {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
+  {"have_archive",	      (char*) &have_archive_db,	            SHOW_HAVE},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
