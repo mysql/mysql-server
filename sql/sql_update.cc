@@ -219,7 +219,7 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table_list->grant.want_privilege= table->grant.want_privilege=
-    (SELECT_ACL & ~~table->grant.privilege);
+    (SELECT_ACL & ~table->grant.privilege);
 #endif
   if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
   {
