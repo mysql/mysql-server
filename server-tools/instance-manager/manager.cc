@@ -127,6 +127,12 @@ void manager(const Options &options)
     pthread_attr_t guardian_thd_attr;
     int rc;
 
+    /*
+       NOTE: Guardian should be shutdowned first. Only then all other threads
+       need to be stopped. This should be done, as guardian is responsible for
+       shutting down the instances, and this is a long operation.
+    */
+
     pthread_attr_init(&guardian_thd_attr);
     pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
     rc= pthread_create(&guardian_thd_id, &guardian_thd_attr, guardian,
@@ -160,6 +166,11 @@ void manager(const Options &options)
     making the list. And they in their turn need alarms for timeout suppport.
   */
   guardian_thread.start();
+  /*
+    After the list of guarded instances have been initialized,
+    Guardian should start them.
+  */
+  pthread_cond_signal(&guardian_thread.COND_guardian);
 
   signal(SIGPIPE, SIG_IGN);
 
@@ -176,14 +187,14 @@ void manager(const Options &options)
         /* wake threads waiting for an instance to shutdown */
         pthread_cond_broadcast(&instance_map.pid_cond.COND_pid);
         /* wake guardian */
-        pthread_cond_broadcast(&guardian_thread.COND_guardian);
+        pthread_cond_signal(&guardian_thread.COND_guardian);
       break;
       default:
         if (!guardian_thread.is_stopped)
         {
           guardian_thread.request_stop_instances();
           guardian_thread.shutdown();
-          pthread_cond_broadcast(&guardian_thread.COND_guardian);
+          pthread_cond_signal(&guardian_thread.COND_guardian);
         }
         else
         {
@@ -197,9 +208,6 @@ void manager(const Options &options)
 err:
   /* delete the pid file */
   my_delete(options.pid_file_name, MYF(0));
-
-  /* close permanent connections to the running instances */
-  instance_map.cleanup();
 
   /* free alarm structures */
   end_thr_alarm(1);

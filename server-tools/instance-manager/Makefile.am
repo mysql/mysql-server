@@ -33,7 +33,7 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_MYSQLD_PATH="$(bindir)/mysqld$(EXEEXT)" \
 	-DDEFAULT_USER="root" \
 	-DDEFAULT_PASSWORD="" \
-	-DDEFAULT_MONITORING_INTERVAL="5" \
+	-DDEFAULT_MONITORING_INTERVAL="20" \
 	-DDEFAULT_PORT="2273" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
@@ -59,7 +59,7 @@ client_settings.h: Makefile
 	rm -f $(srcdir)/client_settings.h
 	@LN_CP_F@ $(top_srcdir)/sql/client_settings.h $(srcdir)/client_settings.h
 
-bin_PROGRAMS= mysqlmanager
+libexec_PROGRAMS= mysqlmanager
 
 mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			manager.h manager.cc log.h log.cc \

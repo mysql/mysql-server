@@ -50,6 +50,7 @@ public:
   pid_t get_pid();
   void get_pid_filename(char *result);
   int unlink_pidfile();
+  void print_argv();
 
 public:
   /*

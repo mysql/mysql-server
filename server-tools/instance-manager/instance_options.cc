@@ -241,6 +241,16 @@ int Instance_options::add_to_argv(const char* option)
   return 0;
 }
 
+void Instance_options::print_argv()
+{
+  int i;
+  printf("printing out an instance %s argv:\n", instance_name);
+  for (i=0; argv[i] != NULL; i++)
+  {
+    printf("argv: %s\n", argv[i]);
+  }
+}
+
 
 /*
   We execute this function to initialize some options.

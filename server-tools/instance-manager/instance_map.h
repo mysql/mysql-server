@@ -66,7 +66,6 @@ public:
   Instance *find(uint instance_number);
 
   int flush_instances();
-  int cleanup();
   int lock();
   int unlock();
   int init();

@@ -48,7 +48,6 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
   pthread_cond_init(&COND_guardian, 0);
   shutdown_guardian= FALSE;
   is_stopped= FALSE;
-  thread_registry.register_thread(&thread_info);
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
   guarded_instances= NULL;
   starting_instances= NULL;
@@ -60,7 +59,6 @@ Guardian_thread::~Guardian_thread()
   /* delay guardian destruction to the moment when no one needs it */
   pthread_mutex_lock(&LOCK_guardian);
   free_root(&alloc, MYF(0));
-  thread_registry.unregister_thread(&thread_info);
   pthread_mutex_unlock(&LOCK_guardian);
   pthread_mutex_destroy(&LOCK_guardian);
   pthread_cond_destroy(&COND_guardian);
@@ -102,6 +100,8 @@ void Guardian_thread::run()
   LIST *loop;
   struct timespec timeout;
 
+  thread_registry.register_thread(&thread_info);
+
   my_thread_init();
   pthread_mutex_lock(&LOCK_guardian);
 
@@ -110,6 +110,7 @@ void Guardian_thread::run()
   {
     int status= 0;
     loop= guarded_instances;
+
     while (loop != NULL)
     {
       instance= ((GUARD_NODE *) loop->data)->instance;
@@ -167,6 +168,7 @@ void Guardian_thread::run()
     stop_instances();
   is_stopped= TRUE;
   /* now, when the Guardian is stopped we can stop the IM */
+  thread_registry.unregister_thread(&thread_info);
   thread_registry.request_shutdown();
   my_thread_end();
 }
@@ -181,7 +183,7 @@ int Guardian_thread::start()
   while ((instance= iterator.next()))
   {
     if ((instance->options.nonguarded == NULL))
-      if (guard(instance))
+      if (add_instance_to_list(instance, &guarded_instances))
         return 1;
   }
   instance_map->unlock();

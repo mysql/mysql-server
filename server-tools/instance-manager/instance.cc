@@ -56,6 +56,7 @@ int Instance::start()
     switch (pid= fork()) {
     case 0:
       execv(options.mysqld_path, options.argv);
+      /* exec never returns */
       exit(1);
     case -1:
       return ER_CANNOT_START_INSTANCE;
@@ -66,12 +67,6 @@ int Instance::start()
 
   /* the instance is started already */
   return ER_INSTANCE_ALREADY_STARTED;
-}
-
-
-int Instance::cleanup()
-{
-  return 0;
 }
 
 
