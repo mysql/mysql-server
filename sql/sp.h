@@ -31,7 +31,8 @@ sp_head *
 sp_find_procedure(THD *thd, LEX_STRING *name);
 
 int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen);
+sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen,
+		    char *comment, uint commentlen, bool suid);
 
 int
 sp_drop_procedure(THD *thd, char *name, uint namelen);
@@ -41,7 +42,8 @@ sp_head *
 sp_find_function(THD *thd, LEX_STRING *name);
 
 int
-sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen);
+sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen,
+		   char *comment, uint commentlen, bool suid);
 
 int
 sp_drop_function(THD *thd, char *name, uint namelen);
