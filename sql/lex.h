@@ -172,6 +172,7 @@ static SYMBOL symbols[] = {
   { "HANDLER",		SYM(HANDLER_SYM),0,0},
   { "HASH",		SYM(HASH_SYM),0,0},
   { "HEAP",		SYM(HEAP_SYM),0,0},
+  { "HELP",		SYM(HELP),0,0},
   { "HIGH_PRIORITY",	SYM(HIGH_PRIORITY),0,0},
   { "HOUR",		SYM(HOUR_SYM),0,0},
   { "HOUR_MINUTE",	SYM(HOUR_MINUTE_SYM),0,0},
