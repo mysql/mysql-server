@@ -47333,13 +47333,14 @@ helped to make MySQL what it is today.
 @appendixsec Developers at MySQL AB
 
 These are the developers that are or have been employed by @code{MySQL AB}
-to work on @code{MySQL}, roughly in the order they started to work with us.
-Following each developer is a small list of the tasks that the developer is
-responsible for, or the accomplishments they have made.
+to work on the @code{MySQL} database software, roughly in the order they
+started to work with us. Following each developer is a small list of the
+tasks that the developer is responsible for, or the accomplishments they
+have made.
 
 @table @asis
 @item Michael (Monty) Widenius
-Has written the following parts of MySQL:
+Has written the following parts of the MySQL database software:
 @itemize @bullet
 @item
 All the main code in @code{mysqld}.
@@ -47358,7 +47359,7 @@ The @code{replace} program (take a look at it, it's @strong{COOL}!).
 @item
 @strong{MyODBC}, the ODBC driver for Windows95.
 @item
-Fixing bugs in MIT-pthreads to get it to work for MySQL. And
+Fixing bugs in MIT-pthreads to get it to work for MySQL Server. And
 also Unireg, a curses-based application tool with many utilities.
 @item
 Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI}, and
@@ -47560,16 +47561,16 @@ Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 For the effort to make a shareware SQL database. At TcX, the predecessor
 of MySQL AB, we started with @code{mSQL}, but found that it couldn't
 satisfy our purposes so instead we wrote a SQL interface to our
-application builder Unireg.  @code{mysqladmin} and @code{mysql} ar
- programs that were largely influenced by their @code{mSQL} counterparts.
+application builder Unireg.  @code{mysqladmin} and @code{mysql} client are
+programs that were largely influenced by their @code{mSQL} counterparts.
 We have put a lot of effort into making the MySQL syntax a superset of
 @code{mSQL}. Many of the API's ideas are borrowed from @code{mSQL} to
-make it easy to port free @code{mSQL} programs to MySQL.
-MySQL doesn't contain any code from @code{mSQL}.
+make it easy to port free @code{mSQL} programs to the MySQL API.
+The MySQL software doesn't contain any code from @code{mSQL}.
 Two files in the distribution (@file{client/insert_test.c} and
 @file{client/select_test.c}) are based on the corresponding (non-copyrighted)
 files in the @code{mSQL} distribution, but are modified as examples showing
-the changes necessary to convert code from @code{mSQL} to MySQL.
+the changes necessary to convert code from @code{mSQL} to MySQL Server.
 (@code{mSQL} is copyrighted David J. Hughes.)
 @item Fred Fish
 For his excellent C debugging and trace library. Monty has made a number
@@ -47600,9 +47601,9 @@ For the @code{DBD} (Perl) interface.
 @item Tim Bunce
 Author of @code{mysqlhotcopy}.
 @item Andreas Koenig @email{a.koenig@@mind.de}
-For the Perl interface to MySQL.
+For the Perl interface for MySQL Server.
 @item Eugene Chan @email{eugene@@acenet.com.sg}
-For porting PHP to MySQL.
+For porting PHP for MySQL Server.
 @item Michael J. Miller Jr. @email{mke@@terrapin.turbolift.com}
 For the first MySQL manual. And a lot of spelling/language
 fixes for the FAQ (that turned into the MySQL manual a long
@@ -47621,7 +47622,7 @@ software developed by Chris Provenzano, the University of California,
 Berkeley, and contributors.  We are currently using version 1_60_beta6
 patched by Monty (see @file{mit-pthreads/Changes-mysql}).
 @item Xavier Leroy @email{Xavier.Leroy@@inria.fr}
-The author of LinuxThreads (used by MySQL on Linux).
+The author of LinuxThreads (used by the MySQL Server on Linux).
 @item Zarko Mocnik @email{zarko.mocnik@@dem.si}
 Sorting for Slovenian language and the @file{cset.tar.gz} module that makes
 it easier to add other character sets.
@@ -47633,15 +47634,14 @@ answering on the MySQL mailing list.
 @item Yves Carlier @email{Yves.Carlier@@rug.ac.be}
 @code{mysqlaccess}, a program to show the access rights for a user.
 @item Rhys Jones @email{rhys@@wales.com} (And GWE Technologies Limited)
-For the JDBC, a module to extract data from MySQL with a Java
-client.
+For the JDBC, a module to extract data from a MySQL Database with a Java client.
 @item Dr Xiaokun Kelvin ZHU @email{X.Zhu@@brad.ac.uk}
 Further development of the JDBC driver and other MySQL-related
 Java tools.
 @item James Cooper @email{pixel@@organic.com}
 For setting up a searchable mailing list archive at his site.
 @item Rick Mehalick @email{Rick_Mehalick@@i-o.com}
-For @code{xmysql}, a graphical X client for MySQL.
+For @code{xmysql}, a graphical X client for MySQL Server.
 @item Doug Sisk @email{sisk@@wix.com}
 For providing RPM packages of MySQL for RedHat Linux.
 @item Diemand Alexander V. @email{axeld@@vial.ethz.ch}
@@ -47707,11 +47707,11 @@ Help to set up InstallShield for MySQL-Win32.
 @item Jethro Wright III @email{jetman@@li.net}
 The @file{libmysql.dll} library.
 @item James Pereria @email{jpereira@@iafrica.com}
-Mysqlmanager, a Win32 GUI tool for administrating MySQL.
+Mysqlmanager, a Win32 GUI tool for administrating MySQL Server.
 @item Curt Sampson @email{cjs@@portal.ca}
 Porting of MIT-pthreads to NetBSD/Alpha and NetBSD 1.3/i386.
 @item Antony T. Curtis @email{antony.curtis@@olcs.net}
-Porting of MySQL to OS/2.
+Porting of the MySQL Database software to OS/2.
 @item Martin Ramsch @email{m.ramsch@@computer.org}
 Examples in the MySQL Tutorial.
 @item Steve Harvey
