@@ -253,8 +253,8 @@ Version @value{mysql_version}. Being a reference manual, it does not
 provide general instruction on @code{SQL} or relational database
 concepts.
 
-As the @code{MySQL Database Software} is work in progress, the manual
-is also updated frequently.
+As the @code{MySQL Database Software} is work in under constant
+development, the manual is also updated frequently.
 The most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats,
 currently there are Texinfo, plain text, Info, HTML, PostScript, PDF
@@ -1162,7 +1162,7 @@ license is required, please see @ref{MySQL server licenses}.
 We also sell commercial licenses of third-party @code{Open Source GPL}
 software that adds value to @code{MySQL Server}. A good example is the
 @code{InnoDB} transactional table handler that offers @code{ACID}
-support, row-level locking, crash recovery, multiversioning, foreign
+support, row-level locking, crash recovery, multi-versioning, foreign
 key support, and more. @xref{InnoDB}.
 
 
@@ -1281,7 +1281,7 @@ attention to the appropriate mailing list.
 Reports of errors (often called bugs), as well as questions and
 comments, should be sent to the mailing list at
 @email{mysql@@lists.mysql.com}. If you have found a sensitive
-security bug in the @code{MySQL Server}, you should send an e-mail
+security bug in the @code{MySQL Server}, please send an e-mail
 to @email{security@@mysql.com}.
 @xref{Bug reports}.
 
@@ -1377,23 +1377,17 @@ distribution:
 
 @enumerate
 @item
-The @code{MySQL}-specific source needed to build the @code{mysqlclient}
-library is licensed under the @code{LGPL} and the programs in the
-@file{client} directory are under the @code{GPL}. Each file states
-at the beginning which license it is under.
-
-@item
-The client library, and the @code{GNU} @code{getopt} library, are covered
-by the ``GNU LESSER GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
-The aim of this is to make it possible to add MySQL support (client
-side, i.e. the ability to connect to a @code{MySQL} server) into
-commercial products without a license.
-
-@item
-All the source in the server, and the @code{GNU} @code{readline} library,
-are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}.
+All the @code{MySQL}-specific source in the server, the @code{mysqlclient}
+library and the client, as well as the @code{GNU} @code{readline} library,
+is covered by the ``GNU GENERAL PUBLIC LICENSE.''
+@xref{GPL license}.
 The text of this license can also be found as the file @file{COPYING}
 in the distributions.
+
+@item
+The @code{GNU} @code{getopt} library is covered by the
+``GNU LESSER GENERAL PUBLIC LICENSE.''
+@xref{LGPL license}.
 
 @item
 Some parts of the source (the @code{regexp} library) are covered
@@ -1406,7 +1400,7 @@ more strict license
 See the documentation of the specific version for information.
 
 @item
-The manual is @emph{not} distributed under a @code{GPL} style license.
+The manual is currently @emph{not} distributed under a @code{GPL} style license.
 Use of the manual is subject to the following terms:
 @itemize @bullet
 @item
@@ -1440,14 +1434,14 @@ Also see @ref{MySQL AB Logos and Trademarks}.
 @cindex selling products
 @cindex products, selling
 
-The @code{MySQL} server is released under the
+The @code{MySQL} software is released under the
 @code{GNU General Public License} (@code{GPL}),
 which probably is the best known @code{Open Source} license.
 The formal terms of the @code{GPL} license can be found at
 @uref{http://www.gnu.org/licenses/}.
 See also @uref{http://www.gnu.org/licenses/gpl-faq.html}.
 
-Since the @code{MySQL} server is released under the @code{GPL},
+Since the @code{MySQL} software is released under the @code{GPL},
 it may often be used for free, but for certain uses you may want
 or need to buy commercial licenses from @code{MySQL AB} at
 @uref{https://order.mysql.com/}.
@@ -1457,7 +1451,7 @@ more strict license
 (@uref{http://www.mysql.com/support/arrangements/mypl.html}).
 See the documentation of the specific version for information.
 
-Please note that the use of the @code{MySQL} server under commercial
+Please note that the use of the @code{MySQL} software under commercial
 license, @code{GPL} or the old @code{MySQL} license does not
 automatically give you the right to use @code{MySQL AB} trademarks.
 @xref{MySQL AB Logos and Trademarks}.
@@ -1480,21 +1474,21 @@ You need a commercial license:
 
 @itemize @bullet
 @item
-When you link a program with code from the @code{MySQL} server or from
+When you link a program with code from the @code{MySQL} software or from
 @code{GPL} released clients and don't want the resulting product to be
 @code{GPL}, maybe because you want to build a commercial product or keep
 the added non-@code{GPL} code closed source for other reasons. When
-purchasing commercial licenses, you are not using the @code{MySQL} server
+purchasing commercial licenses, you are not using the @code{MySQL} software
 under @code{GPL} even though it's the same code.
 
 @item
 When you distribute a non-@code{GPL} application that ONLY works with the
-@code{MySQL} server and ship it with the @code{MySQL} server. This type
+@code{MySQL} software and ship it with the @code{MySQL} software. This type
 of solution is actually considered to be linking even if it's done over
 a network.
 
 @item
-When you distribute copies of the @code{MySQL} server without providing
+When you distribute copies of the @code{MySQL} software without providing
 the source code as required under the @code{GPL} license.
 
 @item
@@ -1507,14 +1501,14 @@ immediate advantages for you.
 @end itemize
 
 If you require a license, you will need one for each installation of the
-@code{MySQL} server. This covers any number of CPUs on a machine, and there
+@code{MySQL} software. This covers any number of CPUs on a machine, and there
 is no artificial limit on the number of clients that connect to the server
 in any way.
 
 To purchase commercial licenses and support, please visit the order section
-of our web site at @uref{https://order.mysql.com/}. If you have restricted
-access to the Internet, please contact our sales staff at
-@email{sales@@mysql.com}.
+of our web site at @uref{https://order.mysql.com/}. If you have special
+licensing needs or you have restricted access to the Internet, please contact
+our sales staff at @email{sales@@mysql.com}.
 
 
 @node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
@@ -1523,20 +1517,20 @@ access to the Internet, please contact our sales staff at
 @cindex licensing, free
 @cindex free licensing
 
-You can use the @code{MySQL} server for free under the @code{GPL}:
+You can use the @code{MySQL} software for free under the @code{GPL}:
 
 @itemize @bullet
 @item
-When you link a program with code from the @code{MYSQL} server and
+When you link a program with code from the @code{MYSQL} software and
 release the resulting product under @code{GPL}.
 
 @item
-When you distribute the @code{MySQL} server source code bundled with
+When you distribute the @code{MySQL} source code bundled with
 other programs that are not linked to or dependant on @code{MySQL Server}
 for their functionality even if you sell the distribution commercially.
 
 @item
-When using the @code{MySQL} server internally in your company.
+When using the @code{MySQL} software internally in your company.
 
 @item
 When include the @code{MySQL} client code in a commercial program.
@@ -1791,9 +1785,9 @@ the scenes in internet appliances, public kiosks, turn-key
 hardware/ software combination units, high performance internet
 servers, self-contained databases distributed on CD-ROM etc.
 
-Many embedded MySQL users will benefit from the @emph{dual licensing}
-scheme of the MySQL software, where besides the GPL license also commercial
-licensing is available for those not wishing to be bound by the GPL.
+Many users of @code{libmysqld} will benefit from the MySQL
+@emph{Dual Licensing}. For those not wishing to be bound by the GPL,
+the software is also made available under a commercial license.
 The embedded MySQL library uses the same interface as the normal
 client library, so it is convenient and easy to use. @xref{libmysqld}.
 
@@ -2453,7 +2447,7 @@ using.  If you are using the current version and the manual at
 @uref{http://www.mysql.com/doc/} doesn't cover the
 syntax you are using, MySQL Server doesn't support your query.  In this
 case, your only options are to implement the syntax yourself or e-mail
-@email{mysql-licensing@@mysql.com} and ask for an offer to implement it!
+@email{licensing@@mysql.com} and ask for an offer to implement it!
 
 If the manual covers the syntax you are using, but you have an older version
 of MySQL Server, you should check the MySQL change history to see
@@ -37484,7 +37478,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * Backing up::                  Backing up and Recovering an InnoDB Database
 * Moving::                      Moving an InnoDB Database to Another Machine
 * InnoDB transaction model::    InnoDB Transaction Model.
-* Implementation::              Implementation of Multiversioning
+* Implementation::              Implementation of Multi-versioning
 * Table and index::             Table and Index Structures
 * File space management::       File Space Management and Disk i/o
 * Error handling::              Error Handling
@@ -38363,7 +38357,7 @@ a table.
 @subsection InnoDB Transaction Model
 
 In the InnoDB transaction model the goal has been to combine the best
-properties of a multiversioning database to traditional two-phase locking.
+properties of a multi-versioning database to traditional two-phase locking.
 InnoDB does locking on row level and runs queries by default
 as non-locking consistent reads, in the style of Oracle.
 The lock table in InnoDB is stored so space-efficiently that lock
@@ -38398,7 +38392,7 @@ transaction.
 @node InnoDB consistent read, InnoDB locking reads, InnoDB transaction model, InnoDB transaction model
 @subsubsection Consistent Read
 
-A consistent read means that InnoDB uses its multiversioning to
+A consistent read means that InnoDB uses its multi-versioning to
 present to a query a snapshot of the database at a point in time.
 The query will see the changes made by exactly those transactions that
 committed before that point of time, and no changes made by later
@@ -38623,7 +38617,7 @@ not see the row deleted. Similarly with inserts and updates.
 You can advance your timepoint by committing your transaction
 and then doing another @code{SELECT}.
 
-This is called multiversioned concurrency control.
+This is called multi-versioned concurrency control.
 
 @example
                   User A                 User B
@@ -38907,9 +38901,9 @@ currently doing.
 @end itemize
 
 @node Implementation, Table and index, InnoDB transaction model, InnoDB
-@subsection Implementation of Multiversioning
+@subsection Implementation of Multi-versioning
 
-Since InnoDB is a multiversioned database, it must keep information
+Since InnoDB is a multi-versioned database, it must keep information
 of old versions of rows in the tablespace. This information is stored
 in a data structure we call a rollback segment after an analogous
 data structure in Oracle.
@@ -38949,7 +38943,7 @@ is typically smaller than the corresponding inserted or updated
 row. You can use this information to calculate the space need
 for your rollback segment.
 
-In our multiversioning scheme a row is not physically removed from
+In our multi-versioning scheme a row is not physically removed from
 the database immediately when you delete it with an SQL statement.
 Only  when InnoDB can discard the update undo log record written for
 the deletion, it can also physically remove the corresponding row and
@@ -44467,7 +44461,7 @@ compatible with the GPL).
 We encourage everyone to promote free software by releasing
 code under the GPL or a compatible license.  For those who
 are not able to do this, another option is to purchase the
-MySQL code from MySQL AB under a looser license.  For details
+MySQL code from MySQL AB under a commercial license.  For details
 concerning this issue, please see @ref{MySQL server licenses}.
 
 @node Cplusplus, Java, C, Clients
@@ -47593,7 +47587,7 @@ interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 
 Note: The programs listed here can be freely downloaded and used.
 They are copyrighted by their respective owners.
-Please see each product documentation for more details on licensing and terms.
+Please see individual product documentation for more details on licensing and terms.
 MySQL AB assumes no liability for the correctness of the information in this
 chapter or for the proper operation of the programs listed herein.
 
@@ -47836,12 +47830,12 @@ By Innovative-IT Development AB.
 MySQLGUI, the MySQL GUI client homepage. By Sinisa at MySQL AB.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_navigator_0.9.0.tar.gz}
-MySQL Navigator is a MySQL database server GUI client program. The purpose
-of MySQL Navigator is to provide a useful client interface to MySQL
-database servers, whilst supporting multiple operating systems and
-languages. You can currently import/export database, enter queries, get
-result sets, edit scripts, run scripts, add, alter, and delete users,
-and retrieve client and server information. Uses QT 2.2. GPL
+MySQL Navigator is a MySQL database server GUI client program, distributed
+under GPL license. The purpose of MySQL Navigator is to provide a useful
+client interface to MySQL database servers, whilst supporting multiple
+operating systems and languages. You can currently import/export database,
+enter queries, get result sets, edit scripts, run scripts, add, alter, and
+delete users, and retrieve client and server information. Uses QT 2.2.
 The homepage for MySQL Navigator is at @uref{http://sql.kldp.org/mysql/}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/secman.zip}
@@ -48466,14 +48460,14 @@ Automatic web site updating from the manual.
 @item
 Initial Autoconf, Automake, and Libtool support.
 @item
-The licensing stuff.
+Licensing.
 @item
 Parts of all the text files.  (Nowadays only the @file{README} is
 left. The rest ended up in the manual.)
 @item
 Lots of testing of new features.
 @item
-Our in-house ``free'' software lawyer.
+Our in-house Free Software legal expert.
 @item
 Mailing list maintainer (who never has the time to do it right...).
 @item
@@ -48536,7 +48530,7 @@ Vio interface (the foundation for the encrypted client/server protocol).
 MySQL Filesystem (a way to use MySQL databases as files
 and directories).
 @item
-The CASE Expression.
+The CASE expression.
 @item
 The MD5() and COALESCE() functions.
 @item
