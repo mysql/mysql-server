@@ -304,7 +304,7 @@ Put a space after @samp{,} for function arguments
 Functions return @samp{0} on success, and non-zero on error, so you can do:
 
 @example
-if(a() || b() || c()) { error("something went wrong"); }
+if(a() || b() || c()) @{ error("something went wrong"); @}
 @end example
 
 @item
