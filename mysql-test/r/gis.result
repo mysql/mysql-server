@@ -485,7 +485,6 @@ MBRContains(GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 AsText(a)
 POINT(1 1)
 drop table t1;
-
 CREATE TABLE t1 (Coordinates POINT NOT NULL, SPATIAL INDEX(Coordinates));
 INSERT INTO t1 VALUES(GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO t1 VALUES(GeomFromText('POINT(564952612 157516260)'));
@@ -575,12 +574,10 @@ INSERT INTO t1 VALUES(GeomFromText('POINT(367894677 368542487)'));
 INSERT INTO t1 VALUES(GeomFromText('POINT(580848489 219587743)'));
 INSERT INTO t1 VALUES(GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
-
 create table t1 select POINT(1,3);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `POINT(1,3)` longblob NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-
 drop table t1;
