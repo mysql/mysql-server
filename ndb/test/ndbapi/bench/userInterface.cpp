@@ -173,7 +173,7 @@ create_table_server(Ndb * pNdb){
       String, 
       MMBased,
       NotNullAttribute,
-      NormalStorageAttribute,
+      0,
       0,
       1,
       16);
@@ -376,7 +376,7 @@ create_table_subscriber(Ndb * pNdb){
       String, 
       MMBased,
       NotNullAttribute,
-      NormalStorageAttribute,
+      0,
       0,
       1,
       16);
@@ -494,7 +494,7 @@ create_table_session(Ndb * pNdb){
 				       String, 
 				       MMBased,
 				       NotNullAttribute,
-				       NormalStorageAttribute,
+				       0,
 				       0,
 				       1,
 				       16);
