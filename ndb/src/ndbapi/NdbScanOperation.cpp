@@ -106,11 +106,11 @@ NdbResultSet* NdbScanOperation::readTuples(Uint32 parallell,
     break;
   case NdbCursorOperation::LM_Exclusive:
     parallell = (parallell == 0 ? 1 : parallell);
-    res = openScan(parallell, true, /*irrelevant*/true, /*irrelevant*/false);
+    res = openScan(parallell, true, true, false);
     break;
   case NdbCursorOperation::LM_Dirty:
     parallell = (parallell == 0 ? 240 : parallell);
-    res = openScan(parallell, true, /*irrelevant*/true, /*irrelevant*/false);
+    res = openScan(parallell, false, false, true);
     break;
   default:
     res = -1;
