@@ -287,7 +287,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 bool Field::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),my_charset_bin),tmp2,*res;
+  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
     return 1;
@@ -297,7 +297,7 @@ bool Field::get_date(TIME *ltime,bool fuzzydate)
 bool Field::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),my_charset_bin),tmp2,*res;
+  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_time(res->ptr(),res->length(),ltime))
     return 1;
@@ -311,23 +311,23 @@ void Field::store_time(TIME *ltime,timestamp_type type)
   char buff[25];
   switch (type)  {
   case TIMESTAMP_NONE:
-    store("",0,my_charset_bin);	// Probably an error
+    store("",0,&my_charset_bin);	// Probably an error
     break;
   case TIMESTAMP_DATE:
     sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,my_charset_bin);
+    store(buff,10,&my_charset_bin);
     break;
   case TIMESTAMP_FULL:
     sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
 	    ltime->year,ltime->month,ltime->day,
 	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,my_charset_bin);
+    store(buff,19,&my_charset_bin);
     break;
   case TIMESTAMP_TIME:
   {
     ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
 				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, my_charset_bin);
+    store(buff,(uint) length, &my_charset_bin);
     break;
   }
   }
@@ -357,7 +357,7 @@ void Field_null::sql_type(String &res) const
 void
 Field_decimal::reset(void)
 {
-  Field_decimal::store("0",1,my_charset_bin);
+  Field_decimal::store("0",1,&my_charset_bin);
 }
 
 void Field_decimal::overflow(bool negative)
@@ -402,12 +402,12 @@ void Field_decimal::overflow(bool negative)
 int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 {
   char buff[80];
-  String tmp(buff,sizeof(buff), my_charset_bin);
+  String tmp(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if the old one is multi byte */
   if (cs->mbmaxlen > 1)
   { 
-    tmp.copy(from, len, cs, my_charset_bin);
+    tmp.copy(from, len, cs, &my_charset_bin);
     from= tmp.ptr();
     len=  tmp.length();
   }
@@ -471,7 +471,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     tmp_dec++;
 
   /* skip pre-space */
-  while (from != end && my_isspace(my_charset_bin,*from))
+  while (from != end && my_isspace(&my_charset_bin,*from))
     from++;
   if (from == end)
   {
@@ -508,13 +508,13 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   for (; from!=end && *from == '0'; from++) ;	// Read prezeros
   pre_zeros_end=int_digits_from=from;      
   /* Read non zero digits at the left of '.'*/
-  for (; from != end && my_isdigit(my_charset_bin, *from) ; from++) ;
+  for (; from != end && my_isdigit(&my_charset_bin, *from) ; from++) ;
   int_digits_end=from;
   if (from!=end && *from == '.')		// Some '.' ?
     from++;
   frac_digits_from= from;
   /* Read digits at the right of '.' */
-  for (;from!=end && my_isdigit(my_charset_bin, *from); from++) ;
+  for (;from!=end && my_isdigit(&my_charset_bin, *from); from++) ;
   frac_digits_end=from;
   // Some exponentiation symbol ?
   if (from != end && (*from == 'e' || *from == 'E'))
@@ -530,7 +530,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
       exponents will become small (e.g. 1e4294967296 will become 1e0, and the 
       field will finally contain 1 instead of its max possible value).
     */
-    for (;from!=end && my_isdigit(my_charset_bin, *from); from++)
+    for (;from!=end && my_isdigit(&my_charset_bin, *from); from++)
     {
       exponent=10*exponent+(*from-'0');
       if (exponent>MAX_EXPONENT)
@@ -548,7 +548,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   if (current_thd->count_cuted_fields)
   {
     // Skip end spaces
-    for (;from != end && my_isspace(my_charset_bin, *from); from++) ;
+    for (;from != end && my_isspace(&my_charset_bin, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       current_thd->cuted_fields++; 
@@ -841,17 +841,17 @@ int Field_decimal::store(longlong nr)
 double Field_decimal::val_real(void)
 {
   int not_used;
-  return my_strntod(my_charset_bin, ptr, field_length, NULL, &not_used);
+  return my_strntod(&my_charset_bin, ptr, field_length, NULL, &not_used);
 }
 
 longlong Field_decimal::val_int(void)
 {
   int not_used;
   if (unsigned_flag)
-    return my_strntoull(my_charset_bin, ptr, field_length, 10, NULL,
+    return my_strntoull(&my_charset_bin, ptr, field_length, 10, NULL,
 			&not_used);
   else
-    return my_strntoll( my_charset_bin, ptr, field_length, 10, NULL,
+    return my_strntoll(&my_charset_bin, ptr, field_length, 10, NULL,
 			&not_used);
 }
 
@@ -862,7 +862,7 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
   char *str;
   for (str=ptr ; *str == ' ' ; str++) ;
   uint tmp_length=(uint) (str-ptr);
-  val_ptr->set_charset(my_charset_bin);
+  val_ptr->set_charset(&my_charset_bin);
   if (field_length < tmp_length)		// Error in data
     val_ptr->length(0);
   else
@@ -883,9 +883,9 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
   for (end=a_ptr+field_length;
        a_ptr != end &&
 	 (*a_ptr == *b_ptr ||
-	  ((my_isspace(my_charset_bin,*a_ptr)  || *a_ptr == '+' || 
+	  ((my_isspace(&my_charset_bin,*a_ptr)  || *a_ptr == '+' || 
             *a_ptr == '0') &&
-	   (my_isspace(my_charset_bin,*b_ptr) || *b_ptr == '+' || 
+	   (my_isspace(&my_charset_bin,*b_ptr) || *b_ptr == '+' || 
             *b_ptr == '0')));
        a_ptr++,b_ptr++)
   {
@@ -913,7 +913,7 @@ void Field_decimal::sort_string(char *to,uint length)
   char *str,*end;
   for (str=ptr,end=ptr+length;
        str != end &&
-	 ((my_isspace(my_charset_bin,*str) || *str == '+' ||
+	 ((my_isspace(&my_charset_bin,*str) || *str == '+' ||
 	   *str == '0')) ;
        str++)
     *to++=' ';
@@ -925,7 +925,7 @@ void Field_decimal::sort_string(char *to,uint length)
     *to++=1;					// Smaller than any number
     str++;
     while (str != end)
-      if (my_isdigit(my_charset_bin,*str))
+      if (my_isdigit(&my_charset_bin,*str))
 	*to++= (char) ('9' - *str++);
       else
 	*to++= *str++;
@@ -1103,7 +1103,7 @@ longlong Field_tiny::val_int(void)
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1341,7 +1341,7 @@ longlong Field_short::val_int(void)
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1586,7 +1586,7 @@ longlong Field_medium::val_int(void)
 String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1816,7 +1816,7 @@ longlong Field_long::val_int(void)
 String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -2038,7 +2038,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -2844,10 +2844,10 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    val_ptr->set("0000-00-00 00:00:00", 19, my_charset_bin);
+    val_ptr->set("0000-00-00 00:00:00", 19, &my_charset_bin);
     return val_ptr;
   }
-  val_buffer->set_charset(my_charset_bin);	// Safety
+  val_buffer->set_charset(&my_charset_bin);	// Safety
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
@@ -3907,7 +3907,7 @@ int Field_string::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_string::store(buff,(uint) (end - buff), my_charset_bin);
+  return Field_string::store(buff,(uint) (end - buff), &my_charset_bin);
 }
 
 
@@ -4067,7 +4067,7 @@ int Field_varstring::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_varstring::store(buff,(uint) (end - buff), my_charset_bin);
+  return Field_varstring::store(buff,(uint) (end - buff), &my_charset_bin);
 }
 
 

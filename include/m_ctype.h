@@ -164,8 +164,8 @@ typedef struct charset_info_st
 } CHARSET_INFO;
 
 
-extern CHARSET_INFO *my_charset_bin;
-extern CHARSET_INFO *my_charset_latin1;
+extern CHARSET_INFO my_charset_bin;
+extern CHARSET_INFO my_charset_latin1;
 extern CHARSET_INFO my_charset_big5;
 extern CHARSET_INFO my_charset_czech;
 extern CHARSET_INFO my_charset_euc_kr;

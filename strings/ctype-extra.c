@@ -3939,5 +3939,3 @@ CHARSET_INFO compiled_charsets[] = {
     NULL
   }
 };
-
-CHARSET_INFO *my_charset_latin1= &compiled_charsets[0];

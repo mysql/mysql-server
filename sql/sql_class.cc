@@ -529,7 +529,7 @@ bool select_send::send_data(List<Item> &items)
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), my_charset_bin);
+  String buffer(buff, sizeof(buff), &my_charset_bin);
   DBUG_ENTER("send_data");
 
   protocol->prepare_for_resend();
@@ -652,7 +652,7 @@ bool select_export::send_data(List<Item> &items)
   DBUG_ENTER("send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
-  String tmp(buff,sizeof(buff),my_charset_bin),*res;
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
 
   if (unit->offset_limit_cnt)
@@ -860,7 +860,7 @@ bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),my_charset_bin),*res;
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
   DBUG_ENTER("send_data");

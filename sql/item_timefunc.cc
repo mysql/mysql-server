@@ -31,28 +31,28 @@
 
 static String month_names[] = 
 { 
-  String("January",	my_charset_latin1), 
-  String("February",	my_charset_latin1),
-  String("March",	my_charset_latin1),
-  String("April",	my_charset_latin1),
-  String("May",		my_charset_latin1),
-  String("June",	my_charset_latin1),
-  String("July",	my_charset_latin1),
-  String("August",	my_charset_latin1),
-  String("September",	my_charset_latin1),
-  String("October",	my_charset_latin1),
-  String("November",	my_charset_latin1),
-  String("December",	my_charset_latin1)
+  String("January",	&my_charset_latin1), 
+  String("February",	&my_charset_latin1),
+  String("March",	&my_charset_latin1),
+  String("April",	&my_charset_latin1),
+  String("May",		&my_charset_latin1),
+  String("June",	&my_charset_latin1),
+  String("July",	&my_charset_latin1),
+  String("August",	&my_charset_latin1),
+  String("September",	&my_charset_latin1),
+  String("October",	&my_charset_latin1),
+  String("November",	&my_charset_latin1),
+  String("December",	&my_charset_latin1)
 };
 static String day_names[] = 
 { 
-  String("Monday",	my_charset_latin1),
-  String("Tuesday",	my_charset_latin1),
-  String("Wednesday",	my_charset_latin1),
-  String("Thursday",	my_charset_latin1),
-  String("Friday",	my_charset_latin1),
-  String("Saturday",	my_charset_latin1),
-  String("Sunday",	my_charset_latin1)
+  String("Monday",	&my_charset_latin1),
+  String("Tuesday",	&my_charset_latin1),
+  String("Wednesday",	&my_charset_latin1),
+  String("Thursday",	&my_charset_latin1),
+  String("Friday",	&my_charset_latin1),
+  String("Saturday",	&my_charset_latin1),
+  String("Sunday",	&my_charset_latin1)
 };
 
 /*
@@ -416,7 +416,7 @@ String *Item_date::val_str(String *str)
     return (String*) 0;
   if (!value)					// zero daynr
   {
-    str->copy("0000-00-00",10,my_charset_latin1,thd_charset());
+    str->copy("0000-00-00",10,&my_charset_latin1,thd_charset());
     return str;
   }
   
@@ -425,7 +425,7 @@ String *Item_date::val_str(String *str)
 	  (int) (value/10000L) % 10000,
 	  (int) (value/100)%100,
 	  (int) (value%100));
-  str->copy(tmpbuff,10,my_charset_latin1,thd_charset());
+  str->copy(tmpbuff,10,&my_charset_latin1,thd_charset());
   return str;
 }
 
@@ -529,7 +529,7 @@ void Item_func_now::fix_length_and_dec()
 {
   struct tm tm_tmp,*start;
   time_t query_start=current_thd->query_start();
-  CHARSET_INFO *cs=my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_bin;
   
   decimals=0;
   max_length=19*cs->mbmaxlen;
@@ -595,7 +595,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   uint sec= (uint) ((ulonglong) seconds % 3600);
   length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 			   sec/60, sec % 60));
-  str->copy(buff, length, my_charset_latin1, thd_charset());
+  str->copy(buff, length, &my_charset_latin1, thd_charset());
   return str;
 }
 

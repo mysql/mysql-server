@@ -34,7 +34,7 @@ static int initialized;
 	1	Error   
 */
 
-#define des_cs	my_charset_latin1
+#define des_cs	&my_charset_latin1
 
 bool
 load_des_key_file(const char *file_name)
