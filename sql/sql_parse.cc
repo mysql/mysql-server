@@ -47,7 +47,7 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
-static  int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
+static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -663,7 +663,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   int error = 0;
   DBUG_ENTER("mysql_table_dump");
   db = (db && db[0]) ? db : thd->db;
-  if (!(table_list = (TABLE_LIST*) sql_calloc(sizeof(TABLE_LIST))))
+  if (!(table_list = (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(1); // out of memory
   table_list->db = db;
   table_list->real_name = table_list->name = tbl_name;
@@ -780,7 +780,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       slow_command = TRUE;
       uint db_len = *(uchar*)packet;
       uint tbl_len = *(uchar*)(packet + db_len + 1);
-      char* db = sql_alloc(db_len + tbl_len + 2);
+      char* db = thd->alloc(db_len + tbl_len + 2);
       memcpy(db, packet + 1, db_len);
       char* tbl_name = db + db_len;
       *tbl_name++ = 0;
@@ -973,7 +973,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char buff[200];
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
-	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %d Queries per second avg: %.3f",
+	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
 	    (int) thread_count,thd->query_id,long_query_count,
 	    opened_tables,refresh_version, cached_tables(),
@@ -1819,7 +1819,6 @@ mysql_execute_command(void)
     }
 #endif
   case SQLCOM_SHOW_TABLES:
-  case SQLCOM_SHOW_OPEN_TABLES:
     /* FALL THROUGH */
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
@@ -1841,10 +1840,7 @@ mysql_execute_command(void)
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       /* grant is checked in mysqld_show_tables */
-       if (lex->sql_command == SQLCOM_SHOW_OPEN_TABLES) 
-         res= mysqld_show_open_tables(thd, db,
-				 (lex->wild ? lex->wild->ptr() : NullS));
-      else if (select_lex->options & SELECT_DESCRIBE)
+      if (select_lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
@@ -1853,6 +1849,9 @@ mysql_execute_command(void)
       break;
     }
 #endif
+  case SQLCOM_SHOW_OPEN_TABLES:
+    res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
+    break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
@@ -2451,7 +2450,7 @@ void
 mysql_new_select(LEX *lex)
 {
   uint select_no=lex->select->select_number;
-  SELECT_LEX *select_lex = (SELECT_LEX *)sql_calloc(sizeof(SELECT_LEX));
+  SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
   lex->select->next=select_lex; 
   lex->select=select_lex; lex->select->select_number = ++select_no;
   lex->select->item_list = lex->select_lex.item_list; 
