@@ -84,7 +84,6 @@ select @a=_latin2'TEST' collate latin2_bin;
 set @a=_latin2'test' collate latin2_general_ci;
 select charset(@a),collation(@a),coercibility(@a);
 select @a=_latin2'TEST';
---error 1267
 select @a=_latin2'TEST' collate latin2_bin;
 
 #
@@ -97,7 +96,6 @@ select collation(@a:=_latin2'test' collate latin2_bin);
 select coercibility(@a:=_latin2'test' collate latin2_bin);
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
 select charset(@a),collation(@a),coercibility(@a);
---error 1267
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
 
 # Check that user variables are binlogged correctly (BUG#3875)
