@@ -225,6 +225,9 @@ int Instance_options::add_option(const char* option)
        }
    }
 
+  /* if we haven't returned earlier we should just save the option */
+  insert_dynamic(&options_array,(gptr) &tmp);
+
   return 0;
 
 err:

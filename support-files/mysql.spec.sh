@@ -515,6 +515,7 @@ fi
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
