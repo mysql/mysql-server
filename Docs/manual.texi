@@ -27509,8 +27509,8 @@ You might want to do this, for example, to move a database to a file
 system with more free space or increase the speed of your system by
 spreading your tables to different disk.
 
-The recommended may to do this, is to just symlink databases to different
-disk and only symlink tables as a last resort.
+The recommended way to do this, is to just symlink databases to a
+different disk and only symlink tables as a last resort.
 
 @cindex databases, symbolic links
 @menu
@@ -27577,11 +27577,11 @@ files. This happens because the above command works by creating a
 temporary file in the database directory and when the command is
 complete, replace the original file with the temporary file.
 
-You should not symlink tables on system that doesn't have a fully
+You should not symlink tables on systems that don't have a fully
 working @code{realpath()} call. (At least Linux and Solaris support
 @code{realpath()})
 
-In MySQL 4.0 symlinks is only fully supported for @code{MyISAM}
+In MySQL 4.0 symlinks are only fully supported for @code{MyISAM}
 tables.  For other table types you will probably get strange problems
 when doing any of the above mentioned commands.
 
@@ -32484,7 +32484,7 @@ Encrypts the string with the given key using the DES algorithm, which
 provides strong encryption.
 
 Note that this function only works if you have configured MySQL with
-SLL support. @xref{Secure connections}.
+SSL support. @xref{Secure connections}.
 
 The encryption key to use is chosen the following way:
 
@@ -32540,7 +32540,7 @@ crypted_credit_card = DES_ENCRYPT("credit_card_number");
 Decrypts a string crypted with @code{des_encrypt()}.
 
 Note that this function only works if you have configured MySQL with
-SLL support. @xref{Secure connections}.
+SSL support. @xref{Secure connections}.
 
 If one only gives this a string argument, then it will use the right key
 from the @code{des-key-file} to decrypt the message.  For this to work
@@ -48649,7 +48649,7 @@ Contributed to Development on Linux/Alpha.
 @item SWSoft
 Development on the embedded @code{mysqld} version.
 @item FutureQuest
-@code{--skip-show-variables}
+@code{--skip-show-database}
 @end table
 
 
