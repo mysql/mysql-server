@@ -96,7 +96,6 @@ public:
   int write_data_header(gzFile file_to_write);
   void position(const byte *record);
   void info(uint);
-  int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
