@@ -47,8 +47,8 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
 				const uchar *t, uint tlen)
 {
-  int len = ( slen > tlen ) ? tlen : slen;
-  return memcmp(s,t,len);
+  int cmp= memcmp(s,t,min(slen,tlen));
+  return cmp ? cmp : (int) (slen - tlen);
 }
 
 static void my_caseup_str_bin(CHARSET_INFO *cs __attribute__((unused)),

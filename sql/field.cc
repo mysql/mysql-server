@@ -4017,11 +4017,6 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
   uint a_length= (uint) (uchar) *a++;
   uint b_length= (uint) (uchar) *b++;
 
-  if (binary())
-  {
-    int cmp= memcmp(a,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
-  }
   return my_strnncoll(field_charset,
 		      (const uchar*)a,a_length,
 		      (const uchar*)b,b_length);
@@ -4036,11 +4031,6 @@ int Field_string::pack_cmp(const char *b, uint length)
     end--;
   uint a_length = (uint) (end - ptr);
 
-  if (binary())
-  {
-    int cmp= memcmp(ptr,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
-  }
   return my_strnncoll(field_charset,
 		     (const uchar*)ptr,a_length,
 		     (const uchar*)b, b_length);
@@ -4231,11 +4221,6 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
     a_length= (uint) (uchar) *a++;
     b_length= (uint) (uchar) *b++;
   }
-  if (binary())
-  {
-    int cmp= memcmp(a,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
-  }
   return my_strnncoll(field_charset,
 		     (const uchar *)a,a_length,
 		     (const uchar *)b,b_length);
@@ -4253,11 +4238,6 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
   else
   {
     b_length= (uint) (uchar) *b++;
-  }
-  if (binary())
-  {
-    int cmp= memcmp(a,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
   }
   return my_strnncoll(field_charset,
 		     (const uchar *)a,a_length,
@@ -4747,11 +4727,6 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
     a_length= (uint) (uchar) *a++;
     b_length= (uint) (uchar) *b++;
   }
-  if (binary())
-  {
-    int cmp= memcmp(a,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
-  }
   return my_strnncoll(field_charset,
 		     (const uchar *)a,a_length,
 		     (const uchar *)b,b_length);
@@ -4774,11 +4749,6 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
   else
   {
     b_length= (uint) (uchar) *b++;
-  }
-  if (binary())
-  {
-    int cmp= memcmp(a,b,min(a_length,b_length));
-    return cmp ? cmp : (int) (a_length - b_length);
   }
   return my_strnncoll(field_charset,
 		     (const uchar *)a,a_length,
