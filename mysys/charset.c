@@ -335,7 +335,6 @@ static my_bool read_charset_file(const char *cs_name, CHARSET_INFO *set,
     result=TRUE;
 
   my_fclose(fb.f, MYF(0));
-  create_fromuni(set);
   DBUG_RETURN(result);
 }
 
@@ -384,6 +383,7 @@ static CHARSET_INFO *add_charset(uint cs_number, myf flags)
   cs->wc_mb       = my_wc_mb_8bit;
   
   set_max_sort_char(cs);
+  create_fromuni(cs);
   
   return cs;
 }
