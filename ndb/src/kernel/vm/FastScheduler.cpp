@@ -474,7 +474,7 @@ FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
   Signal signal; 
   memset(&signal.header, 0, sizeof(signal.header));
 
-  signal.theData[0] = EventReport::JobStatistic;
+  signal.theData[0] = NDB_LE_JobStatistic;
   signal.theData[1] = tMeanLoopCount;
   
   memset(&signal.header, 0, sizeof(SignalHeader));
