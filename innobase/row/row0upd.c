@@ -218,7 +218,7 @@ row_upd_check_references_constraints(
 			being dropped while the check is running. */
 			
 			err = row_ins_check_foreign_constraint(FALSE, foreign,
-						table, index, entry, thr);
+							table, entry, thr);
 
 			if (foreign->foreign_table) {
 				mutex_enter(&(dict_sys->mutex));

@@ -2602,6 +2602,24 @@ row_search_for_mysql(
 	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
 */
 	/*-------------------------------------------------------------*/
+	/* PHASE 0: Release a possible s-latch we are holding on the
+	adaptive hash index latch if there is someone waiting behind */
+
+	if (trx->has_search_latch
+	    && btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
+
+		/* There is an x-latch request on the adaptive hash index:
+		release the s-latch to reduce starvation and wait for
+		BTR_SEA_TIMEOUT rounds before trying to keep it again over
+		calls from MySQL */
+
+		rw_lock_s_unlock(&btr_search_latch);
+		trx->has_search_latch = FALSE;
+
+		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+	}
+	
+	/*-------------------------------------------------------------*/
 	/* PHASE 1: Try to pop the row from the prefetch cache */
 
 	if (direction == 0) {
@@ -2736,23 +2754,7 @@ row_search_for_mysql(
 			NOT prepared to inserts interleaved with the SELECT,
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
-			
-			if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
-			        /* There is an x-latch request: release
-				a possible s-latch to reduce starvation
-				and wait for BTR_SEA_TIMEOUT rounds before
-				trying to keep it again over calls from
-				MySQL */
 
-				if (trx->has_search_latch) {
-			        	rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
-				}
-
-				trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-				
-				goto no_shortcut;
-			}
 #ifndef UNIV_SEARCH_DEBUG			
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
@@ -2810,7 +2812,6 @@ row_search_for_mysql(
 		}
 	}
 
-no_shortcut:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 

@@ -3092,8 +3092,7 @@ lock_deadlock_recursive(
 				err_buf += strlen(err_buf);
 
 				err_buf += sprintf(err_buf,
-				"  LATEST DETECTED DEADLOCK:\n"
-				"*** (1) TRANSACTION:\n");
+				"\n*** (1) TRANSACTION:\n");
 
 				trx_print(err_buf, wait_lock->trx);
 				err_buf += strlen(err_buf);
@@ -3934,24 +3933,15 @@ lock_print_info(
 
 		return;
 	}
-
-	buf += sprintf(buf, "Trx id counter %lu %lu\n", 
-		ut_dulint_get_high(trx_sys->max_trx_id),
-		ut_dulint_get_low(trx_sys->max_trx_id));
-
-	buf += sprintf(buf,
-	"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
-		ut_dulint_get_high(purge_sys->purge_trx_no),
-		ut_dulint_get_low(purge_sys->purge_trx_no),
-		ut_dulint_get_high(purge_sys->purge_undo_no),
-		ut_dulint_get_low(purge_sys->purge_undo_no));
 	
 	lock_mutex_enter_kernel();
 
-	buf += sprintf(buf,
-		"Total number of lock structs in row lock hash table %lu\n",
-						lock_get_n_rec_locks());
 	if (lock_deadlock_found) {
+		
+		buf += sprintf(buf,
+"------------------------\n" 
+"LATEST DETECTED DEADLOCK\n"
+"------------------------\n");
 
 		if ((ulint)(buf_end - buf)
 			< 100 + strlen(lock_latest_err_buf)) {
@@ -3971,6 +3961,26 @@ lock_print_info(
 
 		return;
 	}
+
+	buf += sprintf(buf,
+"------------\n" 
+"TRANSACTIONS\n"
+"------------\n");
+
+	buf += sprintf(buf, "Trx id counter %lu %lu\n", 
+		ut_dulint_get_high(trx_sys->max_trx_id),
+		ut_dulint_get_low(trx_sys->max_trx_id));
+
+	buf += sprintf(buf,
+	"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
+		ut_dulint_get_high(purge_sys->purge_trx_no),
+		ut_dulint_get_low(purge_sys->purge_trx_no),
+		ut_dulint_get_high(purge_sys->purge_undo_no),
+		ut_dulint_get_low(purge_sys->purge_undo_no));
+
+	buf += sprintf(buf,
+		"Total number of lock structs in row lock hash table %lu\n",
+						lock_get_n_rec_locks());
 
 	buf += sprintf(buf, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
