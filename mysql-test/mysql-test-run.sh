@@ -189,6 +189,10 @@ fail_inc () {
     TOT_FAIL=`$EXPR $TOT_FAIL + 1`
 }
 
+skip_inc () {
+    TOT_SKIP=`$EXPR $TOT_SKIP + 1`
+}
+
 total_inc () {
     TOT_TEST=`$EXPR $TOT_TEST + 1`
 }
@@ -463,9 +467,14 @@ run_testcase ()
 	$SETCOLOR_NORMAL && $ECHO -n "$pname          $timestr"
 
 
-	total_inc
 
-    if [ $res != 0 ]; then
+    if [ $res == 0 ]; then
+      total_inc
+      pass_inc
+      echo "$RES_SPACE [ pass ]"
+    else
+      if [ $res == 1 ]; then
+	total_inc
         fail_inc
 	echo "$RES_SPACE [ fail ]"
         $ECHO "failed output"
@@ -481,12 +490,12 @@ run_testcase ()
 	echo "Restarting mysqld"
 	mysql_restart
 	echo "Resuming Tests"
-    else
-      pass_inc
-      echo "$RES_SPACE [ pass ]"
+      else
+        pass_inc
+	echo "$RES_SPACE [ skipped ]"
+      fi
     fi
   fi  
- 
 }
 
 
@@ -525,7 +534,8 @@ then
   done
  fi
 else
- tf=$TESTDIR/$1.$TESTSUFFIX
+ tname=`$BASENAME $1 .test`
+ tf=$TESTDIR/$tname.$TESTSUFFIX
  if [ -f $tf ] ; then
   run_testcase $tf
  else

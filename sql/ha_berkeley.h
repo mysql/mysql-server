@@ -91,7 +91,7 @@ class ha_berkeley: public handler
 		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY),
-    last_dup_key((uint) -1),version(0)
+    last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }
   ~ha_berkeley() {}

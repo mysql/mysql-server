@@ -20271,7 +20271,7 @@ differ somewhat:
 | flush                   | OFF                       |
 | flush_time              | 0                         |
 | have_bdb                | YES                       |
-| have_gemeni             | NO                        |
+| have_gemini             | NO                        |
 | have_innobase           | YES                       |
 | have_raid               | YES                       |
 | have_ssl                | NO                        |
@@ -20449,9 +20449,9 @@ very little resources.
 @item @code{have_bdb}
 @code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
 if @code{--skip-bdb} is used.
-@item @code{have_gemeni}
-@code{YES} if @code{mysqld} supports Gemeni tables. @code{DISABLED}
-if @code{--skip-gemeni} is used.
+@item @code{have_gemini}
+@code{YES} if @code{mysqld} supports Gemini tables. @code{DISABLED}
+if @code{--skip-gemini} is used.
 @item @code{have_innobase}
 @code{YES} if @code{mysqld} supports Innobase tables. @code{DISABLED}
 if @code{--skip-innobase} is used.
@@ -40052,7 +40052,7 @@ though, so Version 3.23 is not released as a stable version yet.
 @item
 Added option @code{--safe-show-databases}.
 @item
-Added @code{have_bdb}, @code{have_gemeni}, @code{have_innobase},
+Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},
 @code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
 easy to test for supported extensions.
 @item

@@ -1,2 +1,2 @@
-"abc" LIKE "a%"	"abc" NOT LIKE "%d%"	"a%" LIKE "a\%"	"abc%" LIKE "a%\%"	"abcd" LIKE "a%b_%d"	"a" LIKE "%%a"	"abcde" LIKE "a%_e"	"abc" LIKE "abc%"	
-1	1	1	1	1	1	1	1	
+"abc" LIKE "a%"	"abc" NOT LIKE "%d%"	"a%" LIKE "a\%"	"abc%" LIKE "a%\%"	"abcd" LIKE "a%b_%d"	"a" LIKE "%%a"	"abcde" LIKE "a%_e"	"abc" LIKE "abc%"
+1	1	1	1	1	1	1	1
