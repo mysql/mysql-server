@@ -38,7 +38,15 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->last_key_func=search_flag;
 
-  if (!info->use_packed_key)
+  if (info->once_flags & USE_PACKED_KEYS)
+  {
+    /* key is already packed! */
+    key_buff=info->lastkey+info->s->base.max_key_length;
+    info->last_rkey_length=pack_key_length=key_len;
+    bmove(key_buff,key,key_len);
+    info->once_flags&= ~USE_PACKED_KEYS;
+  }
+  else
   {
     if (key_len == 0)
       key_len=USE_WHOLE_KEY;
@@ -47,13 +55,6 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     info->last_rkey_length=pack_key_length;
     DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,share->keyinfo[inx].seg,
 				     key_buff,pack_key_length););
-  }
-  else
-  {
-    /* key is already packed! */
-    key_buff=info->lastkey+info->s->base.max_key_length;
-    info->last_rkey_length=pack_key_length=key_len;
-    bmove(key_buff,key,key_len);
   }
 
   if (fast_mi_readinfo(info))

@@ -16,9 +16,8 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-INCLUDES =			-I$(srcdir)/../include \
-				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
-				-I.. $(openssl_includes)
+#AUTOMAKE_OPTIONS =              nostdinc
+INCLUDES =			-I$(top_srcdir)/include $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \

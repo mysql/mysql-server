@@ -25,9 +25,8 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
-INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include \
-			-I../include -I$(srcdir)/.. -I$(top_srcdir) -I.. \
-			-I../sql -I../regex
+INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
+			-I$(top_srcdir)/sql -I$(top_srcdir)/regex
 
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a

@@ -27,11 +27,8 @@ DISTCLEANFILES = CorbaFS-common.* CorbaFS-stubs.* CorbaFS-skels.* CorbaFS.h
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include \
-			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include -I.. -I. \
-			-I$(srcdir) -I../include -I.. -I. \
-		         $(orbit_includes)
+INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include \
+			-I$(top_srcdir)/regex $(orbit_includes)
 WRAPLIBS=		@WRAPLIBS@
 libexec_PROGRAMS =   mysqlcorbafsd
 noinst_PROGRAMS =mysqlfs_test 

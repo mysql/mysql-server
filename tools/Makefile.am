@@ -1,5 +1,4 @@
-INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include \
-			$(openssl_includes) -I../include
+INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes)
 LDADD=			@CLIENT_EXTRA_LDFLAGS@ ../libmysql_r/libmysqlclient_r.la @openssl_libs@
 bin_PROGRAMS=		mysqlmanager
 mysqlmanager_SOURCES=	mysqlmanager.c
