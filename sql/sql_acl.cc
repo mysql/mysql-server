@@ -1790,11 +1790,13 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
              col_privs->field[3]->pack_length());
     key_copy(key,col_privs,0,key_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
-    if (col_privs->file->index_read_idx(col_privs->record[0],0,
+    col_privs->file->ha_index_init(0);
+    if (col_privs->file->index_read(col_privs->record[0],
                                     (byte*) col_privs->field[0]->ptr,
                                     key_len, HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
+      col_privs->file->ha_index_end();
       return;
     }
     do
@@ -1814,6 +1816,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
       my_hash_insert(&hash_columns, (byte *) mem_check);
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_len));
+    col_privs->file->ha_index_end();
   }
 }
 
