@@ -348,17 +348,39 @@ Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name)
 {
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
+  /*
+    field_name and talbe_name should not point to garbage
+    if this item is to be reused
+  */
+  orig_table_name= orig_field_name= "";
 }
 
 Item_field::Item_field(THD *thd, Field *f)
-  :Item_ident(NullS, thd->strdup(f->table_name), 
-              thd->strdup(f->field_name))
+  :Item_ident(f->table->table_cache_key, f->table_name, f->field_name)
 {
+  /*
+    We always need to provide Item_field with a fully qualified field
+    name to avoid ambiguity when executing prepared statements like
+    SELECT * from d1.t1, d2.t1; (assuming d1.t1 and d2.t1 have columns
+    with same names).
+    This is because prepared statements never deal with wildcards in
+    select list ('*') and always fix fields using fully specified path
+    (i.e. db.table.column).
+    No check for OOM: if db_name is NULL, we'll just get
+    "Field not found" error.
+    We need to copy db_name, table_name and field_name because they must
+    be allocated in the statement memory, not in table memory (the table
+    structure can go away and pop up again between subsequent executions
+    of a prepared statement).
+  */
+  if (thd->current_arena->is_stmt_prepare())
+  {
+    if (db_name)
+      orig_db_name= thd->strdup(db_name);
+    orig_table_name= thd->strdup(table_name);
+    orig_field_name= thd->strdup(field_name);
+  }
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -381,6 +403,7 @@ void Item_field::set_field(Field *field_par)
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
+  fixed= 1;
 }
 
 const char *Item_ident::full_name() const
@@ -1374,8 +1397,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys.intersect(field->part_of_key);
+    fixed= 1;
   }
-  fixed= 1;
   return 0;
 }
 
@@ -2120,7 +2143,6 @@ bool Item_default_value::fix_fields(THD *thd,
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
-  fixed= 1;
   return 0;
 }
 
@@ -2178,7 +2200,6 @@ bool Item_insert_value::fix_fields(THD *thd,
     set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
 			     tmp_field->table, &my_charset_bin));
   }
-  fixed= 1;
   return 0;
 }
 

@@ -390,3 +390,28 @@ set @var=3;
 execute stmt using @var;
 drop table t1;
 deallocate prepare stmt;
+
+#
+# A test case for Bug#6050 "EXECUTE stmt reports ambiguous fieldnames with
+# identical tables from different schemata"
+# Check that field name resolving in prepared statements works OK.
+#
+create database mysqltest1;
+create table t1 (a int);
+create table mysqltest1.t1 (a int);
+select * from t1, mysqltest1.t1;
+prepare stmt from "select * from t1, mysqltest1.t1";
+execute stmt;
+execute stmt;
+execute stmt;
+drop table t1;
+drop table mysqltest1.t1;
+drop database mysqltest1;
+deallocate prepare stmt; 
+select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2';
+prepare stmt from
+"select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2'";
+execute stmt;
+execute stmt;
+execute stmt;
+deallocate prepare stmt;

@@ -2655,8 +2655,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
                                            strlen(t1_field_name), 0, 0,
                                            &not_used_field_index)))
         {
-          Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
-                                             new Item_field(t2_field));
+          Item_func_eq *tmp=new Item_func_eq(new Item_field(thd, *t1_field),
+                                             new Item_field(thd, t2_field));
           if (!tmp)
             goto err;
           /* Mark field used for table cache */
