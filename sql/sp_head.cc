@@ -373,6 +373,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
+    Item_null *nit= NULL;	// Re-use this, and only create if needed
     uint i;
     List_iterator_fast<Item> li(*args);
     Item *it;
@@ -393,7 +394,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       else
       {
 	if (pvar->mode == sp_param_out)
-	  nctx->push_item(NULL); // OUT
+	{
+	  if (! nit)
+	    nit= new Item_null();
+	  nctx->push_item(nit); // OUT
+	}
 	else
 	  nctx->push_item(sp_eval_func_item(thd, it,pvar->type)); // IN or INOUT
 	// Note: If it's OUT or INOUT, it must be a variable.
@@ -411,14 +416,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // The rest of the frame are local variables which are all IN.
     // Default all variables to null (those with default clauses will
     // be set by an set instruction).
+    for (; i < csize ; i++)
     {
-      Item_null *nit= NULL;	// Re-use this, and only create if needed
-      for (; i < csize ; i++)
-      {
-	if (! nit)
-	  nit= new Item_null();
-	nctx->push_item(nit);
-      }
+      if (! nit)
+	nit= new Item_null();
+      nctx->push_item(nit);
     }
     thd->spcont= nctx;
   }

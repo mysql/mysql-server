@@ -764,6 +764,23 @@ select * from t1|
 delete from t1|
 drop procedure bug1547|
 
+#
+# BUG#1656
+#
+--disable_warnings
+drop table if exists t70|
+--enable_warnings
+create table t70 (s1 int,s2 int)|
+insert into t70 values (1,2)|
+
+create procedure bug1656(out p1 int, out p2 int)
+  select * into p1, p1 from t70|
+
+call bug1656(@1, @2)|
+select @1, @2|
+drop table t70|
+drop procedure bug1656|
+
 
 #
 # Some "real" examples

@@ -653,6 +653,17 @@ less	2
 more	17
 delete from t1;
 drop procedure bug1547;
+drop table if exists t70;
+create table t70 (s1 int,s2 int);
+insert into t70 values (1,2);
+create procedure bug1656(out p1 int, out p2 int)
+select * into p1, p1 from t70;
+call bug1656(@1, @2);
+select @1, @2;
+@1	@2
+2	NULL
+drop table t70;
+drop procedure bug1656;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)
