@@ -68,7 +68,7 @@
  * API can order a multiple of this number of records at a time since
  * fragments can be scanned in parallel.
  */
-#define MAX_PARALLEL_OP_PER_SCAN 512
+#define MAX_PARALLEL_OP_PER_SCAN 992
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals

@@ -74,7 +74,7 @@ private:
   static Uint8 getHoldLockFlag(const UintR & requestInfo);
   static Uint8 getReadCommittedFlag(const UintR & requestInfo);
   static Uint8 getRangeScanFlag(const UintR & requestInfo);
-  static Uint8 getScanBatch(const UintR & requestInfo);
+  static Uint16 getScanBatch(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -152,9 +152,9 @@ ScanTabReq::getRangeScanFlag(const UintR & requestInfo){
 }
 
 inline
-Uint8
+Uint16
 ScanTabReq::getScanBatch(const Uint32 & requestInfo){
-  return (Uint8)((requestInfo >> SCAN_BATCH_SHIFT) & SCAN_BATCH_MASK);
+  return (Uint16)((requestInfo >> SCAN_BATCH_SHIFT) & SCAN_BATCH_MASK);
 }
 
 inline
