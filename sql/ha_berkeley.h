@@ -168,3 +168,4 @@ bool berkeley_end(void);
 bool berkeley_flush_logs(void);
 int berkeley_commit(THD *thd, void *trans);
 int berkeley_rollback(THD *thd, void *trans);
+int berkeley_show_logs(THD *thd);
