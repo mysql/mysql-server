@@ -31863,9 +31863,10 @@ The reason for this is so that you it makes it possible to easily reproduce
 the same @code{INSERT} statement against some other server.
 
 @cindex sequence emulation
-If @code{expr} is given as an argument to @code{LAST_INSERT_ID()} in an
-@code{UPDATE} clause, then the value of the argument is returned as a
-@code{LAST_INSERT_ID()} value.  This can be used to simulate sequences.
+If @code{expr} is given as an argument to @code{LAST_INSERT_ID()}, then
+the value of the argument is returned by the function, is set as the
+next value to be returned by @code{LAST_INSERT_ID()} and used as the next
+auto_increment value.  This can be used to simulate sequences:
 
 First create the table:
 
@@ -31887,6 +31888,12 @@ new ID as you would read any normal @code{AUTO_INCREMENT} value in
 MySQL.  For example, @code{LAST_INSERT_ID()} (without an argument)
 will return the new ID.  The C API function @code{mysql_insert_id()}
 can also be used to get the value.
+
+Note that as @code{mysql_insert_id()} is only updated after
+@code{INSERT} and @code{UPDATE} statements, you can't use this function
+to retrieve the value used @code{LAST_INSERT_ID(expr)} for other SQL
+statements.
+
 
 @findex FORMAT()
 @item FORMAT(X,D)
@@ -40632,6 +40639,10 @@ Note that @code{mysql_insert_id()} returns @code{0} if the previous query
 does not generate an @code{AUTO_INCREMENT} value.  If you need to save
 the value for later, be sure to call @code{mysql_insert_id()} immediately
 after the query that generates the value.
+
+@code{mysql_insert_id()} is only updated after @code{INSERT} and
+@code{UPDATE} statements, not after using @code{LAST_INSERT_ID(expr)}.
+@xref{Miscellaneous functions}.
 
 Also note that the value of the SQL @code{LAST_INSERT_ID()} function always
 contains the most recently generated @code{AUTO_INCREMENT} value, and is
