@@ -1339,7 +1339,7 @@ bool hostname_requires_resolving(const char *hostname)
     return FALSE;
   for (; (cur=*hostname); hostname++)
   {
-    if ((cur != '%') && (cur != '_') && (cur != '.') &&
+    if ((cur != '%') && (cur != '_') && (cur != '.') && (cur != '/') &&
 	((cur < '0') || (cur > '9')))
       return TRUE;
   }
