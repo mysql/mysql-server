@@ -90,6 +90,12 @@ static int ndb_get_table_statistics(Ndb*, const char *,
 
 
 /*
+  Dummy buffer to read zero pack_length fields
+  which are mapped to 1 char
+*/
+static byte dummy_buf[1];
+
+/*
   Error handling functions
 */
 
@@ -443,6 +449,13 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
 
   if (ndb_supported_type(field->type()))
   {
+    // ndb currently does not support size 0
+    const byte *empty_field= "";
+    if (pack_len == 0)
+    {
+      pack_len= 1;
+      field_ptr= empty_field;
+    }
     if (! (field->flags & BLOB_FLAG))
     {
       if (field->is_null())
@@ -586,7 +599,11 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
       {	
-	byte *field_buf= buf + (field->ptr - table->record[0]);
+	byte *field_buf;
+	if (field->pack_length() != 0)
+	  field_buf= buf + (field->ptr - table->record[0]);
+	else
+	  field_buf= dummy_buf;
         m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
 					       field_buf);
         DBUG_RETURN(m_value[fieldnr].rec == NULL);
@@ -3164,7 +3181,10 @@ static int create_ndb_column(NDBCOL &col,
       col.setType(NDBCOL::Char);
       col.setCharset(cs);
     }
-    col.setLength(field->pack_length());
+    if (field->pack_length() == 0)
+      col.setLength(1); // currently ndb does not support size 0
+    else
+      col.setLength(field->pack_length());
     break;
   case MYSQL_TYPE_VAR_STRING:
     if (field->flags & BINARY_FLAG)
