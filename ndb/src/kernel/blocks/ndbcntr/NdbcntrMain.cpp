@@ -72,11 +72,11 @@ static BlockInfo ALL_BLOCKS[] = {
   { NDBCNTR_REF, 0 ,  1000,  1999 },
   { QMGR_REF,    1 ,     1,   999 },
   { CMVMI_REF,   1 ,  9000,  9999 },
-  { TRIX_REF,    1 },
+  { TRIX_REF,    1 ,     0,     0 },
   { BACKUP_REF,  1 , 10000, 10999 },
   { DBUTIL_REF,  1 , 11000, 11999 },
   { SUMA_REF,    1 , 13000, 13999 },
-  { GREP_REF,    1 },
+  { GREP_REF,    1 ,     0,     0 },
   { DBTUX_REF,   1 , 12000, 12999 }
 };
 
@@ -450,13 +450,7 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
   c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
 
-  if(getNodeInfo(cmasterNodeId).m_version < MAKE_VERSION(3,5,0)){
-    /**
-     * Old NDB running
-     */
-    UpgradeStartup::sendCmAppChg(* this, signal, 0); // ADD
-    return;
-  }
+  UpgradeStartup::sendCmAppChg(* this, signal, 0); // ADD
   
   sendCntrStartReq(signal);
   
@@ -2542,6 +2536,15 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
  */
 void
 UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
+  
+  if(cntr.getNodeInfo(cntr.cmasterNodeId).m_version >= MAKE_VERSION(3,5,0)){
+    jam();
+    return;
+  }
+
+  /**
+   * Old NDB running
+   */
   
   signal->theData[0] = startLevel;
   signal->theData[1] = cntr.getOwnNodeId();

@@ -1524,8 +1524,12 @@ MY_UNICASE_INFO *uni_plane[256]={
 
 #ifdef HAVE_CHARSET_utf8
 
-/* These arrays are taken from usa7 implementation */
-
+/* 
+  We consider bytes with code more than 127 as a letter.
+  This garantees that word boundaries work fine with regular
+  expressions. Note, there is no need to mark byte 255  as a
+  letter, it is illegal byte in UTF8.
+*/
 static uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -1536,15 +1540,17 @@ static uchar ctype_utf8[] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16,
    16,130,130,130,130,130,130,  2,  2,  2,  2,  2,  2,  2,  2,  2,
     2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 16, 16, 16, 16, 32,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  0
 };
+
+/* The below are taken from usa7 implementation */
 
 static uchar to_lower_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -2084,6 +2090,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "utf8",		/* cs name      */
     "utf8_general_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
@@ -2110,6 +2117,7 @@ CHARSET_INFO my_charset_utf8_bin=
     "utf8",		/* cs name      */
     "utf8_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */

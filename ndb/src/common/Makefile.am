@@ -8,6 +8,6 @@ libcommon_la_LIBADD = \
               debugger/libtrace.la     \
               debugger/signaldata/libsignaldataprint.la \
               mgmcommon/libmgmsrvcommon.la \
-              portlib/unix/libportlib.la      \
+              portlib/libportlib.la      \
               logger/liblogger.la       \
               util/libgeneral.la 

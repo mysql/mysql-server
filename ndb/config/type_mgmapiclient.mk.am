@@ -1,2 +1,2 @@
 
-INCLUDES += @NDB_MGMAPICLIENT_INCLUDES@
+INCLUDES += -I$(top_srcdir)/ndb/include/mgmapi

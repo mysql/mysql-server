@@ -491,8 +491,7 @@ NdbEventOperationImpl::print()
     NdbRecAttr *p = theFirstRecAttrs[i];
     ndbout << " %u " << i;
     while (p) {
-      ndbout << " : " << p->attrId() << " = ";
-      printRecAttr(p);
+      ndbout << " : " << p->attrId() << " = " << *p;
       p = p->next();
     }
     ndbout << "\n";
@@ -1239,61 +1238,4 @@ NdbGlobalEventBuffer::real_wait(NdbGlobalEventBufferHandle *h,
   for (int i = 0; i < h->m_nids; i++)
     n += hasData(h->m_bufferIds[i]);
   return n;
-}
-
-/**
- * TODO Change this function to use the real datatypes 
- *  from NdbDictionary  alternatively make a 
- * "printer" in NdbRecAttr that can be used from all programs
- */
-
-// and remove this include
-#include "NdbSchemaOp.hpp"
-void
-NdbEventOperationImpl::printRecAttr(NdbRecAttr *p)
-{
-  int size  = p->attrSize();
-  int aSize = p->arraySize();
-
-
-  switch(convertColumnTypeToAttrType(p->getType())){
-  case UnSigned:
-    switch(size) {
-    case 8: ndbout << p->u_64_value(); break;
-    case 4: ndbout << p->u_32_value(); break;
-    case 2: ndbout << p->u_short_value(); break;
-    case 1: ndbout << (unsigned) p->u_char_value(); break;
-    default: ndbout << "Unknown size" << endl;
-    }
-    break;
-	  
-  case Signed:
-    switch(size) {
-    case 8: ndbout << p->int64_value(); break;
-    case 4: ndbout << p->int32_value(); break;
-    case 2: ndbout << p->short_value(); break;
-    case 1: ndbout << (int) p->char_value(); break;
-    default: ndbout << "Unknown size" << endl;
-    }
-    break;
-    
-  case String:
-    {
-      char* buf = new char[aSize+1];
-      memcpy(buf, p->aRef(), aSize);
-      buf[aSize] = 0;
-      ndbout << buf;
-      delete [] buf;
-    }
-    break;
-    
-  case Float:
-    ndbout << p->float_value();
-    break;
-    
-  default:
-    ndbout << "Unknown";
-    break;
-  }
-
 }

@@ -629,10 +629,10 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         if (passwd_len == acl_user_tmp->salt_len)
         {
           if (acl_user_tmp->salt_len == 0 ||
-              acl_user_tmp->salt_len == SCRAMBLE_LENGTH &&
-              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) == 0 ||
+              (acl_user_tmp->salt_len == SCRAMBLE_LENGTH ?
+              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) :
               check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) acl_user_tmp->salt) == 0)
+                                 (ulong *) acl_user_tmp->salt)) == 0)
           {
             acl_user= acl_user_tmp;
             res= 0;
@@ -941,7 +941,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 */
 
 ulong acl_get(const char *host, const char *ip,
-	     const char *user, const char *db, my_bool db_is_pattern)
+              const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access,db_access;
   uint i,key_length;

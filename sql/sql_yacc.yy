@@ -316,6 +316,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NUM
 %token	OFFSET_SYM
 %token	ON
+%token  ONE_SHOT_SYM
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
@@ -432,6 +433,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MEDIUMTEXT
 %token	NUMERIC_SYM
 %token	PRECISION
+%token  PREPARE_SYM
+%token  DEALLOCATE_SYM
 %token	QUICK
 %token	REAL
 %token	SIGNED_SYM
@@ -724,6 +727,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
+        prepare prepare_src execute deallocate 
 END_OF_INPUT
 
 %type <NONE>
@@ -760,10 +764,12 @@ verb_clause:
 	| checksum
 	| commit
 	| create
+        | deallocate
 	| delete
 	| describe
 	| do
 	| drop
+        | execute
 	| flush
 	| grant
 	| handler
@@ -775,6 +781,7 @@ verb_clause:
 	| optimize
         | keycache
 	| preload
+        | prepare
 	| purge
 	| rename
 	| repair
@@ -793,6 +800,86 @@ verb_clause:
 	| unlock
 	| update
 	| use
+        ;
+
+deallocate:
+        DEALLOCATE_SYM PREPARE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
+          lex->prepared_stmt_name= $3;
+        };
+
+prepare:
+        PREPARE_SYM ident FROM prepare_src
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_PREPARE;
+          lex->prepared_stmt_name= $2;
+        };
+
+prepare_src:
+        TEXT_STRING_sys
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $1;
+          lex->prepared_stmt_code_is_varref= false;
+        }
+        | '@' ident_or_text
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $2;
+          lex->prepared_stmt_code_is_varref= true;
+        };
+
+execute:
+        EXECUTE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_EXECUTE;
+          lex->prepared_stmt_name= $2;
+        }
+        execute_using
+        {}
+        ;
+
+execute_using:
+        /* nothing */
+        | USING execute_var_list
+        ;
+
+execute_var_list:
+        execute_var_list ',' execute_var_ident
+        | execute_var_ident
+        ;
+
+execute_var_ident: '@' ident_or_text
+        {
+          LEX *lex=Lex;
+          LEX_STRING *lexstr= (LEX_STRING*)sql_memdup(&$2, sizeof(LEX_STRING));
+          if (!lexstr || lex->prepared_stmt_params.push_back(lexstr))
+              YYABORT;
+        }
         ;
 
 /* help */
@@ -4768,7 +4855,7 @@ simple_ident:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skipp schema name in create*/
+	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
@@ -4911,6 +4998,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+        | DEALLOCATE_SYM        {}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
@@ -5002,12 +5090,14 @@ keyword:
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
+	| ONE_SHOT_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
 	| POINT_SYM		{}
 	| POLYGON		{}
+        | PREPARE_SYM           {}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
@@ -5088,6 +5178,7 @@ set:
 	  lex->sql_command= SQLCOM_SET_OPTION;
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
+          lex->one_shot_set= 0;
 	}
 	option_value_list
 	{}
@@ -5106,6 +5197,7 @@ option_type:
 	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
 	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
 	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
+	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
 	;
 
 opt_var_type:

@@ -383,6 +383,7 @@ struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
+  ulong log_warnings;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
@@ -390,7 +391,6 @@ struct system_variables
   */
   ulong pseudo_thread_id;
 
-  my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
@@ -461,6 +461,7 @@ public:
   */
   bool allow_sum_func;
 
+  LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
   /*
     Points to the query associated with this statement. It's const, but
@@ -527,8 +528,14 @@ public:
 
 
 /*
-  Used to seek all existing statements in the connection
-  Deletes all statements in destructor.
+  Container for all statements created/used in a connection.
+  Statements in Statement_map have unique Statement::id (guaranteed by id
+  assignment in Statement::Statement)
+  Non-empty statement names are unique too: attempt to insert a new statement
+  with duplicate name causes older statement to be deleted
+  
+  Statements are auto-deleted when they are removed from the map and when the
+  map is deleted.
 */
 
 class Statement_map
@@ -536,34 +543,47 @@ class Statement_map
 public:
   Statement_map();
   
-  int insert(Statement *statement)
+  int insert(Statement *statement);
+
+  Statement *find_by_name(LEX_STRING *name)
   {
-    int rc= my_hash_insert(&st_hash, (byte *) statement);
-    if (rc == 0)
-      last_found_statement= statement;
-    return rc;
+    Statement *stmt;
+    stmt= (Statement*)hash_search(&names_hash, (byte*)name->str,
+                                  name->length);
+    return stmt;
   }
 
   Statement *find(ulong id)
   {
     if (last_found_statement == 0 || id != last_found_statement->id)
-      last_found_statement= (Statement *) hash_search(&st_hash, (byte *) &id,
-                                                      sizeof(id));
+    {
+      Statement *stmt;
+      stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+      if (stmt->name.str)
+        return NULL;
+      last_found_statement= stmt;
+    }
     return last_found_statement;
   }
   void erase(Statement *statement)
   {
     if (statement == last_found_statement)
       last_found_statement= 0;
+    if (statement->name.str)
+    {
+      hash_delete(&names_hash, (byte *) statement);  
+    }
     hash_delete(&st_hash, (byte *) statement);
   }
 
   ~Statement_map()
   {
     hash_free(&st_hash);
+    hash_free(&names_hash);
   }
 private:
   HASH st_hash;
+  HASH names_hash;
   Statement *last_found_statement;
 };
 
@@ -801,7 +821,7 @@ public:
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
-  bool       slave_thread;
+  bool       slave_thread, one_shot_set;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
@@ -932,8 +952,10 @@ public:
     net.last_errno= 0;
     net.report_error= 0;
   }
+  inline bool vio_ok() const { return net.vio != 0; }
 #else
   void clear_error();
+  inline bool vio_ok() const { return true; }
 #endif
   inline void fatal_error()
   {

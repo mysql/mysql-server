@@ -72,7 +72,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name, bool overwrite);
-static int check_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
+static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
 
 
 /*
@@ -1187,38 +1187,75 @@ slaves can't replicate a 5.0 or newer master.";
     break;
   }
 
-  MYSQL_RES *master_clock_res;
-  MYSQL_ROW master_clock_row;
-  time_t slave_clock;
+  /*
+    Compare the master and slave's clock. Do not die if master's clock is
+    unavailable (very old master not supporting UNIX_TIMESTAMP()?).
+  */
+  MYSQL_RES *master_res= 0;
+  MYSQL_ROW master_row;
+  
+  if (!mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23) &&
+      (master_res= mysql_store_result(mysql)) &&
+      (master_row= mysql_fetch_row(master_res)))
+  {
+    mi->clock_diff_with_master= 
+      (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
+  }
+  else
+  {
+    mi->clock_diff_with_master= 0; /* The "most sensible" value */
+    sql_print_error("Warning: \"SELECT UNIX_TIMESTAMP()\" failed on master, \
+do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
+  }
+  if (master_res)
+    mysql_free_result(master_res);      
+ 
+  /*
+    Check that the master's server id and ours are different. Because if they
+    are equal (which can result from a simple copy of master's datadir to slave,
+    thus copying some my.cnf), replication will work but all events will be
+    skipped.
+    Do not die if SHOW VARIABLES LIKE 'SERVER_ID' fails on master (very old
+    master?).
+    Note: we could have put a @@SERVER_ID in the previous SELECT
+    UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
+  */
+  if (!mysql_real_query(mysql, "SHOW VARIABLES LIKE 'SERVER_ID'", 31) &&
+      (master_res= mysql_store_result(mysql)))
+  {
+    if ((master_row= mysql_fetch_row(master_res)) &&
+        (::server_id == strtoul(master_row[1], 0, 10)) &&
+        !replicate_same_server_id)
+      errmsg= "The slave I/O thread stops because master and slave have equal \
+MySQL server ids; these ids must be different for replication to work (or \
+the --replicate-same-server-id option must be used on slave but this does \
+not always make sense; please check the manual before using it).";
+    mysql_free_result(master_res);
+  }
 
-  if (mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23))
-    errmsg= "\"SELECT UNIX_TIMESTAMP()\" failed on master"; 
-  else if (!(master_clock_res= mysql_store_result(mysql)))
+  /*
+    Check that the master's global character_set_server and ours are the same.
+    Not fatal if query fails (old master?).
+  */
+  if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
+      (master_res= mysql_store_result(mysql)))
   {
-    errmsg= "Could not read the result of \"SELECT UNIX_TIMESTAMP()\" on \
-master"; 
+    if ((master_row= mysql_fetch_row(master_res)) &&
+        strcmp(master_row[0], global_system_variables.collation_server->name))
+      errmsg= "The slave I/O thread stops because master and slave have \
+different values for the COLLATION_SERVER global variable. The values must \
+be equal for replication to work";
+    mysql_free_result(master_res);
   }
-  else 
-  {
-    if (!(master_clock_row= mysql_fetch_row(master_clock_res)))
-      errmsg= "Could not read a row from the result of \"SELECT \
-UNIX_TIMESTAMP()\" on master"; 
-    else
-    {
-      slave_clock= time((time_t*) 0);
-      mi->clock_diff_with_master= (long) (slave_clock -
-                                          strtoul(master_clock_row[0], 0, 10));
-      DBUG_PRINT("info",("slave_clock=%lu, master_clock=%s",
-                         slave_clock, master_clock_row[0]));
-    }
-  mysql_free_result(master_clock_res);
-  }
+
+  /* Add a timezones check here */
 
   if (errmsg)
   {
     sql_print_error(errmsg);
     return 1;
   }
+
   return 0;
 }
 
@@ -1386,7 +1423,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
   if (!called_connected)
     mysql_close(mysql);
-  if (errmsg && thd->net.vio)
+  if (errmsg && thd->vio_ok())
     send_error(thd, error, errmsg);
   DBUG_RETURN(test(error));			// Return 1 on error
 }

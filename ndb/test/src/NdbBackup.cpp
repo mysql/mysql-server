@@ -90,8 +90,9 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
     ndbout << "Invalid configuration fetched, DB missing" << endl;
     return NULL;
   }
-  unsigned int type;
-  if(!iter.get(CFG_TYPE_OF_SECTION, &type) || type != NODE_TYPE_DB){
+  unsigned int type = 123456;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type) || type != NODE_TYPE_DB){
+    ndbout <<"type = " << type << endl;
     ndbout <<"Invalid configuration fetched, I'm wrong type of node" << endl;
     return NULL;
   }  
@@ -114,10 +115,13 @@ NdbBackup::execRestore(bool _restore_data,
   const int buf_len = 1000;
   char buf[buf_len];
 
+  ndbout << "getFileSystemPathForNode "<< _node_id <<endl;
+
   const char* path = getFileSystemPathForNode(_node_id);
   if (path == NULL)
     return -1;  
 
+  ndbout << "getHostName "<< _node_id <<endl;
   const char *host;
   if (!getHostName(_node_id, &host)){
     return -1;
@@ -138,7 +142,7 @@ NdbBackup::execRestore(bool _restore_data,
   ndbout << "res: " << res << endl;
   
 #if 0
-  snprintf(buf, 255, "restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s %s/BACKUP/BACKUP-%d", 
+  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s %s/BACKUP/BACKUP-%d", 
 	   ownNodeId,
 	   addr,
 	   _node_id, 
@@ -150,7 +154,7 @@ NdbBackup::execRestore(bool _restore_data,
 
 #endif
 
-  snprintf(buf, 255, "restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
+  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
 	   ownNodeId,
 	   addr,
 	   _node_id, 

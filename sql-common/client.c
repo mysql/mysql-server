@@ -751,6 +751,58 @@ static my_bool is_NT(void)
 }
 #endif
 
+
+#ifdef CHECK_LICENSE
+/*
+  Check server side variable 'license'.
+  If the variable does not exist or does not contain 'Commercial', 
+  we're talking to non-commercial server from commercial client.
+  SYNOPSIS
+    check_license()
+  RETURN VALUE
+    0  success
+   !0  network error or the server is not commercial.
+       Error code is saved in mysql->net.last_errno.
+*/
+
+static int check_license(MYSQL *mysql)
+{
+  MYSQL_ROW row;
+  MYSQL_RES *res;
+  NET *net= &mysql->net;
+  static const char query[]= "SELECT @@license";
+  static const char required_license[]= STRINGIFY_ARG(LICENSE);
+
+  if (mysql_real_query(mysql, query, sizeof(query)-1))
+  {
+    if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      net->last_errno= CR_WRONG_LICENSE;
+      sprintf(net->last_error, ER(net->last_errno), required_license);
+    }
+    return 1;
+  }
+  if (!(res= mysql_use_result(mysql)))
+    return 1;
+  row= mysql_fetch_row(res);
+  /* 
+    If no rows in result set, or column value is NULL (none of these
+    two is ever true for server variables now), or column value
+    mismatch, set wrong license error.
+  */
+  if (!net->last_errno &&
+      (!row || !row[0] ||
+       strncmp(row[0], required_license, sizeof(required_license))))
+  {
+    net->last_errno= CR_WRONG_LICENSE;
+    sprintf(net->last_error, ER(net->last_errno), required_license);
+  }
+  mysql_free_result(res);
+  return net->last_errno;
+}
+#endif /* CHECK_LICENSE */
+
+
 /**************************************************************************
   Shut down connection
 **************************************************************************/
@@ -1783,40 +1835,39 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
 
   /* Set character set */
-  if (mysql->options.charset_name)
+  if (!mysql->options.charset_name &&
+      !(mysql->options.charset_name= 
+       my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+    goto error;
+  
   {
     const char *save= charsets_dir;
     if (mysql->options.charset_dir)
       charsets_dir=mysql->options.charset_dir;
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
-					 MY_CS_PRIMARY,
-					 MYF(MY_WME));
+                                         MY_CS_PRIMARY, MYF(MY_WME));
     charsets_dir= save;
-
-    if (!mysql->charset)
-    {
-      net->last_errno=CR_CANT_READ_CHARSET;
-      strmov(net->sqlstate, unknown_sqlstate);
-      if (mysql->options.charset_dir)
-        my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		    ER(net->last_errno),
-		    mysql->options.charset_name,
-		    mysql->options.charset_dir);
-      else
-      {
-        char cs_dir_name[FN_REFLEN];
-        get_charsets_dir(cs_dir_name);
-        my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		  ER(net->last_errno),
-		  mysql->options.charset_name,
-		  cs_dir_name);
-      }
-      goto error;
-    }
   }
-  else
+  
+  if (!mysql->charset)
   {
-    mysql->charset= default_charset_info;
+    net->last_errno=CR_CANT_READ_CHARSET;
+    strmov(net->sqlstate, unknown_sqlstate);
+    if (mysql->options.charset_dir)
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  mysql->options.charset_dir);
+    else
+    {
+      char cs_dir_name[FN_REFLEN];
+      get_charsets_dir(cs_dir_name);
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  cs_dir_name);
+    }
+    goto error;
   }
 
 
@@ -1996,9 +2047,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       goto error;
   }
 
-
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
+
+#ifdef CHECK_LICENSE 
+  if (check_license(mysql))
+    goto error;
+#endif
 
   if (db && mysql_select_db(mysql,db))
     goto error;

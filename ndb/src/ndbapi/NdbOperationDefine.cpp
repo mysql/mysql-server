@@ -472,9 +472,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   tAttrId = tAttrInfo->m_attrId;
   const char *aValue = aValuePassed; 
   Uint32 ahValue;
-  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
   if (aValue == NULL) {
     if (tAttrInfo->m_nullable) {
+      AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
       ah.setNULL();
       insertATTRINFO(ahValue);
       // Insert Attribute Id with the value
@@ -508,7 +508,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
-  ah.setDataSize(totalSizeInWords);
+  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 
+					      totalSizeInWords);
   insertATTRINFO( ahValue );
 
   /***********************************************************************
