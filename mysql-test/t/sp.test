@@ -126,6 +126,24 @@ drop procedure zap|
 drop procedure bar|
 
 
+# "Deep" calls...
+create procedure c1(x int)
+  call c2("c", x)|
+create procedure c2(s char(16), x int)
+  call c3(x, s)|
+create procedure c3(x int, s char(16))
+  call c4("level", x, s)|
+create procedure c4(l char(8), x int, s char(16))
+  insert into t1 values (concat(l,s), x)|
+
+call c1(42)|
+select * from t1|
+delete from t1|
+drop procedure c1|
+drop procedure c2|
+drop procedure c3|
+drop procedure c4|
+
 # INOUT test
 create procedure iotest(x1 char(16), x2 char(16), y int)
 begin

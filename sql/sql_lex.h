@@ -320,7 +320,7 @@ public:
   int exec();
   int cleanup();
   
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
@@ -408,7 +408,7 @@ public:
     order_list.next= (byte**) &order_list.first;
   }
   
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   st_select_lex(struct st_lex *lex);
   st_select_lex() {}
   void make_empty_select(st_select_lex *last_select)
