@@ -1386,7 +1386,6 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
-	curr_join->group_list= 0;
       }
       
       thd->proc_info="Copying to group table";
@@ -1407,8 +1406,10 @@ JOIN::exec()
 	}
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-					1, TRUE) ||
-          setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
+					1, TRUE))
+        DBUG_VOID_RETURN;
+      curr_join->group_list= 0;
+      if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -11890,7 +11891,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
     join->group= 1;
   for (; group ; group=group->next)
   {
-    Field *field=(*group->item)->get_tmp_table_field();
+    Item *group_item= *group->item;
+    Field *field= group_item->get_tmp_table_field();
     if (field)
     {
       if (field->type() == FIELD_TYPE_BLOB)
@@ -11900,27 +11902,36 @@ calc_group_buffer(JOIN *join,ORDER *group)
       else
 	key_length+= field->pack_length();
     }
-    else if ((*group->item)->result_type() == REAL_RESULT)
-      key_length+=sizeof(double);
-    else if ((*group->item)->result_type() == INT_RESULT)
-      key_length+=sizeof(longlong);
-    else if ((*group->item)->result_type() == STRING_RESULT)
-    {
-      /*
-        Group strings are taken as varstrings and require an length field.
-        A field is not yet created by create_tmp_field()
-        and the sizes should match up.
-      */
-      key_length+= (*group->item)->max_length + HA_KEY_BLOB_LENGTH;
-    }
     else
-    {
-      /* This case should never be choosen */
-      DBUG_ASSERT(0);
-      join->thd->fatal_error();
+    { 
+      switch (group_item->result_type()) {
+      case REAL_RESULT:
+        key_length+= sizeof(double);
+        break;
+      case INT_RESULT:
+        key_length+= sizeof(longlong);
+        break;
+      case DECIMAL_RESULT:
+        key_length+= my_decimal_get_binary_size(group_item->max_length - 
+                                                (group_item->decimals ? 1 : 0),
+                                                group_item->decimals);
+        break;
+      case STRING_RESULT:
+        /*
+          Group strings are taken as varstrings and require an length field.
+          A field is not yet created by create_tmp_field()
+          and the sizes should match up.
+        */
+        key_length+= group_item->max_length + HA_KEY_BLOB_LENGTH;
+        break;
+      default:
+        /* This case should never be choosen */
+        DBUG_ASSERT(0);
+        join->thd->fatal_error();
+      }
     }
     parts++;
-    if ((*group->item)->maybe_null)
+    if (group_item->maybe_null)
       null_parts++;
   }
   join->tmp_table_param.group_length=key_length+null_parts;
@@ -12735,7 +12746,7 @@ int JOIN::rollup_send_data(uint idx)
 	   ref_pointer_array_size);
     if ((!having || having->val_int()))
     {
-      if (send_records < unit->select_limit_cnt &&
+      if (send_records < unit->select_limit_cnt && do_send_rows &&
 	  result->send_data(rollup.fields[i]))
 	return 1;
       send_records++;
