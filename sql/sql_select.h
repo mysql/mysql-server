@@ -137,7 +137,7 @@ class JOIN :public Sql_alloc
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
-  List<Item_buff> group_fields;
+  List<Item_buff> group_fields, group_fields_cache;
   TABLE    *tmp_table;
   // used to store 2 possible tmp table of SELECT
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
