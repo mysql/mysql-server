@@ -357,7 +357,7 @@ bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
 
 Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect()
+  Item_exists_subselect(), upper_not(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -373,8 +373,8 @@ Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
 
 Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
 					     compare_func_creator fn,
-					     st_select_lex *select_lex):
-  Item_in_subselect()
+					     st_select_lex *select_lex)
+  :Item_in_subselect()
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -471,17 +471,16 @@ String *Item_in_subselect::val_str(String *str)
 }
 
 Item_in_subselect::Item_in_subselect(Item_in_subselect *item):
-  Item_exists_subselect(item)
+  Item_exists_subselect(item), upper_not(item->upper_not)
 {
   left_expr= item->left_expr;
   abort_on_null= item->abort_on_null;
 }
 
-Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
-  Item_in_subselect(item)
-{
-  func= item->func;
-}
+Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item)
+  :Item_in_subselect(item),
+   func(item->func)
+{}
 
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
@@ -494,6 +493,57 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
   THD *thd= join->thd;
   thd->where= "scalar IN/ALL/ANY subquery";
+
+  if ((abort_on_null || (upper_not && upper_not->top_level())) &&
+      !select_lex->master_unit()->dependent &&
+      (func == &Item_bool_func2::gt_creator ||
+       func == &Item_bool_func2::lt_creator ||
+       func == &Item_bool_func2::ge_creator ||
+       func == &Item_bool_func2::le_creator) &&
+      !select_lex->group_list.elements &&
+      !select_lex->with_sum_func)
+  {
+    Item *item;
+    subs_type type= substype();
+    if (func == &Item_bool_func2::le_creator ||
+	func == &Item_bool_func2::lt_creator)
+    {
+      /*
+	(ALL && (> || =>)) || (ANY && (< || =<))
+	for ALL condition is inverted
+      */
+      item= new Item_sum_max(*select_lex->ref_pointer_array);
+    }
+    else
+    {
+      /*
+	(ALL && (< || =<)) || (ANY && (> || =>))
+	for ALL condition is inverted
+      */
+      item= new Item_sum_min(*select_lex->ref_pointer_array);
+    }
+    *select_lex->ref_pointer_array= item;
+    select_lex->item_list.empty();
+    select_lex->item_list.push_back(item);
+
+    if (item->fix_fields(thd, join->tables_list, &item))
+    {
+      DBUG_RETURN(ERROR);
+    }
+
+    // left expression belong to outer select
+    SELECT_LEX *current= thd->lex.current_select, *up;
+    thd->lex.current_select= up= current->return_after_parsing();
+    if (left_expr->fix_fields(thd, up->get_table_list(), 0))
+    {
+      thd->lex.current_select= current;
+      DBUG_RETURN(ERROR);
+    }
+    thd->lex.current_select= current;
+    substitution= (*func)(left_expr,
+			  new Item_singlerow_subselect(thd, select_lex));
+    DBUG_RETURN(OK);
+  }
 
   if (!substitution)
   {
@@ -736,10 +786,11 @@ Item_allany_subselect::select_transformer(JOIN *join)
   return single_value_transformer(join, left_expr, func);
 }
 
-subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
-							       st_select_lex *select,
-							       select_subselect *result,
-							       Item_subselect *item):
+subselect_single_select_engine::
+  subselect_single_select_engine(THD *thd, 
+				 st_select_lex *select,
+				 select_subselect *result,
+				 Item_subselect *item):
   subselect_engine(thd, item, result),
     prepared(0), optimized(0), executed(0)
 {

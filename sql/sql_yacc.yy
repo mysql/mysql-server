@@ -2140,7 +2140,7 @@ expr_expr:
 	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
-	    $$ = new Item_func_not(it);	/* ALL */
+	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
 	    $$ = it;			/* ANY/SOME */
 	}
@@ -2186,7 +2186,7 @@ no_in_expr:
 	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
-	    $$ = new Item_func_not(it);	/* ALL */
+	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
 	    $$ = it;			/* ANY/SOME */
 	}
@@ -2241,7 +2241,7 @@ no_and_expr:
 	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
-	    $$ = new Item_func_not(it);	/* ALL */
+	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
 	    $$ = it;			/* ANY/SOME */
 	}

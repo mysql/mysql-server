@@ -290,7 +290,6 @@ int st_select_lex_unit::exec()
 	      view we should do here same procedura as it was done by
 	      setup_table
 	    */
-	    DBUG_PRINT("SUBS", ("shared %s", table_list->real_name));
 	    setup_table_map(table_list->table, table_list, tablenr);
 	  }
 	}

@@ -53,7 +53,7 @@ public:
 
   enum trans_res {OK, REDUCE, ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
-		  EXISTS_SUBS, IN_SUBS, ALLANY_SUBS};
+		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
 
   Item_subselect();
   Item_subselect(Item_subselect *item)
@@ -202,6 +202,8 @@ protected:
   bool was_null;
   bool abort_on_null;
 public:
+  Item_func_not_all *upper_not; // point on NOT before ALL subquery
+
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
   Item_in_subselect(): Item_exists_subselect(),  abort_on_null(0)  {}
@@ -241,7 +243,8 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
-  subs_type substype() { return ALLANY_SUBS; }
+  // only ALL subquery has upper not
+  subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
 };
 
