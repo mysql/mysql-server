@@ -753,7 +753,7 @@ MySQL internals
 
 MySQL change history
 
-* News-3.23.x::                 Changes in release 3.23.x (Released as alpha)
+* News-3.23.x::                 Changes in release 3.23.x (Released as beta)
 * News-3.22.x::                 Changes in release 3.22.x (Recommended version)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
