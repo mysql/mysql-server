@@ -16051,7 +16051,9 @@ Values in the scope fields may be specified as follows:
 @itemize @bullet
 @item
 The wildcard characters @samp{%} and @samp{_} can be used in the @code{Host}
-and @code{Db} fields of either table.
+and @code{Db} fields of either table. If you wish to use for instance a
+@samp{_} character as part of a database name, specify it as @samp{\_} in
+the @code{GRANT} command.
 
 @item
 A @code{'%'} @code{Host} value in the @code{db} table means ``any host.'' A
@@ -16676,6 +16678,13 @@ database privileges by using @code{ON db_name.*} syntax. If you specify
 that database.  (@strong{Warning}: if you specify @code{ON *} and you
 @strong{don't} have a current database, you will affect the global privileges!)
 
+@strong{Please note}: the @samp{_} and @samp{%} wildcards are allowed when
+specifying database names in @code{GRANT} commands. This means that if you
+wish to use for instance a @samp{_} character as part of a database name,
+you should specify it as @samp{\_} in the @code{GRANT} command, to prevent
+the user from being able to access additional databases matching the
+wildcard pattern, e.g., @code{GRANT ... ON `foo\_bar`.* TO ...}.
+
 In order to accommodate granting rights to users from arbitrary hosts,
 MySQL supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
@@ -16684,8 +16693,8 @@ containing special characters or wildcard characters (such as @samp{%}), you
 can quote the user or host name (for example, @code{'test-user'@@'test-hostname'}).
 
 You can specify wildcards in the hostname.  For example,
-@code{user@@"%.loc.gov"} applies to @code{user} for any host in the
-@code{loc.gov} domain, and @code{user@@"144.155.166.%"} applies to @code{user}
+@code{user@@'%.loc.gov'} applies to @code{user} for any host in the
+@code{loc.gov} domain, and @code{user@@'144.155.166.%'} applies to @code{user}
 for any host in the @code{144.155.166} class C subnet.
 
 The simple form @code{user} is a synonym for @code{user@@"%"}.
@@ -19931,7 +19940,7 @@ cache.
 The value of the @code{--bdb-home} option.
 
 @item @code{bdb_max_lock}
-The maximum number of locks (1000 by default) you can have active on a
+The maximum number of locks (10,000 by default) you can have active on a
 BDB table. You should increase this if you get errors of type @code{bdb:
 Lock table is out of available locks} or @code{Got error 12 from ...}
 when you have do long transactions or when @code{mysqld} has to examine
@@ -20030,15 +20039,15 @@ The maximum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
 this variable.} (This option is new for MySQL 4.0.)
 
-@item @code{ft_max_word_len_sort}
+@item @code{ft_max_word_len_for_sort}
 The maximum length of the word in a @code{FULLTEXT} index
 to be used in fast index recreation method in @code{REPAIR},
 @code{CREATE INDEX},  or @code{ALTER TABLE}.  Longer words are inserted the
 slow way.  The rule of the thumb is as follows: with
-@code{ft_max_word_len_sort} increasing, @strong{MySQL} will create bigger
+@code{ft_max_word_len_for_sort} increasing, @strong{MySQL} will create bigger
 temporary files (thus slowing the process down, due to disk I/O), and will put
 fewer keys in one sort block (again, decreasing the efficiency).  When
-@code{ft_max_word_len_sort} is too small, instead, @strong{MySQL} will insert a
+@code{ft_max_word_len_for_sort} is too small, instead, @strong{MySQL} will insert a
 lot of words into index the slow way, but short words will be inserted very
 quickly.
 
@@ -24212,7 +24221,7 @@ ignore, use the directive multiple times, once for each database.
 You should not use this directive if you are using cross table updates
 and you don't want these update to be replicated.
 
-The main reason for this behavior is that it's hard from the command
+The main reason for this behaviour is that it's hard from the command
 alone know if a query should be replicated or not; For example if you
 are using multi-table-delete or multi-table-update commands in MySQL 4.x
 that goes across multiple databases.  It's also very fast to just check
@@ -31231,7 +31240,7 @@ mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
 
 If @code{expr2} or @code{expr3} is explicitely @code{NULL} then the
 result type of the @code{IF()} function is the type of the not
-@code{NULL} column. (This behavior is new in MySQL 4.0.3).
+@code{NULL} column. (This behaviour is new in MySQL 4.0.3).
 
 @code{expr1} is evaluated as an integer value, which means that if you are
 testing floating-point or string values, you should do so using a comparison
@@ -35217,6 +35226,9 @@ In other words, you can't access the values of the old row from a
 @code{REPLACE} statement.  In some old MySQL versions it appeared that
 you could do this, but that was a bug that has been corrected.
 
+To be able to use @code{REPLACE} you must have @code{INSERT} and
+@code{DELETE} privileges for the table.
+
 When you use a @code{REPLACE} command, @code{mysql_affected_rows()}
 will return 2 if the new row replaced an old row.  This is because
 one row was inserted and then the duplicate was deleted.
@@ -36604,7 +36616,7 @@ deleted due to duplication of unique key values.
 The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything, except for InnoDB type tables which support
 @code{ADD CONSTRAINT FOREIGN KEY (...) REFERENCES ... (...)}.
-Note that InnoDB does not allow a constraint @code{symbol} or @code{index_name}
+Note that InnoDB does not allow an @code{index_name}
 to be specified. @xref{InnoDB}.
 The syntax for other table types is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
@@ -39257,7 +39269,7 @@ constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...)
+[CONSTRAINT symbol] FOREIGN KEY (index_col_name, ...)
                   REFERENCES table_name (index_col_name, ...)
                   [ON DELETE CASCADE | ON DELETE SET NULL]
 @end example
@@ -39316,7 +39328,7 @@ Starting from version 3.23.50 InnoDB allows you to add a new
 foreign key constraint to a table through
 @example
 ALTER TABLE yourtablename
-  ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
+ADD [CONSTRAINT symbol] FOREIGN KEY (...) REFERENCES anothertablename(...)
 @end example
 Remember to create the required indexes first, though.
                            
@@ -50830,6 +50842,8 @@ Fixed some @code{ORDER BY ... DESC} problems with InnoDB.
 Fixed an inadvertently changed option (@code{--ignore-space}) back to the
 original @code{--ignore-spaces} in @code{mysqlclient}. (Both syntaxes will
 work).
+@item
+Don't require @code{UPDATE} privilege when using @code{REPLACE}.
 @end itemize
 
 @node News-4.0.4, News-4.0.3, News-4.0.5, News-4.0.x
@@ -50996,7 +51010,7 @@ that can be used as data values in queries.
 Changed variable @code{DELAY_KEY_WRITE} to an enum to allow one set
 @code{DELAY_KEY_WRITE} for all tables without taking down the server.
 @item
-Changed behavior of @code{IF(condition,column,NULL)} so that it returns
+Changed behaviour of @code{IF(condition,column,NULL)} so that it returns
 the value of the column type.
 @item
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
@@ -54017,7 +54031,7 @@ Tõnu Samuel).
 @item
 Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 MySQL should now be able to choose keys even better when there
-is many keys to choose from.
+are many keys to choose from.
 @item
 Changed optimiser to prefer a range key instead of a ref key when the
 range key can uses more columns than the ref key (which only can use
@@ -58264,25 +58278,25 @@ Instead of using row level locks one can use application level locks
 only in well-behaved applications.
 
 In many cases one can do an educated guess which locking type is best
-for the application but generally it's very hard to say that a given
+for the application, but generally it's very hard to say that a given
 lock type is better than another; everything depends on the application
 and different part of the application may require different lock types.
 
 Here are some tips about locking in MySQL:
 
-On web application most applications do lots of selects, very few
-deletes, updates mainly on keys and inserts in some specific tables.
+Most web applications do lots of selects, very few
+deletes, updates mainly on keys, and inserts in some specific tables.
 The base MySQL setup is very well tuned for this.
 
-Concurrent users is not a problem if one doesn't mix updates and selects
-that needs to examine many rows in the same table.
+Concurrent users are not a problem if one doesn't mix updates with selects
+that need to examine many rows in the same table.
 
 If one mixes inserts and deletes on the same table then @code{INSERT DELAYED}
 may be of great help.
 
 One can also use @code{LOCK TABLES} to speed up things (many updates within
 a single lock is much faster than updates without locks).  Splitting
-thing to different tables will also helps.
+thing to different tables will also help.
 
 If you get speed problems with the table locks in MySQL, you
 may be able to solve these by converting some of your tables to @code{InnoDB}
@@ -58290,7 +58304,7 @@ or @code{BDB} tables.
 @xref{InnoDB}. @xref{BDB}.
 
 The optimisation section in the manual covers a lot of different aspects of
-how to tune ones application. @xref{Tips}.
+how to tune applications. @xref{Tips}.
 
 
 @node RTS-threads, Thread packages, Locking methods, Porting
