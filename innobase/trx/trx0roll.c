@@ -98,6 +98,8 @@ trx_rollback_for_mysql(
 
 		return(DB_SUCCESS);
 	}
+
+	trx->op_info = "rollback";
 	
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -110,6 +112,8 @@ trx_rollback_for_mysql(
 	utility threads: */
 
 	srv_active_wake_master_thread();
+
+	trx->op_info = "";
 
 	return(err);
 }	
@@ -129,6 +133,8 @@ trx_rollback_last_sql_stat_for_mysql(
 
 		return(DB_SUCCESS);
 	}
+
+	trx->op_info = "rollback of SQL statement";
 	
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -144,6 +150,8 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	srv_active_wake_master_thread();
 
+	trx->op_info = "";
+	
 	return(err);
 }
 

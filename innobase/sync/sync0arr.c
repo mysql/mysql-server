@@ -438,22 +438,48 @@ sync_array_cell_print(
 /*==================*/
 	sync_cell_t*	cell)	/* in: sync cell */
 {
-	char*	str	 = NULL;
-	ulint	type;
+	mutex_t*	mutex;
+	rw_lock_t*	rwlock;
+	char*		str	 = NULL;
+	ulint		type;
 
 	type = cell->request_type;
 
 	if (type == SYNC_MUTEX) {
 		str = "MUTEX ENTER";
-	} else if (type == RW_LOCK_EX) {
-		str = "X-LOCK";
-	} else if (type == RW_LOCK_SHARED) {
-		str = "S-LOCK";
+		mutex = (mutex_t*)cell->wait_object;
+
+		printf("Mutex created in file %s line %lu",
+				mutex->cfile_name, mutex->cline);
+	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
+
+		if (type == RW_LOCK_EX) {
+			str = "X-LOCK";
+		} else {
+			str = "S_LOCK";
+		}
+
+		rwlock = (rw_lock_t*)cell->wait_object;
+
+		printf("Rw-latch created in file %s line %lu",
+				rwlock->cfile_name, rwlock->cline);
+		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
+			printf(" writer reserved with %lu", rwlock->writer);
+		}
+		
+		if (rwlock->writer == RW_LOCK_EX) {
+			printf(" reserv. thread id %lu",
+				(ulint)rwlock->writer_thread);
+		}
+
+		if (rwlock->reader_count > 0) {
+			printf(" readers %lu", rwlock->reader_count);
+		}	
 	} else {
 		ut_error;
 	}
 
-	printf("%lx waited for by thread %lu op. %s file %s line %lu ",
+	printf(" at addr %lx waited for by thread %lu op. %s file %s line %lu ",
 				(ulint)cell->wait_object,
 				(ulint)cell->thread,
 				str, cell->file, cell->line);

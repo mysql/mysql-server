@@ -769,6 +769,11 @@ btr_search_guess_on_hash(
 		buf_page_make_young(page);
 	}	
 
+	/* Increment the page get statistics though we did not really
+	fix the page: for user info only */
+
+	buf_pool->n_page_gets++;
+
 	return(TRUE);	
 
 	/*-------------------------------------------*/
