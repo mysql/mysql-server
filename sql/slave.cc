@@ -1459,7 +1459,7 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
     if (master_user)
       strmake(mi->user, master_user, sizeof(mi->user) - 1);
     if (master_password)
-      strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
+      strmake(mi->password, master_password, SCRAMBLED_PASSWORD_CHAR_LENGTH);
     mi->port = master_port;
     mi->connect_retry = master_connect_retry;
   }
@@ -1483,8 +1483,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 			      master_host) ||
 	init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
 			      master_user) || 
-	init_strvar_from_file(mi->password, HASH_PASSWORD_LENGTH+1, &mi->file,
-			      master_password) ||
+        init_strvar_from_file(mi->password, SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                              &mi->file, master_password) ||
 	init_intvar_from_file(&port, &mi->file, master_port) ||
 	init_intvar_from_file(&connect_retry, &mi->file,
 			      master_connect_retry))
