@@ -1906,7 +1906,6 @@ int Dbtup::interpreterNextLab(Signal* signal,
         else 
 	{
           Uint32 tmp = ((argLen + 3) >> 2) + 1;
-	  ndbout_c("tmp = %d", tmp);
           TprogramCounter += tmp;
         }
 	break;
