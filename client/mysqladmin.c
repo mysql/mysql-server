@@ -787,9 +787,30 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       if (mysql_query(mysql,buff))
       {
-	my_printf_error(0,"unable to change password; error: '%s'",
-			MYF(ME_BELL),mysql_error(mysql));
-	return -1;
+	if (mysql_errno(mysql)!=1290)
+	{
+	  my_printf_error(0,"unable to change password; error: '%s'",
+			  MYF(ME_BELL),mysql_error(mysql));
+	  return -1;
+	}
+	else
+	{
+	  sprintf(buff,"UPDATE mysql.user SET password='%s' WHERE user='%s' and"
+		  " host=substring_index(user(),_utf8\"@\",-1)",
+		  crypted_pw, user);
+	  if (mysql_query(mysql,buff))
+	  {
+	    my_printf_error(0,"unable to update user table; error: '%s'",
+			    MYF(ME_BELL),mysql_error(mysql));
+	    return -1;
+	  }
+	  if (mysql_query(mysql,"set sql_log_off=0"))
+	  {
+	    my_printf_error(0, "Can't turn on logging; error: '%s'",
+			    MYF(ME_BELL),mysql_error(mysql));
+	    return -1;
+	  }
+	}
       }
       argc--; argv++;
       break;
