@@ -1161,7 +1161,7 @@ longlong Item_func_locate::val_int()
   null_value=0;
   uint start=0;
   uint start0=0;
-  int  ind;
+  my_match_t match;
 
   if (arg_count == 3)
   {
@@ -1175,11 +1175,12 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
   
-  ind= cmp_collation.collation->coll->instr(cmp_collation.collation,
+  if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
                                             a->ptr()+start, a->length()-start,
-                                            b->ptr(), b->length());
-
-  return (longlong) (ind >= 0 ? ind + start0 + 1 : ind + 1);
+                                            b->ptr(), b->length(),
+                                            &match, 1))
+    return 0;
+  return (longlong) match.mblen + start0 + 1;
 }
 
 

@@ -274,18 +274,28 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
   return b-b0;
 }
 
-int my_instr_mb(CHARSET_INFO *cs,
-                const char *big,   uint b_length, 
-                const char *small, uint s_length)
+uint my_instr_mb(CHARSET_INFO *cs,
+                 const char *big,   uint b_length, 
+                 const char *small, uint s_length,
+                 my_match_t *match, uint nmatch)
 {
-  register const char *end;
+  register const char *end, *big0;
   int res= 0;
   
   if (s_length <= b_length)
   {
     if (!s_length)
-      return 0;		// Empty string is always found
+    {
+      if (nmatch)
+      {
+        match->beg= 0;
+        match->end= 0;
+        match->mblen= 0;
+      }
+      return 1;		// Empty string is always found
+    }
     
+    big0= big;
     end= big+b_length-s_length+1;
     
     while (big < end)
@@ -294,15 +304,28 @@ int my_instr_mb(CHARSET_INFO *cs,
       
       if (!cs->coll->strnncoll(cs, (unsigned char*) big,   s_length, 
       				   (unsigned char*) small, s_length))
-        return res;
-      
+      {
+        if (nmatch)
+        {
+          match[0].beg= big0;
+          match[0].end= big-big0;
+          match[0].mblen= res;
+          if (nmatch > 1)
+          {
+            match[1].beg= match[0].end;
+            match[1].end= match[0].end+s_length;
+            match[1].mblen= 0;	/* Not computed */
+          }
+        }
+        return 2;
+      }
       mblen= (mblen= my_ismbchar(cs, big, end)) ? mblen : 1;
       big+= mblen;
       b_length-= mblen;
       res++;
     }
   }
-  return -1;
+  return 0;
 }
 
 /* BINARY collations handlers for MB charsets */
