@@ -5783,8 +5783,11 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
       continue;
     }
 
+    /* Round tim e from millisceonds to seconds */
+    uint wait_secs= ((ndb_cache_check_time+999)/1000);
+    DBUG_PRINT("ndb_util_thread", ("wait_secs: %d", wait_secs));
     /* Set new time to wake up */
-    set_timespec(abstime, ndb_cache_check_time);
+    set_timespec(abstime, wait_secs);
 
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
@@ -5793,7 +5796,6 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
     {
       share= (NDB_SHARE *)hash_element(&ndbcluster_open_tables, i);
       share->use_count++; /* Make sure the table can't be closed */
-
       DBUG_PRINT("ndb_util_thread",
                  ("Found open table[%d]: %s, use_count: %d",
                   i, share->table_name, share->use_count));
