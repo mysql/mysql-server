@@ -114,9 +114,7 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
   DBUG_RETURN(0);
 }
 
-FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
-			     byte *keybuf __attribute__((unused)),
-			     const byte *record)
+FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
 {
   TREE ptree;
   DBUG_ENTER("_mi_ft_parserecord");
@@ -199,9 +197,9 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   int cmp, cmp2;
   DBUG_ENTER("_mi_ft_update");
 
-  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, keybuf, oldrec)))
+  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, oldrec)))
     goto err0;
-  if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, keybuf, newrec)))
+  if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, newrec)))
     goto err1;
 
   error=0;
@@ -249,7 +247,7 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   FT_WORD *wlist;
   DBUG_ENTER("_mi_ft_add");
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
   {
     error=_mi_ft_store(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));
@@ -268,7 +266,7 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_ENTER("_mi_ft_del");
   DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
   {
     error=_mi_ft_erase(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));

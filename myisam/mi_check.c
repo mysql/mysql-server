@@ -2575,8 +2575,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
       my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
       if ((error=sort_get_next_record(sort_param)))
         DBUG_RETURN(error);
-      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,
-                                     key,sort_param->record)))
+      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,sort_param->record)))
         DBUG_RETURN(1);
       if (wptr->pos)
         break;
