@@ -70,7 +70,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_update.cc sql_delete.cc uniques.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
-			unireg.cc \
+			unireg.cc des_key_file.cc \
 			time.cc opt_range.cc opt_sum.cc opt_ft.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \

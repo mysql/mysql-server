@@ -201,7 +201,7 @@ stored in Query_cache_memory_bin_step structure.
 Free memory blocks are sorted in bins in lists with size-ascending order
 (more small blocks needed frequently then bigger one).
 
-6. Packing cache.
+7. Packing cache.
 
 Query cache packing is divided into two operation:
 	- pack_cache
@@ -305,7 +305,8 @@ If join_results allocated new block(s) then we need call pack_cache again.
 #define BLOCK_UNLOCK_RD(B) { \
   DBUG_PRINT("lock", ("%d UNLOCK_RD 0x%lx",\
   __LINE__,(ulong)(B)));B->query()->unlock_reading();}
-#define DUMP(C) DBUG_EXECUTE("qcache", {(C)->queries_dump();(C)->tables_dump();})
+#define DUMP(C) DBUG_EXECUTE("qcache", {\
+  (C)->cache_dump(); (C)->queries_dump();(C)->tables_dump();})
 #else
 #define MUTEX_LOCK(M) pthread_mutex_lock(M)
 #define MUTEX_UNLOCK(M) pthread_mutex_unlock(M)
@@ -581,6 +582,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     else
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   }
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
   DBUG_VOID_RETURN;
 }
 
@@ -609,6 +611,7 @@ void query_cache_abort(NET *net)
     }
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   }
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
   DBUG_VOID_RETURN;
 }
 
@@ -656,12 +659,14 @@ void query_cache_end_of_result(NET *net)
     }
     net->query_cache_query=0;
   }
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
   DBUG_VOID_RETURN;
 }
 
 void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 {
   query_cache.invalidate_by_MyISAM_filename(filename);
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
 }
 
 
@@ -1321,6 +1326,7 @@ void Query_cache::free_cache(my_bool destruction)
     if (bins[0].free_blocks == 0)
     {
       wreck(__LINE__,"no free memory found in (bins[0].free_blocks");
+      DBUG_VOID_RETURN;
     }
 #endif
 
@@ -1335,12 +1341,13 @@ void Query_cache::free_cache(my_bool destruction)
     hash_free(&tables);
     if (!destruction)
       STRUCT_UNLOCK(&structure_guard_mutex);
+    DBUG_EXECUTE("check_querycache",check_integrity(););
   }
   DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************
- Free block data
+  Free block data
 *****************************************************************************/
 
 /*
@@ -1501,7 +1508,6 @@ Query_cache::append_result_data(Query_cache_block **current_block,
     DBUG_PRINT("qcache", ("size limit reached %lu > %lu",
 			query_block->query()->length(),
 			query_cache_limit));
-    *current_block=0;				// Mark error
     DBUG_RETURN(0);
   }
   if (*current_block == 0)
@@ -1550,8 +1556,8 @@ Query_cache::append_result_data(Query_cache_block **current_block,
 				query_block,
 				Query_cache_block::RES_CONT);
     /*
-       new_block may be not 0 even !success (if write_result_data
-       allocate small block but failed allocate continue
+       new_block may be != 0 even !success (if write_result_data
+       allocate a small block but failed to allocate continue)
     */
     if (new_block != 0)
       double_linked_list_join(last_block, new_block);
@@ -1999,7 +2005,7 @@ Query_cache::get_free_block(ulong len, my_bool not_less, ulong min)
 
 void Query_cache::free_memory_block(Query_cache_block *block)
 {
-  DBUG_ENTER("Query_cache::free_n_unlock_memory_block");
+  DBUG_ENTER("Query_cache::free_memory_block");
   block->used=0;
   DBUG_PRINT("qcache",("first_block 0x%lx, block 0x%lx, pnext 0x%lx pprev 0x%lx",
 		     (ulong) first_block, (ulong) block,block->pnext,
@@ -2069,7 +2075,7 @@ my_bool Query_cache::append_next_free_block(Query_cache_block *block,
   DBUG_PRINT("enter", ("block 0x%lx, add_size %lu", (ulong) block,
 		       add_size));
 
-  if (next_block->is_free())
+  if (next_block != first_block && next_block->is_free())
   {
     ulong old_len = block->length;
     exclude_from_free_memory_list(next_block);
@@ -2404,7 +2410,7 @@ my_bool Query_cache::move_by_type(byte **border,
     char *data = (char*) block->data();
     byte *key;
     uint key_length;
-    key=query_cache_table_get_key((byte*) block, &key_length,0);
+    key=query_cache_table_get_key((byte*) block, &key_length, 0);
     hash_search(&tables, (byte*) key, key_length);
 
     block->destroy();
@@ -2452,7 +2458,7 @@ my_bool Query_cache::move_by_type(byte **border,
 					     block->data())->result();
     byte *key;
     uint key_length;
-    key=query_cache_query_get_key((byte*) block, &key_length,0);
+    key=query_cache_query_get_key((byte*) block, &key_length, 0);
     hash_search(&queries, (byte*) key, key_length);
 
     memcpy((char*) new_block->table(0), (char*) block->table(0),
@@ -2672,6 +2678,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path)
 
 void Query_cache::wreck(uint line, const char *message)
 {
+  THD *thd=current_thd;
   DBUG_ENTER("Query_cache::wreck");
   query_cache_size = 0;
   if (*message)
@@ -2679,9 +2686,11 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("=================================="));
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
-  current_thd->killed = 1;
-  bins_dump();
+  if (thd)
+    thd->killed = 1;
   cache_dump();
+  /* check_integrity(); */ /* Can't call it here because of locks */
+  bins_dump();
   DBUG_VOID_RETURN;
 }
 
@@ -2819,4 +2828,347 @@ void Query_cache::tables_dump()
   }
   DBUG_PRINT("qcache", ("--------------------"));
 }
+
+
+my_bool Query_cache::check_integrity()
+{
+  my_bool result = 0;
+  uint i;
+  STRUCT_LOCK(&structure_guard_mutex);
+
+  if (hash_check(&queries))
+  {
+    DBUG_PRINT("error", ("queries hash is damaged"));
+    result = 1;
+  }
+
+  if (hash_check(&tables))
+  {
+    DBUG_PRINT("error", ("tables hash is damaged"));
+    result = 1;
+  }
+
+  DBUG_PRINT("qcache", ("physical address check ..."));
+  ulong free=0, used=0;
+  Query_cache_block * block = first_block;
+  do
+  {
+    DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+			  (ulong) block, (uint) block->type));  
+    // Check memory allocation
+    if (block->pnext == first_block) // Is it last block?
+    {
+      if ( ((byte*)block) + block->length != 
+	   ((byte*)first_block) + query_cache_size )
+      {
+	DBUG_PRINT("error", 
+		   ("block 0x%lx, type %u, ended at 0x%lx, but cache ended at 0x%lx",
+		    (ulong) block, (uint) block->type, 
+		    (ulong) (((byte*)block) + block->length),
+		    (ulong) (((byte*)first_block) + query_cache_size)));
+	result = 1;
+      }
+    }
+    else
+      if (((byte*)block) + block->length != ((byte*)block->pnext))
+      {
+	DBUG_PRINT("error", 
+		   ("block 0x%lx, type %u, ended at 0x%lx, but next block begining at 0x%lx",
+		    (ulong) block, (uint) block->type, 
+		    (ulong) (((byte*)block) + block->length),
+		    (ulong) ((byte*)block->pnext)));
+      }
+    if (block->type == Query_cache_block::FREE)
+      free+=block->length;
+    else
+      used+=block->length;
+    switch(block->type) {
+    case Query_cache_block::FREE:
+    {
+      Query_cache_memory_bin *bin = *((Query_cache_memory_bin **)
+				      block->data());
+      //is it correct pointer?
+      if ( ((byte*)bin) < ((byte*)bins) ||
+	  ((byte*)bin) >= ((byte*)first_block))
+      {
+	DBUG_PRINT("error", 
+		   ("free block 0x%lx have bin pointer 0x%lx beyaond of bins array bounds [0x%lx,0x%lx]",
+		    (ulong) block, 
+		    (ulong) bin,
+		    (ulong) bins,
+		    (ulong) first_block));
+	result = 1;
+      }
+      else
+      {
+	int idx = (((byte*)bin) - ((byte*)bins)) /
+	  sizeof(Query_cache_memory_bin);
+	if (in_list(bins[idx].free_blocks, block, "free memory"))
+	  result = 1;
+      }
+      break;
+    }
+    case Query_cache_block::TABLE:
+      if (in_list(tables_blocks[block->table()->type()], block, "tables"))
+	result = 1;
+      break;
+    case Query_cache_block::QUERY:
+      if (in_list(queries_blocks, block, "query"))
+	result = 1;
+      break;
+    case Query_cache_block::RES_INCOMPLETE:
+    case Query_cache_block::RES_BEG:
+    case Query_cache_block::RES_CONT:
+    case Query_cache_block::RESULT:
+    {
+      Query_cache_block * query_block = block->result()->parent();
+      if ( ((byte*)query_block) < ((byte*)first_block) ||
+	  ((byte*)query_block) >= (((byte*)first_block) + query_cache_size))
+      {
+	DBUG_PRINT("error", 
+		   ("result block 0x%lx have query block pointer 0x%lx beyaond of block pool bounds [0x%lx,0x%lx]",
+		    (ulong) block,
+		    (ulong) query_block,
+		    (ulong) first_block,
+		    (ulong) (((byte*)first_block) + query_cache_size)));
+	result = 1;
+      }
+      else
+      {
+	if (in_list(queries_blocks, query_block, "query from results"))
+	  result = 1;
+	if (in_list(query_block->query()->result(), block,
+		    "results"))
+	  result = 1;
+      }
+      break;
+    }
+    default:
+      DBUG_PRINT("error",
+		 ("block 0x%lx have incorrect type %u",
+		  block, block->type));
+      result = 1;
+    }
+    
+    block = block->pnext;
+  } while (block != first_block);
+  
+  if (used + free != query_cache_size)
+  {
+    DBUG_PRINT("error",
+	       ("used memory (%lu) + free memory (%lu) !=  query_cache_size (%lu)",
+		used, free, query_cache_size));
+    result = 1;
+  }
+  
+  if (free != free_memory)
+  {
+    DBUG_PRINT("error",
+	       ("free memory (%lu) != free_memory (%lu)",
+		free, free_memory));
+    result = 1;
+  }
+
+  DBUG_PRINT("qcache", ("check queries ..."));
+  if ((block = queries_blocks))
+  {
+    do
+    {
+      DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+			    (ulong) block, (uint) block->type));
+      uint length;
+      byte *key = query_cache_query_get_key((byte*) block, &length, 0);
+      gptr val = hash_search(&queries, key, length);
+      if (((gptr)block) != val)
+      {
+	DBUG_PRINT("error", ("block 0x%lx found in queries hash like 0x%lx",
+			     (ulong) block, (ulong) val));
+      }
+      if (in_blocks(block))
+	result = 1;
+      Query_cache_block * results = block->query()->result();
+      if (results)
+      {
+	Query_cache_block * result_block = results;
+	do
+	{
+	  DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+				(ulong) block, (uint) block->type));
+	  if (in_blocks(result_block))
+	    result = 1;
+
+	  result_block = result_block->next;
+	} while (result_block != results);
+      }
+      block = block->next;
+    } while (block != queries_blocks);
+  }
+
+  DBUG_PRINT("qcache", ("check tables ..."));
+  for (i=0 ; (int) i < (int) Query_cache_table::TYPES_NUMBER; i++)
+  {
+    if ((block = tables_blocks[i]))
+    {
+      do
+      {
+	DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+			      (ulong) block, (uint) block->type));
+	uint length;
+	byte *key = query_cache_table_get_key((byte*) block, &length, 0);
+	gptr val = hash_search(&tables, key, length);
+	if (((gptr)block) != val)
+	{
+	  DBUG_PRINT("error", ("block 0x%lx found in tables hash like 0x%lx",
+			       (ulong) block, (ulong) val));
+	}
+
+	if (in_blocks(block))
+	  result = 1;
+	block=block->next;
+      } while (block != tables_blocks[i]);
+    }
+  }
+
+  DBUG_PRINT("qcache", ("check free blocks"));
+  for (i = 0; i < mem_bin_num; i++)
+  {
+    if ((block = bins[i].free_blocks))
+    {
+      uint count = 0;
+      do
+      {
+	DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+			      (ulong) block, (uint) block->type));
+	if (in_blocks(block))
+	  result = 1;
+	
+	count++;
+	block=block->next;
+      } while (block != bins[i].free_blocks);
+      if (count != bins[i].number)
+      {
+	DBUG_PRINT("qcache", ("bin[%d].number is %d, but bin have %d blocks",
+			      bins[i].number,  count));
+	result = 1;
+      }
+    }
+  }
+  DBUG_ASSERT(result == 0);
+  STRUCT_UNLOCK(&structure_guard_mutex);
+  return result;
+}
+
+
+my_bool Query_cache::in_blocks(Query_cache_block * point)
+{
+  my_bool result = 0;
+  Query_cache_block *block = point;
+  //back
+  do
+  {
+    if (block->pprev->pnext != block)
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx in physical list is incorrect linked, prev block 0x%lx refered as next to 0x%lx (check from 0x%lx)",
+		  (ulong) block, (ulong) block->pprev,
+		  (ulong) block->pprev->pnext,
+		  (ulong) point));
+      //back trace
+      for(; block != point; block = block->pnext)
+	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
+      result = 1;
+      goto err1;
+    }
+    block = block->pprev;
+  } while (block != first_block && block != point);
+  if (block != first_block)
+  {
+    DBUG_PRINT("error",
+	       ("block 0x%lx (0x%lx<-->0x%lx) not owned by pysical list",
+		(ulong) block, (ulong) block->pprev, (ulong )block->pnext));
+    return 1;
+  }
+
+err1:
+  //forward
+  block = point;
+  do
+  {
+    if (block->pnext->pprev != block)
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx in physicel list is incorrect linked, next block 0x%lx refered as prev to 0x%lx (check from 0x%lx)",
+		  (ulong) block, (ulong) block->pnext,
+		  (ulong) block->pnext->pprev,
+		  (ulong) point));
+      //back trace
+      for(; block != point; block = block->pprev)
+	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
+      result = 1;
+      goto err2;
+    }
+    block = block->pnext;
+  } while (block != first_block);
+err2:
+  return result;
+}
+
+
+my_bool Query_cache::in_list(Query_cache_block * root,
+			     Query_cache_block * point,
+			     const char *name)
+{
+  my_bool result = 0;
+  Query_cache_block *block = point;
+  //back
+  do
+  {
+    if (block->prev->next != block)
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, prev block 0x%lx refered as next to 0x%lx (check from 0x%lx)",
+		  (ulong) block, name, (ulong) root, (ulong) block->prev,
+		  (ulong) block->prev->next,
+		  (ulong) point));
+      //back trace
+      for(; block != point; block = block->next)
+	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
+      result = 1;
+      goto err1;
+    }
+    block = block->prev;
+  } while (block != root && block != point);
+  if (block != root)
+  {
+    DBUG_PRINT("error",
+	       ("block 0x%lx (0x%lx<-->0x%lx) not owned by list '%s' 0x%lx",
+		(ulong) block, 
+		(ulong) block->prev, (ulong) block->next,
+		name, (ulong) root));
+    return 1;
+  }
+err1:
+  // forward
+  block = point;
+  do
+  {
+    if (block->next->prev != block)
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, next block 0x%lx refered as prev to 0x%lx (check from 0x%lx)",
+		  (ulong) block, name, (ulong) root, (ulong) block->next,
+		  (ulong) block->next->prev,
+		  (ulong) point));
+      //back trace
+      for (; block != point; block = block->prev)
+	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
+      result = 1;
+      goto err2;
+    }
+    block = block->next;
+  } while (block != root);
+err2:
+  return result;
+}
+
 #endif /* DBUG_OFF */

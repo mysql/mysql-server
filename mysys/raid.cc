@@ -14,61 +14,61 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* --------------------------------------------------------*
-*
-*  RAID support for MySQL. Raid 0 (stiping) only implemented yet.
-*
-*  Why RAID? Why it must be in MySQL?
-*
-*  This is because then you can:
-*  1. Have bigger tables than your OS limit. In time of writing this
-*     we are hitting to 2GB limit under linux/ext2
-*  2. You can get more speed from IO bottleneck by putting
-*     Raid dirs on different physical disks.
-*  3. Getting more fault tolerance (not implemented yet)
-*
-*  Why not to use RAID:
-*
-*  1. You are losing some processor power to calculate things,
-*     do more syscalls and interrupts.
-*
-*  Functionality is supplied by two classes: RaidFd and RaidName.
-*  RaidFd supports funtionality over file descriptors like
-*  open/create/write/seek/close. RaidName supports functionality
-*  like rename/delete where we have no relations to filedescriptors.
-*  RaidName can be prorably unchanged for different Raid levels. RaidFd
-*  have to be virtual I think ;).
-*  You can speed up some calls in MySQL code by skipping RAID code.
-*  For example LOAD DATA INFILE never needs to read RAID-ed files.
-*  This can be done adding proper "#undef my_read" or similar undef-s
-*  in your code. Check out the raid.h!
-*
-*  Some explanation about _seek_vector[]
-*  This is seek cache. RAID seeks too much and we cacheing this. We
-*  fool it and just storing new position in file to _seek_vector.
-*  When there is no seeks to do, we are putting RAID_SEEK_DONE into it.
-*  Any other value requires seeking to that position.
-*
-*  TODO:
-*
-*
-*  -  Implement other fancy things like RAID 1 (mirroring) and RAID 5.
-*     Should not to be very complex.
-*
-*  -  Optimize big blob writes by resorting write buffers and writing
-*     big chunks at once instead of doing many syscalls. - after thinking I
-*     found this is useless. This is because same thing one can do with just
-*     increasing RAID_CHUNKSIZE. Monty, what do you think? tonu.
-*
-*  -  If needed, then implement missing syscalls. One known to miss is stat();
-*
-*  -  Make and use a thread safe dynamic_array buffer. The used one
-*     will not work if needs to be extended at the same time someone is
-*     accessing it.
-*
-*
-*  tonu@mysql.com & monty@mysql.com
-* --------------------------------------------------------*/
+/*
+ 
+   RAID support for MySQL. Raid 0 (stiping) only implemented yet.
+ 
+   Why RAID? Why it must be in MySQL?
+ 
+   This is because then you can:
+   1. Have bigger tables than your OS limit. In time of writing this
+      we are hitting to 2GB limit under linux/ext2
+   2. You can get more speed from IO bottleneck by putting
+      Raid dirs on different physical disks.
+   3. Getting more fault tolerance (not implemented yet)
+ 
+   Why not to use RAID:
+ 
+   1. You are losing some processor power to calculate things,
+      do more syscalls and interrupts.
+ 
+   Functionality is supplied by two classes: RaidFd and RaidName.
+   RaidFd supports funtionality over file descriptors like
+   open/create/write/seek/close. RaidName supports functionality
+   like rename/delete where we have no relations to filedescriptors.
+   RaidName can be prorably unchanged for different Raid levels. RaidFd
+   have to be virtual I think ;).
+   You can speed up some calls in MySQL code by skipping RAID code.
+   For example LOAD DATA INFILE never needs to read RAID-ed files.
+   This can be done adding proper "#undef my_read" or similar undef-s
+   in your code. Check out the raid.h!
+ 
+   Some explanation about _seek_vector[]
+   This is seek cache. RAID seeks too much and we cacheing this. We
+   fool it and just storing new position in file to _seek_vector.
+   When there is no seeks to do, we are putting RAID_SEEK_DONE into it.
+   Any other value requires seeking to that position.
+ 
+   TODO:
+ 
+ 
+   -  Implement other fancy things like RAID 1 (mirroring) and RAID 5.
+      Should not to be very complex.
+ 
+   -  Optimize big blob writes by resorting write buffers and writing
+      big chunks at once instead of doing many syscalls. - after thinking I
+      found this is useless. This is because same thing one can do with just
+      increasing RAID_CHUNKSIZE. Monty, what do you think? tonu.
+ 
+   -  If needed, then implement missing syscalls. One known to miss is stat();
+ 
+   -  Make and use a thread safe dynamic_array buffer. The used one
+      will not work if needs to be extended at the same time someone is
+      accessing it.
+ 
+ 
+   tonu@mysql.com & monty@mysql.com
+*/
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation

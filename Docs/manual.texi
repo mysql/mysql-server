@@ -8728,7 +8728,12 @@ it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 * FreeBSD::                     FreeBSD Notes
 * NetBSD::                      NetBSD notes
 * OpenBSD::                     OpenBSD Notes
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
 * BSDI::                        BSD/OS Notes
+* BSDI2::                       BSD/OS Version 2.x Notes
+* BSDI3::                       BSD/OS Version 3.x Notes
+* BSDI4::                       BSD/OS Version 4.x Notes
 @end menu
 
 
@@ -8836,7 +8841,7 @@ crash when @code{make} tries to run @code{lint} on C++ files.
 
 This section contains notes on OpenBSD.
 
-@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, OpenBSD
+@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
 
 On OpenBSD Version 2.5, you can compile MySQL with native threads
@@ -8847,7 +8852,7 @@ CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
 
-@node OpenBSD 2.8, BSDI, OpenBSD 2.5, OpenBSD
+@node OpenBSD 2.8, BSDI, OpenBSD 2.5, BSD Notes
 @subsubsection OpenBSD 2.8 Notes
 
 Our users have reported that OpenBSD 2.8 has a threading bug which causes
@@ -8868,7 +8873,7 @@ usage, and crashes.
 
 This section contains notes on BSD/OS.
 
-@node BSDI2, BSDI3, BSDI, BSDI
+@node BSDI2, BSDI3, BSDI, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
 
 If you get the following error when compiling MySQL, your
@@ -8893,7 +8898,7 @@ If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 
-@node BSDI3, BSDI4, BSDI2, BSDI
+@node BSDI3, BSDI4, BSDI2, BSD Notes
 @subsubsection BSD/OS Version 3.x Notes
 
 Upgrade to BSD/OS Version 3.1.  If that is not possible, install
@@ -8934,7 +8939,7 @@ If this doesn't work and you are using @code{bash}, try switching to
 @code{bash} and @code{ulimit}.
 
 
-@node BSDI4,  , BSDI3, BSDI
+@node BSDI4,  , BSDI3, BSD Notes
 @subsubsection BSD/OS Version 4.x Notes
 
 BSDI Version 4.x has some thread-related bugs.  If you want to use
@@ -11282,7 +11287,7 @@ mysql> SELECT name, birth, death,
 +--------+------------+------------+------+
 @end example
 
-The query uses @code{death IS NOT NULL} rather than @code{death != NULL}
+The query uses @code{death IS NOT NULL} rather than @code{death <> NULL}
 because @code{NULL} is a special value.  This is explained later.
 @xref{Working with NULL,  , Working with @code{NULL}}.
 
@@ -11367,12 +11372,12 @@ The @code{NULL} value can be surprising until you get used to it.
 Conceptually, @code{NULL} means missing value or unknown value and it
 is treated somewhat differently than other values.  To test for @code{NULL},
 you cannot use the arithmetic comparison operators such as @code{=}, @code{<},
-or @code{!=}.  To demonstrate this for yourself, try the following query:
+or @code{<>}.  To demonstrate this for yourself, try the following query:
 
 @example
-mysql> SELECT 1 = NULL, 1 != NULL, 1 < NULL, 1 > NULL;
+mysql> SELECT 1 = NULL, 1 <> NULL, 1 < NULL, 1 > NULL;
 +----------+-----------+----------+----------+
-| 1 = NULL | 1 != NULL | 1 < NULL | 1 > NULL |
+| 1 = NULL | 1 <> NULL | 1 < NULL | 1 > NULL |
 +----------+-----------+----------+----------+
 |     NULL |      NULL |     NULL |     NULL |
 +----------+-----------+----------+----------+
@@ -11395,7 +11400,7 @@ The default truth value from a boolean operation is 1.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
-@code{death IS NOT NULL} instead of @code{death != NULL}.
+@code{death IS NOT NULL} instead of @code{death <> NULL}.
 
 
 @node Pattern matching, Counting rows, Working with NULL, Retrieving data
@@ -11413,7 +11418,7 @@ SQL pattern matching allows you to use @samp{_} to match any single
 character and @samp{%} to match an arbitrary number of characters (including
 zero characters).  In MySQL, SQL patterns are case insensitive by
 default.  Some examples are shown below.  Note that you do not use @code{=}
-or @code{!=} when you use SQL patterns; use the @code{LIKE} or @code{NOT
+or @code{<>} when you use SQL patterns; use the @code{LIKE} or @code{NOT
 LIKE} comparison operators instead.
 
 To find names beginning with @samp{b}:
@@ -13075,8 +13080,9 @@ The following programs support option files:  @code{mysql},
 @code{mysqldump}, @code{mysqlimport}, @code{mysqlshow}, @code{mysqlcheck},
 @code{myisamchk}, and @code{myisampack}.
 
-You can use option files to specify any long option that a program supports!
-Run the program with @code{--help} to get a list of available options.
+Any long option that may be given on the command line when running a MySQL
+program can be given in an option file as well (without the leading double
+dash).  Run the program with @code{--help} to get a list of available options.
 
 An option file can contain lines of the following forms:
 
@@ -13636,7 +13642,6 @@ connection between a MySQL server and a MySQL client.
 If you are using MySQL 4.0, you can also use internal openssl support.
 @xref{Secure connections}.
 
-
 To make a MySQL system secure, you should strongly consider the
 following suggestions:
 
@@ -13652,8 +13657,7 @@ this:
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
+mysql> UPDATE user SET Password=PASSWORD('new_password') WHERE user='root';
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -15395,17 +15399,17 @@ password using the @code{PASSWORD()} function):
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
-mysql> FLUSH PRIVILEGES;
+mysql> SET PASSWORD FOR root@@localhost=PASSWORD('new_password');
 @end example
 
-You can, in MySQL Version 3.22 and above, use the @code{SET PASSWORD}
-statement:
+If you know what you are doing, you can also directly manipulate the
+privilege tables:
 
 @example
 shell> mysql -u root mysql
-mysql> SET PASSWORD FOR root=PASSWORD('new_password');
+mysql> UPDATE user SET Password=PASSWORD('new_password')
+           WHERE user='root';
+mysql> FLUSH PRIVILEGES;
 @end example
 
 Another way to set the password is by using the @code{mysqladmin} command:
@@ -26049,6 +26053,7 @@ may find it useful to refer to the various indexes.
 * Basic User Commands::         Basic MySQL User Utility Commands
 * Transactional Commands::      MySQL Transactional and Locking Commands
 * Fulltext Search::             MySQL Full-text Search
+* Query Cache::                 MySQL Query Cache
 @end menu
 
 
@@ -31226,10 +31231,11 @@ MySQL Version 3.23 this shouldn't normally be needed.
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
 if you are using @code{SQL_QUERY_CACHE_TYPE=2} (@code{DEMAND}).
+@xref{Query Cache}.
 
 @item
 @code{SQL_NO_CACHE} tells MySQL to not allow the query result to be stored
-in the query cache.
+in the query cache. @xref{Query Cache}.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
@@ -33964,7 +33970,7 @@ future transactions.
 You can set the default isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
-@node Fulltext Search,  , Transactional Commands, Reference
+@node Fulltext Search, Query Cache, Transactional Commands, Reference
 @section MySQL Full-text Search
 
 @cindex searching, full-text
@@ -34264,6 +34270,210 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @end itemize
+
+
+@node Query Cache,  , Fulltext Search, Reference
+@section MySQL Query Cache
+
+@cindex Query Cache
+@cindex @code{SELECT}, Query Cache
+
+From version 4.0.1, @code{MySQL server} features a @code{Query Cache}.
+When in use, the query cache stores the text of a @code{SELECT} query
+together with the corresponding result that is sent to a client.
+If another identical query is received, the server can then retrieve
+the results from the query cache rather than parsing and executing the
+same query again.
+
+The query cache is extremely useful in an environment where (some)
+tables don't change very often and you have a lot of identical queries.
+This is a typical situation for many web servers that use a lot of
+dynamic content.
+
+Following are some performance data for the query cache
+(We got these by running the MySQL benchmark suite on a Linux Alpha
+2x500 MHz with 2GB RAM and a 64MB query cache).
+
+@itemize @bullet
+@item
+If want to disable the query cache code set @code{query_cache_size=0}.
+By disabling the query cache code there is no noticeable overhead.
+@item
+If all of the queries you're preforming are simple (such as selecting a
+row from a table with one row); but still differ so that the queries can
+not be cached, the overhead for having the query cache active is 13%.
+This could be regarded as the worst case scenario. However, in real life,
+queries are much more complicated than our simple example so the overhead
+is normally significantly lower.
+@item
+Searches after one row in a one row table is 238% faster.
+This can be regarded as close to the minimum speedup to be expected for
+a query that is cached.
+@end itemize
+
+@menu
+* Query Cache How::             How The Query Cache Operates
+* Query Cache Configuration::   Query Cache Configuration
+* Query Cache in SELECT::       Query Cache Options in @code{SELECT}
+* Query Cache Status and Maintenance::  Query Cache Status and Maintenance
+@end menu
+
+
+@node Query Cache How, Query Cache Configuration, Query Cache, Query Cache
+@subsection How The Query Cache Operates
+
+Queries are compared before parsing, thus
+
+@example
+SELECT * FROM TABLE
+@end example
+
+and
+
+@example
+Select * from table
+@end example
+
+are regarded as different queries for query cache, so queries need
+to be exactly the same (byte for byte) to be seen as identical.
+In addition, a query may be seen as different if for instance one
+client is using a new communication protocol format or another
+character set than another client.
+
+The cache does work for @code{SELECT CALC_ROWS ...} and
+@code{SELECT FOUND_ROWS() ...} type queries because the number of
+found rows is also stored in the cache.
+
+If a table changes (@code{INSERT}, @code{UPDATE}, @code{DELETE},
+@code{TRUNCATE}, @code{ALTER} or @code{DROP TABLE|DATABASE}),
+then all cached queries that used this table (possibly through a
+MRG_MyISAM table!) become invalid and are removed from the cache.
+
+Currently all @code{InnoDB} tables are invalidated on @code{COMMIT},
+in the future this will be changed so only tables changed in the
+transaction cause the corresponding cache entries to be invalidated.
+
+A query cannot be cached if it contains one of the functions:
+@multitable @columnfractions .25 .25 .25 .25
+@item @strong{Function} @tab @strong{Function}
+@tab @strong{Function} @tab @strong{Function}
+@item @code{User Defined Functions} @tab @code{CONNECTION_ID}
+@tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
+@item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
+@tab @code{MASTER_POS_WAIT} @tab @code{NOW}
+@item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
+@tab @code{CURDATE} @tab @code{CURRENT_DATE}
+@item @code{CURTIME} @tab @code{CURRENT_TIME}
+@tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
+@item @code{LAST_INSERT_ID} @tab @code{RAND}
+@tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
+@item @code{BENCHMARK}
+@end multitable
+
+Nor can a query be cached if it contains user variables,
+if it is of the form @code{SELECT ... IN SHARE MODE} or
+of the form @code{SELECT * FROM AUTOINCREMENT_FIELD IS NULL}
+(to retrieve last insert id - ODBC work around).
+
+However, @code{FOUND ROWS()} will return the correct value,
+even if the preceding query was fetched from the cache.
+
+Queries that don't use any tables are not cached.
+
+
+@node Query Cache Configuration, Query Cache in SELECT, Query Cache How, Query Cache
+@subsection Query Cache Configuration
+
+The query cache adds a few @code{MySQL} system variables for
+@code{mysqld} which may be set in a configuration file, on the
+command line when starting @code{mysqld}.
+
+@itemize
+@item @code{query_cache_limit}
+Don't cache results that are bigger than this. (Default 1M).
+
+@item @code{query_cache_size}
+The memory allocated to store results from old queries.
+If this is 0, the query cache is disabled (default).
+
+@item @code{query_cache_startup_type}
+This may be set (only numeric) to
+@multitable @columnfractions .3 .7
+@item 0 @tab (OFF, don't cache or retrieve results)
+@item 1 @tab (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries)
+@item 2 @tab (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries)
+@end multitable
+@end itemize
+
+
+Inside a thread (connection), the behaviour of the query cache can be
+changed from the default. The syntax is as follows:
+
+@code{SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND}
+@code{SQL_QUERY_CACHE_TYPE = 0   | 1  | 2}
+
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
+@item 0 or OFF @tab Don't cache or retrieve results.
+@item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
+@end multitable
+
+By default @code{SQL_QUERY_CACHE_TYPE} depends on the value of
+@code{query_cache_startup_type} when the thread was created.
+
+
+@node Query Cache in SELECT, Query Cache Status and Maintenance, Query Cache Configuration, Query Cache
+@subsection Query Cache Options in @code{SELECT}
+
+There are two possible query cache related parameters that may be
+specified in a @code{SELECT} query:
+
+@findex SQL_CACHE
+@findex SQL_NO_CACHE
+
+@itemize
+@item @code{SQL_CACHE}
+If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND},
+allow the query to be cached.
+If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
+If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
+@item @code{SQL_NO_CACHE}
+Make this query non-cachable, don't allow this query to be stored
+in the cache.
+@end itemize
+
+
+@node Query Cache Status and Maintenance,  , Query Cache in SELECT, Query Cache
+@subsection Query Cache Status and Maintenance
+
+With the @code{FLUSH QUERY CACHE} command you can defragment the query
+cache to better utilise its memory. This command will not remove any
+queries from the cache.
+@code{FLUSH TABLES} also flushes the query cache.
+
+The @code{RESET QUERY CACHE} command removes all query results from the
+query cache.
+
+You can monitor query cache performance in @code{SHOW STATUS}:
+
+@itemize
+@item @code{Qcache_queries_in_cache}
+Number of queries registered in the cache.
+@item @code{Qcache_inserts}
+Number of queries added to the cache.
+@item @code{Qcache_hits}
+Number of cache hits
+@item @code{Qcache_not_cached}
+Number of non-cached queries
+(not cachable, or due to SQL_QUERY_CACHE_TYPE)
+@item @code{Qcache_free_memory}
+Amount of free memory for query cache.
+@end itemize
+
+Please note:
+Total number of queries =
+@code{Qcache_inserts} + @code{Qcache_hits} + @code{Qcache_not_cached}.
 
 
 @node Table types, Clients, Reference, Top
@@ -44369,6 +44579,7 @@ the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 * Problems with alias::         Problems with @code{alias}
 * Deleting from related tables::  Deleting Rows from Related Tables
 * No matching rows::            Solving Problems with No Matching Rows
+* Problems with float::         Problems with floating point comparison
 @end menu
 
 @node Case sensitivity, Using DATE, Query Issues, Query Issues
@@ -44611,7 +44822,7 @@ id's per query if the @code{related_column} is an index.  If the
 number of arguments in the @code{IN} clause.
 
 
-@node No matching rows,  , Deleting from related tables, Query Issues
+@node No matching rows, Problems with float, Deleting from related tables, Query Issues
 @appendixsubsec Solving Problems with No Matching Rows
 
 @cindex no matching rows
@@ -44639,16 +44850,10 @@ the table that was last removed from the query.
 
 @item
 If you are comparing @code{FLOAT} or @code{DOUBLE} columns with numbers that
-have decimals, you can't use @code{=}!  This problem is common in most
-computer languages because floating-point values are not exact values:
-
-@example
-mysql> SELECT * FROM table_name WHERE float_column=3.5;
-   ->
-mysql> SELECT * FROM table_name WHERE float_column between 3.45 and 3.55;
-@end example
-
-In most cases, changing the @code{FLOAT} to a @code{DOUBLE} will fix this!
+have decimals, you can't use @code{'='}. This problem is common in most
+computer languages because floating-point values are not exact values.
+In most cases, changing the @code{FLOAT} to a @code{DOUBLE} will fix this.
+@xref{Problems with float}.
 
 @item
 If you still can't figure out what's wrong, create a minimal test that can
@@ -44666,6 +44871,128 @@ shell> mysql test2 < query.sql
 Post the test file using @code{mysqlbug} to @email{mysql@@lists.mysql.com}.
 @end enumerate
 
+@node Problems with float,  , No matching rows, Query Issues
+@appendixsubsec Problems with floating point comparison
+
+Floating point numbers cause confusion sometimes, because these numbers
+are not stored as exact values inside computer architecture. What one
+can see on the screen usually is not the exact value of the number.
+
+Field types @code{FLOAT}, @code{DOUBLE} and @code{DECIMAL} are such.
+
+@example
+CREATE TABLE t1 (i int, d1 decimal(9,2), d2 decimal(9,2));
+INSERT INTO t1 values (1, 101.40, 21.40), (1, -80.00, 0.00), (2, 0.00, 0.00),
+(2, -13.20, 0.00), (2, 59.60, 46.40), (2, 30.40, 30.40), (3, 37.00, 7.40),
+(3, -29.60, 0.00), (4, 60.00, 15.40), (4, -10.60, 0.00), (4, -34.00, 0.00),
+(5, 33.00, 0.00), (5, -25.80, 0.00), (5, 0.00, 7.20), (6, 0.00, 0.00),
+(6, -51.40, 0.00);
+
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING a <> b;
++------+--------+-------+
+| i    | a      | b     |
++------+--------+-------+
+|    1 |  21.40 | 21.40 |
+|    2 |  76.80 | 76.80 |
+|    3 |   7.40 |  7.40 |
+|    4 |  15.40 | 15.40 |
+|    5 |   7.20 |  7.20 |
+|    6 | -51.40 |  0.00 |
++------+--------+-------+
+@end example
+
+The result is correct. Although the first five records look like they
+shouldn't pass the comparison test, they may do so because the
+difference between the numbers show up around tenth decimal, or so
+depending on computer architecture.
+
+The problem cannot be solved by using ROUND() (or similar function),
+because the result is still a floating point number. Example:
+
+@example
+mysql> SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i HAVING a <> b;
++------+--------+-------+
+| i    | a      | b     |
++------+--------+-------+
+|    1 |  21.40 | 21.40 |
+|    2 |  76.80 | 76.80 |
+|    3 |   7.40 |  7.40 |
+|    4 |  15.40 | 15.40 |
+|    5 |   7.20 |  7.20 |
+|    6 | -51.40 |  0.00 |
++------+--------+-------+
+@end example
+
+This is what the numbers in row 'a' look like:
+@example
+mysql> SELECT i, ROUND(SUM(d1), 2)*1.0000000000000000 AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i HAVING a <> b;
++------+----------------------+-------+
+| i    | a                    | b     |
++------+----------------------+-------+
+|    1 |  21.3999999999999986 | 21.40 |
+|    2 |  76.7999999999999972 | 76.80 |
+|    3 |   7.4000000000000004 |  7.40 |
+|    4 |  15.4000000000000004 | 15.40 |
+|    5 |   7.2000000000000002 |  7.20 |
+|    6 | -51.3999999999999986 |  0.00 |
++------+----------------------+-------+
+@end example
+
+Depending on the computer architecture you may or may not see similar results.
+Each CPU may evaluate floating point numbers differently. For example in
+some machines you may get 'right' results by multiplaying both arguments
+with 1, an example follows.
+
+@strong{WARNING: NEVER TRUST THIS METHOD IN YOUR APPLICATION, THIS IS
+AN EXAMPLE OF A WRONG METHOD!!!}
+
+@example
+mysql> SELECT i, ROUND(SUM(d1), 2)*1 AS a, ROUND(SUM(d2), 2)*1 AS b FROM t1 GROUP
+BY i HAVING a <> b;
++------+--------+------+
+| i    | a      | b    |
++------+--------+------+
+|    6 | -51.40 | 0.00 |
++------+--------+------+
+@end example
+
+The reason why the above example seems to be working is that on the
+particular machine where the test was done, the CPU floating point
+arithmetics happens to round the numbers to same, but there is no
+rule that any CPU should do so, so it cannot be trusted.
+
+The correct way to do floating point number comparison is to first
+decide on what is the wanted tolerance between the numbers and then do
+the comparsion against the tolerance number. For example, if we agree on
+that floating point numbers should be regarded the same, if they are
+same with precision of one of ten thousand (0.0001), the comparsion
+should be done like this:
+
+@example
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING ABS(a - b) > 0.0001;
++------+--------+------+
+| i    | a      | b    |
++------+--------+------+
+|    6 | -51.40 | 0.00 |
++------+--------+------+
+1 row in set (0.00 sec)
+@end example
+
+And vice versa, if we wanted to get rows where the numbers are the same,
+the test would be:
+
+@example
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING ABS(a - b) < 0.0001;
++------+-------+-------+
+| i    | a     | b     |
++------+-------+-------+
+|    1 | 21.40 | 21.40 |
+|    2 | 76.80 | 76.80 |
+|    3 |  7.40 |  7.40 |
+|    4 | 15.40 | 15.40 |
+|    5 |  7.20 |  7.20 |
++------+-------+-------+
+@end example
 
 @node Table Definition Issues,  , Query Issues, Problems
 @appendixsec Table Definition Related Issues
@@ -46169,6 +46496,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
+@item
+Changed @code{SELECT ... IN SHARE MODE} to
+@code{SELECT .. LOCK IN SHARE MODE} (as in MySQL 3.23).
+@item
 A new query cache to cache results from identical @code{SELECT} queries.
 @item
 Fixed core dump bug on 64 bit machines when it got a wrong communication
@@ -46421,6 +46753,8 @@ not yet 100% confident in this code.
 @node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
+@item
+Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item

@@ -509,7 +509,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ulonglong_num
 
 %type <item>
-	literal text_literal insert_ident group_ident order_ident
+	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
 	using_list
@@ -1348,9 +1348,13 @@ table_to_table:
 
 
 select:
-	SELECT_SYM select_part2 { Select->braces=false; } union
+	select_init { Lex->sql_command=SQLCOM_SELECT; }
+
+select_init:
+	SELECT_SYM select_part2 { Select->braces=false;	} union
 	|
-	'(' SELECT_SYM 	select_part2 ')' {Select->braces=true;} union_opt
+	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt
+
 
 select_part2:
 	{
@@ -1394,7 +1398,7 @@ select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
 	  { Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
-	| IN_SYM SHARE_SYM MODE_SYM
+	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; }
 
 select_item_list:
@@ -1643,12 +1647,14 @@ simple_expr:
 	  { $$= new Item_func_decode($3,$5.str); }
 	| ENCODE_SYM '(' expr ',' TEXT_STRING ')'
 	 { $$= new Item_func_encode($3,$5.str); }
-	| DES_ENCRYPT '(' expr ')'                   { $$= new Item_func_des_encrypt($3); }
-	| DES_DECRYPT '(' expr ')'                   { $$= new Item_func_des_decrypt($3); }
-	| DES_ENCRYPT '(' expr ',' expr ')'          { $$= new Item_func_des_encrypt($3,$5); }
-	| DES_DECRYPT '(' expr ',' expr ')'          { $$= new Item_func_des_decrypt($3,$5); }
-	| DES_ENCRYPT '(' expr ',' expr ',' expr ')' { $$= new Item_func_des_encrypt($3,$5,$7); }
-	| DES_DECRYPT '(' expr ',' expr ',' expr ')' { $$= new Item_func_des_decrypt($3,$5,$7); }
+	| DES_DECRYPT '(' expr ')'
+        { $$= new Item_func_des_decrypt($3); }
+	| DES_DECRYPT '(' expr ',' expr ')'
+        { $$= new Item_func_des_decrypt($3,$5); }
+	| DES_ENCRYPT '(' expr ')'
+        { $$= new Item_func_des_encrypt($3); }
+	| DES_ENCRYPT '(' expr ',' expr ')'
+        { $$= new Item_func_des_encrypt($3,$5); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ')'
 		{ $$= new Item_func_export_set($3, $5, $7); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ')'
@@ -2071,10 +2077,10 @@ group_clause:
 	| GROUP BY group_list
 
 group_list:
-	group_list ',' group_ident
-	  { if (add_group_to_list($3,(bool) 1)) YYABORT; }
-	| group_ident
-	  { if (add_group_to_list($1,(bool) 1)) YYABORT; }
+	group_list ',' order_ident order_dir
+	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
+	| order_ident order_dir
+	  { if (add_group_to_list($1,(bool) $2)) YYABORT; }
 
 /*
 ** Order by statement in select
@@ -2085,7 +2091,7 @@ opt_order_clause:
 	| order_clause
 
 order_clause:
-	ORDER_SYM BY { Select->sort_default=1; } order_list
+	ORDER_SYM BY order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -2095,8 +2101,8 @@ order_list:
 
 order_dir:
 	/* empty */ { $$ =  1; }
-	| ASC  { $$ = Select->sort_default=1; }
-	| DESC { $$ = Select->sort_default=0; }
+	| ASC  { $$ =1; }
+	| DESC { $$ =0; }
 
 
 limit_clause:
@@ -2814,9 +2820,6 @@ table_wild:
 	ident '.' '*' { $$ = new Item_field(NullS,$1.str,"*"); }
 	| ident '.' ident '.' '*'
 	{ $$ = new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); }
-
-group_ident:
-	order_ident order_dir
 
 order_ident:
 	expr { $$=$1; }
@@ -3578,12 +3581,12 @@ union_list:
        net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
-    if (lex->select->linkage==NOT_A_SELECT)
+    if (lex->select->linkage == NOT_A_SELECT)
       YYABORT;
     mysql_new_select(lex);
     lex->select->linkage=UNION_TYPE;
   } 
-  select
+  select_init
 
 union_opt:
   union {}

@@ -384,6 +384,13 @@ void multi_delete::send_error(uint errcode,const char *err)
 }
 
 
+/*
+  Do delete from other tables.
+  Returns values:
+	0 ok
+	1 error
+*/
+
 int multi_delete::do_deletes (bool from_send_error)
 {
   int error = 0, counter = 0;
@@ -420,7 +427,8 @@ int multi_delete::do_deletes (bool from_send_error)
     {
       TABLE_LIST table_list;
       bzero((char*) &table_list,sizeof(table_list));
-      table_list.name=table->table_name; table_list.real_name=table_being_deleted->real_name;
+      table_list.name=table->table_name;
+      table_list.real_name=table_being_deleted->real_name;
       table_list.table=table;
       table_list.grant=table->grant;
       table_list.db = table_being_deleted->db;
@@ -432,23 +440,20 @@ int multi_delete::do_deletes (bool from_send_error)
 #endif /* USE_REGENERATE_TABLE */
 
     READ_RECORD	info;
-    error=0;
     init_read_record(&info,thd,table,NULL,0,0);
     bool not_trans_safe = some_table_is_not_transaction_safe(delete_tables);
     while (!(error=info.read_record(&info)) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
-      error=table->file->delete_row(table->record[0]);
-      if (error)
+      if ((error=table->file->delete_row(table->record[0])))
       {
 	table->file->print_error(error,MYF(0));
 	break;
       }
-      else
-	deleted++;
+      deleted++;
     }
     end_read_record(&info);
-    if (error == -1)
+    if (error == -1)				// End of file
       error = 0;
   }
   return error;
@@ -464,7 +469,6 @@ bool multi_delete::send_eof()
 
   /* reset used flags */
   delete_tables->table->no_keyread=0;
-  if (error == -1) error = 0;
   thd->proc_info="end";
   if (error)
   {
@@ -477,22 +481,17 @@ bool multi_delete::send_eof()
    was a non-transaction-safe table involved, since
    modifications in it cannot be rolled back. */
 
-  if (deleted &&
-      (!error || some_table_is_not_transaction_safe(delete_tables)))
+  if (deleted || some_table_is_not_transaction_safe(delete_tables))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-
-    /* mysql_bin_log is not open if binlogging or replication
-    is not used */
-
-    if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
-	!some_table_is_not_transaction_safe(delete_tables))
-      error=1;  /* Log write failed: roll back
-		   the SQL statement */
-
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      if (mysql_bin_log.write(&qinfo) &&
+	  !some_table_is_not_transaction_safe(delete_tables))
+	error=1;  // Log write failed: roll back the SQL statement
+    }
     /* Commit or rollback the current SQL statement */ 
-
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
 
