@@ -115,7 +115,6 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
         info->lastpos = _mi_dpos(info, 0, after_key);
         info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, k, info->lastkey_length);
-
         info->rtree_recursion_depth = level;
         *saved_key = k - page_buf;
 
@@ -125,6 +124,10 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
           memcpy(info->buff, page_buf, keyinfo->block_length);
           info->int_maxpos = rt_PAGE_END(info->buff);
           info->buff_used = 0;
+        }
+        else
+        {
+	  info->buff_used = 1;
         }
 
         res = 0;
@@ -308,6 +311,10 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
         memcpy(info->buff, page_buf, keyinfo->block_length);
         info->int_maxpos = rt_PAGE_END(info->buff);
         info->buff_used = 0;
+      }
+      else
+      {
+	info->buff_used = 1;
       }
 
       res = 0;
