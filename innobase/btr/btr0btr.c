@@ -402,7 +402,7 @@ btr_get_size(
 		
 		n += fseg_n_reserved_pages(seg_header, &dummy, &mtr);		
 	} else {
-		ut_a(0);
+		ut_error;
 	}
 
 	mtr_commit(&mtr);

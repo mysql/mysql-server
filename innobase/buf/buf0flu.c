@@ -253,7 +253,7 @@ buf_flush_buffered_writes(void)
 	"InnoDB: files.\n",
 			block->offset, block->space);
 
-			ut_a(0);
+			ut_error;
 		}
 	}
 

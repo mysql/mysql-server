@@ -270,7 +270,7 @@ handle_new_error:
 
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
-		ut_a(0);
+		ut_error;
 	}		
 
 	if (trx->error_state != DB_SUCCESS) {
@@ -383,7 +383,7 @@ row_prebuilt_free(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
@@ -431,7 +431,7 @@ row_prebuilt_free(
 				mem_analyze_corruption(
 						prebuilt->fetch_cache[i]);
 
-				ut_a(0);
+				ut_error;
 			}
 
 			mem_free((prebuilt->fetch_cache[i]) - 4);
@@ -463,7 +463,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)trx);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
@@ -474,7 +474,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->trx = trx;
@@ -701,7 +701,7 @@ row_insert_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -917,7 +917,7 @@ row_update_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -2091,7 +2091,7 @@ row_drop_table_for_mysql(
 		
 		row_mysql_handle_errors(&err, trx, thr, NULL);
 
-		ut_a(0);
+		ut_error;
 	} else {
 		dict_table_remove_from_cache(table);
 

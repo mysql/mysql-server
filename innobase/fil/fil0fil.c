@@ -902,7 +902,7 @@ fil_node_prepare_for_io(
 	"InnoDB: Pending i/o's on %lu files exist\n",
 					system->n_open_pending);
 
-				ut_a(0);
+				ut_error;
 			}
 
 			fil_node_close(last_node, system);
@@ -1209,7 +1209,7 @@ loop:
 	"InnoDB: Byte offset %lu, len %lu, i/o type %lu\n", 
  			block_offset, space_id, byte_offset, len, type);
  			
-			ut_a(0);
+			ut_error;
 		}
 
 		if (node->size > block_offset) {
@@ -1339,7 +1339,7 @@ fil_aio_wait(
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
-		ut_a(0);
+		ut_error;
 #endif
 	} else {
 		srv_io_thread_op_info[segment] =(char *)"simulated aio handle";

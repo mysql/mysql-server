@@ -160,7 +160,7 @@ recv_sys_empty_hash(void)
 "InnoDB: Error: %lu pages with log records were left unprocessed!\n"
 "InnoDB: Maximum page number with log records on it %lu\n",
 			recv_sys->n_addrs, recv_max_parsed_page_no);
-		ut_a(0);
+		ut_error;
 	}
 	
 	hash_table_free(recv_sys->addr_hash);
