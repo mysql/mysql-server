@@ -8,7 +8,7 @@
 # binary installation that has other paths than you are using.
 #
 # mysql.server works by first doing a cd to the base directory and from there
-# executing safe_mysqld
+# executing mysqld_safe
 
 # Check if we are starting this relative (for the binary release)
 if test -f ./data/mysql/db.frm -a -f ./share/mysql/english/errmsg.sys -a \

@@ -120,6 +120,18 @@ typedef struct st_select_lex {
 } SELECT_LEX;
 
 
+class Set_option :public Sql_alloc {
+public:
+  const char *name;
+  Item *item;
+  uint name_length;
+  bool type;					/* 1 if global */
+  Set_option(bool par_type, const char *par_name, uint length,
+	     Item *par_item)
+    :name(par_name), item(par_item), name_length(length), type(par_type) {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex {
@@ -143,6 +155,7 @@ typedef struct st_lex {
   List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
+  List<Set_option>    option_list;
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
@@ -167,7 +180,7 @@ typedef struct st_lex {
   uint grant,grant_tot_col,which_columns;
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
-  bool  in_comment,ignore_space,verbose,simple_alter;
+  bool  in_comment,ignore_space,verbose,simple_alter, option_type;
 
 } LEX;
 

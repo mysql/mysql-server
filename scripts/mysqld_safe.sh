@@ -8,7 +8,7 @@
 # binary installation that has other paths than you are using.
 #
 # mysql.server works by first doing a cd to the base directory and from there
-# executing safe_mysqld
+# executing mysqld_safe
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
@@ -38,12 +38,12 @@ parse_arguments() {
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
       --user=*)    user=`echo "$arg" | sed -e "s;--user=;;"` ;;
 
-      # these two might have been set in a [safe_mysqld] section of my.cnf
-      # they get passed via environment variables to safe_mysqld
+      # these two might have been set in a [mysqld_safe] section of my.cnf
+      # they get passed via environment variables to mysqld_safe
       --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --port=*)    MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
 
-      # safe_mysqld-specific options - must be set in my.cnf ([safe_mysqld])!
+      # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
       --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
       # QQ The --open-files should be removed
@@ -114,7 +114,7 @@ fi
 pid_file=
 err_log=
 
-# Get first arguments from the my.cnf file, groups [mysqld] and [safe_mysqld]
+# Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
 if test -x ./bin/my_print_defaults
 then
@@ -130,7 +130,7 @@ else
 fi
 
 args=
-parse_arguments `$print_defaults $defaults mysqld server safe_mysqld`
+parse_arguments `$print_defaults $defaults mysqld server mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 if test ! -x $ledir/$MYSQLD
@@ -138,7 +138,7 @@ then
   echo "The file $ledir/$MYSQLD doesn't exist or is not executable"
   echo "Please do a cd to the mysql installation directory and restart"
   echo "this script from there as follows:"
-  echo "./bin/safe_mysqld".
+  echo "./bin/mysqld_safe".
   exit 1
 fi
 
