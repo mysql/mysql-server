@@ -40,10 +40,6 @@ sys_var_long_ptr trg_new_row_fake_var(0, 0);
 #define yySkip()	lex->ptr++
 #define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
 
-#if MYSQL_VERSION_ID < 32300
-#define FLOAT_NUM	REAL_NUM
-#endif
-
 pthread_key(LEX*,THR_LEX);
 
 /* Longest standard keyword name */
@@ -115,9 +111,14 @@ void lex_free(void)
 void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
+  DBUG_ENTER("lex_start");
+
+  lex->thd= lex->unit.thd= thd;
+  lex->buf= lex->ptr= buf;
+  lex->end_of_query= buf+length;
+
   lex->unit.init_query();
   lex->unit.init_select();
-  lex->thd= lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->update_list.empty();
@@ -150,8 +151,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
-  lex->buf= lex->ptr= buf;
-  lex->end_of_query=buf+length;
   lex->yylineno = 1;
   lex->in_comment=0;
   lex->length=0;
@@ -173,11 +172,15 @@ void lex_start(THD *thd, uchar *buf,uint length)
 
   if (lex->spfuns.records)
     my_hash_reset(&lex->spfuns);
+  if (lex->spprocs.records)
+    my_hash_reset(&lex->spprocs);
+  if (lex->sptabs.records)
+    my_hash_reset(&lex->sptabs);
+  DBUG_VOID_RETURN;
 }
 
 void lex_end(LEX *lex)
 {
-  lex->select_lex.expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }
@@ -334,7 +337,8 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (*str == '\\' && str+1 != end)
+	  if (!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+              *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
 	    case 'n':
@@ -433,12 +437,12 @@ inline static uint int_token(const char *str,uint length)
     else if (length < signed_longlong_len)
       return LONG_NUM;
     else if (length > signed_longlong_len)
-      return REAL_NUM;
+      return DECIMAL_NUM;
     else
     {
       cmp=signed_longlong_str+1;
       smaller=LONG_NUM;				// If <= signed_longlong_str
-      bigger=REAL_NUM;
+      bigger=DECIMAL_NUM;
     }
   }
   else
@@ -454,10 +458,10 @@ inline static uint int_token(const char *str,uint length)
     else if (length > longlong_len)
     {
       if (length > unsigned_longlong_len)
-	return REAL_NUM;
+        return DECIMAL_NUM;
       cmp=unsigned_longlong_str;
       smaller=ULONGLONG_NUM;
-      bigger=REAL_NUM;
+      bigger=DECIMAL_NUM;
     }
     else
     {
@@ -795,7 +799,7 @@ int yylex(void *arg, void *yythd)
 	return(FLOAT_NUM);
       }
       yylval->lex_str=get_token(lex,yyLength());
-      return(REAL_NUM);
+      return(DECIMAL_NUM);
 
     case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
       yyGet();				// Skip '

@@ -81,6 +81,7 @@ dtype_get_at_most_n_mbchars(
 	ulint		data_len,
 	const char*	str)
 {
+#ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
 
 	if (dtype_str_needs_mysql_cmp(dtype)) {
@@ -99,6 +100,12 @@ dtype_get_at_most_n_mbchars(
 	}
 
 	return(data_len);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /*************************************************************************

@@ -863,12 +863,15 @@ create view v1 (a,a) as select 'a','a';
 #
 # SP variables inside view test
 #
-delimiter //;
-create procedure p1 () begin declare v int; create view v1 as select v; end;//
-delimiter ;//
--- error 1351
-call p1();
-drop procedure p1;
+# QQ This can't be tested with the new table locking for functions,
+# QQ since views created in an SP can't be used within the same SP
+# QQ (just as for tables). Instead it fails with error 1146.
+#delimiter //;
+#create procedure p1 () begin declare v int; create view v1 as select v; end;//
+#delimiter ;//
+#-- error 1351
+#call p1();
+#drop procedure p1;
 
 #
 # updatablity should be transitive

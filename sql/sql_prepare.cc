@@ -332,6 +332,13 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
   *pos+= 8;
 }
 
+static void set_param_decimal(Item_param *param, uchar **pos, ulong len)
+{
+  ulong length= get_param_length(pos, len);
+  param->set_decimal((char*)*pos, length);
+  *pos+= len;
+}
+
 #ifndef EMBEDDED_LIBRARY
 
 /*
@@ -507,6 +514,12 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     param->set_param_func= set_param_double;
     param->item_type= Item::REAL_ITEM;
     param->item_result_type= REAL_RESULT;
+    break;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    param->set_param_func= set_param_decimal;
+    param->item_type= Item::DECIMAL_ITEM;
+    param->item_result_type= DECIMAL_RESULT;
     break;
   case MYSQL_TYPE_TIME:
     param->set_param_func= set_param_time;
@@ -1541,9 +1554,11 @@ static int check_prepared_statement(Prepared_statement *stmt,
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
       lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
   {
-    /* the error is print inside */
-    if (sp_cache_functions(thd, lex))
-      DBUG_RETURN(1);
+    /* The error is printed inside */
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
+      DBUG_RETURN(-1);
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
+      DBUG_RETURN(-1);
   }
 
   switch (sql_command) {

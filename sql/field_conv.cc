@@ -586,6 +586,9 @@ void field_conv(Field *to,Field *from)
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
+        (to->real_type() != FIELD_TYPE_NEWDECIMAL ||
+         (to->field_length == from->field_length &&
+          (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
         from->charset() == to->charset() &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first)
     {						// Identical fields
@@ -623,6 +626,11 @@ void field_conv(Field *to,Field *from)
   }
   else if (from->result_type() == REAL_RESULT)
     to->store(from->val_real());
+  else if (from->result_type() == DECIMAL_RESULT)
+  {
+    my_decimal buff;
+    to->store_decimal(from->val_decimal(&buff));
+  }
   else
     to->store(from->val_int());
 }

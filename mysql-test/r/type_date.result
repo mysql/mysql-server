@@ -96,3 +96,11 @@ f2
 19781126
 19781126
 DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (y YEAR);
+INSERT INTO t1 VALUES ('abc');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+SELECT * FROM t1;
+y
+0000
+DROP TABLE t1;

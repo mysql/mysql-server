@@ -660,13 +660,14 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 			   pthread_cond_t* term_cond,
 			   volatile uint *slave_running)
 {
+  DBUG_ENTER("terminate_slave_thread");
   if (term_lock)
   {
     pthread_mutex_lock(term_lock);
     if (!*slave_running)
     {
       pthread_mutex_unlock(term_lock);
-      return ER_SLAVE_NOT_RUNNING;
+      DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
     }
   }
   DBUG_ASSERT(thd != 0);
@@ -678,6 +679,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 
   while (*slave_running)			// Should always be true
   {
+    DBUG_PRINT("loop", ("killing slave thread"));
     KICK_SLAVE(thd);
     /*
       There is a small chance that slave thread might miss the first
@@ -689,7 +691,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
   }
   if (term_lock)
     pthread_mutex_unlock(term_lock);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1418,13 +1420,20 @@ not always make sense; please check the manual before using it).";
     values of these 2 are never used (new connections don't use them).
     We don't test equality of global collation_database either as it's is
     going to be deprecated (made read-only) in 4.1 very soon.
-    We don't do it for <3.23.57 because masters <3.23.50 hang on
-    SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50).
+    The test is only relevant if master < 5.0.3 (we'll test only if it's older
+    than the 5 branch; < 5.0.3 was alpha...), as >= 5.0.3 master stores
+    charset info in each binlog event.
+    We don't do it for 3.23 because masters <3.23.50 hang on
+    SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50). So finally we
+    test only if master is 4.x.
   */
-  if (strncmp(mi->rli.relay_log.description_event_for_queue->server_version,
-              "3.23.57",7) < 0)
+
+  /* redundant with rest of code but safer against later additions */
+  if (*mysql->server_version == '3')
     goto err;
-  if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
+
+  if ((*mysql->server_version == '4') &&
+      !mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1447,8 +1456,12 @@ be equal for replication to work";
     such check will broke everything for them. (And now everything will 
     work for them because by default both their master and slave will have 
     'SYSTEM' time zone).
+
+    TODO: when the new replication of timezones is sorted out with Dmitri,
+    change >= '4' to == '4'.
   */
-  if (!mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
+  if ((*mysql->server_version >= '4') &&
+      !mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -2527,6 +2540,7 @@ st_relay_log_info::st_relay_log_info()
 
   bzero((char*) &info_file, sizeof(info_file));
   bzero((char*) &cache_buf, sizeof(cache_buf));
+  cached_charset_invalidate();
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
@@ -2755,6 +2769,7 @@ void set_slave_thread_options(THD* thd)
 {
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
+  thd->variables.completion_type= 0;
 }
 
 /*
@@ -3075,6 +3090,24 @@ bool st_relay_log_info::is_until_satisfied()
   return ((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL && 
            log_pos >= until_log_pos) ||
           until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER);
+}
+
+
+void st_relay_log_info::cached_charset_invalidate()
+{
+  /* Full of zeroes means uninitialized. */
+  bzero(cached_charset, sizeof(cached_charset));
+}
+
+
+bool st_relay_log_info::cached_charset_compare(char *charset)
+{
+  if (bcmp(cached_charset, charset, sizeof(cached_charset)))
+  {
+    memcpy(cached_charset, charset, sizeof(cached_charset));
+    return 1;
+  }
+  return 0;
 }
 
 
@@ -3722,6 +3755,8 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
   pthread_cond_broadcast(&rli->data_cond);
   rli->ignore_log_space_limit= 0; /* don't need any lock */
+  /* we die so won't remember charset - re-update them on next thread start */
+  rli->cached_charset_invalidate();
   rli->save_temporary_tables = thd->temporary_tables;
 
   /*

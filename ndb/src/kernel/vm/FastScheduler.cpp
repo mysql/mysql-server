@@ -76,19 +76,26 @@ FastScheduler::activateSendPacked()
   globalData.loopMax = 2048;
 }//FastScheduler::activateSendPacked()
 
+//------------------------------------------------------------------------
+// sendPacked is executed at the end of the loop.
+// To ensure that we don't send any messages before executing all local
+// packed signals we do another turn in the loop (unless we have already
+// executed too many signals in the loop).
+//------------------------------------------------------------------------
 void 
 FastScheduler::doJob()
 {
+  Uint32 init_loopCount = 0;
+  Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
+  Uint32 TloopMax = (Uint32)globalData.loopMax;
+  if (TminLoops < TloopMax) {
+    TloopMax = TminLoops;
+  }//if
+  if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
+    TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
+  }//if
   do{
-    Uint32 loopCount = 0;
-    Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
-    Uint32 TloopMax = (Uint32)globalData.loopMax;
-    if (TminLoops < TloopMax) {
-      TloopMax = TminLoops;
-    }//if
-    if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
-      TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
-    }//if
+    Uint32 loopCount = init_loopCount;
     register Uint32 tHighPrio = globalData.highestAvailablePrio;
     register Signal* signal = getVMSignals();
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
@@ -151,7 +158,7 @@ FastScheduler::doJob()
     if (globalData.sendPackedActivated == 1) {
       Uint32 t1 = theDoJobTotalCounter;
       Uint32 t2 = theDoJobCallCounter;
-      t1 += loopCount;
+      t1 += (loopCount - init_loopCount);
       t2++;
       theDoJobTotalCounter = t1;
       theDoJobCallCounter = t2;
@@ -161,7 +168,11 @@ FastScheduler::doJob()
         theDoJobTotalCounter = 0;
       }//if
     }//if
-  } while (getBOccupancy() > MAX_OCCUPANCY);
+    init_loopCount = loopCount;
+    sendPacked();
+  } while ((getBOccupancy() > MAX_OCCUPANCY) ||
+           ((init_loopCount < TloopMax) &&
+            (globalData.highestAvailablePrio < LEVEL_IDLE)));
 }//FastScheduler::doJob()
 
 void FastScheduler::sendPacked()

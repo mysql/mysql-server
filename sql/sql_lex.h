@@ -67,7 +67,7 @@ enum enum_sql_command {
   SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
-  SQLCOM_COMMIT, SQLCOM_SAVEPOINT,
+  SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
   SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
@@ -416,6 +416,7 @@ public:
   void print(String *str);
 
   ulong init_prepare_fake_select_lex(THD *thd);
+  inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
@@ -718,6 +719,7 @@ typedef struct st_lex
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
+  bool tx_chain, tx_release;
   /* special JOIN::prepare mode: changing of query is prohibited */
   bool view_prepare_mode;
   bool safe_to_cache_query;
@@ -746,6 +748,8 @@ typedef struct st_lex
   bool all_privileges;
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
+  HASH spprocs;		/* Called procedures */
+  HASH sptabs;		/* Merged table lists */
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
@@ -766,14 +770,21 @@ typedef struct st_lex
 
   st_lex() :result(0), sql_command(SQLCOM_END)
   {
-    extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
-    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_spfuns_key, 0, 0);
+    extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
+    extern byte *sp_table_key(const byte *ptr, uint *plen, my_bool first);
+    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+    hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+    hash_init(&sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   }
   
   ~st_lex()
   {
     if (spfuns.array.buffer)
       hash_free(&spfuns);
+    if (spprocs.array.buffer)
+      hash_free(&spprocs);
+    if (sptabs.array.buffer)
+      hash_free(&sptabs);
   }
 
   inline void uncacheable(uint8 cause)

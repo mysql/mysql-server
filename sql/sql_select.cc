@@ -542,6 +542,10 @@ JOIN::optimize()
     }
     else if ((conds=new Item_cond_and(conds,having)))
     {
+      /*
+        Item_cond_and can't be fixed after creation, so we do not check
+        conds->fixed
+      */
       conds->fix_fields(thd, tables_list, &conds);
       conds->change_ref_to_fields(thd, tables_list);
       conds->top_level_item();
@@ -1435,7 +1439,7 @@ JOIN::exec()
       curr_join->select_distinct=0;		/* Each row is unique */
     
     curr_join->join_free(0);			/* Free quick selects */
-    if (select_distinct && ! group_list)
+    if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd->proc_info="Removing duplicates";
       if (curr_join->tmp_having)
@@ -7213,7 +7217,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         if (conds)
         {
           conds= and_conds(conds, table->on_expr);
-          conds->fix_fields(join->thd, 0, &conds);
+          if (!conds->fixed)
+            conds->fix_fields(join->thd, 0, &conds);
         }
         else
           conds= table->on_expr; 
@@ -7432,6 +7437,11 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 						     21))))
 	{
 	  cond=new_cond;
+          /*
+            Item_func_eq can't be fixed after creation so we do not check
+            cond->fixed, also it do not need tables so we use 0 as second
+            argument.
+          */
 	  cond->fix_fields(thd, 0, &cond);
 	}
 	thd->insert_id(0);		// Clear for next request
@@ -7446,6 +7456,11 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
 	{
 	  cond=new_cond;
+          /*
+            Item_func_eq can't be fixed after creation so we do not check
+            cond->fixed, also it do not need tables so we use 0 as second
+            argument.
+          */
 	  cond->fix_fields(thd, 0, &cond);
 	}
       }
@@ -7641,8 +7656,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     else
       new_field= item->make_string_field(table);
     break;
-  case ROW_RESULT: 
-  default: 
+  case DECIMAL_RESULT:
+    new_field= new Field_new_decimal(item->max_length - (item->decimals?1:0),
+                                     maybe_null,
+                                     item->name, table, item->decimals);
+    break;
+  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     new_field= 0; // to satisfy compiler (uninitialized variable)
@@ -7693,47 +7713,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   {
     Item_sum *item_sum=(Item_sum*) item;
     bool maybe_null=item_sum->maybe_null;
-    switch (item_sum->sum_func()) {
-    case Item_sum::AVG_FUNC:			/* Place for sum & count */
-      if (group)
-	return new Field_string(sizeof(double)+sizeof(longlong),
-				0, item->name,table,&my_charset_bin);
-      else
-	return new Field_double(item_sum->max_length,maybe_null,
-				item->name, table, item_sum->decimals);
-    case Item_sum::VARIANCE_FUNC:		/* Place for sum & count */
-    case Item_sum::STD_FUNC:
-      if (group)
-	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 0, item->name,table,&my_charset_bin);
-      else
-	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);
-    case Item_sum::UNIQUE_USERS_FUNC:
-      return new Field_long(9,maybe_null,item->name,table,1);
-    default:
-      switch (item_sum->result_type()) {
-      case REAL_RESULT:
-	return new Field_double(item_sum->max_length,maybe_null,
-				item->name,table,item_sum->decimals);
-      case INT_RESULT:
-	return new Field_longlong(item_sum->max_length,maybe_null,
-				  item->name,table,item->unsigned_flag);
-      case STRING_RESULT:
-	if (item_sum->max_length > 255 && convert_blob_length)
-          return new Field_varstring(convert_blob_length, maybe_null,
-                                     item->name, table,
-                                     item->collation.collation);
-        return item_sum->make_string_field(table);
-      case ROW_RESULT:
-      default:
-	// This case should never be choosen
-	DBUG_ASSERT(0);
-	thd->fatal_error();
-	return 0;
-      }
-    }
-    /* We never come here */
+    Field *result= item_sum->create_tmp_field(group, table, convert_blob_length);
+    if (!result)
+      thd->fatal_error();
+    return result;
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
@@ -7751,6 +7734,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::PROC_ITEM:
   case Item::INT_ITEM:
   case Item::REAL_ITEM:
+  case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
@@ -9181,7 +9165,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="const row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
-      if (!table->outer_join || error > 0)
+      if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -9200,7 +9184,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
-      if (!table->outer_join || error > 0)
+      if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
     if (table->key_read)

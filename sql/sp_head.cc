@@ -23,6 +23,7 @@
 #include "sp.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
+#include "sp_cache.h"
 
 Item_result
 sp_map_result_type(enum enum_field_types type)
@@ -36,6 +37,8 @@ sp_map_result_type(enum enum_field_types type)
   case MYSQL_TYPE_INT24:
     return INT_RESULT;
   case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    return DECIMAL_RESULT;
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
     return REAL_RESULT;
@@ -127,7 +130,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	else
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
-	  it= new Item_int(it->val_int());
+          it= new Item_int(i);
 	}
 	break;
       }
@@ -147,13 +150,80 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-	  it= new Item_real(it->val_real());
+          it= new Item_float(d);
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}
 	break;
       }
-    default:
+    case DECIMAL_RESULT:
+      {
+        switch (it->result_type())
+        {
+        case DECIMAL_RESULT:
+        {
+          my_decimal value, *val= it->val_decimal(&value);
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val);
+          break;
+        }
+        case INT_RESULT:
+        {
+          longlong val= it->val_int();
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val, (int)it->max_length,
+                                 (bool)it->unsigned_flag);
+          break;
+        }
+        case REAL_RESULT:
+        {
+          double val= it->val_real();
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val, (int)it->max_length,
+                                 (int)it->decimals);
+          break;
+        }
+        case STRING_RESULT:
+        {
+          char buffer[MAX_FIELD_WIDTH];
+          String tmp(buffer, sizeof(buffer), it->collation.collation);
+          String *val= it->val_str(&tmp);
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val->ptr(), val->length(), val->charset());
+          break;
+        }
+        case ROW_RESULT:
+        default:
+          DBUG_ASSERT(0);
+        }
+#ifndef DBUG_OFF
+        if (it->null_value)
+        {
+          DBUG_PRINT("info", ("DECIMAL_RESULT: null"));
+        }
+        else
+        {
+          my_decimal value, *val= it->val_decimal(&value);
+          int len;
+          char *buff=
+            (char *)my_alloca(len= my_decimal_string_length(val) + 3);
+          String str(buff, len, &my_charset_bin);
+          my_decimal2string(0, val, 0, 0, 0, &str);
+          DBUG_PRINT("info", ("DECIMAL_RESULT: %s", str.ptr()));
+          my_afree(buff);
+        }
+#endif
+        break;
+      }
+    case STRING_RESULT:
       {
 	char buffer[MAX_FIELD_WIDTH];
 	String tmp(buffer, sizeof(buffer), it->collation.collation);
@@ -172,6 +242,9 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	}
 	break;
       }
+    case ROW_RESULT:
+    default:
+      DBUG_ASSERT(0);
     }
   }
 
@@ -259,11 +332,14 @@ sp_head::sp_head()
   :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
+  extern byte *
+    sp_table_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
+  hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -424,10 +500,10 @@ sp_head::~sp_head()
 void
 sp_head::destroy()
 {
-  DBUG_ENTER("sp_head::destroy");
-  DBUG_PRINT("info", ("name: %s", m_name.str));
   sp_instr *i;
   LEX *lex;
+  DBUG_ENTER("sp_head::destroy");
+  DBUG_PRINT("info", ("name: %s", m_name.str));
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
@@ -439,6 +515,8 @@ sp_head::destroy()
     if (lex != &m_thd->main_lex) // We got interrupted and have lex'es left
       delete lex;
   }
+  if (m_sptabs.array.buffer)
+    hash_free(&m_sptabs);
   DBUG_VOID_RETURN;
 }
 
@@ -732,6 +810,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 		static_cast<Item_func_get_user_var*>(fi);
 
 	      suv= new Item_func_set_user_var(guv->get_name(), item);
+              /*
+                we do not check suv->fixed, bacause it can't be fixed after
+                creation
+              */
 	      suv->fix_fields(thd, NULL, &item);
 	      suv->fix_length_and_dec();
 	      suv->check();
@@ -799,48 +881,10 @@ sp_head::restore_lex(THD *thd)
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
   // Collect some data from the sub statement lex.
-  sp_merge_funs(oldlex, sublex);
-#ifdef NOT_USED_NOW
-  // QQ We're not using this at the moment.
-  if (sublex.sql_command == SQLCOM_CALL)
-  {
-    // It would be slightly faster to keep the list sorted, but we need
-    // an "insert before" method to do that.
-    char *proc= sublex.udf.name.str;
-
-    List_iterator_fast<char *> li(m_calls);
-    char **it;
-
-    while ((it= li++))
-      if (my_strcasecmp(system_charset_info, proc, *it) == 0)
-	break;
-    if (! it)
-      m_calls.push_back(&proc);
-
-  }
+  sp_merge_hash(&oldlex->spfuns, &sublex->spfuns);
+  sp_merge_hash(&oldlex->spprocs, &sublex->spprocs);
   // Merge used tables
-  // QQ ...or just open tables in thd->open_tables?
-  //    This is not entirerly clear at the moment, but for now, we collect
-  //    tables here.
-  for (sl= sublex.all_selects_list ;
-       sl ;
-       sl= sl->next_select())
-  {
-    for (TABLE_LIST *tables= sl->get_table_list() ;
-	 tables ;
-	 tables= tables->next)
-    {
-      List_iterator_fast<char *> li(m_tables);
-      char **tb;
-
-      while ((tb= li++))
-	if (my_strcasecmp(system_charset_info, tables->table_name, *tb) == 0)
-	  break;
-      if (! tb)
-	m_tables.push_back(&tables->table_name);
-    }
-  }
-#endif
+  sp_merge_table_list(thd, &m_sptabs, sublex->query_tables, sublex);
   if (! sublex->sp_lex_in_use)
     delete sublex;
   thd->lex= oldlex;
@@ -1864,3 +1908,242 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+/*
+ *  Table merge hash table
+ *
+ */
+typedef struct st_sp_table
+{
+  LEX_STRING qname;
+  bool temp;
+  TABLE_LIST *table;
+} SP_TABLE;
+
+byte *
+sp_table_key(const byte *ptr, uint *plen, my_bool first)
+{
+  SP_TABLE *tab= (SP_TABLE *)ptr;
+  *plen= tab->qname.length;
+  return (byte *)tab->qname.str;
+}
+
+/*
+ *  Merge the table list into the hash table.
+ *  If the optional lex is provided, it's used to check and set
+ *  the flag for creation of a temporary table.
+ */
+bool
+sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
+		    LEX *lex_for_tmp_check)
+{
+  for (; table ; table= table->next_global)
+    if (!table->derived &&
+	(!table->select_lex ||
+	 !(table->select_lex->options & OPTION_SCHEMA_TABLE)))
+    {
+      char tname[64+1+64+1+64+1];	// db.table.alias\0
+      uint tlen, alen;
+      SP_TABLE *tab;
+
+      tlen= table->db_length;
+      memcpy(tname, table->db, tlen);
+      tname[tlen++]= '.';
+      memcpy(tname+tlen, table->table_name, table->table_name_length);
+      tlen+= table->table_name_length;
+      tname[tlen++]= '.';
+      alen= strlen(table->alias);
+      memcpy(tname+tlen, table->alias, alen);
+      tlen+= alen;
+      tname[tlen]= '\0';
+
+      if ((tab= (SP_TABLE *)hash_search(h, (byte *)tname, tlen)))
+      {
+	if (tab->table->lock_type < table->lock_type)
+	  tab->table= table;	// Use the table with the highest lock type
+      }
+      else
+      {
+	if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
+	  return FALSE;
+	tab->qname.length= tlen;
+	tab->qname.str= (char *)thd->strmake(tname, tab->qname.length);
+	if (!tab->qname.str)
+	  return FALSE;
+	if (lex_for_tmp_check &&
+	    lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
+	    lex_for_tmp_check->query_tables == table &&
+	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+	  tab->temp= TRUE;
+	tab->table= table;
+	my_hash_insert(h, (byte *)tab);
+      }
+    }
+  return TRUE;
+}
+
+void
+sp_merge_routine_tables(THD *thd, LEX *lex)
+{
+  uint i;
+
+  for (i= 0 ; i < lex->spfuns.records ; i++)
+  {
+    sp_head *sp;
+    LEX_STRING *ls= (LEX_STRING *)hash_element(&lex->spfuns, i);
+    sp_name name(*ls);
+
+    name.m_qname= *ls;
+    if ((sp= sp_cache_lookup(&thd->sp_func_cache, &name)))
+      sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
+  }
+  for (i= 0 ; i < lex->spprocs.records ; i++)
+  {
+    sp_head *sp;
+    LEX_STRING *ls= (LEX_STRING *)hash_element(&lex->spprocs, i);
+    sp_name name(*ls);
+
+    name.m_qname= *ls;
+    if ((sp= sp_cache_lookup(&thd->sp_proc_cache, &name)))
+      sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
+  }
+}
+
+void
+sp_merge_table_hash(HASH *hdst, HASH *hsrc)
+{
+  for (uint i=0 ; i < hsrc->records ; i++)
+  {
+    SP_TABLE *tabdst;
+    SP_TABLE *tabsrc= (SP_TABLE *)hash_element(hsrc, i);
+
+    if (! (tabdst= (SP_TABLE *)hash_search(hdst,
+					   tabsrc->qname.str,
+					   tabsrc->qname.length)))
+    {
+      my_hash_insert(hdst, (byte *)tabsrc);
+    }
+    else
+    {
+      if (tabdst->table->lock_type < tabsrc->table->lock_type)
+	tabdst->table= tabsrc->table; // Use the highest lock type
+    }
+  }
+}
+
+TABLE_LIST *
+sp_hash_to_table_list(THD *thd, HASH *h)
+{
+  uint i;
+  TABLE_LIST *tables= NULL;
+  DBUG_ENTER("sp_hash_to_table_list");
+
+  for (i=0 ; i < h->records ; i++)
+  {
+    SP_TABLE *stab= (SP_TABLE *)hash_element(h, i);
+    if (stab->temp)
+      continue;
+    TABLE_LIST *table, *otable= stab->table;
+
+    if (! (table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
+      return NULL;
+    table->db= otable->db;
+    table->db_length= otable->db_length;
+    table->alias= otable->alias;
+    table->table_name= otable->table_name;
+    table->table_name_length= otable->table_name_length;
+    table->lock_type= otable->lock_type;
+    table->updating= otable->updating;
+    table->force_index= otable->force_index;
+    table->ignore_leaves= otable->ignore_leaves;
+    table->derived= otable->derived;
+    table->schema_table= otable->schema_table;
+    table->select_lex= otable->select_lex;
+    table->cacheable_table= otable->cacheable_table;
+    table->use_index= otable->use_index;
+    table->ignore_index= otable->ignore_index;
+    table->option= otable->option;
+
+    table->next_global= tables;
+    tables= table;
+  }
+  DBUG_RETURN(tables);
+}
+
+bool
+sp_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("sp_open_and_lock_tables");
+  bool ret;
+
+  thd->in_lock_tables= 1;
+  thd->options|= OPTION_TABLE_LOCK;
+  if (simple_open_n_lock_tables(thd, tables))
+  {
+    thd->options&= ~(ulong)(OPTION_TABLE_LOCK);
+    ret= FALSE;
+  }
+  else
+  {
+#if 0
+    // QQ What about this?
+#ifdef HAVE_QUERY_CACHE
+    if (thd->variables.query_cache_wlock_invalidate)
+      query_cache.invalidate_locked_for_write(first_table); // QQ first_table?
+#endif /* HAVE_QUERY_CACHE */
+#endif
+    thd->locked_tables= thd->lock;
+    thd->lock= 0;
+    ret= TRUE;
+  }
+  thd->in_lock_tables= 0;
+  DBUG_RETURN(ret);
+}
+
+void
+sp_unlock_tables(THD *thd)
+{
+  thd->lock= thd->locked_tables;
+  thd->locked_tables= 0;
+  close_thread_tables(thd);			// Free tables
+  if (thd->options & OPTION_TABLE_LOCK)
+  {
+#if 0
+    // QQ What about this?
+    end_active_trans(thd);
+#endif
+    thd->options&= ~(ulong)(OPTION_TABLE_LOCK);
+  }
+  if (thd->global_read_lock)
+    unlock_global_read_lock(thd);
+}
+
+/*
+ * Simple function for adding an explicetly named (systems) table to
+ * the global table list, e.g. "mysql", "proc".
+ *
+ */
+TABLE_LIST *
+sp_add_to_query_tables(THD *thd, LEX *lex,
+		       const char *db, const char *name,
+		       thr_lock_type locktype)
+{
+  TABLE_LIST *table;
+
+  if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
+  {
+    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+    return NULL;
+  }
+  table->db_length= strlen(db);
+  table->db= thd->strmake(db, table->db_length);
+  table->table_name_length= strlen(name);
+  table->table_name= thd->strmake(name, table->table_name_length);
+  table->alias= thd->strdup(name);
+  table->lock_type= locktype;
+  table->select_lex= lex->current_select; // QQ?
+  table->cacheable_table= 1;
+  
+  lex->add_to_query_tables(table);
+  return table;
+}
