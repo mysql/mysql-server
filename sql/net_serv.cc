@@ -177,7 +177,7 @@ static my_bool net_realloc(NET *net, ulong length)
 void net_clear(NET *net)
 {
 #ifndef EXTRA_DEBUG
-  int count;
+  int count;					// One may get 'unused' warning
   bool is_blocking=vio_is_blocking(net->vio);
   if (is_blocking)
     vio_blocking(net->vio, FALSE);
