@@ -86,7 +86,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
       packet->length(0);
       net_store_data(packet, thd->variables.convert_set, file_name);
       if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			    (char *)packet.ptr(), packet.length()))
+			    (char *)packet->ptr(), packet->length()))
 	DBUG_RETURN(-1);
     }
   }
@@ -126,7 +126,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
     net_store_data(packet,open_list->in_use);
     net_store_data(packet,open_list->locked);
     if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			  (char *)packet.ptr(), packet.length()))
+			  (char *)packet->ptr(), packet->length()))
     {
       DBUG_RETURN(-1);
     }
@@ -169,7 +169,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
     packet->length(0);
     net_store_data(packet, thd->variables.convert_set, file_name);
     if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			  (char *)packet.ptr(), packet.length()))
+			  (char *)packet->ptr(), packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -636,7 +636,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       close_thread_tables(thd,0);
     }
     if (SEND_ROW(thd, &thd->net, field_list.elements, 
-		 (char *)thd->packet.ptr(), thd->packet.length()))
+		 (char *)packet->ptr(), packet->length()))
 	DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -763,7 +763,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  net_store_data(packet, field->comment.str,field->comment.length);
 	}
 	if (SEND_ROW(thd, &thd->net, field_list.elements, 
-		     (char *)thd->packet.ptr(), thd->packet.length()))
+		     (char *)packet->ptr(), packet->length()))
 	  DBUG_RETURN(-1);
       }
     }
@@ -834,7 +834,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
     // now we are in business :-)
     if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			  (char *)thd->packet.ptr(), thd->packet.length()))
+			  (char *)packet->ptr(), packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -958,7 +958,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Comment */
       net_store_data(packet,convert,"");
       if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			    (char *)thd->packet.ptr(), thd->packet.length()))
+			    (char *)packet->ptr(), packet->length()))
 	DBUG_RETURN(-1);
     }
   }
@@ -1387,7 +1387,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     else
       net_store_null(packet);
     if (SEND_ROW(thd, &thd->net, field_list.elements, 
-			  (char *)thd->packet.ptr(), thd->packet.length()))
+			  (char *)packet->ptr(), packet->length()))
       break;
   }
   send_eof(thd);
