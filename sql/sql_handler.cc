@@ -234,7 +234,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
     if (cond && !cond->val_int())
       continue;
-    if (!err && num_rows >= offset_limit)
+    if (num_rows >= offset_limit)
     {
       String *packet = &thd->packet;
       Item *item;
