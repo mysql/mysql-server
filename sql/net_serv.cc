@@ -15,6 +15,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
+  This file is the net layer API for the MySQL client/server protocol,
+  which is a tightly coupled, proprietary protocol owned by MySQL AB.
+  Any re-implementations of this protocol must also be under GPL
+  unless one has got an license from MySQL AB stating otherwise.
+*/
+
+/*
   Write and read of logical packets to/from socket
 
   Writes are cached into net_buffer_length big packets.
@@ -26,6 +33,10 @@
   C file.
 */
 
+/*
+  HFTODO this must be hidden if we don't want client capabilities in 
+  embedded library
+ */
 #ifdef __WIN__
 #include <winsock.h>
 #endif
@@ -40,6 +51,13 @@
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
+
+#ifdef EMBEDDED_LIBRARY
+#undef MYSQL_SERVER
+#undef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif /*EMBEDDED_LIBRARY */
+
 
 /*
   The following handles the differences when this is linked between the
@@ -66,10 +84,15 @@ void sql_print_error(const char *format,...);
 
 #ifdef MYSQL_SERVER
 #define USE_QUERY_CACHE
+/*
+  The following variables/functions should really not be declared
+  extern, but as it's hard to include mysql_priv.h here, we have to
+  live with this for a while.
+*/
 extern uint test_flags;
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #undef statistic_increment
@@ -85,7 +108,7 @@ static my_bool net_write_buff(NET *net,const char *packet,ulong len);
 
 	/* Init with packet info */
 
-int my_net_init(NET *net, Vio* vio)
+my_bool my_net_init(NET *net, Vio* vio)
 {
   DBUG_ENTER("my_net_init");
   my_net_local_init(net);			/* Set some limits */
@@ -104,6 +127,7 @@ int my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->query_cache_query=0;
+  net->report_error= 0;
 
   if (vio != 0)					/* If real connection */
   {
@@ -132,7 +156,7 @@ void net_end(NET *net)
 
 /* Realloc the packet buffer */
 
-static my_bool net_realloc(NET *net, ulong length)
+my_bool net_realloc(NET *net, ulong length)
 {
   uchar *buff;
   ulong pkt_length;
@@ -141,10 +165,11 @@ static my_bool net_realloc(NET *net, ulong length)
 
   if (length >= net->max_packet_size)
   {
-    DBUG_PRINT("error",("Packet too large. Max sixe: %lu",
-			net->max_packet_size));
-    net->error=1;
-    net->last_errno=ER_NET_PACKET_TOO_LARGE;
+    DBUG_PRINT("error", ("Packet too large. Max size: %lu",
+               net->max_packet_size));
+    net->error= 1;
+    net->report_error= 1;
+    net->last_errno= ER_NET_PACKET_TOO_LARGE;
     DBUG_RETURN(1);
   }
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
@@ -156,10 +181,9 @@ static my_bool net_realloc(NET *net, ulong length)
 				 NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				 MYF(MY_WME))))
   {
-    net->error=1;
-#ifdef MYSQL_SERVER
-    net->last_errno=ER_OUT_OF_RESOURCES;
-#endif
+    net->error= 1;
+    net->report_error= 1;
+    net->last_errno= ER_OUT_OF_RESOURCES;
     DBUG_RETURN(1);
   }
   net->buff=net->write_pos=buff;
@@ -193,14 +217,14 @@ void net_clear(NET *net)
 
 	/* Flush write_buffer if not empty. */
 
-int net_flush(NET *net)
+my_bool net_flush(NET *net)
 {
-  int error=0;
+  my_bool error= 0;
   DBUG_ENTER("net_flush");
   if (net->buff != net->write_pos)
   {
-    error=net_real_write(net,(char*) net->buff,
-			 (ulong) (net->write_pos - net->buff));
+    error=test(net_real_write(net,(char*) net->buff,
+			      (ulong) (net->write_pos - net->buff)));
     net->write_pos=net->buff;
   }
   /* Sync packet number if using compression */
@@ -223,7 +247,7 @@ int net_flush(NET *net)
     If compression is used the original package is modified!
 */
 
-int
+my_bool
 my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
@@ -250,23 +274,46 @@ my_net_write(NET *net,const char *packet,ulong len)
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
+#ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header",(char*) buff,NET_HEADER_SIZE);
+#endif
   return test(net_write_buff(net,packet,len));
 }
 
 /*
   Send a command to the server.
-  As the command is part of the first data packet, we have to do some data
-  juggling to put the command in there, without having to create a new
-  packet.
-  This function will split big packets into sub-packets if needed.
-  (Each sub packet can only be 2^24 bytes)
+
+  SYNOPSIS
+    net_write_command()
+    net			NET handler
+    command		Command in MySQL server (enum enum_server_command)
+    header		Header to write after command
+    head_len		Length of header
+    packet		Query or parameter to query
+    len			Length of packet
+
+  DESCRIPTION
+    The reason for having both header and packet is so that libmysql
+    can easy add a header to a special command (like prepared statements)
+    without having to re-alloc the string.
+
+    As the command is part of the first data packet, we have to do some data
+    juggling to put the command in there, without having to create a new
+    packet.
+    This function will split big packets into sub-packets if needed.
+    (Each sub packet can only be 2^24 bytes)
+
+  RETURN VALUES
+    0	ok
+    1	error
 */
 
-int
-net_write_command(NET *net,uchar command,const char *packet,ulong len)
+my_bool
+net_write_command(NET *net,uchar command,
+		  const char *header, ulong head_len,
+		  const char *packet, ulong len)
 {
-  ulong length=len+1;				/* 1 extra byte for command */
+  ulong length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   DBUG_ENTER("net_write_command");
@@ -277,25 +324,28 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
   if (length >= MAX_PACKET_LENGTH)
   {
     /* Take into account that we have the command in the first header */
-    len= MAX_PACKET_LENGTH -1;
+    len= MAX_PACKET_LENGTH - 1 - head_len;
     do
     {
       int3store(buff, MAX_PACKET_LENGTH);
       buff[3]= (uchar) net->pkt_nr++;
       if (net_write_buff(net,(char*) buff, header_size) ||
-	  net_write_buff(net,packet,len))
+	  net_write_buff(net, header, head_len) ||
+	  net_write_buff(net, packet, len))
 	DBUG_RETURN(1);
       packet+= len;
       length-= MAX_PACKET_LENGTH;
       len= MAX_PACKET_LENGTH;
+      head_len= 0;
       header_size= NET_HEADER_SIZE;
     } while (length >= MAX_PACKET_LENGTH);
     len=length;					/* Data left to be written */
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  DBUG_RETURN(test(net_write_buff(net,(char*) buff,header_size) ||
-		   net_write_buff(net,packet,len) || net_flush(net)));
+  DBUG_RETURN(test(net_write_buff(net, (char*) buff, header_size) ||
+	      (head_len && net_write_buff(net, (char*) header, head_len)) ||
+	      net_write_buff(net, packet, len) || net_flush(net)));
 }
 
 /*
@@ -336,6 +386,9 @@ net_write_buff(NET *net,const char *packet,ulong len)
   else
     left_length= (ulong) (net->buff_end - net->write_pos);
 
+#ifdef DEBUG_DATA_PACKETS
+  DBUG_DUMP("data", packet, len);
+#endif
   if (len > left_length)
   {
     if (net->write_pos != net->buff)
@@ -411,10 +464,12 @@ net_real_write(NET *net,const char *packet,ulong len)
 			       COMP_HEADER_SIZE, MYF(MY_WME))))
     {
 #ifdef MYSQL_SERVER
-      net->last_errno=ER_OUT_OF_RESOURCES;
-      net->error=2;
+      net->last_errno= ER_OUT_OF_RESOURCES;
+      net->error= 2;
+      /* TODO is it needed to set this variable if we have no socket */
+      net->report_error= 1;
 #endif
-      net->reading_or_writing=0;
+      net->reading_or_writing= 0;
       DBUG_RETURN(1);
     }
     memcpy(b+header_length,packet,len);
@@ -461,9 +516,10 @@ net_real_write(NET *net,const char *packet,ulong len)
 		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
 #ifdef MYSQL_SERVER	    
-	    net->last_errno=ER_NET_ERROR_ON_WRITE;
+	    net->last_errno= ER_NET_ERROR_ON_WRITE;
 #endif
-	    net->error=2;                     /* Close socket */
+	    net->error= 2;                     /* Close socket */
+            net->report_error= 1;
 	    goto end;
 	  }
 	  retry_count=0;
@@ -489,7 +545,8 @@ net_real_write(NET *net,const char *packet,ulong len)
 	continue;
       }
 #endif /* defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER) */
-      net->error=2;				/* Close socket */
+      net->error= 2;				/* Close socket */
+      net->report_error= 1;
 #ifdef MYSQL_SERVER
       net->last_errno= (interrupted ? ER_NET_WRITE_INTERRUPTED :
 			ER_NET_ERROR_ON_WRITE);
@@ -667,9 +724,10 @@ my_real_read(NET *net, ulong *complen)
 			my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
 		len= packet_error;
-		net->error=2;                 /* Close socket */
+		net->error= 2;                 /* Close socket */
+	        net->report_error= 1;
 #ifdef MYSQL_SERVER
-		net->last_errno=ER_NET_FCNTL_ERROR;
+		net->last_errno= ER_NET_FCNTL_ERROR;
 #endif
 		goto end;
 	      }
@@ -698,7 +756,8 @@ my_real_read(NET *net, ulong *complen)
 	  DBUG_PRINT("error",("Couldn't read packet: remain: %u  errno: %d  length: %ld",
 			      remain, vio_errno(net->vio), length));
 	  len= packet_error;
-	  net->error=2;				/* Close socket */
+	  net->error= 2;				/* Close socket */
+	  net->report_error= 1;
 #ifdef MYSQL_SERVER
 	  net->last_errno= (interrupted ? ER_NET_READ_INTERRUPTED :
 			    ER_NET_READ_ERROR);
@@ -712,6 +771,8 @@ my_real_read(NET *net, ulong *complen)
       if (i == 0)
       {					/* First parts is packet length */
 	ulong helping;
+        DBUG_DUMP("packet_header",(char*) net->buff+net->where_b,
+                  NET_HEADER_SIZE);
 	if (net->buff[net->where_b + 3] != (uchar) net->pkt_nr)
 	{
 	  if (net->buff[net->where_b] != (uchar) 255)
@@ -720,7 +781,6 @@ my_real_read(NET *net, ulong *complen)
 		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
-	    DBUG_DUMP("packet_header",(char*) net->buff+net->where_b, 4);
 #ifdef EXTRA_DEBUG
 	    fprintf(stderr,"Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
@@ -728,6 +788,7 @@ my_real_read(NET *net, ulong *complen)
 #endif
 	  }
 	  len= packet_error;
+	  net->report_error= 1;
 #ifdef MYSQL_SERVER
 	  net->last_errno=ER_NET_PACKETS_OUT_OF_ORDER;
 #endif
@@ -776,6 +837,10 @@ end:
     vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
+#ifdef DEBUG_DATA_PACKETS
+  if (len != packet_error)
+    DBUG_DUMP("data",(char*) net->buff+net->where_b, len);
+#endif
   return(len);
 }
 
@@ -908,7 +973,8 @@ my_net_read(NET *net)
       if (my_uncompress((byte*) net->buff + net->where_b, &packet_len,
 			&complen))
       {
-	net->error=2;			/* caller will close socket */
+	net->error= 2;			/* caller will close socket */
+	net->report_error= 1;
 #ifdef MYSQL_SERVER
 	net->last_errno=ER_NET_UNCOMPRESS_ERROR;
 #endif
@@ -929,12 +995,3 @@ my_net_read(NET *net)
   return len;
 }
 
-bool net_request_file(NET* net, const char* fname)
-{
-  char tmp [FN_REFLEN+1],*end;
-  DBUG_ENTER("net_request_file");
-  tmp[0] = (char) 251;				/* NULL_LENGTH */
-  end=strnmov(tmp+1,fname,sizeof(tmp)-2);
-  DBUG_RETURN(my_net_write(net,tmp,(uint) (end-tmp)) ||
-	      net_flush(net));
-}
