@@ -589,12 +589,12 @@ static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
 
 CHARSET_INFO my_charset_latin2_czech_ci =
 {
-    2,0,0,				/* number */
-    MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
-    "latin2",				/* cs name    */
-    "latin2_czech_cs",			/* name */
-    "",					/* comment    */
-    NULL,				/* tailoring */
+    2,0,0,                                      /* number    */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_CSSORT, /* state     */
+    "latin2",                                   /* cs name   */
+    "latin2_czech_cs",                          /* name      */
+    "",                                         /* comment   */
+    NULL,                                       /* tailoring */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,

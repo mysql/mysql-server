@@ -1998,3 +1998,18 @@ ac
 700
 NULL
 drop tables t1,t2;
+create table t1 (a int not null, b int not null, c int, primary key (a,b));
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+set @b:= 0;
+explain select sum(a) from t1 where b > @b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	3	Using where; Using index
+set @a:= (select sum(a) from t1 where b > @b);
+explain select a from t1 where c=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+do @a:= (select sum(a) from t1 where b > @b);
+explain select a from t1 where c=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
