@@ -2755,7 +2755,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
-#ifndef EMBEDDED_LIBRARY
+
   case SQLCOM_LOAD:
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
@@ -2782,7 +2782,7 @@ mysql_execute_command(THD *thd)
 		   lex->duplicates, (bool) lex->local_file, lex->lock_option);
     break;
   }
-#endif /* EMBEDDED_LIBRARY */
+
   case SQLCOM_SET_OPTION:
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
 		   (res= open_and_lock_tables(thd,tables))))
