@@ -9264,7 +9264,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   nextReq->closeFlag = ZFALSE;
   nextReq->transId1 = apiConnectptr.p->transid[0];
   nextReq->transId2 = apiConnectptr.p->transid[1];
-  
+  nextReq->batch_size_bytes= scanP->batch_byte_size;
+
   ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
   ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
   for(Uint32 i = 0 ; i<len; i++){
@@ -9278,6 +9279,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 
     scanFragptr.p->m_ops = 0;
     nextReq->senderData = scanFragptr.i;
+    nextReq->batch_size_rows= scanFragptr.p->scanFragConcurrency;
+
     sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 	       ScanFragNextReq::SignalLength, JBB);
     delivered.remove(scanFragptr);
@@ -9487,10 +9490,9 @@ void Dbtc::sendScanFragReq(Signal* signal,
   req->savePointId = apiConnectptr.p->currSavePointId;
   req->transId1 = apiConnectptr.p->transid[0];
   req->transId2 = apiConnectptr.p->transid[1];
-  req->concurrency= scanFragP->scanFragConcurrency;
   req->clientOpPtr = scanFragP->m_apiPtr;
-  req->batch_byte_size= scanP->batch_byte_size;
-  req->first_batch_size= scanP->first_batch_size;
+  req->batch_size_rows= scanFragP->scanFragConcurrency;
+  req->batch_size_bytes= scanP->batch_byte_size;
   sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
              ScanFragReq::SignalLength, JBB);
   updateBuddyTimer(apiConnectptr);
