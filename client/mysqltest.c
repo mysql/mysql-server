@@ -54,13 +54,9 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
 #include <violite.h>
 
 #define MAX_QUERY	65536
