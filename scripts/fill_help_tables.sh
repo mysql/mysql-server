@@ -111,12 +111,12 @@ sub flush_all
   $example= prepare_example($example);
 
   if ($func_name ne "" && $text ne "" && !($func_name =~ /[abcdefghikjlmnopqrstuvwxyz]/)){
-    print "INSERT INTO function (name,description,example) VALUES (";
+    print "INSERT INTO help_topic (name,description,example) VALUES (";
     print "'$func_name',";
     print "'$text',";
     print "'$example'";
     print ");\n";
-    print "INSERT INTO function_category (cat_id,func_id) VALUES (\@cur_category,LAST_INSERT_ID());\n";
+    print "INSERT INTO help_relation (help_category_id,help_topic_id) VALUES (\@cur_category,LAST_INSERT_ID());\n";
   }
 
   $func_name= "";
@@ -131,50 +131,43 @@ sub new_category
 
   $category= prepare_text($category);
 
-  print "INSERT INTO function_category_name (name) VALUES (\'$category\');\n";
-  print "SELECT \@cur_category:=LAST_INSERT_ID();\n";
+  print "INSERT INTO help_category (name) VALUES (\'$category\');\n";
+  print "SET \@cur_category=LAST_INSERT_ID();\n";
 }
 
-print "INSERT INTO db (Host,DB,User,Select_priv) VALUES ('%','mysql_help','','Y');\n";
-print "CREATE DATABASE mysql_help;\n";
+#print "INSERT INTO db (Host,DB,User,Select_priv) VALUES ('%','mysql_help','','Y');\n";
+#print "CREATE DATABASE mysql_help;\n";
 
-print "USE mysql_help;\n";
+print "USE mysql;\n";
 
-print "DROP TABLE IF EXISTS function;\n";
-print "CREATE TABLE function (";
-print "  func_id       int unsigned not null auto_increment,";
+print "DROP TABLE IF EXISTS help_topic;\n";
+print "CREATE TABLE help_topic (";
+print "  help_topic_id int unsigned not null auto_increment,";
 print "  name          varchar(64) not null,";
-print "  url           varchar(128) not null,";
 print "  description   text not null,";
 print "  example       text not null,";
-print "  min_args      tinyint not null,";
-print "  max_args      tinyint,";
-print "  date_created  datetime not null,";
-print "  last_modified timestamp not null,";
-print "  primary key   (func_id)";
-print ") type=myisam;\n\n";
-
-print "DROP TABLE IF EXISTS function_category_name;\n";
-print "CREATE TABLE function_category_name (";
-print "  cat_id        smallint unsigned not null auto_increment,";
-print "  name          varchar(64) not null,";
 print "  url           varchar(128) not null,";
-print "  date_created  datetime not null,";
-print "  last_modified timestamp not null,";
-print "  primary key   (cat_id)";
+print "  primary key   (help_topic_id),";
+print "  uniuqe index(name)";
 print ") type=myisam;\n\n";
 
-print "DROP TABLE IF EXISTS function_category;\n";
-print "CREATE TABLE function_category (";
-print "  cat_id        smallint unsigned not null references function_category_name,";
-print "  func_id       int unsigned not null references function,";
-print "  primary key   (cat_id, func_id)";
+print "DROP TABLE IF EXISTS help_category;\n";
+print "CREATE TABLE help_category (";
+print "  help_category_id smallint unsigned not null auto_increment,";
+print "  name             varchar(64) not null,";
+print "  url              varchar(128) not null,";
+print "  primary key      (help_category_id),";
+print "  unique index (name)";    
 print ") type=myisam;\n\n";
 
-print "DELETE FROM function_category_name;\n";
-print "DELETE FROM function_category;\n";
-print "DELETE FROM function;\n";
-print "SELECT \@cur_category:=null;\n\n";
+print "DROP TABLE IF EXISTS help_relation;\n";
+print "CREATE TABLE help_relation (";
+print"   help_topic_id    int unsigned not null references help_topic,";
+print"   help_category_id smallint unsigned not null references help_category,";
+print"   primary key      (help_category_id, help_topic_id),";
+print ") type=myisam;\n\n";
+
+print "SET \@cur_category=null;\n\n";
 
 my $in_section_6_3= 0;
 
@@ -239,8 +232,8 @@ for(<>)
 }
 
 
-print "DELETE function_category_name ";
-print "FROM function_category_name ";
-print "LEFT JOIN function_category ON function_category.cat_id=function_category_name.cat_id ";
-print "WHERE function_category.cat_id is null;"
+print "DELETE help_category ";
+print "FROM help_category ";
+print "LEFT JOIN help_relation ON help_category.help_category_id=help_relation.help_category_id ";
+print "WHERE help_relation.help_category_id is null;"
 

@@ -369,9 +369,11 @@ class Item_sum_hybrid :public Item_sum
   enum_field_types hybrid_field_type;
   int cmp_sign;
   table_map used_table_cache;
+  int (*str_cmp_function)(const String *x,const String *y);
 
   public:
-  Item_sum_hybrid(Item *item_par,int sign) :Item_sum(item_par),cmp_sign(sign),
+  Item_sum_hybrid(Item *item_par,int sign)
+    :Item_sum(item_par), hybrid_type(INT_RESULT), cmp_sign(sign),
     used_table_cache(~(table_map) 0)
   {}
   Item_sum_hybrid(THD *thd, Item_sum_hybrid &item):

@@ -37,7 +37,27 @@ static byte* get_field_name(Field *buff,uint *length,
   return (byte*) buff->field_name;
 }
 
-	/* Open a .frm file */
+/*
+  Open a .frm file 
+
+  SYNOPSIS
+    openfrm()
+
+    name           path to table-file "db/name"
+    alias          alias for table
+    db_stat        open flags (for example HA_OPEN_KEYFILE|HA_OPEN_RNDFILE..)
+                   can be 0 (example in ha_example_table)
+    prgflag        READ_ALL etc..
+    ha_open_flags  HA_OPEN_ABORT_IF_LOCKED etc..
+    outparam       result table
+
+  RETURN VALUES
+   0	ok
+   1	Error (see frm_error)
+   2    Error (see frm_error)
+   3    Wrong data in .frm file
+   4    Error (see frm_error)
+*/
 
 int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    uint ha_open_flags, TABLE *outparam)
@@ -1127,13 +1147,20 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 
 
 /*
-  Alloc a value as a string and return it
-  If field is empty, return NULL
+  Allocate string field in MEM_ROOT and return it as NULL-terminated string
+
+  SYNOPSIS
+    get_field()
+    mem   	MEM_ROOT for allocating
+    field 	Field for retrieving of string
+
+  RETURN VALUES
+    NullS  string is empty
+    #      pointer to NULL-terminated string value of field
 */
 
-char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
+char *get_field(MEM_ROOT *mem, Field *field)
 {
-  Field *field=table->field[fieldnr];
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff),default_charset_info);
   field->val_str(&str,&str);

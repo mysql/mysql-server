@@ -187,7 +187,10 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   else if (hybrid_type == REAL_RESULT)
     max_length=float_length(decimals);
   else
+  {
+    str_cmp_function= binary() ? stringcmp : sortcmp;
     max_length=item->max_length;
+  }
   decimals=item->decimals;
   maybe_null=item->maybe_null;
   unsigned_flag=item->unsigned_flag;
@@ -434,8 +437,7 @@ bool Item_sum_min::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value ||
-	 (binary() ? stringcmp(&value,result) : sortcmp(&value,result)) > 0))
+	(null_value || (*str_cmp_function)(&value,result) > 0))
     {
       value.copy(*result);
       null_value=0;
@@ -481,8 +483,7 @@ bool Item_sum_max::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value ||
-	 (binary() & MY_CS_BINSORT ? stringcmp(&value,result) : sortcmp(&value,result)) < 0))
+	(null_value || (*str_cmp_function)(&value,result) < 0))
     {
       value.copy(*result);
       null_value=0;
@@ -757,8 +758,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     result_field->ptr-=offset;
 
     if (result_field->is_null() ||
-	(cmp_sign * (binary() ? stringcmp(res_str,&tmp_value) :
-		 sortcmp(res_str,&tmp_value)) < 0))
+	(cmp_sign * (*str_cmp_function)(res_str,&tmp_value)) < 0)
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else
     {						// Use old value

@@ -147,6 +147,12 @@ void lex_free(void)
 }
 
 
+/*
+  This is called before every query that is to be parsed.
+  Because of this, it's critical to not do too much things here.
+  (We already do too much here)
+*/
+
 LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= &thd->lex;
@@ -164,10 +170,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->thd_charset= lex->thd->variables.thd_charset;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
-  lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
-  lex->safe_to_cache_query= 1;
-  bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }
 

@@ -188,7 +188,7 @@ end:
 static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count,
                        bool simple_connect, bool do_send_error, 
-                       char* crypted_scramble, bool had_password,
+                       char *crypted_scramble, bool had_password,
                        uint *cur_priv_version, ACL_USER** hint_user)
 {
   thd->db=0;
@@ -506,10 +506,10 @@ check_connections(THD *thd)
   char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
   ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
   uint cur_priv_version;
-  DBUG_PRINT("info", (("check_connections called by thread %d"),
-		      thd->thread_id));
   DBUG_PRINT("info",("New connection received on %s",
 		     vio_description(net->vio)));
+  /* Remove warning from valgrind.  TODO:  Fix it in password.c */
+  bzero((char*) prepared_scramble, sizeof(prepared_scramble));
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
@@ -525,15 +525,17 @@ check_connections(THD *thd)
       thd->host=(char*) localhost;
     else
 #endif
-    if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      vio_in_addr(net->vio,&thd->remote.sin_addr);
-      thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
-      /* Cut very long hostnames to avoid possible overflows */
-      if (thd->host)
-	thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
-      if (connect_errors > max_connect_errors)
-	return(ER_HOST_IS_BLOCKED);
+      if (!(specialflag & SPECIAL_NO_RESOLVE))
+      {
+	vio_in_addr(net->vio,&thd->remote.sin_addr);
+	thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+	/* Cut very long hostnames to avoid possible overflows */
+	if (thd->host)
+	  thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+	if (connect_errors > max_connect_errors)
+	  return(ER_HOST_IS_BLOCKED);
+      }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
 		       thd->host ? thd->host : "unknown host",
@@ -555,8 +557,8 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+64];
-    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
-                       CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION;
+    int client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
+			CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
@@ -582,7 +584,7 @@ check_connections(THD *thd)
     // At this point we write connection message and read reply
     if (net_write_command(net,(uchar) protocol_version, "", 0, buff,
 			  (uint) (end-buff)) ||
-       (pkt_len= my_net_read(net)) == packet_error ||
+	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
       inc_host_errors(&thd->remote.sin_addr);
@@ -647,17 +649,17 @@ check_connections(THD *thd)
   passwd= strend(user)+1;
   db=0;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-     db=strend(passwd)+1;
+    db=strend(passwd)+1;
 
   /* We can get only old hash at this point */
   if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH)
-      return ER_HANDSHAKE_ERROR;
+    return ER_HANDSHAKE_ERROR;
 
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
-     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
+    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
-       opt_using_transactions)
-  net->return_status= &thd->server_status;
+      opt_using_transactions)
+    net->return_status= &thd->server_status;
   net->read_timeout=(uint) thd->variables.net_read_timeout;
 
   /* Simple connect only for old clients. New clients always use secure auth */
@@ -665,34 +667,34 @@ check_connections(THD *thd)
 
   /* Store information if we used password. passwd will be dammaged */
   bool using_password=test(passwd[0]);
+
   /* Check user permissions. If password failure we'll get scramble back */
   if (check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
-      simple_connect, prepared_scramble, using_password, &cur_priv_version,
-      &cached_user)<0)
+		 simple_connect, prepared_scramble, using_password,
+		 &cur_priv_version,
+		 &cached_user)<0)
   {
     /* Store current used and database as they are erased with next packet */
     char tmp_user[USERNAME_LENGTH+1];
     char tmp_db[NAME_LEN+1];
 
+    tmp_user[0]= tmp_db[0]= 0;
     /* If The client is old we just have to return error */
     if (simple_connect)
       return -1;
 
-    tmp_user[0]=0;
     if (user)
       strmake(tmp_user,user,USERNAME_LENGTH);
-
-    tmp_db[0]=0;
     if (db)
       strmake(tmp_db,db,NAME_LEN);
 
     /* Write hash and encrypted scramble to client */
     if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
         net_flush(net))
-      {
-        inc_host_errors(&thd->remote.sin_addr);
-        return ER_HANDSHAKE_ERROR;
-      }
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return ER_HANDSHAKE_ERROR;
+    }
     /* Reading packet back */
     if ((pkt_len= my_net_read(net)) == packet_error)
     {
@@ -707,8 +709,9 @@ check_connections(THD *thd)
     }
     /* Final attempt to check the user based on reply */
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-        tmp_db, 1, 0, 1, prepared_scramble, using_password, &cur_priv_version,
-        &cached_user))
+		   tmp_db, 1, 0, 1, prepared_scramble, using_password,
+		   &cur_priv_version,
+		   &cached_user))
       return -1;
   }
   thd->password=using_password;
@@ -774,7 +777,7 @@ pthread_handler_decl(handle_one_connection,arg)
 	net_printf(thd,error,thd->host_or_ip);
 #ifdef __NT__
       if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
-	sleep(1);				/* must wait after eof() */
+	my_sleep(1000);				/* must wait after eof() */
 #endif
       statistic_increment(aborted_connects,&LOCK_status);
       goto end_thread;
@@ -1123,21 +1126,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
         simple_connect, prepared_scramble, using_password, &cur_priv_version,
-        &cached_user)<0)
+        &cached_user) < 0)
     {
       /* If The client is old we just have to have auth failure */
       if (simple_connect)
         goto restore_user; /* Error is already reported */
 
       /* Store current used and database as they are erased with next packet */
-      tmp_user[0]=0;
+      tmp_user[0]= tmp_db[0]= 0;
       if (user)
         strmake(tmp_user,user,USERNAME_LENGTH);
-
-      tmp_db[0]=0;
       if (db)
         strmake(tmp_db,db,NAME_LEN);
-
 
       /* Write hash and encrypted scramble to client */
       if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
@@ -1589,7 +1589,6 @@ mysql_execute_command(THD *thd)
 	   cursor= cursor->next)
       {
 	if (cursor->derived && (res=mysql_derived(thd, lex,
-						  (SELECT_LEX_UNIT *)
 						  cursor->derived,
 						  cursor)))
 	{
@@ -1602,7 +1601,7 @@ mysql_execute_command(THD *thd)
   }
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables, 0)) 
-#ifndef EMBEDDED_LIBRARY
+#ifndef HAVE_REPLICATION
       ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables))
@@ -3148,7 +3147,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 
 
 /****************************************************************************
-	Initialize global thd variables needed for query
+  Initialize global thd variables needed for query
 ****************************************************************************/
 
 void
@@ -3170,10 +3169,11 @@ mysql_init_query(THD *thd)
   lex->select_lex.prev= &lex->unit.slave;
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
-  lex->olap=lex->describe= 0;
-  lex->derived_tables= false;
+  lex->describe= 0;
+  lex->derived_tables= FALSE;
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
+  lex->safe_to_cache_query= 1;
   thd->select_number= lex->select_lex.select_number= 1;
   thd->free_list= 0;
   thd->total_warn_count=0;			// Warnings for this query
@@ -3184,7 +3184,7 @@ mysql_init_query(THD *thd)
   thd->tmp_table_used= 0;
   if (opt_bin_log)
     reset_dynamic(&thd->user_var_events);
-
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 
@@ -3283,8 +3283,6 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   DBUG_ENTER("mysql_parse");
 
   mysql_init_query(thd);
-  thd->clear_error();
-
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
@@ -3787,10 +3785,10 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     my_casedn_str(files_charset_info,table->table.str);
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
-  ptr->lock_type= lock_type;
+  ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
-  ptr->derived= (SELECT_LEX_UNIT *) table->sel;
+  ptr->derived=	    table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));

@@ -364,3 +364,8 @@ explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1,t2;
+CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) TYPE=MyISAM;
+This version of MySQL doesn't yet support 'RTREE INDEX'
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'

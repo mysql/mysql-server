@@ -1,0 +1,123 @@
+truncate mysql.help_topic;
+truncate mysql.help_category;
+truncate mysql.help_relation;
+insert into mysql.help_topic(name,description,example)values('impossible_function_1','description of \n impossible_function1','example of \n impossible_function1');
+SELECT @topic1_id:=LAST_INSERT_ID();
+@topic1_id:=LAST_INSERT_ID()
+1
+insert into mysql.help_topic(name,description,example)values('impossible_function_2','description of \n impossible_function2','example of \n impossible_function2');
+SELECT @topic2_id:=LAST_INSERT_ID();
+@topic2_id:=LAST_INSERT_ID()
+2
+insert into mysql.help_topic(name,description,example)values('impossible_function_3','description of \n impossible_function3','example of \n impossible_function3');
+SELECT @topic3_id:=LAST_INSERT_ID();
+@topic3_id:=LAST_INSERT_ID()
+3
+insert into mysql.help_category(name)values('impossible_category_1');
+SELECT @category1_id:=LAST_INSERT_ID();
+@category1_id:=LAST_INSERT_ID()
+1
+insert into mysql.help_category(name)values('impossible_category_2');
+SELECT @category2_id:=LAST_INSERT_ID();
+@category2_id:=LAST_INSERT_ID()
+2
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic1_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic2_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic2_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic3_id);
+help 'function_of_my_dream';
+Name	Category
+impossible_category_1	Y
+impossible_category_2	Y
+help '%possible_f%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+help 'impossible_func%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+help 'impossible_category%';
+Name	Category
+impossible_category_1	Y
+impossible_category_2	Y
+help 'impossible_%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_category_1	Y
+impossible_category_2	Y
+help '%function_2';
+Name	Category	Description	Example
+impossible_function_2	N	description of 
+ impossible_function2	example of 
+ impossible_function2
+help '%category_2';
+Name	Category	Description	Example
+impossible_category_2	Y		impossible_function_2
+impossible_function_3
+
+help 'impossible_function_1';
+Name	Category	Description	Example
+impossible_function_1	N	description of 
+ impossible_function1	example of 
+ impossible_function1
+help 'impossible_category_1';
+Name	Category	Description	Example
+impossible_category_1	Y		impossible_function_1
+impossible_function_2
+
+alter table mysql.help_topic type=innodb;
+alter table mysql.help_category type=innodb;
+alter table mysql.help_relation type=innodb;
+help 'function_of_my_dream';
+Name	Category
+impossible_category_1	Y
+impossible_category_2	Y
+help '%ble_f%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+help 'impossible_func%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+help 'impossible_category%';
+Name	Category
+impossible_category_1	Y
+impossible_category_2	Y
+help 'impossible_%';
+Name	Category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_category_1	Y
+impossible_category_2	Y
+help '%function_2';
+Name	Category	Description	Example
+impossible_function_2	N	description of 
+ impossible_function2	example of 
+ impossible_function2
+help '%category_2';
+Name	Category	Description	Example
+impossible_category_2	Y		impossible_function_2
+impossible_function_3
+
+help 'impossible_function_1';
+Name	Category	Description	Example
+impossible_function_1	N	description of 
+ impossible_function1	example of 
+ impossible_function1
+help 'impossible_category_1';
+Name	Category	Description	Example
+impossible_category_1	Y		impossible_function_1
+impossible_function_2
+
+alter table mysql.help_topic type=myisam;
+alter table mysql.help_category type=myisam;
+alter table mysql.help_relation type=myisam;

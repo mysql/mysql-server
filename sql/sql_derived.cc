@@ -61,7 +61,8 @@ extern  const char *any_db;	// Special symbol for check_access
 */  
 
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
+		  TABLE_LIST *org_table_list)
 {
   SELECT_LEX *sl= unit->first_select();
   List<Item> item_list;
@@ -85,6 +86,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   if ((is_union || is_subsel) && unit->create_total_list(thd, lex, &tables, 1))
     DBUG_RETURN(-1);
 
+  /*
+    We have to do access checks here as this code is executed before any
+    sql command is started to execute.
+  */
   if (tables)
     res= check_table_access(thd,SELECT_ACL, tables);
   else
@@ -173,10 +178,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  res= 1;
 	else
 	{
-	  t->real_name=table->real_name;
-	  t->table=table;
+	  org_table_list->real_name=table->real_name;
+	  org_table_list->table=table;
 	  table->derived_select_number= sl->select_number;
-	  table->tmp_table=TMP_TABLE;
+	  table->tmp_table= TMP_TABLE;
 	  if (lex->describe)
 	  {
 	    // to fix a problem in EXPLAIN
@@ -185,8 +190,11 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  }
 	  else
 	    unit->exclude();
-	  t->db= (char *)"";
-	  t->derived=(SELECT_LEX *) 1; // just in case ...
+	  org_table_list->db= (char *)"";
+#ifndef DBUG_OFF
+	  /* Try to catch errors if this is accessed */
+	  org_table_list->derived=(SELECT_LEX_UNIT *) 1;
+#endif
 	  table->file->info(HA_STATUS_VARIABLE);
 	}
       }
@@ -196,6 +204,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       free_tmp_table(thd, table);
     else
     {
+      /* Add new temporary table to list of open derived tables */
       table->next= thd->derived_tables;
       thd->derived_tables= table;
     }

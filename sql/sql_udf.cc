@@ -162,9 +162,9 @@ void udf_init()
   {
     DBUG_PRINT("info",("init udf record"));
     LEX_STRING name;
-    name.str=get_field(&mem, table, 0);
+    name.str=get_field(&mem, table->field[0]);
     name.length = strlen(name.str);
-    char *dl_name= get_field(&mem, table, 2);
+    char *dl_name= get_field(&mem, table->field[2]);
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;
     if (table->fields >= 4)			// New func table

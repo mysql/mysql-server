@@ -125,7 +125,9 @@ void Item_bool_func2::fix_length_and_dec()
     }
   }
   set_cmp_func();
+  binary_cmp= args[0]->binary() || args[1]->binary();
 }
+
 
 int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 {
@@ -165,7 +167,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return owner->binary() ? stringcmp(res1,res2) : sortcmp(res1,res2);
+      return owner->binary_cmp ? stringcmp(res1,res2) : sortcmp(res1,res2);
     }
   }
   owner->null_value= 1;
@@ -179,7 +181,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return (owner->binary() ? test(stringcmp(res1, res2) == 0) :
+  return (owner->binary_cmp ? test(stringcmp(res1, res2) == 0) :
 	    test(sortcmp(res1, res2) == 0));
 }
 
@@ -274,6 +276,7 @@ bool Item_in_optimizer::preallocate_row()
   return (!(cache= Item_cache::get_cache(ROW_RESULT)));
 }
 
+
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
@@ -281,8 +284,12 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
+  /*
+    TODO: Check if following is right
+    (set_charset set type of result, not how compare should be used)
+  */
   if (args[0]->binary())
-	set_charset(&my_charset_bin);
+    set_charset(&my_charset_bin);
   with_sum_func= args[0]->with_sum_func;
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
@@ -395,7 +402,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= binary() ? stringcmp(a,b) : sortcmp(a,b);
+  int value= binary_cmp ? stringcmp(a,b) : sortcmp(a,b);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -659,7 +666,7 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    set_charset( (args[1]->binary() || args[2]->binary()) ? 
+    set_charset((args[1]->binary() || args[2]->binary()) ? 
 		&my_charset_bin : args[1]->charset());
   }
   else
@@ -802,7 +809,7 @@ Item *Item_func_case::find_item(String *str)
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
-	if (first_expr->binary() || args[i]->binary())
+	if (first_expr_is_binary || args[i]->binary())
 	{
 	  if (stringcmp(tmp,first_expr_str)==0)
 	    return args[i+1];
@@ -912,6 +919,7 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     used_tables_cache|=(first_expr)->used_tables();
     const_item_cache&= (first_expr)->const_item();
     with_sum_func= with_sum_func || (first_expr)->with_sum_func;
+    first_expr_is_binary= first_expr->binary();
   }
   if (else_expr)
   {
@@ -1193,7 +1201,7 @@ byte *in_double::get_value(Item *item)
   return (byte*) &tmp;
 }
 
-cmp_item* cmp_item::get_comparator (Item *item)
+cmp_item* cmp_item::get_comparator(Item *item)
 {
   switch (item->result_type()) {
   case STRING_RESULT:
@@ -1368,7 +1376,7 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    in_item= cmp_item:: get_comparator(item);
+    in_item= cmp_item::get_comparator(item);
   }
   maybe_null= item->maybe_null;
   max_length= 1;
@@ -1690,13 +1698,6 @@ longlong Item_func_isnotnull::val_int()
 }
 
 
-void Item_func_like::fix_length_and_dec()
-{
-  decimals= 0;
-  max_length= 1;
-  //  cmp_type=STRING_RESULT;			// For quick select
-}
-
 longlong Item_func_like::val_int()
 {
   String* res = args[0]->val_str(&tmp_value1);
@@ -1739,6 +1740,7 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   }
   return OPTIMIZE_NONE;
 }
+
 
 bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
@@ -1800,8 +1802,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
-  if (args[0]->binary() || args[1]->binary())
-    set_charset(&my_charset_bin);
+  binary_cmp= (args[0]->binary() || args[1]->binary());
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();
@@ -1817,7 +1818,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
-		       binary() ? REG_EXTENDED | REG_NOSUB :
+		       binary_cmp ? REG_EXTENDED | REG_NOSUB :
 		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
 		       res->charset())))
     {
@@ -1833,6 +1834,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fixed= 1;
   return 0;
 }
+
 
 longlong Item_func_regex::val_int()
 {
@@ -1865,7 +1867,7 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  binary() ? REG_EXTENDED | REG_NOSUB :
+		  binary_cmp ? REG_EXTENDED | REG_NOSUB :
 		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
 		  res->charset()))
 
@@ -1915,7 +1917,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (binary())
+  if (binary_cmp)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2018,7 +2020,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (binary())
+  if (binary_cmp)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2049,7 +2051,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (binary())
+  if (binary_cmp)
   {
     while (j <= tlmpl)
     {

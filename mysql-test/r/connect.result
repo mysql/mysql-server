@@ -3,6 +3,9 @@ Tables_in_mysql
 columns_priv
 db
 func
+help_category
+help_relation
+help_topic
 host
 tables_priv
 user
@@ -15,6 +18,9 @@ Tables_in_mysql
 columns_priv
 db
 func
+help_category
+help_relation
+help_topic
 host
 tables_priv
 user
@@ -27,6 +33,9 @@ Tables_in_mysql
 columns_priv
 db
 func
+help_category
+help_relation
+help_topic
 host
 tables_priv
 user

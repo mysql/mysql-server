@@ -524,9 +524,10 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
+  int (*str_cmp_function)(const String *x,const String *y);
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
-    cmp_sign(cmp_sign_arg) {}
+    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg) {}
   double val();
   longlong val_int();
   String *val_str(String *);
@@ -590,12 +591,17 @@ public:
 class Item_func_locate :public Item_int_func
 {
   String value1,value2;
+  bool binary_cmp;
 public:
   Item_func_locate(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_func_locate(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   const char *func_name() const { return "locate"; }
   longlong val_int();
-  void fix_length_and_dec() { maybe_null=0; max_length=11; }
+  void fix_length_and_dec()
+  {
+    maybe_null=0; max_length=11;
+    binary_cmp = args[0]->binary() || args[1]->binary();
+  }
 };
 
 

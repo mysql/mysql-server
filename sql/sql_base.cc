@@ -1481,6 +1481,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     }
     else
     {
+      DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
 	if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
 	  table= 0;
@@ -1512,6 +1513,11 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
     thd			Thread handler
     tables		Tables to lock
 
+  NOTES
+    You can't call lock_tables twice, as this would break the dead-lock-free
+    handling thr_lock gives us.  You most always get all needed locks at
+    once.
+
   RETURN VALUES
    0	ok
    -1	Error
@@ -1525,6 +1531,7 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
 
   if (!thd->locked_tables)
   {
+    DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     uint count=0;
     for (table = tables ; table ; table=table->next)
       count++;
@@ -1676,27 +1683,30 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   return field;
 }
 
-// Special Field pointer for find_field_in_tables returning
-const Field *not_found_field= (Field*) 0x1;
+
 /*
   Find field in table list.
 
   SYNOPSIS
     find_field_in_tables()
-    thd - pointer to current thread structure
-    item - field item that should be found
-    tables - tables for scaning
-    where - table where field found will be returned via this parameter
-    report_error - if FALSE then do not report error if item not found and 
-      return not_found_field;
+    thd			Pointer to current thread structure
+    item		Field item that should be found
+    tables		Tables for scaning
+    where		Table where field found will be returned via
+			this parameter
+    report_error	If FALSE then do not report error if item not found
+			and return not_found_field
 
   RETURN VALUES
-    0 - field is not found or field is not unique, error message is 
-      reported
-    not_found_field - function was called with report_error == FALSE and 
-      field if not found, no error message reported
+    0			Field is not found or field is not unique- error
+			message is reported
+    not_found_field	Function was called with report_error == FALSE and 
+			field was not found. no error message reported.
     found field
 */
+
+// Special Field pointer for find_field_in_tables returning
+const Field *not_found_field= (Field*) 0x1;
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
@@ -1802,8 +1812,6 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   return (Field*) 0;
 }
 
-// Special Item pointer for find_item_in_list returning
-const Item **not_found_item= (const Item**) 0x1;
 
 /*
   Find Item in list of items (find_field_in_tables analog)
@@ -1813,23 +1821,28 @@ const Item **not_found_item= (const Item**) 0x1;
 
   SYNOPSIS
     find_item_in_list()
-    find - item to find
-    items - list of items
-    counter - to return number of found item
+    find			Item to find
+    items			List of items
+    counter			To return number of found item
     report_error
-      REPORT_ALL_ERRORS - report errors, return 0 if error
-      REPORT_EXCEPT_NOT_FOUND - do not report 'not found' error and return not_        found_item, report other errors, return 0
-      IGNORE_ERRORS - do not report errors, return 0 if error
+      REPORT_ALL_ERRORS		report errors, return 0 if error
+      REPORT_EXCEPT_NOT_FOUND	Do not report 'not found' error and
+				return not_found_item, report other errors,
+				return 0
+      IGNORE_ERRORS		Do not report errors, return 0 if error
       
   RETURN VALUES
-    0 - item is not found or item is not unique, error message is 
-      reported
-    not_found_item - function was called with report_error ==  
-      REPORT_EXCEPT_NOT_FOUND and  item if not found, no error 
-      message reported
+    0			Item is not found or item is not unique,
+			error message is reported
+    not_found_item	Function was called with
+			report_error == REPORT_EXCEPT_NOT_FOUND and
+			item was not found. No error message was reported
     found field 
-  
 */
+
+// Special Item pointer for find_item_in_list returning
+const Item **not_found_item= (const Item**) 0x1;
+
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
@@ -1970,6 +1983,9 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Remap table numbers if INSERT ... SELECT
   Check also that the 'used keys' and 'ignored keys' exists and set up the
   table structure accordingly
+
+  This has to be called for all tables that are used by items, as otherwise
+  table->map is not set and all Item_field will be regarded as const items.
 */
 
 bool setup_tables(TABLE_LIST *tables)

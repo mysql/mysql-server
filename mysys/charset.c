@@ -324,7 +324,7 @@ CHARSET_INFO *system_charset_info  = &my_charset_latin1;
 #define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
 
 
-static my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
+static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 {
   CHARSET_INFO *cs;
 

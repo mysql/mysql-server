@@ -701,7 +701,7 @@ String *Item_func_replace::val_str(String *str)
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   register uint32 l;
-  bool binary_str;
+  bool binary_cmp;
 #endif
 
   null_value=0;
@@ -713,7 +713,7 @@ String *Item_func_replace::val_str(String *str)
     goto null;
 
 #ifdef USE_MB
-  binary_str = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
+  binary_cmp = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
 #endif
 
   if (res2->length() == 0)
@@ -723,7 +723,7 @@ String *Item_func_replace::val_str(String *str)
     return res;
 #else
   offset=0;
-  if (binary_str && (offset=res->strstr(*res2)) < 0)
+  if (binary_cmp && (offset=res->strstr(*res2)) < 0)
     return res;
 #endif
   if (!(res3=args[2]->val_str(&tmp_value2)))
@@ -732,7 +732,7 @@ String *Item_func_replace::val_str(String *str)
   to_length=   res3->length();
 
 #ifdef USE_MB
-  if (!binary_str)
+  if (!binary_cmp)
   {
     search=res2->ptr();
     search_end=search+from_length;

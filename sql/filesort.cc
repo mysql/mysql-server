@@ -49,7 +49,8 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       uint maxbuffer,IO_CACHE *tempfile,
 		       IO_CACHE *outfile);
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
-static uint sortlength(SORT_FIELD *sortorder,uint length);
+static uint sortlength(SORT_FIELD *sortorder, uint s_length,
+		       bool *multi_byte_charset);
 
 	/*
 	  Creates a set of pointers that can be used to read the rows
@@ -75,18 +76,12 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
-  CHARSET_INFO *charset= &my_charset_bin;
+  bool multi_byte_charset;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length););
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
-
-  // BAR TODO: this is not absolutely correct, but OK for now
-  for (i=0;i<table->fields;i++)
-    if (!table->field[i]->binary())
-      charset=table->field[i]->charset();
-  // /BAR TODO
 
   outfile= table->io_cache;
   my_b_clear(&tempfile);
@@ -96,7 +91,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.ref_length= table->file->ref_length;
-  param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
+  param.sort_length= (sortlength(sortorder,s_length, &multi_byte_charset)+
+		      param.ref_length);
   param.max_rows= max_rows;
 
   if (select && select->quick)
@@ -123,7 +119,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (param.sort_length == param.ref_length && records > param.max_rows)
     records=param.max_rows;			/* purecov: inspected */
 
-  if (use_strnxfrm(charset) &&
+  if (multi_byte_charset &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 
@@ -493,28 +489,19 @@ static void make_sortkey(register SORTPARAM *param,
 	    diff=0;				/* purecov: inspected */
 	    length=sort_field->length;
 	  }
-          if (use_strnxfrm(cs))
+          if (sort_field->need_strxnfrm)
           {
-            if (item->binary())
-            {
-              if (res->ptr() != (char*) to)
-                memcpy(to,res->ptr(),length);
-              bzero((char*) to+length,diff);
-            }
-            else
-            {
-              char *from=(char*) res->ptr();
-              if ((unsigned char *)from == to)
-              {
-                set_if_smaller(length,sort_field->length);
-                memcpy(param->tmp_buffer,from,length);
-                from=param->tmp_buffer;
-              }
-              uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
-                                          (unsigned char *) from, length);
-              if (tmp_length < sort_field->length)
-                bzero((char*) to+tmp_length,sort_field->length-tmp_length);
-            }
+	    char *from=(char*) res->ptr();
+	    if ((unsigned char *)from == to)
+	    {
+	      set_if_smaller(length,sort_field->length);
+	      memcpy(param->tmp_buffer,from,length);
+	      from=param->tmp_buffer;
+	    }
+	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
+					(unsigned char *) from, length);
+	    if (tmp_length < sort_field->length)
+	      bzero((char*) to+tmp_length,sort_field->length-tmp_length);
           }
           else
           {
@@ -907,17 +894,36 @@ static int merge_index(SORTPARAM *param, uchar *sort_buffer,
 } /* merge_index */
 
 
-	/* Calculate length of sort key */
+/*
+  Calculate length of sort key
+
+  SYNOPSIS
+    sortlength()
+    sortorder		Order of items to sort
+    uint s_length	Number of items to sort
+    multi_byte_charset  (out)
+			Set to 1 if we are using multi-byte charset
+			(In which case we have to use strxnfrm())
+
+  NOTES
+    sortorder->length is updated for each sort item
+    sortorder->need_strxnfrm is set 1 if we have to use strxnfrm
+
+  RETURN
+    Total length of sort buffer in bytes
+*/
 
 static uint
-sortlength(SORT_FIELD *sortorder, uint s_length)
+sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 {
   reg2 uint length;
   THD *thd= current_thd;
+  *multi_byte_charset= 0;
 
   length=0;
   for (; s_length-- ; sortorder++)
   {
+    sortorder->need_strxnfrm= 0;
     if (sortorder->field)
     {
       if (sortorder->field->type() == FIELD_TYPE_BLOB)
@@ -929,7 +935,11 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	{
 	  CHARSET_INFO *cs=sortorder->field->charset();
 	  if (use_strnxfrm(cs))
+	  {
+	    sortorder->need_strxnfrm= 1;
+	    *multi_byte_charset= 1;
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	  }
 	}
       }
       if (sortorder->field->maybe_null())
@@ -944,7 +954,11 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	{ 
 	  CHARSET_INFO *cs=sortorder->item->charset();
 	  if (use_strnxfrm(cs))
+	  {
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	    sortorder->need_strxnfrm= 1;
+	    *multi_byte_charset= 1;
+	  }
 	}
 	break;
       case INT_RESULT:

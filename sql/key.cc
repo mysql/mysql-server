@@ -194,7 +194,8 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
       {
 	if (my_strnncoll(key_part->field->charset(),
 			 (const uchar*) key, length,
-		         (const uchar*) table->record[0]+key_part->offset,length))
+		         (const uchar*) table->record[0]+key_part->offset,
+			 length))
 	  return 1;
       }
       else if (memcmp(key,table->record[0]+key_part->offset,length))

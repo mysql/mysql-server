@@ -1,0 +1,50 @@
+-- source include/have_innodb.inc
+
+truncate mysql.help_topic;
+truncate mysql.help_category;
+truncate mysql.help_relation;
+
+insert into mysql.help_topic(name,description,example)values('impossible_function_1','description of \n impossible_function1','example of \n impossible_function1');
+SELECT @topic1_id:=LAST_INSERT_ID();
+insert into mysql.help_topic(name,description,example)values('impossible_function_2','description of \n impossible_function2','example of \n impossible_function2');
+SELECT @topic2_id:=LAST_INSERT_ID();
+insert into mysql.help_topic(name,description,example)values('impossible_function_3','description of \n impossible_function3','example of \n impossible_function3');
+SELECT @topic3_id:=LAST_INSERT_ID();
+
+insert into mysql.help_category(name)values('impossible_category_1');
+SELECT @category1_id:=LAST_INSERT_ID();
+insert into mysql.help_category(name)values('impossible_category_2');
+SELECT @category2_id:=LAST_INSERT_ID();
+
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic1_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic2_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic2_id);
+insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic3_id);
+
+help 'function_of_my_dream';
+help '%possible_f%';
+help 'impossible_func%';
+help 'impossible_category%';
+help 'impossible_%';
+help '%function_2';
+help '%category_2';
+help 'impossible_function_1';
+help 'impossible_category_1';
+
+alter table mysql.help_topic type=innodb;
+alter table mysql.help_category type=innodb;
+alter table mysql.help_relation type=innodb;
+
+help 'function_of_my_dream';
+help '%ble_f%';
+help 'impossible_func%';
+help 'impossible_category%';
+help 'impossible_%';
+help '%function_2';
+help '%category_2';
+help 'impossible_function_1';
+help 'impossible_category_1';
+
+alter table mysql.help_topic type=myisam;
+alter table mysql.help_category type=myisam;
+alter table mysql.help_relation type=myisam;
