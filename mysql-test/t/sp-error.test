@@ -99,12 +99,12 @@ foo: loop
 end loop bar|
 
 # Referring to undef variable
---error 1292
 create procedure foo(out x int)
 begin
   declare y int;
   set x = y;
 end|
+drop procedure foo|
 
 # We require INTO in SELECTs for some older clients (as mysql and mysqltest,
 # for now).
