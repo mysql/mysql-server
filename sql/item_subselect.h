@@ -41,11 +41,15 @@ protected:
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* engine that perform execution of subselect (single select or union) */
-  subselect_engine *engine; 
+  subselect_engine *engine;
+  /* cache of used external tables */
+  table_map used_tables_cache; 
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* work with 'substitution' */
   bool have_to_be_excluded;
+  /* cache of constante state */
+  bool const_item_cache;
 
 public:
   /* changed engine indicator */
@@ -85,6 +89,8 @@ public:
   bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
+  bool const_item() const;
+  void update_used_tables();
   void print(String *str)
   {
     if (name)
@@ -101,6 +107,8 @@ public:
 
   friend class select_subselect;
   friend class Item_in_optimizer;
+  friend bool Item_field::fix_fields(THD *, TABLE_LIST *, Item **);
+  friend bool Item_ref::fix_fields(THD *, TABLE_LIST *, Item **);
 };
 
 /* single value subselect */
@@ -264,6 +272,8 @@ public:
   enum Item_result type() { return res_type; }
   virtual void exclude()= 0;
   bool may_be_null() { return maybe_null; };
+  virtual table_map upper_select_const_tables()= 0;
+  static table_map calc_const_tables(TABLE_LIST *);
 };
 
 
@@ -285,6 +295,7 @@ public:
   bool dependent();
   bool uncacheable();
   void exclude();
+  table_map upper_select_const_tables();
 };
 
 
@@ -302,6 +313,7 @@ public:
   bool dependent();
   bool uncacheable();
   void exclude();
+  table_map upper_select_const_tables();
 };
 
 
@@ -328,6 +340,7 @@ public:
   bool dependent() { return 1; }
   bool uncacheable() { return 1; }
   void exclude();
+  table_map upper_select_const_tables() { return 0; }
 };
 
 
