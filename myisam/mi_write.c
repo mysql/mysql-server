@@ -263,7 +263,11 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
     comp_flag=SEARCH_BIGGER;			/* Put after same key */
   else if (keyinfo->flag & HA_NOSAME)
+  {
     comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
+    if (keyinfo->flag & HA_NULL_ARE_EQUAL)
+      comp_flag|= SEARCH_NULL_ARE_EQUAL;
+  }
   else
     comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
 

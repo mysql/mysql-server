@@ -153,7 +153,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	     uint select_options,select_result *result)
 {
   TABLE		*tmp_table;
-  int		error,tmp;
+  int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
   bool		simple_order,simple_group,no_order;
   Item::cond_result cond_value;
@@ -380,9 +380,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       thd->fatal_error)
     goto err;
   thd->proc_info="preparing";
-  if ((tmp=join_read_const_tables(&join)) > 0)
+  if ((tmp_error=join_read_const_tables(&join)) > 0)
     goto err;
-  if (tmp && !(select_options & SELECT_DESCRIBE))
+  if (tmp_error && !(select_options & SELECT_DESCRIBE))
   {
     error=return_zero_rows(result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
@@ -701,9 +701,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	group=0;
       }
       thd->proc_info="Copying to group table";
+      tmp_error= -1;
       if (make_sum_func_list(&join,all_fields) ||
-	  do_select(&join,(List<Item> *) 0,tmp_table2,0))
+	  (tmp_error=do_select(&join,(List<Item> *) 0,tmp_table2,0)))
       {
+	error=tmp_error;
 	free_tmp_table(thd,tmp_table2);
 	goto err;				/* purecov: inspected */
       }
@@ -3347,7 +3349,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (!param->quick_group)
       group=0;					// Can't use group key
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
+    {
       (*tmp->item)->marker=4;			// Store null in key
+      if ((*tmp->item)->max_length >= MAX_CHAR_WIDTH)
+	using_unique_constraint=1;
+    }
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint=1;
     if (group)
@@ -3477,7 +3483,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   field_count= (uint) (reg_field - table->field);
 
   /* If result table is small; use a heap */
-  if (blob_count || using_unique_constraint ||
+  if (blob_count || using_unique_constraint || group_null_items ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES)
   {
@@ -3499,7 +3505,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (blob_count == 0)
   {
     /* We need to ensure that first byte is not 0 for the delete link */
-    if (hidden_null_count)
+    if (param->hidden_field_count)
       hidden_null_count++;
     else
       null_count++;
@@ -3633,14 +3639,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (maybe_null)
 	{
 	  /*
-	    To be able to group on NULL, we move the null bit to be
-	     just before the column and extend the key to cover the null bit
+	    To be able to group on NULL, we reserve place in group_buff
+	    for the NULL flag just before the column.
+	    The field data is after this flag.
+	    The NULL flag is updated by 'end_update()' and 'end_write()'
 	  */
-	  *group_buff= 0;			// Init null byte
-	  key_part_info->offset--;
-	  key_part_info->length++;
-	  group->field->move_field((char*) group_buff+1, (uchar*) group_buff,
-				   1);
+	  keyinfo->flags|= HA_NULL_ARE_EQUAL;	// def. that NULL == NULL
+	  key_part_info->null_bit=field->null_bit;
+	  key_part_info->null_offset= (uint) (field->null_ptr -
+					      (uchar*) table->record[0]);
+	  group->field->move_field((char*) ++group->buff);
+	  group_buff++;
 	}
 	else
 	  group->field->move_field((char*) group_buff);
@@ -3820,11 +3829,17 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	    keyinfo->key_part[i].length > 4)
 	  seg->flag|=HA_SPACE_PACK;
       }
-      if (using_unique_constraint &&
-	  !(field->flags & NOT_NULL_FLAG))
+      if (!(field->flags & NOT_NULL_FLAG))
       {
 	seg->null_bit= field->null_bit;
 	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+	/*
+	  We are using a GROUP BY on something that contains NULL
+	  In this case we have to tell MyISAM that two NULL should
+	  on INSERT be compared as equal
+	*/
+	if (!using_unique_constraint)
+	  keydef.flag|= HA_NULL_ARE_EQUAL;
       }
     }
   }
@@ -4797,8 +4812,9 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     Item *item= *group->item;
     item->save_org_in_field(group->field);
+    /* Store in the used key if the field was 0 */
     if (item->maybe_null)
-      group->buff[0]=item->null_value ? 0: 1;	// Save reversed value
+      group->buff[-1]=item->null_value ? 1 : 0;
   }
   // table->file->index_init(0);
   if (!table->file->index_read(table->record[1],

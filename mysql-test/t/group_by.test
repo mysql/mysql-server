@@ -259,3 +259,14 @@ insert into t1 values (1,3,3,4);
 insert into t1 values (1,3,4,4);
 select One, Two, sum(Four) from t1 group by One,Two;
 drop table if exists t1;
+
+#
+# The GROUP BY returned rows in wrong order in 3.23.51
+#
+
+CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
+));
+insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
+select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
+drop table t1;

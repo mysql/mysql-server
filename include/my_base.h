@@ -134,6 +134,7 @@ enum ha_base_keytype {
 #define HA_BINARY_PACK_KEY	 32	/* Packing of all keys to prev key */
 #define HA_FULLTEXT		128     /* SerG: for full-text search */
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
+#define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 
 	/* Automatic bits in key-flag */
 
@@ -235,6 +236,7 @@ enum ha_base_keytype {
 #define SEARCH_UPDATE	64
 #define SEARCH_PREFIX	128
 #define SEARCH_LAST	256
+#define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
 
 	/* bits in opt_flag */
 #define QUICK_USED	1
