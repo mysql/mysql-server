@@ -27,8 +27,7 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
-  DBUG_ASSERT(len >= srclen);
-  len= min(len,srclen);
+  set_if_smaller(len, srclen);
   if (dest != src)
   {
     const uchar *end;
