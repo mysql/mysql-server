@@ -478,6 +478,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       blob_columns++;
       break;
     case FIELD_TYPE_GEOMETRY:
+      if (!(sql_field->flags & NOT_NULL_FLAG))
+      {
+	my_error(ER_BAD_NULL_ERROR, MYF(0), sql_field->field_name);
+	DBUG_RETURN(-1);
+      }
       sql_field->pack_flag=FIELDFLAG_GEOM |
 	pack_length_to_packflag(sql_field->pack_length -
 				portable_sizeof_char_ptr);
