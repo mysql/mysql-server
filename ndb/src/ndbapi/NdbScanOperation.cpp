@@ -34,6 +34,7 @@
 #include "NdbApiSignal.hpp"
 #include <NdbOut.hpp>
 #include "NdbDictionaryImpl.hpp"
+#include "NdbBlob.hpp"
 
 NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   NdbCursorOperation(aNdb),
@@ -294,6 +295,18 @@ int  NdbScanOperation::setValue(Uint32 anAttrId, double aValue)
   return 0;
 }
 
+NdbBlob*
+NdbScanOperation::getBlobHandle(const char* anAttrName)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, m_currentTable->getColumn(anAttrName));
+}
+
+NdbBlob*
+NdbScanOperation::getBlobHandle(Uint32 anAttrId)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, m_currentTable->getColumn(anAttrId));
+}
+
 // Private methods
 
 int NdbScanOperation::executeCursor(int ProcessorId)
@@ -343,6 +356,15 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     // to the real trans
     const NdbError err = theNdbCon->getNdbError();
     m_transConnection->setOperationErrorCode(err.code);
+  }
+  if (result == 0) {
+    // handle blobs
+    NdbBlob* tBlob = theBlobList;
+    while (tBlob != NULL) {
+      if (tBlob->atNextResult() == -1)
+        return -1;
+      tBlob = tBlob->theNext;
+    }
   }
   return result;
 }
