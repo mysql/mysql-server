@@ -319,11 +319,15 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
       fi
       DO_CLIENT_GDB=1
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --manual-gdb )
       DO_GDB=1
       MANUAL_GDB=1
       USE_RUNNING_SERVER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -331,6 +335,8 @@ while test $# -gt 0; do
       fi
       DO_DDD=1
       USE_RUNNING_SERVER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --valgrind)
       VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
