@@ -78,6 +78,23 @@ extern "C" void free_user_var(user_var_entry *entry)
   my_free((char*) entry,MYF(0));
 }
 
+/****************************************************************************
+** SQL syntax names for Prepared Statements
+****************************************************************************/
+
+extern "C" byte *get_stmt_key(SQL_PREP_STMT_ENTRY *entry, uint *length,
+			     my_bool not_used __attribute__((unused)))
+{
+  *length=(uint) entry->name.length;
+  return (byte*) entry->name.str;
+}
+
+extern "C" void free_sql_stmt(SQL_PREP_STMT_ENTRY *entry)
+{
+  char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
+  my_free((char*) entry,MYF(0));
+}
+
 
 /****************************************************************************
 ** Thread specific functions
@@ -161,7 +178,10 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 			  16);
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
-
+  
+  hash_init(&sql_prepared_stmts, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
+	    (hash_get_key) get_stmt_key,
+	    (hash_free_key) free_sql_stmt,0);
   /* Protocol */
   protocol= &protocol_simple;			// Default protocol
   protocol_simple.init(this);
@@ -280,6 +300,7 @@ void THD::cleanup(void)
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
+  hash_free(&sql_prepared_stmts);
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
