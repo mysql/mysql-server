@@ -30,7 +30,6 @@
 #ifdef HAVE_CRYPT_H
 #include <crypt.h>
 #endif
-
 #include "md5.h"
 
 String empty_string("");
@@ -66,13 +65,13 @@ String *Item_func_md5::val_str(String *str)
   String * sptr= args[0]->val_str(str);
   if (sptr)
   {
-    MD5_CTX context;
+    my_MD5_CTX context;
     unsigned char digest[16];
 
     null_value=0;
-    MD5Init (&context);
-    MD5Update (&context,(unsigned char *) sptr->ptr(), sptr->length());
-    MD5Final (digest, &context);
+    my_MD5Init (&context);
+    my_MD5Update (&context,(unsigned char *) sptr->ptr(), sptr->length());
+    my_MD5Final (digest, &context);
     str->alloc(32);				// Ensure that memory is free
     sprintf((char *) str->ptr(),
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
