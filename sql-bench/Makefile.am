@@ -35,7 +35,7 @@ dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \
 		 $(distdir)/Results $(distdir)/Results-linux \
 		 $(distdir)/Results-win32 \
-		 $(distdir)/limits @(distdir)/Comments
+		 $(distdir)/limits $(distdir)/Comments
 	cp -pr $(srcdir)/Data/ATIS $(distdir)/Data
 	cp -pr $(srcdir)/Data/Wisconsin $(distdir)/Data
 	cp -pr $(srcdir)/Results $(distdir)/
