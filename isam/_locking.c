@@ -306,8 +306,8 @@ int _nisam_writeinfo(register N_INFO *info, uint flags)
 		    MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
 	  DBUG_RETURN(1);
       }
-    }
 #endif
+    }
     my_errno=olderror;
   }
   else if (flags)
