@@ -1,7 +1,7 @@
 /*
-   Modifikoval Petr -B©najdr, snajdr@pvt.net, snajdr@cpress.cz v.0.01 -A
+   Modifikoval Petr -B©najdr, snajdr@pvt.net, snajdr@cpress.cz v.0.01
 	ISO LATIN-8852-2
-   Dal-B¹í verze Jan Pazdziora, adelton@fi.muni.cz-A
+   Dal-B¹í verze Jan Pazdziora, adelton@fi.muni.cz
 	Tue Nov 18 17:53:55 MET 1997
 	Tue Dec  2 19:08:54 MET 1997		podle 3.21.15c
 	Thu May  7 17:40:49 MET DST 1998	podle 3.21.29
@@ -147,7 +147,7 @@
 "Nalezen-Bých øádkù: %ld  Zmìnìno: %ld  Varování: %ld",
 "Nemohu vytvo-Bøit nový thread (errno %d). Pokud je je¹tì nìjaká volná pamì», podívejte se do manuálu na èást o chybách specifických pro jednotlivé operaèní systémy",
 "Po-Bèet sloupcù neodpovídá poètu hodnot na øádku %ld",
-"Nemohu znovuotev-Bøít tabulku: '%-.64s',
+"Nemohu znovuotev-Bøít tabulku: '%-.64s",
 "Neplatn-Bé u¾ití hodnoty NULL",
 "Regul-Bární výraz vrátil chybu '%-.64s'",
 "Pokud nen-Bí ¾ádná GROUP BY klauzule, není dovoleno souèasné pou¾ití GROUP polo¾ek (MIN(),MAX(),COUNT()...) s ne GROUP polo¾kami",
@@ -207,7 +207,7 @@
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
-"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
+"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again",
 "This operation cannot be performed with a running slave, run SLAVE STOP first",
 "This operation requires a running slave, configure slave and do SLAVE START",
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
