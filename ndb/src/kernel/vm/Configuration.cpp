@@ -196,13 +196,10 @@ Configuration::fetch_configuration(LocalConfig &local_config){
   m_mgmd_port= 0;
   m_mgmd_host= 0;
   m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
-  if(m_config_retriever->init() == -1 ||
-     m_config_retriever->do_connect() == -1){
-    
+  if(m_config_retriever->do_connect() == -1){    
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
-    
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
     */
