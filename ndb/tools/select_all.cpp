@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include <NdbOut.hpp>
 
@@ -42,6 +41,7 @@ int scanReadRecords(Ndb*,
 		    bool orderby);
 
 int main(int argc, const char** argv){
+  ndb_init();
   int _parallelism = 240;
   const char* _delimiter = "\t";
   int _header = true;
@@ -89,7 +89,6 @@ int main(int argc, const char** argv){
   _tabname = argv[optind];
 
 #ifndef DBUG_OFF
-  my_init();
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif

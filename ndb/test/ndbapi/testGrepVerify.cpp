@@ -40,6 +40,7 @@
   continue; } 
 
 int main(int argc, const char** argv){
+  ndb_init();
 
 
   const char * connectString = NULL;

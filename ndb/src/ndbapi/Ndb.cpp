@@ -327,7 +327,11 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     } else {
       nodeId = 0;
     }//if
-    DBUG_RETURN(startTransactionLocal(aPriority, nodeId));
+    {
+      NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
+      DBUG_PRINT("exit",("start trans= 0x%x", trans));
+      DBUG_RETURN(trans);
+    }
   } else {
     DBUG_RETURN(NULL);
   }//if
@@ -451,7 +455,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     abort();
   }
 #endif
-  DBUG_PRINT("exit", ("transaction id: %d", tConnection->getTransactionId()));
+  DBUG_PRINT("exit", ("transid= %lld", tConnection->getTransactionId()));
   DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
@@ -465,6 +469,8 @@ void
 Ndb::closeTransaction(NdbConnection* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
+  DBUG_PRINT("enter",("close trans= 0x%x, transid= %lld",
+		      aConnection, aConnection->getTransactionId()));
 
   NdbConnection* tCon;
   NdbConnection* tPreviousCon;

@@ -40,11 +40,14 @@ public:
    * Compare kernel attribute values.  Returns -1, 0, +1 for less,
    * equal, greater, respectively.  Parameters are pointers to values,
    * full attribute size in words, and size of available data in words.
+   * There is also pointer to type specific extra info.  Char types
+   * receive CHARSET_INFO in it.
+   *
    * If available size is less than full size, CmpUnknown may be
    * returned.  If a value cannot be parsed, it compares like NULL i.e.
    * less than any valid value.
    */
-  typedef int Cmp(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size);
+  typedef int Cmp(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size);
 
   enum CmpResult {
     CmpLess = -1,
@@ -55,6 +58,7 @@ public:
 
   /**
    * Kernel data types.  Must match m_typeList in NdbSqlUtil.cpp.
+   * Now also must match types in NdbDictionary.
    */
   struct Type {
     enum Enum {
@@ -89,6 +93,18 @@ public:
    * Get type by id.  Can return the Undefined type.
    */
   static const Type& getType(Uint32 typeId);
+
+  /**
+   * Get type by id but replace char type by corresponding binary type.
+   */
+  static const Type& getTypeBinary(Uint32 typeId);
+
+  /**
+   * Check character set.
+   */
+  static bool usable_in_pk(Uint32 typeId, const void* cs);
+  static bool usable_in_hash_index(Uint32 typeId, const void* cs);
+  static bool usable_in_ordered_index(Uint32 typeId, const void* cs);
 
 private:
   /**
