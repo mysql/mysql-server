@@ -9385,7 +9385,7 @@ void st_select_lex::print(THD *thd, String *str)
   if (!thd->lex->safe_to_cache_query)
     str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;
