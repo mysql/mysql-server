@@ -155,6 +155,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	   "Tcp connections will now be used instead\n");
     opt_ndb_shm= 0;
 #endif
+    break;
   case '?':
     usage();
     exit(0);
