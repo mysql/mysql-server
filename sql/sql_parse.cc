@@ -957,7 +957,6 @@ pthread_handler_decl(handle_one_connection,arg)
     }
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
-    free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings)
@@ -1537,8 +1536,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
-    free_root(&thd->mem_root,MYF(0));
-    free_root(&thd->transaction.mem_root,MYF(0));
     kill_mysql();
     error=TRUE;
     break;

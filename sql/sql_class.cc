@@ -151,9 +151,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   init();
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
-  bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
-  bzero((char*) &con_root,sizeof(con_root));
-  bzero((char*) &warn_root,sizeof(warn_root));
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
@@ -355,7 +352,6 @@ THD::~THD()
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
-  free_root(&con_root,MYF(0));
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
