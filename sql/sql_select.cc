@@ -2247,8 +2247,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg == 0 && tab->type != JT_EQ_REF &&
-	      (tab->type != JT_REF ||
+	  if (tab->needed_reg == 0 && tab->type != JT_EQ_REF
+	      && tab->type != JT_FT && (tab->type != JT_REF ||
 	       (uint) tab->ref.key == tab->quick->index))
 	  {
 	    sel->quick=tab->quick;		// Use value from get_quick_...
