@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,28 +22,55 @@
 
 static bool find_range_key(TABLE_REF *ref, Field* field,COND *cond);
 
-/*****************************************************************************
-** This function is only called for queries with sum functions and no
-** GROUP BY part.
-** This substitutes constants for some COUNT(), MIN() and MAX() functions.
-** The function returns 1 if all items was resolved and -1 on impossible
-** conditions
-****************************************************************************/
+/*
+  Substitutes constants for some COUNT(), MIN() and MAX() functions.
+
+  SYNOPSIS
+    opt_sum_query()
+    tables		Tables in query
+    all_fields		All fields to be returned
+    conds		WHERE clause
+
+  NOTE:
+    This function is only called for queries with sum functions and no
+    GROUP BY part.
+
+ RETURN VALUES
+    0 No errors
+    1 if all items was resolved
+   -1 on impossible  conditions
+*/
 
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 {
   List_iterator_fast<Item> it(all_fields);
-  int const_result=1;
-  bool recalc_const_item=0;
-  table_map removed_tables=0;
+  int const_result= 1;
+  bool recalc_const_item= 0;
+  table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
+  table_map where_tables= 0;
   Item *item;
   COND *org_conds= conds;
 
-  /* Add all ON conditions to WHERE condition */
+  if (conds)
+    where_tables= conds->used_tables();
+
+  /* Don't replace expression on a table that is part of an outer join */
   for (TABLE_LIST *tl=tables; tl ; tl= tl->next)
   {
     if (tl->on_expr)
-      conds= and_expressions(conds, tl->on_expr, &org_conds);
+    {
+      outer_tables|= tl->table->map;
+
+      /*
+	We can't optimise LEFT JOIN in cases where the WHERE condition
+	restricts the table that is used, like in:
+          SELECT MAX(t1.a) FROM t1 LEFT JOIN t2 join-condition
+	  WHERE t2.field IS NULL;
+      */
+      if (tl->table->map & where_tables)
+	return 0;
+    }
+    used_tables|= tl->table->map;
   }
 
   /*
@@ -68,8 +95,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  TABLE_LIST *table;
 	  for (table=tables; table ; table=table->next)
 	  {
-	    if (table->on_expr || (table->table->file->table_flags() &
-				   HA_NOT_EXACT_COUNT))
+	    if (outer_tables || (table->table->file->table_flags() &
+				 HA_NOT_EXACT_COUNT))
 	    {
 	      const_result=0;			// Can't optimize left join
 	      break;
@@ -99,21 +126,35 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  byte key_buff[MAX_KEY_LENGTH];
 	  TABLE_REF ref;
 	  ref.key_buff=key_buff;
+	  Item_field *item_field= ((Item_field*) expr);
+	  TABLE *table= item_field->field->table;
 
-	  if (!find_range_key(&ref, ((Item_field*) expr)->field,conds))
+	  if ((outer_tables & table->map) ||
+	      (!find_range_key(&ref, item_field->field,conds)))
 	  {
 	    const_result=0;
 	    break;
 	  }
-	  TABLE *table=((Item_field*) expr)->field->table;
-	  bool error=table->file->index_init((uint) ref.key);
+	  bool error= table->file->index_init((uint) ref.key);
+	  enum ha_rkey_function find_flag= HA_READ_KEY_OR_NEXT; 
+	  uint prefix_len= ref.key_length;
+	  /*
+	    If we are doing MIN() on a column with NULL fields
+	    we must read the key after the NULL column
+	  */
+	  if (item_field->field->null_bit)
+	  {
+	    ref.key_buff[ref.key_length++]=1;
+	    find_flag= HA_READ_AFTER_KEY;
+	  }
+
 	  if (!ref.key_length)
 	    error=table->file->index_first(table->record[0]) !=0;
 	  else
 	    error=table->file->index_read(table->record[0],key_buff,
 					  ref.key_length,
-					  HA_READ_KEY_OR_NEXT) ||
-	      key_cmp(table, key_buff, ref.key, ref.key_length);
+					  find_flag) ||
+	      key_cmp(table, key_buff, ref.key, prefix_len);
 	  if (table->key_read)
 	  {
 	    table->key_read=0;
@@ -121,7 +162,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
 	  table->file->index_end();
 	  if (error)
-	    return -1;				// Impossible query
+	    return -1;				// No rows matching where
 	  removed_tables|= table->map;
 	}
 	else if (!expr->const_item())		// This is VERY seldom false
@@ -147,13 +188,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  byte key_buff[MAX_KEY_LENGTH];
 	  TABLE_REF ref;
 	  ref.key_buff=key_buff;
+	  TABLE *table=((Item_field*) expr)->field->table;
 
-	  if (!find_range_key(&ref, ((Item_field*) expr)->field,conds))
+	  if ((outer_tables & table->map) ||
+	      !find_range_key(&ref, ((Item_field*) expr)->field,conds))
 	  {
 	    const_result=0;
 	    break;
 	  }
-	  TABLE *table=((Item_field*) expr)->field->table;
 	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
 	  {
 	    const_result=0;
@@ -203,8 +245,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	const_result=0;
     }
   }
-  if (conds && (conds->used_tables() & ~ removed_tables))
-    const_result=0;
+  if (used_tables != removed_tables)
+    const_result=0;				// We didn't remove all tables
   return const_result;
 }
 

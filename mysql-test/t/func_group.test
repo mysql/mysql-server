@@ -102,3 +102,30 @@ insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
 select sum(num) from t1;
 select sum(num) from t1 group by user;
 drop table t1;
+
+#
+# Test problem with MIN() optimization in case of null values
+#
+
+create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
+insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+create table t2(a1 char(3), a2 int, a3 real, key k1(a1), key k2(a2, a1));
+select * from t1;
+# The following returned NULL in 4.0.10
+select min(a2) from t1;
+select max(t1.a1), max(t2.a2) from t1, t2;
+select max(t1.a1) from t1, t2;
+select max(t2.a2), max(t1.a1) from t1, t2;
+
+explain select min(a2) from t1;
+explain select max(t1.a1), max(t2.a2) from t1, t2;
+
+insert into t2 values('AAA', 10, 0.5);
+select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
+select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
+select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=20;
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=10;
+select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
+drop table t1,t2;

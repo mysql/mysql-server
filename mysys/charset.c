@@ -389,7 +389,11 @@ static my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
   return FALSE;
 }
 
+#ifdef __NETWARE__
+my_bool STDCALL init_available_charsets(myf myflags)
+#else
 static my_bool init_available_charsets(myf myflags)
+#endif
 {
   char fname[FN_REFLEN];
   my_bool error=FALSE;

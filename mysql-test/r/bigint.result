@@ -8,6 +8,9 @@ select 9223372036854775807,-009223372036854775808;
 select +9999999999999999999,-9999999999999999999;
 +9999999999999999999	-9999999999999999999
 10000000000000000000	-10000000000000000000
+select 9223372036854775808+1;
+9223372036854775808+1
+9223372036854775808
 create table t1 (a bigint unsigned not null, primary key(a));
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
 select * from t1;
@@ -51,4 +54,13 @@ min(big)	max(big)	max(big)-1
 select min(big),max(big),max(big)-1 from t1 group by a;
 min(big)	max(big)	max(big)-1
 -1	9223372036854775807	9223372036854775806
+drop table t1;
+create table t1 (id bigint auto_increment primary key, a int) auto_increment=9999999999;
+insert into t1 values (null,1);
+select * from t1;
+id	a
+9999999999	1
+select * from t1 limit 9999999999;
+id	a
+9999999999	1
 drop table t1;

@@ -35,7 +35,7 @@
 *****************************************************************************/
 
 const char **ha_isam::bas_ext() const
-{ static const char *ext[]= { ".ISD",".ISM", NullS }; return ext; }
+{ static const char *ext[]= { ".ISM",".ISD", NullS }; return ext; }
 
 
 int ha_isam::open(const char *name, int mode, uint test_if_locked)

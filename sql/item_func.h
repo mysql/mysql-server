@@ -612,6 +612,7 @@ public:
     return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
+  void split_sum_func(List<Item> &fields);
   void update_used_tables()
   {
     item->update_used_tables() ; Item_func::update_used_tables();
@@ -892,9 +893,10 @@ class Item_master_pos_wait :public Item_int_func
   String value;
  public:
   Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_master_pos_wait(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=21; maybe_null=1;}
 };
 
 

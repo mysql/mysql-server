@@ -24,10 +24,11 @@ int	    _lock64( int fd, int locktype, my_off_t start,
 		     my_off_t length, myf MyFlags);
 int	    _sopen64( const char *name, int oflag, int shflag, int mask);
 
-//
-// this class is used to define a global c++ variable, that
-// is initialized before main() gets called.
-//
+/*
+  This class is used to define a global c++ variable, that
+  is initialized before main() gets called.
+*/
+
 class File64bit
 {
    public:
@@ -150,7 +151,7 @@ static unsigned char const errno_tab[] =
       _DosSetFilePtrL = NULL;
       return;
    }
-   // notify success
+   /* notify success */
 #ifdef MYSQL_SERVER
    printf( "WSeB 64bit file API loaded.\n");
 #endif
@@ -164,230 +165,230 @@ void	    _OS2errno( APIRET rc)
     errno = errno_tab[rc];
 }
 
-longlong    _lseek64( int fd, longlong offset, int seektype)
+
+longlong _lseek64( int fd, longlong offset, int seektype)
 {
-   APIRET   rc;
-   longlong actual;
+  APIRET   rc;
+  longlong actual;
 
-   if (_DosSetFilePtrL)
-      rc = _DosSetFilePtrL( fd, offset, seektype, &actual);
-   else {
-      ULONG ulActual;
-      rc = DosSetFilePtr( fd, (long) offset, seektype, &ulActual);
-      actual = ulActual;
-   }
+  if (_DosSetFilePtrL)
+    rc = _DosSetFilePtrL( fd, offset, seektype, &actual);
+  else
+  {
+    ULONG ulActual;
+    rc = DosSetFilePtr( fd, (long) offset, seektype, &ulActual);
+    actual = ulActual;
+  }
 
-   if (!rc)
-      return( actual);/* NO_ERROR */
+  if (!rc)
+    return( actual);				/* NO_ERROR */
 
-   // set errno
-   _OS2errno( rc);
-   // seek failed
-   return(-1);
+  _OS2errno( rc);				/* set errno */
+  return(-1);					/* seek failed */
 }
 
-inline _SetFileLocksL(HFILE hFile,
-			  PFILELOCKL pflUnlock,
-			  PFILELOCKL pflLock,
-			  ULONG timeout,
-			  ULONG flags)
+
+inline APIRET _SetFileLocksL(HFILE hFile,
+			     PFILELOCKL pflUnlock,
+			     PFILELOCKL pflLock,
+			     ULONG timeout,
+			     ULONG flags)
 {
-   if (_DosSetFileLocksL) {
-      APIRET rc;
-      rc = _DosSetFileLocksL( hFile, pflUnlock, pflLock, timeout, flags);
+  if (_DosSetFileLocksL)
+  {
+    APIRET rc;
+    rc = _DosSetFileLocksL( hFile, pflUnlock, pflLock, timeout, flags);
 
-      // on FAT/HPFS/LAN a INVALID_PARAMETER is returned, seems that
-      // only JFS can handle >2GB ranges.
-      if (rc != 87)
-	 return rc;
+    /*
+      on FAT/HPFS/LAN a INVALID_PARAMETER is returned, seems that
+      only JFS can handle >2GB ranges.
+    */
+    if (rc != 87)
+      return rc;
+    /* got INVALID_PARAMETER, fallback to standard call */
+  }
 
-      // got INVALID_PARAMETER, fallback to standard call
-   }
-
-   FILELOCK flUnlock = { pflUnlock->lOffset, pflUnlock->lRange };
-   FILELOCK flLock = { pflLock->lOffset, pflLock->lRange };
-   return DosSetFileLocks( hFile, &flUnlock, &flLock, timeout, flags);
+  FILELOCK flUnlock = { pflUnlock->lOffset, pflUnlock->lRange };
+  FILELOCK flLock = { pflLock->lOffset, pflLock->lRange };
+  return DosSetFileLocks( hFile, &flUnlock, &flLock, timeout, flags);
 }
 
-int	    _lock64( int fd, int locktype, my_off_t start,
-		     my_off_t length, myf MyFlags)
+
+int  _lock64( int fd, int locktype, my_off_t start,
+	      my_off_t length, myf MyFlags)
 {
-   FILELOCKL LockArea = {0,0}, UnlockArea = {0,0};
-   ULONG     readonly = 0;
-   APIRET    rc = -1;
+  FILELOCKL LockArea = {0,0}, UnlockArea = {0,0};
+  ULONG     readonly = 0;
+  APIRET    rc = -1;
 
-   switch( locktype) {
-   case F_UNLCK:
-      UnlockArea.lOffset = start;
-      UnlockArea.lRange = length ? length : LONGLONG_MAX;
-      break;
+  switch (locktype) {
+  case F_UNLCK:
+    UnlockArea.lOffset = start;
+    UnlockArea.lRange = length ? length : LONGLONG_MAX;
+    break;
 
-   case F_RDLCK:
-   case F_WRLCK:
-      LockArea.lOffset = start;
-      LockArea.lRange = length ? length : LONGLONG_MAX;
-      readonly = (locktype == F_RDLCK ? 1 : 0);
-      break;
+  case F_RDLCK:
+  case F_WRLCK:
+    LockArea.lOffset = start;
+    LockArea.lRange = length ? length : LONGLONG_MAX;
+    readonly = (locktype == F_RDLCK ? 1 : 0);
+    break;
 
-   default:
-      errno = EINVAL;
-      rc = -1;
-      break;
-   }
+  default:
+    errno = EINVAL;
+    rc = -1;
+    break;
+  }
 
-   if (MyFlags & MY_DONT_WAIT) {
+  if (MyFlags & MY_DONT_WAIT)
+  {
+    rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 0, readonly);
+    /* printf("fd %d, locktype %d, rc %d (dont_wait)\n", fd, locktype, rc); */
+    if (rc == 33) {  /* Lock Violation */
 
-      rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 0, readonly);
-      //printf( "fd %d, locktype %d, rc %d (dont_wait)\n", fd, locktype, rc);
-      if (rc == 33) {  /* Lock Violation */
-
-	 DBUG_PRINT("info",("Was locked, trying with timeout"));
-	 rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 1 * 1000, readonly);
-	 //printf( "fd %d, locktype %d, rc %d (dont_wait with timeout)\n", fd, locktype, rc);
-      }
-
-   } else {
-
-      while( rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 0, readonly) && (rc == 33)) {
-	 printf(".");
-	 DosSleep(1 * 1000);
-      }
-      //printf( "fd %d, locktype %d, rc %d (wait2)\n", fd, locktype, rc);
-   }
-
-   if (!rc)
-      return( 0);/* NO_ERROR */
-
-   // set errno
-   _OS2errno( rc);
-   // lock failed
-   return(-1);
+      DBUG_PRINT("info",("Was locked, trying with timeout"));
+      rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 1 * 1000, readonly);
+      /* printf( "fd %d, locktype %d, rc %d (dont_wait with timeout)\n", fd, locktype, rc); */
+    }
+  }
+  else
+  {
+    while (rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 0, readonly) &&
+	   (rc == 33))
+    {
+      printf(".");
+      DosSleep(1 * 1000);
+    }
+    /* printf( "fd %d, locktype %d, rc %d (wait2)\n", fd, locktype, rc); */
+  }
+  if (!rc)
+    return(0);				/* NO_ERROR */
+  _OS2errno( rc);				/* set errno */
+  return(-1);					/* lock failed */
 }
 
-int	    sopen( const char *name, int oflag, int shflag, int mask)
+
+int sopen(const char *name, int oflag, int shflag, int mask)
 {
-   int	    fail_errno;
-   APIRET   rc = 0;
-   HFILE    hf = 0;
-   ULONG    ulAction = 0;
-   LONGLONG cbFile = 0;
-   ULONG    ulAttribute = FILE_NORMAL;
-   ULONG    fsOpenFlags = 0;
-   ULONG    fsOpenMode = 0;
+  int	    fail_errno;
+  APIRET   rc = 0;
+  HFILE    hf = 0;
+  ULONG    ulAction = 0;
+  LONGLONG cbFile = 0;
+  ULONG    ulAttribute = FILE_NORMAL;
+  ULONG    fsOpenFlags = 0;
+  ULONG    fsOpenMode = 0;
 
-   /* Extract the access mode and sharing mode bits. */
-   fsOpenMode = (shflag & 0xFF) | (oflag & 0x03);
+  /* Extract the access mode and sharing mode bits. */
+  fsOpenMode = (shflag & 0xFF) | (oflag & 0x03);
 
-   /* Translate ERROR_OPEN_FAILED to ENOENT unless O_EXCL is set (see
-      below). */
-   fail_errno = ENOENT;
+  /*
+    Translate ERROR_OPEN_FAILED to ENOENT unless O_EXCL is set (see
+    below).
+  */
+  fail_errno = ENOENT;
 
-   /* Compute `open_flag' depending on `flags'.  Note that _SO_CREAT is
-      set for O_CREAT. */
+  /*
+    Compute `open_flag' depending on `flags'.  Note that _SO_CREAT is
+    set for O_CREAT.
+  */
 
-   if (oflag & O_CREAT)
-   {
-      if (oflag & O_EXCL)
-      {
-	 fsOpenFlags = OPEN_ACTION_FAIL_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
-	 fail_errno = EEXIST;
-      }
-      else if (oflag & O_TRUNC)
-	fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
-      else
-	fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+  if (oflag & O_CREAT)
+  {
+    if (oflag & O_EXCL)
+    {
+      fsOpenFlags = OPEN_ACTION_FAIL_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+      fail_errno = EEXIST;
+    }
+    else if (oflag & O_TRUNC)
+      fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+    else
+      fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
 
-      if (mask & S_IWRITE)
-	 ulAttribute = FILE_NORMAL;
-      else
-	 ulAttribute = FILE_READONLY;
+    if (mask & S_IWRITE)
+      ulAttribute = FILE_NORMAL;
+    else
+      ulAttribute = FILE_READONLY;
 
-   }
-   else if (oflag & O_TRUNC)
-      fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_FAIL_IF_NEW;
-   else
-      fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_FAIL_IF_NEW;
+  }
+  else if (oflag & O_TRUNC)
+    fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_FAIL_IF_NEW;
+  else
+    fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_FAIL_IF_NEW;
 
-   /* Try to open the file and handle errors. */
-   if (_DosOpenL)
-      rc = _DosOpenL( name, &hf, &ulAction, cbFile,
-		     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
-   else
-      rc = DosOpen( name, &hf, &ulAction, (LONG) cbFile,
-		     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
+  /* Try to open the file and handle errors. */
+  if (_DosOpenL)
+    rc = _DosOpenL( name, &hf, &ulAction, cbFile,
+		    ulAttribute, fsOpenFlags, fsOpenMode, NULL);
+  else
+    rc = DosOpen( name, &hf, &ulAction, (LONG) cbFile,
+		  ulAttribute, fsOpenFlags, fsOpenMode, NULL);
 
-   if (rc == ERROR_OPEN_FAILED)
-   {
-      errno = fail_errno;
-      return -1;
-   }
-   if (rc != 0)
-   {
-      // set errno
-      _OS2errno( rc);
-      return -1;
-   }
-
-   if (oflag & O_APPEND)
-      _lseek64( hf, 0L, SEEK_END);
-
-   return hf;
+  if (rc == ERROR_OPEN_FAILED)
+  {
+    errno = fail_errno;
+    return -1;
+  }
+  if (rc != 0)
+  {
+    _OS2errno( rc);      /* set errno */
+    return -1;
+  }
+  if (oflag & O_APPEND)
+    _lseek64( hf, 0L, SEEK_END);
+  return hf;
 }
 
-int	 read( int fd, void *buffer, unsigned int count)
+
+int read(int fd, void *buffer, unsigned int count)
 {
-   APIRET   rc;
-   ULONG    actual;
+  APIRET   rc;
+  ULONG    actual;
 
-   rc = DosRead( fd, (PVOID) buffer, count, &actual);
+  rc= DosRead( fd, (PVOID) buffer, count, &actual);
 
-   if (!rc)
-      return( actual);/* NO_ERROR */
-
-   // set errno
-   _OS2errno( rc);
-   // write failed
-   return(-1);
+  if (!rc)
+    return( actual);				/* NO_ERROR */
+  _OS2errno( rc);				/* set errno */
+  return(-1);					/* read failed */
 }
 
-int	 write( int fd, const void *buffer, unsigned int count)
+
+int write(int fd, const void *buffer, unsigned int count)
 {
-   APIRET   rc;
-   ULONG    actual;
+  APIRET   rc;
+  ULONG    actual;
 
-   rc = DosWrite( fd, (PVOID) buffer, count, &actual);
+  rc = DosWrite( fd, (PVOID) buffer, count, &actual);
 
-   if (!rc)
-      return( actual);/* NO_ERROR */
-
-   // set errno
-   _OS2errno( rc);
-   // write failed
-   return(-1);
+  if (!rc)
+    return( actual);				/* NO_ERROR */
+  _OS2errno( rc);				/* set errno */
+  return(-1);					/* write failed */
 }
 
-int	 close( int fd)
+
+int close( int fd)
 {
-   APIRET   rc;
-   ULONG    actual;
+  APIRET   rc;
+  ULONG    actual;
 
-   rc = DosClose( fd);
+  rc = DosClose( fd);
 
-   if (!rc)
-      return( 0);/* NO_ERROR */
-
-   // set errno
-   _OS2errno( rc);
-   // write failed
-   return(-1);
+  if (!rc)
+    return( 0);					/* NO_ERROR */
+  _OS2errno( rc);				/* set errno */
+  return(-1);					/* close failed */
 }
 
-inline int   open( const char *name, int oflag)
+
+int open( const char *name, int oflag)
 {
    return sopen( name, oflag, OPEN_SHARE_DENYNONE, S_IREAD | S_IWRITE);
 }
 
-inline int   open( const char *name, int oflag, int mask)
+
+int open( const char *name, int oflag, int mask)
 {
    return sopen( name, oflag, OPEN_SHARE_DENYNONE, mask);
 }

@@ -23,7 +23,11 @@ int my_message_no_curses(uint error __attribute__((unused)),
   DBUG_PRINT("enter",("message: %s",str));
   (void) fflush(stdout);
   if (MyFlags & ME_BELL)
+#ifdef __NETWARE__
+    ringbell();                   				/* Bell */
+#else
     (void) fputc('\007',stderr);				/* Bell */
+#endif /* __NETWARE__ */
   if (my_progname)
   {
     (void)fputs(my_progname,stderr); (void)fputs(": ",stderr);

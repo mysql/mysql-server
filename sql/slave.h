@@ -117,7 +117,7 @@ typedef struct st_relay_log_info
     created temporary tables. Modified only on init/end and by the SQL
     thread, read only by SQL thread.
   */
-  TABLE* save_temporary_tables;
+  TABLE *save_temporary_tables;
 
   /*
     standard lock acquistion order to avoid deadlocks:
@@ -190,33 +190,8 @@ typedef struct st_relay_log_info
   bool skip_log_purge;
   bool inside_transaction;
 
-  st_relay_log_info()
-    :info_fd(-1),cur_log_fd(-1), cur_log_old_open_count(0), abort_pos_wait(0),
-  slave_run_id(0), inited(0), abort_slave(0), slave_running(0),
-  log_pos_current(0), skip_log_purge(0),
-  inside_transaction(0) /* the default is autocommit=1 */
-  {
-    relay_log_name[0] = master_log_name[0] = 0;
-    bzero(&info_file,sizeof(info_file));
-    bzero(&cache_buf, sizeof(cache_buf));
-    pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
-    pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
-    pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&data_cond, NULL);
-    pthread_cond_init(&start_cond, NULL);
-    pthread_cond_init(&stop_cond, NULL);
-    pthread_cond_init(&log_space_cond, NULL);
-  }
-  ~st_relay_log_info()
-  {
-     pthread_mutex_destroy(&run_lock);
-     pthread_mutex_destroy(&data_lock);
-     pthread_mutex_destroy(&log_space_lock);
-     pthread_cond_destroy(&data_cond);
-     pthread_cond_destroy(&start_cond);
-     pthread_cond_destroy(&stop_cond);
-     pthread_cond_destroy(&log_space_cond);
-   }
+  st_relay_log_info();
+  ~st_relay_log_info();
   inline void inc_pending(ulonglong val)
   {
     pending += val;
@@ -245,7 +220,8 @@ typedef struct st_relay_log_info
     pthread_mutex_unlock(&data_lock);
   }
 
-  int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
+  int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
+		   longlong timeout);
 } RELAY_LOG_INFO;
 
 
@@ -414,6 +390,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables);
 */
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list );
+int db_ok_with_wild_table(const char *db);
 
 int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);

@@ -641,8 +641,7 @@ extern "C" {
 
 extern uint _mi_get_block_info(MI_BLOCK_INFO *,File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info,byte *to,const byte *from);
-extern uint _mi_pack_get_block_info(MI_INFO *mysql, MI_BLOCK_INFO *, File,
-				    my_off_t, char *rec_buf);
+extern uint _mi_pack_get_block_info(MI_INFO *, MI_BLOCK_INFO *, File, my_off_t);
 extern void _my_store_blob_length(byte *pos,uint pack_length,uint length);
 extern void _myisam_log(enum myisam_log_commands command,MI_INFO *info,
 		       const byte *buffert,uint length);

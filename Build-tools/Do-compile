@@ -74,12 +74,6 @@ if (@config_env > 0)
 	$opt_config_env= join(" ", @config_env);
 }
 
-if (@config_env > 0)
-{
-	chomp(@config_env);
-	$opt_config_env= join(" ", @config_env);
-}
-
 chomp($host=`hostname`);
 $full_host_name=$host;
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
@@ -425,7 +419,7 @@ if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
 rm_all($bench_tmpdir);
 rm_all("$opt_tmp") if ($new_opt_tmp);
 
-log_system("$pwd/$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -u root shutdown");
+log_system("$pwd/$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port shutdown");
 print LOG "ok\n";
 close LOG;
 print "$host: ok\n";

@@ -470,6 +470,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  LINESTRING
 %token	LOCATE
 %token	MAKE_SET_SYM
+%token	MASTER_POS_WAIT
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
 %token	MODE_SYM
@@ -2241,6 +2242,16 @@ simple_expr:
 	  { $$= new Item_func_geometry_from_text($3); }
 	| LINEFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
+	| MASTER_POS_WAIT '(' expr ',' expr ')'
+	  { 
+	    $$= new Item_master_pos_wait($3, $5);
+	    Lex->safe_to_cache_query=0; 
+		  }
+	| MASTER_POS_WAIT '(' expr ',' expr ',' expr ')'
+	  { 
+	    $$= new Item_master_pos_wait($3, $5, $7);
+	    Lex->safe_to_cache_query=0; 
+	  }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MOD_SYM '(' expr ',' expr ')'
@@ -2864,6 +2875,7 @@ delete_limit_clause:
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };
@@ -2871,7 +2883,7 @@ ULONG_NUM:
 ulonglong_num:
 	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoul($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); };
 
@@ -3731,8 +3743,8 @@ param_marker:
         };
 literal:
 	text_literal	{ $$ =	$1; }
-	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str); }
+	| NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
+	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 #define INCL_NOPMAPI
 #include <os2emx.h>
 #endif
+#ifdef __NETWARE__
+#include <nks/fsio.h>
+#endif
 
 	/* Lock a part of a file */
 
@@ -41,6 +44,9 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   int value;
   ALARM_VARIABLES;
 #endif
+#ifdef __NETWARE__
+  int nxErrno;
+#endif
   DBUG_ENTER("my_lock");
   DBUG_PRINT("my",("Fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(long) start,(long) length,MyFlags));
@@ -50,7 +56,47 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   if (my_disable_locking)
     DBUG_RETURN(0);
 
-#if defined(__EMX__) || defined(OS2)
+#if defined(__NETWARE__)
+  {
+    NXSOffset_t nxLength = length;
+    unsigned long nxLockFlags = 0;
+
+    if (length == F_TO_EOF)
+    {
+      /* EOF is interpreted as a very large length. */
+      nxLength = 0x7FFFFFFFFFFFFFFF;
+    }
+
+    if (locktype == F_UNLCK)
+    {
+      /* The lock flags are currently ignored by NKS. */
+      if (!(nxErrno= NXFileRangeUnlock(fd, 0L, start, nxLength)))
+        DBUG_RETURN(0);
+    }
+    else
+    {
+      if (locktype == F_RDLCK)
+      {
+        /* A read lock is mapped to a shared lock. */
+        nxLockFlags = NX_RANGE_LOCK_SHARED;
+      }
+      else
+      {
+        /* A write lock is mapped to an exclusive lock. */
+        nxLockFlags = NX_RANGE_LOCK_EXCL;
+      }
+
+      if (MyFlags & MY_DONT_WAIT)
+      {
+        /* Don't block on the lock. */
+        nxLockFlags |= NX_RANGE_LOCK_TRYLOCK;
+      }
+
+      if (!(nxErrno= NXFileRangeLock(fd, nxLockFlags, start, nxLength)))
+        DBUG_RETURN(0);
+    }
+  }
+#elif defined(__EMX__) || defined(OS2)
 
    if (!_lock64( fd, locktype, start, length, MyFlags))
     DBUG_RETURN(0);
@@ -103,8 +149,12 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #endif /* HAVE_FCNTL */
 #endif /* HAVE_LOCKING */
 
+#ifdef __NETWARE__
+  my_errno = nxErrno;
+#else
 	/* We got an error. We don't want EACCES errors */
   my_errno=(errno == EACCES) ? EAGAIN : errno ? errno : -1;
+#endif
   if (MyFlags & MY_WME)
   {
     if (locktype == F_UNLCK)

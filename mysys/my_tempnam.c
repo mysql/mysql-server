@@ -38,7 +38,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#if !defined( MSDOS) && !defined(OS2)
+#if !defined( MSDOS) && !defined(OS2) && !defined(__NETWARE__)
 extern char **environ;
 #endif
 #endif
@@ -104,14 +104,14 @@ my_string my_tempnam(const char *dir, const char *pfx,
     dir=temp;
   }
 #ifdef OS2
-  // changing environ variable doesn't work with VACPP
+  /* changing environ variable doesn't work with VACPP */
   char  buffer[256];
   sprintf( buffer, "TMP=%s", dir);
-  // remove ending backslash
+  /* remove ending backslash */
   if (buffer[strlen(buffer)-1] == '\\')
      buffer[strlen(buffer)-1] = '\0';
   putenv( buffer);
-#else
+#elif !defined(__NETWARE__)
   old_env=(char**)environ;
   if (dir)
   {				/* Don't use TMPDIR if dir is given */
@@ -120,7 +120,7 @@ my_string my_tempnam(const char *dir, const char *pfx,
   }
 #endif
   res=tempnam((char*) dir,(my_string) pfx); /* Use stand. dir with prefix */
-#ifndef OS2
+#if !defined(OS2) && !defined(__NETWARE__)
   ((char**) environ)=(char**) old_env;
 #endif
   if (!res)

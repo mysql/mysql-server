@@ -12,6 +12,7 @@ create database mysqltest;
 save_master_pos;
 connection slave;
 sync_with_master;
+create database mysqltest;
 create table mysqltest2.foo (n int);
 insert into mysqltest2.foo values(4);
 connection master;
@@ -25,10 +26,13 @@ sync_with_master;
 select mysqltest2.foo.n,mysqltest.bar.m from mysqltest2.foo,mysqltest.bar;
 connection master;
 drop database mysqltest;
-drop database mysqltest2;
+drop database if exists mysqltest2;
 save_master_pos;
 connection slave;
 sync_with_master;
+--error 1008
+drop database mysqltest2;
+drop database mysqltest;
 
 # Now let's test load data from master
 

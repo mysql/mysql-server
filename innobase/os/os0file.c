@@ -8,6 +8,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "os0file.h"
 #include "os0sync.h"
+#include "os0thread.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "fil0fil.h"
@@ -1093,6 +1094,7 @@ os_file_write(
 	DWORD		low;
 	DWORD		high;
 	ulint		i;
+	ulint		n_retries	= 0;
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
@@ -1101,7 +1103,7 @@ os_file_write(
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
-
+retry:
 	low = offset;
 	high = offset_high;
 	
@@ -1145,6 +1147,19 @@ os_file_write(
 		return(TRUE);
 	}
 
+	/* If some background file system backup tool is running, then, at
+	least in Windows 2000, we may get here a specific error. Let us
+	retry the operation 100 times, with 1 second waits. */
+	
+	if (GetLastError() == ERROR_LOCK_VIOLATION && n_retries < 100) {
+
+		os_thread_sleep(1000000);
+	
+		n_retries++;
+
+		goto retry;
+	}	
+	
 	if (!os_has_said_disk_full) {
 	
 		ut_print_timestamp(stderr);
@@ -1157,7 +1172,7 @@ os_file_write(
 "InnoDB: what the error number means.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, len,
+			name, offset_high, offset, n, (ulint)len,
 			(ulint)GetLastError());
 
 		os_has_said_disk_full = TRUE;
@@ -1180,13 +1195,13 @@ os_file_write(
 
 		fprintf(stderr,
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
-"InnoDB: %lu bytes should have been written, only %lu were written.\n"
+"InnoDB: %lu bytes should have been written, only %ld were written.\n"
 "InnoDB: Operating system error number %lu.\n"
 "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
 "InnoDB: what the error number means or use the perror program of MySQL.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, (ulint)ret,
+			name, offset_high, offset, n, (long int)ret,
 							(ulint)errno);
 		os_has_said_disk_full = TRUE;
 	}

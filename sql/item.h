@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,10 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
   virtual void top_level_item() {}
+  virtual void set_result_field(Field *field) {}
+  virtual bool is_result_field() { return 0; }
+  virtual void save_in_result_field(bool no_conversions) {}
+  virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -450,12 +454,19 @@ public:
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
+  void set_result_field(Field *field) { result_field= field; }
+  bool is_result_field() { return 1; }
+  void save_in_result_field(bool no_conversions)
+  {
+    save_in_field(result_field, no_conversions);
+  }
 };
 
 
 class Item_ref :public Item_ident
 {
 public:
+  Field *result_field;				/* Save result here */
   Item **ref;
   Item_ref(char *db_par,char *table_name_par,char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
@@ -504,6 +515,12 @@ public:
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
+  void set_result_field(Field *field) { result_field= field; }
+  bool is_result_field() { return 1; }
+  void save_in_result_field(bool no_conversions)
+  {
+    (*ref)->save_in_field(result_field, no_conversions);
+  }
 };
 
 class Item_in_subselect;

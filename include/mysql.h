@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,10 @@ typedef int my_socket;
 
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
+
+#ifdef __NETWARE__
+#pragma pack(push, 8)		/* 8 byte alignment */
+#endif
 
 #define IS_PRI_KEY(n)	((n) & PRI_KEY_FLAG)
 #define IS_NOT_NULL(n)	((n) & NOT_NULL_FLAG)
@@ -584,6 +588,11 @@ my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       unsigned long length, my_bool skip_check);
 unsigned long net_safe_read(MYSQL* mysql);
+void STDCALL mysql_once_init(void);
+
+#ifdef __NETWARE__
+#pragma pack(pop)		/* restore alignment */
+#endif
 
 #ifdef	__cplusplus
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
   thd->lex.safe_to_cache_query=0;
-  return new Item_int("CONNECTION_ID()",(longlong) thd->thread_id,10);
+  return new Item_int(NullS,(longlong) thd->thread_id,10);
 }
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
@@ -157,7 +157,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->lex.safe_to_cache_query=0;
-  return new Item_int("FOUND_ROWS()",(longlong) thd->found_rows(),21);
+  return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
 Item *create_func_from_days(Item* a)
@@ -295,7 +295,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real("PI()",M_PI,6,8);
+  return new Item_real(NullS,M_PI,6,8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -311,7 +311,7 @@ Item *create_func_current_user()
 
   length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
 		  buff);
-  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length,
+  return new Item_string(NullS, thd->memdup(buff, length), length,
 			 default_charset_info);
 }
 
@@ -418,7 +418,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string("VERSION()",server_version, 
+  return new Item_string(NullS,server_version, 
 			 (uint) strlen(server_version),
 			 default_charset_info);
 }
@@ -439,11 +439,6 @@ Item *create_load_file(Item* a)
   return new Item_load_file(a);
 }
 
-Item *create_wait_for_master_pos(Item* a, Item* b)
-{
-  current_thd->lex.uncacheable();
-  return new Item_master_pos_wait(a, b);
-}
 
 Item *create_func_cast(Item *a, Item_cast cast_type)
 {

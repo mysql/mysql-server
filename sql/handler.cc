@@ -679,7 +679,7 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_END_OF_FILE:
     textno=ER_KEY_NOT_FOUND;
     break;
-  case HA_ERR_WRONG_TABLE_DEF:
+  case HA_ERR_WRONG_MRG_TABLE_DEF:
     textno=ER_WRONG_MRG_TABLE;
     break;
   case HA_ERR_FOUND_DUPP_KEY:

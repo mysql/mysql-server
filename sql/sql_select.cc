@@ -548,6 +548,16 @@ JOIN::optimize()
   error= -1;					/* if goto err */
 
   /* Optimize distinct away if possible */
+  {
+    ORDER *org_order= order;
+    order=remove_const(this, order,conds,&simple_order);
+    /*
+      If we are using ORDER BY NULL or ORDER BY const_expression,
+      return result in any order (even if we are using a GROUP BY)
+    */
+    if (!order && org_order)
+      skip_sort_order= 1;
+  }
   order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
@@ -1011,7 +1021,7 @@ JOIN::exec()
     
     if (curr_tmp_table->group)
     {						// Already grouped
-      if (!curr_join->order && !curr_join->no_order)
+      if (!curr_join->order && !curr_join->no_order && !skip_sort_order)
 	curr_join->order= curr_join->group_list;  /* order by group */
       curr_join->group_list= 0;
     }
@@ -3513,7 +3523,13 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   if (!(result->send_fields(fields,1)))
   {
     if (send_row)
+    {
+      List_iterator_fast<Item> it(fields);
+      Item *item;
+      while ((item= it++))
+	item->no_rows_in_result();
       result->send_data(fields);
+    }
     if (tables)				// Not from do_select()
     {
       /* Close open cursors */
@@ -3947,7 +3963,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item_result_field ***copy_func, Field **from_field,
+			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item)
 {
   switch (type) {
@@ -4013,13 +4029,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     }
     return new_field;
   }
-  case Item::PROC_ITEM:
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
   case Item::FIELD_STD_ITEM:
   case Item::SUBSELECT_ITEM:
     /* The following can only happen with 'CREATE TABLE ... SELECT' */
+  case Item::PROC_ITEM:
   case Item::INT_ITEM:
   case Item::REAL_ITEM:
   case Item::STRING_ITEM:
@@ -4052,10 +4068,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       DBUG_ASSERT(0);
       break;
     }
-    if (copy_func)
-      *((*copy_func)++) = (Item_result_field*) item; // Save for copy_funcs
+    if (copy_func && item->is_result_field())
+      *((*copy_func)++) = item;			// Save for copy_funcs
     if (modify_item)
-      ((Item_result_field*) item)->result_field=new_field;
+      item->set_result_field(new_field);
     return new_field;
   }
   default:					// Dosen't have to be stored
@@ -4089,7 +4105,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
-  Item_result_field **copy_func;
+  Item **copy_func;
   MI_COLUMNDEF *recinfo;
   uint temp_pool_slot=MY_BIT_NONE;
 
@@ -4153,7 +4169,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     my_free((gptr) table,MYF(0));		/* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  param->funcs=copy_func;
+  param->items_to_copy= copy_func;
   strmov(tmpname,path);
   /* make table according to fields */
 
@@ -5681,7 +5697,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.funcs);
+    copy_funcs(join->tmp_table_param.items_to_copy);
 
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
@@ -5785,7 +5801,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     memcpy(table->record[0]+key_part->offset, group->buff, key_part->length);
 
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.funcs);
+  copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
   {
     if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
@@ -5819,7 +5835,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.funcs);
+  copy_funcs(join->tmp_table_param.items_to_copy);
 
   if (!(error=table->file->write_row(table->record[0])))
     join->send_records++;			// New group
@@ -5905,7 +5921,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.funcs);
+      copy_funcs(join->tmp_table_param.items_to_copy);
       init_sum_functions(join->sum_funcs);
       if (join->procedure)
 	join->procedure->add();
@@ -7755,7 +7771,7 @@ copy_sum_funcs(Item_sum **func_ptr)
 {
   Item_sum *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field, 1);
+    (void) func->save_in_result_field(1);
   return;
 }
 
@@ -7782,12 +7798,11 @@ update_sum_func(Item_sum **func_ptr)
 	/* Copy result of functions to record in tmp_table */
 
 void
-copy_funcs(Item_result_field **func_ptr)
+copy_funcs(Item **func_ptr)
 {
-  Item_result_field *func;
+  Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field, 1);
-  return;
+    func->save_in_result_field(1);
 }
 
 

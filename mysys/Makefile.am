@@ -49,10 +49,10 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_quick.c my_lockmem.c my_static.c \
 			my_getopt.c my_mkdir.c \
 			default.c my_compress.c checksum.c raid.cc \
-			my_net.c my_semaphore.c my_port.c \
+			my_net.c my_semaphore.c my_port.c my_sleep.c \
 			charset.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
-			my_handler.c
+			my_handler.c my_netware.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
@@ -78,38 +78,36 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 # which automaticly removes the object files you use to compile a final program
 #
 
-test_thr_alarm: thr_alarm.c $(LIBRARIES)
+test_thr_alarm$(EXEEXT): thr_alarm.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_thr_alarm.c $(LDADD) $(LIBS)
-	$(RM) -f ./test_thr_alarm.*
+	$(RM) -f ./test_thr_alarm.c
 
-test_thr_lock: thr_lock.c $(LIBRARIES)
+test_thr_lock$(EXEEXT): thr_lock.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_lock.c test_thr_lock.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_thr_lock.c $(LDADD) $(LIBS)
-	$(RM) -f ./test_thr_lock.*
+	$(RM) -f ./test_thr_lock.c
 
-test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
+test_vsnprintf$(EXEEXT): my_vsnprintf.c $(LIBRARIES)
 	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
 	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
-	$(RM) -f test_vsnprintf.*
-test_io_cache: mf_iocache.c $(LIBRARIES)
+	$(RM) -f test_vsnprintf.c
+
+test_io_cache$(EXEEXT): mf_iocache.c $(LIBRARIES)
 	$(CP) $(srcdir)/mf_iocache.c test_io_cache.c
 	$(LINK) $(FLAGS) -DMAIN ./test_io_cache.c $(LDADD) $(LIBS)
-	$(RM) -f test_io_cache.*
+	$(RM) -f test_io_cache.c
 
-test_dir: test_dir.c $(LIBRARIES)
+test_dir$(EXEEXT): test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
 
 test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
-test_xml$(EXEEXT): test_xml.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_xml.c $(LDADD) $(LIBS)
-
 charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
 
-testhash: testhash.c $(LIBRARIES)
+testhash$(EXEEXT): testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
 
 # Don't update the files from bitkeeper

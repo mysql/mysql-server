@@ -992,7 +992,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto end;
   }
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));

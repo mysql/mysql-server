@@ -69,7 +69,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 err:
   myrg_close(file);
   file=0;
-  return (my_errno= HA_ERR_WRONG_TABLE_DEF);
+  return (my_errno= HA_ERR_WRONG_MRG_TABLE_DEF);
 }
 
 int ha_myisammrg::close(void)
