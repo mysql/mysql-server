@@ -36,8 +36,13 @@ then
  data=var/slave-data
  ldata=$fix_bin/var/slave-data
 else
- data=var/master-data
- ldata=$fix_bin/var/master-data
+ if [ x$1 = x"-1" ] 
+ then
+   data=var/master-data1
+ else
+   data=var/master-data
+ fi
+ ldata=$fix_bin/$data
 fi
 
 mdata=$data/mysql
