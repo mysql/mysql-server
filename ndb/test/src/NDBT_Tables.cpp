@@ -806,8 +806,9 @@ NDBT_Tables::createAllTables(Ndb* pNdb, bool _temp, bool existsOk){
     pNdb->getDictionary()->dropTable(NDBT_Tables::getTable(i)->getName());
     int ret= createTable(pNdb, 
 			 NDBT_Tables::getTable(i)->getName(), _temp, existsOk);
-    if(ret)
+    if(ret){
       return ret;
+    }
   }
   return NDBT_OK;
 }
@@ -836,15 +837,17 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
   
     r = pNdb->getDictionary()->createTable(tmpTab);
     if(r == -1){
-      if(!existsOk)
+      if(!existsOk){
+	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
 	break;
+      }
       if(pNdb->getDictionary()->getNdbError().code != 721){
-	ndbout << pNdb->getDictionary()->getNdbError() << endl;
+	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
 	break;
       }
       r = 0;
     }
-
+    
     Uint32 i = 0;
     for(Uint32 i = 0; indexes[i].m_table != 0; i++){
       if(strcmp(indexes[i].m_table, _name) != 0)

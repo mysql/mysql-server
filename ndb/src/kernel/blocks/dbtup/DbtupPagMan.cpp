@@ -139,6 +139,12 @@ void Dbtup::initializePage()
   pagePtr.i = 0;
   ptrAss(pagePtr, page);
   pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
+
+  for(size_t j = 0; j<MAX_PARALLELL_TUP_SRREQ; j++){
+    pagePtr.i = 1+j;
+    ptrAss(pagePtr, page);
+    pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
+  }
   
   Uint32 tmp = 1 + MAX_PARALLELL_TUP_SRREQ;
   returnCommonArea(tmp, cnoOfPage - tmp);
