@@ -63,7 +63,7 @@ __weak_alias(vis,_vis)
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <assert.h>
 #undef BELL
 #if defined(__STDC__)
 #define BELL '\a'
@@ -79,22 +79,24 @@ __weak_alias(vis,_vis)
 #define MAXEXTRAS       5
 
 
-#define MAKEEXTRALIST(flag, extra, orig)				      \
-do {									      \
-	const char *o = orig;						      \
-	char *e;						      	      \
-	while (*o++)							      \
-		continue;						      \
-	extra = alloca((size_t)((o - orig) + MAXEXTRAS));	      	      \
-	for (o = orig, e = extra; (*e++ = *o++) != '\0';)		      \
-		continue;						      \
-	e--;								      \
-	if (flag & VIS_SP) *e++ = ' ';				      	      \
-	if (flag & VIS_TAB) *e++ = '\t';				      \
-	if (flag & VIS_NL) *e++ = '\n';				      	      \
-	if ((flag & VIS_NOSLASH) == 0) *e++ = '\\';		      	      \
-	*e = '\0';							      \
-} while (/*CONSTCOND*/0)
+char *MAKEEXTRALIST(uint flag, const char *orig)
+{								
+  const char *o = orig;
+  char *e, *extra; 
+  while (*o++)
+    continue; 
+  extra = (char*) malloc((size_t)((o - orig) + MAXEXTRAS));
+  assert(extra);
+  for (o = orig, e = extra; (*e++ = *o++) != '\0';)
+    continue;
+  e--;
+  if (flag & VIS_SP) *e++ = ' ';
+  if (flag & VIS_TAB) *e++ = '\t';
+  if (flag & VIS_NL) *e++ = '\n';
+  if ((flag & VIS_NOSLASH) == 0) *e++ = '\\';
+  *e = '\0';
+  return extra;
+}
 
 
 /*
@@ -198,15 +200,16 @@ svis(dst, c, flag, nextc, extra)
 	int c, flag, nextc;
 	const char *extra;
 {
-	char *nextra;
+	char *nextra, *to_be_freed;
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(extra != NULL);
-	MAKEEXTRALIST(flag, nextra, extra);
+	nextra= to_be_freed= MAKEEXTRALIST(flag, extra);
 	if (flag & VIS_HTTPSTYLE)
 		HVIS(dst, c, flag, nextc, nextra);
 	else
 		SVIS(dst, c, flag, nextc, nextra);
 	*dst = '\0';
+	free(to_be_freed);
 	return(dst);
 }
 
@@ -235,12 +238,12 @@ strsvis(dst, src, flag, extra)
 {
 	char c;
 	char *start;
-	char *nextra;
+	char *nextra, *to_be_freed;
 
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(src != NULL);
 	_DIAGASSERT(extra != NULL);
-	MAKEEXTRALIST(flag, nextra, extra);
+	nextra= to_be_freed= MAKEEXTRALIST(flag, extra);
 	if (flag & VIS_HTTPSTYLE) {
 		for (start = dst; (c = *src++) != '\0'; /* empty */)
 			HVIS(dst, c, flag, *src, nextra);
@@ -249,6 +252,7 @@ strsvis(dst, src, flag, extra)
 			SVIS(dst, c, flag, *src, nextra);
 	}
 	*dst = '\0';
+	free(to_be_freed);
 	return (dst - start);
 }
 
@@ -263,12 +267,12 @@ strsvisx(dst, src, len, flag, extra)
 {
 	char c;
 	char *start;
-	char *nextra;
+	char *nextra, *to_be_freed;
 
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(src != NULL);
 	_DIAGASSERT(extra != NULL);
-	MAKEEXTRALIST(flag, nextra, extra);
+	nextra= to_be_freed= MAKEEXTRALIST(flag, extra);
 
 	if (flag & VIS_HTTPSTYLE) {
 		for (start = dst; len > 0; len--) {
@@ -282,6 +286,7 @@ strsvisx(dst, src, len, flag, extra)
 		}
 	}
 	*dst = '\0';
+	free(to_be_freed);
 	return (dst - start);
 }
 
@@ -295,16 +300,18 @@ vis(dst, c, flag, nextc)
 	int c, flag, nextc;
 	
 {
-	char *extra;
+	char *extra, *to_be_freed;
 
 	_DIAGASSERT(dst != NULL);
 
-	MAKEEXTRALIST(flag, extra, "");
+	extra= to_be_freed= MAKEEXTRALIST(flag, "");
+
 	if (flag & VIS_HTTPSTYLE)
 	    HVIS(dst, c, flag, nextc, extra);
 	else
 	    SVIS(dst, c, flag, nextc, extra);
 	*dst = '\0';
+	free(to_be_freed);
 	return (dst);
 }
 
@@ -326,9 +333,12 @@ strvis(dst, src, flag)
 	int flag;
 {
 	char *extra;
+	int tmp;
 
-	MAKEEXTRALIST(flag, extra, "");
-	return (strsvis(dst, src, flag, extra));
+	extra= MAKEEXTRALIST(flag, "");
+	tmp= strsvis(dst, src, flag, extra);
+	free(extra);
+	return tmp;
 }
 
 
@@ -340,8 +350,11 @@ strvisx(dst, src, len, flag)
 	int flag;
 {
 	char *extra;
+	int tmp;
 
-	MAKEEXTRALIST(flag, extra, "");
-	return (strsvisx(dst, src, len, flag, extra));
+	extra= MAKEEXTRALIST(flag, "");
+	tmp= strsvisx(dst, src, len, flag, extra);
+	free(extra);
+	return tmp;
 }
 #endif
