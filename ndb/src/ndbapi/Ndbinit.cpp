@@ -82,7 +82,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 {
   DBUG_ENTER("Ndb::setup");
 
-  theNdbObjectIdMap= 0;
   m_ndb_cluster_connection= ndb_cluster_connection;
   thePreparedTransactionsArray= NULL;
   theSentTransactionsArray= NULL;
@@ -110,9 +109,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theCallList= NULL;
   theScanList= NULL;
   theNdbBlobIdleList= NULL;
-  theNoOfDBnodes= 0;
-  theDBnodes= NULL;
-  the_release_ind= NULL;
   the_last_check_time= 0;
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -134,19 +130,12 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theError.code = 0;
 
-  theNdbObjectIdMap  = new NdbObjectIdMap(1024,1024);
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
-  theDBnodes         = new Uint32[MAX_NDB_NODES];
-  the_release_ind    = new Uint8[MAX_NDB_NODES];
   theCommitAckSignal = NULL;
   
-  theCurrentConnectCounter = 1;
-  theCurrentConnectIndex = 0;
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {
     theConnectionArray[i] = NULL;
-    the_release_ind[i] = 0;
-    theDBnodes[i] = 0;
   }//forg
   for (i = 0; i < 2048 ; i++) {
     theFirstTupleId[i] = 0;
@@ -213,7 +202,6 @@ Ndb::~Ndb()
   doDisconnect();
 
   delete theDictionary;  
-  delete theImpl;
 
   NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
 
@@ -260,15 +248,12 @@ Ndb::~Ndb()
   startTransactionNodeSelectionData.release();
 
   delete []theConnectionArray;
-  delete []theDBnodes;
-  delete []the_release_ind;
   if(theCommitAckSignal != NULL){
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
   }
 
-  if(theNdbObjectIdMap != 0)
-    delete theNdbObjectIdMap;
+  delete theImpl;
 
   /** 
    *  This sleep is to make sure that the transporter 
@@ -307,4 +292,17 @@ NdbWaiter::~NdbWaiter(){
   NdbCondition_Destroy(m_condition);
 }
 
+NdbImpl::NdbImpl() : theNdbObjectIdMap(1024,1024),
+		     theCurrentConnectIndex(0),
+		     theNoOfDBnodes(0)
+{
+  int i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
+    the_release_ind[i] = 0;
+  }
+}
+
+NdbImpl::~NdbImpl()
+{
+}
 
