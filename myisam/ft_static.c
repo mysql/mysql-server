@@ -19,19 +19,19 @@
 #include "ftdefs.h"
 
 const MI_KEYSEG ft_keysegs[FT_SEGS]={
-  {
-      HA_KEYTYPE_VARTEXT,               // type
-      7,                                // language
-      0, 0, 0,                          // null_bit, bit_start, bit_end
-      HA_VAR_LENGTH | HA_PACK_KEY,      // flag
-      HA_FT_MAXLEN,                     // length
+{
+    HA_KEYTYPE_VARTEXT,               /* type */
+    7,                                /* language */
+    0, 0, 0,                          /* null_bit, bit_start, bit_end */
+    HA_VAR_LENGTH | HA_PACK_KEY,      /* flag */
+    HA_FT_MAXLEN,                     /* length */
 #ifdef EVAL_RUN
-      HA_FT_WLEN+1,                     // start
+    HA_FT_WLEN+1,                     /* start */
 #else /* EVAL_RUN */
-      HA_FT_WLEN,                       // start
+    HA_FT_WLEN,                       /* start */
 #endif /* EVAL_RUN */
-      0,                                // null_pos
-      NULL                              // sort_order
+    0,                                /* null_pos */
+    NULL                              /* sort_order */
   },
 #ifdef EVAL_RUN
   {

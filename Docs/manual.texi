@@ -1469,8 +1469,8 @@ connect to your @strong{MySQL} server. @xref{ODBC}.
 Very fast B-tree disk tables with index compression.
 
 @item
-Up to 16 indexes per table are allowed. Each index may consist of 1 to 16 
-columns or parts of columns. The maximum index length is 256 bytes (this 
+Up to 32 indexes per table are allowed. Each index may consist of 1 to 16 
+columns or parts of columns. The maximum index length is 500 bytes (this 
 may be changed when compiling @strong{MySQL}). An index may use a prefix 
 of a @code{CHAR} or @code{VARCHAR} field.
 
@@ -1599,7 +1599,7 @@ that is unlikely to destroy any data beyond rescue, because all data are
 flushed to disk between each query.  There hasn't been a single bug
 report about lost data because of bugs in @strong{MySQL}.
 
-@item The MyISAM table handler --- Beta
+@item The MyISAM table handler --- Gamma
 This is new in @strong{MySQL} 3.23. It's largely based on the ISAM table code
 but has a lot of new very useful features.
 
@@ -1621,7 +1621,7 @@ handling. Not a single reported bug in this system.
 
 @item Query optimizer --- Stable
 
-@item Range optimizer --- Gamma
+@item Range optimizer --- Stable
 
 @item Join optimizer --- Stable
 
@@ -1632,7 +1632,7 @@ using standard OS locking (@code{fcntl()}).  In these cases, you should run the
 to occur on some Linux systems, and on SunOS when using NFS-mounted file
 systems.
 
-@item Linux threads --- Gamma
+@item Linux threads --- Stable
 The major problem found has been with the @code{fcntl()} call, which is
 fixed by using the @w{@code{--skip-locking}} option to
 @code{mysqld}. Some people have reported lockup problems with the 0.5
@@ -1646,7 +1646,7 @@ unstable, and we have been able to reproduce a coredump after creating
 @item Solaris 2.5+ pthreads --- Stable
 We use this for all our production work.
 
-@item MIT-pthreads (Other systems) --- Gamma
+@item MIT-pthreads (Other systems) --- Stable
 There have been no reported bugs since 3.20.15 and no known bugs since
 3.20.16. On some systems, there is a ``misfeature'' where some operations are
 quite slow (a 1/20 second sleep is done between each query). Of course,
@@ -1654,7 +1654,7 @@ MIT-pthreads may slow down everything a bit, but index-based @code{SELECT}
 statements are usually done in one time frame so there shouldn't be a mutex
 locking/thread juggling.
 
-@item Other thread implementions --- Alpha - Beta
+@item Other thread implementions --- Beta - Gamma
 The ports to other systems are still very new and may have bugs, possibly
 in @strong{MySQL}, but most often in the thread implementation itself.
 
@@ -1674,11 +1674,22 @@ Now maintained by Jochen Wiedmann
 Written and maintained by Yves Carlier
 @email{Yves.Carlier@@rug.ac.be}. Thanks!
 
-@item @code{GRANT} --- Gamma
+@item @code{GRANT} --- Stable
 Big changes made in @strong{MySQL} 3.22.12.
 
 @item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
+
+@item replication -- alpha
+We are still working on replication, so don't expect this to be rock
+solid yet.  On the other hand, some @strong{MySQL} users are already
+using this with good results...
+
+@item BDB tables -- alpha
+The Berkeley DB code is very stable, but we are still improving the interface
+between @strong{MySQL} and BDB tables, so it will take some time before this
+is as tested as the other table types.
+
 @end table
 
 MySQL AB provides email support for paying customers, but the @strong{MySQL}
@@ -2155,7 +2166,7 @@ which mentions @strong{MySQL} in the right company}
 @item
 @uref{http://www.lightlink.com/hessling/rexxsql.html, A REXX interface to SQL databases}
 @item
-@uref{http://www.mytcl.cx/, Tcl interface, based on tcl-sql, many bugfixes.}
+@uref{http://www.mytcl.cx/, Tcl interface based on tcl-sql with many bugfixes.}
 @item
 @uref{http://www.binevolve.com/~tdarugar/tcl-sql, Tcl interface}
 @end itemize
@@ -2901,7 +2912,7 @@ must license the @strong{MySQL} server.  Generally these examples
 involve providing @strong{MySQL} as a integrated part of a product.
 
 Note that a single @strong{MySQL} license covers any number of CPUs and
-@code{mysqld} servers on a machine! It also has no limit on the number
+@code{mysqld} servers on a machine! There is no artificial limit on the number
 of clients that connect to the server in any way.
 
 @node Products that use MySQL, ISP, Licensing examples, Licensing examples
@@ -3959,9 +3970,7 @@ DEC UNIX 4.x with native threads. @xref{Alpha-DEC-Unix}.
 @item
 FreeBSD 2.x with the included MIT-pthreads package. @xref{FreeBSD}.
 @item
-FreeBSD 3.x with native threads. @xref{BSDI}.
-@item
-FreeBSD 4.x with native threads.
+FreeBSD 3.x and 4.x with native threads. @xref{FreeBSD}.
 @item
 HP-UX 10.20 with the included MIT-pthreads package. @xref{HP-UX 10.20}.
 @item
@@ -4654,7 +4663,7 @@ work.  @code{libg++} is not needed when using @code{gcc}.  @code{gcc}
 C++ files, such as @file{sql/sql_base.cc}. If you only have @code{gcc} 2.7.x,
 you must upgrade your @code{gcc} to be able to compile @strong{MySQL}.
 
-@code{gcc} >= 2.95.2 should be used when compiling @strong{MySQL} 3.23.x.
+@code{gcc} >= 2.95.2 is recommended when compiling @strong{MySQL} 3.23.x.
 
 @item
 A good @code{make} program.  GNU @code{make} is always recommended and is
@@ -5773,6 +5782,23 @@ run @code{make} again.
 Configure with @code{CFLAGS=-DHAVE_CURSES CXXFLAGS=-DHAVE_CURSES ./configure}
 @end itemize
 
+If you get a problem that your linker can't find @code{-lz} when linking
+your client program, the problem is probably that your @file{libz.so} file is
+installed in @file{/usr/local/lib}.  You can fix this by one of the
+following methods:
+
+@itemize @bullet
+@item
+Add @file{/usr/local/lib} to @code{LD_LIBRARY_PATH}
+@item
+Add a link to @code{libz.so} from @code{/lib}
+@item
+If you are using Solaris 8, you can install the optional zlib from your
+Solaris 8 CD distribution.
+@item
+configure @strong{MySQL} with the @code{--with-named-z-libs=no} option.
+@end itemize
+
 @node Solaris x86, SunOS, Solaris 2.7, Source install system issues
 @subsection Solaris x86 notes
 
@@ -6213,7 +6239,10 @@ make_install
 and @strong{mysqld} should be ready to run.
 
 @node Alpha-DEC-Unix, Alpha-DEC-OSF1, Linux, Source install system issues
-@subsection Alpha-DEC-Unix notes
+@subsection Alpha-DEC-Unix notes (Tru64)
+
+If you are using egcs 1.1.2 on Digital UNIX, you should upgrade to gcc
+2.95.2, as egcs has some bad bugs on DEC!
 
 When compiling threaded programs under Digital UNIX, the documentation
 recommends using the @code{-pthread} option for @code{cc} and @code{cxx} and
@@ -6247,6 +6276,45 @@ shell> nohup mysqld [options] &
 @code{nohup} causes the command following it to ignore any @code{SIGHUP}
 signal sent from the terminal.  Alternatively, start the server by running
 @code{safe_mysqld}, which invokes @code{mysqld} using @code{nohup} for you.
+
+If you get a problem when compiling mysys/get_opt.c, just remove the
+line #define _NO_PROTO from the start of that file!
+
+If you are using Compac's CC compiler, the following configure line should
+work:
+
+@example
+CC="cc -pthread"
+CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+CXX="cxx -pthread"
+CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+export CC CFLAGS CXX CXXFLAGS
+./configure \
+--prefix=/usr/local/mysql \
+--with-low-memory \
+--enable-large-files \
+--enable-shared=yes \
+--with-named-thread-libs="-lpthread -lmach -lexc -lc"
+gnumake
+@end example
+
+If you get a problem with libtool, when compiling with shared libraries
+as above, when linking @code{mysql}, you should be able to get around
+this by issuing:
+
+@example
+cd mysql
+/bin/sh ../libtool --mode=link cxx -pthread  -O3 -DDBUG_OFF \
+-O4 -ansi_alias -ansi_args -fast -inline speed \
+-speculate all \ -arch host  -DUNDEF_HAVE_GETHOSTBYNAME_R \
+-o mysql  mysql.o readline.o sql_string.o completion_hash.o \
+../readline/libreadline.a -lcurses \
+../libmysql/.libs/libmysqlclient.so  -lm
+cd ..
+gnumake
+gnumake install
+scripts/mysql_install_db
+@end example
 
 @node Alpha-DEC-OSF1, SGI-Irix, Alpha-DEC-Unix, Source install system issues
 @subsection Alpha-DEC-OSF1 notes
@@ -6334,10 +6402,11 @@ Please submit a full bug report.
 @end example
 
 To fix this you should change to the @code{sql} directory and do a 'cut
-and paste' of the last @code{gcc} line, but change @code{-O3} to @code{-O0} (or add
-@code{-O0} immediately after @code{gcc} if you don't have any @code{-O}
-option on your compile line. After this is done you can just change back to
-the top level directly and run @code{make} again.
+and paste' of the last @code{gcc} line, but change @code{-O3} to
+@code{-O0} (or add @code{-O0} immediately after @code{gcc} if you don't
+have any @code{-O} option on your compile line. After this is done you
+can just change back to the top level directly and run @code{make}
+again.
 
 @node SGI-Irix, FreeBSD, Alpha-DEC-OSF1, Source install system issues
 @subsection SGI-Irix notes
@@ -6757,7 +6826,6 @@ handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
 
 @example
 shell> CC=gcc \
-       CFLAGS="" \
        CXX=gcc \
        CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \" \
        ./configure --prefix=/usr/local/mysql --with-debug --with-low-memory
@@ -9650,6 +9718,12 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 
 @itemize @bullet
 @item
+DON'T EVER GIVE ANYBODY (BUT THE @strong{MySQL} ROOT USER) ACCESS TO THE
+mysql.user DATABASE!  The encrypted password is the real password in
+@strong{MySQL}; If you know this for one user you can easily login as
+him if you have access to his 'host'.
+
+@item
 Learn the @strong{MySQL} access privilege system. The @code{GRANT} and
 @code{REVOKE} commands are used for restricting access to @strong{MySQL}. Do
 not grant any more privileges than necessary. Never grant privileges to all
@@ -9961,10 +10035,12 @@ necessary connection between the password you use to log in to a Unix machine
 and the password you use to access a database on that machine.
 
 @item
-@strong{MySQL} encrypts passwords using a different algorithm than the one
-used during the Unix login process.  See the descriptions of the
+@strong{MySQL} encrypts passwords using a different algorithm than the
+one used during the Unix login process.  See the descriptions of the
 @code{PASSWORD()} and @code{ENCRYPT()} functions in @ref{Miscellaneous
-functions}.
+functions}.  Note that even if the password is stored 'scrambled', as
+it's enough to know your 'scrambled' password to be able to connect to
+the the @strong{MySQL} server !
 @end itemize
 
 @node Connecting, Password security, User names, Privilege system
@@ -10057,6 +10133,13 @@ when you run client programs are listed below, along with an assessment of
 the risks of each method:
 
 @itemize @bullet
+@item
+Never give a normal user access to the @code{mysql.user} table. Knowing
+the encrypted password for a user makes it possible to login as this
+user.  The passwords are only scrambled so that one shouldn't be able to
+see the real password you used (if you happen to use a similar password
+with your other applications).
+
 @item
 Use a @code{-pyour_pass} or @code{--password=your_pass} option on the command
 line.  This is convenient but insecure, because your password becomes visible
@@ -10241,10 +10324,13 @@ The @strong{process} privilege can be used to view the plain text of
 currently executing queries, including queries that set or change passwords.
 
 @item
-Privileges on the @code{mysql} database can be used to change passwords and
-other access privilege information.  (Passwords are stored encrypted, so a
-malicious user cannot simply read them.  However, with sufficient privileges,
-that same user can replace a password with a different one.)
+Privileges on the @code{mysql} database can be used to change passwords
+and other access privilege information.  (Passwords are stored
+encrypted, so a malicious user cannot simply read them to know the plain
+text password).  If they can access the @code{mysql.user} password
+column, they can however use it to login into the @strong{MySQL} server
+for the given user.  With sufficient privileges, the same use can
+however replace a password with a different one.)
 @end itemize
 
 There are some things that you cannot do with the @strong{MySQL}
@@ -10538,11 +10624,15 @@ matches, it means the user must connect without specifying a password.
 
 @findex PASSWORD()
 Non-blank @code{Password} values represent encrypted passwords.
-@strong{MySQL} does not store passwords in plaintext form for anyone to see.
-Rather, the password supplied by a user who is attempting to connect is
-encrypted (using the @code{PASSWORD()} function) and compared to the
-already-encrypted version stored in the @code{user} table.  If they match,
-the password is correct.
+@strong{MySQL} does not store passwords in plaintext form for anyone to
+see.  Rather, the password supplied by a user who is attempting to
+connect is encrypted (using the @code{PASSWORD()} function). The
+encrypted password is then used when the client/server is checking if
+the password is connect (This is done without the encrypted password
+ever traveling over the connection).  Note that from @strong{MySQL}'s
+point of view the encrypted password is the REAL password, so you should
+not give anyone access to it!  In particular, don't give normal users
+read access to the tables in the @code{mysql} database!
 
 The examples below show how various combinations of @code{Host} and
 @code{User} values in @code{user} table entries apply to incoming
@@ -11151,6 +11241,9 @@ Website}.
 @cindex Passwords, setting
 @findex PASSWORD()
 
+In most cases you should use @code{GRANT} to set up your users/passwords,
+so the following only applies for advanced users. @xref{GRANT, , @code{GRANT}}.
+
 The examples in the preceding sections illustrate an important principle:
 when you store a non-empty password using @code{INSERT} or @code{UPDATE}
 statements, you must use the @code{PASSWORD()} function to encrypt it.  This
@@ -11226,10 +11319,10 @@ action you can take to correct the problem:
 
 @itemize @bullet
 @item
-After installing @strong{MySQL}, did you run the @code{mysql_install_db} script
-to set up the initial grant table contents?  If not, do
-so.  @xref{Default privileges}.  Test the initial privileges by
-executing this command:
+After installing @strong{MySQL}, did you run the @code{mysql_install_db}
+script to set up the initial grant table contents?  If not, do so.
+@xref{Default privileges}.  Test the initial privileges by executing
+this command:
 
 @example
 shell> mysql -u root test
@@ -11275,40 +11368,10 @@ the grant tables changed with @strong{MySQL} 3.22.11 when the @code{GRANT}
 statement became functional.
 
 @item
-If you make changes to the grant tables directly (using @code{INSERT} or
-@code{UPDATE} statement) and your changes seem to be ignored, remember that
-you must issue a @code{FLUSH PRIVILEGES} statement or execute a
-@code{mysqladmin flush-privileges} command to cause the server to reread the
-tables.  Otherwise your changes have no effect until the next time the server
-is restarted.  Remember that after you set the @code{root} password, you
-won't need to specify it until after you flush the privileges, because the
-server still won't know you've changed the password yet!
-
-@item
 If your privileges seem to have changed in the middle of a session, it may be
 that a superuser has changed them.  Reloading the grant tables affects new
 client connections, but it also affects existing connections as indicated in
 @ref{Privilege changes}.
-
-@item
-For testing, start the @code{mysqld} daemon with the
-@code{--skip-grant-tables} option.  Then you can change the @strong{MySQL}
-grant tables and use the @code{mysqlaccess} script to check whether or not
-your modifications have the desired effect.  When you are satisfied with your
-changes, execute @code{mysqladmin flush-privileges} to tell the @code{mysqld}
-server to start using the new grant tables.  @strong{Note:} Reloading the
-grant tables overrides the @code{--skip-grant-tables} option.  This allows
-you to tell the server to begin using the grant tables again without bringing
-it down and restarting it.
-
-@item
-If you have access problems with a Perl, PHP, Python or ODBC program, try to
-connect to the server with @code{mysql -u user_name db_name} or @code{mysql
--u user_name -pyour_pass db_name}.  If you are able to connect using the
-@code{mysql} client, there is a problem with your program and not with the
-access privileges.  (Notice that there is no space between @code{-p} and the
-password; you can also use the @code{--password=your_pass} syntax to specify
-the password.)
 
 @item
 If you can't get your password to work, remember that you must use
@@ -11349,7 +11412,9 @@ The @code{Access denied} error message will tell you who you are trying
 to log in as, the host from which you are trying to connect, and whether
 or not you were using a password. Normally, you should have one entry in
 the @code{user} table that exactly matches the hostname and user name
-that were given in the error message.
+that were given in the error message. For example if you get an error
+message that contains @code{Using password: NO}, this means that you
+tried to login without an password.
 
 @item
 If you get the following error when you try to connect from a different host
@@ -11380,6 +11445,36 @@ than the one you are using.  In this case you should either upgrade your
 OS/glibc or download the source @strong{MySQL} version and compile this
 yourself; A source RPM is normally trivial to compile and install, so
 normally this isn't a big problem.
+
+@item
+If you get an error message where the hostname is not shown or where the
+host name is an IP, even if you try to connect with an hostname:
+
+@example
+shell> mysqladmin -u root -pxxxx -h some-hostname ver
+Access denied for user: 'root@' (Using password: YES)
+@end example
+
+This means that @strong{MySQL} got some error when trying to resolve the
+IP to a hostname.  In this case you can execute @code{mysqladmin
+flush-hosts} to reset the internal DNS cache.  Some permanent solutions
+are:
+
+@itemize @bullet
+@item
+Try to find out what is wrong with your DNS server and fix this.
+@item
+Specify IP's instead of hostnames in the @code{MySQL} privilege tables.
+@item
+Start mysqld with @code{--skip-name-resolve}.
+@item
+Start mysqld with @code{--skip-host-cache}.
+@item
+Connect to @code{localhost} if you are running the server and the client
+on the same machine.
+@item
+Put the client machine names in @code{/etc/hosts}.
+@end itemize
 
 @item
 If @code{mysql -u root test} works but @code{mysql -h your_hostname -u root
@@ -11455,6 +11550,37 @@ parameters will be specified there. @xref{Option files}.  If you get
 @code{Access denied} when you run a client without any options, make
 sure you haven't specified an old password in any of your option files!
 @xref{Option files}.
+
+@item
+If you make changes to the grant tables directly (using @code{INSERT} or
+@code{UPDATE} statement) and your changes seem to be ignored, remember
+that you must issue a @code{FLUSH PRIVILEGES} statement or execute a
+@code{mysqladmin flush-privileges} command to cause the server to reread
+the privilege tables.  Otherwise your changes have no effect until the
+next time the server is restarted.  Remember that after you set the
+@code{root} password with an @code{UPDATE} command, you won't need to
+specify it until after you flush the privileges, because the server
+still won't know you've changed the password yet!
+
+@item
+If you have access problems with a Perl, PHP, Python or ODBC program, try to
+connect to the server with @code{mysql -u user_name db_name} or @code{mysql
+-u user_name -pyour_pass db_name}.  If you are able to connect using the
+@code{mysql} client, there is a problem with your program and not with the
+access privileges.  (Notice that there is no space between @code{-p} and the
+password; you can also use the @code{--password=your_pass} syntax to specify
+the password.)
+
+@item
+For testing, start the @code{mysqld} daemon with the
+@code{--skip-grant-tables} option.  Then you can change the @strong{MySQL}
+grant tables and use the @code{mysqlaccess} script to check whether or not
+your modifications have the desired effect.  When you are satisfied with your
+changes, execute @code{mysqladmin flush-privileges} to tell the @code{mysqld}
+server to start using the new grant tables.  @strong{Note:} Reloading the
+grant tables overrides the @code{--skip-grant-tables} option.  This allows
+you to tell the server to begin using the grant tables again without bringing
+it down and restarting it.
 
 @item
 If everything else fails, start the @code{mysqld} daemon with a debugging
@@ -15288,6 +15414,17 @@ a way that it is equivalent to @code{"1:10" MINUTE_SECOND}.  This is
 analogous to the way that @strong{MySQL} interprets @code{TIME} values
 as representing elapsed time rather than as time of day.
 
+Note that if you add/subtract a date value against something that
+contains a time part, the date value will automaticly be converted to a
+datetime value:
+
+@example
+mysql> select date_add("1999-01-01", interval 1 day);
+       -> 1999-01-02
+mysql> select date_add("1999-01-01", interval 1 hour);
+       -> 1999-01-01 01:00:00
+@end example
+
 If you use really incorrect dates, the result is @code{NULL}. If you add
 @code{MONTH}, @code{YEAR_MONTH} or @code{YEAR} and the resulting date
 has a day that is larger than the maximum day for the new month, the day is
@@ -15836,7 +15973,7 @@ mysql> select student_name, AVG(test_score)
 @itemx MAX(expr)
 Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
 @code{MAX()} may take a string argument; in such cases they return the
-minimum or maximum string value.
+minimum or maximum string value. @xref{MySQL indexes}.
 
 @example
 mysql> select student_name, MIN(test_score), MAX(test_score)
@@ -16533,6 +16670,11 @@ index exists, it drops the first @code{UNIQUE} index in the table.
 if no @code{PRIMARY KEY} was specified explicitly.)
 
 @item
+If you are doing an @code{ALTER TABLE} on/to a @code{MyISAM} table,
+all non unique index are created in a separate batch (like in @code{REPAIR}).
+This should make @code{ALTER TABLE} much faster when you have many index.
+
+@item
 @findex mysql_info()
 With the C API function @code{mysql_info()}, you can find out how many
 records were copied, and (when @code{IGNORE} is used) how many records were
@@ -16600,7 +16742,10 @@ indexed, and also that we declare @code{c} as @code{NOT NULL}, because
 indexed columns cannot be @code{NULL}.
 
 When you add an @code{AUTO_INCREMENT} column, column values are filled in
-with sequence numbers for you automatically.
+with sequence numbers for you automatically.  You can set the first
+sequence number be executing @code{SET INSERT_ID=#} before
+@code{ALTER TABLE} or using the @code{AUTO_INCREMENT = #} table option.
+@xref{SET OPTION}.
 
 See also @xref{ALTER TABLE problems, , @code{ALTER TABLE} problems}.
 
@@ -17490,6 +17635,11 @@ file is ignored.
 If you load data from a local file using the @code{LOCAL} keyword, the server
 has no way to stop transmission of the file in the middle of the operation,
 so the default bahavior is the same as if @code{IGNORE} is specified.
+
+If you are @code{LOAD DATA INFILE} to an empty @code{MyISAM} table,
+all non unique index are created in a separate batch (like in @code{REPAIR}).
+This normally makes @code{LOAD DATA INFILE} much faster when you have many
+index.
 
 @code{LOAD DATA INFILE} is the complement of @code{SELECT ... INTO OUTFILE}.
 @xref{SELECT, , @code{SELECT}}.
@@ -18613,7 +18763,7 @@ closing it. See also @code{interactive_timeout}.
 @end table
 
 The manual section that describes tuning @strong{MySQL} contains some
-information of how to tune the above variables.
+information of how to tune the above variables. @xref{Server parameters}.
 
 @findex Threads
 @findex PROCESSLIST
@@ -19259,8 +19409,9 @@ the update log when you use @code{LAST_INSERT_ID()} in a command that updates
 a table.
 
 @item INSERT_ID = #
-Set the value to be used by the following @code{INSERT} command when inserting
-an @code{AUTO_INCREMENT} value.  This is mainly used with the update log.
+Set the value to be used by the following @code{INSERT} or @code{ALTER TABLE}
+command when inserting an @code{AUTO_INCREMENT} value.  This is mainly used
+with the update log.
 @end table
 
 @findex GRANT
@@ -20246,7 +20397,7 @@ The following options to @code{mysqld} can be used to change the behavour of
 BDB tables:
 
 @multitable @columnfractions .30 .70
-@item --bdb-home=  directory @tab  Berkeley home direcory
+@item --bdb-home=  directory @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
 @item --bdb-lock-detect=# @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM or YOUNGEST)
 @item --bdb-logdir=directory @tab Berkeley DB log file directory
 @item --bdb-nosync @tab Don't synchronously flush logs
@@ -23442,288 +23593,12 @@ values it actually is using for the variables by executing this command:
 @example
 shell> mysqladmin variables
 @end example
-<<<<<<< manual.texi
 
-Each option is described below. Values for buffer sizes, lengths and stack
-sizes are given in bytes.  You can specify values with a suffix of @samp{K}
-or @samp{M} to indicate kilobytes or megabytes. For example, @code{16M}
-indicates 16 megabytes.  The case of suffix letters does not matter;
-@code{16M} and @code{16m} are equivalent.
-
-You can also see some statistics from a running server by issuing the command
-@code{SHOW STATUS}. @xref{SHOW}.
-
-@table @code
-@item @code{ansi_mode}.
-Is @code{ON} if @code{mysqld} was started with @code{--ansi}.
-@xref{Ansi mode}.
-
-@item @code{back_log}
-The number of outstanding connection requests @strong{MySQL} can have. This
-comes into play when the main @strong{MySQL} thread gets @strong{VERY}
-many connection requests in a very short time. It then takes some time
-(although very little) for the main thread to check the connection and start
-a new thread. The @code{back_log} value indicates how many requests can be
-stacked during this short time before @strong{MySQL} momentarily stops
-answering new requests. You need to increase this only if you expect a large
-number of connections in a short period of time.
-
-In other words, this value is the size of the listen queue for incoming
-TCP/IP connections.  Your operating system has its own limit on the size
-of this queue.  The manual page for the Unix @code{listen(2)} system
-call should have more details.  Check your OS documentation for the
-maximum value for this variable.  Attempting to set @code{back_log}
-higher than your operating system limit will be ineffective.
-
-@item @code{bdb_cache_size}
-The buffer that is allocated to cache index and rows for @code{BDB} tables.
-If you don't use @code{BDB} tables, you should set this to 0 or
-start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
-
-@item @code{concurrent_inserts}
-If @code{ON} (the default), @code{MySQL} will allow you to use @code{INSERT}
-on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
-on them.  You can turn this option off by starting mysqld with @code{--safe}
-or @code{--skip-new}.
-
-@item @code{connect_timeout}
-The number of seconds the @code{mysqld} server is waiting for a connect
-packet before responding with @code{Bad handshake}.
-
-@item @code{delayed_insert_timeout}
-How long a @code{INSERT DELAYED} thread should wait for @code{INSERT}
-statements before terminating.
-
-@item @code{delayed_insert_limit}
-After inserting @code{delayed_insert_limit} rows, the @code{INSERT
-DELAYED} handler will check if there are any @code{SELECT} statements
-pending. If so, it allows these to execute before continuing.
-
-@item @code{delay_key_write}
-If enabled (is on by default), @strong{MySQL} will honor the
-@code{delay_key_write} option @code{CREATE TABLE}.  This means that the
-key buffer for tables with this option will not get flushed on every
-index update, but only when a table is closed.  This will speed up
-writes on keys a lot but you should add automatic checking of all tables
-with @code{myisamchk --fast --force} if you use this.  Note that if you
-start @code{mysqld} with the @code{--delay-key-write-for-all-tables}
-option this means that all tables will be treated as if they were
-created with the @code{delay_key_write} option.  You can clear this flag
-by starting @code{mysqld} with @code{--skip-new} or @code{--safe-mode}.
-
-@item @code{delayed_queue_size}
-What size queue (in rows) should be allocated for handling @code{INSERT
-DELAYED}.  If the queue becomes full, any client that does @code{INSERT
-DELAYED} will wait until there is room in the queue again.
-
-@item @code{flush_time}
-If this is set to a non-zero value, then every @code{flush_time} seconds all
-tables will be closed (to free up resources and sync things to disk).
-
-@item @code{init_file}
-The name of the file specified with the @code{--init-file} option when
-you start the server.  This is a file of SQL statements you want the
-server to execute when it starts.
-
-@item @code{interactive_timeout}
-The number of seconds the server waits for activity on an interactive 
-connection before closing it.  An interactive client is defined as a
-client that uses the @code{CLIENT_INTERACTIVE} option to
-@code{mysql_real_connect()}.  See also @code{wait_timeout}.
-
-@item @code{join_buffer_size}
-The size of the buffer that is used for full joins (joins that do not
-use indexes).  The buffer is allocated one time for each full join
-between two tables. Increase this value to get a faster full join when
-adding indexes is not possible. (Normally the best way to get fast joins
-is to add indexes.)
-
-@c Make texi2html support index @anchor{Index cache size}. Then change
-@c some xrefs to point here
-@item @code{key_buffer_size}
-Index blocks are buffered and are shared by all threads.
-@code{key_buffer_size} is the size of the buffer used for index blocks.
-
-Increase this to get better index handling (for all reads and multiple
-writes) to as much as you can afford; 64M on a 256M machine that mainly
-runs @strong{MySQL} is quite common.  If you however make this too big
-(more than 50% of your total memory?) your system may start to page
-and become REALLY slow. Remember that because @strong{MySQL} does not cache data
-read, that you will have to leave some room for the OS filesystem cache.
-
-You can check the performance of the key buffer by doing @code{show
-status} and examine the variables @code{Key_read_requests},
-@code{Key_reads}, @code{Key_write_requests} and @code{Key_writes}.  The
-@code{Key_reads/Key_read_request} ratio should normally be < 0.01.
-The @code{Key_write/Key_write_requests} is usually near 1 if you are
-using mostly updates/deletes but may be much smaller if you tend to
-do updates that affect many at the same time or if you are
-using @code{delay_key_write}. @xref{SHOW}.
-
-To get even more speed when writing many rows at the same time use
-@code{LOCK TABLES}.  @xref{LOCK TABLES, , @code{LOCK TABLES}}.
-
-@item @code{lower_case_table_names}
-Change all table names to lower case on disk.
-
-@item @code{long_query_time}
-If a query takes longer than this (in seconds), the @code{Slow_queries} counter
-will be incremented.
-
-@item @code{max_allowed_packet}
-The maximum size of one packet. The message buffer is initialized to
-@code{net_buffer_length} bytes, but can grow up to @code{max_allowed_packet}
-bytes when needed.  This value by default is small, to catch big (possibly
-wrong) packets.  You must increase this value if you are using big
-@code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
-to use.
-
-@item @code{max_connections}
-The number of simultaneous clients allowed. Increasing this value increases
-the number of file descriptors that @code{mysqld} requires.  See below for
-comments on file descriptor limits. @xref{Too many connections}.
-
-@item @code{max_connect_errors}
-If there is more than this number of interrupted connections from a host
-this host will be blocked from further connections.  You can unblock a host
-with the command @code{FLUSH HOSTS}.
-
-@item @code{max_delayed_threads}
-Don't start more than this number of threads to handle @code{INSERT DELAYED}
-statements.  If you try to insert data into a new table after all @code{INSERT
-DELAYED} threads are in use, the row will be inserted as if the
-@code{DELAYED} attribute wasn't specified.
-
-@item @code{max_join_size}
-Joins that are probably going to read more than @code{max_join_size}
-records return an error. Set this value if your users tend to perform joins
-without a @code{WHERE} clause that take a long time and return
-millions of rows.
-
-@item @code{max_heap_table_size}
-Don't allow creation of heap tables bigger than this.
-
-@item @code{max_sort_length}
-The number of bytes to use when sorting @code{BLOB} or @code{TEXT}
-values (only the first @code{max_sort_length} bytes of each value
-are used; the rest are ignored).
-
-@item @code{max_tmp_tables}
-(This option doesn't yet do anything).
-Maximum number of temporary tables a client can keep open at the same time.
-
-@item @code{max_write_lock_count}
-After this many write locks, allow some read locks to run in between.
-
-@item @code{myisam_sort_buffer_size}
-The buffer that is allocated when sorting the index when doing a @code{REPAIR}
-table.
-
-@item @code{net_buffer_length}
-The communication buffer is reset to this size between queries. This
-should not normally be changed, but if you have very little memory, you
-can set it to the expected size of a query.  (That is, the expected length of
-SQL statements sent by clients.  If statements exceed this length, the buffer
-is automatically enlarged, up to @code{max_allowed_packet} bytes.)
-
-@item @code{net_retry_count}
-If a read on a communication port is interrupted, retry this many times
-before giving up.  This value should be quite high on @code{FreeBSD} as
-internal interrupts is sent to all threads.
-
-@item @code{net_read_timeout}
-Number of seconds to wait for more data from a connection before aborting
-the read.  Note that when we don't expect data from a connection, the timeout
-is defined by @code{write_timeout}.
-
-@item @code{net_write_timeout}
-Number of seconds to wait for a block to be written to a connection before
-aborting the write.
-=======
->>>>>>> 1.148
-
-<<<<<<< manual.texi
-@item @code{record_buffer}
-Each thread that does a sequential scan allocates a buffer of this
-size for each table it scans. If you do many sequential scans, you may
-want to increase this value.
-=======
-or the @code{SHOW VARIABLES} in the @code{mysql} command client.
->>>>>>> 1.148
-
-<<<<<<< manual.texi
-@item @code{query_buffer_size}
-The initial allocation of the query buffer. If most of your queries are
-long (like when inserting blobs), you should increase this!
-=======
 You can find a full description for all variables in the @code{SHOW VARIABLES}
 section in this manual. @xref{SHOW VARIABLES}.
->>>>>>> 1.148
 
-<<<<<<< manual.texi
-@item @code{skip_show_databases}
-This prevents people from doing @code{SHOW DATABASES}, if they don't
-have the @code{PROCESS_PRIV} privilege. This can improve security if
-you're concerned about people being able to see what databases and
-tables other users have.
-
-@item @code{slow_launch_time}
-If the creating of the thread longer than this (in seconds), the
-@code{Slow_launch_threads} counter will be incremented.
-
-@item @code{sort_buffer}
-Each thread that needs to do a sort allocates a buffer of this
-size. Increase this value for faster @code{ORDER BY} or @code{GROUP BY}
-operations.
-@xref{Temporary files}.
-
-@item @code{table_cache}
-The number of open tables for all threads. Increasing this value
-increases the number of file descriptors that @code{mysqld} requires.
-@strong{MySQL} needs two file descriptors for each unique open table.
-See below for comments on file descriptor limits. You can check if you
-need to increase the table cache by checking the @code{Opened_tables}
-variable. @xref{SHOW}.  If this variable is big and you don't do
-@code{FLUSH TABLES} a lot (which just forces all tables to be closed and
-reopenend), then you should increase the value of this variable.
-
-For information about how the table cache works, see @ref{Table cache}.
-
-@item @code{thread_cache_size}
-How many threads we should keep keep in a cache for reuse.  When a
-client disconnects the clients threads is put in the cache if there
-isn't more than @code{thread_cache_size} threads from before.  All new
-threads are first taken from the cache and only when the cache is empty
-a new thread is created.  This variable can be increased to improve
-performance if you have a lot of new connections (Normally this doesn't
-however give a notable performance improvement if you have a good
-thread implementation).
-
-@item @code{thread_concurrency}
-On Solaris, @code{mysqld} will call @code{thr_setconcurrency()} with
-this value.  @code{thr_setconcurrency()} permits the application to give
-the threads system a hint, for the desired number of threads that should
-be run at the same time.
-
-@item @code{thread_stack}
-The stack size for each thread.  Many of the limits detected by the
-@code{crash-me} test are dependent on this value. The default is
-large enough for normal operation.  @xref{Benchmarks}.
-
-@item @code{tmp_table_size}
-If an in-memory temporary table exceeds this size, @strong{MySQL}
-will automatically convert it to an on-disk @code{MyISAM} table.
-Increase the value of @code{tmp_table_size} if you do many advanced
-@code{GROUP BY} queries and you have lots of memory.
-
-@item @code{wait_timeout}
-The number of seconds the server waits for activity on a connection before
-closing it. See also @code{interactive_timeout}.
-@end table
-=======
 You can also see some statistics from a running server by issuing the command
 @code{SHOW STATUS}. @xref{SHOW STATUS}.
->>>>>>> 1.148
 
 @strong{MySQL} uses algorithms that are very scalable, so you can usually
 run with very little memory. If you however give @strong{MySQL} more
@@ -23941,7 +23816,8 @@ concurrently-running thread. For each concurrent thread, a table structure,
 column structures for each column, and a buffer of size @code{3 * n} is
 allocated (where @code{n} is the maximum row length, not counting @code{BLOB}
 columns). A @code{BLOB} uses 5 to 8 bytes plus the length of the @code{BLOB}
-data.
+data. The @code{ISAM}/@code{MyISAM} table handlers will use one extra row
+buffer for internal usage.
 
 @item
 For each table having @code{BLOB} columns, a buffer is enlarged dynamically
@@ -24208,7 +24084,12 @@ Retrieve rows from other tables when performing joins.
 
 @item
 Find the @code{MAX()} or @code{MIN()} value for a specific indexed
-column.
+column. This is optimized by a pre-processor that checks if you are
+using @code{WHERE} key_part_# = constant on all key parts < N.  In this case
+@strong{MySQL} will do a single key lookup and replace the @code{MIN()}
+expression with a constant.  If all expressions are replaced with
+constants, the query will return at once.
+
 @example
 SELECT MIN(key_part2),MAX(key_part2) FROM table_name where key_part1=10
 @end example
@@ -25663,6 +25544,10 @@ Note that if you run @code{mysqldump} without @code{--quick} or
 @code{--opt}, @code{mysqldump} will load the whole result set into
 memory before dumping the result.  This will probably be a problem if
 you are dumping a big database.
+
+Note that if you are using a new copy of the @code{mysqldump} program
+and is going to do a dump that will be read into a very old @code{MySQL}
+server, you should not use the @code{--opt} or @code{-e} options.
 
 @code{mysqldump} supports the following options:
 
@@ -28139,6 +28024,12 @@ some user that it works:
 @item Access
 To make Access work:
 @itemize @bullet
+@item
+
+If you are using Access 2000, you should get an install Microsoft MDAC from
+@uref{http://www.microsoft.com/data/download_21242023.htm}.  This will
+fix the bug in Access that when you export data to @strong{MySQL}, the
+table and column names wasn't specified.
 @item
 You should have a primary key in the table.
 @item
@@ -34769,7 +34660,6 @@ dictionary, configuration files and templates, and allows "pre-processing"
 and "post-processing" on both fields, records and operations. 
 @end itemize
 
-
 @appendixsec Web tools
 
 @itemize @bullet
@@ -34971,6 +34861,12 @@ Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
 @appendixsec Useful tools
 
 @itemize @bullet
+@item @uref{http://www.mysql.com/Downloads/Contrib/mytop, mytop}
+@item @uref{http://public.yahoo.com/~jzawodn/mytop/, mytop home page}
+mytop is a perl program which allows you to monitor MySQL servers by
+viewing active threads, queries and overall server performance
+numbers. By Jeremy D. Zawodny.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_watchdog.pl, mysql_watchdog.pl}
 Monitor the @strong{MySQL} daemon for possible lockups. By Yermo Lamers,
 @email{yml@@yml.com}.
@@ -35004,6 +34900,10 @@ By Daniel Koch.
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbcheck, dbcheck}
 Perl script that takes a backup of a tables before running isamchk on them.
 By Elizabeth.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/mybackup}
+@item @uref{http://www.mswanson.com/mybackup, mybackup home page}
+Wrapper for mysqldump to backup all databases. By "Marc Swanson".
 @end itemize
 
 @appendixsec RPMs for common tools (Most are for RedHat 6.1)
@@ -35338,6 +35238,9 @@ Simple billing/license/support/copyright issues.
 ODBC and VisualC++ interface questions.
 @item Randy Harmon @email{rjharmon@@uptimecomputers.com}
 @code{DBD}, Linux, some SQL syntax questions.
+@item Konark IA-64 Centre of Persistent Systems Private Limited
+@uref{http://www.pspl.co.in/konark/}.  Help with the Win64 port of the
+@strong{MySQL} server.
 @end table
 
 @node News, Bugs, Credits, Top
@@ -35376,6 +35279,7 @@ old code in @strong{MySQL} 3.23 so this version should stabilise pretty soon
 and will soon be declared beta, gamma and release.
 
 @menu
+* News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
 * News-3.23.20::                Changes in release 3.23.20
@@ -35401,7 +35305,38 @@ and will soon be declared beta, gamma and release.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.22, News-3.23.21, News-3.23.x, News-3.23.x
+@node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.23
+@itemize @bullet
+@item
+Changed @code{ALTER TABLE} to create non unique index in a separate batch
+(which should make @code{ALTER TABLE} much faster when you have many index)
+@item
+Added delayed index handling to @code{LOAD DATA INFILE}, when you are
+reading into an empty file.
+@item
+@code{ALTER TABLE} now logs the first used insert_id correctly.
+@item
+Fixed crash when adding a default value to a @code{BLOB} column.
+@item
+Fixed a bug with @code{DATE_ADD/DATE_SUB} where it returned a datetime instead
+of a date.
+datetime.
+@item
+Fixed a problem with the thread cache which made some threads show up as
+@code{***DEAD***} in @code{SHOW PROCESSLIST}.
+@item
+Fixed a lock in our thr_rwlock code, which could make selects that run
+at the same time as concurrent inserts crash. This only affects systems
+that don't have the @code{pthread_rwlock_rdlock} code.
+@item
+When deleting rows with a non-unique key in HEAP table, all rows wasn't 
+always deleted.
+@item
+Fixed the BDB tables works on part keys.
+@end itemize
+
+@node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
 @appendixsubsec Changes in release 3.23.22
 @itemize @bullet
 @item
@@ -35433,9 +35368,12 @@ Added @code{ANALYZE table_name} to update key statistics for tables.
 @item
 Changed binary items @code{0x...} to be default regarded as an integer
 @item
-Fix for SCO and @code{show proesslist}.
+Fix for SCO and @code{SHOW PROCESSLIST}.
 @item
 Added @code{auto-rehash} on reconnect for the @code{mysql} client.
+@item
+Fixed a newly introduced bug in @code{MyISAM}, where the indexfile couldn't
+get bigger than 64M.
 @end itemize
 
 @node News-3.23.21, News-3.23.20, News-3.23.22, News-3.23.x
@@ -39316,28 +39254,6 @@ Fixed @code{DISTINCT} with calculated columns.
 @node Bugs, TODO, News, Top
 @appendix Known errors and design deficiencies in MySQL
 
-The following is known bugs in @strong{MySQL} 3.23.22 that will be fixed
-in the next release:
-@itemize @bullet
-@item
-Searching on part keys on BDB tables doesn't return all rows:
-
-@example
-CREATE TABLE t1 (
-  user_id int(10) DEFAULT '0' NOT NULL,
-  name varchar(100),
-  phone varchar(100),
-  ref_email varchar(100) DEFAULT '' NOT NULL,
-  detail varchar(200),
-  PRIMARY KEY (user_id,ref_email)
-)type=bdb;
-INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777.hotmail.com','xxx'),(10292,'shirish','2333604','shirish.yahoo.com','ddsds'),(10292,'sonali','323232','sonali.bolly.com','filmstar');
-select * from t1 where user_id=10292;
-@end example
-@end itemize
-
-Other known problems:
-
 @itemize @bullet
 @item
 You cannot build in another directory when using
@@ -39496,6 +39412,10 @@ Fail safe replication.
 @item
 Optimize, test and document transactions safe tables
 @item
+@code{RENAME table as table, table as table [,...]}
+@item
+Allow users to change startup options.
+@item
 Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
 @item
 Port of @strong{MySQL} to BeOS.
@@ -39506,13 +39426,12 @@ can gracefully recover if the index file gets full.
 If you perform an @code{ALTER TABLE} on a table that is symlinked to another
 disk, create temporary tables on this disk.
 @item
-@code{RENAME table as table, table as table [,...]}
-@item
-Allow users to change startup options.
-@item
 FreeBSD and MIT-pthreads;  Do sleeping threads take CPU?
 @item
 Check if locked threads take any CPU.
+@item
+Fix configure so the one can compile all libraries (like @code{MyISAM})
+without threads.
 @item
 Change to use mkstemp() instead of tempnam() for system that supports the call.
 We need to add a my_mkstemp() function in mysys and also change the cache
@@ -39568,6 +39487,10 @@ LOAD DATA INFILE 'file_name.txt' INTO TABLE tbl_name
 TEXT_FIELDS (text_field1, text_field2, text_field3)
 SET table_field1=concatenate(text_field1, text_field2), table_field3=23
 IGNORE text_field3
+
+This can be used to skip over extra columns in the text file, update columns
+based on expressions of the read data...
+on the in-data and 
 @end example
 @item
 @code{LOAD DATA INFILE 'file_name' INTO TABLE 'table_name' ERRORS TO err_table_name}
@@ -39580,9 +39503,6 @@ error_message  - the error/warning message
 and maybe
 data_line      - the line from the data file
 @end example
-@item
-We should extend @code{LOAD DATA INFILE} so that we can skip over extra
-columns in the text file.
 @item
 Add true @code{VARCHAR} support (There is already support for this in MyISAM).
 @item

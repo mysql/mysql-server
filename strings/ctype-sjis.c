@@ -224,7 +224,7 @@ int my_strnncoll_sjis(const uchar *s1, int len1, const uchar *s2, int len2)
 
 int my_strcoll_sjis(const uchar *s1, const uchar *s2)
 {
-  return my_strnncoll_sjis(s1, strlen(s1), s2, strlen(s2));
+  return (uint) my_strnncoll_sjis(s1,(uint) strlen(s1), s2,(uint) strlen(s2));
 }
 
 int my_strnxfrm_sjis(uchar *dest, uchar *src, int len, int srclen)
@@ -245,7 +245,7 @@ int my_strnxfrm_sjis(uchar *dest, uchar *src, int len, int srclen)
 
 int my_strxfrm_sjis(uchar *dest, uchar *src, int len)
 {
-  return my_strnxfrm_sjis(dest, src, len, strlen(src));
+  return my_strnxfrm_sjis(dest, src, len, (uint) strlen(src));
 }
 
 

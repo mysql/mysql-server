@@ -112,7 +112,7 @@ void free_root(MEM_ROOT *root)
 
 char *strdup_root(MEM_ROOT *root,const char *str)
 {
-  uint len=strlen(str)+1;
+  uint len= (uint) strlen(str)+1;
   char *pos;
   if ((pos=alloc_root(root,len)))
     memcpy(pos,str,len);

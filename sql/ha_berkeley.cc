@@ -228,7 +228,7 @@ berkeley_cmp_packed_key(const DBT *new_key, const DBT *saved_key)
     key_length-=length;
     saved_key_ptr+=key_part->field->packed_col_length(saved_key_ptr);
   }
-  return 0;
+  return key->handler.bdb_return_if_eq;
 }
 
 
@@ -250,7 +250,7 @@ berkeley_cmp_fix_length_key(const DBT *new_key, const DBT *saved_key)
     key_length-= key_part->length;
     saved_key_ptr+=key_part->length;
   }
-  return 0;
+  return key->handler.bdb_return_if_eq;
 }
 
 
@@ -964,6 +964,8 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
 }
 
 
+/* This is only used to read whole keys */
+
 int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
 				uint key_len, enum ha_rkey_function find_flag)
 {
@@ -982,14 +984,38 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
 			    uint key_len, enum ha_rkey_function find_flag)
 {
   DBT row;
+  int error;
   DBUG_ENTER("index_read");
   statistic_increment(ha_read_key_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
-  DBUG_RETURN(read_row(cursor->c_get(cursor,
-				     pack_key(&last_key, active_index,
-					      key_buff, key, key_len),
-				     &row, DB_SET),
-		       buf, active_index, &row, 0));
+  if (key_len == table->key_info[active_index].key_length)
+  {
+    error=read_row(cursor->c_get(cursor, pack_key(&last_key,
+						  active_index,
+						  key_buff,
+						  key, key_len),
+				 &row, DB_SET),
+		   buf, active_index, &row, 0);
+  }
+  else
+  {
+    /* read of partial key */
+    pack_key(&last_key, active_index, key_buff, key, key_len);
+    /* Store for compare */
+    memcpy(key_buff2, key_buff, last_key.size);
+    ((KEY*) last_key.app_private)->handler.bdb_return_if_eq= -1;
+    error=read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE),
+		   buf, active_index, &row, 0);
+    ((KEY*) last_key.app_private)->handler.bdb_return_if_eq=0;
+    if (!error && find_flag == HA_READ_KEY_EXACT)
+    {
+      /* Check that we didn't find a key that wasn't equal to the current
+	 one */
+      if (!error && ::key_cmp(table, key_buff2, active_index, key_len))
+	error=HA_ERR_KEY_NOT_FOUND;
+    }
+  }
+  DBUG_RETURN(error);
 }
 
 

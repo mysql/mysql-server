@@ -84,7 +84,7 @@ int main(int argc,char *argv[])
   for(i=1;create_record(record,qf);i++) {
     FT_DOCLIST *result; double w; int t;
 
-    result=ft_init_search(file,0,blob_record,strlen(blob_record),1);
+    result=ft_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
     if(!result) {
       printf("Query %d failed with errno %3d\n",i,my_errno);
       goto err;
@@ -177,7 +177,7 @@ int create_record(char *pos, FILE *file)
   {
     if(feof(file)) return 0; else print_error(1,"fgets(docid) - 1");
   }
-  tmp=strlen(pos+2)-1;
+  tmp=(uint) strlen(pos+2)-1;
   int2store(pos,tmp);
   pos+=recinfo[0].length;
 
@@ -185,7 +185,7 @@ int create_record(char *pos, FILE *file)
 
   if(!(fgets(blob_record,MAX_BLOB_LENGTH,file)))
     print_error(1,"fgets(docid) - 2");
-  tmp=strlen(blob_record);
+  tmp=(uint) strlen(blob_record);
   int4store(pos,tmp);
   ptr=blob_record;
   memcpy_fixed(pos+4,&ptr,sizeof(char*));

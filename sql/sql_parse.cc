@@ -34,6 +34,9 @@ extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
+#ifdef SOLARIS
+extern "C" int gethostname(char *name, int namelen);
+#endif
 
 static bool check_table_access(THD *thd,uint want_access,TABLE_LIST *tables);
 static bool check_lock_tables(THD *thd,TABLE_LIST *tables);
@@ -1571,22 +1574,23 @@ mysql_execute_command(void)
      /* Check that the user isn't trying to change a password for another
 	user if he doesn't have UPDATE privilege to the MySQL database */
 
-     List_iterator <LEX_USER> user_list(lex->users_list);
-     LEX_USER *user;
-     if(thd->user)
+     if (thd->user)				// If not replication
+     {
+       LEX_USER *user;
+       List_iterator <LEX_USER> user_list(lex->users_list);
        while ((user=user_list++))
+       {
+	 if (user->password.str &&
+	     (strcmp(thd->user,user->user.str) ||
+	      user->host.str &&
+	      my_strcasecmp(user->host.str, thd->host ? thd->host : thd->ip)))
 	 {
-	   if (user->password.str &&
-	       (strcmp(thd->user,user->user.str) ||
-		user->host.str && my_strcasecmp(user->host.str,
-						thd->host ? thd->host : thd->ip)))
-	     {
-	       if (check_access(thd, UPDATE_ACL, "mysql",0,1))
-		 goto error;
-	       break;					// We are allowed to do changes
-	     }
+	   if (check_access(thd, UPDATE_ACL, "mysql",0,1))
+	     goto error;
+	   break;			// We are allowed to do changes
 	 }
-
+       }
+     }
      if (tables)
      {
        if (grant_option && check_grant(thd,
@@ -1614,11 +1618,11 @@ mysql_execute_command(void)
 	 res = mysql_grant(thd, lex->db, lex->users_list, lex->grant,
 			   lex->sql_command == SQLCOM_REVOKE);
        if(!res)
-	 {
-          mysql_update_log.write(thd->query,thd->query_length);
-          Query_log_event qinfo(thd, thd->query);
-          mysql_bin_log.write(&qinfo);
-	 }
+       {
+	 mysql_update_log.write(thd->query,thd->query_length);
+	 Query_log_event qinfo(thd, thd->query);
+	 mysql_bin_log.write(&qinfo);
+       }
      }
      break;
    }
@@ -1853,10 +1857,25 @@ mysql_init_query(THD *thd)
 
   thd->lex.table_list.first=0;
   thd->lex.table_list.next= (byte**) &thd->lex.table_list.first;
-  thd->lex.proc_list.first=0;			// Needed by sql_select
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   DBUG_VOID_RETURN;
+}
+
+void
+mysql_init_select(LEX *lex)
+{
+  lex->where=lex->having=0;
+  lex->select_limit=current_thd->default_select_limit;
+  lex->offset_limit=0L;
+  lex->options=0;
+  lex->exchange = 0;
+  lex->proc_list.first=0;
+  lex->order_list.elements=lex->group_list.elements=0;
+  lex->order_list.first=0;
+  lex->order_list.next= (byte**) &lex->order_list.first;
+  lex->group_list.first=0;
+  lex->group_list.next= (byte**) &lex->group_list.first;
 }
 
 

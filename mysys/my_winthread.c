@@ -83,11 +83,11 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
   *thread_id=map->pthreadself=hThread;
   pthread_mutex_unlock(&THR_LOCK_thread);
 
-  if ((long) hThread == -1L)
+  if (hThread == (HANDLE) -1)
   {
-    long error=errno;
+    int error=errno;
     DBUG_PRINT("error",
-	       ("Can't create thread to handle request (error %ld)",error));
+	       ("Can't create thread to handle request (error %d)",error));
     DBUG_RETURN(error ? error : -1);
   }
   VOID(SetThreadPriority(hThread, attr->priority)) ;

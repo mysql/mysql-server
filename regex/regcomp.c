@@ -132,7 +132,7 @@ int cflags;
 							(NC-1)*sizeof(cat_t));
 	if (g == NULL)
 		return(REG_ESPACE);
-	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
+	p->ssize = (long) (len/(size_t)2*(size_t)3 + (size_t)1); /* ugh */
 	p->strip = (sop *)malloc(p->ssize * sizeof(sop));
 	p->slen = 0;
 	if (p->strip == NULL) {
@@ -268,7 +268,7 @@ register struct parse *p;
 	case '(':
 		REQUIRE(MORE(), REG_EPAREN);
 		p->g->nsub++;
-		subno = p->g->nsub;
+		subno = (sopno) p->g->nsub;
 		if (subno < NPAREN)
 			p->pbegin[subno] = HERE();
 		EMIT(OLPAREN, subno);
@@ -488,7 +488,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		break;
 	case BACKSL|'(':
 		p->g->nsub++;
-		subno = p->g->nsub;
+		subno = (sopno) p->g->nsub;
 		if (subno < NPAREN)
 			p->pbegin[subno] = HERE();
 		EMIT(OLPAREN, subno);
@@ -811,8 +811,11 @@ int endc;			/* name ended by endc,']' */
 {
 	register char *sp = p->next;
 	register struct cname *cp;
+#ifdef _WIN64
+	register __int64 len;
+#else
 	register int len;
-
+#endif
 	while (MORE() && !SEETWO(endc, ']'))
 		NEXT();
 	if (!MORE()) {
@@ -1076,9 +1079,9 @@ register cset *cs;
 	register size_t css = (size_t)p->g->csetsize;
 
 	for (i = 0; i < css; i++)
-		CHsub(cs, i);
+	  CHsub(cs, i);
 	if (cs == top-1)	/* recover only the easy case */
-		p->g->ncsets--;
+	  p->g->ncsets--;
 }
 
 /*

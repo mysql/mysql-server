@@ -30,10 +30,11 @@
 #include "../myisam/myisamdef.h"
 #endif
 
-ulong myisam_sort_buffer_size;
 #if !defined(HAVE_PREAD)
 pthread_mutex_t THR_LOCK_keycache;
 #endif
+
+ulong myisam_sort_buffer_size;
 
 /*****************************************************************************
 ** MyISAM tables
@@ -57,7 +58,12 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     sql_print_error(msgbuf);
     return;
   }
-
+  if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
+			 T_AUTO_REPAIR))
+  {
+    my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
+    return;
+  }
   net_store_data(packet, param->table_name);
   net_store_data(packet, param->op_name);
   net_store_data(packet, msg_type);
@@ -328,29 +334,37 @@ int ha_myisam::analyze(THD *thd)
 }
 
 
-int ha_myisam::repair(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
   if (!file) return HA_CHECK_INTERNAL_ERROR;
   int error ;
   MI_CHECK param;
-  MYISAM_SHARE* share = file->s;
-  char fixed_name[FN_REFLEN];
-  
+
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.table_name = table->table_name;
-  param.testflag = check_opt->flags | T_SILENT|T_FORCE_CREATE|T_REP_BY_SORT;
-  param.sort_buffer_length=  check_opt->sort_buffer_size;
+  param.testflag = (check_opt->flags | T_SILENT|T_FORCE_CREATE|T_REP_BY_SORT|
+		    T_STATISTICS);
   if (check_opt->quick) 
     param.opt_rep_quick++;
+  param.sort_buffer_length=  check_opt->sort_buffer_size;
+  return repair(thd,param);
+}
+
+
+int ha_myisam::repair(THD *thd, MI_CHECK &param)
+{
+  int error;
+  char fixed_name[FN_REFLEN];
+  MYISAM_SHARE* share = file->s;
+
+  param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
 
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
-
-  if (share->state.key_map)
+  if (mi_test_if_sort_rep(file,file->state->records))
     error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick); 
   else
     error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick); 
@@ -397,6 +411,38 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
+/* Deactive all not unique index that can be recreated fast */
+
+void ha_myisam::deactivate_non_unique_index(ha_rows rows)
+{
+  if (!(specialflag & SPECIAL_SAFE_MODE))
+    mi_dectivate_non_unique_index(file,rows);
+}
+
+
+bool ha_myisam::activate_all_index(THD *thd)
+{
+  int error=0;
+  char fixed_name[FN_REFLEN];
+  MI_CHECK param;
+  MYISAM_SHARE* share = file->s;
+  DBUG_ENTER("activate_all_index");
+  if (share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
+  {
+    const char *save_proc_info=thd->proc_info;
+    thd->proc_info="creating index";
+    myisamchk_init(&param);
+    param.op_name = (char*) "recreating_index";
+    param.testflag = (T_SILENT | T_REP_BY_SORT | 
+		      T_STATISTICS | T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
+    param.myf_rw&= ~MY_WAIT_IF_FULL;
+    param.sort_buffer_length=  myisam_sort_buffer_size;
+    param.opt_rep_quick++;
+    error=repair(thd,param) != HA_CHECK_OK;
+    thd->proc_info=save_proc_info;
+  }
+  DBUG_RETURN(error);
+}
 
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
@@ -870,4 +916,3 @@ int ha_myisam::ft_read(byte * buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
-

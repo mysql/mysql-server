@@ -217,13 +217,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->time_stamp=0;
     table->next_number_field=table->found_next_number_field;
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
+    table->file->deactivate_non_unique_index((ha_rows) 0);
     table->copy_blobs=1;
     if (!field_term->length() && !enclosed->length())
       error=read_fixed_length(thd,info,table,fields,read_info);
     else
       error=read_sep_field(thd,info,table,fields,read_info,*enclosed);
-    if (table->file->extra(HA_EXTRA_NO_CACHE))
+    if (table->file->extra(HA_EXTRA_NO_CACHE) ||
+	table->file->activate_all_index((ha_rows) 0))
       error=1; /* purecov: inspected */
+      
     table->time_stamp=save_time_stamp;
     table->next_number_field=0;
     if (thd->lock)

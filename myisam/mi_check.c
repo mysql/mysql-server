@@ -220,7 +220,7 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
     if (next_link > info->state->key_file_length ||
 	next_link & (info->s->blocksize-1))
       DBUG_RETURN(1);
-    if (!(buff=key_cache_read(info->s->kfile, next_link, info->buff,
+    if (!(buff=key_cache_read(info->s->kfile, next_link, (byte*) info->buff,
 			      myisam_block_size, block_size, 1)))
       DBUG_RETURN(1);
     next_link=mi_sizekorr(buff);
@@ -1228,6 +1228,8 @@ err:
       VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
 			  MYF(MY_WME)));
     }
+    mi_mark_crashed_on_repair(info);
+    info->update|= HA_STATE_CHANGED;
   }
   if (sort_info->record)
     my_free(sort_info->record,MYF(0));
@@ -1580,7 +1582,7 @@ err:
   DBUG_RETURN(1);
 }
 
-	/* Fix table using sorting */
+	/* Fix table or given index using sorting */
 	/* saves new table in temp_filename */
 
 int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
@@ -1597,6 +1599,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   ulong   *rec_per_key_part;
   char llbuff[22];
   SORT_INFO *sort_info= &param->sort_info;
+  ulonglong key_map=share->state.key_map;
   DBUG_ENTER("rep_by_sort");
 
   start_records=info->state->records;
@@ -1621,7 +1624,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
        init_io_cache(&info->rec_cache,info->dfile,
 		     (uint) param->write_buffer_length,
 		     WRITE_CACHE,new_header_length,1,
-		     MYF(MY_WME | MY_WAIT_IF_FULL))))
+		     MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw)))
     goto err;
   sort_info->key_block_end=sort_info->key_block+param->sort_key_blocks;
   info->opt_flag|=WRITE_CACHE_USED;
@@ -1664,10 +1667,15 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  for (i=0 ; i < share->base.keys ; i++)
-    share->state.key_root[i]= HA_OFFSET_ERROR;
-  for (i=0 ; i < share->state.header.max_block_size ; i++)
-    share->state.key_del[i]=  HA_OFFSET_ERROR;
+  if (!(param->testflag & T_CREATE_MISSING_KEYS))
+  {
+    for (i=0 ; i < share->base.keys ; i++)
+      share->state.key_root[i]= HA_OFFSET_ERROR;
+    for (i=0 ; i < share->state.header.max_block_size ; i++)
+      share->state.key_del[i]=  HA_OFFSET_ERROR;
+  }
+  else
+    key_map= ~key_map;				/* Create the missing keys */
 
   info->state->key_file_length=share->base.keystart;
 
@@ -1696,7 +1704,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   else
     length=share->base.pack_reclength;
   sort_param.max_records=sort_info->max_records=
-    (ha_rows) (sort_info->filelength/length+1);
+    ((param->testflag & T_TRUST_HEADER) ? info->state->records :
+     (ha_rows) (sort_info->filelength/length+1));
   sort_param.key_cmp=sort_key_cmp;
   sort_param.key_write=sort_key_write;
   sort_param.key_read=sort_key_read;
@@ -1714,7 +1723,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
        rec_per_key_part+=sort_info->keyinfo->keysegs, sort_info->key++)
   {
     sort_info->keyinfo=share->keyinfo+sort_info->key;
-    if (!(((ulonglong) 1 << sort_info->key) & share->state.key_map))
+    if (!(((ulonglong) 1 << sort_info->key) & key_map))
       continue;
 
     if ((!(param->testflag & T_SILENT)))
@@ -1755,6 +1764,15 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       param->read_cache.end_of_file=sort_info->filepos;
       if (write_data_suffix(param,info) || end_io_cache(&info->rec_cache))
 	goto err;
+      if (param->testflag & T_SAFE_REPAIR)
+      {
+	/* Don't repair if we loosed more than one row */
+	if (info->state->records+1 < start_records)
+	{
+	  info->state->records=start_records;
+	  goto err;
+	}
+      }
       share->state.state.data_file_length = info->state->data_file_length
 	= sort_info->filepos;
       /* Only whole records */
@@ -1837,6 +1855,8 @@ err:
       VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
 			  MYF(MY_WME)));
     }
+    mi_mark_crashed_on_repair(info);
+    info->update|= HA_STATE_CHANGED;
   }
   my_free((gptr) sort_info->key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
@@ -1844,7 +1864,7 @@ err:
   VOID(end_io_cache(&param->read_cache));
   VOID(end_io_cache(&info->rec_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-  if (!got_error && param->testflag & T_UNPACK)
+  if (!got_error && (param->testflag & T_UNPACK))
   {
     share->state.header.options[0]&= (uchar) ~HA_OPTION_COMPRESS_RECORD;
     share->pack.header_length=0;
@@ -2883,4 +2903,59 @@ ha_checksum mi_byte_checksum(const byte *buf, uint length)
     crc=((crc << 1) + *((uchar*) buf)) +
       test(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
   return crc;
+}
+
+/*
+  Deactive all not unique index that can be recreated fast
+  These include packed keys on which sorting will use more temporary
+  space than the max allowed file length or for which the unpacked keys
+  will take much more space than packed keys.
+  Note that 'rows' may be zero for the case when we don't know how many
+  rows we will put into the file.
+ */
+
+static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
+{
+  return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
+	  ((ulonglong) rows * key->maxlength > MAX_FILE_SIZE ||
+	   (ulonglong) rows * (key->maxlength - key->minlength) / 2 >
+	   MI_MAX_TEMP_LENGTH ||
+	   (rows == 0 && (key->maxlength / key->minlength) > 2)));
+}
+
+
+void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows)
+{
+  MYISAM_SHARE *share=info->s;
+  uint i;
+  if (!info->state->records)			/* Don't do this if old rows */
+  {
+    MI_KEYDEF *key=share->keyinfo;
+    for (i=0 ; i < share->base.keys ; i++,key++)
+    {
+      if (!(key->flag & HA_NOSAME) && ! mi_too_big_key_for_sort(key,rows))
+      {
+	share->state.key_map&= ~ ((ulonglong) 1 << i);
+	info->update|= HA_STATE_CHANGED;
+      }
+    }
+  }
+}
+
+
+/* Return TRUE if we can use repair by sorting */
+
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows)
+{
+  MYISAM_SHARE *share=info->s;
+  uint i;
+  MI_KEYDEF *key=share->keyinfo;
+  if (!share->state.key_map)
+    return FALSE;				/* Can't use sort */
+  for (i=0 ; i < share->base.keys ; i++,key++)
+  {
+    if (mi_too_big_key_for_sort(key,rows))
+      return FALSE;
+  }
+  return TRUE;
 }

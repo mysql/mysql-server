@@ -262,4 +262,11 @@ typedef ulong		ha_rows;
 
 #define HA_POS_ERROR	(~ (ha_rows) 0)
 #define HA_OFFSET_ERROR	(~ (my_off_t) 0)
+
+#if SYSTEM_SIZEOF_OFF_T == 4
+#define MAX_FILE_SIZE	INT_MAX32
+#else
+#define MAX_FILE_SIZE	LONGLONG_MAX
+#endif
+
 #endif /* _my_base_h */

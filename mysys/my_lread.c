@@ -32,7 +32,7 @@ uint32 my_lread(int Filedes, byte *Buffer, uint32 Count, myf MyFlags)
 		   Filedes, Buffer, Count, MyFlags));
 
   /* Temp hack to get count to int32 while read wants int */
-  if ((readbytes = (uint32) read(Filedes, Buffer, (size_t) Count)) != Count)
+  if ((readbytes = (uint32) read(Filedes, Buffer, (uint) Count)) != Count)
   {
     my_errno=errno;
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
