@@ -418,18 +418,6 @@ Create_file event for file_id: %u\n",exv->file_id);
       */
       ev= 0;
       break;
-    case ROTATE_EVENT:
-      /* see comments in sql/slave.cc:process_io_rotate() */
-      if (description_event->binlog_version >= 4)
-      {
-        delete description_event;
-        /* start from format 3 (MySQL 4.0) again */
-        description_event= new Format_description_log_event(3);
-        if (!description_event || !description_event->is_valid())
-          die("Invalid Format_description log event; could be out of memory");
-      }
-      ev->print(result_file, short_form, last_event_info);
-      break;
     default:
       ev->print(result_file, short_form, last_event_info);
     }
@@ -1011,11 +999,13 @@ static int dump_local_log_entries(const char* logname)
     if (!ev)
     {
       if (file->error)
+      {
 	fprintf(stderr,
                 "Could not read entry at offset %s:"
                 "Error in log format or read error\n",
                 llstr(old_off,llbuff));
-      error= 1;
+        error= 1;
+      }
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }

@@ -604,7 +604,7 @@ public:
      concerned) from here.
   */
 
-  uint catalog_len;				/* <= 255 char */
+  int catalog_len;				// <= 255 char; -1 means uninited
 
   /*
     We want to be able to store a variable number of N-bit status vars:
