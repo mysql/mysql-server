@@ -85,9 +85,7 @@ int my_msync(int fd, void *addr, size_t len, int flags)
 
 #endif
 
-#ifdef _WINDOWS
-#pragma message "no mmap!"
-#else
+#ifndef __WIN__
 #warning "no mmap!"
 #endif
 
