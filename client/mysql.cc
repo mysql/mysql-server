@@ -440,7 +440,7 @@ static struct my_option my_long_options[] =
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-auto-rehash", 'A',
-   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options depricated; use --disable-auto-rehash instead.",
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -468,7 +468,7 @@ static struct my_option my_long_options[] =
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-named-commands", 'g',
-   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option depricated; use --disable-named-commands instead.",
+   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"named-commands", 'G',
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
@@ -489,14 +489,14 @@ static struct my_option my_long_options[] =
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (gptr*) &line_numbers, (gptr*) &line_numbers, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},  
-  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is depricated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef __WIN__
   {"no-pager", OPT_NOPAGER,
-   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option depricated; use --disable-pager instead.",
+   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option depricated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
+  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option deprecated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (gptr*) &unbuffered,
    (gptr*) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -504,10 +504,10 @@ static struct my_option my_long_options[] =
    (gptr*) &column_names, (gptr*) &column_names, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
-   "Don't write column names in results. WARNING: -N is depricated, use long version of this options instead.",
+   "Don't write column names in results. WARNING: -N is deprecated, use long version of this options instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
    "Only update the default database. This is useful for skipping updates to other database in the update log.",
@@ -626,7 +626,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
     break;
   case OPT_NOTEE:
-    printf("WARNING: option depricated; use --disable-tee instead.\n");
+    printf("WARNING: option deprecated; use --disable-tee instead.\n");
     if (opt_outfile)
       end_tee();
     break;
@@ -639,7 +639,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmov(default_pager, pager);
     break;
   case OPT_NOPAGER:
-    printf("WARNING: option depricated; use --disable-pager instead.\n");
+    printf("WARNING: option deprecated; use --disable-pager instead.\n");
     opt_nopager= 1;
     break;
   case 'A':

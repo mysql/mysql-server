@@ -180,7 +180,7 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys",
