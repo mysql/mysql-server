@@ -26,7 +26,7 @@
 ** Create a FT or QUICK RANGE based on a key
 ****************************************************************************/
 
-QUICK_SELECT *get_ft_or_quick_select_for_ref(THD *thd, TABLE *table,
+QUICK_RANGE_SELECT *get_ft_or_quick_select_for_ref(THD *thd, TABLE *table,
 					     JOIN_TAB *tab)
 {
   if (tab->type == JT_FT)

@@ -117,7 +117,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor,*sl;
-  DBUG_ENTER("st_select_lex_unit::prepare");
+  DBUG_ENTER("st_select_lex_unit::prepare");  
 
   /*
     result object should be reassigned even if preparing already done for

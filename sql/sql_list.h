@@ -135,6 +135,12 @@ public:
       last= &first;
     return tmp->info;
   }
+  inline void concat(base_list *list)
+  {
+    *last= list->first;
+    last= list->last;
+    elements+= list->elements;
+  }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
@@ -255,6 +261,7 @@ public:
     }
     empty();
   }
+  inline void concat(List<T> *list) { base_list::concat(list); }
 };
 
 
