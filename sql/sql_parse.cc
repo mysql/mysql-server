@@ -2600,7 +2600,9 @@ unsent_create_error:
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, tables->db,
 		       &tables->grant.privilege,0,0))
 	goto error;
-      res = mysqld_show_create(thd, tables);
+      if (grant_option && check_grant(thd, SELECT_ACL, tables, 2, UINT_MAX, 0))
+	goto error;
+      res= mysqld_show_create(thd, tables);
       break;
     }
 #endif
@@ -5085,9 +5087,9 @@ Item * all_any_subquery_creator(Item *left_expr,
   Item_allany_subselect *it=
     new Item_allany_subselect(left_expr, (*cmp)(all), select_lex, all);
   if (all)
-    return it->upper_not= new Item_func_not_all(it);	/* ALL */
+    return it->upper_item= new Item_func_not_all(it);	/* ALL */
 
-  return it;						/* ANY/SOME */
+  return it->upper_item= new Item_func_nop_all(it);      /* ANY/SOME */
 }
 
 

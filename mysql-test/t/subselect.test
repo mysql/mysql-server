@@ -911,7 +911,20 @@ create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
 explain extended select * from t3 where a >= all (select b from t2);
-
+select * from t3 where a >= some (select b from t2);
+explain extended select * from t3 where a >= some (select b from t2);
+select * from t3 where a >= all (select b from t2 group by 1);
+explain extended select * from t3 where a >= all (select b from t2 group by 1);
+select * from t3 where a >= some (select b from t2 group by 1);
+explain extended select * from t3 where a >= some (select b from t2 group by 1);
+select * from t3 where NULL >= any (select b from t2);
+explain extended select * from t3 where NULL >= any (select b from t2);
+select * from t3 where NULL >= any (select b from t2 group by 1);
+explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
+select * from t3 where NULL >= some (select b from t2);
+explain extended select * from t3 where NULL >= some (select b from t2);
+select * from t3 where NULL >= some (select b from t2 group by 1);
+explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 #
 # optimized static ALL/ANY with grouping
 #
@@ -1335,4 +1348,13 @@ drop table t2,t1;
 create table t1 (s1 int,s2 int);
 insert into t1 values (20,15);
 select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
+drop table t1;
+
+#
+# ALL/ANY with NULL
+#
+create table t1 (s1 int);
+insert into t1 values (1),(null);
+select * from t1 where s1 < all (select s1 from t1);
+select s1, s1 < all (select s1 from t1) from t1;
 drop table t1;
