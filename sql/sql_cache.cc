@@ -883,9 +883,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       DBUG_PRINT("qcache", ("Another thread process same query"));
     }
   }
-  else
-    if (thd->lex.sql_command == SQLCOM_SELECT)
-      statistic_increment(refused, &structure_guard_mutex);
+  else if (thd->lex->sql_command == SQLCOM_SELECT)
+    statistic_increment(refused, &structure_guard_mutex);
 
 end:
   DBUG_VOID_RETURN;

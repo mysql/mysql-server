@@ -2681,7 +2681,7 @@ bool st_relay_log_info::is_until_satisfied()
         /* Probably error so we aborting */
         sql_print_error("Slave SQL thread is stopped because UNTIL "
                         "condition is bad.");
-        return true;
+        return TRUE;
       }
     }
     else

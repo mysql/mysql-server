@@ -276,10 +276,14 @@ static void display_table_locks(void)
     THR_LOCK *lock=(THR_LOCK*) list->data;
 
     VOID(pthread_mutex_lock(&lock->mutex));
-    push_locks_into_array(&saved_table_locks, lock->write.data, false, "Locked - write");
-    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true, "Waiting - write");
-    push_locks_into_array(&saved_table_locks, lock->read.data, false, "Locked - read");
-    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true, "Waiting - read");
+    push_locks_into_array(&saved_table_locks, lock->write.data, FALSE,
+			  "Locked - write");
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, TRUE,
+			  "Waiting - write");
+    push_locks_into_array(&saved_table_locks, lock->read.data, FALSE,
+			  "Locked - read");
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, TRUE,
+			  "Waiting - read");
     VOID(pthread_mutex_unlock(&lock->mutex));
   }
   VOID(pthread_mutex_unlock(&THR_LOCK_lock));

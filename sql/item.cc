@@ -637,7 +637,7 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
 
   ltime.time_type= type;
   
-  item_is_time= true;
+  item_is_time= TRUE;
   item_type= STRING_ITEM;
   value_is_set= 1;
 }

@@ -1669,13 +1669,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     case HA_ADMIN_REJECT:
       protocol->store("status", 6, system_charset_info);
       protocol->store("Operation need committed state",30, system_charset_info);
-      open_for_modify= false;
-      break;
-
-    case HA_ADMIN_REJECT:
-      net_store_data(packet,"status");
-      net_store_data(packet,"Operation need committed state");
-      open_for_modify= false;
+      open_for_modify= FALSE;
       break;
 
     case HA_ADMIN_ALREADY_DONE:
@@ -2081,9 +2075,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
 err:
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
-  if (error == 0) {
+  if (error == 0)
+  {
     send_ok(thd);
-   DBUG_RETURN(0);
+    DBUG_RETURN(0);
   }
   DBUG_RETURN(error);
 }
@@ -2878,13 +2873,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       goto err;
   };
 
-  /* Turn off recovery logging since rollback of an
-     alter table is to delete the new table so there
-     is no need to log the changes to it.              */
-  error = ha_recovery_logging(thd,FALSE);
+  /*
+    Turn off recovery logging since rollback of an alter table is to
+    delete the new table so there is no need to log the changes to it.
+  */
+  error= ha_recovery_logging(thd,FALSE);
   if (error)
   {
-    error = 1;
+    error= 1;
     goto err;
   }
 
