@@ -115,6 +115,7 @@ Summary: MySQL - server with Berkeley DB and Innodb support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
+Requires: MySQL = %{version}
 
 %description Max 
 Optional MySQL server binary that supports features
@@ -421,6 +422,11 @@ fi
 %attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
 
 %changelog 
+
+* Tue Sep 24 2002 Lenz Grimmer <lenz@mysql.com>
+
+- MySQL-Max now requires MySQL to be the same version (to
+  avoid version mismatches e.g. mixing 3.23.xx and 4.0 packages)
 
 * Thu Jul 30 2002 Lenz Grimmer <lenz@mysql.com>
 
