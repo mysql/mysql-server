@@ -24,6 +24,8 @@
 #include "my_dir.h"
 #include "sp_rcontext.h"
 #include "sql_acl.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static void mark_as_dependent(THD *thd,
 			      SELECT_LEX *last, SELECT_LEX *current,
@@ -2461,6 +2463,97 @@ void Item_insert_value::print(String *str)
   arg->print(str);
   str->append(')');
 }
+
+
+/*
+  Bind item representing field of row being changed in trigger
+  to appropriate Field object.
+
+  SYNOPSIS
+    setup_field()
+      thd   - current thread context
+      table - table of trigger (and where we looking for fields)
+      event - type of trigger event
+
+  NOTE
+    This function does almost the same as fix_fields() for Item_field
+    but is invoked during trigger definition parsing and takes TABLE
+    object as its argument.
+
+  RETURN VALUES
+    0	 ok
+    1	 field was not found.
+*/
+bool Item_trigger_field::setup_field(THD *thd, TABLE *table,
+                                     enum trg_event_type event)
+{
+  bool result= 1;
+  uint field_idx= (uint)-1;
+  bool save_set_query_id= thd->set_query_id;
+
+  /* TODO: Think more about consequences of this step. */
+  thd->set_query_id= 0;
+
+  if (find_field_in_real_table(thd, table, field_name,
+                                     strlen(field_name), 0, 0,
+                                     &field_idx))
+  {
+    field= (row_version == OLD_ROW && event == TRG_EVENT_UPDATE) ?
+             table->triggers->old_field[field_idx] :
+             table->field[field_idx];
+    result= 0;
+  }
+
+  thd->set_query_id= save_set_query_id;
+
+  return result;
+}
+
+
+bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
+{
+  return item->type() == TRIGGER_FIELD_ITEM &&
+         row_version == ((Item_trigger_field *)item)->row_version &&
+         !my_strcasecmp(system_charset_info, field_name,
+                        ((Item_trigger_field *)item)->field_name);
+}
+
+
+bool Item_trigger_field::fix_fields(THD *thd,
+                                    TABLE_LIST *table_list,
+                                    Item **items)
+{
+  /*
+    Since trigger is object tightly associated with TABLE object most
+    of its set up can be performed during trigger loading i.e. trigger
+    parsing! So we have little to do in fix_fields. :)
+    FIXME may be we still should bother about permissions here.
+  */
+  DBUG_ASSERT(fixed == 0);
+  // QQ: May be this should be moved to setup_field?
+  set_field(field);
+  fixed= 1;
+  return 0;
+}
+
+
+void Item_trigger_field::print(String *str)
+{
+  str->append((row_version == NEW_ROW) ? "NEW" : "OLD", 3);
+  str->append('.');
+  str->append(field_name);
+}
+
+
+void Item_trigger_field::cleanup()
+{
+  /*
+    Since special nature of Item_trigger_field we should not do most of
+    things from Item_field::cleanup() or Item_ident::cleanup() here.
+  */
+  Item::cleanup();
+}
+
 
 /*
   If item is a const function, calculate it and return a const item

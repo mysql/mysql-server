@@ -242,6 +242,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	DISTINCT
 %token  DUPLICATE_SYM
 %token	DYNAMIC_SYM
+%token  EACH_SYM
 %token	ENABLE_SYM
 %token	ENCLOSED
 %token	ESCAPED
@@ -411,6 +412,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	TO_SYM
 %token	TRAILING
 %token	TRANSACTION_SYM
+%token  TRIGGER_SYM
 %token	TRUE_SYM
 %token	TYPE_SYM
 %token  TYPES_SYM
@@ -1208,6 +1210,65 @@ create:
 	  }
 	  opt_view_list AS select_init check_option
 	  {}
+        | CREATE TRIGGER_SYM ident trg_action_time trg_event 
+          ON table_ident FOR_SYM EACH_SYM ROW_SYM
+          {
+            LEX *lex= Lex;
+            sp_head *sp;
+           
+            if (lex->sphead)
+            {
+              net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "TRIGGER");
+              YYABORT;
+            }
+            
+            sp= new sp_head();
+            sp->reset_thd_mem_root(YYTHD);
+            sp->init(lex);
+            
+            sp->m_type= TYPE_ENUM_TRIGGER;
+            lex->sphead= sp;
+            /*
+              We have to turn of CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
+            */
+            sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+            
+            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            lex->sphead->m_chistics= &lex->sp_chistics;
+            lex->sphead->m_body_begin= lex->tok_start;
+          }
+          sp_proc_stmt
+          {
+            LEX *lex= Lex;
+            sp_head *sp= lex->sphead;
+            
+            lex->sql_command= SQLCOM_CREATE_TRIGGER;
+            sp->init_strings(YYTHD, lex, NULL);
+            /* Restore flag if it was cleared above */
+            if (sp->m_old_cmq)
+              YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+            sp->restore_thd_mem_root(YYTHD);
+
+            lex->name_and_length= $3;
+
+            /*
+              We have to do it after parsing trigger body, because some of
+              sp_proc_stmt alternatives are not saving/restoring LEX, so
+              lex->query_tables can be wiped out.
+              
+              QQ: What are other consequences of this?
+              
+              QQ: Could we loosen lock type in certain cases ?
+            */
+            if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
+                                                   (LEX_STRING*) 0,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE))
+              YYABORT;
+          }
 	;
 
 sp_name:
@@ -1747,14 +1808,14 @@ sp_proc_stmt:
 	    if (lex->sql_command != SQLCOM_SET_OPTION ||
 		! lex->var_list.is_empty())
 	    {
-	      /* Currently we can't handle queries inside a FUNCTION,
-	      ** because of the way table locking works.
-	      ** This is unfortunate, and limits the usefulness of functions
-	      ** a great deal, but it's nothing we can do about this at the
-	      ** moment.
-	      */
-	      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-		  lex->sql_command != SQLCOM_SET_OPTION)
+              /*
+                Currently we can't handle queries inside a FUNCTION or
+                TRIGGER, because of the way table locking works. This is 
+                unfortunate, and limits the usefulness of functions and
+                especially triggers a tremendously, but it's nothing we 
+                can do about this at the moment.
+              */
+	      if (lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
 	      {
 		send_error(YYTHD, ER_SP_BADSTATEMENT);
 		YYABORT;
@@ -2288,6 +2349,22 @@ sp_unlabeled_control:
             lex->sphead->add_instr(i);
 	  }
 	;
+
+trg_action_time:
+            BEFORE_SYM 
+            { Lex->trg_chistics.action_time= TRG_ACTION_BEFORE; }
+          | AFTER_SYM 
+            { Lex->trg_chistics.action_time= TRG_ACTION_AFTER; }
+          ;
+
+trg_event:
+            INSERT 
+            { Lex->trg_chistics.event= TRG_EVENT_INSERT; }
+          | UPDATE_SYM
+            { Lex->trg_chistics.event= TRG_EVENT_UPDATE; }
+          | DELETE_SYM
+            { Lex->trg_chistics.event= TRG_EVENT_DELETE; }
+          ;
 
 create2:
  	'(' create2a {}
@@ -5422,7 +5499,21 @@ drop:
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
-	  ;
+        | DROP TRIGGER_SYM ident '.' ident
+          {
+            LEX *lex= Lex;
+
+            lex->sql_command= SQLCOM_DROP_TRIGGER;
+            /* QQ: Could we loosen lock type in certain cases ? */
+            if (!lex->select_lex.add_table_to_list(YYTHD,
+                                                   new Table_ident($3),
+                                                   (LEX_STRING*) 0,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE))
+              YYABORT;
+            lex->name_and_length= $5;
+          }
+	;
 
 table_list:
 	table_name
@@ -6413,18 +6504,69 @@ simple_ident_q:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-	  SELECT_LEX *sel= lex->current_select;
-	  if (sel->no_table_names_allowed)
-	  {
-	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
-			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
-			    MYF(0), $1.str, thd->where);
-	  }
-	  $$= (sel->parsing_place != IN_HAVING ||
-	       sel->get_in_sum_expr() > 0) ?
-	      (Item*) new Item_field(NullS,$1.str,$3.str) :
-	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
-	}
+         
+          /*
+            FIXME This will work ok in simple_ident_nospvar case because
+            we can't meet simple_ident_nospvar in trigger now. But it
+            should be changed in future.
+          */
+          if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_TRIGGER &&
+              (!my_strcasecmp(system_charset_info, $1.str, "NEW") || 
+               !my_strcasecmp(system_charset_info, $1.str, "OLD")))
+          {
+            bool new_row= ($1.str[0]=='N' || $1.str[0]=='n');
+            
+            if (lex->trg_chistics.event == TRG_EVENT_INSERT &&
+                !new_row)
+            {
+              net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "OLD",
+                         "on INSERT");
+              YYABORT;
+            }
+            
+            if (lex->trg_chistics.event == TRG_EVENT_DELETE &&
+                new_row)
+            {
+              net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "NEW",
+                         "on DELETE");
+              YYABORT;
+            }
+            
+            Item_trigger_field *trg_fld= 
+              new Item_trigger_field(new_row ? Item_trigger_field::NEW_ROW :
+                                               Item_trigger_field::OLD_ROW,
+                                               $3.str);
+            
+            if (lex->trg_table &&
+                trg_fld->setup_field(thd, lex->trg_table,
+                                     lex->trg_chistics.event))
+            {
+              /*
+                FIXME. Far from perfect solution. See comment for 
+                "SET NEW.field_name:=..." for more info.
+              */
+              net_printf(YYTHD, ER_BAD_FIELD_ERROR, $3.str,
+                         new_row ? "NEW": "OLD");
+              YYABORT;
+            }
+            
+            $$= (Item *)trg_fld;
+          }
+          else
+          {
+	    SELECT_LEX *sel= lex->current_select;
+	    if (sel->no_table_names_allowed)
+	    {
+	      my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
+	  		      ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			      MYF(0), $1.str, thd->where);
+	    }
+	    $$= (sel->parsing_place != IN_HAVING ||
+	         sel->get_in_sum_expr() > 0) ?
+	        (Item*) new Item_field(NullS,$1.str,$3.str) :
+	        (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
+          }
+        }
 	| '.' ident '.' ident
 	{
 	  THD *thd= YYTHD;
@@ -6854,13 +6996,78 @@ opt_var_ident_type:
 option_value:
 	  '@' ident_or_text equal expr
 	  {
-	    Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+            LEX *lex= Lex;
+
+            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+            {
+              /*
+                We have to use special instruction in functions and triggers
+                because sp_instr_stmt will close all tables and thus ruin
+                execution of statement invoking function or trigger.
+
+                We also do not want to allow expression with subselects in
+                this case.
+              */
+              if (lex->query_tables)
+              {
+                send_error(YYTHD, ER_SP_SUBSELECT_NYI);
+                YYABORT;
+              }
+              sp_instr_set_user_var *i= 
+                new sp_instr_set_user_var(lex->sphead->instructions(),
+                                          lex->spcont, $2, $4);
+	      lex->sphead->add_instr(i);
+            }
+            else
+              lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+              
 	  }
 	| internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
 
-	    if ($1.var)
+            if ($1.var == &trg_new_row_fake_var)
+            {
+              /* We are in trigger and assigning value to field of new row */
+              Item *it;
+              sp_instr_set_trigger_field *i;
+              if (lex->query_tables)
+              {
+                send_error(YYTHD, ER_SP_SUBSELECT_NYI);
+                YYABORT;
+              }
+              if ($3)
+                it= $3;
+              else
+              {
+                /* QQ: Shouldn't this be field's default value ? */
+                it= new Item_null();
+              }
+              i= new sp_instr_set_trigger_field(lex->sphead->instructions(),
+                                                lex->spcont, $1.base_name, it);
+              if (lex->trg_table && i->setup_field(YYTHD, lex->trg_table,
+                                                   lex->trg_chistics.event))
+              {
+                /*
+                  FIXME. Now we are catching this kind of errors only
+                  during opening tables. But this doesn't save us from most
+                  common user error - misspelling field name, because we
+                  will bark too late in this case... Moreover it is easy to
+                  make table unusable with such kind of error...
+
+                  So in future we either have to parse trigger definition
+                  second time during create trigger or gather all trigger
+                  fields in one list and perform setup_field() for them as
+                  separate stage.
+
+                  Error message also should be improved.
+                */
+                net_printf(YYTHD, ER_BAD_FIELD_ERROR, $1.base_name, "NEW");
+                YYABORT;
+              }
+              lex->sphead->add_instr(i);
+            }
+            else if ($1.var)
 	    { /* System variable */
 	      lex->var_list.push_back(new set_var(lex->option_type, $1.var,
 						  &$1.base_name, $3));
@@ -6975,18 +7182,46 @@ internal_variable_name:
 	}
 	| ident '.' ident
 	  {
+            LEX *lex= Lex;
             if (check_reserved_words(&$1))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-	    sys_var *tmp=find_sys_var($3.str, $3.length);
-	    if (!tmp)
-	      YYABORT;
-	    if (!tmp->is_struct())
-	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
-	    $$.var= tmp;
-	    $$.base_name= $1;
+            if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_TRIGGER &&
+                (!my_strcasecmp(system_charset_info, $1.str, "NEW") || 
+                 !my_strcasecmp(system_charset_info, $1.str, "OLD")))
+            {
+              if ($1.str[0]=='O' || $1.str[0]=='o')
+              {
+                net_printf(YYTHD, ER_TRG_CANT_CHANGE_ROW, "OLD", "");
+                YYABORT;
+              }
+              if (lex->trg_chistics.event == TRG_EVENT_DELETE)
+              {
+                net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "NEW",
+                           "on DELETE");
+                YYABORT;
+              }
+              if (lex->trg_chistics.action_time == TRG_ACTION_AFTER)
+              {
+                net_printf(YYTHD, ER_TRG_CANT_CHANGE_ROW, "NEW", "after ");
+                YYABORT;
+              }
+              /* This special combination will denote field of NEW row */
+              $$.var= &trg_new_row_fake_var;
+              $$.base_name= $3;
+            }
+            else
+            {
+              sys_var *tmp=find_sys_var($3.str, $3.length);
+              if (!tmp)
+                YYABORT;
+              if (!tmp->is_struct())
+                net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+              $$.var= tmp;
+              $$.base_name= $1;
+            }
 	  }
 	| DEFAULT '.' ident
 	  {

@@ -3877,6 +3877,20 @@ purposes internal to the MySQL server", MYF(0));
       res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
       break;
     }
+  case SQLCOM_CREATE_TRIGGER:
+  {
+    /* We don't care much about trigger body at that point */
+    delete lex->sphead;
+    lex->sphead= 0;
+
+    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
+    break;
+  }
+  case SQLCOM_DROP_TRIGGER:
+  {
+    res= mysql_create_or_drop_trigger(thd, all_tables, 0);
+    break;
+  }
   default:					/* Impossible */
     send_ok(thd);
     break;
