@@ -5282,8 +5282,27 @@ ha_innobase::store_lock(
 		are not simple SELECTs; note that select_lock_type in this
 		case may get strengthened in ::external_lock() to LOCK_X. */
 
-		prebuilt->select_lock_type = LOCK_S;
-		prebuilt->stored_select_lock_type = LOCK_S;
+		if (srv_locks_unsafe_for_binlog &&
+		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
+		    thd->lex->sql_command != SQLCOM_SELECT &&
+		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+		    thd->lex->sql_command != SQLCOM_DELETE_MULTI ) {
+
+			/* In case we have innobase_locks_unsafe_for_binlog
+			option set and isolation level of the transaction
+			is not set to serializable and MySQL is doing
+			INSERT INTO...SELECT without FOR UPDATE or IN
+			SHARE MODE we use consistent read for select. 
+			Similarly, in case of DELETE...SELECT and
+			UPDATE...SELECT when these are not multi table.*/
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else {
+			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
+		}
 
 	} else if (lock_type != TL_IGNORE) {
 

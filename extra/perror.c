@@ -213,12 +213,14 @@ int main(int argc,char *argv[])
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
     */
-    msg = strerror(10000);
+    msg= strerror(10000);
 
-    /* allocate a buffer for unknown_error since strerror always returns the same pointer 
-      on some platforms such as Windows */
-    unknown_error = malloc( strlen(msg)+1 );
-    strcpy( unknown_error, msg );
+    /*
+      Allocate a buffer for unknown_error since strerror always returns
+      the same pointer on some platforms such as Windows
+    */
+    unknown_error= malloc(strlen(msg)+1);
+    strmov(unknown_error, msg);
 
     for ( ; argc-- > 0 ; argv++)
     {
@@ -271,7 +273,7 @@ int main(int argc,char *argv[])
 
   /* if we allocated a buffer for unknown_error, free it now */
   if (unknown_error)
-	  free(unknown_error);
+    free(unknown_error);
 
   exit(error);
   return error;

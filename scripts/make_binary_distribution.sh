@@ -107,8 +107,11 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS 
-";
+  client/mysqlbinlog$BS \
+  tests/mysql_client_test$BS \
+  libmysqld/examples/mysql_client_test_embedded$BS \
+  libmysqld/examples/mysqltest_embedded$BS \
+  ";
 
 # Platform-specific bin dir files:
 if [ $BASE_SYSTEM = "netware" ] ; then
@@ -127,8 +130,9 @@ else
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
     client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
-    tests/.libs/mysql_client_test libmysqld/examples/mysql_client_test_embedded \
-    libmysqld/examples/mysqltest_embedded \
+    tests/.libs/mysql_client_test \
+    libmysqld/examples/.libs/mysql_client_test_embedded \
+    libmysqld/examples/.libs/mysqltest_embedded \
   ";
 fi
 
@@ -216,7 +220,7 @@ $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 $BASE/mysql-test/std_data
 $CP mysql-test/std_data/des_key_file $BASE/mysql-test/std_data
 $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
-$CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
+$CP mysql-test/r/*result mysql-test/r/*result.es mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*

@@ -82,7 +82,6 @@ static int numAsyncFiles = 0;
 
 extern "C" void * runAsyncFile(void* arg)
 {
-  my_thread_init();
   ((AsyncFile*)arg)->run();
   return (NULL);
 }
@@ -876,8 +875,6 @@ void AsyncFile::endReq()
 {
   // Thread is ended with return
   if (theWriteBuffer) NdbMem_Free(theWriteBuffer);
-  my_thread_end();
-  NdbThread_Exit(0);
 }
 
 

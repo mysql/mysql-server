@@ -68,7 +68,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -77,14 +77,14 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
     check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
   
@@ -92,7 +92,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       if((row.attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
@@ -102,13 +102,13 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -127,7 +127,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     while((eof = rs->nextResult(true)) == 0){
       rows++;
       if (calc.verifyRowValues(&row) != 0){
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -137,11 +137,11 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	rs->close();
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_OK;
       }
     }
@@ -150,7 +150,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR_INFO(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	switch (err.code){
 	case 488:
@@ -164,17 +164,17 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     g_info << rows << " rows have been read" << endl;
     if (records != 0 && rows != records){
       g_err << "Check expected number of records failed" << endl 
-	     << "  expected=" << records <<", " << endl
-	     << "  read=" << rows << endl;
+	    << "  expected=" << records <<", " << endl
+	    << "  read=" << rows << endl;
       return NDBT_FAILED;
     }
     
@@ -224,7 +224,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     pOp = pTrans->getNdbIndexScanOperation(pIdx->getName(), tab.getName());
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -233,14 +233,14 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
     check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
   
@@ -248,7 +248,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       if((row.attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
@@ -258,13 +258,13 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -283,7 +283,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     while((eof = rs->nextResult(true)) == 0){
       rows++;
       if (calc.verifyRowValues(&row) != 0){
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -293,11 +293,11 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	rs->close();
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_OK;
       }
     }
@@ -306,7 +306,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR_INFO(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	switch (err.code){
 	case 488:
@@ -320,17 +320,17 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     g_info << rows << " rows have been read" << endl;
     if (records != 0 && rows != records){
       g_err << "Check expected number of records failed" << endl 
-	     << "  expected=" << records <<", " << endl
-	     << "  read=" << rows << endl;
+	    << "  expected=" << records <<", " << endl
+	    << "  read=" << rows << endl;
       return NDBT_FAILED;
     }
     
@@ -344,9 +344,9 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
 int
 HugoTransactions::scanUpdateRecords(Ndb* pNdb, 
-				     int records,
-				     int abortPercent,
-				     int parallelism){
+				    int records,
+				    int abortPercent,
+				    int parallelism){
   if(m_defaultScanUpdateMethod == 1){
     return scanUpdateRecords1(pNdb, records, abortPercent, parallelism);
   } else if(m_defaultScanUpdateMethod == 2){
@@ -398,21 +398,21 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
     pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pOp->openScanExclusive(parallelism);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -420,7 +420,7 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
     for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
@@ -430,13 +430,13 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -464,11 +464,11 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
 	check = pTrans->stopScan();
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_OK;
       }
       int res = takeOverAndUpdateRecord(pNdb, pOp);
@@ -477,7 +477,7 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
 	continue;
       }
       if (res != 0){
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return res;
       }
       
@@ -501,18 +501,18 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     if(eof == -2){
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       NdbSleep_MilliSleep(50);
       retryAttempt++;
       continue;
     }
     
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     g_info << rows << " rows have been updated" << endl;
     return NDBT_OK;
@@ -565,21 +565,21 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
     pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pOp->openScanExclusive(parallelism);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -587,7 +587,7 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
     for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
@@ -597,13 +597,13 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
   
@@ -639,7 +639,7 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 	rows++;
 	if (addRowToUpdate(pNdb, pUpTrans, pOp) != 0){
 	  pNdb->closeTransaction(pUpTrans);
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       } while((eof = pTrans->nextScanResult(false)) == 0);
@@ -650,12 +650,12 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 	check = pTrans->stopScan();
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  pNdb->closeTransaction(pUpTrans);
 	  return NDBT_FAILED;
 	}
 	
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	pNdb->closeTransaction(pUpTrans);
 	return NDBT_OK;
       }
@@ -665,7 +665,7 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 	const NdbError err = pUpTrans->getNdbError();    
 	ERR(err);
 	pNdb->closeTransaction(pUpTrans);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       pNdb->closeTransaction(pUpTrans);
@@ -675,17 +675,17 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     g_info << rows << " rows have been updated" << endl;
     return NDBT_OK;
@@ -707,7 +707,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 
 
   while (true){
-  restart:
+restart:
     if (retryAttempt++ >= retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
@@ -728,14 +728,14 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
     NdbResultSet *rs = pOp->readTuplesExclusive(parallelism);
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
@@ -743,7 +743,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
     for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
@@ -752,7 +752,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       if (err.status == NdbError::TemporaryError){
 	NdbSleep_MilliSleep(50);
 	continue;
@@ -777,7 +777,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 	NdbOperation* pUp = rs->updateTuple();
 	if(pUp == 0){
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	const int updates = calc.getUpdatesValue(&row) + 1;
@@ -786,7 +786,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 	  if (tab.getColumn(a)->getPrimaryKey() == false){
 	    if(setValueForAttr(pUp, a, r, updates ) != 0){
 	      ERR(pTrans->getNdbError());
-	      pNdb->closeTransaction(pTrans);
+	      closeTransaction(pNdb);
 	      return NDBT_FAILED;
 	    }
 	  }
@@ -795,7 +795,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 	if (rows == abortCount && abortTrans == true){
 	  g_info << "Scan is aborted" << endl;
 	  // This scan should be aborted
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_OK;
 	}
       } while((check = rs->nextResult(false)) == 0);
@@ -807,7 +807,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 
       const NdbError err = pTrans->getNdbError();    
       if( check == -1 ) {
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	ERR(err);
 	if (err.status == NdbError::TemporaryError){
 	  NdbSleep_MilliSleep(50);
@@ -819,7 +819,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
     
     const NdbError err = pTrans->getNdbError();    
     if( check == -1 ) {
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       ERR(err);
       if (err.status == NdbError::TemporaryError){
 	NdbSleep_MilliSleep(50);
@@ -828,7 +828,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
     
     g_info << rows << " rows have been updated" << endl;
     return NDBT_OK;
@@ -899,14 +899,14 @@ HugoTransactions::loadTable(Ndb* pNdb,
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
       check = pOp->insertTuple();
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -914,7 +914,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
       for (a = 0; a<tab.getNoOfColumns(); a++){
 	if(setValueForAttr(pOp, a, c+b, 0 ) != 0){	  
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -932,7 +932,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     }
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       pTrans= 0;
       switch(err.status){
       case NdbError::Success:
@@ -974,7 +974,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     }
     else{
       if (closeTrans) {
-        pNdb->closeTransaction(pTrans);
+        closeTransaction(pNdb);
 	pTrans= 0;
       }
     }
@@ -1025,14 +1025,14 @@ HugoTransactions::fillTable(Ndb* pNdb,
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
       check = pOp->insertTuple();
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -1040,7 +1040,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       for (a = 0; a<tab.getNoOfColumns(); a++){
 	if(setValueForAttr(pOp, a, c+b, 0 ) != 0){	  
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1050,7 +1050,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
     check = pTrans->execute( Commit, CommitAsMuchAsPossible ); 
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       
       switch(err.status){
       case NdbError::Success:
@@ -1102,7 +1102,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       }
     }
     else{      
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
     }
     
     // Step to next record
@@ -1419,7 +1419,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -1441,7 +1441,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -1450,7 +1450,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -1461,7 +1461,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1474,7 +1474,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
@@ -1487,13 +1487,13 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 
       default:
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     } else{
       for (int b=0; (b<batchsize) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	reads++;
@@ -1501,7 +1501,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       }
     }
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
   }
   deallocRows();
@@ -1556,14 +1556,14 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
       check = pOp->readTupleExclusive();
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
 
@@ -1572,7 +1572,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -1583,7 +1583,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1595,19 +1595,19 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
     for(b = 0; b<batch && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -1617,14 +1617,14 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       pUpdOp = pTrans->getNdbOperation(tab.getName());	
       if (pUpdOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
       check = pUpdOp->updateTuple();
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -1632,7 +1632,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pUpdOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -1642,7 +1642,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == false){
 	  if(setValueForAttr(pUpdOp, a, r+b, updates ) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -1655,14 +1655,14 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
       ndbout << "r = " << r << endl;
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     else{
@@ -1670,7 +1670,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     }
 
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     r += batch; // Read next record
   }
@@ -1716,14 +1716,14 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
    NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
    if (pOp == NULL) {
      ERR(pTrans->getNdbError());
-     pNdb->closeTransaction(pTrans);
+     closeTransaction(pNdb);
      return NDBT_FAILED;
    }
    
    check = pOp->readTupleExclusive();
    if( check == -1 ) {
      ERR(pTrans->getNdbError());
-     pNdb->closeTransaction(pTrans);
+     closeTransaction(pNdb);
       return NDBT_FAILED;
    }
    
@@ -1732,7 +1732,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
      if (tab.getColumn(a)->getPrimaryKey() == true){
        if(equalForAttr(pOp, a, r) != 0){
 	 ERR(pTrans->getNdbError());
-	 pNdb->closeTransaction(pTrans);
+	 closeTransaction(pNdb);
 	 return NDBT_FAILED;
        }
      }
@@ -1744,7 +1744,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
        if((row.attributeStore(a) = 
 	   pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	 ERR(pTrans->getNdbError());
-	 pNdb->closeTransaction(pTrans);
+	 closeTransaction(pNdb);
 	 return NDBT_FAILED;
        }
      }
@@ -1756,13 +1756,13 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -1772,14 +1772,14 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     pUpdOp = pTrans->getNdbOperation(tab.getName());	
     if (pUpdOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pUpdOp->interpretedUpdateTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -1788,7 +1788,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pUpdOp, a, r) != 0){
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1805,7 +1805,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
 	check = pUpdOp->incValue(attr->getName(), valToIncWith);
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1817,7 +1817,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
 	  (calc.isUpdateCol(a) == false)){
 	if(setValueForAttr(pUpdOp, a, r, updates ) != 0){
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1831,14 +1831,14 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
       ndbout << "r = " << r << endl;
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     else{
@@ -1846,7 +1846,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
 
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     r++; // Read next record
 
@@ -1900,14 +1900,14 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     check = pOp->deleteTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
@@ -1916,7 +1916,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r) != 0){
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -1928,7 +1928,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       switch(err.status){
       case NdbError::TemporaryError:
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
@@ -1947,20 +1947,20 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	  }
 	}
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
 	break;
 	
       default:
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
     else {
       deleted++;
     }
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
     r++; // Read next record
 
@@ -2023,14 +2023,14 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
       check = pOp->readTupleExclusive();
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -2039,7 +2039,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -2050,7 +2050,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}	
       }
@@ -2066,18 +2066,18 @@ HugoTransactions::lockRecords(Ndb* pNdb,
 	
 	if (err.status == NdbError::TemporaryError){
 	  ERR(err);
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  NdbSleep_MilliSleep(50);
 	  retryAttempt++;
 	  continue;
 	}
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       for (int b=0; (b<lockBatch) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -2092,26 +2092,26 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     else{
       for (int b=0; (b<lockBatch) && (r<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	r++; // Read next record
       }
     }
     
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
 
 
   }
@@ -2178,7 +2178,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());	
 	if (pOp == NULL) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	check = pOp->readTuple();
@@ -2186,7 +2186,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	pOp = sOp = pTrans->getNdbIndexScanOperation(idxName, tab.getName());
 	if (sOp == NULL) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       
@@ -2196,7 +2196,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -2205,7 +2205,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -2216,7 +2216,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -2229,7 +2229,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
@@ -2242,13 +2242,13 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	  
       default:
 	ERR(err);
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     } else{
       for (int b=0; (b<batchsize) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	reads++;
@@ -2257,11 +2257,11 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       if(ordered && rs->nextResult(true) == 0){
 	ndbout << "Error when comparing records "
 	       << " - index op next_result to many" << endl;
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
     }
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
   }
   deallocRows();
   g_info << reads << " records read" << endl;
@@ -2322,21 +2322,21 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());	
 	if (pOp == NULL) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	
 	check = pOp->readTupleExclusive();
 	if( check == -1 ) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       } else {
 	pOp = sOp = pTrans->getNdbIndexScanOperation(idxName, tab.getName());
 	if (pOp == NULL) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
 	
@@ -2349,7 +2349,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -2360,7 +2360,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
+	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
       }
@@ -2371,7 +2371,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       
       if (err.status == NdbError::TemporaryError){
 	NdbSleep_MilliSleep(50);
@@ -2383,13 +2383,13 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 
     if(ordered && check != 0){
       g_err << "Row: " << r << " not found!!" << endl;
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;    
     }
     
     for(b = 0; b<batchsize && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -2405,13 +2405,13 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 
       if (pUpdOp == NULL) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
+	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
       
@@ -2420,7 +2420,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	  if (tab.getColumn(a)->getPrimaryKey() == true){
 	    if(equalForAttr(pUpdOp, a, r+b) != 0){
 	      ERR(pTrans->getNdbError());
-	      pNdb->closeTransaction(pTrans);
+	      closeTransaction(pNdb);
 	      return NDBT_FAILED;
 	    }
 	  }
@@ -2431,7 +2431,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	if (tab.getColumn(a)->getPrimaryKey() == false){
 	  if(setValueForAttr(pUpdOp, a, r+b, updates ) != 0){
 	    ERR(pTrans->getNdbError());
-	    pNdb->closeTransaction(pTrans);
+	    closeTransaction(pNdb);
 	    return NDBT_FAILED;
 	  }
 	}
@@ -2442,7 +2442,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       ERR(err);
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       
       if (err.status == NdbError::TemporaryError){
 	NdbSleep_MilliSleep(50);
@@ -2455,7 +2455,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       updated += batchsize;
     }
     
-    pNdb->closeTransaction(pTrans);
+    closeTransaction(pNdb);
     
     r+= batchsize; // Read next record
   }
