@@ -857,7 +857,6 @@ int do_require_version(struct st_query* q)
 int do_require_os(struct st_query* q)
 {
   char *p=q->first_argument, *os_arg;
-  LINT_INIT(res);
   DBUG_ENTER("do_require_os");
 
   if (!*p)
