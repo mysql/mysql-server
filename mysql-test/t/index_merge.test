@@ -237,6 +237,10 @@ select * from t0,t1 where (t0.key1=t1.key1) and
 explain select * from t0,t1 where t0.key1 = 5 and 
   (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 
+# Fix for bug#1974
+explain select * from t0,t1 where t0.key1 < 3 and
+  (t1.key1 = t0.key1 or t1.key8 = t0.key1);
+
 #  index_merge inside union
 explain select * from t1 where key1=3 or key2=4 
   union select * from t1 where key1<4 or key3=5;
