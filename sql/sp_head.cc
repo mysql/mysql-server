@@ -311,9 +311,8 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   }
   else if (thd->db)
   {
-    m_db.length= thd->db_length
+    m_db.length= thd->db_length;
     m_db.str= strmake_root(root, thd->db, m_db.length);
-
   }
 
   if (m_param_begin && m_param_end)
