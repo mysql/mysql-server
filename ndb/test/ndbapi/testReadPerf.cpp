@@ -115,7 +115,8 @@ main(int argc, const char** argv){
   }
   
   myRandom48Init(NdbTick_CurrentMillisecond());
-  
+  memset(g_times, 0, sizeof(g_times));
+
   g_ndb = new Ndb("TEST_DB");
   if(g_ndb->init() != 0){
     g_err << "init() failed" << endl;
@@ -390,6 +391,6 @@ void
 print_result(){
   for(int i = 0; i<P_OP_TYPES; i++){
     g_err.println("%s avg: %u us/row", g_ops[i],
-		  (1000*g_times[i])/g_paramters[P_RANGE].value);
+		  (1000*g_times[i])/(g_paramters[P_RANGE].value*g_paramters[P_LOOPS].value));
   }
 }
