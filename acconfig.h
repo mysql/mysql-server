@@ -148,6 +148,9 @@
 /* crypt */
 #undef HAVE_CRYPT
 
+/* If we want to have query cache */
+#undef HAVE_QUERY_CACHE
+
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines
    this with 8 arguments */
 #undef HAVE_SOLARIS_STYLE_GETHOST

@@ -1827,15 +1827,14 @@ AC_ARG_WITH(embedded-server,
 )
 
 AC_ARG_WITH(query_cache,
-    [  --without-query-cache  Don't build query cache in embedded server.],
-    [with_embedded_server=$withval],
-    [with_embedded_server=yes]
+    [  --without-query-cache  Don not build query cache in embedded server.],
+    [with_query_cache=$withval],
+    [with_query_cache=yes]
 )
 
-if test "$with_embedded_server" = "yes"
+if test "$with_query_cache" = "yes"
 then
-    CFLAGS="$CFLAGS -DHAVE_QUERY_CACHE"
-    CXXFLAGS="$CXXFLAGS -DHAVE_QUERY_CACHE"
+  AC_DEFINE(HAVE_QUERY_CACHE)
 fi
 
 AC_ARG_WITH(extra-tools,

@@ -1027,7 +1027,7 @@ typedef union {
    Now if query is taken off then tests with query cache fails
    SANJA TODO: remove this when problem with mysql-test will be solved
 */
-#ifdef MYSQL_SERVER
+#if defined(MYSQL_SERVER) && !defined(HAVE_QUERY_CACHE)
 #define HAVE_QUERY_CACHE
 #endif
 
