@@ -128,7 +128,7 @@ fi
 
 if test ! -x $mysqld
 then
-  if test "$in_rpm" -eq 1
+  if test "$in_rpm" = 1
   then
     echo "FATAL ERROR $mysqld not found!"
     exit 1
@@ -167,7 +167,7 @@ then
   fi
 fi
 
-if test "$ip_only" -eq 1
+if test "$ip_only" = 1
 then
   ip=`echo "$resolved" | awk '/ /{print $6}'`
   hostname=$ip
@@ -187,7 +187,7 @@ then
   c_d="yes"
 fi
 
-if test $verbose -eq 1
+if test $verbose = 1
 then
   create_option="verbose"
 else
