@@ -799,7 +799,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   char block[IO_SIZE];
   char writer_filename[FN_REFLEN];
 
-  /* Closing will cause all data waiting to be flushed, to be flushed */
+  /* Closing will cause all data waiting to be flushed */
   gzclose(share->archive_write);
   share->archive_write= NULL; 
 
@@ -889,24 +889,15 @@ void ha_archive::info(uint flag)
   /* Costs quite a bit more to get all information */
   if (flag & HA_STATUS_TIME)
   {
-    uint32 alloced_length_mean= 0;
-    uint number_of_blobs= 0;
     MY_STAT file_stat;  // Stat information for the data file
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    for (Field_blob **field=table->blob_field ; *field ; field++)
-      number_of_blobs++;
-
-    if (number_of_blobs)
-      alloced_length_mean= buffer.alloced_length()/number_of_blobs;
-
-
-    mean_rec_length= table->reclength + alloced_length_mean;
-    data_file_length= file_stat.st_size; // Its not worth calling stat to find out
+    mean_rec_length= table->reclength + buffer.alloced_length();
+    data_file_length= file_stat.st_size;
     create_time= file_stat.st_ctime;
     update_time= file_stat.st_mtime;
-    max_data_file_length= share->rows_recorded * (table->reclength + alloced_length_mean);
+    max_data_file_length= share->rows_recorded * mean_rec_length;
   }
   delete_length= 0;
   index_file_length=0;
