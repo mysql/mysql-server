@@ -6448,8 +6448,24 @@ NUM_literal:
 	NUM		{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| LONG_NUM	{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
-	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
-	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	| REAL_NUM
+	{
+	   $$= new Item_real($1.str, $1.length);
+	   if (YYTHD->net.report_error)
+	   {
+	     send_error(YYTHD, 0, NullS);
+	     YYABORT;
+	   }
+	}
+	| FLOAT_NUM
+	{
+	   $$ =	new Item_float($1.str, $1.length);
+	   if (YYTHD->net.report_error)
+	   {
+	     send_error(YYTHD, 0, NullS);
+	     YYABORT;
+	   }
+	}
 	;
 	
 /**********************************************************************

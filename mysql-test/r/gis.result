@@ -9,35 +9,35 @@ CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMET
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	geometrycollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)		PRI	0	
+fid	int(11)		PRI		
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, PointFromText('POINT(10 10)')),
@@ -430,7 +430,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)			0	
+fid	int(11)				
 DROP TABLE t1;
 SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
 AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))

@@ -2090,7 +2090,7 @@ extern "C" int my_message_sql(uint error, const char *str,
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
-  DBUG_PRINT("error", ("Message: '%s'", str));
+  DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
   if ((thd= current_thd))
   {
     if (thd->spcont &&

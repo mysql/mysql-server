@@ -97,39 +97,39 @@ Warnings:
 Warning	1265	Data truncated for column 'd' at row 1
 UPDATE t1 SET d=NULL;
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 1
 INSERT INTO t1 (a) values (null);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (1/null);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (null),(null);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 2
 INSERT INTO t1 (b) values (null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (1/null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (null),(null);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 1
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
 INSERT INTO t1 (c) values (null);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) values (1/null);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) values (null),(null);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 1
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 2
 INSERT INTO t1 (d) values (null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (1/null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (null),(null);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 1
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 2
 select * from t1;
 a	b	c	d
 	0	0000-00-00 00:00:00	0
