@@ -230,68 +230,86 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 
 
 /*
-  Checks that the source string can be just copied
-  to the destination string without conversion.
-  If either character set conversion or adding leading
-  zeros (e.g. for UCS-2) must be done then return 
-  value is TRUE else FALSE.
+  Checks that the source string can be just copied to the destination string
+  without conversion.
+
+  SYNPOSIS
+
+  needs_conversion()
+  arg_length		Length of string to copy.
+  from_cs		Character set to copy from
+  to_cs			Character set to copy to
+  uint32 *offset	Returns number of unaligned characters.
+
+  RETURN
+   0  No conversion needed
+   1  Either character set conversion or adding leading  zeros
+      (e.g. for UCS-2) must be done
 */
-bool String::needs_conversion(const char *str, uint32 arg_length,
-				     CHARSET_INFO *from_cs,
-				     CHARSET_INFO *to_cs)
+
+bool String::needs_conversion(uint32 arg_length,
+			      CHARSET_INFO *from_cs,
+			      CHARSET_INFO *to_cs,
+			      uint32 *offset)
 {
+  *offset= 0;
   if ((to_cs == &my_charset_bin) || 
       (to_cs == from_cs) ||
       my_charset_same(from_cs, to_cs) ||
-      ((from_cs == &my_charset_bin) && (!(arg_length % to_cs->mbminlen))))
+      ((from_cs == &my_charset_bin) &&
+       (!(*offset=(arg_length % to_cs->mbminlen)))))
     return FALSE;
-  
   return TRUE;
 }
 
+
 /*
-** For real multi-byte, ascii incompatible charactser sets,
-** like UCS-2, add leading zeros if we have an incomplete character.
-** Thus, 
-**   SELECT _ucs2 0xAA 
-** will automatically be converted into
-**   SELECT _ucs2 0x00AA
+  Copy a multi-byte character sets with adding leading zeros.
+
+  SYNOPSIS
+
+  copy_aligned()
+  str			String to copy
+  arg_length		Length of string. This should NOT be dividable with
+			cs->mbminlen.
+  offset		arg_length % cs->mb_minlength
+  cs			Character set for 'str'
+
+  NOTES
+    For real multi-byte, ascii incompatible charactser sets,
+    like UCS-2, add leading zeros if we have an incomplete character.
+    Thus, 
+      SELECT _ucs2 0xAA 
+    will automatically be converted into
+      SELECT _ucs2 0x00AA
+
+  RETURN
+    0  ok
+    1  error
 */
 
-bool String::copy_aligned(const char *str,uint32 arg_length,
+bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
 			  CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
-  uint32 offs= (arg_length % cs->mbminlen); 
+  offset= cs->mbmaxlen - offset; /* How many zeros we should prepend */
+  DBUG_ASSERT(offset && offset != cs->mbmaxlen);
 
-  if (!offs) /* All characters are complete, just copy */
-  {
-    copy(str, arg_length, cs);
-    return FALSE;
-  }
-  
-  offs= cs->mbmaxlen - offs; /* How many zeros we should prepend */
-  uint32 aligned_length= arg_length + offs;
+  uint32 aligned_length= arg_length + offset;
   if (alloc(aligned_length))
     return TRUE;
   
   /*
-    Probably this condition is not really necessary
-    because if aligned_length is 0 then offs is 0 too
-    and we'll return after calling set().
+    Note, this is only safe for little-endian UCS-2.
+    If we add big-endian UCS-2 sometimes, this code
+    will be more complicated. But it's OK for now.
   */
-  if ((str_length= aligned_length))
-  {
-    /*
-      Note, this is only safe for little-endian UCS-2.
-      If we add big-endian UCS-2 sometimes, this code
-      will be more complicated. But it's OK for now.
-    */
-    bzero((char*)Ptr, offs);
-    memcpy(Ptr + offs, str, arg_length);
-  }
+  bzero((char*) Ptr, offset);
+  memcpy(Ptr + offset, str, arg_length);
   Ptr[aligned_length]=0;
-  str_charset=cs;
+  /* str_length is always >= 0 as arg_length is != 0 */
+  str_length= aligned_length;
+  str_charset= cs;
   return FALSE;
 }
 
@@ -300,14 +318,14 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 				 CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
-  uint32 offs= (arg_length % cs->mbminlen); 
+  uint32 offset= (arg_length % cs->mbminlen); 
   
-  if (!offs) /* All characters are complete, just copy */
+  if (!offset) /* All characters are complete, just copy */
   {
     set(str, arg_length, cs);
     return FALSE;
   }
-  return copy_aligned(str, arg_length, cs);
+  return copy_aligned(str, arg_length, offset, cs);
 }
 
 	/* Copy with charset convertion */
@@ -315,14 +333,11 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
-  if (!needs_conversion(str, arg_length, from_cs, to_cs))
-  {
+  uint32 offset;
+  if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
     return copy(str, arg_length, to_cs);
-  }
-  if ((from_cs == &my_charset_bin) && (arg_length % to_cs->mbminlen))
-  {
-    return copy_aligned(str, arg_length, to_cs);
-  }
+  if ((from_cs == &my_charset_bin) && offset)
+    return copy_aligned(str, arg_length, offset, to_cs);
   
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
@@ -744,7 +759,8 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 
   while (1)
   {
-    if ((cnvres=from_cs->cset->mb_wc(from_cs, &wc, (uchar*) from, from_end)) > 0)
+    if ((cnvres= from_cs->cset->mb_wc(from_cs, &wc, (uchar*) from,
+				      from_end)) > 0)
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
     {

@@ -1068,9 +1068,8 @@ String *Item_func_min_max::val_str(String *str)
 	}
       }
     }
-    if (!res)  // If NULL
-      return 0;
-    res->set_charset(collation.collation);
+    if (res)					// If !NULL
+      res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:

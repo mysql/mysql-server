@@ -466,8 +466,10 @@ select * from t1 where id=2;
 create table t1 (word char(20) not null);
 select * from t1;
 show status like "Qcache_queries_in_cache";
-load data infile '../../std_data/words.dat' into table t1;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+eval load data infile '$MYSQL_TEST_DIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
+select count(*) from t1;
 drop table t1;
 
 #
@@ -476,7 +478,9 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 show status like "Qcache_queries_in_cache";
-select * from t1 into outfile "query_caceh.out.file";
+select * from t1 into outfile "query_cache.out.file";
+--error 1086
+select * from t1 into outfile "query_cache.out.file";
 select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
 drop table t1;

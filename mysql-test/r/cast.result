@@ -24,6 +24,12 @@ Note	1003	select high_priority ~(5) AS `~5`,cast(~(5) as signed) AS `cast(~5 as 
 select cast(5 as unsigned) -6.0;
 cast(5 as unsigned) -6.0
 -1.0
+select cast(NULL as signed), cast(1/0 as signed);
+cast(NULL as signed)	cast(1/0 as signed)
+NULL	NULL
+select cast(NULL as unsigned), cast(1/0 as unsigned);
+cast(NULL as unsigned)	cast(1/0 as unsigned)
+NULL	NULL
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 cast("A" as binary) = "a"	cast(BINARY "a" as CHAR) = "A"
 0	1
@@ -36,12 +42,33 @@ cast("1:2:3" as TIME)
 select CONVERT("2004-01-22 21:45:33",DATE);
 CONVERT("2004-01-22 21:45:33",DATE)
 2004-01-22
+select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
+CONVERT(DATE "2004-01-22 21:45:33" USING latin1)
+2004-01-22 21:45:33
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
+CONVERT(DATE "2004-01-22 21:45:33",CHAR)
+2004-01-22 21:45:33
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
+CONVERT(DATE "2004-01-22 21:45:33",CHAR(4))
+2004
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY);
+CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY)
+2004
+select CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY);
+CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY)
+2004
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
 test
 select cast(_koi8r'тест' as char character set cp1251);
 cast(_koi8r'тест' as char character set cp1251)
+РЕЯР
+select convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci");
+convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci")
+test
+select convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci");
+convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci")
 РЕЯР
 create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
 show create table t1;
