@@ -137,14 +137,17 @@ insert into test.t1 values ("h1", x);
 else
 insert into test.t1 values ("h?", x);
 end case;
-create procedure into_test()
+create procedure into_test(x char(16), y int)
 begin
-declare x char(16);
-declare y int;
-set x="aaaaa";
-set y=22;
-select id,data into x,y from test.t1 limit 2,1;
 insert into test.t1 values (x, y);
+select id,data into x,y from test.t1 limit 1;
+insert into test.t1 values (concat(x, "2"), y+2);
+end;
+create procedure into_test2(x char(16), y int)
+begin
+insert into test.t1 values (x, y);
+select id,data into x,@z from test.t1 limit 1;
+insert into test.t1 values (concat(x, "2"), y+2);
 end;
 call foo42();
 select * from t1;
@@ -258,13 +261,18 @@ id	data
 h0	0
 h1	1
 h?	17
-call into_test();
+delete from t1;
+call into_test("into", 100);
 select * from t1;
 id	data
-h0	0
-h1	1
-h?	17
-h?	17
+into	100
+into2	102
+delete from t1;
+call into_test2("into", 100);
+select id,data,@z from t1;
+id	data	@z
+into	100	100
+into2	102	100
 delete from t1;
 drop procedure foo42;
 drop procedure bar;
@@ -288,4 +296,5 @@ drop procedure f;
 drop procedure g;
 drop procedure h;
 drop procedure into_test;
+drop procedure into_test2;
 drop table t1;
