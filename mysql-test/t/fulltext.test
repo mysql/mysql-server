@@ -160,3 +160,15 @@ INSERT INTO t1 VALUES (1,'my small mouse'),(2,'la-la-la'),(3,'It is so funny'),(
 select 8 from t1;
 drop table t1;
 
+#
+# Check bug reported by Julian Ladisch
+# ERROR 1030: Got error 127 from table handler
+#
+
+drop table if exists t1;
+create table t1 (a text, fulltext key (a));
+insert into t1 values ('aaaa');
+repair table t1;
+select * from t1 where match (a) against ('aaaa');
+drop table t1;
+
