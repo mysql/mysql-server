@@ -267,5 +267,15 @@ select * from t3 where
   key5=5 or key6=6 or key7=7 or key8=8 or
   key9=9 or keyA=10 or keyB=11 or keyC=12; 
 
+# Test for Bug#3183
+explain select * from t0 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+
+update t0 set key8=123 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+
+delete from t0 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+select count(*) from t0;
 
 drop table t0, t1, t2, t3, t4; 
