@@ -205,8 +205,12 @@ public:
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
-
-  uint select_items;    /* number of items in select_list */
+  /*
+    number of items in select_list and HAVING clause used to get number
+    bigger then can be number of entries that will be added to all item
+    list during split_sum_func
+  */
+  uint select_n_having_items;
   uint cond_count;      /* number of arguments of and/or/xor in where/having */
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
