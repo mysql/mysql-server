@@ -1,0 +1,229 @@
+source include/master-slave.inc;
+connection master;
+use test;
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set autocommit=0;
+
+insert into t1 (f1) values ("test1"), ("bar");
+connection master1;
+use test;
+!$1030 select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+insert into t1 (f1) values ("test2"), ("bar");
+connection master1;
+use test;
+set transaction isolation level serializable;
+!$-1217 select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+insert into t1 (f1) values ("test3"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read uncommitted;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+connection master1;
+use test;
+set transaction isolation level read committed;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+insert into t1 (f1) values ("test4"), ("bar");
+connection master1;
+use test;
+set transaction isolation level repeatable read;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level serializable;
+insert into t1 (f1) values ("test5"), ("bar");
+connection master1;
+use test;
+set transaction isolation level serializable;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level serializable;
+insert into t1 (f1) values ("test6"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read uncommitted;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level serializable;
+insert into t1 (f1) values ("test7"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read committed;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level serializable;
+insert into t1 (f1) values ("test8"), ("bar");
+connection master1;
+use test;
+set transaction isolation level repeatable read;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read uncommitted;
+insert into t1 (f1) values ("test9"), ("bar");
+connection master1;
+use test;
+set transaction isolation level serializable;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read uncommitted;
+insert into t1 (f1) values ("test10"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read uncommitted;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read uncommitted;
+insert into t1 (f1) values ("test11"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read committed;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read uncommitted;
+insert into t1 (f1) values ("test12"), ("bar");
+connection master1;
+use test;
+set transaction isolation level repeatable read;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read committed;
+insert into t1 (f1) values ("test13"), ("bar");
+connection master1;
+use test;
+set transaction isolation level serializable;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read committed;
+insert into t1 (f1) values ("test14"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read uncommitted;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read committed;
+insert into t1 (f1) values ("test15"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read committed;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level read committed;
+insert into t1 (f1) values ("test16"), ("bar");
+connection master1;
+use test;
+set transaction isolation level repeatable read;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level repeatable read;
+insert into t1 (f1) values ("test17"), ("bar");
+connection master1;
+use test;
+set transaction isolation level serializable;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level repeatable read;
+insert into t1 (f1) values ("test18"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read uncommitted;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level repeatable read;
+insert into t1 (f1) values ("test19"), ("bar");
+connection master1;
+use test;
+set transaction isolation level read committed;
+select * from t1;
+connection master;
+commit;
+
+drop table if exists t1;
+create table t1 (f1 char(20) not null) type = gemini;
+set transaction isolation level repeatable read;
+insert into t1 (f1) values ("test20"), ("bar");
+connection master1;
+use test;
+set transaction isolation level repeatable read;
+select * from t1;
+connection master;
+commit;
+
