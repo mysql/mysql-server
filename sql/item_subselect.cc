@@ -825,6 +825,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
       if (!(row[i]= Item_cache::get_cache(res_type)))
 	return STRING_RESULT; // we should return something
       row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
+      row[i]->collation.set(sel_item->collation);
     }
   }
   if (select_lex->item_list.elements > 1)
@@ -836,6 +837,7 @@ void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
   res_type= set_row(select_lex, item, row, &maybe_null);
+  item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
 }

@@ -73,3 +73,14 @@ select * from t1 where word like 'AE';
 select * from t1 where word like binary 0xDF;
 select * from t1 where word like CAST(0xDF as CHAR);
 drop table t1;
+
+CREATE TABLE t1 (
+s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
+);
+INSERT INTO t1 VALUES ('Ü');
+INSERT INTO t1 VALUES ('ue');
+SELECT DISTINCT s1 FROM t1;
+SELECT s1,COUNT(*) FROM t1 GROUP BY s1;
+SELECT COUNT(DISTINCT s1) FROM t1;
+SELECT FIELD('ue',s1), FIELD('Ü',s1), s1='ue', s1='Ü' FROM t1;
+DROP TABLE t1;

@@ -85,7 +85,6 @@ public:
 typedef bool (Item::*Item_processor)(byte *arg);
 
 class Item {
-  uint loop_id;                         /* Used to find selfrefering loops */
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:

@@ -42,3 +42,17 @@ Field	Type	Null	Key	Default	Extra
 SET CHARACTER SET koi8r;
 DROP TABLE таблица;
 SET CHARACTER SET default;
+SET CHARACTER SET koi8r;
+CREATE DATABASE тест;
+USE тест;
+SHOW TABLES;
+Tables_in_тест
+SHOW TABLES IN тест;
+Tables_in_тест
+SET CHARACTER SET cp1251;
+SHOW TABLES;
+Tables_in_РЕЯР
+SHOW TABLES IN РЕЯР;
+Tables_in_РЕЯР
+SET CHARACTER SET koi8r;
+DROP DATABASE тест;
