@@ -25,7 +25,9 @@
 
 #include "mysys_priv.h"
 #include <m_ctype.h>
+#ifndef SCO
 #include <m_string.h>
+#endif
 
 	/* string to uppercase */
 
