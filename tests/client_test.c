@@ -8234,8 +8234,6 @@ int main(int argc, char **argv)
     /* Used for internal new development debugging */
     test_drop_temp();       /* to test DROP TEMPORARY TABLE Access checks */
 #endif
-    test_bug1946(); /* test that placeholders are allowed only in 
-                               prepared queries */
     test_fetch_seek();      /* to test stmt seek() functions */
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
@@ -8335,6 +8333,8 @@ int main(int argc, char **argv)
     test_bug1180();         /* BUG#1180 */
     test_bug1500();         /* BUG#1500 */
     test_bug1644();	    /* BUG#1644 */
+    test_bug1946();         /* test that placeholders are allowed only in 
+                               prepared queries */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
