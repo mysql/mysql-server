@@ -1210,6 +1210,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   create_info.data_file_name= info->data_file_name;
   create_info.index_file_name=info->index_file_name;
 
+  /* TODO: Check that the following fn_format is really needed */
   error=mi_create(fn_format(buff,name,"","",2+4),
 		  table_arg->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,

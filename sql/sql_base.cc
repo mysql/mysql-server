@@ -1706,7 +1706,11 @@ bool rm_temporary_table(enum db_type base, char *path)
   *fn_ext(path)='\0';				// remove extension
   handler *file=get_new_handler((TABLE*) 0, base);
   if (file && file->delete_table(path))
+  {
     error=1;
+    sql_print_error("Warning: Could not remove tmp table: '%s', error: %d",
+		    path, my_errno);
+  }
   delete file;
   return error;
 }

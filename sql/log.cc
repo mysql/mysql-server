@@ -695,7 +695,7 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 	  sizeof(rli->relay_log_name)-1);
 
   /* Store where we are in the new file for the execution thread */
-  flush_relay_log_info(rli);
+  flush_relay_log_info(rli, 0);
 
 err:
   pthread_mutex_unlock(&LOCK_index);

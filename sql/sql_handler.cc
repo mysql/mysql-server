@@ -36,7 +36,7 @@
 
   But !!! do_command calls free_root at the end of every query and frees up
   all the sql_alloc'ed memory. It's harder to work around...
- */
+*/
 
 #define HANDLER_TABLES_HACK(thd) {      \
   TABLE *tmp=thd->open_tables;          \
