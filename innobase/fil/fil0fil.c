@@ -2528,7 +2528,7 @@ func_exit:
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Allocates a file name for an old version of a single-table tablespace.
-The string must be freed by caller with ut_free(), NOT with mem_free()! */
+The string must be freed by caller with mem_free()! */
 static
 char*
 fil_make_ibbackup_old_name(
@@ -2538,7 +2538,7 @@ fil_make_ibbackup_old_name(
 {
 	static const char suffix[] = "_ibbackup_old_vers_";
 	ulint	len	= strlen(name);
-	char*	path	= ut_malloc(len + (15 + sizeof suffix));
+	char*	path	= mem_alloc(len + (15 + sizeof suffix));
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
@@ -2570,7 +2570,7 @@ fil_load_single_table_tablespace(
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
-	filepath = ut_malloc(strlen(dbname) + strlen(filename) 
+	filepath = mem_alloc(strlen(dbname) + strlen(filename) 
 			+ strlen(fil_path_to_mysql_datadir) + 3);
 
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
@@ -2598,7 +2598,7 @@ fil_load_single_table_tablespace(
 "InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
 "InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
-		ut_free(filepath);
+		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
@@ -2633,7 +2633,7 @@ fil_load_single_table_tablespace(
 "InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
@@ -2661,7 +2661,7 @@ fil_load_single_table_tablespace(
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return;
 	}
@@ -2707,8 +2707,8 @@ fil_load_single_table_tablespace(
 		ut_a(os_file_rename(filepath, new_path));
 
 		ut_free(buf2);
-		ut_free(filepath);
-		ut_free(new_path);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2743,8 +2743,8 @@ fil_load_single_table_tablespace(
 		ut_a(os_file_rename(filepath, new_path));
 
 		ut_free(buf2);
-		ut_free(filepath);
-		ut_free(new_path);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2764,7 +2764,7 @@ fil_load_single_table_tablespace(
 func_exit:
 	os_file_close(file);
 	ut_free(buf2);
-	ut_free(filepath);
+	mem_free(filepath);
 }
 
 /************************************************************************
