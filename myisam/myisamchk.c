@@ -39,7 +39,6 @@ static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_charset_name;
-static uint8 set_charset_number;
 static CHARSET_INFO *set_charset;
 
 static const char *type_names[]=
@@ -607,9 +606,9 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	(((ulonglong) 1L << share->base.keys)-1)) ||
        test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
-       (set_charset && set_charset_number != share->state.header.language)))
+       (set_charset && set_charset->number != share->state.header.language)))
   {
-    check_param.language=set_charset_number;
+    check_param.language=set_charset->number;
     if (recreate_table(&check_param, &info,filename))
     {
       VOID(fprintf(stderr,
