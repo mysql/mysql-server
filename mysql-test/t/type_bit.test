@@ -1,3 +1,4 @@
+-- source include/have_innodb.inc
 #
 # testing of the BIT column type
 #
@@ -25,9 +26,6 @@ create table t1 (a bit(65));
 create table t1 (a bit(0));
 show create table t1;
 drop table t1;
-
---error 1178
-create table t1 (a bit, key(a)) engine=innodb;
 
 create table t1 (a bit(64));
 insert into t1 values 
