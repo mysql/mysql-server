@@ -1698,8 +1698,7 @@ loop:
 
 	btr_pcur_open_at_rnd_pos(data->index, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	if (data->size == 1
-			&& 0 == page_get_n_recs(btr_pcur_get_page(&pcur))) {
+	if (0 == page_get_n_recs(btr_pcur_get_page(&pcur))) {
 
 		/* This tree is empty */
 	    
