@@ -206,7 +206,7 @@ struct NdbError {
     message = 0;
     details = 0;
   }
-  NdbError(ndberror_struct ndberror){
+  NdbError(const ndberror_struct & ndberror){
     status = (NdbError::Status) ndberror.status;
     classification = (NdbError::Classification) ndberror.classification;
     code = ndberror.code;
