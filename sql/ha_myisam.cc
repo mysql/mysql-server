@@ -1109,7 +1109,7 @@ THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 
 void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 {
-  table->file->info(HA_STATUS_AUTO | HA_STATUS_CONST);
+  ha_myisam::info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
     create_info->auto_increment_value=auto_increment_value;

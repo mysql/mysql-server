@@ -804,15 +804,18 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
-    if ((param->testflag & T_STATISTICS) &&
-	(share->state.changed & STATE_NOT_ANALYZED))
-      need_to_check=1;
-    if ((param->testflag & T_SORT_INDEX) &&
-	(share->state.changed & STATE_NOT_SORTED_PAGES))
-      need_to_check=1;
-    if ((param->testflag & T_REP_BY_SORT) &&
-	(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
-      need_to_check=1;
+    if (info->s->base.keys && info->state->records)
+    {
+      if ((param->testflag & T_STATISTICS) &&
+          (share->state.changed & STATE_NOT_ANALYZED))
+        need_to_check=1;
+      if ((param->testflag & T_SORT_INDEX) &&
+          (share->state.changed & STATE_NOT_SORTED_PAGES))
+        need_to_check=1;
+      if ((param->testflag & T_REP_BY_SORT) &&
+          (share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
+        need_to_check=1;
+    }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
 	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
 				 STATE_CRASHED_ON_REPAIR)))
@@ -892,6 +895,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->error_printed=0;
       goto end2;
     }
+    /*
+      _mi_readinfo() has locked the table.
+      We mark the table as locked (without doing file locks) to be able to
+      use functions that only works on locked tables (like row caching).
+    */
     mi_lock_database(info, F_EXTRA_LCK);
     datafile=info->dfile;
 
@@ -1410,23 +1418,24 @@ static int mi_sort_records(MI_CHECK *param,
 
   if (!(((ulonglong) 1 << sort_key) & share->state.key_map))
   {
-    mi_check_print_error(param,"Can't sort table '%s' on key %d;  No such key",
+    mi_check_print_warning(param,
+			   "Can't sort table '%s' on key %d;  No such key",
 		name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (keyinfo->flag & HA_FULLTEXT)
   {
-    mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
-		name,sort_key+1);
+    mi_check_print_warning(param,"Can't sort table '%s' on FULLTEXT key %d",
+			   name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (share->data_file_type == COMPRESSED_RECORD)
   {
-    mi_check_print_error(param,"Can't sort read-only table '%s'", name);
+    mi_check_print_warning(param,"Can't sort read-only table '%s'", name);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (!(param->testflag & T_SILENT))
   {

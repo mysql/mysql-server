@@ -1448,6 +1448,8 @@ void select_insert::send_error(uint errcode,const char *err)
                             table->file->has_transactions());
       mysql_bin_log.write(&qinfo);
     }
+    if (!table->tmp_table)
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
   }
   if (info.copied || info.deleted)
     query_cache_invalidate3(thd, table, 1);
@@ -1468,7 +1470,11 @@ bool select_insert::send_eof()
   */
 
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
+    if (!(table->file->has_transactions() || table->tmp_table))
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+  }
 
   if (last_insert_id)
     thd->insert_id(last_insert_id);		// For binary log

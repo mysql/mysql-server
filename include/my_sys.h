@@ -681,6 +681,8 @@ extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
+extern int my_b_safe_write(IO_CACHE *info,const byte *Buffer,uint Count);
+
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
@@ -742,8 +744,8 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
-extern void load_defaults(const char *conf_file, const char **groups,
-			  int *argc, char ***argv);
+extern int load_defaults(const char *conf_file, const char **groups,
+			 int *argc, char ***argv);
 extern void free_defaults(char **argv);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);

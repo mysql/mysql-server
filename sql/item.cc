@@ -903,6 +903,13 @@ void Item::make_field(Send_field *tmp_field)
   init_make_field(tmp_field, field_type());
 }
 
+
+void Item_empty_string::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_VAR_STRING);
+}
+
+
 enum_field_types Item::field_type() const
 {
   return ((result_type() == STRING_RESULT) ? FIELD_TYPE_VAR_STRING :

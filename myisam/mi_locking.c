@@ -35,6 +35,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   MYISAM_SHARE *share=info->s;
   uint flag;
   DBUG_ENTER("mi_lock_database");
+  DBUG_PRINT("info",("lock_type: %d", lock_type));
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
@@ -53,6 +54,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   {
     switch (lock_type) {
     case F_UNLCK:
+      DBUG_PRINT("info", ("old lock: %d", info->lock_type));
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
       else
@@ -106,19 +108,22 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  if (error)
 	    mi_mark_crashed(info);
 	}
-	if (share->r_locks)
-	{					/* Only read locks left */
-	  flag=1;
-	  if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
-		      MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	    error=my_errno;
-	}
-	else if (!share->w_locks)
-	{					/* No more locks */
-	  flag=1;
-	  if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-		      MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	    error=my_errno;
+	if (info->lock_type != F_EXTRA_LCK)
+	{
+	  if (share->r_locks)
+	  {					/* Only read locks left */
+	    flag=1;
+	    if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
+			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
+	      error=my_errno;
+	  }
+	  else if (!share->w_locks)
+	  {					/* No more locks */
+	    flag=1;
+	    if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
+	      error=my_errno;
+	  }
 	}
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);

@@ -429,4 +429,6 @@ select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(q
 select id, sum(qty) as sqty from t1 group by id having sqty>2 and count(qty)>1;
 select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sqty>2 and cqty>1;
 select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and count(qty)>1;
+select count(*), case interval(qty,2,3,4,5,6,7,8) when -1 then NULL when 0 then "zero" when 1 then "one" when 2 then "two" end as category from t1 group by category;
+select count(*), interval(qty,2,3,4,5,6,7,8) as category from t1 group by category;
 drop table t1;
