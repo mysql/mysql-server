@@ -528,6 +528,8 @@ static void make_sortkey(register SORTPARAM *param,
       case STRING_RESULT:
 	{
           CHARSET_INFO *cs=item->collation.collation;
+	  char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
+
 	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
@@ -564,14 +566,16 @@ static void make_sortkey(register SORTPARAM *param,
 	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
 					(unsigned char *) from, length);
 	    if (tmp_length < sort_field->length)
-	      bzero((char*) to+tmp_length,sort_field->length-tmp_length);
+	      cs->cset->fill(cs, (char*) to+tmp_length,
+			     sort_field->length-tmp_length,
+			     fill_char);
           }
           else
           {
              my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
-             bzero((char *)to+length,diff);
+             cs->cset->fill(cs, (char *)to+length,diff,fill_char);
           }
-		break;
+	  break;
 	}
       case INT_RESULT:
 	{
