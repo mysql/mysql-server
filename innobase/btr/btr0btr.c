@@ -21,7 +21,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 
-/**
+/*
 Node pointers
 -------------
 Leaf pages of a B-tree contain the index records stored in the
@@ -550,14 +550,15 @@ btr_page_get_father_for_rec(
 
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
-	ut_ad(user_rec != page_get_supremum_rec(page));
-	ut_ad(user_rec != page_get_infimum_rec(page));
+	ut_a(user_rec != page_get_supremum_rec(page));
+	ut_a(user_rec != page_get_infimum_rec(page));
 	
 	ut_ad(dict_tree_get_page(tree) != buf_frame_get_page_no(page));
 
 	heap = mem_heap_create(100);
 
-	tuple = dict_tree_build_node_ptr(tree, user_rec, 0, heap);
+	tuple = dict_tree_build_node_ptr(tree, user_rec, 0, heap,
+					 btr_page_get_level(page, mtr));
 
 	/* In the following, we choose just any index from the tree as the
 	first parameter for btr_cur_search_to_nth_level. */
@@ -569,7 +570,7 @@ btr_page_get_father_for_rec(
 
 	node_ptr = btr_cur_get_rec(&cursor);
 
-	ut_ad(btr_node_ptr_get_child_page_no(node_ptr) ==
+	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==
 						buf_frame_get_page_no(page));
 	mem_heap_free(heap);
 
@@ -949,8 +950,8 @@ btr_root_raise_and_insert(
 	/* Build the node pointer (= node key and page address) for the
 	child */
 
-	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap);
-	
+	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
+					                          level);
 	/* Reorganize the root to get free space */
 	btr_page_reorganize(root, mtr);	
 
@@ -1365,7 +1366,7 @@ btr_attach_half_pages(
 	half */
 
 	node_ptr_upper = dict_tree_build_node_ptr(tree, split_rec,
-							upper_page_no, heap);
+					     upper_page_no, heap, level);
 
 	/* Insert it next to the pointer to the lower half. Note that this
 	may generate recursion leading to a split on the higher level. */
@@ -2230,7 +2231,7 @@ btr_check_node_ptr(
 	node_ptr_tuple = dict_tree_build_node_ptr(
 				tree,
 				page_rec_get_next(page_get_infimum_rec(page)),
-				0, heap);
+				0, heap, btr_page_get_level(page, mtr));
 				
 	ut_a(cmp_dtuple_rec(node_ptr_tuple, node_ptr) == 0);
 
@@ -2485,10 +2486,11 @@ loop:
 			heap = mem_heap_create(256);
 		
 			node_ptr_tuple = dict_tree_build_node_ptr(
-						tree,
+					tree,
 					page_rec_get_next(
 						page_get_infimum_rec(page)),
-						0, heap);
+						0, heap,
+       					btr_page_get_level(page, &mtr));
 
 			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr) != 0) {
 
