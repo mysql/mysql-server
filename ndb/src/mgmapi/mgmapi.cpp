@@ -1991,10 +1991,10 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, 0);
   
   Properties args;
-  args.put("node1: ", node1);
-  args.put("node2: ", node2);
-  args.put("param: ", param);
-  args.put("value: ", value);
+  args.put("node1", node1);
+  args.put("node2", node2);
+  args.put("param", param);
+  args.put("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set connection parameter reply", NULL, ""),
