@@ -253,27 +253,33 @@ int berkeley_show_logs(THD *thd)
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error));
     db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
+    if (error== DB_NOTFOUND)
+      error=0;					// No log files
     goto err;
   }
-
-  for (a = all_logs, f = free_logs; *a; ++a)
+  /* Error is 0 here */
+  if (all_logs)
   {
-    packet->length(0);
-    net_store_data(packet,*a);
-    net_store_data(packet,"BDB");
-    if (*f && strcmp(*a, *f) == 0)
+    for (a = all_logs, f = free_logs; *a; ++a)
     {
-      ++f;
-      net_store_data(packet, SHOW_LOG_STATUS_FREE);
+      packet->length(0);
+      net_store_data(packet,*a);
+      net_store_data(packet,"BDB");
+      if (f && *f && strcmp(*a, *f) == 0)
+      {
+	++f;
+	net_store_data(packet, SHOW_LOG_STATUS_FREE);
+      }
+      else
+	net_store_data(packet, SHOW_LOG_STATUS_INUSE);
+
+      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      {
+	error=1;
+	goto err;
+      }
     }
-    else
-      net_store_data(packet, SHOW_LOG_STATUS_INUSE);
-
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-      goto err;
   }
-  error=0;
-
 err:
   free_root(&show_logs_root,MYF(0));
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
@@ -317,12 +323,12 @@ void berkeley_cleanup_log_files(void)
   }
 
   if (names)
-  { /* purecov: tested */
-    char **np; /* purecov: tested */
-    for (np = names; *np; ++np) /* purecov: tested */
-      my_delete(*np, MYF(MY_WME)); /* purecov: tested */
+  {						/* purecov: tested */
+    char **np;					/* purecov: tested */
+    for (np = names; *np; ++np)			/* purecov: tested */
+      my_delete(*np, MYF(MY_WME));		/* purecov: tested */
 
-    free(names); /* purecov: tested */
+    free(names);				/* purecov: tested */
   }
 
   DBUG_VOID_RETURN;
@@ -526,9 +532,9 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       {
 	if ((error=db_create(ptr, db_env, 0)))
 	{
-	  close(); /* purecov: inspected */
-	  my_errno=error; /* purecov: inspected */
-	  DBUG_RETURN(1); /* purecov: inspected */
+	  close();				/* purecov: inspected */
+	  my_errno=error;			/* purecov: inspected */
+	  DBUG_RETURN(1);			/* purecov: inspected */
 	}
 	sprintf(part,"key%02d",++used_keys);
 	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
@@ -539,9 +545,9 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
 				 open_mode, 0))))
 	{
-	  close(); /* purecov: inspected */
-	  my_errno=error; /* purecov: inspected */
-	  DBUG_RETURN(1); /* purecov: inspected */
+	  close();				/* purecov: inspected */
+	  my_errno=error;			/* purecov: inspected */
+	  DBUG_RETURN(1);			/* purecov: inspected */
 	}
       }
     }
@@ -1042,6 +1048,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   ulong thd_options = table->in_use ? table->in_use->options : 0;
   bool primary_key_changed;
   DBUG_ENTER("update_row");
+  LINT_INIT(error);
 
   statistic_increment(ha_update_count,&LOCK_status);
   if (table->time_stamp)
@@ -1066,7 +1073,6 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   }
 
   sub_trans = transaction;
-  LINT_INIT(error);
   for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
   {
     key_map changed_keys = 0;

@@ -298,9 +298,9 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
     return(-1);
 
   if (s_err)
-  {						/* getsockopt() could suceed */
+  {						// getsockopt() could succeed
     errno = s_err;
-    return(-1);					/* but return an error... */
+    return(-1);					// but return an error...
   }
   return(0);					/* It's all good! */
 #endif
@@ -403,8 +403,8 @@ my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
 
 
 int STDCALL
-mc_simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       uint length, my_bool skipp_check)
+mc_simple_command(MYSQL *mysql,enum enum_server_command command,
+		  const char *arg, uint length, my_bool skipp_check)
 {
   NET *net= &mysql->net;
   int result= -1;
