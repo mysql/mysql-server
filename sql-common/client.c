@@ -1405,11 +1405,14 @@ static MYSQL_METHODS client_methods=
   cli_advanced_command,
   cli_read_rows,
   cli_mysql_use_result,
-  cli_fetch_lengths,
-  cli_list_fields,
+  cli_fetch_lengths
+#ifndef MYSQL_SERVER
+  ,cli_list_fields,
   cli_read_prepare_result,
   cli_stmt_execute,
-  cli_read_binary_rows
+  cli_read_binary_rows,
+  cli_unbuffered_fetch
+#endif
 };
 
 MYSQL * STDCALL 
