@@ -991,7 +991,7 @@ extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
-extern my_bool relay_log_purge, opt_innodb_safe_binlog;
+extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;

@@ -184,6 +184,63 @@ i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
 
+/* the number of the log write requests done */
+extern ulint srv_log_write_requests;
+
+/* the number of physical writes to the log performed */
+extern ulint srv_log_writes;
+
+/* amount of data written to the log files in bytes */
+extern ulint srv_os_log_written;
+
+/* amount of writes being done to the log files */
+extern ulint srv_os_log_pending_writes;
+
+/* we increase this counter, when there we don't have enough space in the
+log buffer and have to flush it */
+extern ulint srv_log_waits;
+
+/* variable that counts amount of data read in total (in bytes) */
+extern ulint srv_data_read;
+
+/* here we count the amount of data written in total (in bytes) */
+extern ulint srv_data_written;
+
+/* this variable counts the amount of times, when the doublewrite buffer
+was flushed */
+extern ulint srv_dblwr_writes;
+
+/* here we store the number of pages that have been flushed to the
+doublewrite buffer */
+extern ulint srv_dblwr_pages_written;
+
+/* in this variable we store the number of write requests issued */
+extern ulint srv_buf_pool_write_requests;
+
+/* here we store the number of times when we had to wait for a free page
+in the buffer pool. It happens when the buffer pool is full and we need
+to make a flush, in order to be able to read or create a page. */
+extern ulint srv_buf_pool_wait_free;
+
+/* variable to count the number of pages that were written from the
+buffer pool to disk */
+extern ulint srv_buf_pool_flushed;
+
+/* variable to count the number of buffer pool reads that led to the
+reading of a disk page */
+extern ulint srv_buf_pool_reads;
+
+/* variable to count the number of sequential read-aheads were done */
+extern ulint srv_read_ahead_seq;
+
+/* variable to count the number of random read-aheads were done */
+extern ulint srv_read_ahead_rnd;
+
+/* In this structure we store status variables to be passed to MySQL */
+typedef struct export_var_struct export_struc;
+
+extern export_struc export_vars;
+
 typedef struct srv_sys_struct	srv_sys_t;
 
 /* The server system */
@@ -400,7 +457,12 @@ void
 srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file);	/* in: output stream */
+/************************************************************************
+Function to pass InnoDB status variables to MySQL */
 
+void
+srv_export_innodb_status(void);
+/*=====================*/
 
 /* Types for the threads existing in the system. Threads of types 4 - 9
 are called utility threads. Note that utility threads are mainly disk
@@ -425,6 +487,48 @@ typedef struct srv_slot_struct	srv_slot_t;
 
 /* Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
+
+/* In this structure we store status variables to be passed to MySQL */
+struct export_var_struct{
+        ulint innodb_data_pending_reads;
+        ulint innodb_data_pending_writes;
+        ulint innodb_data_pending_fsyncs;
+        ulint innodb_data_fsyncs;
+        ulint innodb_data_read;
+        ulint innodb_data_writes;
+        ulint innodb_data_written;
+        ulint innodb_data_reads;
+        ulint innodb_buffer_pool_pages_total;
+        ulint innodb_buffer_pool_pages_data;
+        ulint innodb_buffer_pool_pages_dirty;
+        ulint innodb_buffer_pool_pages_misc;
+        ulint innodb_buffer_pool_pages_free;
+        ulint innodb_buffer_pool_pages_latched;
+        ulint innodb_buffer_pool_read_requests;
+        ulint innodb_buffer_pool_reads;
+        ulint innodb_buffer_pool_wait_free;
+        ulint innodb_buffer_pool_pages_flushed;
+        ulint innodb_buffer_pool_write_requests;
+        ulint innodb_buffer_pool_read_ahead_seq;
+        ulint innodb_buffer_pool_read_ahead_rnd;
+        ulint innodb_dblwr_pages_written;
+        ulint innodb_dblwr_writes;
+        ulint innodb_log_waits;
+        ulint innodb_log_write_requests;
+        ulint innodb_log_writes;
+        ulint innodb_os_log_written;
+        ulint innodb_os_log_fsyncs;
+        ulint innodb_os_log_pending_writes;
+        ulint innodb_os_log_pending_fsyncs;
+        ulint innodb_page_size;
+        ulint innodb_pages_created;
+        ulint innodb_pages_read;
+        ulint innodb_pages_written;
+        ulint innodb_rows_read;
+        ulint innodb_rows_inserted;
+        ulint innodb_rows_updated;
+        ulint innodb_rows_deleted;
+};
 
 /* The server system struct */
 struct srv_sys_struct{
