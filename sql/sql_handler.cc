@@ -63,7 +63,11 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
   TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->name);
 
   if (*ptr)
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
     close_thread_table(thd, ptr);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
   
   send_ok(&thd->net);
   return 0;

@@ -199,7 +199,7 @@ int mysql_update(THD *thd,
     }
 
     init_read_record(&info,thd,table,select,0,1);
-    thd->proc_info="searching";
+    thd->proc_info="Searching rows for update";
 
     while (!(error=info.read_record(&info)) && !thd->killed)
     {
@@ -261,7 +261,7 @@ int mysql_update(THD *thd,
   ha_rows updated=0L,found=0L;
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0L;
-  thd->proc_info="updating";
+  thd->proc_info="Updating";
   query_id=thd->query_id;
 
   while (!(error=info.read_record(&info)) && !thd->killed)
