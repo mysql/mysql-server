@@ -167,7 +167,7 @@
 			      ((byte*) &def_temp)[3]=(M)[0];\
 			      (V)=def_temp; }
 
-#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
 #define mi_float8store(T,V) { *(T)= ((byte *) &V)[3];\
 			      *((T)+1)=(char) ((byte *) &V)[2];\
 			      *((T)+2)=(char) ((byte *) &V)[1];\
