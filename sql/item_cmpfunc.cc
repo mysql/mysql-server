@@ -311,7 +311,7 @@ void Item_func_interval::split_sum_func(List<Item> &fields)
 }
 
 /*
-  return -1 if null value,
+  return  NULL if null value,
 	  0 if lower than lowest
 	  1 - arg_count if between args[n] and args[n+1]
 	  arg_count+1 if higher than biggest argument
@@ -319,26 +319,28 @@ void Item_func_interval::split_sum_func(List<Item> &fields)
 
 longlong Item_func_interval::val_int()
 {
-  double value=item->val();
+  double value= item->val();
   if (item->null_value)
-    return -1;				// -1 if null /* purecov: inspected */
+  {
+    null_value= 1;
+    return -1;
+  }
   if (intervals)
   {					// Use binary search to find interval
-    uint start,end;
-    start=0; end=arg_count-1;
+    uint start= 0, end= arg_count - 1;
     while (start != end)
     {
-      uint mid=(start+end+1)/2;
+      uint mid= (start + end + 1) / 2;
       if (intervals[mid] <= value)
-	start=mid;
+	start= mid;
       else
-	end=mid-1;
+	end= mid - 1;
     }
-    return (value < intervals[start]) ? 0 : start+1;
+    return (value < intervals[start]) ? 0 : start + 1;
   }
   if (args[0]->val() > value)
     return 0;
-  for (uint i=1 ; i < arg_count ; i++)
+  for (uint i= 1; i < arg_count; i++)
   {
     if (args[i]->val() > value)
       return i;
