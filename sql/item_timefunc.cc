@@ -1603,6 +1603,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals=0;
   max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
   thd->time_zone_used= 1;
 }
 
@@ -1642,11 +1643,12 @@ longlong Item_func_from_unixtime::val_int()
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  longlong tmp= args[0]->val_int();
-
-  if ((null_value= (args[0]->null_value ||
-                    tmp < TIMESTAMP_MIN_VALUE ||
-                    tmp > TIMESTAMP_MAX_VALUE)))
+  ulonglong tmp= (ulonglong)(args[0]->val_int());
+  /*
+    "tmp > TIMESTAMP_MAX_VALUE" check also covers case of negative
+    from_unixtime() argument since tmp is unsigned.
+  */
+  if ((null_value= (args[0]->null_value || tmp > TIMESTAMP_MAX_VALUE)))
     return 1;
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
@@ -2202,6 +2204,12 @@ String *Item_datetime_typecast::val_str(String *str)
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
+  /*
+    For MYSQL_TIMESTAMP_TIME value we can have non-zero day part,
+    which we should not lose.
+  */
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
+    ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return res;
 }
@@ -2225,6 +2233,7 @@ String *Item_time_typecast::val_str(String *str)
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
   bool res= get_arg0_date(ltime, TIME_FUZZY_DATE);
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
