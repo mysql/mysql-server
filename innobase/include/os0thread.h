@@ -11,7 +11,6 @@ Created 9/8/1995 Heikki Tuuri
 #define os0thread_h
 
 #include "univ.i"
-#include "os0sync.h"
 
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which

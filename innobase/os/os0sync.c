@@ -68,8 +68,7 @@ os_sync_init(void)
 }
 
 /*************************************************************
-Frees created events (not in Windows) and OS 'slow' mutexes. OS 'fast'
-mutexes must be freed with sync_free() before this. */
+Frees created events (not in Windows) and OS 'slow' mutexes. */
 
 void
 os_sync_free(void)
