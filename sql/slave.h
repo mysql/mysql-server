@@ -56,6 +56,7 @@ typedef struct st_table_rule_ent
 } TABLE_RULE_ENT;
 
 #define TABLE_RULE_HASH_SIZE   16
+#define TABLE_RULE_ARR_SIZE   16
 
 int flush_master_info(MASTER_INFO* mi);
 
@@ -76,7 +77,9 @@ int db_ok(const char* db, I_List<i_string> &do_list,
 // do and ignore lists - used in replication
 
 int add_table_rule(HASH* h, const char* table_spec);
+int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
+void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
 
 int init_master_info(MASTER_INFO* mi);
 extern bool opt_log_slave_updates ;

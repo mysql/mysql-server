@@ -541,7 +541,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 #define likeconv(A) (uchar) my_sort_order[(uchar) (A)]
 #endif
 
-static int wild_case_compare(const char *str,const char *str_end,
+int wild_case_compare(const char *str,const char *str_end,
 			     const char *wildstr,const char *wildend,
 			     char escape)
 {
@@ -676,7 +676,7 @@ int wild_case_compare(String &match,String &wild, char escape)
 ** The following is used when using LIKE on binary strings
 */
 
-static int wild_compare(const char *str,const char *str_end,
+int wild_compare(const char *str,const char *str_end,
 			const char *wildstr,const char *wildend,char escape)
 {
   int result= -1;				// Not found, using wildcards

@@ -74,13 +74,15 @@ static void free_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD()
+THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
+	   insert_id_used(0),
+	   bootstrap(0),in_lock_tables(0),
+	   global_read_lock(0)
 {
    host=user=db=query=ip=0;
   proc_info="login";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
-    fatal_error=query_start_used=last_insert_id_used=insert_id_used=
-    user_time=bootstrap=in_lock_tables=global_read_lock=0;
+    query_start_used=0;
   query_length=col_access=0;
   query_error=0;
   server_id = ::server_id;

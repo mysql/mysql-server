@@ -86,8 +86,21 @@ MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
 MYSQL_TEST="$MYSQL_TEST --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
+GDB_MASTER_INIT=/tmp/gdbinit.master
+GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
-[ "$1" = "-gcov" ] && DO_GCOV=1
+if [ "$1" = "-gcov" ];
+then
+  DO_GCOV=1
+  shift 1
+fi  
+
+if [ "$1" = "-gdb" ];
+then
+  DO_GDB=1
+  shift 1
+fi  
+
 
 #++
 # Terminal Modifications
@@ -131,6 +144,12 @@ echo_pass () {
   return 0
 }
 
+prompt_user ()
+{
+ echo $1
+ read
+}
+
 echo_fail () {
   $MOVE_TO_COL && $SETCOLOR_NORMAL
   $ECHO -n "[  "
@@ -167,12 +186,12 @@ report_stats () {
     else
 	$ECHO -n "Failed ${TOT_FAIL}/${TOT_TEST} tests, "
 
-	xten=`$EXPR $TOT_PASS \* 10000`   #
-	raw=`$EXPR $xten / $TOT_TEST`     # My God
-	raw=`$PRINTF %.4d $raw`           # This is such a ...
-	whole=`$PRINTF %.2s $raw`         # Narttu!!
-	xwhole=`$EXPR $whole \* 100`      # Hynda!!!
-	deci=`$EXPR $raw - $xwhole`       #
+	xten=`$EXPR $TOT_PASS \* 10000`   
+	raw=`$EXPR $xten / $TOT_TEST`     
+	raw=`$PRINTF %.4d $raw`           
+	whole=`$PRINTF %.2s $raw`         
+	xwhole=`$EXPR $whole \* 100`      
+	deci=`$EXPR $raw - $xwhole`       
 
 	$ECHO "${whole}.${deci}% successful."
     fi
@@ -232,11 +251,11 @@ gcov_collect () {
     $ECHO "gcov slave info in $GCOV_SLAVE_MSG, errors in $GCOV_SLAVE_ERR"
 }
 
-mysql_start () {
-
+start_master()
+{
     cd $BASEDIR # for gcov
     #start master
-    $MYSQLD --no-defaults --log-bin \
+    master_args="--no-defaults --log-bin \
     	    --server-id=1 \
             --basedir=$CWD \
 	    --port=$MASTER_MYPORT \
@@ -245,13 +264,24 @@ mysql_start () {
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG \
-	    --language=english  >> $MASTER_MYERR 2>&1 &
-    #allow master to get setteled so slave can connect right away without error
-    sleep 1
-    #start slave
-    $MYSQLD --no-defaults --server-id=2 \
+	    --language=english $EXTRA_MASTER_OPT"
+    if [ x$DO_GDB = x1 ]
+    then
+      echo "set args $master_args" > $GDB_MASTER_INIT
+      xterm -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD &
+      prompt_user "Hit enter to continue after you've started the master"
+    else	    
+      $MYSQLD $master_args  >> $MASTER_MYERR 2>&1 &
+    fi  
+  MASTER_RUNNING=1
+}
+
+start_slave()
+{
+    [ -d $GCOV_SLAVE_SRC ] && cd $GCOV_SLAVE_SRC
+    slave_args="--no-defaults --server-id=2 \
 	    --master-user=root \
-	    --master-connect-retry=5 \
+	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
 	    --core-file \
@@ -261,21 +291,53 @@ mysql_start () {
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
             --log=$SLAVE_MYLOG \
-            --language=english  >> $SLAVE_MYERR 2>&1 &
+            --language=english $EXTRA_SLAVE_OPT"
+    if [ x$DO_GDB = x1 ]
+    then
+      echo "set args $slave_args" > $GDB_SLAVE_INIT
+      xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $MYSQLD &
+      prompt_user "Hit enter to continue after you've started the slave"
+    else	    
+      $MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
+    fi
+    SLAVE_RUNNING=1
+}
+
+mysql_start () {
+    start_master
+    start_slave
     cd $CWD
     return 1
 }
 
-mysql_stop () {
-
-    $MYSQLADMIN --socket=$MASTER_MYSOCK -u root shutdown
+stop_slave ()
+{
+  if [ x$SLAVE_RUNNING = x1 ]
+  then
     $MYSQLADMIN --socket=$SLAVE_MYSOCK -u root shutdown
+    SLAVE_RUNNING=0
+  fi  
+}
 
-    return 1
+stop_master ()
+{
+  if [ x$MASTER_RUNNING = x1 ]
+  then
+    $MYSQLADMIN --socket=$MASTER_MYSOCK -u root shutdown
+    MASTER_RUNNING=0
+  fi
+}
+
+mysql_stop ()
+{
+ stop_master
+ stop_slave
+ return 1
 }
 
 mysql_restart () {
 
+    return 1
     mysql_stop
     res=$?
     [ $res != 1 ] && echo_notok && error "Stopping mysqld"
@@ -293,35 +355,46 @@ mysql_loadstd () {
     return 1
 }
 
-[ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
+run_testcase ()
+{
+ tf=$1
+ tname=`$BASENAME $tf`
+ tname=`$ECHO $tname | $CUT -d . -f 1`
+ master_opt_file=$TESTDIR/$tname-master.opt
+ slave_opt_file=$TESTDIR/$tname-slave.opt
 
-[ "$DO_GCOV" ] && gcov_prepare 
+ 
+ if [ -f $master_opt_file ] ;
+ then
+  EXTRA_MASTER_OPT=`cat $master_opt_file`
+  stop_master
+  start_master
+ else
+  if [ ! -z EXTRA_MASTER_OPT ] || [ x$MASTER_RUNNING != x1 ] ;
+  then
+    EXTRA_MASTER_OPT=""
+    stop_master
+    start_master
+  fi  
+ fi
 
+ if [ -f $slave_opt_file ] ;
+ then
+  EXTRA_SLAVE_OPT=`cat $slave_opt_file`
+  stop_slave
+  start_slave
+ else
+  if [ ! -z EXTRA_SLAVE_OPT ] || [ x$SLAVE_RUNNING != x1 ] ;
+  then
+    EXTRA_SLAVE_OPT=""
+    stop_slave
+    start_slave
+    
+  fi  
+ fi
 
-mysql_install_db
-
-$SETCOLOR_NORMAL && $ECHO -n "Starting mysqld for Testing"
-mysql_start
-res=$?
-res=1
-[ $res != 1 ] && echo_notok && error "Starting mysqld"
-[ $res = 1 ] && echo_ok
-
-$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
-mysql_loadstd
-res=$?
-[ $res != 1 ] && echo_notok && error "Loading STD"
-[ $res = 1 ] && echo_ok
-
-$SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
-$SETCOLOR_SUCCESS && echo_ok
-
-$ECHO
-$ECHO " TEST			USER	SYSTEM	ELAPSED		     RESULT"
-$ECHO $DASH72
-
-for tf in $TESTDIR/*.$TESTSUFFIX
-do
+ cd $CWD
+  
  if [ -f $tf ] ; then
     mytime=`$TIME -p $MYSQL_TEST < $tf 2> $TIMEFILE`
     res=$?
@@ -339,9 +412,7 @@ do
     fi
 
 	timestr="$USERT	$SYST	$REALT"
-	tf=`$BASENAME $tf`
-	tf=`$ECHO $tf | $CUT -d . -f 1`
-	$SETCOLOR_NORMAL && $ECHO -n "$tf		$timestr"
+	$SETCOLOR_NORMAL && $ECHO -n "$tname		$timestr"
 
 	[ $res != 1 ] && pass_inc && echo_pass
 	[ $res = 1 ] && fail_inc && echo_fail
@@ -361,7 +432,50 @@ do
 	$ECHO
     fi
   fi  
-done
+ 
+}
+
+
+[ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
+
+[ "$DO_GCOV" ] && gcov_prepare 
+
+
+mysql_install_db
+
+if [ -z $DO_GDB ]
+then
+ $SETCOLOR_NORMAL && $ECHO -n "Starting mysqld for Testing" 
+ mysql_start
+ res=$?
+ res=1
+ [ $res != 1 ] && echo_notok && error "Starting mysqld"
+ [ $res = 1 ] && echo_ok
+fi
+
+#$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
+#mysql_loadstd
+#res=$?
+#[ $res != 1 ] && echo_notok && error "Loading STD"
+#[ $res = 1 ] && echo_ok
+
+$SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
+$SETCOLOR_SUCCESS && echo_ok
+
+$ECHO
+$ECHO " TEST			USER	SYSTEM	ELAPSED		     RESULT"
+$ECHO $DASH72
+
+if [ -z $1 ] ;
+then
+    for tf in $TESTDIR/*.$TESTSUFFIX
+    do
+     run_testcase $tf
+    done
+else
+ tf=$TESTDIR/$1.$TESTSUFFIX
+ run_testcase $tf
+fi
 
 $ECHO $DASH72
 $ECHO
@@ -369,12 +483,15 @@ $SETCOLOR_NORMAL && $ECHO -n "Ending Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
 $RM $TIMEFILE
 
-$SETCOLOR_NORMAL && $ECHO -n "Shutdown mysqld"
-mysql_stop
-res=$?
-res=1
-[ $res != 1 ] && echo_notok && error "Shutdown mysqld"
-[ $res = 1 ] && echo_ok
+if [ -z $DO_GDB ] ;
+then
+    $SETCOLOR_NORMAL && $ECHO -n "Shutdown mysqld"
+    mysql_stop
+    res=$?
+    res=1
+    [ $res != 1 ] && echo_notok && error "Shutdown mysqld"
+    [ $res = 1 ] && echo_ok
+fi
 
 $SETCOLOR_NORMAL
 

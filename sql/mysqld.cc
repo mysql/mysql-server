@@ -2231,7 +2231,7 @@ enum options {
 	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
 	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
 	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE,
-	       OPT_REPL_WILD_DO_TABLE, OPT_REPL_WILD_IGNORE_TABLE
+	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE
 };
 
 static struct option long_options[] = {
@@ -2302,13 +2302,13 @@ static struct option long_options[] = {
   {"replicate-do-table",       required_argument, 0,
    (int) OPT_REPLICATE_DO_TABLE},
   {"replicate-wild-do-table",       required_argument, 0,
-   (int) OPT_REPL_WILD_DO_TABLE},
+   (int) OPT_REPLICATE_WILD_DO_TABLE},
   {"replicate-ignore-db",   required_argument, 0,
    (int) OPT_REPLICATE_IGNORE_DB},
   {"replicate-ignore-table",   required_argument, 0,
    (int) OPT_REPLICATE_IGNORE_TABLE},
   {"replicate-wild-ignore-table",   required_argument, 0,
-   (int) OPT_REPL_WILD_IGNORE_TABLE},
+   (int) OPT_REPLICATE_WILD_IGNORE_TABLE},
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
@@ -2954,6 +2954,32 @@ static void get_options(int argc,char **argv)
 	if(!do_table_inited)
 	  init_table_rule_hash(&replicate_do_table, &do_table_inited);
 	if(add_table_rule(&replicate_do_table, optarg))
+	  {
+	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
+	    exit(1);
+	  }
+	table_rules_on = 1;
+	break;
+      }
+    case (int)OPT_REPLICATE_WILD_DO_TABLE:
+      {
+	if(!wild_do_table_inited)
+	  init_table_rule_array(&replicate_wild_do_table,
+				&wild_do_table_inited);
+	if(add_wild_table_rule(&replicate_wild_do_table, optarg))
+	  {
+	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
+	    exit(1);
+	  }
+	table_rules_on = 1;
+	break;
+      }
+    case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
+      {
+	if(!wild_ignore_table_inited)
+	  init_table_rule_array(&replicate_wild_ignore_table,
+				&wild_ignore_table_inited);
+	if(add_wild_table_rule(&replicate_wild_ignore_table, optarg))
 	  {
 	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
 	    exit(1);
