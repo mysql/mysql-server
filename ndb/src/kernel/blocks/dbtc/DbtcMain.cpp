@@ -1312,7 +1312,10 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     if (tapiBlockref == apiConnectptr.p->ndbapiBlockref) {
       if (apiConnectptr.p->apiConnectstate == CS_CONNECTED ||
 	  (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
-	   apiConnectptr.p->abortState == AS_IDLE)){
+	   apiConnectptr.p->abortState == AS_IDLE) ||
+	  (apiConnectptr.p->apiConnectstate == CS_STARTED &&
+	   apiConnectptr.p->firstTcConnect == RNIL))
+      {
         jam();                                   /* JUST REPLY OK */
         releaseApiCon(signal, apiConnectptr.i);
         signal->theData[0] = tuserpointer;

@@ -31,7 +31,6 @@
 #include <signaldata/TupKey.hpp>
 
 #include <signaldata/DropTab.hpp>
-#include <new>
 
 #define DEBUG(x) { ndbout << "TUP::" << x << endl; }
 

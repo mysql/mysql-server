@@ -1,4 +1,9 @@
-# This logname is set in mysql.server.sh that ends up in /etc/rc.d/init.d/mysql
+# This logname can be set in /etc/my.cnf
+# by setting the variable "err-log"
+# in the [safe_mysqld] section as follows:
+#
+# [safe_mysqld]
+# err-log=@localstatedir@/mysqld.log
 #
 # If the root user has a password you have to create a
 # /root/.my.cnf configuration file with the following
@@ -22,8 +27,10 @@
         compress
     postrotate
 	# just if mysqld is really running
-	if test -n "`ps acx|grep mysqld`"; then
-	        @bindir@/mysqladmin flush-logs
+	if test -x @bindir@/mysqladmin && \
+	   @bindir@/mysqladmin ping &>/dev/null
+	then
+	   @bindir@/mysqladmin flush-logs
 	fi
     endscript
 }
