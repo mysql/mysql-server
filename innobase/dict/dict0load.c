@@ -647,22 +647,6 @@ dict_load_table(
 		return(NULL);
 	}
 
-#if MYSQL_VERSION_ID < 50300
-	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
-	"compact format" flag. */
-	field = rec_get_nth_field(rec, 7, &len);
-	if (mach_read_from_1(field) & 0x80) {
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: table %s is in the new compact format\n"
-			"InnoDB: of MySQL 5.0.3 or later\n", name);
-		return(NULL);
-	}
-#endif /* MYSQL_VERSION_ID < 50300 */
-
 	ut_a(0 == ut_strcmp((char *) "SPACE",
 		dict_field_get_col(
 		dict_index_get_nth_field(
