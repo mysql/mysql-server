@@ -56,9 +56,12 @@ int main(int argc, const char** argv){
   _tabname = argv[optind];
   _to_tabname = argv[optind+1];
   
-  if (_connectstr)
-    Ndb::setConnectString(_connectstr);
-  Ndb MyNdb(_dbname);
+  Ndb_cluster_connection con(_connectstr);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  Ndb MyNdb(&con,_dbname);
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
