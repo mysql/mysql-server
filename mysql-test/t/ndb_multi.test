@@ -1,4 +1,6 @@
 -- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
+
 
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
