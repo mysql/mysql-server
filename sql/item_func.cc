@@ -2019,7 +2019,9 @@ void Item_func_match::init_search(bool no_order)
   }
 
   ft_handler=table->file->ft_init_ext(mode, key,
-      ft_tmp->ptr(), ft_tmp->length(), join_key && !no_order);
+				      (byte*) ft_tmp->ptr(),
+				      ft_tmp->length(),
+				      join_key && !no_order);
 
   if (join_key)
   {

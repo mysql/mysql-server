@@ -69,7 +69,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 {
   int error;
   ulong memavl;
-  uint maxbuffer,skr;
+  uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows records;
   uchar **sort_keys;
@@ -163,7 +163,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 			     &tempfile, selected_records_file)) ==
       HA_POS_ERROR)
     goto err;
-  maxbuffer= my_b_tell(&buffpek_pointers)/sizeof(*buffpek);
+  maxbuffer= (uint) (my_b_tell(&buffpek_pointers)/sizeof(*buffpek));
 
   if (maxbuffer == 0)			// The whole set is in memory
   {
@@ -267,7 +267,7 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
   if (tmp)
   {
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
-	my_b_read(buffpek_pointers, (char*) tmp, length))
+	my_b_read(buffpek_pointers, (byte*) tmp, length))
     {
       my_free((char*) tmp, MYF(0));
       tmp=0;
@@ -398,10 +398,12 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 
 	/* Skriver en buffert med nycklar till filen */
 
-static int write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
-		      IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
+static int
+write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
+	   IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
 {
   uint sort_length;
+  uchar **end;
   BUFFPEK buffpek;
   DBUG_ENTER("write_keys");
 
@@ -419,10 +421,10 @@ static int write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
   if ((ha_rows) count > param->max_rows)
     count=(uint) param->max_rows;		/* purecov: inspected */
   buffpek.count=(ha_rows) count;
-  for (uchar **end=sort_keys+count ; sort_keys != end ; sort_keys++)
+  for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
     if (my_b_write(tempfile,(byte*) *sort_keys,(uint) sort_length))
       goto err;
-  if (my_b_write(buffpek_pointers, (char*) &buffpek, sizeof(buffpek)))
+  if (my_b_write(buffpek_pointers, (byte*) &buffpek, sizeof(buffpek)))
     goto err;
   DBUG_RETURN(0);
 

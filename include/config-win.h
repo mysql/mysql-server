@@ -253,6 +253,7 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_STRPBRK
 #define HAVE_STRSTR
 #define HAVE_COMPRESS
+#define HAVE_CREATESEMAPHORE
 
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */

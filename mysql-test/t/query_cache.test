@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+
 #
 # Tests with query cache
 #
@@ -6,7 +8,12 @@
 
 reset query cache;
 flush status;
-drop table if exists t1;
+drop table if exists t1,t2,t3;
+
+#
+# First simple test
+#
+
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 select * from t1;
@@ -24,3 +31,153 @@ show status like "Qcache_hits";
 drop table t1;
 
 show status like "Qcache_queries_in_cache";
+
+#
+# MERGE TABLES with INSERT/UPDATE and DELETE
+#
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (4),(5),(6);
+create table t3 (a int not null) type=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+# insert
+select * from t3;
+select * from t3;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+insert into t2  values (7);
+show status like "Qcache_queries_in_cache";
+select * from t1;
+select * from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+insert into t3 values (8);
+show status like "Qcache_queries_in_cache";
+# update
+select * from t3;
+show status like "Qcache_queries_in_cache";
+update t2 set a=9 where a=7;
+show status like "Qcache_queries_in_cache";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+update t3 set a=10 where a=1;
+show status like "Qcache_queries_in_cache";
+#delete
+select * from t3;
+show status like "Qcache_queries_in_cache";
+delete from t2 where a=9;
+show status like "Qcache_queries_in_cache";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+delete from t3 where a=10;
+show status like "Qcache_queries_in_cache";
+drop table t1, t2, t3;
+#
+# Without auto_commit.
+#
+set autocommit=0;
+create table t1 (a int not null) type=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+commit;
+set autocommit=1;
+#
+# FLUSH QUERY CACHE
+#
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+select * from t2;
+insert into t1 values (4);
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_free_blocks";
+drop table t1, t2;
+#
+# SELECT SQL_CACHE ...
+#
+set sql_query_cache_type=demand;
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+select sql_cache * from t1;
+set sql_query_cache_type=2;
+select sql_cache * from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+set sql_query_cache_type=on;
+#
+# RESET QUERY CACHE
+#
+reset query cache;
+show status like "Qcache_queries_in_cache";
+#
+# SELECT SQL_NO_CACHE
+#
+select sql_no_cache * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+#
+# Check that queries that uses NOW(), LAST_INSERT_ID()... are not cached.
+#
+create table t1 (a text not null);
+select CONNECTION_ID() from t1;
+#GET_LOCK
+#RELEASE_LOCK
+#LOAD_FILE
+select FOUND_ROWS();
+select NOW() from t1;
+select CURDATE() from t1;
+select CURTIME() from t1;
+select DATABASE() from t1;
+select ENCRYPT("test") from t1;
+select LAST_INSERT_ID() from t1;
+select RAND() from t1;
+select UNIX_TIMESTAMP() from t1;
+select USER() from t1;
+select benchmark(1,1) from t1;
+show status like "Qcache_queries_in_cache";
+#
+# Tests when the cache is filled
+#
+create table t2 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t1;
+insert into t1 select * from t2; # 2
+insert into t2 select * from t1; # 3
+insert into t1 select * from t2; # 5
+insert into t2 select * from t1; # 8
+insert into t1 select * from t2; # 13
+insert into t2 select * from t1; # 21
+insert into t1 select * from t2; # 34
+insert into t2 select * from t1; # 55
+insert into t1 select * from t2; # 89
+insert into t2 select * from t1; # 144
+insert into t1 select * from t2; # 233
+insert into t2 select * from t1; # 357
+insert into t1 select * from t2; # 610
+insert into t2 select * from t1; # 987
+insert into t1 select * from t2; # 1597
+insert into t2 select * from t1; # 2584
+insert into t1 select * from t2; # 4181
+drop table t2;
+
+show status like "Qcache_hits";
+disable_result_log;
+select a as a1, a as a2 from t1;
+select a as a2, a as a3 from t1;
+select a as a3, a as a4 from t1;
+# next query must be out of 1Mb cache
+select a as a1, a as a2 from t1;
+enable_result_log;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+reset query cache;
+show variables like "query_cache_size";
+show status like "Qcache_free_memory";
+drop table t1;
