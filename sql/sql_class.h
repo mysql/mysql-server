@@ -603,7 +603,8 @@ public:
    byte * dup_checking;
    THD *thd;
    ha_rows deleted;
-   int num_of_tables, error;
+   uint num_of_tables;
+   int error;
    thr_lock_type lock_option;
    bool do_delete;
  public:

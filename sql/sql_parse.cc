@@ -2437,6 +2437,12 @@ mysql_new_select(LEX *lex)
   SELECT_LEX *select_lex = (SELECT_LEX *)sql_calloc(sizeof(SELECT_LEX));
   lex->select->next=select_lex; 
   lex->select=select_lex; lex->select->select_number = ++select_no;
+  lex->select->item_list = lex->select_lex.item_list; 
+  lex->select->item_list.empty();
+  lex->select->table_list = lex->select_lex.table_list; 
+  lex->select->table_list.elements=0;
+  lex->select->table_list.first=0;
+  lex->select->table_list.next= (byte**) &lex->select->table_list.first;
 }
 
 void
