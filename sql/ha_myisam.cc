@@ -621,7 +621,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       the following 'if', thought conceptually wrong,
       is a useful optimization nevertheless.
     */
-    if (file->state != &file->s->state.state);
+    if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
