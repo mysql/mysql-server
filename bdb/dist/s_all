@@ -1,20 +1,7 @@
 #!/bin/sh -
 #	$Id: s_all,v 1.10 2001/08/04 14:01:44 bostic Exp $
 
-make_dir()
-{
-  if test ! -d $1; then
-    echo  "mkdir $1"
-    mkdir $1
-    status=$?
-    if test $status -ne 0 && test ! -d $1; then
-      echo "error: $status"
-    fi
-  fi
-}
-
-make_dir ../test_server
-make_dir ../dbinc_auto
+sh s_dir
 
 #sh s_perm		# permissions.
 sh s_symlink		# symbolic links.
@@ -30,7 +17,7 @@ sh s_include		# standard include files.
 
 sh s_win32		# Win32 include files.
 sh s_win32_dsp		# Win32 build environment.
-sh s_vxworks		# VxWorks include files.
-sh s_java		# Java support.
-sh s_test		# Test suite support.
-sh s_tags		# Tags files.
+#sh s_vxworks		# VxWorks include files.
+#sh s_java		# Java support.
+#sh s_test		# Test suite support.
+#sh s_tags		# Tags files.
