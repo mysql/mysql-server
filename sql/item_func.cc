@@ -61,7 +61,7 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;
-  used_tables_cache=0;
+  used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
@@ -78,8 +78,9 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
       if (item->binary)
 	binary=1;
       with_sum_func= with_sum_func || item->with_sum_func;
-      used_tables_cache|=item->used_tables();
-      const_item_cache&= item->const_item();
+      used_tables_cache|=     item->used_tables();
+      not_null_tables_cache|= item->not_null_tables();
+      const_item_cache&=      item->const_item();
     }
   }
   fix_length_and_dec();
@@ -121,6 +122,13 @@ table_map Item_func::used_tables() const
 {
   return used_tables_cache;
 }
+
+
+table_map Item_func::not_null_tables() const
+{
+  return not_null_tables_cache;
+}
+
 
 void Item_func::print(String *str)
 {

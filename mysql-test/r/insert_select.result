@@ -21,8 +21,7 @@ payoutID
 20
 22
 drop table t1,t2;
-DROP TABLE IF EXISTS crash1,crash2;
-CREATE TABLE `crash1` (
+CREATE TABLE `t1` (
 `numeropost` bigint(20) unsigned NOT NULL default '0',
 `icone` tinyint(4) unsigned NOT NULL default '0',
 `numreponse` bigint(20) unsigned NOT NULL auto_increment,
@@ -37,7 +36,7 @@ KEY `date` (`date`),
 KEY `pseudo` (`pseudo`),
 KEY `numreponse` (`numreponse`)
 ) TYPE=MyISAM;
-CREATE TABLE `crash2` (
+CREATE TABLE `t2` (
 `numeropost` bigint(20) unsigned NOT NULL default '0',
 `icone` tinyint(4) unsigned NOT NULL default '0',
 `numreponse` bigint(20) unsigned NOT NULL auto_increment,
@@ -52,22 +51,20 @@ KEY `date` (`date`),
 KEY `pseudo` (`pseudo`),
 KEY `numreponse` (`numreponse`)
 ) TYPE=MyISAM;
-INSERT INTO crash2
+INSERT INTO t2
 (numeropost,icone,numreponse,contenu,pseudo,date,ip,signature) VALUES
 (9,1,56,'test','joce','2001-07-25 13:50:53'
 ,3649052399,0);
-INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
-SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM crash2
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;
 show variables like '%bulk%';
 Variable_name	Value
 bulk_insert_buffer_size	8388608
-INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
-SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM crash2
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;
-DROP TABLE IF EXISTS crash1,crash2;
-drop table if exists t1;
-drop table if exists t2;
+DROP TABLE t1,t2;
 create table t1(a int, unique(a));
 insert into t1 values(2);
 create table t2(a int);

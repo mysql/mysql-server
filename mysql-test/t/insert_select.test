@@ -12,13 +12,13 @@ insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
 insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
 select * from t2;
 drop table t1,t2;
+
 #
 # bug in bulk insert optimization
 # test case by Fournier Jocelyn <joc@presence-pc.com>
 #
 
-DROP TABLE IF EXISTS crash1,crash2;
-CREATE TABLE `crash1` (
+CREATE TABLE `t1` (
   `numeropost` bigint(20) unsigned NOT NULL default '0',
   `icone` tinyint(4) unsigned NOT NULL default '0',
   `numreponse` bigint(20) unsigned NOT NULL auto_increment,
@@ -34,7 +34,7 @@ CREATE TABLE `crash1` (
   KEY `numreponse` (`numreponse`)
 ) TYPE=MyISAM;
 
-CREATE TABLE `crash2` (
+CREATE TABLE `t2` (
   `numeropost` bigint(20) unsigned NOT NULL default '0',
   `icone` tinyint(4) unsigned NOT NULL default '0',
   `numreponse` bigint(20) unsigned NOT NULL auto_increment,
@@ -50,30 +50,27 @@ CREATE TABLE `crash2` (
   KEY `numreponse` (`numreponse`)
 ) TYPE=MyISAM;
 
-INSERT INTO crash2
+INSERT INTO t2
 (numeropost,icone,numreponse,contenu,pseudo,date,ip,signature) VALUES
 (9,1,56,'test','joce','2001-07-25 13:50:53'
 ,3649052399,0);
 
 
-INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
-SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM crash2
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;
 
 show variables like '%bulk%';
 
-INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
-SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM crash2
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;
 
-DROP TABLE IF EXISTS crash1,crash2;
+DROP TABLE t1,t2;
 
-
-# Addendum by Guilhem:
 # Check if a partly-completed INSERT SELECT in a MyISAM table goes
 # into the binlog
-drop table if exists t1;
-drop table if exists t2;
+
 create table t1(a int, unique(a));
 insert into t1 values(2);
 create table t2(a int);
