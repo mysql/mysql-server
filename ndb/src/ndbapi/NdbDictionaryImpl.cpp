@@ -1571,7 +1571,13 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
-  if (alter) {
+  
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].sz = m_buffer.length() / 4;
+  int ret;
+  if (alter)
+  {
     AlterTableReq * const req = 
       CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
     
@@ -1582,8 +1588,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     req->tableVersion = impl.m_version;;
     tSignal.theVerId_signalNumber   = GSN_ALTER_TABLE_REQ;
     tSignal.theLength = AlterTableReq::SignalLength;
+    ret= alterTable(&tSignal, ptr);
   }
-  else {
+  else
+  {
     CreateTableReq * const req = 
       CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
     
@@ -1591,25 +1599,21 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     req->senderData = 0;
     tSignal.theVerId_signalNumber   = GSN_CREATE_TABLE_REQ;
     tSignal.theLength = CreateTableReq::SignalLength;
-  }
-  
-  LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
-  ptr[0].sz = m_buffer.length() / 4;
+    ret= createTable(&tSignal, ptr);
 
-  int ret = (alter) ?
-    alterTable(&tSignal, ptr)
-    : createTable(&tSignal, ptr);
+    if (ret)
+      return ret;
 
-  if (!alter && haveAutoIncrement) {
-    if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
-				   autoIncrementValue)) {
-      if (ndb.theError.code == 0) {
-	m_error.code = 4336;
-	ndb.theError = m_error;
-      } else
-	m_error= ndb.theError;
-      ret = -1; // errorcode set in initialize_autoincrement
+    if (haveAutoIncrement) {
+      if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
+				     autoIncrementValue)) {
+	if (ndb.theError.code == 0) {
+	  m_error.code = 4336;
+	  ndb.theError = m_error;
+	} else
+	  m_error= ndb.theError;
+	ret = -1; // errorcode set in initialize_autoincrement
+      }
     }
   }
   return ret;
