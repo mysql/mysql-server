@@ -414,7 +414,7 @@ start_master()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
-            --innobase_data_file_path=ibdata1:50M \
+            --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
@@ -469,7 +469,7 @@ start_slave()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
-	    --skip-innobase \
+	    --skip-innodb \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]

@@ -158,9 +158,9 @@ SHOW_COMP_OPTION have_gemini=SHOW_OPTION_YES;
 SHOW_COMP_OPTION have_gemini=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_INNOBASE_DB
-SHOW_COMP_OPTION have_innobase=SHOW_OPTION_YES;
+SHOW_COMP_OPTION have_innodb=SHOW_OPTION_YES;
 #else
-SHOW_COMP_OPTION have_innobase=SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_innodb=SHOW_OPTION_NO;
 #endif
 #ifndef NO_ISAM
 SHOW_COMP_OPTION have_isam=SHOW_OPTION_YES;
@@ -2467,14 +2467,14 @@ enum options {
                OPT_REPLICATE_WILD_IGNORE_TABLE, 
                OPT_DISCONNECT_SLAVE_EVENT_COUNT, 
                OPT_ABORT_SLAVE_EVENT_COUNT,
-	       OPT_INNOBASE_DATA_HOME_DIR,
-               OPT_INNOBASE_DATA_FILE_PATH,
-	       OPT_INNOBASE_LOG_GROUP_HOME_DIR, 
-               OPT_INNOBASE_LOG_ARCH_DIR, 
-               OPT_INNOBASE_LOG_ARCHIVE, 
-               OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, 
+	       OPT_INNODB_DATA_HOME_DIR,
+               OPT_INNODB_DATA_FILE_PATH,
+	       OPT_INNODB_LOG_GROUP_HOME_DIR, 
+               OPT_INNODB_LOG_ARCH_DIR, 
+               OPT_INNODB_LOG_ARCHIVE, 
+               OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
                OPT_SAFE_SHOW_DB,
-	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
+	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
@@ -2521,19 +2521,19 @@ static struct option long_options[] = {
 #endif
   /* We must always support this option to make scripts like mysqltest easier
      to do */
-  {"innobase_data_file_path", required_argument, 0,
-     OPT_INNOBASE_DATA_FILE_PATH},
+  {"innodb_data_file_path", required_argument, 0,
+     OPT_INNODB_DATA_FILE_PATH},
 #ifdef HAVE_INNOBASE_DB
-  {"innobase_data_home_dir", required_argument, 0,
-     OPT_INNOBASE_DATA_HOME_DIR},
-  {"innobase_log_group_home_dir", required_argument, 0,
-    OPT_INNOBASE_LOG_GROUP_HOME_DIR},
-  {"innobase_log_arch_dir", required_argument, 0,
-    OPT_INNOBASE_LOG_ARCH_DIR},
-  {"innobase_log_archive", optional_argument, 0,
-     OPT_INNOBASE_LOG_ARCHIVE},
-  {"innobase_flush_log_at_trx_commit", optional_argument, 0,
-     OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT},
+  {"innodb_data_home_dir", required_argument, 0,
+     OPT_INNODB_DATA_HOME_DIR},
+  {"innodb_log_group_home_dir", required_argument, 0,
+    OPT_INNODB_LOG_GROUP_HOME_DIR},
+  {"innodb_log_arch_dir", required_argument, 0,
+    OPT_INNODB_LOG_ARCH_DIR},
+  {"innodb_log_archive", optional_argument, 0,
+     OPT_INNODB_LOG_ARCHIVE},
+  {"innodb_flush_log_at_trx_commit", optional_argument, 0,
+     OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
 #endif
   {"help",                  no_argument,       0, '?'},
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
@@ -2591,7 +2591,7 @@ static struct option long_options[] = {
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
-  {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
+  {"skip-innodb",           no_argument,       0, (int) OPT_INNODB_SKIP},
   {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
@@ -2665,25 +2665,25 @@ CHANGEABLE_VAR changeable_vars[] = {
       1, 0, LONG_MAX, 0, 1 },
 #endif
 #ifdef HAVE_INNOBASE_DB
-  {"innobase_mirrored_log_groups",
+  {"innodb_mirrored_log_groups",
    (long*) &innobase_mirrored_log_groups, 1, 1, 10, 0, 1},
-  {"innobase_log_files_in_group",
+  {"innodb_log_files_in_group",
      (long*) &innobase_log_files_in_group, 2, 2, 100, 0, 1},
-  {"innobase_log_file_size",
+  {"innodb_log_file_size",
      (long*) &innobase_log_file_size, 5*1024*1024L, 1*1024*1024L,
      ~0L, 0, 1024*1024L},
-  {"innobase_log_buffer_size",
+  {"innodb_log_buffer_size",
      (long*) &innobase_log_buffer_size, 1024*1024L, 256*1024L,
      ~0L, 0, 1024},
-  {"innobase_buffer_pool_size",
+  {"innodb_buffer_pool_size",
      (long*) &innobase_buffer_pool_size, 8*1024*1024L, 1024*1024L,
      ~0L, 0, 1024*1024L},
-  {"innobase_additional_mem_pool_size",
+  {"innodb_additional_mem_pool_size",
    (long*) &innobase_additional_mem_pool_size, 1*1024*1024L, 512*1024L,
      ~0L, 0, 1024},
-  {"innobase_file_io_threads",
+  {"innodb_file_io_threads",
      (long*) &innobase_file_io_threads, 9, 4, 64, 0, 1},
-  {"innobase_lock_wait_timeout",
+  {"innodb_lock_wait_timeout",
      (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
 						1024 * 1024 * 1024, 0, 1},
 #endif
@@ -2800,18 +2800,18 @@ struct show_var_st init_vars[]= {
 #endif
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_gemini",	      (char*) &have_gemini,		    SHOW_HAVE},
-  {"have_innobase",	      (char*) &have_innobase,		    SHOW_HAVE},
+  {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
-  {"innobase_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
-  {"innobase_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
-  {"innobase_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
-  {"innobase_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
-  {"innobase_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
-  {"innobase_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
+  {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
+  {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
+  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
+  {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
+  {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -3081,14 +3081,14 @@ static void usage(void)
 #endif
 #ifdef HAVE_INNOBASE_DB
   puts("\
-  --innobase_data_home_dir=dir   The common part for innobase table spaces\n\
-  --innobase_data_file_path=dir  Path to individual files and their sizes\n\
-  --innobase_flush_log_at_trx_commit[=#]\n\
-				 Set to 0 if you don't want to flush logs\n\
-  --innobase_log_arch_dir=dir	 Where full logs should be archived\n\
-  --innobase_log_archive[=#]	 Set to 1 if you want to have logs archived\n\
-  --innobase_log_group_home_dir=dir  Path to Innobase log files.\n\
-  --skip-innobase	         Don't use innobase (will save memory)\n\
+  --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
+  --innodb_data_file_path=dir  Path to individual files and their sizes\n\
+  --innodb_flush_log_at_trx_commit[=#]\n\
+			       Set to 0 if you don't want to flush logs\n\
+  --innodb_log_arch_dir=dir    Where full logs should be archived\n\
+  --innodb_log_archive[=#]     Set to 1 if you want to have logs archived\n\
+  --innodb_log_group_home_dir=dir  Path to innodb log files.\n\
+  --skip-innodb		       Don't use Innodb (will save memory)\n\
 ");
 #endif /* HAVE_INNOBASE_DB */
   print_defaults("my",load_default_groups);
@@ -3641,31 +3641,31 @@ static void get_options(int argc,char **argv)
       gemini_options |= GEMOPT_UNBUFFERED_IO;
 #endif
       break;
-    case OPT_INNOBASE_SKIP:
+    case OPT_INNODB_SKIP:
 #ifdef HAVE_INNOBASE_DB
-      innobase_skip=1;
-      have_innobase=SHOW_OPTION_DISABLED;
+      innodb_skip=1;
+      have_innodb=SHOW_OPTION_DISABLED;
 #endif
       break;
-    case OPT_INNOBASE_DATA_FILE_PATH:
+    case OPT_INNODB_DATA_FILE_PATH:
 #ifdef HAVE_INNOBASE_DB
       innobase_data_file_path=optarg;
 #endif
       break;
 #ifdef HAVE_INNOBASE_DB
-    case OPT_INNOBASE_DATA_HOME_DIR:
+    case OPT_INNODB_DATA_HOME_DIR:
       innobase_data_home_dir=optarg;
       break;
-    case OPT_INNOBASE_LOG_GROUP_HOME_DIR:
+    case OPT_INNODB_LOG_GROUP_HOME_DIR:
       innobase_log_group_home_dir=optarg;
       break;
-    case OPT_INNOBASE_LOG_ARCH_DIR:
+    case OPT_INNODB_LOG_ARCH_DIR:
       innobase_log_arch_dir=optarg;
       break;
-    case OPT_INNOBASE_LOG_ARCHIVE:
+    case OPT_INNODB_LOG_ARCHIVE:
       innobase_log_archive= optarg ? test(atoi(optarg)) : 1;
       break;
-    case OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT:
+    case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
 #endif /* HAVE_INNOBASE_DB */

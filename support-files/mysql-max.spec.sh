@@ -105,7 +105,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --includedir=/usr/include \
             --mandir=/usr/man \
             --with-berkeley-db \
-            --with-innobase \
+            --with-innodb \
 	    --with-comment=\"Official MySQL-Max RPM\";
 	    # Add this for more debugging support
 	    # --with-debug

@@ -1869,7 +1869,7 @@ AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 
 MYSQL_CHECK_BDB
-MYSQL_CHECK_INNOBASE
+MYSQL_CHECK_INNODB
 MYSQL_CHECK_GEMINI
 
 # If we have threads generate some library functions and test programs
@@ -1970,14 +1970,14 @@ EOF
     fi
   fi
 
-  if test X"$have_innobase_db" = Xyes
+  if test X"$have_innodb" = Xyes
   then
     sql_server_dirs="innobase $sql_server_dirs"
-    echo "CONFIGURING FOR INNOBASE DB" 
+    echo "CONFIGURING FOR INNODB" 
     (cd innobase && sh ./configure) \
-    || AC_MSG_ERROR([could not configure Innobase DB])
+    || AC_MSG_ERROR([could not configure INNODB])
 
-    echo "END OF INNOBASE DB CONFIGURATION"
+    echo "END OF INNODB CONFIGURATION"
   fi
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
