@@ -63,8 +63,10 @@ typedef NdbDictionary::Dictionary  NDBDICT;
 
 bool ndbcluster_inited= false;
 
+// Error handler for printing out ndbcluster error messages 
 TABLE *g_tab_dummy;
 static ha_ndbcluster* g_ha_error= NULL;
+static bool g_error_handler = FALSE;
 
 static Ndb* g_ndb= NULL;
 
@@ -2657,6 +2659,17 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
     m_unique_index_name[i]= NULL;      
   }
 
+  // Create error handler needed for error msg handling in static
+  // handler functions (ha_commit_trans and ha_rollback_trans)
+  if (!g_error_handler) 
+  {
+    DBUG_PRINT("info", ("Setting up error printing handler object"));
+    g_tab_dummy = new TABLE();
+    g_tab_dummy->table_name = NULL;
+    g_error_handler = TRUE;
+    g_ha_error= new ha_ndbcluster(g_tab_dummy);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -2692,15 +2705,6 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   DBUG_PRINT("enter", ("name: %s mode: %d test_if_locked: %d",
                        name, mode, test_if_locked));
   
-  // Create error handler needed for error msg handling in static
-  // handler functions (ha_commit_trans and ha_rollback_trans)
-  if (!g_ha_error) 
-  {
-    g_tab_dummy = new TABLE();
-    g_tab_dummy->table_name = NULL;
-    g_ha_error= new ha_ndbcluster(g_tab_dummy);
-  }
-
   // Setup ref_length to make room for the whole 
   // primary key to be written in the ref variable
   
@@ -2942,8 +2946,12 @@ bool ndbcluster_end()
   DBUG_ENTER("ndbcluster_end");
   if (g_ha_error) 
   {
+    DBUG_PRINT("info", ("deallocating error printing handler object"));
     delete g_tab_dummy;
+    g_tab_dummy= NULL;
     delete g_ha_error;
+    g_ha_error= NULL;
+    g_ha_error = FALSE;
   }
   delete g_ndb;
   g_ndb= NULL;
