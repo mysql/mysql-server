@@ -75,52 +75,59 @@ static void store_values(MYSQL_RES *result);
   The order of commands must be the same as command_names,
   except ADMIN_ERROR
 */
-enum commands { ADMIN_ERROR, ADMIN_CREATE, ADMIN_DROP, ADMIN_SHUTDOWN,
-		ADMIN_RELOAD, ADMIN_REFRESH, ADMIN_VER, ADMIN_PROCESSLIST,
-		ADMIN_STATUS, ADMIN_KILL, ADMIN_DEBUG, ADMIN_VARIABLES,
-		ADMIN_FLUSH_LOGS, ADMIN_FLUSH_HOSTS, ADMIN_FLUSH_TABLES,
-		ADMIN_PASSWORD, ADMIN_PING, ADMIN_EXTENDED_STATUS, 
-		ADMIN_FLUSH_STATUS, ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,
-		ADMIN_STOP_SLAVE, ADMIN_FLUSH_THREADS
+enum commands { 
+  ADMIN_ERROR, 
+  ADMIN_CREATE,           ADMIN_DROP,            ADMIN_SHUTDOWN,
+  ADMIN_RELOAD,           ADMIN_REFRESH,         ADMIN_VER, 
+  ADMIN_PROCESSLIST,      ADMIN_STATUS,          ADMIN_KILL, 
+  ADMIN_DEBUG,            ADMIN_VARIABLES,       ADMIN_FLUSH_LOGS, 
+  ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD, 
+  ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS, 
+  ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE, 
+  ADMIN_FLUSH_THREADS
 };
-static const char *command_names[]=
-{"create","drop","shutdown","reload","refresh",
- "version", "processlist","status","kill","debug",
- "variables","flush-logs","flush-hosts",
- "flush-tables","password","ping",
- "extended-status","flush-status",
- "flush-privileges", "start-slave","stop-slave",  "flush-threads", NullS};
+static const char *command_names[]= {
+  "create",               "drop",                "shutdown",
+  "reload",               "refresh",             "version",
+  "processlist",          "status",              "kill",
+  "debug",                "variables",           "flush-logs",
+  "flush-hosts",          "flush-tables",        "password",
+  "ping",                 "extended-status",     "flush-status",
+  "flush-privileges",     "start-slave",         "stop-slave",  
+  "flush-threads", 
+  NullS
+};
+
 static TYPELIB command_typelib=
 { array_elements(command_names)-1,"commands", command_names};
 
 enum options { OPT_CHARSETS_DIR=256 };
 
-static struct option long_options[] =
-{
-  {"compress",	no_argument,       0, 'C'},
-  {"character-sets-dir",required_argument, 0, OPT_CHARSETS_DIR},
-  {"debug",	optional_argument, 0, '#'},
-  {"force",	no_argument,	   0, 'f'},
-  {"help",	no_argument,	   0, '?'},
-  {"host",	required_argument, 0, 'h'},
-  {"password",	optional_argument, 0, 'p'},
+static struct option long_options[] = {
+  {"compress",           no_argument,       0, 'C'},
+  {"character-sets-dir", required_argument, 0, OPT_CHARSETS_DIR},
+  {"debug",              optional_argument, 0, '#'},
+  {"force",              no_argument,       0, 'f'},
+  {"help",               no_argument,       0, '?'},
+  {"host",               required_argument, 0, 'h'},
+  {"password",           optional_argument, 0, 'p'},
 #ifdef __WIN__
-  {"pipe",	 no_argument,	   0, 'W'},
+  {"pipe",               no_argument,       0, 'W'},
 #endif
-  {"port",	required_argument, 0, 'P'},
-  {"relative",  no_argument,       0, 'r'},
-  {"silent",	no_argument,	   0, 's'},
-  {"socket",	required_argument, 0, 'S'},
-  {"sleep",	required_argument, 0, 'i'},
+  {"port",               required_argument, 0, 'P'},
+  {"relative",           no_argument,       0, 'r'},
+  {"silent",             no_argument,       0, 's'},
+  {"socket",             required_argument, 0, 'S'},
+  {"sleep",              required_argument, 0, 'i'},
 #include "sslopt-longopts.h"
-  {"timeout",	required_argument, 0, 't'},
+  {"timeout",            required_argument, 0, 't'},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",	required_argument, 0, 'u'},
+  {"user",               required_argument, 0, 'u'},
 #endif
-  {"verbose",	no_argument,	   0, 'v'},
-  {"version",	no_argument,	   0, 'V'},
-  {"vertical",  no_argument,       0, 'E'},
-  {"wait",      optional_argument, 0, 'w'},
+  {"verbose",            no_argument,       0, 'v'},
+  {"version",            no_argument,       0, 'V'},
+  {"vertical",           no_argument,       0, 'E'},
+  {"wait",               optional_argument, 0, 'w'},
   {0, 0, 0, 0}
 };
 
@@ -457,7 +464,8 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts("TCX Datakonsult AB, by Monty\n");
+      puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
+      puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
       printf("Connection\t\t%s\n",mysql_get_host_info(mysql));
@@ -755,7 +763,7 @@ static void usage(void)
   print_version();
   puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Administer program for the mysqld demon");
+  puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
   printf("\n\
   -#, --debug=...       Output debug log. Often this is 'd:t:o,filename`\n\
