@@ -531,7 +531,7 @@ public:
     :Item_sum( list ), udf(udf_arg)
   { quick_group=0;}
   Item_udf_sum(THD *thd, Item_udf_sum *item)
-    :Item_sum(thd, item), udf(item->udf) {}
+    :Item_sum(thd, item), udf(item->udf) { udf.not_original= TRUE; }
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
