@@ -15159,7 +15159,7 @@ Note that the return value is converted to a @code{BIGINT}!
 
 @findex CEILING()
 @item CEILING(X)
-Returns the smallest integer value not less than @code{X}.
+Returns the smallest integer value not less than @code{X}:
 @example
 mysql> select CEILING(1.23);
         -> 2
@@ -15171,7 +15171,7 @@ Note that the return value is converted to a @code{BIGINT}!
 
 @findex ROUND()
 @item ROUND(X)
-Returns the argument @code{X}, rounded to the nearest integer.
+Returns the argument @code{X}, rounded to the nearest integer:
 @example
 mysql> select ROUND(-1.23);
         -> -1
@@ -15185,7 +15185,7 @@ mysql> select ROUND(1.58);
 @item ROUND(X,D)
 Returns the argument @code{X}, rounded to a number with @code{D} decimals.
 If @code{D} is @code{0}, the result will have no decimal point or fractional
-part.
+part:
 
 @example
 mysql> select ROUND(1.298, 1);
@@ -15197,7 +15197,7 @@ mysql> select ROUND(1.298, 0);
 @findex EXP()
 @item EXP(X)
 Returns the value of @code{e} (the base of natural logarithms) raised to
-the power of @code{X}.
+the power of @code{X}:
 @example
 mysql> select EXP(2);
         -> 7.389056
@@ -15206,7 +15206,7 @@ mysql> select EXP(-2);
 @end example
 @findex LOG()
 @item LOG(X)
-Returns the natural logarithm of @code{X}.
+Returns the natural logarithm of @code{X}:
 @example
 mysql> select LOG(2);
         -> 0.693147
@@ -15218,7 +15218,7 @@ the formula @code{LOG(X)/LOG(B)}.
 
 @findex LOG10()
 @item LOG10(X)
-Returns the base-10 logarithm of @code{X}.
+Returns the base-10 logarithm of @code{X}:
 @example
 mysql> select LOG10(2);
         -> 0.301030
@@ -15232,7 +15232,7 @@ mysql> select LOG10(-100);
 @findex POWER()
 @item POW(X,Y)
 @itemx POWER(X,Y)
-Returns the value of @code{X} raised to the power of @code{Y}.
+Returns the value of @code{X} raised to the power of @code{Y}:
 @example
 mysql> select POW(2,2);
         -> 4.000000
@@ -15242,7 +15242,7 @@ mysql> select POW(2,-2);
 
 @findex SQRT()
 @item SQRT(X)
-Returns the non-negative square root of @code{X}.
+Returns the non-negative square root of @code{X}:
 @example
 mysql> select SQRT(4);
         -> 2.000000
@@ -15252,7 +15252,7 @@ mysql> select SQRT(20);
 
 @findex PI()
 @item PI()
-Returns the value of PI.
+Returns the value of PI:
 @example
 mysql> select PI();
         -> 3.141593
@@ -15260,7 +15260,7 @@ mysql> select PI();
 
 @findex COS()
 @item COS(X)
-Returns the cosine of @code{X}, where @code{X} is given in radians.
+Returns the cosine of @code{X}, where @code{X} is given in radians:
 @example
 mysql> select COS(PI());
         -> -1.000000
@@ -15268,7 +15268,7 @@ mysql> select COS(PI());
 
 @findex SIN()
 @item SIN(X)
-Returns the sine of @code{X}, where @code{X} is given in radians.
+Returns the sine of @code{X}, where @code{X} is given in radians:
 @example
 mysql> select SIN(PI());
         -> 0.000000
@@ -15276,7 +15276,7 @@ mysql> select SIN(PI());
 
 @findex TAN()
 @item TAN(X)
-Returns the tangent of @code{X}, where @code{X} is given in radians.
+Returns the tangent of @code{X}, where @code{X} is given in radians:
 @example
 mysql> select TAN(PI()+1);
         -> 1.557408
@@ -15286,7 +15286,7 @@ mysql> select TAN(PI()+1);
 @item ACOS(X)
 Returns the arc cosine of @code{X}, that is, the value whose cosine is
 @code{X}. Returns @code{NULL} if @code{X} is not in the range @code{-1} to
-@code{1}.
+@code{1}:
 @example
 mysql> select ACOS(1);
         -> 0.000000
@@ -15300,7 +15300,7 @@ mysql> select ACOS(0);
 @item ASIN(X)
 Returns the arc sine of @code{X}, that is, the value whose sine is
 @code{X}. Returns @code{NULL} if @code{X} is not in the range @code{-1} to
-@code{1}.
+@code{1}:
 @example
 mysql> select ASIN(0.2);
         -> 0.201358
@@ -15311,7 +15311,7 @@ mysql> select ASIN('foo');
 @findex ATAN()
 @item ATAN(X)
 Returns the arc tangent of @code{X}, that is, the value whose tangent is
-@code{X}.
+@code{X}:
 @example
 mysql> select ATAN(2);
         -> 1.107149
@@ -15324,7 +15324,7 @@ mysql> select ATAN(-2);
 Returns the arc tangent of the two variables @code{X} and @code{Y}. It is
 similar to calculating the arc tangent of @code{Y / X}, except that the
 signs of both arguments are used to determine the quadrant of the
-result.
+result:
 @example
 mysql> select ATAN(-2,2);
         -> -0.785398
@@ -15334,7 +15334,7 @@ mysql> select ATAN(PI(),0);
 
 @findex COT()
 @item COT(X)
-Returns the cotangent of @code{X}.
+Returns the cotangent of @code{X}:
 @example
 mysql> select COT(12);
         -> -1.57267341
@@ -15346,7 +15346,7 @@ mysql> select COT(0);
 @item RAND()
 @itemx RAND(N)
 Returns a random floating-point value in the range @code{0} to @code{1.0}.
-If an integer argument @code{N} is specified, it is used as the seed value.
+If an integer argument @code{N} is specified, it is used as the seed value:
 @example
 mysql> select RAND();
         -> 0.5925
@@ -15361,7 +15361,7 @@ mysql> select RAND();
 @end example
 You can't use a column with @code{RAND()} values in an @code{ORDER BY}
 clause, because @code{ORDER BY} would evaluate the column multiple times.
-In @strong{MySQL} 3.23, you can however do:
+In @strong{MySQL} Version 3.23, you can, however, do:
 @code{SELECT * FROM table_name ORDER BY RAND()}
 
 This is useful to get a random sample of a set @code{SELECT * FROM
@@ -15389,7 +15389,7 @@ If any argument is a case-sensitive string, the arguments are compared
 as case-sensitive strings.
 
 @item
-In other cases, the arguments are compared as case-insensitive strings.
+In other cases, the arguments are compared as case-insensitive strings:
 @end itemize
 
 @example
@@ -15400,13 +15400,13 @@ mysql> select LEAST(34.0,3.0,5.0,767.0);
 mysql> select LEAST("B","A","C");
         -> "A"
 @end example
-In @strong{MySQL} versions prior to 3.22.5, you can use @code{MIN()} instead
-of @code{LEAST}.
+In @strong{MySQL} versions prior to Version 3.22.5, you can use @code{MIN()}
+instead of @code{LEAST}.
 
 @findex GREATEST()
 @item GREATEST(X,Y,...)
 Returns the largest (maximum-valued) argument.
-The arguments are compared using the same rules as for @code{LEAST}.
+The arguments are compared using the same rules as for @code{LEAST}:
 @example
 mysql> select GREATEST(2,0);
         -> 2
@@ -15415,12 +15415,12 @@ mysql> select GREATEST(34.0,3.0,5.0,767.0);
 mysql> select GREATEST("B","A","C");
         -> "C"
 @end example
-In @strong{MySQL} versions prior to 3.22.5, you can use @code{MAX()} instead
-of @code{GREATEST}.
+In @strong{MySQL} versions prior to Version 3.22.5, you can use @code{MAX()} 
+instead of @code{GREATEST}.
 
 @findex DEGREES()
 @item DEGREES(X)
-Returns the argument @code{X}, converted from radians to degrees.
+Returns the argument @code{X}, converted from radians to degrees:
 @example
 mysql> select DEGREES(PI());
         -> 180.000000
@@ -15428,7 +15428,7 @@ mysql> select DEGREES(PI());
 
 @findex RADIANS()
 @item RADIANS(X)
-Returns the argument @code{X}, converted from degrees to radians.
+Returns the argument @code{X}, converted from degrees to radians:
 @example
 mysql> select RADIANS(90);
         -> 1.570796
@@ -15437,7 +15437,7 @@ mysql> select RADIANS(90);
 @findex TRUNCATE()
 @item TRUNCATE(X,D)
 Returns the number @code{X}, truncated to @code{D} decimals.  If @code{D}
-is @code{0}, the result will have no decimal point or fractional part.
+is @code{0}, the result will have no decimal point or fractional part:
 @example
 mysql> select TRUNCATE(1.223,1);
         -> 1.2
@@ -15451,7 +15451,7 @@ mysql> select TRUNCATE(1.999,0);
 @findex string functions
 @findex functions, string
 @node String functions, Date and time functions, Mathematical functions, Functions
-@subsection String functions
+@subsection String Functions
 
 String-valued functions return @code{NULL} if the length of the result would
 be greater than the @code{max_allowed_packet} server parameter.  @xref{Server
@@ -15465,7 +15465,7 @@ the first position is numbered 1.
 @item ASCII(str)
 Returns the ASCII code value of the leftmost character of the string
 @code{str}. Returns @code{0} if @code{str} is the empty string.  Returns
-@code{NULL} if @code{str} is @code{NULL}.
+@code{NULL} if @code{str} is @code{NULL}:
 
 @example
 mysql> select ASCII('2');
@@ -15485,7 +15485,7 @@ returns the code of multi-byte character by returning the ASCII code value
 of the character in the format of:
 @code{((first byte ASCII code)*256+(second byte ASCII code))[*256+third byte ASCII code...]}.
 If the leftmost character is not a multi-byte character, returns the same
-value as the like @code{ASCII()} function does.
+value as the like @code{ASCII()} function does:
 
 @example
 mysql> select ORD('2');
@@ -15501,7 +15501,7 @@ The argument @code{N} is interpreted as an integer, but may be specified as
 an integer or a string.  The minimum base is @code{2} and the maximum base is
 @code{36}.  If @code{to_base} is a negative number, @code{N} is regarded as a
 signed number.  Otherwise, @code{N} is treated as unsigned.  @code{CONV} works
-with 64-bit precision.
+with 64-bit precision:
 
 @example
 mysql> select CONV("a",16,2);
@@ -15518,7 +15518,7 @@ mysql> select CONV(10+"10"+'10'+0xa,10,10);
 @item BIN(N)
 Returns a string representation of the binary value of @code{N}, where
 @code{N} is a longlong (@code{BIGINT}) number.  This is equivalent to
-@code{CONV(N,10,2)}.  Returns @code{NULL} if @code{N} is @code{NULL}.
+@code{CONV(N,10,2)}.  Returns @code{NULL} if @code{N} is @code{NULL}:
 
 @example
 mysql> select BIN(12);
@@ -15529,7 +15529,7 @@ mysql> select BIN(12);
 @item OCT(N)
 Returns a string representation of the octal value of @code{N}, where
 @code{N} is a longlong number.  This is equivalent to @code{CONV(N,10,8)}.
-Returns @code{NULL} if @code{N} is @code{NULL}.
+Returns @code{NULL} if @code{N} is @code{NULL}:
 
 @example
 mysql> select OCT(12);
@@ -15540,7 +15540,7 @@ mysql> select OCT(12);
 @item HEX(N)
 Returns a string representation of the hexadecimal value of @code{N}, where
 @code{N} is a longlong (@code{BIGINT}) number.  This is equivalent to
-@code{CONV(N,10,16)}.  Returns @code{NULL} if @code{N} is @code{NULL}.
+@code{CONV(N,10,16)}.  Returns @code{NULL} if @code{N} is @code{NULL}:
 
 @example
 mysql> select HEX(255);
@@ -15551,7 +15551,7 @@ mysql> select HEX(255);
 @item CHAR(N,...)
 @code{CHAR()} interprets the arguments as integers and returns a string
 consisting of the characters given by the ASCII code values of those
-integers. @code{NULL} values are skipped.
+integers. @code{NULL} values are skipped:
 
 @example
 mysql> select CHAR(77,121,83,81,'76');
@@ -15564,7 +15564,8 @@ mysql> select CHAR(77,77.3,'77.3');
 @item CONCAT(str1,str2,...)
 Returns the string that results from concatenating the arguments.  Returns
 @code{NULL} if any argument is @code{NULL}.  May have more than 2 arguments.
-A numeric argument is converted to the equivalent string form.
+A numeric argument is converted to the equivalent string form:
+
 @example
 mysql> select CONCAT('My', 'S', 'QL');
         -> 'MySQL'
@@ -15583,7 +15584,8 @@ arguments. The separator can be a string as well as the rest of the
 arguments. If the separator is @code{NULL}, the result will be @code{NULL}.
 The function will skip any @code{NULL}s and empty strings, after the
 separator argument. The separator will be added between the strings to be
-concatenated.
+concatenated:
+
 @example
 mysql> select CONCAT_WS(",","First name","Second name","Last Name");
        -> 'First name,Second name,Last Name'
@@ -15599,7 +15601,8 @@ mysql> select CONCAT_WS(",","First name",NULL,"Last Name");
 @itemx OCTET_LENGTH(str)
 @itemx CHAR_LENGTH(str)
 @itemx CHARACTER_LENGTH(str)
-Returns the length of the string @code{str}.
+Returns the length of the string @code{str}:
+
 @example
 mysql> select LENGTH('text');
         -> 4
@@ -15607,14 +15610,16 @@ mysql> select OCTET_LENGTH('text');
         -> 4
 @end example
 
-Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted once.
+Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted 
+once.
 
 @findex LOCATE()
 @findex POSITION()
 @item LOCATE(substr,str)
 @itemx POSITION(substr IN str)
 Returns the position of the first occurrence of substring @code{substr}
-in string @code{str}. Returns @code{0} if @code{substr} is not in @code{str}.
+in string @code{str}. Returns @code{0} if @code{substr} is not in @code{str}:
+
 @example
 mysql> select LOCATE('bar', 'foobarbar');
         -> 4
@@ -15628,7 +15633,8 @@ This function is multi-byte safe.
 @item LOCATE(substr,str,pos)
 Returns the position of the first occurrence of substring @code{substr} in
 string @code{str}, starting at position @code{pos}.
-Returns @code{0} if @code{substr} is not in @code{str}.
+Returns @code{0} if @code{substr} is not in @code{str}:
+
 @example
 mysql> select LOCATE('bar', 'foobarbar',5);
         -> 7
@@ -15640,7 +15646,7 @@ This function is multi-byte safe.
 @item INSTR(str,substr)
 Returns the position of the first occurrence of substring @code{substr} in
 string @code{str}. This is the same as the two-argument form of
-@code{LOCATE()}, except that the arguments are swapped.
+@code{LOCATE()}, except that the arguments are swapped:
 
 @example
 mysql> select INSTR('foobarbar', 'bar');
@@ -15654,7 +15660,8 @@ This function is multi-byte safe.
 @findex LPAD()
 @item LPAD(str,len,padstr)
 Returns the string @code{str}, left-padded with the string
-@code{padstr} until @code{str} is @code{len} characters long.
+@code{padstr} until @code{str} is @code{len} characters long:
+
 @example
 mysql> select LPAD('hi',4,'??');
         -> '??hi'
@@ -15671,7 +15678,8 @@ mysql> select RPAD('hi',5,'?');
 
 @findex LEFT()
 @item LEFT(str,len)
-Returns the leftmost @code{len} characters from the string @code{str}.
+Returns the leftmost @code{len} characters from the string @code{str}:
+
 @example
 mysql> select LEFT('foobarbar', 5);
         -> 'fooba'
@@ -15681,7 +15689,8 @@ This function is multi-byte safe.
 
 @findex RIGHT()
 @item RIGHT(str,len)
-Returns the rightmost @code{len} characters from the string @code{str}.
+Returns the rightmost @code{len} characters from the string @code{str}:
+
 @example
 mysql> select RIGHT('foobarbar', 4);
         -> 'rbar'
@@ -15696,7 +15705,8 @@ This function is multi-byte safe.
 @itemx MID(str,pos,len)
 Returns a substring @code{len} characters long from string @code{str},
 starting at position @code{pos}.
-The variant form that uses @code{FROM} is ANSI SQL92 syntax.
+The variant form that uses @code{FROM} is ANSI SQL92 syntax:
+
 @example
 mysql> select SUBSTRING('Quadratically',5,6);
         -> 'ratica'
@@ -15707,7 +15717,8 @@ This function is multi-byte safe.
 @findex SUBSTRING()
 @item SUBSTRING(str,pos)
 @item SUBSTRING(str FROM pos)
-Returns a substring from string @code{str} starting at position @code{pos}.
+Returns a substring from string @code{str} starting at position @code{pos}:
+
 @example
 mysql> select SUBSTRING('Quadratically',5);
         -> 'ratically'
@@ -15724,7 +15735,8 @@ occurrences of the delimiter @code{delim}.
 If @code{count} is positive, everything to the left of the final delimiter
 (counting from the left) is returned.
 If @code{count} is negative, everything to the right of the final delimiter
-(counting from the right) is returned.
+(counting from the right) is returned:
+
 @example
 mysql> select SUBSTRING_INDEX('www.mysql.com', '.', 2);
         -> 'www.mysql'
@@ -15736,7 +15748,8 @@ This function is multi-byte safe.
 
 @findex LTRIM()
 @item LTRIM(str)
-Returns the string @code{str} with leading space characters removed.
+Returns the string @code{str} with leading space characters removed:
+
 @example
 mysql> select LTRIM('  barbar');
         -> 'barbar'
@@ -15744,7 +15757,8 @@ mysql> select LTRIM('  barbar');
 
 @findex RTRIM()
 @item RTRIM(str)
-Returns the string @code{str} with trailing space characters removed.
+Returns the string @code{str} with trailing space characters removed:
+
 @example
 mysql> select RTRIM('barbar   ');
         -> 'barbar'
@@ -15757,7 +15771,8 @@ This function is multi-byte safe.
 Returns the string @code{str} with all @code{remstr} prefixes and/or suffixes
 removed. If none of the specifiers @code{BOTH}, @code{LEADING} or
 @code{TRAILING} are given, @code{BOTH} is assumed. If @code{remstr} is not
-specified, spaces are removed.
+specified, spaces are removed:
+
 @example
 mysql> select TRIM('  bar   ');
         -> 'bar'
@@ -15773,13 +15788,13 @@ This function is multi-byte safe.
 
 @findex SOUNDEX()
 @item SOUNDEX(str)
-Returns a soundex string from @code{str}. Two strings that sound ``about the
-same'' should have identical soundex strings. A ``standard'' soundex string
+Returns a soundex string from @code{str}. Two strings that sound almost the
+same should have identical soundex strings. A standard soundex string
 is 4 characters long, but the @code{SOUNDEX()} function returns an
 arbitrarily long string. You can use @code{SUBSTRING()} on the result to get
-a ``standard'' soundex string.  All non-alphanumeric characters are ignored
+a standard soundex string.  All non-alphanumeric characters are ignored
 in the given string. All international alpha characters outside the A-Z range
-are treated as vowels.
+are treated as vowels:
 
 @example
 mysql> select SOUNDEX('Hello');
@@ -15790,7 +15805,8 @@ mysql> select SOUNDEX('Quadratically');
 
 @findex SPACE()
 @item SPACE(N)
-Returns a string consisting of @code{N} space characters.
+Returns a string consisting of @code{N} space characters:
+
 @example
 mysql> select SPACE(6);
         -> '      '
@@ -15799,7 +15815,7 @@ mysql> select SPACE(6);
 @findex REPLACE()
 @item REPLACE(str,from_str,to_str)
 Returns the string @code{str} with all all occurrences of the string
-@code{from_str} replaced by the string @code{to_str}.
+@code{from_str} replaced by the string @code{to_str}:
 
 @example
 mysql> select REPLACE('www.mysql.com', 'w', 'Ww');
@@ -15812,7 +15828,7 @@ This function is multi-byte safe.
 @item REPEAT(str,count)
 Returns a string consisting of the string @code{str} repeated @code{count}
 times. If @code{count <= 0}, returns an empty string. Returns @code{NULL} if
-@code{str} or @code{count} are @code{NULL}.
+@code{str} or @code{count} are @code{NULL}:
 
 @example
 mysql> select REPEAT('MySQL', 3);
@@ -15821,7 +15837,8 @@ mysql> select REPEAT('MySQL', 3);
 
 @findex REVERSE()
 @item REVERSE(str)
-Returns the string @code{str} with the order of the characters reversed.
+Returns the string @code{str} with the order of the characters reversed:
+
 @example
 mysql> select REVERSE('abc');
         -> 'cba'
@@ -15833,7 +15850,7 @@ This function is multi-byte safe.
 @item INSERT(str,pos,len,newstr)
 Returns the string @code{str}, with the substring beginning at position
 @code{pos} and @code{len} characters long replaced by the string
-@code{newstr}.
+@code{newstr}:
 
 @example
 mysql> select INSERT('Quadratic', 3, 4, 'What');
@@ -15847,7 +15864,7 @@ This function is multi-byte safe.
 Returns @code{str1} if @code{N} = @code{1}, @code{str2} if @code{N} =
 @code{2}, and so on.  Returns @code{NULL} if @code{N} is less than @code{1}
 or greater than the number of arguments.  @code{ELT()} is the complement of
-@code{FIELD()}.
+@code{FIELD()}:
 
 @example
 mysql> select ELT(1, 'ej', 'Heja', 'hej', 'foo');
@@ -15861,7 +15878,7 @@ mysql> select ELT(4, 'ej', 'Heja', 'hej', 'foo');
 Returns the index of @code{str} in the @code{str1}, @code{str2},
 @code{str3}, @code{...} list.
 Returns @code{0} if @code{str} is not found.
-@code{FIELD()} is the complement of @code{ELT()}.
+@code{FIELD()} is the complement of @code{ELT()}:
 
 @example
 mysql> select FIELD('ej', 'Hej', 'ej', 'Heja', 'hej', 'foo');
@@ -15880,7 +15897,7 @@ the @code{FIND_IN_SET()} function is optimized to use bit arithmetic!
 Returns @code{0} if @code{str} is not in @code{strlist} or if @code{strlist}
 is the empty string.  Returns @code{NULL} if either argument is @code{NULL}.
 This function will not work properly if the first argument contains a
-@samp{,}.
+@samp{,}:
 
 @example
 mysql> SELECT FIND_IN_SET('b','a,b,c,d');
@@ -15893,7 +15910,7 @@ Returns a set (a string containing substrings separated by @samp{,}
 characters) consisting of the strings that have the corresponding bit in
 @code{bits} set.  @code{str1} corresponds to bit 0, @code{str2} to bit 1,
 etc.  @code{NULL} strings in @code{str1}, @code{str2}, @code{...}
-are not appended to the result.
+are not appended to the result:
 
 @example
 mysql> SELECT MAKE_SET(1,'a','b','c');
@@ -15906,9 +15923,10 @@ mysql> SELECT MAKE_SET(0,'a','b','c');
 
 @findex EXPORT_SET()
 @item EXPORT_SET(bits,on,off,[separator,[number_of_bits]])
-Returns a string where for every bit set in 'bit', you get a 'on' string and for
-every reset bit you get an 'off' string. Each string is separated with 'separator'
-(default ',') and only 'number_of_bits' (default 64) of 'bits' is used.
+Returns a string where for every bit set in 'bit', you get an 'on' string 
+and for every reset bit you get an 'off' string. Each string is separated 
+with 'separator' (default ',') and only 'number_of_bits' (default 64) of 
+'bits' is used:
 
 @example
 mysql> select EXPORT_SET(5,'Y','N',',',4)
@@ -15921,14 +15939,14 @@ mysql> select EXPORT_SET(5,'Y','N',',',4)
 @itemx LOWER(str)
 Returns the string @code{str} with all characters changed to lowercase
 according to the current character set mapping (the default is ISO-8859-1
-Latin1).
-
-This function is multi-byte safe.
+Latin1):
 
 @example
 mysql> select LCASE('QUADRATICALLY');
         -> 'quadratically'
 @end example
+
+This function is multi-byte safe.
 
 @findex UCASE()
 @findex UPPER()
@@ -15936,7 +15954,7 @@ mysql> select LCASE('QUADRATICALLY');
 @itemx UPPER(str)
 Returns the string @code{str} with all characters changed to uppercase
 according to the current character set mapping (the default is ISO-8859-1
-Latin1).
+Latin1):
 
 @example
 mysql> select UCASE('Hej');
@@ -15953,7 +15971,7 @@ file, and you must have the @strong{file} privilege.  The file must
 be readable by all and be smaller than @code{max_allowed_packet}.
 
 If the file doesn't exist or can't be read due to one of the above reasons,
-the function returns @code{NULL}.
+the function returns @code{NULL}:
 
 @example
 mysql> UPDATE table_name
@@ -15962,14 +15980,14 @@ mysql> UPDATE table_name
 @end example
 @end table
 
-If you are not using @strong{MySQL 3.23}, you have to do the reading of
-the file inside your application and create an @code{INSERT} statement
+If you are not using @strong{MySQL} Version 3.23, you have to do the reading 
+of the file inside your application and create an @code{INSERT} statement
 to update the database with the file information. One way to do this, if
 you are using the @strong{MySQL}++ library, can be found at
 @uref{http://www.mysql.com/documentation/mysql++/mysql++-examples.html}.
 
 @strong{MySQL} automatically converts numbers to strings as necessary, and
-vice versa:
+vice-versa:
 
 @example
 mysql> SELECT 1+"1";
@@ -15988,10 +16006,10 @@ a binary string.  This only affects comparisons.
 @findex date and time functions
 @findex functions, date and time
 @node Date and time functions, Miscellaneous functions, String functions, Functions
-@subsection Date and time functions
+@subsection Date and Time Functions
 
 See @ref{Date and time types} for a description of the range of values
-each type has, and the valid formats in which date and time values may be
+each type has and the valid formats in which date and time values may be
 specified.
 
 Here is an example that uses date functions.  The query below selects
@@ -16007,7 +16025,8 @@ mysql> SELECT something FROM table
 @item DAYOFWEEK(date)
 Returns the weekday index
 for @code{date} (@code{1} = Sunday, @code{2} = Monday, ... @code{7} = Saturday).
-These index values correspond to the ODBC standard.
+These index values correspond to the ODBC standard:
+
 @example
 mysql> select DAYOFWEEK('1998-02-03');
         -> 3
@@ -16016,7 +16035,8 @@ mysql> select DAYOFWEEK('1998-02-03');
 @findex WEEKDAY()
 @item WEEKDAY(date)
 Returns the weekday index for
-@code{date} (@code{0} = Monday, @code{1} = Tuesday, ... @code{6} = Sunday).
+@code{date} (@code{0} = Monday, @code{1} = Tuesday, ... @code{6} = Sunday):
+
 @example
 mysql> select WEEKDAY('1997-10-04 22:23:00');
         -> 5
@@ -16027,7 +16047,8 @@ mysql> select WEEKDAY('1997-11-05');
 @findex DAYOFMONTH()
 @item DAYOFMONTH(date)
 Returns the day of the month for @code{date}, in the range @code{1} to
-@code{31}.
+@code{31}:
+
 @example
 mysql> select DAYOFMONTH('1998-02-03');
         -> 3
@@ -16036,7 +16057,8 @@ mysql> select DAYOFMONTH('1998-02-03');
 @findex DAYOFYEAR()
 @item DAYOFYEAR(date)
 Returns the day of the year for @code{date}, in the range @code{1} to
-@code{366}.
+@code{366}:
+
 @example
 mysql> select DAYOFYEAR('1998-02-03');
         -> 34
@@ -16044,7 +16066,8 @@ mysql> select DAYOFYEAR('1998-02-03');
 
 @findex MONTH()
 @item MONTH(date)
-Returns the month for @code{date}, in the range @code{1} to @code{12}.
+Returns the month for @code{date}, in the range @code{1} to @code{12}:
+
 @example
 mysql> select MONTH('1998-02-03');
         -> 2
@@ -16052,7 +16075,8 @@ mysql> select MONTH('1998-02-03');
 
 @findex DAYNAME()
 @item DAYNAME(date)
-Returns the name of the weekday for @code{date}.
+Returns the name of the weekday for @code{date}:
+
 @example
 mysql> select DAYNAME("1998-02-05");
         -> 'Thursday'
@@ -16060,7 +16084,8 @@ mysql> select DAYNAME("1998-02-05");
 
 @findex MONTHNAME()
 @item MONTHNAME(date)
-Returns the name of the month for @code{date}.
+Returns the name of the month for @code{date}:
+
 @example
 mysql> select MONTHNAME("1998-02-05");
         -> 'February'
@@ -16069,7 +16094,8 @@ mysql> select MONTHNAME("1998-02-05");
 @findex QUARTER()
 @item QUARTER(date)
 Returns the quarter of the year for @code{date}, in the range @code{1}
-to @code{4}.
+to @code{4}:
+
 @example
 mysql> select QUARTER('98-04-01');
         -> 2
@@ -16084,7 +16110,8 @@ for locations where Sunday is the first day of the week.  The
 two-argument form of @code{WEEK()} allows you to specify whether the
 week starts on Sunday or Monday.  The week starts on Sunday if the
 second argument is @code{0}, on Monday if the second argument is
-@code{1}.
+@code{1}:
+
 @example
 mysql> select WEEK('1998-02-20');
         -> 7
@@ -16098,7 +16125,8 @@ mysql> select WEEK('1998-12-31',1);
 
 @findex YEAR()
 @item YEAR(date)
-Returns the year for @code{date}, in the range @code{1000} to @code{9999}.
+Returns the year for @code{date}, in the range @code{1000} to @code{9999}:
+
 @example
 mysql> select YEAR('98-02-03');
         -> 1998
@@ -16109,7 +16137,8 @@ mysql> select YEAR('98-02-03');
 Returns year and week for a date.  The second arguments works exactly
 like the second argument to @code{WEEK()}.  Note that the year may be
 different from the year in the date argument for the first and the last
-week of the year!
+week of the year:
+
 @example
 mysql> select YEARWEEK('1987-01-01');
         -> 198653
@@ -16117,7 +16146,8 @@ mysql> select YEARWEEK('1987-01-01');
 
 @findex HOUR()
 @item HOUR(time)
-Returns the hour for @code{time}, in the range @code{0} to @code{23}.
+Returns the hour for @code{time}, in the range @code{0} to @code{23}:
+
 @example
 mysql> select HOUR('10:05:03');
         -> 10
@@ -16125,7 +16155,8 @@ mysql> select HOUR('10:05:03');
 
 @findex MINUTE()
 @item MINUTE(time)
-Returns the minute for @code{time}, in the range @code{0} to @code{59}.
+Returns the minute for @code{time}, in the range @code{0} to @code{59}:
+
 @example
 mysql> select MINUTE('98-02-03 10:05:03');
         -> 5
@@ -16133,7 +16164,8 @@ mysql> select MINUTE('98-02-03 10:05:03');
 
 @findex SECOND()
 @item SECOND(time)
-Returns the second for @code{time}, in the range @code{0} to @code{59}.
+Returns the second for @code{time}, in the range @code{0} to @code{59}:
+
 @example
 mysql> select SECOND('10:05:03');
         -> 3
@@ -16144,7 +16176,7 @@ mysql> select SECOND('10:05:03');
 Adds @code{N} months to period @code{P} (in the format @code{YYMM} or
 @code{YYYYMM}). Returns a value in the format @code{YYYYMM}.
 
-Note that the period argument @code{P} is @emph{not} a date value.
+Note that the period argument @code{P} is @emph{not} a date value:
 
 @example
 mysql> select PERIOD_ADD(9801,2);
@@ -16157,7 +16189,7 @@ Returns the number of months between periods @code{P1} and @code{P2}.
 @code{P1} and @code{P2} should be in the format @code{YYMM} or @code{YYYYMM}.
 
 Note that the period arguments @code{P1} and @code{P2} are @emph{not}
-date values.
+date values:
 
 @example
 mysql> select PERIOD_DIFF(9802,199703);
@@ -16175,10 +16207,10 @@ mysql> select PERIOD_DIFF(9802,199703);
 @itemx SUBDATE(date,INTERVAL expr type)
 
 These functions perform date arithmetic.  They are new for @strong{MySQL}
-3.22.  @code{ADDDATE()} and @code{SUBDATE()} are synonyms for
+Version 3.22.  @code{ADDDATE()} and @code{SUBDATE()} are synonyms for
 @code{DATE_ADD()} and @code{DATE_SUB()}.
 
-In @strong{MySQL} 3.23, you can use @code{+} and @code{-} instead of
+In @strong{MySQL} Version 3.23, you can use @code{+} and @code{-} instead of
 @code{DATE_ADD()} and @code{DATE_SUB()}. (See example)
 
 @code{date} is a @code{DATETIME} or @code{DATE} value specifying the starting
@@ -16193,29 +16225,29 @@ interval from the date.
 The following table shows how the @code{type} and @code{expr} arguments
 are related:
 
-@multitable @columnfractions .18 .3 .42
-@item @code{type} @strong{value} @tab @strong{Meaning} @tab @strong{Expected} @code{expr} @strong{format}
-@item @code{SECOND}        @tab Seconds             @tab @code{SECONDS}
-@item @code{MINUTE}        @tab Minutes             @tab @code{MINUTES}
-@item @code{HOUR}          @tab Hours               @tab @code{HOURS}
-@item @code{DAY}           @tab Days                @tab @code{DAYS}
-@item @code{MONTH}         @tab Months              @tab @code{MONTHS}
-@item @code{YEAR}          @tab Years               @tab @code{YEARS}
-@item @code{MINUTE_SECOND} @tab Minutes and seconds @tab @code{"MINUTES:SECONDS"}
-@item @code{HOUR_MINUTE}   @tab Hours and minutes   @tab @code{"HOURS:MINUTES"}
-@item @code{DAY_HOUR}      @tab Days and hours      @tab @code{"DAYS HOURS"}
-@item @code{YEAR_MONTH}    @tab Years and months    @tab @code{"YEARS-MONTHS"}
-@item @code{HOUR_SECOND}   @tab Hours, minutes,     @tab @code{"HOURS:MINUTES:SECONDS"}
-@item @code{DAY_MINUTE}    @tab Days, hours, minutes @tab @code{"DAYS HOURS:MINUTES"}
-@item @code{DAY_SECOND}    @tab Days, hours, minutes, seconds @tab @code{"DAYS HOURS:MINUTES:SECONDS"}
+@multitable @columnfractions .5 .5
+@item @code{type} @strong{value} @tab @strong{Expected} @code{expr} @strong{format}
+@item @code{SECOND}        @tab @code{SECONDS}
+@item @code{MINUTE}        @tab @code{MINUTES}
+@item @code{HOUR}          @tab @code{HOURS}
+@item @code{DAY}           @tab @code{DAYS}
+@item @code{MONTH}         @tab @code{MONTHS}
+@item @code{YEAR}          @tab @code{YEARS}
+@item @code{MINUTE_SECOND} @tab @code{"MINUTES:SECONDS"}
+@item @code{HOUR_MINUTE}   @tab @code{"HOURS:MINUTES"}
+@item @code{DAY_HOUR}      @tab @code{"DAYS HOURS"}
+@item @code{YEAR_MONTH}    @tab @code{"YEARS-MONTHS"}
+@item @code{HOUR_SECOND}   @tab @code{"HOURS:MINUTES:SECONDS"}
+@item @code{DAY_MINUTE}    @tab @code{"DAYS HOURS:MINUTES"}
+@item @code{DAY_SECOND}    @tab @code{"DAYS HOURS:MINUTES:SECONDS"}
 @end multitable
 
 @strong{MySQL} allows any punctuation delimiter in the @code{expr} format.
-The ones shown in the table are the suggested delimiters.  If the @code{date}
+Those shown in the table are the suggested delimiters.  If the @code{date}
 argument is a @code{DATE} value and your calculations involve only
-@code{YEAR}, @code{MONTH} and @code{DAY} parts (that is, no time parts), the
+@code{YEAR}, @code{MONTH}, and @code{DAY} parts (that is, no time parts), the
 result is a @code{DATE} value.  Otherwise the result is a @code{DATETIME}
-value.
+value:
 
 @example
 mysql> SELECT "1997-12-31 23:59:59" + INTERVAL 1 SECOND;
@@ -16253,7 +16285,7 @@ If you specify an interval value that is too short (does not include all the
 interval parts that would be expected from the @code{type} keyword),
 @strong{MySQL} assumes you have left out the leftmost parts of the interval
 value.  For example, if you specify a @code{type} of @code{DAY_SECOND}, the
-value of @code{expr} is expected to have days, hours, minutes and seconds
+value of @code{expr} is expected to have days, hours, minutes, and seconds
 parts.  If you specify a value like @code{"1:10"}, @strong{MySQL} assumes
 that the days and hours parts are missing and the value represents minutes
 and seconds.  In other words, @code{"1:10" DAY_SECOND} is interpreted in such
@@ -16273,9 +16305,9 @@ mysql> select date_add("1999-01-01", interval 1 hour);
 @end example
 
 If you use really incorrect dates, the result is @code{NULL}. If you add
-@code{MONTH}, @code{YEAR_MONTH} or @code{YEAR} and the resulting date
+@code{MONTH}, @code{YEAR_MONTH}, or @code{YEAR} and the resulting date
 has a day that is larger than the maximum day for the new month, the day is
-adjusted to the maximum days in the new month.
+adjusted to the maximum days in the new month:
 
 @example
 mysql> select DATE_ADD('1998-01-30', Interval 1 month);
@@ -16288,7 +16320,7 @@ Note from the preceding example that the word @code{INTERVAL} and the
 @findex TO_DAYS()
 @item TO_DAYS(date)
 Given a date @code{date}, returns a daynumber (the number of days since year
-0).
+0):
 
 @example
 mysql> select TO_DAYS(950501);
@@ -16303,7 +16335,7 @@ days that were lost when the calender was changed.
 
 @findex FROM_DAYS()
 @item FROM_DAYS(N)
-Given a daynumber @code{N}, returns a @code{DATE} value.
+Given a daynumber @code{N}, returns a @code{DATE} value:
 
 @example
 mysql> select FROM_DAYS(729669);
@@ -16321,7 +16353,7 @@ following specifiers may be used in the @code{format} string:
 @multitable @columnfractions .1 .6
 @item @code{%M} @tab Month name (@code{January}..@code{December})
 @item @code{%W} @tab Weekday name (@code{Sunday}..@code{Saturday})
-@item @code{%D} @tab Day of the month with english suffix (@code{1st}, @code{2nd}, @code{3rd}, etc.)
+@item @code{%D} @tab Day of the month with English suffix (@code{1st}, @code{2nd}, @code{3rd}, etc.)
 @item @code{%Y} @tab Year, numeric, 4 digits
 @item @code{%y} @tab Year, numeric, 2 digits
 @item @code{%X} @tab Year for the week where Sunday is the first day of the week, numeric, 4 digits, used with '%V'
@@ -16352,7 +16384,7 @@ following specifiers may be used in the @code{format} string:
 @item @code{%%} @tab A literal @samp{%}.
 @end multitable
 
-All other characters are just copied to the result without interpretation.
+All other characters are just copied to the result without interpretation:
 
 @example
 mysql> select DATE_FORMAT('1997-10-04 22:23:00', '%W %M %Y');
@@ -16369,15 +16401,15 @@ mysql> select DATE_FORMAT('1999-01-01', '%X %V');
         -> '1998 52'
 @end example
 
-As of @strong{MySQL} 3.23, the @code{%} character is required before
+As of @strong{MySQL} Version 3.23, the @samp{%} character is required before
 format specifier characters.  In earlier versions of @strong{MySQL},
-@code{%} was optional.
+@samp{%} was optional.
 
 @findex TIME_FORMAT()
 @item TIME_FORMAT(time,format)
 This is used like the @code{DATE_FORMAT()} function above, but the
 @code{format} string may contain only those format specifiers that handle
-hours, minutes and seconds.  Other specifiers produce a @code{NULL} value or
+hours, minutes, and seconds.  Other specifiers produce a @code{NULL} value or
 @code{0}.
 
 @findex CURDATE()
@@ -16386,7 +16418,7 @@ hours, minutes and seconds.  Other specifiers produce a @code{NULL} value or
 @itemx CURRENT_DATE
 Returns today's date as a value in @code{'YYYY-MM-DD'} or @code{YYYYMMDD}
 format, depending on whether the function is used in a string or numeric
-context.
+context:
 
 @example
 mysql> select CURDATE();
@@ -16401,7 +16433,7 @@ mysql> select CURDATE() + 0;
 @itemx CURRENT_TIME
 Returns the current time as a value in @code{'HH:MM:SS'} or @code{HHMMSS}
 format, depending on whether the function is used in a string or numeric
-context.
+context:
 
 @example
 mysql> select CURTIME();
@@ -16418,7 +16450,7 @@ mysql> select CURTIME() + 0;
 @itemx CURRENT_TIMESTAMP
 Returns the current date and time as a value in @code{'YYYY-MM-DD HH:MM:SS'}
 or @code{YYYYMMDDHHMMSS} format, depending on whether the function is used in
-a string or numeric context.
+a string or numeric context:
 
 @example
 mysql> select NOW();
@@ -16430,12 +16462,12 @@ mysql> select NOW() + 0;
 @findex UNIX_TIMESTAMP()
 @item UNIX_TIMESTAMP()
 @itemx UNIX_TIMESTAMP(date)
-If called with no argument, returns a Unix timestamp (seconds since
+If called with no argument, returns a UNIX timestamp (seconds since
 @code{'1970-01-01 00:00:00'} GMT). If @code{UNIX_TIMESTAMP()} is called with
 a @code{date} argument, it returns the value of the argument as seconds since
 @code{'1970-01-01 00:00:00'} GMT.  @code{date} may be a @code{DATE} string,
 a @code{DATETIME} string, a @code{TIMESTAMP}, or a number in the format
-@code{YYMMDD} or @code{YYYYMMDD} in local time.
+@code{YYMMDD} or @code{YYYYMMDD} in local time:
 
 @example
 mysql> select UNIX_TIMESTAMP();
@@ -16454,7 +16486,7 @@ return 0.
 @item FROM_UNIXTIME(unix_timestamp)
 Returns a representation of the @code{unix_timestamp} argument as a value in
 @code{'YYYY-MM-DD HH:MM:SS'} or @code{YYYYMMDDHHMMSS} format, depending on
-whether the function is used in a string or numeric context.
+whether the function is used in a string or numeric context:
 
 @example
 mysql> select FROM_UNIXTIME(875996580);
@@ -16465,9 +16497,9 @@ mysql> select FROM_UNIXTIME(875996580) + 0;
 
 @findex FROM_UNIXTIME()
 @item FROM_UNIXTIME(unix_timestamp,format)
-Returns a string representation of the Unix timestamp, formatted according to
+Returns a string representation of the UNIX timestamp, formatted according to
 the @code{format} string. @code{format} may contain the same specifiers as
-those listed in the entry for the @code{DATE_FORMAT()} function.
+those listed in the entry for the @code{DATE_FORMAT()} function:
 
 @example
 mysql> select FROM_UNIXTIME(UNIX_TIMESTAMP(),
@@ -16477,9 +16509,9 @@ mysql> select FROM_UNIXTIME(UNIX_TIMESTAMP(),
 
 @findex SEC_TO_TIME()
 @item SEC_TO_TIME(seconds)
-Returns the @code{seconds} argument, converted to hours, minutes and seconds,
+Returns the @code{seconds} argument, converted to hours, minutes, and seconds,
 as a value in @code{'HH:MM:SS'} or @code{HHMMSS} format, depending on whether
-the function is used in a string or numeric context.
+the function is used in a string or numeric context:
 
 @example
 mysql> select SEC_TO_TIME(2378);
@@ -16490,7 +16522,8 @@ mysql> select SEC_TO_TIME(2378) + 0;
 
 @findex TIME_TO_SEC()
 @item TIME_TO_SEC(time)
-Returns the @code{time} argument, converted to seconds.
+Returns the @code{time} argument, converted to seconds:
+
 @example
 mysql> select TIME_TO_SEC('22:23:00');
         -> 80580
@@ -16502,12 +16535,13 @@ mysql> select TIME_TO_SEC('00:39:38');
 @findex miscellaneous functions
 @findex functions, miscellaneous
 @node Miscellaneous functions, Group by functions, Date and time functions, Functions
-@subsection Miscellaneous functions
+@subsection Miscellaneous Functions
 
 @table @code
 @findex DATABASE()
 @item DATABASE()
-Returns the current database name.
+Returns the current database name:
+
 @example
 mysql> select DATABASE();
         -> 'test'
@@ -16521,15 +16555,16 @@ If there is no current database, @code{DATABASE()} returns the empty string.
 @item USER()
 @itemx SYSTEM_USER()
 @itemx SESSION_USER()
-Returns the current @strong{MySQL} user name.
+Returns the current @strong{MySQL} user name:
+
 @example
 mysql> select USER();
         -> 'davida@@localhost'
 @end example
 
-In @strong{MySQL} 3.22.11 or later, this includes the client hostname as well as the
-user name.  You can extract just the user name part like this (which works
-whether or not the value includes a hostname part):
+In @strong{MySQL} Version 3.22.11 or later, this includes the client hostname
+as well  as the user name.  You can extract just the user name part like this 
+(which works whether or not the value includes a hostname part):
 
 @example
 mysql> select substring_index(USER(),"@@",1);
@@ -16540,7 +16575,7 @@ mysql> select substring_index(USER(),"@@",1);
 @item PASSWORD(str)
 Calculates a password string from the plaintext password @code{str}. This is
 the function that is used for encrypting @strong{MySQL} passwords for storage
-in the @code{Password} column of the @code{user} grant table.
+in the @code{Password} column of the @code{user} grant table:
 
 @example
 mysql> select PASSWORD('badpwd');
@@ -16551,16 +16586,16 @@ mysql> select PASSWORD('badpwd');
 @code{PASSWORD()} encryption is non-reversible.
 
 @code{PASSWORD()} does not perform password encryption in the same way that
-Unix passwords are encrypted.  You should not assume that if your Unix
+UNIX passwords are encrypted.  You should not assume that if your UNIX
 password and your @strong{MySQL} password are the same, @code{PASSWORD()}
-will result in the same encrypted value as is stored in the Unix password
+will result in the same encrypted value as is stored in the UNIX password
 file.  See @code{ENCRYPT()}.
 
 @findex ENCRYPT()
 @item ENCRYPT(str[,salt])
-Encrypt @code{str} using the Unix @code{crypt()} system call. The
+Encrypt @code{str} using the UNIX @code{crypt()} system call. The
 @code{salt} argument should be a string with two characters.
-(As of @strong{MySQL} 3.22.16, @code{salt} may be longer than two characters.)
+(As of @strong{MySQL} 3.22.16, @code{salt} may be longer than two characters.):
 
 @example
 mysql> select ENCRYPT("hello");
@@ -16591,7 +16626,7 @@ password.  @code{crypt_str} should be a string returned from
 @findex MD5()
 @item MD5(string)
 Calculates a MD5 checksum for the string. Value is returned as a 32 long
-hex number that may, for example, be used as a hash key.
+hex number that may, for example, be used as a hash key:
 
 @example
 mysql> select MD5("testing")
@@ -16604,7 +16639,7 @@ This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
 @item LAST_INSERT_ID([expr])
 Returns the last automatically generated value that was inserted into an
 @code{AUTO_INCREMENT} column.
-@xref{mysql_insert_id,, @code{mysql_insert_id()}}.
+@xref{mysql_insert_id,, @code{mysql_insert_id()}}:
 
 @example
 mysql> select LAST_INSERT_ID();
@@ -16619,7 +16654,7 @@ non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 @cindex Sequence emulation
 If @code{expr} is given as an argument to @code{LAST_INSERT_ID()} in an
 @code{UPDATE} clause, then the value of the argument is returned as a
-@code{LAST_INSERT_ID()} value.  This can be used to simulate sequences:
+@code{LAST_INSERT_ID()} value.  This can be used to simulate sequences.
 
 First create the table:
 
@@ -16646,7 +16681,7 @@ can also be used to get the value.
 @item FORMAT(X,D)
 Formats the number @code{X} to a format like @code{'#,###,###.##'}, rounded
 to @code{D} decimals.  If @code{D} is @code{0}, the result will have no
-decimal point or fractional part.
+decimal point or fractional part:
 
 @example
 mysql> select FORMAT(12332.123456, 4);
@@ -16659,7 +16694,8 @@ mysql> select FORMAT(12332.2,0);
 
 @findex VERSION()
 @item VERSION()
-Returns a string indicating the @strong{MySQL} server version.
+Returns a string indicating the @strong{MySQL} server version:
+
 @example
 mysql> select VERSION();
         -> '3.23.13-log'
@@ -16671,7 +16707,8 @@ enabled.
 @findex CONNECTION_ID()
 @item CONNECTION_ID()
 Returns the connection id (@code{thread_id}) for the connection.
-Every connection has its own unique id.
+Every connection has its own unique id:
+
 @example
 mysql> select CONNECTION_ID();
         -> 1
@@ -16684,11 +16721,11 @@ timeout of @code{timeout} seconds.  Returns @code{1} if the lock was obtained
 successfully, @code{0} if the attempt timed out, or @code{NULL} if an error
 occurred (such as running out of memory or the thread was killed with
 @code{mysqladmin kill}).  A lock is released when you execute
-@code{RELEASE_LOCK()}, execute a new @code{GET_LOCK()} or the thread
+@code{RELEASE_LOCK()}, execute a new @code{GET_LOCK()}, or the thread
 terminates.  This function can be used to implement application locks or to
 simulate record locks.  It blocks requests by other clients for locks with
 the same name; clients that agree on a given lock string name can use the
-string to perform cooperative advisory locking.
+string to perform cooperative advisory locking:
 
 @example
 mysql> select GET_LOCK("lock1",10);
@@ -16709,7 +16746,7 @@ the lock @code{"lock1"} was automatically released by the second
 @item RELEASE_LOCK(str)
 Releases the lock named by the string @code{str} that was obtained with
 @code{GET_LOCK()}. Returns @code{1} if the lock was released, @code{0} if the
-lock wasn't locked by this thread (in which case the lock is not released)
+lock wasn't locked by this thread (in which case the lock is not released),
 and @code{NULL} if the named lock didn't exist.  The lock will not exist if
 it was never obtained by a call to @code{GET_LOCK()} or if it already has
 been released.
@@ -16719,7 +16756,7 @@ been released.
 The @code{BENCHMARK()} function executes the expression @code{expr}
 repeatedly @code{count} times.  It may be used to time how fast @strong{MySQL}
 processes the expression.  The result value is always @code{0}.  The intended
-use is in the @code{mysql} client, which reports query execution times.
+use is in the @code{mysql} client, which reports query execution times:
 
 @example
 mysql> select BENCHMARK(1000000,encode("hello","goodbye"));
@@ -16738,7 +16775,7 @@ server machine is.
 
 @findex INET_NTOA()
 @item INET_NTOA(expr)
-Returns the network address (4 or 8 byte) for the numeric expression.
+Returns the network address (4 or 8 byte) for the numeric expression:
 
 @example
 mysql> select INET_NTOA(3520061480);
@@ -16747,8 +16784,8 @@ mysql> select INET_NTOA(3520061480);
 
 @findex INET_ATON()
 @item INET_ATON(expr)
-Returns an integer that represents the numeric value for a network address
-Addresses may be 4 or 8 byte addresses.
+Returns an integer that represents the numeric value for a network address.
+Addresses may be 4 or 8 byte addresses:
 
 @example
 mysql> select INET_ATON("209.207.224.40");
@@ -16759,7 +16796,7 @@ mysql> select INET_ATON("209.207.224.40");
 @findex GROUP BY functions
 @findex functions, GROUP BY
 @node Group by functions,  , Miscellaneous functions, Functions
-@subsection Functions for use with @code{GROUP BY} clauses
+@subsection Functions for Use with @code{GROUP BY} Clauses
 
 If you use a group function in a statement containing no @code{GROUP BY}
 clause, it is equivalent to grouping on all rows.
@@ -16768,7 +16805,7 @@ clause, it is equivalent to grouping on all rows.
 @findex COUNT()
 @item COUNT(expr)
 Returns a count of the number of non-@code{NULL} values in the rows
-retrieved by a @code{SELECT} statement.
+retrieved by a @code{SELECT} statement:
 
 @example
 mysql> select student.student_name,COUNT(*)
@@ -16784,7 +16821,7 @@ values.
 
 @code{COUNT(*)} is optimized to
 return very quickly if the @code{SELECT} retrieves from one table, no
-other columns are retrieved and there is no @code{WHERE} clause.
+other columns are retrieved, and there is no @code{WHERE} clause.
 For example:
 
 @example
@@ -16794,7 +16831,7 @@ mysql> select COUNT(*) from student;
 @findex COUNT(DISTINCT)
 @findex DISTINCT
 @item COUNT(DISTINCT expr,[expr...])
-Returns a count of the number of different non-@code{NULL} values.
+Returns a count of the number of different non-@code{NULL} values:
 
 @example
 mysql> select COUNT(DISTINCT results) from student;
@@ -16807,7 +16844,7 @@ inside @code{CODE(DISTINCT ..)}.
 
 @findex AVG()
 @item AVG(expr)
-Returns the average value of @code{expr}.
+Returns the average value of @code{expr}:
 
 @example
 mysql> select student_name, AVG(test_score)
@@ -16821,7 +16858,7 @@ mysql> select student_name, AVG(test_score)
 @itemx MAX(expr)
 Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
 @code{MAX()} may take a string argument; in such cases they return the
-minimum or maximum string value. @xref{MySQL indexes}.
+minimum or maximum string value. @xref{MySQL indexes}:
 
 @example
 mysql> select student_name, MIN(test_score), MAX(test_score)
@@ -16841,22 +16878,22 @@ it returns NULL!
 @item STD(expr)
 @itemx STDDEV(expr)
 Returns the standard deviation of @code{expr}. This is an extension to
-ANSI SQL.
-The @code{STDDEV()} form of this function is provided for Oracle compatability.
+ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle 
+compatability.
 
 @findex BIT_OR()
 @item BIT_OR(expr)
 Returns the bitwise @code{OR} of all bits in @code{expr}. The calculation is
-performed with 64-bit (@code{BIGINT} precision.
+performed with 64-bit (@code{BIGINT}) precision.
 
 @findex BIT_AND()
 @item BIT_AND(expr)
 Returns the bitwise @code{AND} of all bits in @code{expr}. The calculation is
-performed with 64-bit (@code{BIGINT} precision.
+performed with 64-bit (@code{BIGINT}) precision.
 @end table
 
 @strong{MySQL} has extended the use of @code{GROUP BY}. You can use columns or
-calculations in the @code{SELECT} expressions which don't appear in
+calculations in the @code{SELECT} expressions that don't appear in
 the @code{GROUP BY} part. This stands for @emph{any possible value for this
 group}.  You can use this to get better performance by avoiding sorting and
 grouping on unnecessary items.  For example, you don't need to group on
@@ -16891,8 +16928,8 @@ substr(MIN(concat(sort,space(6-length(sort)),column),7,length(column)))
 @cindex Aliases, in @code{GROUP BY} clauses
 @cindex Expressions, aliases for
 @cindex Aliases, for expressions
-Note that if you are using @strong{MySQL} 3.22 (or earlier) or if you
-are trying to follow ANSI SQL, you can't use expressions in @code{GROUP
+Note that if you are using @strong{MySQL} Version 3.22 (or earlier) or if 
+you are trying to follow ANSI SQL, you can't use expressions in @code{GROUP
 BY} or @code{ORDER BY} clauses.  You can work around this limitation by
 using an alias for the expression:
 
@@ -16901,7 +16938,7 @@ mysql> SELECT id,FLOOR(value/100) AS val FROM tbl_name
            GROUP BY id,val ORDER BY val;
 @end example
 
-In @strong{MySQL} 3.23 you can do:
+In @strong{MySQL} Version 3.23 you can do:
 
 @example
 mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
@@ -16909,7 +16946,7 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 
 @findex CREATE DATABASE
 @node CREATE DATABASE, DROP DATABASE, Functions, Reference
-@section @code{CREATE DATABASE} syntax
+@section @code{CREATE DATABASE} Syntax
 
 @example
 CREATE DATABASE [IF NOT EXISTS] db_name
@@ -16930,7 +16967,7 @@ You can also create databases with @code{mysqladmin}.
 
 @findex DROP DATABASE
 @node DROP DATABASE, CREATE TABLE, CREATE DATABASE, Reference
-@section @code{DROP DATABASE} syntax
+@section @code{DROP DATABASE} Syntax
 
 @example
 DROP DATABASE [IF EXISTS] db_name
@@ -16942,7 +16979,7 @@ database.  @strong{Be VERY careful with this command!}
 @code{DROP DATABASE} returns the number of files that were removed from
 the database directory.  Normally, this is three times the number of
 tables, because normally each table corresponds to a @file{.MYD} file, a
-@file{.MYI} file and a @file{.frm} file.
+@file{.MYI} file, and a @file{.frm} file.
 
 The @code{DROP DATABASE} command removes from the given database
 directory all files with the following extensions:
@@ -16953,19 +16990,19 @@ directory all files with the following extensions:
 @item .MYI @tab .db  @tab .frm
 @end multitable
 
-All sub directories that consists of 2 digits (@code{RAID} directories)
+All subdirectories that consists of 2 digits (@code{RAID} directories)
 are also removed.
 
-In @strong{MySQL} 3.22 or later, you can use the keywords @code{IF EXISTS} to
-prevent an error from occurring if the database doesn't exist.
+In @strong{MySQL} Version 3.22 or later, you can use the keywords 
+@code{IF EXISTS} to prevent an error from occurring if the database doesn't 
+exist.
 
 @cindex @code{mysqladmin}
-You can also drop databases with @code{mysqladmin}.
-@xref{Programs}.
+You can also drop databases with @code{mysqladmin}. @xref{Programs}.
 
 @findex CREATE TABLE
 @node CREATE TABLE, ALTER TABLE, DROP DATABASE, Reference
-@section @code{CREATE TABLE} syntax
+@section @code{CREATE TABLE} Syntax
 
 @menu
 * Silent column changes::       Silent column changes
@@ -17052,20 +17089,21 @@ creates a table with the given name in the current database.  Rules for
 allowable table names are given in @ref{Legal names}.  An error occurs if
 there is no current database or if the table already exists.
 
-In @strong{MySQL} 3.22 or later, the table name can be specified as
+In @strong{MySQL} Version 3.22 or later, the table name can be specified as
 @code{db_name.tbl_name}.  This works whether or not there is a current
 database.
 
-In @strong{MySQL} 3.23, you can use the @code{TEMPORARY} keyword when you
-create a table.  A temporary table will automatically be deleted if a
+In @strong{MySQL} Version 3.23, you can use the @code{TEMPORARY} keyword when 
+you create a table.  A temporary table will automatically be deleted if a
 connection dies and the name is per connection.  This means that two different
 connections can both use the same temporary table name without conflicting
 with each other or with an existing table of the same name. (The existing table
 is hidden until the temporary table is deleted).
 
-In @strong{MySQL} 3.23 or later, you can use the keywords @code{IF NOT EXISTS}
-so that an error does not occur if the table already exists.  Note that there
-is no verification that the table structures are identical.
+In @strong{MySQL} Version 3.23 or later, you can use the keywords 
+@code{IF NOT EXISTS} so that an error does not occur if the table already 
+exists.  Note that there is no verification that the table structures are 
+identical.
 
 Each table @code{tbl_name} is represented by some files in the database
 directory. In the case of MyISAM-type tables you will get:
@@ -17078,7 +17116,7 @@ directory. In the case of MyISAM-type tables you will get:
 @end multitable
 
 For more information on the properties of the various column types, see
-@ref{Column types}.
+@ref{Column types}:
 
 @itemize @bullet
 @item
@@ -17099,13 +17137,13 @@ table but not with a @code{MyISAM} table.  If you delete all rows in the
 table with @code{DELETE FROM table_name} (without a @code{WHERE}) in
 @code{AUTOCOMMIT} mode, the sequence starts over for both table types.
 
-@strong{Note:} There can be only one @code{AUTO_INCREMENT} column per
-table, and it must be indexed. @strong{MySQL} 3.23 will also only work
-properly if the auto_increment column only has positive
+@strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
+table, and it must be indexed. @strong{MySQL} Version 3.23 will also only 
+work properly if the auto_increment column only has positive
 values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
 numbers 'wrap' over from positive to negative and also to ensure that one
-doesn't accidently get a auto_increment column that contains 0.
+doesn't accidently get an auto_increment column that contains 0.
 
 @cindex ODBC compatibility
 @cindex Compatibility, with ODBC
@@ -17152,7 +17190,7 @@ default value is the next value in the sequence.
 
 @item
 For date and time types other than @code{TIMESTAMP}, the default is the
-appropriate ``zero'' value for the type.  For the first @code{TIMESTAMP}
+appropriate zero value for the type.  For the first @code{TIMESTAMP}
 column in a table, the default value is the current date and time.
 @xref{Date and time types}.
 
@@ -17187,7 +17225,7 @@ You must use the @code{PRIMARY KEY(index_col_name, ...)} syntax.
 @item
 If the @code{PRIMARY} or @code{UNIQUE} key consists of only one column and this
 is of type integer, you can also refer to it as @code{_rowid}
-(new in 3.23.11).
+(new in Version 3.23.11).
 
 @item
 If you don't assign a name to an index, the index will be assigned the same
@@ -17204,7 +17242,7 @@ Only the @code{MyISAM} table type supports indexes on columns that can have
 @code{NOT NULL} or an error results.
 
 @item
-With @code{col_name(length)} syntax, you can specify an index which
+With @code{col_name(length)} syntax, you can specify an index that
 uses only a part of a @code{CHAR} or @code{VARCHAR} column. This can
 make the index file much smaller.
 @xref{Indexes}.
@@ -17227,7 +17265,7 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 @xref{BLOB,  , @code{BLOB}}.
 
 @item
-In @strong{MySQL} 3.23.23 or later, you can also create special
+In @strong{MySQL} Version 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR} and @code{TEXT} columns.
@@ -17235,7 +17273,7 @@ Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
 @item
-The @code{FOREIGN KEY}, @code{CHECK} and @code{REFERENCES} clauses don't
+The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything.  The syntax for them is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
 that create tables with references.
@@ -17254,32 +17292,32 @@ row length = 1
              + (number of variable-length columns)
 @end example
 
-@item The @code{table_options} and @code{SELECT} options is only
-implemented in @strong{MySQL} 3.23 and above.
+@item The @code{table_options} and @code{SELECT} options are only
+implemented in @strong{MySQL} Version 3.23 and above.
 
 The different table types are:
 
 @multitable @columnfractions .20 .80
-@item BDB or Berkeley_db @tab Transaction safe tables @xref{BDB}.
+@item BDB or Berkeley_db @tab Transaction-safe tables @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
-@item MERGE @tab A collection of MyISAM tables used as one table @xref{MERGE}.
+@item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
 @item MyISAM @tab The new binary portable table handler. @xref{MyISAM}.
 @end multitable
 @xref{Table types}.
 
 The other table options are used to optimize the behavior of the
 table. In most cases, you don't have to specify any of them.
-The options work for all table types, if not otherwise indicated.
+The options work for all table types, if not otherwise indicated:
 
 @multitable @columnfractions .20 .80
-@item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM)
+@item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM).
 @item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for tables with variable size records.
-@item @code{CHECKSUM} @tab Set this to 1 if you want @strong{MySQL} to maintain a checksum for all rows (makes the table a little slower to update but makes it easier to find corrupted tables) (MyISAM)
-@item @code{COMMENT} @tab A 60 character comment for your table
-@item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table
-@item @code{MIN_ROWS} @tab Minimum number of rows you plan to store in the table
-@item @code{PACK_KEYS} @tab Set this to 1 if you want to have smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM).
+@item @code{CHECKSUM} @tab Set this to 1 if you want @strong{MySQL} to maintain a checksum for all rows (makes the table a little slower to update but makes it easier to find corrupted tables) (MyISAM).
+@item @code{COMMENT} @tab A 60-character comment for your table.
+@item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table.
+@item @code{MIN_ROWS} @tab Minimum number of rows you plan to store in the table.
+@item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM).
 @item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard @strong{MySQL} version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
 @item @code{ROW_FORMAT} @tab Defines how the rows should be stored (for the future).
@@ -17300,14 +17338,14 @@ many numbers that are the same.  Prefix compression means that every
 key needs one extra byte to indicate how many bytes of the previous key are
 the same for the next key (note that the pointer to the row is stored
 in high-byte-first-order directly after the key, to improve
-compression.  This means that if you have many equal keys on two rows
+compression.)  This means that if you have many equal keys on two rows
 in a row, all following 'same' keys will usually only take 2 bytes
 (including the pointer to the row).  Compare this to the ordinary case
 where the following keys will take storage_size_for_key +
 pointer_size (usually 4).  On the other hand, if all keys are
 totally different, you will lose 1 byte per key, if the key isn't a
 key that can have @code{NULL} values (In this case the packed key length will
-be stored in the same byte that is used to mark if a key is @code{NULL}).
+be stored in the same byte that is used to mark if a key is @code{NULL}.)
 
 @item
 If you specify a @code{SELECT} after the @code{CREATE STATEMENT},
@@ -17324,16 +17362,16 @@ This will create a @code{HEAP} table with 3 columns.  Note that the table will
 automatically be deleted if any errors occur while copying data
 into the table.
 @item
-The @code{RAID_TYPE} option will help you to break the 2G/4G limit on OSes
-that don't support big files. You can get also more speed from the I/O
-bottleneck by putting @code{RAID} directories on different physical disks.
-@code{RAID_TYPE} will work on any OS, as long as you have configured
-@strong{MySQL} with @code{--with-raid}.  For now the only allowed
+The @code{RAID_TYPE} option will help you to break the 2G/4G limit on
+Operating Systems that don't support big files. You can get also more speed 
+from the I/O bottleneck by putting @code{RAID} directories on different 
+physical disks. @code{RAID_TYPE} will work on any OS, as long as you have 
+configured @strong{MySQL} with @code{--with-raid}.  For now the only allowed
 @code{RAID_TYPE} is @code{STRIPED} (@code{1} and @code{RAID0} are aliases
 for this).
 
 If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
-@code{MyISAM} will create @code{RAID_CHUNKS} sub-directories named 00,
+@code{MyISAM} will create @code{RAID_CHUNKS} subdirectories named 00,
 01, 02 in the database directory.  In each of these directories
 @code{MyISAM} will create a @code{table_name.MYD}.  When writing data
 to the data file, the @code{RAID} handler will map the first
@@ -17343,18 +17381,18 @@ to the data file, the @code{RAID} handler will map the first
 @code{UNION} is used when you want to use a collection of identical
 tables as one. This only works with MERGE tables. @xref{MERGE}.
 
-For the moment you need to have @code{SELECT}, @code{UPDATE} and
+For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 All mapped tables must be in the same database as the @code{MERGE} table.
 @end itemize
 
 @cindex silent column changes
 @node Silent column changes,  , CREATE TABLE, CREATE TABLE
-@subsection Silent column specification changes
+@subsection Silent Column Specification Changes
 
 In some cases, @strong{MySQL} silently changes a column specification from
 that given in a @code{CREATE TABLE} statement.  (This may also occur with
-@code{ALTER TABLE}.)
+@code{ALTER TABLE}.):
 
 @itemize @bullet
 @item
@@ -17364,7 +17402,7 @@ that given in a @code{CREATE TABLE} statement.  (This may also occur with
 @item
 If any column in a table has a variable length, the entire row is
 variable-length as a result.  Therefore, if a table contains any
-variable-length columns (@code{VARCHAR}, @code{TEXT} or @code{BLOB}),
+variable-length columns (@code{VARCHAR}, @code{TEXT}, or @code{BLOB}),
 all @code{CHAR} columns longer than three characters are changed to
 @code{VARCHAR} columns.  This doesn't affect how you use the columns in
 any way; in @strong{MySQL}, @code{VARCHAR} is just a different way to
@@ -17400,7 +17438,7 @@ using @code{myisampack}. @xref{Compressed format}.
 
 @findex ALTER TABLE
 @node ALTER TABLE, RENAME TABLE, CREATE TABLE, Reference
-@section @code{ALTER TABLE} syntax
+@section @code{ALTER TABLE} Syntax
 
 @example
 ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...]
@@ -17441,12 +17479,12 @@ deleted and the new one is renamed. This is done in such a way that
 all updates are automatically redirected to the new table without
 any failed updates. While @code{ALTER TABLE} is executing, the original
 table is readable by other clients. Updates and writes to the table
-are stalled until the new table is ready.
+are stalled until the new table is ready:
 
 @itemize @bullet
 @item
 To use @code{ALTER TABLE}, you need @strong{select}, @strong{insert},
-@strong{delete}, @strong{update}, @strong{create} and @strong{drop}
+@strong{delete}, @strong{update}, @strong{create}, and @strong{drop}
 privileges on the table.
 
 @item
@@ -17458,13 +17496,13 @@ If @code{IGNORE} is specified, then for rows with duplicates on a unique
 key, only the first row is used; the others are deleted.
 
 @item
-You can issue multiple @code{ADD}, @code{ALTER}, @code{DROP} and
+You can issue multiple @code{ADD}, @code{ALTER}, @code{DROP}, and
 @code{CHANGE} clauses in a single @code{ALTER TABLE} statement. This is a
 @strong{MySQL} extension to ANSI SQL92, which allows only one of each clause
 per @code{ALTER TABLE} statement.
 
 @item
-@code{CHANGE col_name}, @code{DROP col_name} and @code{DROP
+@code{CHANGE col_name}, @code{DROP col_name}, and @code{DROP
 INDEX} are @strong{MySQL} extensions to ANSI SQL92.
 
 @item
@@ -17503,8 +17541,8 @@ example:
 mysql> ALTER TABLE t1 CHANGE b b BIGINT NOT NULL;
 @end example
 
-However, as of @strong{MySQL} 3.22.16a, you can also use @code{MODIFY} to
-change a column's type without renaming it:
+However, as of @strong{MySQL} Version 3.22.16a, you can also use @code{MODIFY}
+to change a column's type without renaming it:
 
 @example
 mysql> ALTER TABLE t1 MODIFY b BIGINT NOT NULL;
@@ -17521,9 +17559,9 @@ When you change a column type using @code{CHANGE} or @code{MODIFY},
 @strong{MySQL} tries to convert data to the new type as well as possible.
 
 @item
-In @strong{MySQL} 3.22 or later, you can use @code{FIRST} or @code{ADD ...
-AFTER col_name} to add a column at a specific position within a table row.
-The default is to add the column last.
+In @strong{MySQL} Version 3.22 or later, you can use @code{FIRST} or 
+@code{ADD ... AFTER col_name} to add a column at a specific position within
+a table row. The default is to add the column last.
 
 @findex ALTER COLUMN 
 @item
@@ -17567,7 +17605,7 @@ deleted due to duplication of unique key values.
 @item
 @cindex Foreign keys
 @cindex References
-The @code{FOREIGN KEY}, @code{CHECK} and @code{REFERENCES} clauses don't
+The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything.  The syntax for them is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
 that create tables with references.
@@ -17627,21 +17665,21 @@ indexed columns cannot be @code{NULL}.
 
 When you add an @code{AUTO_INCREMENT} column, column values are filled in
 with sequence numbers for you automatically.  You can set the first
-sequence number be executing @code{SET INSERT_ID=#} before
+sequence number by executing @code{SET INSERT_ID=#} before
 @code{ALTER TABLE} or using the @code{AUTO_INCREMENT = #} table option.
 @xref{SET OPTION}.
 
-See also @xref{ALTER TABLE problems, , @code{ALTER TABLE} problems}.
+@xref{ALTER TABLE problems}.
 
 @findex RENAME TABLE
 @node RENAME TABLE, DROP TABLE, ALTER TABLE, Reference
-@section @code{RENAME TABLE} syntax
+@section @code{RENAME TABLE} Syntax
 
 @example
 RENAME TABLE tbl_name TO new_table_name[, tbl_name2 TO new_table_name2,...]
 @end example
 
-The rename is done atomically, which means that if no other thread can
+The rename is done atomically, which means that no other thread can
 access any of the tables while the rename is running. This makes it
 possible to replace a table with an empty one:
 
@@ -17651,14 +17689,16 @@ RENAME TABLE old_table TO backup_table, new_table TO old_table;
 @end example
 
 The rename is done from left to right, which means that if you want to
-swap two tables names, you have to do:
+swap two tables names, you have to:
 
 @example
-RENAME TABLE old_table TO backup_table, new_table TO old_table, backup_table TO old_table;
+RENAME TABLE old_table    TO backup_table, 
+             new_table    TO old_table, 
+             backup_table TO old_table;
 @end example
 
-Is long as two databases are on the same disk you can also do a rename
-from a database to another:
+As long as two databases are on the same disk you can also rename
+from one database to another:
 
 @example
 RENAME TABLE current_database.table_name TO other_database.table_name;
@@ -17675,7 +17715,7 @@ to the original state.
 
 @findex DROP TABLE
 @node DROP TABLE, OPTIMIZE TABLE, RENAME TABLE, Reference
-@section @code{DROP TABLE} syntax
+@section @code{DROP TABLE} Syntax
 
 @example
 DROP TABLE [IF EXISTS] tbl_name [, tbl_name,...]
@@ -17684,12 +17724,13 @@ DROP TABLE [IF EXISTS] tbl_name [, tbl_name,...]
 @code{DROP TABLE} removes one or more tables. All table data and the table
 definition are @emph{removed}, so @strong{be careful} with this command!
 
-In @strong{MySQL} 3.22 or later, you can use the keywords @code{IF EXISTS} to
-prevent an error from occurring for tables that don't exist.
+In @strong{MySQL} Version 3.22 or later, you can use the keywords
+@code{IF EXISTS} to prevent an error from occurring for tables that don't
+exist.
 
 @findex OPTIMIZE TABLE
 @node OPTIMIZE TABLE, CHECK TABLE, DROP TABLE, Reference
-@section @code{OPTIMIZE TABLE} syntax
+@section @code{OPTIMIZE TABLE} Syntax
 
 @example
 OPTIMIZE TABLE tbl_name[,tbl_name]...
@@ -17697,7 +17738,7 @@ OPTIMIZE TABLE tbl_name[,tbl_name]...
 
 @code{OPTIMIZE TABLE} should be used if you have deleted a large part of a
 table or if you have made many changes to a table with variable-length rows
-(tables that have @code{VARCHAR}, @code{BLOB} or @code{TEXT} columns).
+(tables that have @code{VARCHAR}, @code{BLOB}, or @code{TEXT} columns).
 Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space.
@@ -17714,8 +17755,8 @@ If the table has deleted or split rows, repair the table.
 @item
 If the index pages are not sorted, sort them.
 @item
-If the statistics is not up to date (and the repair couldn't be done
-by sorting the index), update it.
+If the statistics are not up to date (and the repair couldn't be done
+by sorting the index), update them.
 @end itemize
 
 @code{OPTIMIZE TABLE} is equvialent of running
@@ -17727,7 +17768,7 @@ running!
 
 @findex CHECK TABLE
 @node CHECK TABLE, BACKUP TABLE, OPTIMIZE TABLE, Reference
-@section @code{CHECK TABLE} syntax
+@section @code{CHECK TABLE} Syntax
 
 @example
 CHECK TABLE tbl_name[,tbl_name...] [TYPE = [QUICK | FAST | EXTEND | CHANGED]]
@@ -17736,14 +17777,14 @@ CHECK TABLE tbl_name[,tbl_name...] [TYPE = [QUICK | FAST | EXTEND | CHANGED]]
 @code{CHECK TABLE} only works on @code{MyISAM} tables and is the same thing
 as running @code{myisamchk -m table_name} on the table.
 
-Check the table(s) for errors and updates the key statistics for the table.
+Check the table(s) for errors and update the key statistics for the table.
 The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
 @item @strong{Column} @tab @strong{Value}
-@item Table @tab Table name
-@item Op @tab Always ``check''
-@item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
+@item Table    @tab Table name.
+@item Op       @tab Always ``check''.
+@item Msg_type @tab One of @code{status}, @code{error}, @code{info}, or @code{warning}.
 @item Msg_text @tab The message.
 @end multitable
 
