@@ -82,8 +82,8 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
 bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
-	       bool read_file_from_client,thr_lock_type lock_type,
-	       bool ignore_check_option_errors)
+               bool ignore,
+	       bool read_file_from_client,thr_lock_type lock_type)
 {
   char name[FN_REFLEN];
   File file;
@@ -186,7 +186,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   /* We can't give an error in the middle when using LOCAL files */
   if (read_file_from_client && handle_duplicates == DUP_ERROR)
-    handle_duplicates=DUP_IGNORE;
+    ignore= 1;
 
 #ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
@@ -237,6 +237,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   COPY_INFO info;
   bzero((char*) &info,sizeof(info));
+  info.ignore= ignore;
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
@@ -258,6 +259,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.db = db;
     lf_info.table_name = table_list->real_name;
     lf_info.fields = &fields;
+    lf_info.ignore= ignore;
     lf_info.handle_dup = handle_duplicates;
     lf_info.wrote_create_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
@@ -288,7 +290,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     table->next_number_field=table->found_next_number_field;
-    if (handle_duplicates == DUP_IGNORE ||
+    if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     ha_enable_transaction(thd, FALSE); 
@@ -303,11 +305,11 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
     if (!field_term->length() && !enclosed->length())
       error= read_fixed_length(thd, info, table_list, fields,read_info,
-			       skip_lines, ignore_check_option_errors);
+			       skip_lines, ignore);
     else
       error= read_sep_field(thd, info, table_list, fields, read_info,
 			    *enclosed, skip_lines,
-			    ignore_check_option_errors);
+			    ignore);
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
     ha_enable_transaction(thd, TRUE);
@@ -485,9 +487,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           ER(ER_WARN_TOO_MANY_RECORDS), thd->row_count); 
     }
 
-    switch(table_list->view_check_option(thd,
-					 ignore_check_option_errors))
-    {
+    switch (table_list->view_check_option(thd,
+                                          ignore_check_option_errors)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -607,9 +608,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
-    switch(table_list->view_check_option(thd,
-					 ignore_check_option_errors))
-    {
+    switch (table_list->view_check_option(thd,
+                                          ignore_check_option_errors)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;

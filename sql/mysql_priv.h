@@ -613,6 +613,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        List<Key> &keys,
                        uint order_num, ORDER *order,
                        enum enum_duplicates handle_duplicates,
+                       bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok=1);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
@@ -631,11 +632,11 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
 		 uint order_num, ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates);
+		 enum enum_duplicates handle_duplicates, bool ignore);
 bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         List<Item> *fields, List<Item> *values,
                         COND *conds, ulong options,
-                        enum enum_duplicates handle_duplicates,
+                        enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
@@ -644,7 +645,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           COND **where, bool select_insert);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
-                  List<Item> &update_values, enum_duplicates flag);
+                  List<Item> &update_values, enum_duplicates flag,
+                  bool ignore);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
@@ -882,8 +884,7 @@ bool eval_const_cond(COND *cond);
 /* sql_load.cc */
 bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields, enum enum_duplicates handle_duplicates,
-	        bool local_file, thr_lock_type lock_type,
-	        bool ignore_check_option_errors);
+                bool ignore, bool local_file, thr_lock_type lock_type);
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */

@@ -6,9 +6,9 @@
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
 drop view if exists v1;
---error 0,1141
+--error 0,1141,1147
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
---error 0,1141
+--error 0,1141,1147
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
