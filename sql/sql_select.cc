@@ -1845,8 +1845,7 @@ Cursor::fetch(ulong num_rows)
     error= 0;
 
 #ifdef USING_TRANSACTIONS
-    if (thd->transaction.all.innobase_tid)
-      ha_release_temporary_latches(thd);
+    ha_release_temporary_latches(thd);
 #endif
 
   thd->restore_backup_item_arena(this, &thd->stmt_backup);

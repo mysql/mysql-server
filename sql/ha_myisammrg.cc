@@ -190,7 +190,7 @@ int ha_myisammrg::rnd_next(byte *buf)
 int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 {
   statistic_increment(current_thd->status_var.ha_read_rnd_count,&LOCK_status);
-  int error=myrg_rrnd(file, buf, ha_get_ptr(pos,ref_length));
+  int error=myrg_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -198,7 +198,7 @@ int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 void ha_myisammrg::position(const byte *record)
 {
   ulonglong position= myrg_position(file);
-  ha_store_ptr(ref, ref_length, (my_off_t) position);
+  my_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
 

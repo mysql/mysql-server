@@ -674,21 +674,43 @@ extern pthread_t shutdown_th, main_th, signal_th;
 
 #ifndef thread_safe_increment
 #ifdef HAVE_ATOMIC_ADD
-#define thread_safe_increment(V,L) atomic_add(1,(atomic_t*) &V);
+#define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V);
+#define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V);
+#define thread_safe_dec_and_test(V, L) atomic_dec_and_test((atomic_t*) &V);
 #define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V);
 #define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V);
 #else
 #define thread_safe_increment(V,L) \
-	pthread_mutex_lock((L)); (V)++; pthread_mutex_unlock((L));
-#define thread_safe_add(V,C,L) \
-	pthread_mutex_lock((L)); (V)+=(C); pthread_mutex_unlock((L));
+        (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
+#define thread_safe_decrement(V,L) \
+        (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
+#define thread_safe_add(V,C,L) (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
-	pthread_mutex_lock((L)); (V)-=(C); pthread_mutex_unlock((L));
+        (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
+#if defined (__GNUC__) || defined (__cplusplus)
+static inline bool thread_safe_dec_and_test(ulong V, pthread_mutex_t *L)
+{
+  ulong res;
+  pthread_mutex_lock(L);
+  res=V--;
+  pthread_mutex_unlock(L);
+  return res==0;
+}
+#else
+/*
+  what should we do ? define it as static ?
+  a regular function somewhere in mysys/  ?
+  for now it's only used in c++ code, so there's no need to bother
+*/
+#warning "No thread_safe_dec_and_test() for this architecture"
+#endif
 #endif /* HAVE_ATOMIC_ADD */
 #ifdef SAFE_STATISTICS
 #define statistic_increment(V,L)   thread_safe_increment((V),(L))
+#define statistic_decrement(V,L)   thread_safe_decrement((V),(L))
 #define statistic_add(V,C,L)       thread_safe_add((V),(C),(L))
 #else
+#define statistic_decrement(V,L) (V)--
 #define statistic_increment(V,L) (V)++
 #define statistic_add(V,C,L)     (V)+=(C)
 #endif /* SAFE_STATISTICS */

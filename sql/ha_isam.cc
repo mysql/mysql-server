@@ -172,7 +172,7 @@ int ha_isam::rnd_pos(byte * buf, byte *pos)
 {
   statistic_increment(current_thd->status_var.ha_read_rnd_count,
 		      &LOCK_status);
-  int error=nisam_rrnd(file, buf, (ulong) ha_get_ptr(pos,ref_length));
+  int error=nisam_rrnd(file, buf, (ulong) my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;
 }
@@ -182,7 +182,7 @@ void ha_isam::position(const byte *record)
   my_off_t position=nisam_position(file);
   if (position == (my_off_t) ~ (ulong) 0)
     position=HA_OFFSET_ERROR;
-  ha_store_ptr(ref, ref_length, position);
+  my_store_ptr(ref, ref_length, position);
 }
 
 void ha_isam::info(uint flag)
@@ -227,7 +227,7 @@ void ha_isam::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     errkey  = info.errkey;
-    ha_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
+    my_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
   }
   if (flag & HA_STATUS_TIME)
     update_time = info.update_time;

@@ -464,7 +464,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	error=file->rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
-	  ha_store_ptr(ref_pos,ref_length,record); // Position to row
+	  my_store_ptr(ref_pos,ref_length,record); // Position to row
 	  record+=sort_form->db_record_offset;
 	}
 	else
