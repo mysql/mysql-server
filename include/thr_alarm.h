@@ -60,9 +60,10 @@ typedef my_bool ALARM;
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) ((*(A)=1)-1)
 /* The following should maybe be (*(A)) */
-#define thr_got_alarm(A) 0 
+#define thr_got_alarm(A) 0
 #define init_thr_alarm(A)
 #define thr_alarm_kill(A)
+#define resize_thr_alarm(N)
 #define end_thr_alarm()
 
 #else
