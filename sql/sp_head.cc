@@ -714,6 +714,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
   Item *freelist;
+  SELECT_LEX *sl;
   int res;
 
   olex= thd->lex;		// Save the other lex
@@ -726,7 +727,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 
   // Copy WHERE clause pointers to avoid damaging by optimisation
   // Also clear ref_pointer_arrays.
-  for (SELECT_LEX *sl= lex->all_selects_list ;
+  for (sl= lex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
@@ -772,7 +773,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
     close_thread_tables(thd);			/* Free tables */
   }
 
-  for (SELECT_LEX *sl= lex->all_selects_list ;
+  for (sl= lex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
