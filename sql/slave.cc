@@ -469,7 +469,7 @@ int init_master_info(MASTER_INFO* mi)
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
   const char *msg;
-  fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+  fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
 
   // we need a mutex while we are changing master info parameters to
   // keep other threads from reading bogus info
