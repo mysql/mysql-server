@@ -24,7 +24,8 @@ BEGIN
 use Digest::MD5;
 use Getopt::Long;
 
-my $VER= "1.2";
+my $VER= "1.3";
+my $EXIT= 0;
 
 #
 # Strip the leading path info off the program name ($0). We want 'my_md5sum'
@@ -78,6 +79,9 @@ if ($opt_check)
 		# Print an error message if they don't match, else print OK
 		print "$checkfile: FAILED\n" if $digest ne $checksum;
 		print "$checkfile: OK\n" if $digest eq $checksum;
+
+                # Set the exit() status to non-zero if FAILED
+                $EXIT= 1 if $digest ne $checksum;
 	}
 }
 # Else generate the MD5 digest to STDOUT
@@ -90,6 +94,8 @@ else
 		print "$digest  $file\n";
 	}
 }
+
+exit($EXIT);
 
 
 #
