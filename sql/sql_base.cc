@@ -2174,8 +2174,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 
 int setup_ftfuncs(THD *thd)
 {
-  List_iterator<Item_func_match> li(thd->lex.ftfunc_list),
-                                 lj(thd->lex.ftfunc_list);
+  List_iterator<Item_func_match> li(thd->lex.select_lex.ftfunc_list),
+                                 lj(thd->lex.select_lex.ftfunc_list);
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
@@ -2195,7 +2195,7 @@ int setup_ftfuncs(THD *thd)
 
 int init_ftfuncs(THD *thd, bool no_order)
 {
-  List_iterator<Item_func_match> li(thd->lex.ftfunc_list);
+  List_iterator<Item_func_match> li(thd->lex.select_lex.ftfunc_list);
   Item_func_match *ifm;
   DBUG_PRINT("info",("Performing FULLTEXT search"));
   thd->proc_info="FULLTEXT initialization";
