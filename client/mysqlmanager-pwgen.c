@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,12 +135,12 @@ int main(int argc, char** argv)
   uchar digest[16];
   char pw[17];
   uint i;
-  
+
   MY_INIT(argv[0]);
   parse_args(argc,argv);
   if (!outfile)
     die("Missing --output-file");
-  
+
   if (!(fp=fopen(outfile,"w")))
     die("Could not open '%s'(errno=%d)",outfile,errno);
   get_pass(pw,sizeof(pw)-1);

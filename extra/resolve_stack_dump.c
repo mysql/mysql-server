@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Resolve numeric stack dump produced by mysqld 3.23.30 and later
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
@@ -162,7 +161,7 @@ static void open_files()
 {
   fp_out = stdout;
   fp_dump = stdin;
-  
+
   if(dump_fname && !(fp_dump = my_fopen(dump_fname, O_RDONLY, MYF(MY_WME))))
       die("Could not open %s", dump_fname);
   /* if name not given, assume stdin*/
@@ -172,7 +171,7 @@ static void open_files()
 trace dump and specify the path to it with -s or --symbols-file");
   if(!(fp_sym = my_fopen(sym_fname, O_RDONLY, MYF(MY_WME))))
     die("Could not open %s", sym_fname);
-    
+
 }
 
 static uchar hex_val(char c)
@@ -191,10 +190,10 @@ static my_long_addr_t read_addr(char** buf)
   uchar c;
   char* p = *buf;
   my_long_addr_t addr = 0;
-  
+
   while((c = hex_val(*p++)) != HEX_INVALID)
       addr = (addr << 4) + c;
-  
+
   *buf = p; 
   return addr;
 }
@@ -208,7 +207,7 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
     return -1;
   while(isspace(*buf++))
     /* empty */;
-  
+
   while(isspace(*buf++))
     /* empty - skip more space */;
   --buf;
@@ -255,7 +254,7 @@ static void verify_sort()
 {
   uint i;
   uchar* last = 0;
-  
+
   for(i = 0; i < sym_table.elements; i++)
     {
       SYM_ENTRY se;
@@ -273,7 +272,7 @@ static SYM_ENTRY* resolve_addr(uchar* addr, SYM_ENTRY* se)
   get_dynamic(&sym_table, (gptr)se, 0);
   if(addr < se->addr)
     return 0;
-  
+
   for(i = 1; i < sym_table.elements; i++)
     {
       get_dynamic(&sym_table, (gptr)se, i);
@@ -296,7 +295,7 @@ static void do_resolve()
       while(isspace(*p))
 	++p;
 	/* skip space */;
-      
+
       if(*p++ == '0' && *p++ == 'x')
 	{
 	  SYM_ENTRY se ;
@@ -306,7 +305,7 @@ static void do_resolve()
 		    (int) (addr - se.addr));
 	  else
 	    fprintf(fp_out, "%p (?)\n", addr);
-	    
+
 	}
       else
 	{
@@ -326,4 +325,3 @@ int main(int argc, char** argv)
   clean_up();
   return 0;
 }
-     

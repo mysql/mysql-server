@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This is the main include file that should included 'first' in every
    C file. */
@@ -646,14 +645,14 @@ typedef off_t os_off_t;
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
-#define SOCKET_EINTR	WSAEINTR 
+#define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
 #define SOCKET_EWOULDBLOCK WSAEINPROGRESS
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #elif defined(OS2)
 #define socket_errno	sock_errno()
-#define SOCKET_EINTR	SOCEINTR 
+#define SOCKET_EINTR	SOCEINTR
 #define SOCKET_EAGAIN	SOCEINPROGRESS
 #define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
 #define SOCKET_ENFILE	SOCENFILE
@@ -765,7 +764,7 @@ typedef union {
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
-#endif /* __i386__ */ 
+#endif /* __i386__ */
 
 #ifndef sint2korr
 #define sint2korr(A)	(int16) (((int16) ((uchar) (A)[0])) +\

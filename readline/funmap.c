@@ -187,7 +187,7 @@ rl_add_funmap_entry (const char *name, Function *function)
       funmap_size += 64;
       funmap = (FUNMAP **)xrealloc (funmap, funmap_size * sizeof (FUNMAP *));
     }
-  
+
   funmap[funmap_entry] = (FUNMAP *)xmalloc (sizeof (FUNMAP));
   funmap[funmap_entry]->name = name;
   funmap[funmap_entry]->function = function;

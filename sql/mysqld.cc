@@ -277,7 +277,7 @@ volatile ulong cached_thread_count=0;
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info", master_ssl_key=0, master_ssl_cert=0;
 my_string report_user = 0, report_password = 0, report_host=0;
- 
+
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
@@ -307,7 +307,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
-  
+
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
@@ -606,7 +606,7 @@ void kill_mysql(void)
 #ifdef SIGNALS_DONT_BREAK_READ
   close_server_sock(); /* force accept to wake up */
 #endif  
-  
+
 #if defined(__WIN__)
   {
     if (!SetEvent(hEventShutdown))
@@ -1230,7 +1230,7 @@ static sig_handler handle_segfault(int sig)
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
     exit(1);
   }
-  
+
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
@@ -1253,7 +1253,7 @@ key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
 			     sortbuff_size) * max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-  
+
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
@@ -1819,7 +1819,7 @@ int main(int argc, char **argv)
   reset_floating_point_exceptions();
   init_thr_lock();
   init_slave_list();
-  
+
   /* Setup log files */
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
@@ -2097,7 +2097,7 @@ The server will not act as a slave.");
   /* Wait until cleanup is done */
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("Got thread_count mutex for clean up wait"));
-  
+
   while (!ready_to_exit)
   {
     DBUG_PRINT("quit", ("not yet ready to exit"));
@@ -2297,7 +2297,7 @@ static void create_new_thread(THD *thd)
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	DBUG_VOID_RETURN;
       }
-      
+
       (void) pthread_mutex_unlock(&LOCK_thread_count);
     }
   }
@@ -3222,7 +3222,7 @@ static void use_help(void)
 {
   print_version();
   printf("Use '--help' or '--no-defaults --help' for a list of available options\n");
-}  
+}
 
 static void usage(void)
 {
