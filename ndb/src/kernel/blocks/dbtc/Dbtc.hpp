@@ -139,6 +139,7 @@
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 #define ZINCONSISTENTHASHINDEX 892
+#define ZNOTUNIQUE 893
 #endif
 
 class Dbtc: public SimulatedBlock {
