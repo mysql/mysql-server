@@ -20439,7 +20439,7 @@ The maximum size of one packet. The message buffer is initialized to
 bytes when needed.  This value by default is small, to catch big (possibly
 wrong) packets.  You must increase this value if you are using big
 @code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
-to use.
+to use.  The current protocol limits @code{max_allowed_packet} to 16M.
 
 @item @code{max_binlog_cache_size}.  If a multi-statement transaction
 requires more than this amount of memory, one will get the error
@@ -39680,6 +39680,9 @@ For making @code{mysqlaccess} more secure.
 @item Konark IA-64 Centre of Persistent Systems Private Limited
 @uref{http://www.pspl.co.in/konark/}.  Help with the Win64 port of the
 @strong{MySQL} server.
+@item Albert Chin-A-Young.
+Configure updates for Tru64, large file support and better TCP wrappers
+support.
 @item Valueclick Inc.
 For sponsoring the optimize section in this manual.
 @end table
@@ -39799,6 +39802,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+Configure updates for Tru64, large file support and better TCP wrappers
+support. By Albert Chin-A-Young.
 @item
 Fixed bug in <=> operator.
 @item

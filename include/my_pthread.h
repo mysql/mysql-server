@@ -393,8 +393,8 @@ struct hostent *my_gethostbyname_r(const char *name,
 
 #else
 #ifdef HAVE_GETHOSTBYNAME_R_WITH_HOSTENT_DATA
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(hostent_data)
-#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(hostent_data*) (C))
+#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
+#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(struct hostent_data*) (C))
 #else
 #define GETHOSTBYNAME_BUFF_SIZE 2048
 #define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
