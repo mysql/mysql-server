@@ -278,8 +278,17 @@ void print_arrays()
 
   for (i=0;i<size;i++)
   {
-    ulong order = tab_index_function ((i < how_long_symbols) ? symbols[i].name : sql_functions[i - how_long_symbols].name,function_plus,function_type);
+    const char *name= ((i < how_long_symbols) ?
+		       symbols[i].name :
+		       sql_functions[i - how_long_symbols].name);
+    ulong order = tab_index_function(name,function_plus,function_type);
     order %= function_mod;
+    /* This should never be true */
+    if (prva[order] != max_symbol)
+    {
+      fprintf(stderr,"Error: Got duplicate value for symbol '%s'\n",name);
+      exit(1);
+    }
     prva [order] = i;
   }
 
@@ -330,11 +339,11 @@ static struct option long_options[] =
 
 static void usage(int version)
 {
-  printf("%s  Ver 3.2 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 3.3 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB, by Sinisa and Monty");
+  puts("Copyright (C) 2001 MySQL AB, by Sinisa and Monty");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("This program generates a perfect hashing function for the sql_lex.cc");
   printf("Usage: %s [OPTIONS]\n", my_progname);
@@ -521,7 +530,7 @@ int main(int argc,char **argv)
   function_mod=best_mod; function_plus=best_add;
   make_char_table(best_t1,best_t2,best_type);
 
-  printf("/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
+  printf("/* Copyright (C) 2001 MySQL AB\n\
    This program is free software; you can redistribute it and/or modify\n\
    it under the terms of the GNU General Public License as published by\n\
    the Free Software Foundation; either version 2 of the License, or\n\

@@ -65,7 +65,7 @@ mysqld_SOURCES =	sql_lex.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			convert.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-			sql_update.cc sql_delete.cc \
+			sql_update.cc sql_delete.cc sql_do.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc \
