@@ -626,6 +626,16 @@ public:
   }
 };
 
+class Item_null_helper :public Item_ref_null_helper
+{
+  Item *store;
+public:
+  Item_null_helper(Item_in_subselect* master, Item *item,
+		   const char *table_name_par, const char *field_name_par)
+    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+     store(item)
+    {}
+};
 
 /*
   Used to find item in list of select items after '*' items processing.
@@ -652,32 +662,6 @@ public:
     Item_ref_null_helper(master, 0, table_name, field_name),
     select_lex(sl), pos(num) {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
-  To resolve '*' field moved to condition
-  and register NULL values
-*/
-class Item_asterisk_remover :public Item_ref_null_helper
-{
-  Item *item;
-public:
-  Item_asterisk_remover(Item_in_subselect *master, Item *it,
-			char *table, char *field):
-    Item_ref_null_helper(master, &item, table, field),
-    item(it) 
-  {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-  Item **storage() {return &item;}
-  void print(String *str)
-  {
-    str->append("ref_null_helper('");
-    if (item)
-      item->print(str);
-    else
-      str->append('?');
-    str->append(')');
-  }
 };
 
 /*

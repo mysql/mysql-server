@@ -722,59 +722,6 @@ bool Item::fix_fields(THD *thd,
   return 0;
 }
 
-bool Item_asterisk_remover::fix_fields(THD *thd,
-				       struct st_table_list *list,
-				       Item ** ref)
-{
-  DBUG_ENTER("Item_asterisk_remover::fix_fields");
-  
-  bool res= 1;
-  if (item)
-    if (item->type() == Item::FIELD_ITEM &&
-	((Item_field*) item)->field_name[0] == '*')
-    {
-      Item_field *fitem=  (Item_field*) item;
-      if (list)
-	if (!list->next || fitem->db_name || fitem->table_name)
-	{
-	  TABLE_LIST *table= find_table_in_list(list,
-						fitem->db_name,
-						fitem->table_name);
-	  if (table)
-	  {
-	    TABLE * tb= table->table;
-	    if (find_table_in_list(table->next, fitem->db_name,
-				   fitem->table_name) != 0 ||
-		tb->fields == 1)
-	    {
-	      if ((item= new Item_field(tb->field[0])))
-	      {
-		res= 0;
-		tb->field[0]->query_id= thd->query_id;
-		tb->used_keys&= tb->field[0]->part_of_key;
-		tb->used_fields= tb->fields;
-	      }
-	      else
-		thd->fatal_error(); // can't create Item => out of memory
-	    }
-	    else
-	      my_error(ER_CARDINALITY_COL, MYF(0), 1);
-	  }
-	  else
-	    my_error(ER_BAD_TABLE_ERROR, MYF(0), fitem->table_name);
-	}
-	else
-	  my_error(ER_CARDINALITY_COL, MYF(0), 1);
-      else
-	my_error(ER_NO_TABLES_USED, MYF(0));
-    }   
-    else
-      res= item->fix_fields(thd, list, &item);
-  else
-    thd->fatal_error(); // no item given => out of memory
-  DBUG_RETURN(res);
-}
-
 bool Item_ref_on_list_position::fix_fields(THD *thd,
 					   struct st_table_list *tables,
 					   Item ** reference)
