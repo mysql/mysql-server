@@ -322,11 +322,11 @@ public:
   {
     return (my_errno=HA_ERR_WRONG_COMMAND);
   }
-  virtual int handler::read_range_first(const key_range *start_key,
+  virtual int read_range_first(const key_range *start_key,
 					const key_range *end_key,
 					bool sorted);
-  virtual int handler::read_range_next(bool eq_range);
-  int handler::compare_key(key_range *range);
+  virtual int read_range_next(bool eq_range);
+  int compare_key(key_range *range);
   virtual int ft_init()
     { return -1; }
   virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
