@@ -327,8 +327,12 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
     {
       rli->inc_group_relay_log_pos(get_event_len(),log_pos);
       flush_relay_log_info(rli);
-      /* if this is a fake rotate, don't record the timestamp */
-      rli->last_master_timestamp= (when) ? when : 0;
+      /* 
+         Note that Rotate_log_event::exec_event() does not call this function,
+         so there is no chance that a fake rotate event resets
+         last_master_timestamp.
+      */
+      rli->last_master_timestamp= when;
     }
   }
   return 0;
