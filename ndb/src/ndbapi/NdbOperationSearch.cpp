@@ -38,7 +38,9 @@ Adjust:  971022  UABMNST   First version.
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
+#include <signaldata/KeyInfo.hpp>
 #include "NdbDictionaryImpl.hpp"
+#include <md5_hash.hpp>
 
 /******************************************************************************
 CondIdType equal(const char* anAttrName, char* aValue, Uint32 aVarKeylen);
@@ -60,8 +62,8 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
-  Uint32 xfrmData[1024];
-  Uint32 tempData[1024];
+  Uint64 xfrmData[512];
+  Uint64 tempData[512];
 
   if ((theStatus == OperationDefined) &&
       (aValue != NULL) &&
@@ -76,6 +78,8 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
  *****************************************************************************/
     tAttrId = tAttrInfo->m_attrId;
     tKeyInfoPosition = tAttrInfo->m_keyInfoPos;
+    bool tDistrKey = tAttrInfo->m_distributionKey;
+
     Uint32 i = 0;
     if (tAttrInfo->m_pk) {
       Uint32 tKeyDefined = theTupleKeyDefined[0][2];
@@ -119,23 +123,25 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
     {
-      /***************************************************************************
-       *	Check if the pointer of the value passed is aligned on a 4 byte 
-       *      boundary. If so only assign the pointer to the internal variable 
-       *      aValue. If it is not aligned then we start by copying the value to 
-       *      tempData and use this as aValue instead.
-       *****************************************************************************/
+      /************************************************************************
+       * Check if the pointer of the value passed is aligned on a 4 byte 
+       * boundary. If so only assign the pointer to the internal variable 
+       * aValue. If it is not aligned then we start by copying the value to 
+       * tempData and use this as aValue instead.
+       ***********************************************************************/
       const int attributeSize = sizeInBytes;
       const int slack = sizeInBytes & 3;
-      
-      if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
-	tempData[attributeSize >> 2] = 0;
+      const int align = UintPtr(aValue) & 7;
+
+      if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
+      {
+	((Uint32*)tempData)[attributeSize >> 2] = 0;
 	memcpy(&tempData[0], aValue, attributeSize);
 	aValue = (char*)&tempData[0];
       }//if
     }
     const char* aValueToWrite = aValue;
-
+    
     CHARSET_INFO* cs = tAttrInfo->m_cs;
     if (cs != 0) {
       // current limitation: strxfrm does not increase length
@@ -185,18 +191,12 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     }//if
 #endif
 
-    int tDistrKey = tAttrInfo->m_distributionKey;
     OperationType tOpType = theOperationType;
-    if ((tDistrKey != 1)) {
-      ;
-    } else {
-      //set_distribution_key(aValue, totalSizeInWords);
-    }
-    /******************************************************************************
+    /**************************************************************************
      *	If the operation is an insert request and the attribute is stored then
      *      we also set the value in the stored part through putting the 
      *      information in the ATTRINFO signals.
-     *****************************************************************************/
+     *************************************************************************/
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
       // invalid data can crash kernel
@@ -213,25 +213,23 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       insertATTRINFOloop((Uint32*)aValueToWrite, sz);
     }//if
     
-    /***************************************************************************
+    /**************************************************************************
      *	Store the Key information in the TCKEYREQ and KEYINFO signals. 
-     **************************************************************************/
+     *************************************************************************/
     if (insertKEYINFO(aValue, tKeyInfoPosition, totalSizeInWords) != -1) {
-      /*************************************************************************
+      /************************************************************************
        * Add one to number of tuple key attributes defined. 
        * If all have been defined then set the operation state to indicate 
        * that tuple key is defined. 
        * Thereby no more search conditions are allowed in this version.
-       ************************************************************************/
-      Uint32 tNoKeysDef = theNoOfTupKeyDefined;
+       ***********************************************************************/
+      Uint32 tNoKeysDef = theNoOfTupKeyLeft - 1;
       Uint32 tErrorLine = theErrorLine;
-      int tNoTableKeys = m_accessTable->m_noOfKeys;
       unsigned char tInterpretInd = theInterpretIndicator;
-      tNoKeysDef++;
-      theNoOfTupKeyDefined = tNoKeysDef;
+      theNoOfTupKeyLeft = tNoKeysDef;
       tErrorLine++;
       theErrorLine = tErrorLine;
-      if (int(tNoKeysDef) == tNoTableKeys) {
+      if (tNoKeysDef == 0) {
 	if (tOpType == UpdateRequest) {
 	  if (tInterpretInd == 1) {
 	    theStatus = GetValue;
@@ -262,12 +260,19 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	  return -1;
 	}//if
       }//if
-      return 0;
+      if (!tDistrKey)
+      {
+	return 0;
+      } 
+      else 
+      {
+	return handle_distribution_key((Uint64*)aValue, totalSizeInWords);
+      }
     } else {
       return -1;
     }//if
   }
-
+  
   if (aValue == NULL) {
     // NULL value in primary key
     setErrorCodeAbort(4505);
@@ -412,10 +417,11 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4001);
       return -1;
     }
-    if (theFirstKEYINFO != NULL)
+    if (theTCREQ->next() != NULL)
        theLastKEYINFO->next(tSignal);
     else
-       theFirstKEYINFO = tSignal;
+      theTCREQ->next(tSignal);
+
     theLastKEYINFO = tSignal;
     theLastKEYINFO->next(NULL);
     theTotalNrOfKeyWordInSignal += 20;
@@ -428,7 +434,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
  *	this is the first word in a KEYINFO signal.			     *
  *****************************************************************************/
   tPosition = aStartPosition;
-  tCurrentKEYINFO = theFirstKEYINFO;
+  tCurrentKEYINFO = theTCREQ->next();
  
 /*****************************************************************************
  *	Start by filling up Key information in the 8 words allocated in the  *
@@ -487,14 +493,14 @@ LastWordLabel:
 int
 NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
 {
-  assert(m_accessTable != 0 && m_accessTable->m_sizeOfKeysInWords != 0);
-  assert(m_accessTable->m_sizeOfKeysInWords == size);
+  assert(m_accessTable != 0 && m_accessTable->m_keyLenInWords != 0);
+  assert(m_accessTable->m_keyLenInWords == size);
   unsigned pos = 0;
   while (pos < 8 && pos < size) {
     data[pos] = theKEYINFOptr[pos];
     pos++;
   }
-  NdbApiSignal* tSignal = theFirstKEYINFO;
+  NdbApiSignal* tSignal = theTCREQ->next();
   unsigned n = 0;
   while (pos < size) {
     if (n == 20) {
@@ -504,4 +510,112 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
     data[pos++] = tSignal->getDataPtrSend()[3 + n++];
   }
   return 0;
+}
+
+int
+NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
+{
+  if(theNoOfTupKeyLeft > 0)
+  {
+    return 0;
+  }
+  
+  if(m_accessTable->m_noOfDistributionKeys == 1)
+  {
+    setPartitionHash(value, len);
+  }
+  else 
+  {
+    /**
+     * Copy distribution key to linear memory
+     */
+    NdbColumnImpl* const * cols = m_accessTable->m_columns.getBase();
+    Uint32 len = 0;
+    Uint64 tmp[1000];
+
+    Uint32 chunk = 8;
+    Uint32* dst = (Uint32*)tmp;
+    NdbApiSignal* tSignal = theTCREQ;
+    Uint32* src = ((TcKeyReq*)tSignal->getDataPtrSend())->keyInfo;
+    if(tSignal->readSignalNumber() == GSN_SCAN_TABREQ)
+    {
+      tSignal = tSignal->next();
+      src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
+    }
+
+    for(unsigned i = m_accessTable->m_columns.size(); i>0; cols++, i--)
+    {
+      if (!(* cols)->getPrimaryKey())
+	continue;
+      
+      NdbColumnImpl* tAttrInfo = * cols;
+      Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+      Uint32 currLen = (sizeInBytes + 3) >> 2;
+      if (tAttrInfo->getDistributionKey())
+      {
+	while (currLen >= chunk)
+	{
+	  memcpy(dst, src, 4*chunk);
+	  dst += chunk;
+	  tSignal = tSignal->next();
+	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
+	  currLen -= chunk;
+	  chunk = KeyInfo::DataLength;
+	}
+
+	memcpy(dst, src, 4*currLen);
+	dst += currLen;
+	src += currLen;
+	chunk -= currLen;
+      }
+      else
+      {
+	while (currLen >= chunk)
+	{
+	  tSignal = tSignal->next();
+	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
+	  currLen -= chunk;
+	  chunk = KeyInfo::DataLength;
+	}
+	
+	src += currLen;
+	chunk -= currLen;
+      }
+    }
+    setPartitionHash(tmp, (Uint32*)tmp - dst);
+  }
+  return 0;
+}
+
+void
+NdbOperation::setPartitionHash(Uint32 value)
+{
+  union {
+    Uint32 tmp32;
+    Uint64 tmp64;
+  };
+
+  tmp32 = value;
+  setPartitionHash(&tmp64, 1);
+}
+
+void
+NdbOperation::setPartitionHash(const Uint64* value, Uint32 len)
+{
+  Uint32 buf[4];
+  md5_hash(buf, value, len);
+  setPartitionId(buf[1]);
+}
+
+void
+NdbOperation::setPartitionId(Uint32 value)
+{
+  theDistributionKey = value;
+  theDistrKeyIndicator_ = 1;
+}
+
+Uint32
+NdbOperation::getPartitionId() const 
+{
+  return theDistributionKey;
 }
