@@ -646,26 +646,29 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt)
 static int mysql_test_insert_fields(Prepared_statement *stmt,
                                     TABLE_LIST *table_list,
                                     List<Item> &fields, 
-                                    List<List_item> &values_list)
+                                    List<List_item> &values_list,
+				    List<Item> &update_fields,
+				    List<Item> &update_values,
+				    enum_duplicates duplic)
 {
   THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
   TABLE *table;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
+  TABLE_LIST *insert_table_list=
+    (TABLE_LIST*) lex->select_lex.table_list.first;
 
   DBUG_ENTER("mysql_test_insert_fields");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  my_bool update=(stmt->lex->value_list.elements ? UPDATE_ACL : 0);
-  ulong privilege= (stmt->lex->duplicates == DUP_REPLACE ?
-                    INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
-  if (check_access(thd,privilege,table_list->db,
-                   &table_list->grant.privilege,0,0) || 
-      (grant_option && check_grant(thd,privilege,table_list,0,0)))
-    DBUG_RETURN(1); 
+  ulong privilege= (lex->duplicates == DUP_REPLACE ?
+		    INSERT_ACL | DELETE_ACL : INSERT_ACL);
+  if (check_one_table_access(thd, privilege, table_list, 0))
+    DBUG_RETURN(1);
 #endif
 
-  /* 
+  /*
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
@@ -683,12 +686,19 @@ static int mysql_test_insert_fields(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
     
-    if (check_insert_fields(thd,table,fields,*values,1))
+    if (check_insert_fields(thd, table, fields, *values, 1) ||
+	setup_tables(insert_table_list) ||
+	setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
+	(duplic == DUP_UPDATE &&
+	 (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
+	  setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+      goto error;
+    if (find_real_table_in_list(table_list->next, 
+				table_list->db, table_list->real_name))
     {
-      thd->free_temporary_memory_pool_for_ps_preparing();
-      DBUG_RETURN(-1);
+      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+      goto error;
     }
-    thd->free_temporary_memory_pool_for_ps_preparing();
 
     value_count= values->elements;
     its.rewind();
@@ -701,15 +711,20 @@ static int mysql_test_insert_fields(Prepared_statement *stmt,
         my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 			ER(ER_WRONG_VALUE_COUNT_ON_ROW),
 			MYF(0), counter);
-        DBUG_RETURN(-1);
+        goto error;
       }
+      if (setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0))
+	goto error;
     }
   }
-  else
-  {
-    thd->free_temporary_memory_pool_for_ps_preparing();
-  }
+  lex->unit.cleanup();
+  thd->free_temporary_memory_pool_for_ps_preparing();
   DBUG_RETURN(0);
+
+error:
+  lex->unit.cleanup();
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(-1);
 }
 
 
@@ -728,19 +743,26 @@ static int mysql_test_insert_fields(Prepared_statement *stmt,
 static int mysql_test_upd_fields(Prepared_statement *stmt,
                                  TABLE_LIST *table_list,
                                  List<Item> &fields, List<Item> &values,
-                                 COND *conds)
+                                 COND *conds, ulong privelege)
 {
   THD *thd= stmt->thd;
+  SELECT_LEX *select_lex= &stmt->lex->select_lex;
+  TABLE_LIST *upd_table_list=
+    (TABLE_LIST*) select_lex->table_list.first;
+  List<Item> all_fields;
+  uint order_num= select_lex->order_list.elements;
+  ORDER *order= (ORDER *) select_lex->order_list.first;
 
   DBUG_ENTER("mysql_test_upd_fields");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_access(thd,UPDATE_ACL,table_list->db,
-                   &table_list->grant.privilege,0,0) || 
-      (grant_option && check_grant(thd,UPDATE_ACL,table_list,0,0)))
+  if (check_one_table_access(thd, privelege, table_list, 0))
     DBUG_RETURN(1);
+  // Set privilege for the WHERE clause
+  table_list->grant.want_privilege= (SELECT_ACL &
+				     ~table_list->grant.privilege);
 #endif
 
-  /* 
+  /*
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
@@ -748,11 +770,19 @@ static int mysql_test_upd_fields(Prepared_statement *stmt,
 
   if (open_and_lock_tables(thd, table_list))
     goto err;
-  if (setup_tables(table_list) ||
-      setup_fields(thd, 0, table_list, fields, 1, 0, 0) ||
-      setup_conds(thd, table_list, &conds) || thd->net.report_error)
+  if (setup_tables(upd_table_list) ||
+      setup_conds(thd, upd_table_list, &conds) ||
+      thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+      setup_fields(thd, 0, upd_table_list, fields, 1, 0, 0) ||
+      setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+		  upd_table_list, all_fields, all_fields, order) ||
+      thd->net.report_error)
+  {
+    stmt->lex->unit.cleanup();
     goto err;
+  }
 
+  stmt->lex->unit.cleanup();
   thd->free_temporary_memory_pool_for_ps_preparing();
 
   /* TODO: here we should send types of placeholders to the client. */
@@ -782,16 +812,12 @@ err:
 
 static int mysql_test_select_fields(Prepared_statement *stmt,
                                     TABLE_LIST *tables,
-                                    uint wild_num,
-                                    List<Item> &fields, COND *conds, 
-                                    uint og_num, ORDER *order, ORDER *group,
-                                    Item *having, ORDER *proc,
-                                    ulong select_options, 
-                                    SELECT_LEX_UNIT *unit,
-                                    SELECT_LEX *select_lex)
+                                    List<Item> &fields)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
+  SELECT_LEX_UNIT *unit= &lex->unit;
+  
 
   DBUG_ENTER("mysql_test_select_fields");
 
@@ -805,11 +831,8 @@ static int mysql_test_select_fields(Prepared_statement *stmt,
   else if (check_access(thd, privilege, any_db,0,0,0))
     DBUG_RETURN(1);
 #endif
-  if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables)))
-   DBUG_RETURN(1);
 
-  /* 
+  /*
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
@@ -825,18 +848,11 @@ static int mysql_test_select_fields(Prepared_statement *stmt,
     if (send_prep_stmt(stmt, 0))
       goto err;
   }
-  else 
+  else
   {
-    select_result *result= lex->result;
-    if (!result && !(result= new select_send()))
-    {
-      send_error(thd, ER_OUT_OF_RESOURCES);
-      goto err;
-    }
-
     thd->used_tables= 0;                        // Updated by setup_fields
 
-    if (unit->prepare(thd, result, 0))
+    if (unit->prepare(thd, 0, 0))
     {
       send_error(thd);
       goto err_prep;
@@ -864,6 +880,277 @@ err:
 
 
 /*
+  Validate and prepare for execution DO statement expressions
+
+  SYNOPSIS
+    mysql_test_do_fields()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+    values	list of expressions
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+
+static int mysql_test_do_fields(Prepared_statement *stmt,
+				TABLE_LIST *tables,
+				List<Item> *values)
+{
+  DBUG_ENTER("mysql_test_do_fields");
+  THD *thd= stmt->thd;
+  int res= 0;
+  if (tables && (res= check_table_access(thd, SELECT_ACL, tables, 0)))
+    DBUG_RETURN(res);
+  /*
+    open temporary memory pool for temporary data allocated by derived
+    tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
+  if (tables && (res= open_and_lock_tables(thd, tables)))
+  {
+    thd->free_temporary_memory_pool_for_ps_preparing();
+    DBUG_RETURN(res);
+  }
+  res= setup_fields(thd, 0, 0, *values, 0, 0, 0);
+  stmt->lex->unit.cleanup();
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  if (res)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Validate and prepare for execution SET statement expressions
+
+  SYNOPSIS
+    mysql_test_set_fields()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+    values	list of expressions
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+static int mysql_test_set_fields(Prepared_statement *stmt,
+				TABLE_LIST *tables,
+				List<set_var_base> *var_list)
+{
+  DBUG_ENTER("mysql_test_set_fields");
+  List_iterator_fast<set_var_base> it(*var_list);
+  THD *thd= stmt->thd;
+  set_var_base *var;
+  int res= 0;
+
+  if (tables && (res= check_table_access(thd, SELECT_ACL, tables, 0)))
+    DBUG_RETURN(res);
+  /*
+    open temporary memory pool for temporary data allocated by derived
+    tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
+  if (tables && (res= open_and_lock_tables(thd, tables)))
+    goto error;
+  while ((var= it++))
+  {
+    if (var->light_check(thd))
+    {
+      stmt->lex->unit.cleanup();
+      res= -1;
+      goto error;
+    }
+  }
+  stmt->lex->unit.cleanup();
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(0);
+
+error:
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(res);
+}
+
+
+/*
+  Check internal SELECT of the prepared command
+
+  SYNOPSIS
+    select_like_statement_test()
+      stmt	- prepared table handler
+      tables	- global list of tables
+
+  RETURN
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client    
+*/
+static int select_like_statement_test(Prepared_statement *stmt,
+				      TABLE_LIST *tables)
+{
+  DBUG_ENTER("select_like_statement_test");
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  int res= 0;
+  /*
+    open temporary memory pool for temporary data allocated by derived
+    tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
+  if (tables && (res= open_and_lock_tables(thd, tables)))
+    goto end;
+
+  thd->used_tables= 0;                        // Updated by setup_fields
+
+  if (lex->unit.prepare(thd, 0, 0))
+  {
+    res= thd->net.report_error ? -1 : 1;
+  }
+end:
+  lex->unit.cleanup();
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(res);
+}
+
+
+/*
+  Validate and prepare for execution CRETE TABLE statement
+
+  SYNOPSIS
+    mysql_test_create_table()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+static int mysql_test_create_table(Prepared_statement *stmt,
+				   TABLE_LIST *tables)
+{
+  DBUG_ENTER("mysql_test_create_table");
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  int res= 0;
+  
+  ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+		    CREATE_TMP_ACL : CREATE_ACL);
+  if (check_one_table_access(thd, want_priv, tables, 0) ||
+      check_merge_table_access(thd, tables->db,
+			       (TABLE_LIST *)
+			       lex->create_info.merge_list.first))
+    DBUG_RETURN(1);
+
+  /* Skip first table, which is the table we are creating */
+  TABLE_LIST *create_table, *create_table_local;
+  tables= lex->unlink_first_table(tables, &create_table,
+				    &create_table_local);
+
+  if (grant_option && want_priv != CREATE_TMP_ACL &&
+	check_grant(thd, want_priv, create_table,0,0))
+  {
+    res= 1;
+    goto end;
+  }
+
+  if (tables)
+    res= select_like_statement_test(stmt, tables);
+
+end:
+  // put tables back for PS rexecuting
+  tables= lex->link_first_table_back(tables, create_table,
+				     create_table_local);
+  DBUG_RETURN(res);
+}
+
+/*
+  Validate and prepare for execution multy update statement
+
+  SYNOPSIS
+    mysql_test_multiupdate()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+static int mysql_test_multiupdate(Prepared_statement *stmt,
+				  TABLE_LIST *tables)
+{
+  int res;
+  if ((res= multi_update_precheck(stmt->thd, tables)))
+    return res;
+  return select_like_statement_test(stmt, tables);
+}
+
+
+/*
+  Validate and prepare for execution multy delete statement
+
+  SYNOPSIS
+    mysql_test_multidelete()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+static int mysql_test_multidelete(Prepared_statement *stmt,
+				  TABLE_LIST *tables)
+{
+  int res;
+  stmt->thd->lex->current_select= &stmt->thd->lex->select_lex;
+  if (add_item_to_list(stmt->thd, new Item_null()))
+    return -1;
+
+  uint fake_counter= 0;
+  if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
+    return res;
+  return select_like_statement_test(stmt, tables);
+}
+
+
+/*
+  Validate and prepare for execution INSERT ... SELECT statement
+
+  SYNOPSIS
+    mysql_test_insert_select()
+    stmt	prepared statemen handler
+    tables	list of tables queries
+
+  RETURN VALUE
+    0   success
+    1   error, sent to client
+   -1   error, not sent to client
+*/
+static int mysql_test_insert_select(Prepared_statement *stmt,
+				    TABLE_LIST *tables)
+{
+  int res;
+  LEX *lex= stmt->lex;
+  if ((res= insert_select_precheck(stmt->thd, tables)))
+    return res;
+  TABLE_LIST *first_local_table=
+    (TABLE_LIST *)lex->select_lex.table_list.first;
+  /* Skip first table, which is the table we are inserting in */
+  lex->select_lex.table_list.first= (gptr) first_local_table->next;
+  lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
+  res= select_like_statement_test(stmt, tables);
+  /* revert changes*/
+  lex->select_lex.table_list.first= (gptr) first_local_table;
+  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+  return res;
+}
+
+
+/*
   Send the prepare query results back to client
   SYNOPSIS
   send_prepare_results()
@@ -872,25 +1159,33 @@ err:
     0   success
     1   error, sent to client
 */
-                     
 static int send_prepare_results(Prepared_statement *stmt)
 {   
+  DBUG_ENTER("send_prepare_results");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
   enum enum_sql_command sql_command= lex->sql_command;
   int res;
-
-  DBUG_ENTER("send_prepare_results");
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
+
+  if (&lex->select_lex != lex->all_selects_list &&
+      lex->unit.create_total_list(thd, lex, &tables))
+    DBUG_RETURN(1);
+
   
   switch (sql_command) {
 
+  case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
-    if ((res= mysql_test_insert_fields(stmt, tables, lex->field_list,
-                                       lex->many_values)))
+    if ((res=
+	 mysql_test_insert_fields(stmt, tables, lex->field_list,
+				  lex->many_values,
+				  select_lex->item_list, lex->value_list,
+				  (lex->value_list.elements ?
+				   DUP_UPDATE : lex->duplicates))))
       goto error;
     break;
 
@@ -898,32 +1193,75 @@ static int send_prepare_results(Prepared_statement *stmt)
     /* XXX: fallthrough */
   case SQLCOM_DELETE:
     if ((res= mysql_test_upd_fields(stmt, tables, select_lex->item_list,
-                                    lex->value_list, select_lex->where)))
+                                    lex->value_list, select_lex->where,
+				    ((sql_command == SQLCOM_DELETE)?
+				     DELETE_ACL : UPDATE_ACL))))
       goto error;
     break;
 
   case SQLCOM_SELECT:
-    if ((res= mysql_test_select_fields(stmt, tables, select_lex->with_wild,
-                                       select_lex->item_list,
-                                       select_lex->where,
-                                       select_lex->order_list.elements +
-                                       select_lex->group_list.elements,
-                                       (ORDER*) select_lex->order_list.first,
-                                       (ORDER*) select_lex->group_list.first, 
-                                       select_lex->having,
-                                       (ORDER*)lex->proc_list.first,
-                                       select_lex->options | thd->options,
-                                       &(lex->unit), select_lex)))
+    if ((res= mysql_test_select_fields(stmt, tables, select_lex->item_list)))
       goto error;
     /* Statement and field info has already been sent */
     DBUG_RETURN(0);
 
-  default:
-    /* 
-      Rest fall through to default category, no parsing 
-      for non-DML statements 
-    */
+  case SQLCOM_CREATE_TABLE:
+    if ((res= mysql_test_create_table(stmt, tables)))
+      goto error;
     break;
+  
+  case SQLCOM_DO:
+    if ((res= mysql_test_do_fields(stmt, tables, lex->insert_list)))
+      goto error;
+     break;
+
+  case SQLCOM_SET_OPTION:
+    if ((res= mysql_test_set_fields(stmt, tables, &lex->var_list)))
+      goto error;
+    break;
+
+  case SQLCOM_DELETE_MULTI:
+    if ((res= mysql_test_multidelete(stmt, tables)))
+      goto error;
+    break;
+  
+  case SQLCOM_UPDATE_MULTI:
+    if ((res= mysql_test_multiupdate(stmt, tables)))
+      goto error;
+    break;
+
+  case SQLCOM_INSERT_SELECT:
+    if ((res= mysql_test_insert_select(stmt, tables)))
+      goto error;
+    break;
+
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_PROCESSLIST:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
+  case SQLCOM_SHOW_PRIVILEGES:
+  case SQLCOM_SHOW_COLUMN_TYPES:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_LOGS:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_CREATE_DB:
+  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_DROP_TABLE:
+  case SQLCOM_RENAME_TABLE:
+    break;
+
+  default:
+    /*
+      All other is not supported yet
+    */
+    res= -1;
+    my_error(ER_UNSUPPORTED_PS, MYF(0));
+    goto error;
   }
   DBUG_RETURN(send_prep_stmt(stmt, 0));
 
@@ -1177,6 +1515,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   */
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   mysql_execute_command(thd);
+  thd->lex->unit.cleanup();
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))

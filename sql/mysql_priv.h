@@ -347,6 +347,13 @@ void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
+int check_one_table_access(THD *thd, ulong privilege,
+			   TABLE_LIST *tables, bool no_errors);
+bool check_merge_table_access(THD *thd, char *db,
+			      TABLE_LIST *table_list);
+int multi_update_precheck(THD *thd, TABLE_LIST *tables);
+int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
+int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 #include "sql_class.h"
 #include "opt_range.h"
 
