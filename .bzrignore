@@ -141,13 +141,19 @@ bdb/test/logtrack.list
 bdb/txn/txn_auto.c
 binary/*
 client/insert_test
+client/log_event.cc
+client/log_event.h
+client/mf_iocache.c
+client/mf_iocache.cc
 client/mysql
 client/mysqladmin
+client/mysqlbinlog
 client/mysqlcheck
 client/mysqldump
 client/mysqlimport
 client/mysqlshow
 client/mysqltest
+client/mysys_priv.h
 client/select_test
 client/thimble
 client/thread_test
@@ -214,6 +220,7 @@ mysql-test/mysql-test-run
 mysql-test/r/*.reject
 mysql-test/share/mysql
 mysql-test/var/*
+mysql.kdevprj
 mysql.proj
 mysqld.S
 mysqld.sym
