@@ -3109,7 +3109,7 @@ static
 void
 dict_print_info_on_foreign_keys_in_create_format(
 /*=============================================*/
-	char*		buf,	/* in: auxiliary buffer of 10000 chars */
+	char*		buf,	/* in: auxiliary buffer */
 	char*		str,	/* in/out: pointer to a string */
 	ulint		len,	/* in: space in str available for info */
 	dict_table_t*	table)	/* in: table */
@@ -3135,6 +3135,9 @@ dict_print_info_on_foreign_keys_in_create_format(
 		buf2 += sprintf(buf2, ",\n  FOREIGN KEY (");
 
 		for (i = 0; i < foreign->n_fields; i++) {
+		        if ((ulint)(buf2 - buf) >= len) {
+		                goto no_space;
+		        }
 			buf2 += sprintf(buf2, "`%s`",
 					foreign->foreign_col_names[i]);
 			
@@ -3157,6 +3160,9 @@ dict_print_info_on_foreign_keys_in_create_format(
 		}
 	
 		for (i = 0; i < foreign->n_fields; i++) {
+		        if ((ulint)(buf2 - buf) >= len) {
+		                goto no_space;
+		        }
 			buf2 += sprintf(buf2, "`%s`",
 					foreign->referenced_col_names[i]);
 			if (i + 1 < foreign->n_fields) {
@@ -3176,7 +3182,7 @@ dict_print_info_on_foreign_keys_in_create_format(
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
-
+no_space:
 	mutex_exit(&(dict_sys->mutex));
 
 	buf[len - 1] = '\0';
@@ -3200,15 +3206,16 @@ dict_print_info_on_foreign_keys(
 	dict_foreign_t*	foreign;
 	ulint		i;
 	char*		buf2;
-	char		buf[10000];
+	char*		buf;
+
+	buf = mem_alloc(len + 5000);
 
 	if (create_table_format) {
 		dict_print_info_on_foreign_keys_in_create_format(
 						buf, str, len, table);
+		mem_free(buf);
 		return;
 	}
-
-	buf2 = buf;
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -3217,13 +3224,21 @@ dict_print_info_on_foreign_keys(
 	if (foreign == NULL) {
 		mutex_exit(&(dict_sys->mutex));
 
+		mem_free(buf);
 		return;
 	}
 
+	buf2 = buf;
+
 	while (foreign != NULL) {
+
 		buf2 += sprintf(buf2, "; (");
 
 		for (i = 0; i < foreign->n_fields; i++) {
+		        if ((ulint)(buf2 - buf) >= len) {
+		                goto no_space;
+		        }
+
 			buf2 += sprintf(buf2, "%s",
 					foreign->foreign_col_names[i]);
 			
@@ -3236,6 +3251,9 @@ dict_print_info_on_foreign_keys(
 					foreign->referenced_table_name);
 	
 		for (i = 0; i < foreign->n_fields; i++) {
+		        if ((ulint)(buf2 - buf) >= len) {
+		                goto no_space;
+		        }
 			buf2 += sprintf(buf2, "%s",
 					foreign->referenced_col_names[i]);
 			if (i + 1 < foreign->n_fields) {
@@ -3255,9 +3273,11 @@ dict_print_info_on_foreign_keys(
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
-
+no_space:
 	mutex_exit(&(dict_sys->mutex));
 
 	buf[len - 1] = '\0';
 	ut_memcpy(str, buf, len);
+
+	mem_free(buf);
 }
