@@ -228,9 +228,9 @@ trx_rollback_to_savepoint_for_mysql(
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: transaction has a savepoint %s though it is not started\n",
-							      savep->name);
+		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
+		ut_print_name(stderr, savep->name);
+		fputs(" though it is not started\n", stderr);
 	        return(DB_ERROR);
 	}
 
@@ -301,8 +301,7 @@ trx_savepoint_for_mysql(
 
 	savep = mem_alloc(sizeof(trx_named_savept_t));
 
-	savep->name = mem_alloc(1 + ut_strlen(savepoint_name));
-	ut_memcpy(savep->name, savepoint_name, 1 + ut_strlen(savepoint_name));
+	savep->name = mem_strdup(savepoint_name);
 
 	savep->savept = trx_savept_take(trx);
 
@@ -467,10 +466,11 @@ loop:
 		table = dict_table_get_on_id_low(trx->table_id, trx);
 
 		if (table) {		
-			fprintf(stderr,
-"InnoDB: Table found: dropping table %s in recovery\n", table->name);
+			fputs("InnoDB: Table found: dropping table ", stderr);
+			ut_print_name(stderr, table->name);
+			fputs(" in recovery\n", stderr);
 
-			err = row_drop_table_for_mysql(table->name, trx);
+			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 
 			ut_a(err == (int) DB_SUCCESS);
 		}
@@ -730,7 +730,7 @@ trx_roll_pop_top_rec(
 						undo->top_page_no, mtr);
 	offset = undo->top_offset;
 
-/*	printf("Thread %lu undoing trx %lu undo record %lu\n",
+/*	fprintf(stderr, "Thread %lu undoing trx %lu undo record %lu\n",
 		os_thread_get_curr_id(), ut_dulint_get_low(trx->id),
 		ut_dulint_get_low(undo->top_undo_no)); */
 
@@ -1140,10 +1140,12 @@ trx_finish_rollback_off_kernel(
 		return;
 	}
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {			
-		printf("Trx %lu rollback finished\n",
+		fprintf(stderr, "Trx %lu rollback finished\n",
 						(ulong) ut_dulint_get_low(trx->id));
 	}
+#endif /* UNIV_DEBUG */
 
 	trx_commit_off_kernel(trx);
 

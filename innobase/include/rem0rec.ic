@@ -190,7 +190,7 @@ rec_set_bit_field_2(
 			   + (REC_N_OWNED_MASK << (8 * (REC_N_OWNED - 3)))
 			  + (REC_INFO_BITS_MASK << (8 * (REC_INFO_BITS - 3))));
 	if (m != ut_dbg_zero + 0xFFFFFFFFUL) {
-		printf("Sum of masks %lx\n", m);
+		fprintf(stderr, "Sum of masks %lx\n", m);
 		ut_error;
 	}
       }

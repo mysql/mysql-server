@@ -88,7 +88,13 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   keylen-=HA_FT_WLEN;
   doc_cnt=0;
 
-  r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root);
+  /* Skip rows inserted by current inserted */
+  for (r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
+       !r && info->lastpos >= info->state->data_file_length ;
+       r= _mi_search_next(info, keyinfo, info->lastkey,
+                          info->lastkey_length, SEARCH_BIGGER, key_root))
+    ;
+
   info->update|= HA_STATE_AKTIV;              /* for _mi_test_if_changed() */
 
   while (!r && gweight)
@@ -151,6 +157,11 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     else
 	r=_mi_search(info, keyinfo, info->lastkey, info->lastkey_length,
                      SEARCH_BIGGER, key_root);
+
+    while (!r && info->lastpos >= info->state->data_file_length)
+      r= _mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
+                         SEARCH_BIGGER, key_root);
+
   }
   word->weight=gweight;
 

@@ -221,6 +221,13 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     r=_mi_search(info, ftbw->keyinfo, (uchar*) ftbw->word+ftbw->off,
                    USE_WHOLE_KEY, SEARCH_BIGGER, ftbw->key_root);
   }
+
+  /* Skip rows inserted by concurrent insert */
+  while (!r && info->lastpos >= info->state->data_file_length)
+    r= _mi_search_next(info, ftbw->keyinfo, info->lastkey,
+                       info->lastkey_length,
+		       SEARCH_BIGGER, ftbw->key_root);
+
   if (!r && !ftbw->off)
   {
     r= mi_compare_text(ftb->charset,
@@ -267,8 +274,10 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     subkeys=ft_sintXkorr(info->lastkey+off);
     if (subkeys<0)
     {
-      /* yep, going down, to the second-level tree */
-      /* TODO here: subkey-based optimization */
+      /*
+	yep, going down, to the second-level tree
+	TODO here: subkey-based optimization
+      */
       ftbw->off=off;
       ftbw->key_root=info->lastpos;
       ftbw->keyinfo=& info->s->ft2_keyinfo;
