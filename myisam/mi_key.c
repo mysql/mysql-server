@@ -42,7 +42,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   byte *pos,*end;
   uchar *start;
   reg1 HA_KEYSEG *keyseg;
-  my_bool is_unique=info->s->keyinfo[keynr].flag & HA_NOSAME;
+  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_make_key");
 
   if(info->s->keyinfo[keynr].flag & HA_SPATIAL)
@@ -75,7 +75,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       *key++=1;					/* Not NULL */
     }
 
-    char_length= (is_unique && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
+    char_length= (!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
 
     pos= (byte*) record+keyseg->start;
     if (keyseg->flag & HA_SPACE_PACK)
@@ -193,7 +193,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 {
   uchar *start_key=key;
   HA_KEYSEG *keyseg;
-  my_bool is_unique=info->s->keyinfo[keynr].flag & HA_NOSAME;
+  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_pack_key");
 
   for (keyseg=info->s->keyinfo[keynr].seg ;
@@ -217,7 +217,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 	continue;					/* Found NULL */
       }
     }
-    char_length= (is_unique && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
+    char_length= (!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
     pos=old;
     if (keyseg->flag & HA_SPACE_PACK)
     {

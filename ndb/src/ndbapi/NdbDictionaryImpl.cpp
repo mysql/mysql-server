@@ -492,6 +492,12 @@ NdbIndexImpl::getTable() const
   return m_tableName.c_str();
 }
 
+const NdbTableImpl *
+NdbIndexImpl::getIndexTable() const
+{
+  return m_table;
+}
+
 /**
  * NdbEventImpl
  */
