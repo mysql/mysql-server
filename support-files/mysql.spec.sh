@@ -221,7 +221,7 @@ BuildMySQL "--disable-shared \
 			$USE_OTHER_LIBC_DIR \
 			--with-berkeley-db \
 			--with-innodb \
-			--with-ssl \
+			--with-openssl \
 			--with-vio \
 			--with-server-suffix='-Max'"
 
@@ -256,7 +256,7 @@ BuildMySQL "--disable-shared \
   	 $USE_OTHER_LIBC_DIR \
 	   --without-berkeley-db \
 		 --without-vio \
-		 --without-ssl"
+		 --without-openssl"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
