@@ -882,7 +882,7 @@ TransporterRegistry::performReceive(){
 static int x = 0;
 void
 TransporterRegistry::performSend(){
-    
+    int i; 
     sendCounter = 1;
     
 #ifdef NDB_OSE_TRANSPORTER
@@ -906,7 +906,7 @@ TransporterRegistry::performSend(){
         FD_ZERO(&writeset);
         
         // Prepare for sending and receiving
-        for (int i = 0; i < nTCPTransporters; i++) {
+        for (i = 0; i < nTCPTransporters; i++) {
             TCP_Transporter * t = theTCPTransporters[i];
             
             // If the transporter is connected
@@ -931,7 +931,7 @@ TransporterRegistry::performSend(){
         if (tmp == 0) {
             return;
         }//if
-        for (int i = 0; i < nTCPTransporters; i++) {
+        for (i = 0; i < nTCPTransporters; i++) {
             TCP_Transporter *t = theTCPTransporters[i];
             const NodeId nodeId = t->getRemoteNodeId();
             const int socket    = t->getSocket();
@@ -944,7 +944,7 @@ TransporterRegistry::performSend(){
     }
 #endif
 #ifdef NDB_TCP_TRANSPORTER
-    for (int i = x; i < nTCPTransporters; i++) {
+    for (i = x; i < nTCPTransporters; i++) {
         TCP_Transporter *t = theTCPTransporters[i];
         if (t &&
             (t->hasDataToSend()) &&
@@ -953,7 +953,7 @@ TransporterRegistry::performSend(){
             t->doSend();
         }//if
     }//for
-    for (int i = 0; i < x && i < nTCPTransporters; i++) {
+    for (i = 0; i < x && i < nTCPTransporters; i++) {
         TCP_Transporter *t = theTCPTransporters[i];
         if (t &&
             (t->hasDataToSend()) &&
@@ -969,7 +969,7 @@ TransporterRegistry::performSend(){
 #ifdef NDB_SCI_TRANSPORTER
     //scroll through the SCI transporters, 
     // get each transporter, check if connected, send data
-    for (int i=0; i<nSCITransporters; i++) {
+    for (i=0; i<nSCITransporters; i++) {
       SCI_Transporter  *t = theSCITransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
       

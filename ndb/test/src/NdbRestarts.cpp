@@ -625,9 +625,9 @@ int restartNFDuringNR(NdbRestarter& _restarter,
 			   const NdbRestarts::NdbRestart* _restart){
 
   myRandom48Init(NdbTick_CurrentMillisecond());
-
+  int i;
   const int sz = sizeof(NFDuringNR_codes)/sizeof(NFDuringNR_codes[0]);
-  for(int i = 0; i<sz; i++){
+  for(i = 0; i<sz; i++){
     int randomId = myRandom48(_restarter.getNumDbNodes());
     int nodeId = _restarter.getDbNodeId(randomId);
     int error = NFDuringNR_codes[i];
@@ -673,7 +673,7 @@ int restartNFDuringNR(NdbRestarter& _restarter,
   if(NdbEnv_GetEnv("USER", buf, 256) == 0 || strcmp(buf, "ejonore") != 0)
     return NDBT_OK;
   
-  for(int i = 0; i<sz; i++){
+  for(i = 0; i<sz; i++){
     const int randomId = myRandom48(_restarter.getNumDbNodes());
     int nodeId = _restarter.getDbNodeId(randomId);
     const int error = NFDuringNR_codes[i];
@@ -753,14 +753,14 @@ NRDuringLCP_NonMaster_codes[] = {
 
 int restartNodeDuringLCP(NdbRestarter& _restarter, 
 			 const NdbRestarts::NdbRestart* _restart) {
-
+  int i;
   // Master
   int val = DumpStateOrd::DihMinTimeBetweenLCP;
   CHECK(_restarter.dumpStateAllNodes(&val, 1) == 0,
 	"Failed to set LCP to min value"); // Set LCP to min val
   int sz = sizeof(NRDuringLCP_Master_codes)/
            sizeof(NRDuringLCP_Master_codes[0]);
-  for(int i = 0; i<sz; i++) {
+  for(i = 0; i<sz; i++) {
 
     int error = NRDuringLCP_Master_codes[i];
     int masterNodeId = _restarter.getMasterNodeId();
@@ -798,7 +798,7 @@ int restartNodeDuringLCP(NdbRestarter& _restarter,
   // NON-Master
   sz = sizeof(NRDuringLCP_NonMaster_codes)/
        sizeof(NRDuringLCP_NonMaster_codes[0]);
-  for(int i = 0; i<sz; i++) {
+  for(i = 0; i<sz; i++) {
 
     int error = NRDuringLCP_NonMaster_codes[i];
     int nodeId = getRandomNodeId(_restarter);
