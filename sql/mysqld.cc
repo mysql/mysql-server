@@ -220,6 +220,9 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
 	    opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
+#ifdef __NT__
+static bool opt_enable_named_pipe = 0;
+#endif
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
      opt_safe_user_create=0;
 FILE *bootstrap_file=0;
@@ -469,7 +472,7 @@ static void close_connections(void)
     }
   }
 #ifdef __NT__
-if ( hPipe != INVALID_HANDLE_VALUE )
+if ( hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe )
 {
   HANDLE temp;
   DBUG_PRINT( "quit", ("Closing named pipes") );
@@ -923,7 +926,8 @@ static void server_init(void)
 
 #ifdef __NT__
   /* create named pipe */
-  if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap)
+  if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap
+	  && opt_enable_named_pipe)
   {
     sprintf( szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
     ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
@@ -2000,9 +2004,11 @@ The server will not act as a slave.");
   fflush(stdout);
 
 #ifdef __NT__
-  if (hPipe == INVALID_HANDLE_VALUE && !have_tcpip)
+  if ((hPipe == INVALID_HANDLE_VALUE && !have_tcpip ) ||
+	  (hPipe == INVALID_HANDLE_VALUE && opt_disable_networking) )
   {
-    sql_print_error("TCP/IP or Named Pipes should be installed on NT OS");
+    sql_print_error("TCP/IP or enable-named-pipe should be configured on NT OS");
+	unireg_abort(1);
   }
   else
   {
@@ -2011,7 +2017,7 @@ The server will not act as a slave.");
     {
       pthread_t hThread;
       handler_count=0;
-      if ( hPipe != INVALID_HANDLE_VALUE )
+      if ( hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe )
       {
 	handler_count++;
 	if (pthread_create(&hThread,&connection_attrib,
@@ -2628,6 +2634,9 @@ enum options {
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
 	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
 	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
+#ifdef __NT__
+		   OPT_HAVE_NAMED_PIPE,
+#endif
 	       OPT_SLAVE_SKIP_ERRORS, OPT_LOCAL_INFILE
 };
 
@@ -2757,6 +2766,9 @@ static struct option long_options[] = {
   {"skip-host-cache",       no_argument,       0, (int) OPT_SKIP_HOST_CACHE},
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
   {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
+#ifdef __NT__
+  {"enable-named-pipe",     no_argument,       0, (int) OPT_HAVE_NAMED_PIPE},
+#endif
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
   {"skip-safemalloc",	    no_argument,       0, (int) OPT_SKIP_SAFEMALLOC},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
@@ -3047,6 +3059,9 @@ struct show_var_st init_vars[]= {
   {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
+#ifdef __NT__
+  {"enable_named_pipe",       (char*) &opt_enable_named_pipe,      SHOW_BOOL},
+#endif
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {"slow_launch_time",        (char*) &slow_launch_time,            SHOW_LONG},
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
@@ -3307,10 +3322,12 @@ Starts the MySQL server\n");
   -W, --warnings        Log some not critical warnings to the log file\n");
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
-  --console		Don't remove the console window\n\
-  --install		Install mysqld as a service (NT)\n\
-  --remove		Remove mysqld from the service list (NT)\n\
-  --standalone		Dummy option to start as a standalone program (NT)\
+  --console                     Don't remove the console window\n\
+  --install                     Install the default service (NT)\n\
+  --install-manual              Install the default service started manually (NT)\n\
+  --remove                      Remove the default service from the service list (NT)\n\
+  --enable-named-pipe           Enable the named pipe (NT)\n\
+  --standalone                  Dummy option to start as a standalone program (NT)\
 ");
 #ifdef USE_SYMDIR
   puts("--use-symbolic-links	Enable symbolic link support");
@@ -3753,6 +3770,11 @@ static void get_options(int argc,char **argv)
       opt_disable_networking=1;
       mysql_port=0;
       break;
+#ifdef __NT__ 
+    case (int) OPT_HAVE_NAMED_PIPE:
+      opt_enable_named_pipe=1;
+      break;
+#endif
     case (int) OPT_SKIP_SHOW_DB:
       opt_skip_show_db=1;
       opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
