@@ -29476,6 +29476,17 @@ Conversions that occur due to clipping are reported as ``warnings'' for
 @code{ALTER TABLE}, @code{LOAD DATA INFILE}, @code{UPDATE}, and
 multi-row @code{INSERT} statements.
 
+@c FIX arjen 2002-08-07 New table, not yet measured for O'Reilly/DocBook
+@c FIX also need to shuffle into proper position and adjust text.
+@multitable @columnfractions .20 .20 .30 .30
+@item @strong{Type}    @tab @strong{Bytes} @tab @strong{From}        @tab @strong{To}
+@item @code{TINYINT}   @tab              1 @tab                 -128 @tab                 127
+@item @code{SMALLINT}  @tab              2 @tab               -32768 @tab               32767
+@item @code{MEDIUMINT} @tab              3 @tab             -8388608 @tab             8388607
+@item @code{INT}       @tab              4 @tab          -2147483648 @tab          2147483647
+@item @code{BIGINT}    @tab              8 @tab -9223372036854775808 @tab 9223372036854775807
+@end multitable
+
 
 @node Date and time types, String types, Numeric types, Column types
 @subsection Date and Time Types
@@ -30005,6 +30016,16 @@ Illegal @code{YEAR} values are converted to @code{0000}.
 The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
 @code{ENUM}, and @code{SET}.  This section describes how these types work,
 their storage requirements, and how to use them in your queries.
+
+@c FIX arjen 2002-08-07 New table, not yet measured for O'Reilly/DocBook
+@c FIX also need to shuffle into proper position and adjust text.
+@multitable @columnfractions .40 .30 .30
+@item @strong{Type}                          @tab @strong{Max.size} @tab @strong{Bytes}
+@item @code{TINYTEXT}   or @code{TINYBLOB}   @tab 2^8-1             @tab            255
+@item @code{TEXT}       or @code{BLOB}       @tab 2^16-1 (64K-1)    @tab          65535
+@item @code{MEDIUMTEXT} or @code{MEDIUMBLOB} @tab 2^24-1 (16M-1)    @tab       16777215
+@item                      @code{LONGBLOB}   @tab 2^32-1 (4G-1)     @tab     4294967295
+@end multitable
 
 
 @node CHAR, BLOB, String types, String types
@@ -49702,7 +49723,7 @@ The MySQL Certification program.
 @item Lenz Grimmer
 @itemize @bullet
 @item
-Build and release engineering.
+Production (build and release) engineering.
 @end itemize
 
 @item Peter Zaitsev
@@ -50126,7 +50147,7 @@ each individual 4.0.x release.
 @itemize @bullet
 @item
 Fixed bug in multi-table @code{UPDATE}: when updating a table,
-do_select confused in reading records from a cache
+@code{do_select()} became confused about reading records from a cache.
 @item
 Fixed bug in multi-table @code{UPDATE} when several fields were referenced
 from a single table
