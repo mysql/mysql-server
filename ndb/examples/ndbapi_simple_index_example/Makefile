@@ -1,9 +1,9 @@
-TARGET = ndbapi_async
+TARGET = ndbapi_simple_index
 SRCS = $(TARGET).cpp
 OBJS = $(TARGET).o
 CXX = g++
-CFLAGS = -g -c -Wall -fno-rtti -fno-exceptions
-CXXFLAGS = -g
+CFLAGS = -c -Wall -fno-rtti -fno-exceptions
+CXXFLAGS = 
 DEBUG = 
 LFLAGS = -Wall
 TOP_SRCDIR = ../../..
@@ -17,7 +17,7 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
-	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/extra -I$(INCLUDE_DIR)/ndb/include -I$(INCLUDE_DIR)/ndb/include/ndbapi $(SRCS)
+	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/ndb/include -I$(INCLUDE_DIR)/ndb/include/ndbapi $(SRCS)
 
 clean:
 	rm -f *.o $(TARGET)

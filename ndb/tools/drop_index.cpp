@@ -83,15 +83,17 @@ int main(int argc, char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, _dbname );
+  if (con.wait_until_ready(30,0) < 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
 
+  Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
-  while(MyNdb.waitUntilReady() != 0)
-    ndbout << "Waiting for ndb to become ready..." << endl;
   
   int res = 0;
   for(int i = 0; i<argc; i++){

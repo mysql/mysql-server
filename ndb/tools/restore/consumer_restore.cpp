@@ -21,7 +21,7 @@ extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
 
-static void callback(int, NdbConnection*, void*);
+static void callback(int, NdbTransaction*, void*);
 
 extern const char * g_connect_string;
 bool
@@ -375,7 +375,8 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     }
 
     // Prepare transaction (the transaction is NOT yet sent to NDB)
-    cb->connection->executeAsynchPrepare(Commit, &callback, cb);
+    cb->connection->executeAsynchPrepare(NdbTransaction::Commit,
+					 &callback, cb);
     m_transactions++;
     return;
   }
@@ -492,7 +493,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   if (!m_restore)
     return;
 
-  NdbConnection * trans = m_ndb->startTransaction();
+  NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
     // Deep shit, TODO: handle the error
@@ -543,7 +544,7 @@ BackupRestore::logEntry(const LogEntry & tup)
       op->setValue(attr->Desc->attrId, dataPtr, length);
   }
   
-  const int ret = trans->execute(Commit);
+  const int ret = trans->execute(NdbTransaction::Commit);
   if (ret != 0)
   {
     // Both insert update and delete can fail during log running
@@ -584,12 +585,12 @@ BackupRestore::endOfLogEntrys()
  *              
  *   (This function must have three arguments: 
  *   - The result of the transaction, 
- *   - The NdbConnection object, and 
+ *   - The NdbTransaction object, and 
  *   - A pointer to an arbitrary object.)
  */
 
 static void
-callback(int result, NdbConnection* trans, void* aObject)
+callback(int result, NdbTransaction* trans, void* aObject)
 {
   restore_callback_t *cb = (restore_callback_t *)aObject;
   (cb->restore)->cback(result, cb);
@@ -603,7 +604,7 @@ BackupRestore::tuple(const TupleS & tup)
     return;
   while (1) 
   {
-    NdbConnection * trans = m_ndb->startTransaction();
+    NdbTransaction * trans = m_ndb->startTransaction();
     if (trans == NULL) 
     {
       // Deep shit, TODO: handle the error
@@ -654,7 +655,7 @@ BackupRestore::tuple(const TupleS & tup)
 	else
 	  op->setValue(i, dataPtr, length);
     }
-    int ret = trans->execute(Commit);
+    int ret = trans->execute(NdbTransaction::Commit);
     if (ret != 0)
     {
       ndbout << "execute failed: ";

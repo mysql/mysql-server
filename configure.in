@@ -1770,6 +1770,7 @@ examine config.log for possible errors.  If you want to report this, use
 'scripts/mysqlbug' and include at least the last 20 rows from config.log!])
 fi
 AC_CHECK_SIZEOF(char*, 4)
+AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(int, 4)
 if test "$ac_cv_sizeof_int" -eq 0
 then
@@ -2723,11 +2724,26 @@ then
 fi
 AC_SUBST([ndb_bin_am_ldflags])
 AC_SUBST([ndb_opt_subdirs])
+
+NDB_SIZEOF_CHARP="$ac_cv_sizeof_charp"
+NDB_SIZEOF_CHAR="$ac_cv_sizeof_char"
+NDB_SIZEOF_SHORT="$ac_cv_sizeof_short"
+NDB_SIZEOF_INT="$ac_cv_sizeof_int"
+NDB_SIZEOF_LONG="$ac_cv_sizeof_long"
+NDB_SIZEOF_LONG_LONG="$ac_cv_sizeof_long_long"
+AC_SUBST([NDB_SIZEOF_CHARP])
+AC_SUBST([NDB_SIZEOF_CHAR])
+AC_SUBST([NDB_SIZEOF_SHORT])
+AC_SUBST([NDB_SIZEOF_INT])
+AC_SUBST([NDB_SIZEOF_LONG])
+AC_SUBST([NDB_SIZEOF_LONG_LONG])
+
 AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/docs/Makefile dnl
    ndb/tools/Makefile dnl
-   ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/src/common/debugger/Makefile dnl
+   ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile dnl
    ndb/src/common/util/Makefile dnl
    ndb/src/common/logger/Makefile dnl
@@ -2766,6 +2782,7 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/test/tools/Makefile dnl
    ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
    ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
+   ndb/include/ndb_types.h dnl
    )
 fi
 
