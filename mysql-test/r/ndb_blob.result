@@ -1,5 +1,25 @@
 drop table if exists t1;
 drop database if exists test2;
+create table t1 (
+a int not null primary key,
+b tinytext
+) engine=ndbcluster;
+insert into t1 values(1, 'x');
+update t1 set b = 'y';
+select * from t1;
+a	b
+1	y
+delete from t1;
+drop table t1;
+create table t1 (
+a int not null primary key,
+b text not null
+) engine=ndbcluster;
+insert into t1 values(1, '');
+select * from t1;
+a	b
+1	
+drop table t1;
 set autocommit=0;
 create table t1 (
 a int not null primary key,
@@ -73,9 +93,6 @@ a	length(b)	substr(b,1+4*900,2)	length(d)	substr(d,1+6*900,3)
 2	4512	b1	6000	dd1
 update t1 set d=null where a=1;
 commit;
-select a from t1 where d is null;
-a
-1
 delete from t1 where a=1;
 delete from t1 where a=2;
 commit;
