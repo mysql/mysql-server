@@ -274,12 +274,19 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
+bool Item_in_optimizer::preallocate_row()
+{
+  if ((cache= Item_cache::get_cache(ROW_RESULT)))
+    return 0;
+  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  current_thd->fatal_error= 1;
+  return 1;
+}
+
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
-  
-  if (args[0]->check_cols(allowed_arg_cols) ||
-      args[0]->fix_fields(thd, tables, args))
+  if (args[0]->fix_fields(thd, tables, args))
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
@@ -288,15 +295,21 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   with_sum_func= args[0]->with_sum_func;
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
-  if (!(cache= Item_cache::get_cache(args[0]->result_type())))
+  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
   {
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     thd->fatal_error= 1;
     return 1;
   }
-  if (args[1]->check_cols(allowed_arg_cols) ||
-      args[1]->fix_fields(thd, tables, args))
+  cache->setup(args[0]);
+  if (args[1]->fix_fields(thd, tables, args))
     return 1;
+  Item_in_subselect * sub= (Item_in_subselect *)args[1];
+  if (args[0]->cols() != sub->engine->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), args[0]->cols());
+    return 1;
+  }
   if (args[1]->maybe_null)
     maybe_null=1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
@@ -1215,7 +1228,7 @@ void cmp_item_row::store_value(Item *item)
 {
   THD *thd= current_thd;
   n= item->cols();
-  if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
+  if ((comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n)))
   {
     item->bring_value();
     item->null_value= 0;

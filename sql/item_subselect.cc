@@ -127,36 +127,36 @@ inline table_map Item_subselect::used_tables() const
   return (table_map) engine->depended() ? 1L : 0L; 
 }
 
-Item_singleval_subselect::Item_singleval_subselect(THD *thd,
+Item_singlerow_subselect::Item_singlerow_subselect(THD *thd,
 						   st_select_lex *select_lex):
   Item_subselect(), value(0)
 {
-  DBUG_ENTER("Item_singleval_subselect::Item_singleval_subselect");
-  init(thd, select_lex, new select_singleval_subselect(this));
+  DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
+  init(thd, select_lex, new select_singlerow_subselect(this));
   max_columns= 1;
   maybe_null= 1;
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
 }
 
-void Item_singleval_subselect::reset()
+void Item_singlerow_subselect::reset()
 {
   null_value= 1;
   if (value)
     value->null_value= 1;
 }
 
-void Item_singleval_subselect::store(uint i, Item *item)
+void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
 }
 
-enum Item_result Item_singleval_subselect::result_type() const
+enum Item_result Item_singlerow_subselect::result_type() const
 {
   return engine->type();
 }
 
-void Item_singleval_subselect::fix_length_and_dec()
+void Item_singlerow_subselect::fix_length_and_dec()
 {
   if ((max_columns= engine->cols()) == 1)
   {
@@ -182,12 +182,12 @@ void Item_singleval_subselect::fix_length_and_dec()
   }
 }
 
-uint Item_singleval_subselect::cols()
+uint Item_singlerow_subselect::cols()
 {
   return engine->cols();
 }
 
-bool Item_singleval_subselect::check_cols(uint c)
+bool Item_singlerow_subselect::check_cols(uint c)
 {
   if (c != engine->cols())
   {
@@ -197,7 +197,7 @@ bool Item_singleval_subselect::check_cols(uint c)
   return 0;
 }
 
-bool Item_singleval_subselect::null_inside()
+bool Item_singlerow_subselect::null_inside()
 {
   for (uint i= 0; i < max_columns ; i++)
   {
@@ -207,12 +207,12 @@ bool Item_singleval_subselect::null_inside()
   return 0;
 }
 
-void Item_singleval_subselect::bring_value()
+void Item_singlerow_subselect::bring_value()
 {
   engine->exec();
 }
 
-double Item_singleval_subselect::val () 
+double Item_singlerow_subselect::val () 
 {
   if (!engine->exec() && !value->null_value)
   {
@@ -226,7 +226,7 @@ double Item_singleval_subselect::val ()
   }
 }
 
-longlong Item_singleval_subselect::val_int () 
+longlong Item_singlerow_subselect::val_int () 
 {
   if (!engine->exec() && !value->null_value)
   {
@@ -240,7 +240,7 @@ longlong Item_singleval_subselect::val_int ()
   }
 }
 
-String *Item_singleval_subselect::val_str (String *str) 
+String *Item_singlerow_subselect::val_str (String *str) 
 {
   if (!engine->exec() && !value->null_value)
   {
@@ -293,7 +293,7 @@ Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
   left_expr= left_exp;
   func= f;
   init(thd, select_lex, new select_exists_subselect(this));
-  max_columns= UINT_MAX;
+  max_columns= 1;
   reset();
   // We need only 1 row to determinate existence
   select_lex->master_unit()->global_parameters->select_limit= 1;
@@ -305,6 +305,7 @@ void Item_exists_subselect::fix_length_and_dec()
 {
    decimals= 0;
    max_length= 1;
+   max_columns= engine->cols();
 }
 
 double Item_exists_subselect::val () 
@@ -409,7 +410,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
     we can use same item for all selects.
   */
-  Item *expr= new Item_ref(optimizer->get_cache(), 
+  Item *expr= new Item_ref((Item**)optimizer->get_cache(), 
 			   (char *)"<no matter>",
 			   (char*)"<left expr>");
   select_lex->master_unit()->dependent= 1;
@@ -440,7 +441,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 	  sl->having= item;
       else
 	if (sl->where)
-	  sl->where= new Item_cond_and(sl->having, item);
+	  sl->where= new Item_cond_and(sl->where, item);
 	else
 	  sl->where= item;
     }
@@ -498,10 +499,68 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
   DBUG_VOID_RETURN;
 }
 
+void Item_in_subselect::row_value_transformer(st_select_lex *select_lex,
+					      Item *left_expr)
+{
+  DBUG_ENTER("Item_in_subselect::row_value_transformer");
+  Item_in_optimizer *optimizer;
+  substitution= optimizer= new Item_in_optimizer(left_expr, this);
+  if (!optimizer)
+  {
+    current_thd->fatal_error= 1;
+    DBUG_VOID_RETURN;
+  }
+  select_lex->master_unit()->dependent= 1;
+  uint n= left_expr->cols();
+  if (optimizer->preallocate_row() || (*optimizer->get_cache())->allocate(n))
+    DBUG_VOID_RETURN;
+  for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  {
+    select_lex->dependent= 1;
+
+    Item *item= 0;
+    List_iterator_fast<Item> li(sl->item_list);
+    for (uint i= 0; i < n; i++)
+    {
+      Item *func=
+	new Item_ref_on_list_position(this, sl->item_list, i,
+					       (char *) "<no matter>",
+					       (char *) "<list ref>");
+      func=
+	Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
+						 addr(i), 
+						 (char *)"<no matter>",
+						 (char *)"<left expr>"),
+				    func);
+      if (!item)
+	item= func;
+      else
+	item= new Item_cond_and(item, func);
+    }
+
+    if (sl->having || sl->with_sum_func || sl->group_list.first ||
+	!sl->table_list.elements)
+      if (sl->having)
+	sl->having= new Item_cond_and(sl->having, item);
+      else
+	sl->having= item;
+    else
+      if (sl->where)
+	sl->where= new Item_cond_and(sl->where, item);
+      else
+	sl->where= item;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void Item_in_subselect::select_transformer(st_select_lex *select_lex)
 {
-  single_value_transformer(select_lex, left_expr,
-			   &Item_bool_func2::eq_creator);
+  if (left_expr->cols() == 1)
+    single_value_transformer(select_lex, left_expr,
+			     &Item_bool_func2::eq_creator);
+  else
+    row_value_transformer(select_lex, left_expr);
 }
 
 void Item_allany_subselect::select_transformer(st_select_lex *select_lex)

@@ -86,18 +86,19 @@ public:
   bool check_loop(uint id);
 
   friend class select_subselect;
+  friend class Item_in_optimizer;
 };
 
 /* single value subselect */
 
 class Item_cache;
-class Item_singleval_subselect :public Item_subselect
+class Item_singlerow_subselect :public Item_subselect
 {
 protected:
   Item_cache *value, **row;
 public:
-  Item_singleval_subselect(THD *thd, st_select_lex *select_lex);
-  Item_singleval_subselect(Item_singleval_subselect *item):
+  Item_singlerow_subselect(THD *thd, st_select_lex *select_lex);
+  Item_singlerow_subselect(Item_singlerow_subselect *item):
     Item_subselect(item)
   {
     value= item->value;
@@ -109,7 +110,7 @@ public:
   double val();
   longlong val_int ();
   String *val_str (String *);
-  Item *new_item() { return new Item_singleval_subselect(this); }
+  Item *new_item() { return new Item_singlerow_subselect(this); }
   enum Item_result result_type() const;
   void fix_length_and_dec();
 
@@ -120,7 +121,7 @@ public:
   bool null_inside();
   void bring_value();
 
-  friend class select_singleval_subselect;
+  friend class select_singlerow_subselect;
 };
 
 /* exists subselect */
@@ -174,6 +175,7 @@ public:
   virtual void select_transformer(st_select_lex *select_lex);
   void single_value_transformer(st_select_lex *select_lex,
 				Item *left_expr, compare_func_creator func);
+  void row_value_transformer(st_select_lex *select_lex, Item *left_expr);
   longlong val_int();
   double val();
   String *val_str(String*);

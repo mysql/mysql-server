@@ -91,14 +91,15 @@ class Item_in_optimizer: public Item_bool_func
 protected:
   Item_cache *cache;
 public:
-  Item_in_optimizer(Item *a,Item *b):
-    Item_bool_func(a,b), cache(0) {}
+  Item_in_optimizer(Item *a, Item_in_subselect *b):
+    Item_bool_func(a, (Item *)b), cache(0) {}
+  // used by row in transformer
+  bool preallocate_row();
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool is_null();
   longlong val_int();
   
-  Item **get_cache() { return (Item**)&cache; }
-
+  Item_cache **get_cache() { return &cache; }
 };
 
 class Item_bool_func2 :public Item_int_func

@@ -773,3 +773,34 @@ a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c')	(select c from t1 where 
 2	0	b
 NULL	NULL	NULL
 drop table t1,t2;
+drop table if exists t;
+create table t (a int, b real, c varchar(10));
+insert into t values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t);
+ROW(1, 1, 'a') IN (select a,b,c from t)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t);
+ROW(1, 2, 'a') IN (select a,b,c from t)
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t);
+ROW(1, 1, 'a') IN (select b,a,c from t)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t where a is not null);
+ROW(1, 1, 'a') IN (select a,b,c from t where a is not null)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t where a is not null);
+ROW(1, 2, 'a') IN (select a,b,c from t where a is not null)
+0
+select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
+ROW(1, 1, 'a') IN (select b,a,c from t where a is not null)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
+ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a')
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
+ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a')
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
+ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a')
+1
+drop table if exists t;

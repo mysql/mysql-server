@@ -498,6 +498,27 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
   DBUG_RETURN(res);
 }
 
+bool Item_ref_on_list_position::fix_fields(THD *thd,
+					   struct st_table_list *tables,
+					   Item ** reference)
+{
+  ref= 0;
+  List_iterator<Item> li(list);
+  Item *item;
+  uint i= 0;
+  for (; (item= li++) && i < pos; i++);
+  if (i == pos)
+  {
+    ref= li.ref();
+    return Item_ref_null_helper::fix_fields(thd, tables, reference);
+  }
+  else
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), pos);
+    return 1;
+  }
+}
+
 double Item_ref_null_helper::val()
 {
   double tmp= (*ref)->val_result();
@@ -1196,6 +1217,8 @@ Item_cache* Item_cache::get_cache(Item_result type)
     return new Item_cache_real();
   case STRING_RESULT:
     return new Item_cache_str();
+  case ROW_RESULT:
+    return new Item_cache_row();
   default:
     // should never be in real life
     DBUG_ASSERT(0);
@@ -1239,6 +1262,92 @@ longlong Item_cache_str::val_int()
 		       value->length(), (char**) 0, 10);
   else
     return (longlong)0;
+}
+
+bool Item_cache_row::allocate(uint num)
+{
+  n= num;
+  THD *thd= current_thd;
+  if (!(values= (Item_cache **) thd->calloc(sizeof(Item_cache *)*n)))
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    thd->fatal_error= 1;
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_cache_row::setup(Item * item)
+{
+  if (!values && allocate(item->cols()))
+    return 1;
+  for(uint i= 0; i < n; i++)
+  {
+    if (!(values[i]= Item_cache::get_cache(item->el(i)->result_type())))
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      current_thd->fatal_error= 1;
+      return 1;
+    }
+    values[i]->setup(item->el(i));
+  }
+  return 0;
+}
+
+void Item_cache_row::store(Item * item)
+{
+  null_value= 0;
+  item->bring_value();
+  for(uint i= 0; i < n; i++)
+  {
+    values[i]->store(item->el(i));
+    null_value|= values[i]->null_value;
+  }
+}
+
+void Item_cache_row::illegal_method_call(const char *method)
+{
+  DBUG_ENTER("Item_cache_row::illegal_method_call");
+  DBUG_PRINT("error", ("!!! %s method was called for row item", method));
+  DBUG_ASSERT(0);
+  my_error(ER_CARDINALITY_COL, MYF(0), 1);
+  DBUG_VOID_RETURN;
+}
+
+bool Item_cache_row::check_cols(uint c)
+{
+  if (c != n)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_cache_row::null_inside()
+{
+  for (uint i= 0; i < n; i++)
+  {
+    if (values[i]->cols() > 1)
+    {
+      if (values[i]->null_inside())
+	return 1;
+    }
+    else
+    {
+      values[i]->val_int();
+      if (values[i]->null_value)
+	return 1;
+    }
+  }
+  return 0;
+}
+
+void Item_cache_row::bring_value()
+{
+  for (uint i= 0; i < n; i++)
+    values[i]->bring_value();
+  return;
 }
 
 /*****************************************************************************

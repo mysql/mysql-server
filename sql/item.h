@@ -501,12 +501,30 @@ protected:
   Item_in_subselect* owner;
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
-		       char *table_name_par,char *field_name_par):
+		       char *table_name_par, char *field_name_par):
     Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);
   bool get_date(TIME *ltime, bool fuzzydate);
+};
+
+
+/*
+  Used to find item in list of select items after '*' items processing.
+*/
+class Item_ref_on_list_position: public Item_ref_null_helper
+{
+protected:
+  List<Item> &list;
+  uint pos;
+public:
+  Item_ref_on_list_position(Item_in_subselect* master,
+			    List<Item> &li, uint num,
+			    char *table_name, char *field_name):
+    Item_ref_null_helper(master, 0, table_name, field_name),
+    list(li), pos(num) {}
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
 };
 
 /*
@@ -642,6 +660,8 @@ public:
 class Item_cache: public Item
 {
 public:
+  virtual bool allocate(uint i) { return 0; };
+  virtual bool setup(Item *) { return 0; };
   virtual void store(Item *)= 0;
   void set_len_n_dec(uint32 max_len, uint8 dec)
   {
@@ -703,6 +723,54 @@ public:
   String* val_str(String *) { return value; }
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
+};
+
+class Item_cache_row: public Item_cache
+{
+  Item_cache  **values;
+  uint n;
+public:
+  Item_cache_row(): values(0), n(2) { fixed= 1; null_value= 1; }
+  
+  /*
+    'allocate' used only in row transformer, to preallocate space for row 
+    cache.
+  */
+  bool allocate(uint num);
+  /*
+    'setup' is needed only by row => it not called by simple row subselect
+    (only by IN subselect (in subselect optimizer))
+  */
+  bool setup(Item *item);
+  void store(Item *item);
+  void illegal_method_call(const char *);
+  void make_field(Send_field *)
+  {
+    illegal_method_call((const char*)"make_field");
+  };
+  double val()
+  {
+    illegal_method_call((const char*)"val");
+    return 0;
+  };
+  longlong val_int()
+  {
+    illegal_method_call((const char*)"val_int");
+    return 0;
+  };
+  String *val_str(String *)
+  {
+    illegal_method_call((const char*)"val_str");
+    return 0;
+  };
+  enum Item_result result_type() const { return ROW_RESULT; }
+  
+  uint cols() { return n; }
+  Item* el(uint i) { return values[i]; }
+  Item** addr(uint i) { return (Item **) (values + i); }
+  bool check_cols(uint c);
+  bool null_inside();
+  void bring_value();
 };
 
 extern Item_buff *new_Item_buff(Item *item);
