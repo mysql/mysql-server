@@ -55,6 +55,7 @@ singular form. The manual uses it as plural, which means you use "data are"
 rather than "data is". It's unfortunate that no matter which form we use, it
 will look incorrect to some people. But we can at least be internally
 consistent.
+(Paul: I think that the O'Reilly proofread might have caught one or two of these; could you please pick up on these but don't change them back straight away until the book is finished? Thanks; Arjen).
 
 Write "press Enter", not "hit Return" or "hit Enter".
 
@@ -70,7 +71,7 @@ Exceptions:
 - When showing the output from a program, show the output exactly;
 don't change "ok" to "okay", etc.
 
-Write "Open Source", not "open source".
+Write "Open Source" (inside @code{}), not "open source".
 
 To put something in quotes, do it ``like this,'' not "like this"
 or 'like this.' In the latter two cases, the quotes will come
@@ -138,3 +139,117 @@ Write thread-safe, transaction-safe, replication-safe, not thread safe,
 transaction safe, replication safe.
 
 Write wildcard, not wild card or wild-card.
+
+Write "heavy-load production systems" (used as an adjective),
+but "...used under heavy load" (used on its own).
+
+Write PostScript, not Postscript.
+
+When writing a list like "A, B, and C", include a comma before the last and.
+
+Write case-sensitive and case-insensitive (hyphenated).
+
+Write runtime, not run time.
+
+Write backward-compatible, not backward compatible or backwards compatible.
+
+Write application-related, not application related.
+
+Write filesystem, not file system.
+
+Write file-size, not file size.
+
+Write datafile, not data file.
+
+Write power-start, not power start.
+
+Write percent, not per cent.
+
+Write "toward", "and onward", not "towards", "onwards".
+
+Write third-party, not third party.
+
+Write turnkey, not turn-key.
+
+Write "the Net" (capitalised) if referring to the Internet in that way.
+
+Write long-awaited, not long awaited.
+
+Write natural-language, not natural language.
+
+Write low-volume <something> (when used as an adjective).
+
+Write platform-dependent, not platform dependent.
+
+Write something like "mentioned previously" instead of "above", and "later in this section" instead of "below" when making such relative references in your text.
+Write "... shown here", not "... shown below".
+Write "following some", not "something [shown] below".
+
+Write high-priority <something> (when used as an adjective), not high priority.
+
+Write "whether", not "whether or not".
+
+Write hand-held, not hand held.
+
+Write rewriting, not re-writing.
+
+Write re-issue(ing), not reissue(ing).
+
+Write command-line, not command line.
+
+Write server-side, not server side.
+
+Write "<blabla> only", not "only <blabla>".
+
+Write floating-point, not floating point.
+
+Write heavy-duty, not heavy duty.
+
+Write online, not on-line.
+
+Write user-defined, not user defined.
+
+Write multi-user, not multi user.
+
+Write multi-thread(ed), not multithread(ed).
+
+Write memory-based, not memory based.
+
+Write long-time <something> (when used as an adjective), not long time.
+
+Write 32-bit, not 32 bit or 32 bits. (Same goes for 64-bit, of course! ;-)
+
+Write "different from [what] ...", not "different than ...".
+
+Write "@-e.g., " instead of " e.g. " in the middle of a sentence. (The @- will be turned into a dash, or &mdash; for DocBook output.)
+Following "e.g." by a comma, not a space or a colon.
+
+Write "@-" if you need to put a dash in a text, no surrounding spaces.
+
+Similar story for "for example" as for "e.g."
+
+Write CPU, not cpu (it's an acronym, not a word! ;-)
+
+Write "... uses ... CPU time", not "... uses ... CPU" (unless you're referring the processor itself.)
+
+If a (comment) is at the end of a sentence, start the comment with lowercase and put the . after the closing ), such as (like this).
+If a comment is separate, start with uppercase and put the . inside the closing ). (Like this.)
+
+Write "something cannot do something", not "something can not something".
+
+Write "otherwise, ..." (with the comma) at the start of a sentence.
+
+Paul, could you please check "honoring"... is this proper British English? Thanks, Arjen.
+
+Write "byte-swapping", not "byte swapping".
+
+Write "Note:", not "NOTE:". And then continue with lowercase, it is not the start of a new sentence.
+
+Write "single-CPU" and "multiple-CPU", not "single CPU" and "multiple CPU".
+
+Paul, I think we should also decide whether to write Version or version, and in what situation. I am not changing much now because there's lots of funny instances and I don't want to risk getting it wrong. Thanks, Arjen.
+
+After a semicolon, don't use uppercase. It is NOT the start of a new sentence!
+
+It's "unstable", not "instable". ;-)
+
