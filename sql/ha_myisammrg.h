@@ -32,6 +32,7 @@ class ha_myisammrg: public handler
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
+  const char *index_type(uint key_number);
   ulong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_READ_RND_SAME |

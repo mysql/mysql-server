@@ -31,12 +31,48 @@
 #define HAVE_STRCASECMP
 #define strcasecmp _strcmpi
 #pragma warning(disable: 4503 4786)
+typedef unsigned __int64 Uint64;
+typedef   signed __int64 Int64;
 #else
 #undef NDB_WIN32
 #define DIR_SEPARATOR "/"
+typedef unsigned long long Uint64;
+typedef   signed long long Int64;
 #endif
 
 #include <my_global.h>
+
+typedef   signed char  Int8;
+typedef unsigned char  Uint8;
+typedef   signed short Int16;
+typedef unsigned short Uint16;
+typedef   signed int   Int32;
+typedef unsigned int   Uint32;
+
+typedef unsigned int UintR;
+
+#ifdef __SIZE_TYPE__
+typedef __SIZE_TYPE__ UintPtr;
+#elif SIZEOF_CHARP == 4
+typedef Uint32 UintPtr;
+#elif SIZEOF_CHARP == 8
+typedef Uint64 UintPtr;
+#else
+#error "Unknown size of (char *)"
+#endif
+
+#if ! (SIZEOF_CHAR == 1)
+#error "Invalid define for Uint8"
+#endif
+
+#if ! (SIZEOF_INT == 4)
+#error "Invalid define for Uint32"
+#endif
+
+#if ! (SIZEOF_LONG_LONG == 8)
+#error "Invalid define for Uint64"
+#endif
+
 #include <my_alarm.h>
 
 #ifdef _AIX

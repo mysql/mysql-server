@@ -427,6 +427,7 @@ abort:
     thd			- thread handler
     table_list		- global table list
     insert_table_list	- local table list of INSERT SELECT_LEX
+    values              - values to insert. NULL for INSERT ... SELECT
 
   RETURN VALUE
     0  - OK
@@ -442,7 +443,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values= 
+    table->insert_values=
       (byte *)alloc_root(thd->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       DBUG_RETURN(-1);
@@ -454,10 +455,8 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
        (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0) ||
         setup_fields(thd, 0, insert_table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(-1);
-  if ((thd->lex->sql_command==SQLCOM_INSERT ||
-       thd->lex->sql_command==SQLCOM_REPLACE) &&
-      find_real_table_in_list(table_list->next, 
-			      table_list->db, table_list->real_name))
+  if (values && find_real_table_in_list(table_list->next, table_list->db,
+                                        table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
