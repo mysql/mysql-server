@@ -43,37 +43,41 @@ static bool test_if_number(const char *str,
 
 #ifdef __NT__
 static int eventSource = 0;
-void setupWindowsEventSource()
+
+void setup_windows_event_source() 
 {
-	if (eventSource) return;
+  HKEY    hRegKey= NULL; 
+  DWORD   dwError= 0;
+  TCHAR   szPath[MAX_PATH];
+  DWORD dwTypes;
+    
+  if (eventSource)               // Ensure that we are only called once
+    return;
+  eventSource= 1;
 
-	eventSource = 1;
-    HKEY    hRegKey = NULL;
-    DWORD   dwError = 0;
-    TCHAR   szPath[ MAX_PATH ];
+  // Create the event source registry key
+  dwError= RegCreateKey(HKEY_LOCAL_MACHINE, 
+                          "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
+                          &hRegKey);
 
-    // Create the event source registry key
-    dwError = RegCreateKey(HKEY_LOCAL_MACHINE,
-		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL",
-		&hRegKey);
+  /* Name of the PE module that contains the message resource */
+  GetModuleFileName(NULL, szPath, MAX_PATH);
 
-    // Name of the PE module that contains the message resource
-    GetModuleFileName(NULL, szPath, MAX_PATH);
+  /* Register EventMessageFile */
+  dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ, 
+                          (PBYTE) szPath, strlen(szPath)+1);
+    
 
-    // Register EventMessageFile
-    dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                            (PBYTE) szPath, strlen(szPath)+1);
+  /* Register supported event types */
+  dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
+            EVENTLOG_INFORMATION_TYPE);
+  dwError= RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
+                         (LPBYTE) &dwTypes, sizeof dwTypes);
 
-
-    // Register supported event types
-    DWORD dwTypes = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE;
-    dwError = RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
-                            (LPBYTE) &dwTypes, sizeof dwTypes);
-
-    RegCloseKey(hRegKey);
+  RegCloseKey(hRegKey);
 }
 
-#endif
+#endif /* __NT__ */
 
 
 /****************************************************************************
@@ -1413,12 +1417,24 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 
     /* Write log events to reset the 'run environment' of the SQL command */
 
-    if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+    if (thd)
     {
-      Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
+      if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+      {
+        Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
+        e.set_log_pos(this);
+        if (e.write(file))
+          goto err;
+      }
+#if MYSQL_VERSION_ID < 40100      
+      if (thd->variables.convert_set)
+      {
+	Query_log_event e(thd, "SET CHARACTER SET DEFAULT", 25, 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+#endif
     }
 
     /*
@@ -1984,8 +2000,8 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
   time_t skr;
   struct tm tm_tmp;
   struct tm *start;
-
-  DBUG_ENTER("print_buffer_to_log");
+  DBUG_ENTER("print_buffer_to_file");
+  DBUG_PRINT("enter",("buffer: %s", buffer));
 
   VOID(pthread_mutex_lock(&LOCK_error_log));
 
@@ -1999,13 +2015,13 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
 	  start->tm_hour,
 	  start->tm_min,
 	  start->tm_sec,
-          level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ? "WARNING" : "INFORMATION",
-	  buffer);
+          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
+           "WARNING" : "INFORMATION"),
+          buffer);
 
   fflush(stderr);
 
   VOID(pthread_mutex_unlock(&LOCK_error_log));
-
   DBUG_VOID_RETURN;
 }
 
@@ -2018,6 +2034,7 @@ void sql_perror(const char *message)
   perror(message);
 #endif
 }
+
 
 bool flush_error_log()
 {
@@ -2204,93 +2221,95 @@ void MYSQL_LOG::report_pos_in_innodb()
 }
 
 #ifdef __NT__
-void print_buffer_to_nt_eventlog(enum loglevel level, char *buff, int buffLen)
+void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
+                                 uint length, int buffLen)
 {
   HANDLE event;
   char   *buffptr;
   LPCSTR *buffmsgptr;
-
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
-  buffptr = buff;
-  if (strlen(buff) > (uint)(buffLen-4))
+  buffptr= buff;
+  if (length > (uint)(buffLen-4))
   {
-    char *newBuff = new char[ strlen(buff) + 4 ];
+    char *newBuff= new char[length + 4];
     strcpy(newBuff, buff);
-    buffptr = newBuff;
+    buffptr= newBuff;
   }
-  strcat(buffptr, "\r\n\r\n");
-  buffmsgptr = (LPCSTR*)&buffptr;
+  strmov(buffptr+length, "\r\n\r\n");
+  buffmsgptr= (LPCSTR*) &buffptr;               // Keep windows happy
 
-  setupWindowsEventSource();
-  if (event = RegisterEventSource(NULL,"MySQL"))
+  setup_windows_event_source();
+  if ((event= RegisterEventSource(NULL,"MySQL")))
   {
-    switch (level){
+    switch (level) {
       case ERROR_LEVEL:
-        ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
+                    buffmsgptr, NULL);
         break;
       case WARNING_LEVEL:
-        ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
+                    buffmsgptr, NULL);
         break;
       case INFORMATION_LEVEL:
-        ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1,
+                    0, buffmsgptr, NULL);
         break;
     }
     DeregisterEventSource(event);
   }
 
-  // if we created a string buffer, then delete it
+  /* if we created a string buffer, then delete it */
   if (buffptr != buff)
     delete[] buffptr;
 
   DBUG_VOID_RETURN;
 }
-#endif
+#endif /* __NT__ */
+
 
 /*
-  Prints a printf style message to the error log and, under NT, to the Windows event log.
+  Prints a printf style message to the error log and, under NT, to the
+  Windows event log.
 
   SYNOPSIS
     vprint_msg_to_log()
-    event_type                  Type of event to write (Error, Warning, or Info)
-    format                      Printf style format of message
-    args                        va_list list of arguments for the message
+    event_type             Type of event to write (Error, Warning, or Info)
+    format                 Printf style format of message
+    args                   va_list list of arguments for the message    
 
   NOTE
 
   IMPLEMENTATION
-    This function prints the message into a buffer and then sends that buffer to other
-    functions to write that message to other logging sources.
+    This function prints the message into a buffer and then sends that buffer
+    to other functions to write that message to other logging sources.
 
   RETURN VALUES
     void
 */
+
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
+  uint length;
   DBUG_ENTER("vprint_msg_to_log");
 
-  my_vsnprintf(buff, sizeof(buff)-5, format, args);
-
+  length= my_vsnprintf(buff, sizeof(buff)-5, format, args);
   print_buffer_to_file(level, buff);
 
-#ifndef DBUG_OFF
-    DBUG_PRINT("error",("%s",buff));
-#endif
-
 #ifdef __NT__
-  print_buffer_to_nt_eventlog(level, buff, sizeof(buff));
+  print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
 
   DBUG_VOID_RETURN;
 }
 
 
-void sql_print_error(const char *format, ...)
+void sql_print_error(const char *format, ...) 
 {
+  va_list args;
   DBUG_ENTER("sql_print_error");
 
-  va_list args;
   va_start(args, format);
   vprint_msg_to_log(ERROR_LEVEL, format, args);
   va_end(args);
@@ -2298,11 +2317,12 @@ void sql_print_error(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-void sql_print_warning(const char *format, ...)
+
+void sql_print_warning(const char *format, ...) 
 {
+  va_list args;
   DBUG_ENTER("sql_print_warning");
 
-  va_list args;
   va_start(args, format);
   vprint_msg_to_log(WARNING_LEVEL, format, args);
   va_end(args);
@@ -2310,11 +2330,12 @@ void sql_print_warning(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-void sql_print_information(const char *format, ...)
+
+void sql_print_information(const char *format, ...) 
 {
+  va_list args;
   DBUG_ENTER("sql_print_information");
 
-  va_list args;
   va_start(args, format);
   vprint_msg_to_log(INFORMATION_LEVEL, format, args);
   va_end(args);

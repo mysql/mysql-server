@@ -716,3 +716,13 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
   
   return (my_time_t) tmp;
 } /* my_system_gmt_sec */
+
+
+/* Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000 */
+
+void set_zero_time(MYSQL_TIME *tm)
+{
+  bzero((void*) tm, sizeof(*tm));
+  tm->time_type= MYSQL_TIMESTAMP_NONE;
+}
+
