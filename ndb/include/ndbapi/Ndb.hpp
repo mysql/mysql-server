@@ -21,7 +21,7 @@
    on http://dev.mysql.com/doc/mysql/en/NDBCluster.html .
    Some of the fundamental ones are also described in section @ref secConcepts.
 
-   The <em>NDB API</em> is a MySQL Cluster application interface 
+   The NDB API is a MySQL Cluster application interface 
    that implements transactions.
    The NDB API consists of the following fundamental classes:
    - Ndb_cluster_connection, representing a connection to a cluster, 
@@ -36,39 +36,40 @@
    - NdbDictionary represents meta information about tables and attributes.
    - NdbError contains the specification for an error.
 
-   It is also possible to receive "events" on changed data in the database.
+   It is also possible to receive "events" triggered when data in the database in changed.
    This is done through the NdbEventOperation class.
 
-   There are also some auxiliary classes.
+   There are also some auxiliary classes, which are listed in the @ref hierarchy.
      
    The main structure of an application program is as follows:
    -# Construct and connect to a cluster using the Ndb_cluster_connection
       object.
-   -# Construct and initialize Ndb object(s) to connect to a database.
-   -# Define and execute transactions using NdbTransaction.
+   -#  initiate a database connection by constructing and initialising one or more Ndb objects.
+   -# Define and execute transactions using the NdbTransaction class.
    -# Delete Ndb objects.
-   -# Delete cluster connection.
+   -# Terminate the connection to the cluster (terminate instance of Ndb_cluster_connection).
 
-   The main structure of a transaction is as follows:
-   -# Start transaction (an NdbTransaction)
-   -# Add and define operations associated with the transaction using
-      NdbOperation, NdbScanOperation, NdbIndexOperation, NdbIndexScanOperation
+   The procedure for using transactions is as follows:
+   -# Start transaction (instantiate an NdbTransaction object)
+   -# Add and define operations associated with the transaction using the
+      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes.
    -# Execute transaction
 
    The execution can be of two different types, 
    <var>Commit</var> or <var>NoCommit</var>.
    If the execution is of type <var>NoCommit</var>, 
    then the application program executes part of a transaction,
-   but without committing the transaction.
+   but without actually committing the transaction.
    After executing a <var>NoCommit</var> transaction, the program can continue 
    to add and define more operations to the transaction
    for later execution.
 
    If the execute is of type <var>Commit</var>, then the transaction is
-   committed. The transaction <em>must</em> be closed after it has been 
+   immediately committed. The transaction <em>must</em> be closed after it has been 
    commited (event if commit fails), and no further addition or definition of 
-   operations is allowed.
+   operations for this transaction is allowed.
 
+  @c STOP POINT -- js
 
    @section secSync                     Synchronous Transactions
   
