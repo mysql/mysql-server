@@ -995,6 +995,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     List_iterator_fast<Item> li(select_lex->item_list);
     for (uint i= 0; i < n; i++)
     {
+      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      if (select_lex->ref_pointer_array[i]->
+          check_cols(left_expr->el(i)->cols()))
+        goto err;
       Item *func= new Item_ref_null_helper(this,
 					   select_lex->ref_pointer_array+i,
 					   (char *) "<no matter>",
