@@ -1087,7 +1087,6 @@ mysql_execute_command(void)
     select_result *result;
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
-    /* Save a call, as it's very uncomon that we use unions */
     if (tables)
     {
       res=check_table_access(thd,
