@@ -1055,9 +1055,12 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       break;
                   
     case STOP_EVENT:
-      close_temporary_tables(thd);
-      mi->inc_pos(event_len);
-      flush_master_info(mi);
+      if(mi->pos > 4) // stop event should be ignored after rotate event
+	{
+          close_temporary_tables(thd);
+          mi->inc_pos(event_len);
+          flush_master_info(mi);
+	}
       delete ev;
       break;
     case ROTATE_EVENT:

@@ -83,7 +83,7 @@ multiple read locks.
 #include <errno.h>
 
 my_bool thr_lock_inited=0;
-
+ulong locks_immediate = 0L, locks_waited = 0L;
 
 /* The following constants are only for debug output */
 #define MAX_THREADS 100
@@ -387,6 +387,7 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   else
   {
     result=0;
+    statistic_increment(locks_waited, &THR_LOCK_lock);
     if (data->lock->get_status)
       (*data->lock->get_status)(data->status_param);
     check_locks(data->lock,"got wait_for_lock",0);
@@ -447,6 +448,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
 	  (*lock->get_status)(data->status_param);
+	++locks_immediate;
 	goto end;
       }
       if (lock->write.data->type == TL_WRITE_ONLY)
@@ -470,6 +472,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
       if ((int) lock_type == (int) TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
+      ++locks_immediate;
       goto end;
     }
     /* Can't get lock yet;  Wait for it */
@@ -501,6 +504,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	data->cond=get_cond();
 	if (lock->get_status)
 	  (*lock->get_status)(data->status_param);
+	++locks_immediate;
 	goto end;
       }
     }
@@ -535,6 +539,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	check_locks(lock,"second write lock",0);
 	if (data->lock->get_status)
 	  (*data->lock->get_status)(data->status_param);
+	++locks_immediate;
 	goto end;
       }
       DBUG_PRINT("lock",("write locked by thread: %ld",
@@ -560,6 +565,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	  if (data->lock->get_status)
 	    (*data->lock->get_status)(data->status_param);
 	  check_locks(lock,"only write lock",0);
+	  ++locks_immediate;
 	  goto end;
 	}
       }

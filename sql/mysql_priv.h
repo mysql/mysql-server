@@ -73,6 +73,7 @@ void kill_one_thread(THD *thd, ulong id);
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
+#define TEMP_POOL_SIZE          128
 /* The following parameters is to decide when to use an extra cache to
    optimise seeks when reading a big table in sorted order */
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
@@ -507,7 +508,8 @@ extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
   	     ha_read_rnd_count, ha_read_rnd_next_count;
-
+extern uchar temp_pool[TEMP_POOL_SIZE];
+extern bool use_temp_pool;
 extern char f_fyllchar;
 extern uchar *days_in_month;
 extern DATE_FORMAT dayord;

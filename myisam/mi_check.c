@@ -376,7 +376,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
-	info->state->records == 0)
+	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
       continue;
     if (!_mi_fetch_keypage(info,keyinfo,share->state.key_root[key],info->buff,
 			   0))
