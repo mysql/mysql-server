@@ -243,6 +243,7 @@ public:
   friend class subselect_indexsubquery_engine;
 };
 
+
 /* ALL/ANY/SOME subselect */
 class Item_allany_subselect :public Item_in_subselect
 {
@@ -257,6 +258,7 @@ public:
   subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
 };
+
 
 class subselect_engine: public Sql_alloc
 {
@@ -292,6 +294,7 @@ public:
   bool may_be_null() { return maybe_null; };
 };
 
+
 class subselect_single_select_engine: public subselect_engine
 {
   my_bool prepared; /* simple subselect is prepared */
@@ -312,6 +315,7 @@ public:
   void exclude();
 };
 
+
 class subselect_union_engine: public subselect_engine
 {
   st_select_lex_unit *unit;  /* corresponding unit structure */
@@ -328,6 +332,7 @@ public:
   void exclude();
 };
 
+
 struct st_join_table;
 class subselect_uniquesubquery_engine: public subselect_engine
 {
@@ -343,16 +348,16 @@ public:
   {
     set_thd(thd);
   }
-    
+  ~subselect_uniquesubquery_engine();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols() { return 1; }
   bool dependent() { return 1; }
   bool uncacheable() { return 1; }
-  void  exclude();
-  static int end_exec(TABLE *table);
+  void exclude();
 };
+
 
 class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
