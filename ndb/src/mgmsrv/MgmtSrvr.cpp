@@ -226,7 +226,8 @@ MgmtSrvr::startEventLog()
 		   clusterLog);
   }
   if(!g_EventLogger.addHandler(logdest)) {
-    ndbout << "Warning: could not add log destination \"" << logdest.c_str() << "\"" << endl;
+    ndbout << "Warning: could not add log destination \""
+	   << logdest.c_str() << "\"" << endl;
   }
 }
 
@@ -244,18 +245,19 @@ public:
 };
 
 bool
-MgmtSrvr::setEventLogFilter(int severity) 
+MgmtSrvr::setEventLogFilter(int severity, int enable)
 {
-  bool enabled = true;
   Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
-  if (g_EventLogger.isEnable(level)) {
+  if (enable > 0) {
+    g_EventLogger.enable(level);
+  } else if (enable == 0) {
     g_EventLogger.disable(level);
-    enabled = false;
+  } else if (g_EventLogger.isEnable(level)) {
+    g_EventLogger.disable(level);
   } else {
     g_EventLogger.enable(level);
   }
-
-  return enabled;
+  return g_EventLogger.isEnable(level);
 }
 
 bool 

@@ -264,9 +264,9 @@ static const char* helpText =
 "START BACKUP                           Start backup\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster and quit\n"
-"CLUSTERLOG ON                          Enable Cluster logging\n"
-"CLUSTERLOG OFF                         Disable Cluster logging\n"
-"CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
+"CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
+"CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
+"CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
 "<id> START                             Start DB node (started with -n)\n"
 "<id> RESTART [-n] [-i]                 Restart DB node\n"
@@ -666,11 +666,9 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   if(processId == -1){
     executeForAll(command, fun, allAfterSecondToken);
   } else {
-    if(strcasecmp(command, "STATUS") != 0)
-      ndbout_c("Executing %s on node %d.", command, processId);
     (this->*fun)(processId, allAfterSecondToken, false);
-    ndbout << endl;
   }
+  ndbout << endl;
 }
 
 /**
@@ -733,12 +731,8 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
       return;
     }
     NdbAutoPtr<char> ap1((char*)cl);
-    while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB)) {
-      if(strcasecmp(cmd, "STATUS") != 0)
-	ndbout_c("Executing %s on node %d.", cmd, nodeId);
+    while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB))
       (this->*fun)(nodeId, allAfterSecondToken, true);
-      ndbout << endl;
-    } // while
   }
 }
 
@@ -1137,144 +1131,130 @@ CommandInterpreter::executeConnect(char* parameters)
 void 
 CommandInterpreter::executeClusterLog(char* parameters) 
 {
+  DBUG_ENTER("CommandInterpreter::executeClusterLog");
   int i;
-  if (parameters != 0 && strlen(parameters) != 0) {
-    enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
-    int isOk = true;
-    char name[12]; 
-    bool noArgs = false;
-    
-    char * tmpString = my_strdup(parameters,MYF(MY_WME));
-    My_auto_ptr<char> ap1(tmpString);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, " ", &tmpPtr);
-    
-    /********************
-     * CLUSTERLOG FILTER 
-     ********************/
-    if (strcasecmp(item, "FILTER") == 0) {
-      
-      item = strtok_r(NULL, " ", &tmpPtr);
-      if (item == NULL) {
-	noArgs = true;
-      }
-      while (item != NULL) {
-	snprintf(name, sizeof(name), item);
-
-	if (strcasecmp(item, "ALL") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ALL;	
-	} else if (strcasecmp(item, "ALERT") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ALERT;
-	} else if (strcasecmp(item, "CRITICAL") == 0) { 
-	  severity = NDB_MGM_CLUSTERLOG_CRITICAL;
-	} else if (strcasecmp(item, "ERROR") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ERROR;
-	} else if (strcasecmp(item, "WARNING") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_WARNING;
-	} else if (strcasecmp(item, "INFO") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_INFO;
-	} else if (strcasecmp(item, "DEBUG") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_DEBUG;
-	} else if (strcasecmp(item, "OFF") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_OFF;
-	} else {
-	  isOk = false;
-	}      
-	
-	item = strtok_r(NULL, " ", &tmpPtr);	
-      } //  while(item != NULL){
-
-      if (noArgs) {
-	ndbout << "Missing argument(s)." << endl;
-      } else if (isOk) {
-	if(ndb_mgm_filter_clusterlog(m_mgmsrv, severity, NULL)) {
-	  if(strcasecmp(name, "ALL") == 0) {
-	    ndbout << "All severities levels enabled." << endl;
-	  } else if(strcasecmp(name, "OFF") == 0) {
-	    ndbout << "Cluster logging enabled." << endl;
-	  } else {
-	    ndbout << name << " events disabled." << endl;
-	  }
-	} else {
-	  if(strcasecmp(name, "ALL") == 0) {
-	    ndbout << "All severities levels disabled." << endl;
-	  } else if(strcasecmp(name, "OFF") == 0) {
-	    ndbout << "Cluster logging disabled." << endl;
-	  } else {
-	    ndbout << name << " events enabled." << endl;
-	  }
-	}      
-      } else {
-	ndbout << "Invalid severity level." << endl;
-      }
-
-    /********************
-     * CLUSTERLOG INFO
-     ********************/
-    } else if (strcasecmp(item, "INFO") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Couldn't get status" << endl;
-	printError();
-	return;
-      }
-      const char* names[] = {"ENABLED", "DEBUG", "INFO", "WARNING", "ERROR", 
-			     "CRITICAL", "ALERT"};
-      if(enabled[0])
-	ndbout << "Cluster logging is disabled." << endl;
-
-      
-      for(i = 0; i<7;i++)
-	printf("enabled[%d] = %d\n", i, enabled[i]);
-      ndbout << "Severities enabled: ";
-      for(i = 1; i < 7; i++) {
-	if(enabled[i])
-	  ndbout << names[i] << " ";
-      }
-      ndbout << endl;
-
-      /********************
-       * CLUSTERLOG OFF
-       ********************/
-    } else if (strcasecmp(item, "OFF") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Couldn't get status" << endl;
-	printError();
-	return;
-      }
-      if(!enabled[0]) {
-	ndb_mgm_filter_clusterlog(m_mgmsrv, NDB_MGM_CLUSTERLOG_OFF, NULL);
-	ndbout << "Cluster logging is disabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already disabled." << endl;	
-	
-      }
-      
-      /********************
-       * CLUSTERLOG ON
-       ********************/
-    } else if (strcasecmp(item, "ON") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Could not get status" << endl;
-	printError();
-	return;
-      }
-      if(enabled[0]) {
-	ndb_mgm_filter_clusterlog(m_mgmsrv, NDB_MGM_CLUSTERLOG_OFF, NULL);
-	ndbout << "Cluster logging is enabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already enabled." << endl;	
-	
-      }
-    } else {
-      ndbout << "Invalid argument." << endl;
-    }
-    
-  } else {
+  if (emptyString(parameters))
+  {
     ndbout << "Missing argument." << endl;
+    DBUG_VOID_RETURN;
   }
+
+  enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
+    
+  char * tmpString = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(tmpString);
+  char * tmpPtr = 0;
+  char * item = strtok_r(tmpString, " ", &tmpPtr);
+  int enable;
+
+  Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
+  if(enabled == NULL) {
+    ndbout << "Couldn't get status" << endl;
+    printError();
+    DBUG_VOID_RETURN;
+  }
+
+  /********************
+   * CLUSTERLOG INFO
+   ********************/
+  if (strcasecmp(item, "INFO") == 0) {
+    DBUG_PRINT("info",("INFO"));
+    if(enabled[0] == 0)
+    {
+      ndbout << "Cluster logging is disabled." << endl;
+      DBUG_VOID_RETURN;
+    }
+#if 0 
+    for(i = 0; i<7;i++)
+      printf("enabled[%d] = %d\n", i, enabled[i]);
+#endif
+    ndbout << "Severities enabled: ";
+    for(i = 1; i < (int)NDB_MGM_CLUSTERLOG_ALL; i++) {
+      const char *str= ndb_mgm_get_clusterlog_level_string((ndb_mgm_clusterlog_level)i);
+      if (str == 0)
+      {
+	DBUG_ASSERT(false);
+	continue;
+      }
+      if(enabled[i])
+	ndbout << BaseString(str).ndb_toupper() << " ";
+    }
+    ndbout << endl;
+    DBUG_VOID_RETURN;
+
+  } 
+  else if (strcasecmp(item, "FILTER") == 0 ||
+	   strcasecmp(item, "TOGGLE") == 0)
+  {
+    DBUG_PRINT("info",("TOGGLE"));
+    enable= -1;
+  } 
+  else if (strcasecmp(item, "OFF") == 0) 
+  {
+    DBUG_PRINT("info",("OFF"));
+    enable= 0;
+  } else if (strcasecmp(item, "ON") == 0) {
+    DBUG_PRINT("info",("ON"));
+    enable= 1;
+  } else {
+    ndbout << "Invalid argument." << endl;
+    DBUG_VOID_RETURN;
+  }
+
+  int res_enable;
+  item = strtok_r(NULL, " ", &tmpPtr);
+  if (item == NULL) {
+    res_enable= ndb_mgm_filter_clusterlog(m_mgmsrv,
+					  NDB_MGM_CLUSTERLOG_ON, enable, NULL);
+    if (res_enable < 0)
+    {
+      ndbout << "Couldn't set filter" << endl;
+      printError();
+      DBUG_VOID_RETURN;
+    }
+    ndbout << "Cluster logging is " << (res_enable ? "enabled.":"disabled") << endl;
+    DBUG_VOID_RETURN;
+  }
+
+  do {
+    severity= NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+    if (strcasecmp(item, "ALL") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ALL;	
+    } else if (strcasecmp(item, "ALERT") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ALERT;
+    } else if (strcasecmp(item, "CRITICAL") == 0) { 
+      severity = NDB_MGM_CLUSTERLOG_CRITICAL;
+    } else if (strcasecmp(item, "ERROR") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ERROR;
+    } else if (strcasecmp(item, "WARNING") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_WARNING;
+    } else if (strcasecmp(item, "INFO") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_INFO;
+    } else if (strcasecmp(item, "DEBUG") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_DEBUG;
+    } else if (strcasecmp(item, "OFF") == 0 ||
+	       strcasecmp(item, "ON") == 0) {
+      if (enable < 0) // only makes sense with toggle
+	severity = NDB_MGM_CLUSTERLOG_ON;
+    }
+    if (severity == NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL) {
+      ndbout << "Invalid severity level: " << item << endl;
+      DBUG_VOID_RETURN;
+    }
+
+    res_enable = ndb_mgm_filter_clusterlog(m_mgmsrv, severity, enable, NULL);
+    if (res_enable < 0)
+    {
+      ndbout << "Couldn't set filter" << endl;
+      printError();
+      DBUG_VOID_RETURN;
+    }
+    ndbout << BaseString(item).ndb_toupper().c_str() << " " << (res_enable ? "enabled":"disabled") << endl;
+
+    item = strtok_r(NULL, " ", &tmpPtr);	
+  } while(item != NULL);
+
+  DBUG_VOID_RETURN;
 } 
 
 //*****************************************************************************
@@ -1404,7 +1384,7 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
       if(all)
 	ndbout << "NDB Cluster is being restarted." << endl;
       else
-	ndbout_c("Database node %d is being restarted.", processId);
+	ndbout_c("Node %d is being restarted.", processId);
     }
 }
 
@@ -1451,7 +1431,7 @@ CommandInterpreter::executeStatus(int processId,
 				  const char* parameters, bool all) 
 {
   if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
+    ndbout_c("No parameters expected to this command.");
     return;
   }
 
@@ -1482,7 +1462,7 @@ CommandInterpreter::executeStatus(int processId,
   ndbout << "Node " << processId << ": " << status_string(status);
   switch(status){
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << " (Phase " << startPhase << ")" ;
+    ndbout << " (Phase " << startPhase << ")";
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
     ndbout << " (Phase " << startPhase << ")";
@@ -1495,6 +1475,8 @@ CommandInterpreter::executeStatus(int processId,
 	     getMajor(version) ,
 	     getMinor(version),
 	     getBuild(version));
+  else
+    ndbout << endl;
 }
 
 
@@ -1506,7 +1488,10 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 				    bool all) 
 {
   (void) all;
-  
+  if (emptyString(parameters)) {
+    ndbout << "Expected argument" << endl;
+    return;
+  } 
   BaseString tmp(parameters);
   Vector<BaseString> spec;
   tmp.split(spec, "=");
@@ -1532,6 +1517,8 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
     return;
   }
   
+  ndbout << "Executing LOGLEVEL on node " << processId << flush;
+
   struct ndb_mgm_reply reply;
   int result;
   result = ndb_mgm_set_loglevel_node(m_mgmsrv, 
@@ -1541,11 +1528,10 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 				     &reply);
   
   if (result < 0) {
-    ndbout_c("Executing LOGLEVEL on node %d failed.", processId);
+    ndbout_c(" failed.");
     printError();
   } else {
-    ndbout << "Executing LOGLEVEL on node " << processId << " OK!" 
-	   << endl;
+    ndbout_c(" OK!");
   }  
   
 }
@@ -1840,36 +1826,36 @@ CommandInterpreter::executeEventReporting(int processId,
   spec[0].trim().ndb_toupper();
   int category = ndb_mgm_match_event_category(spec[0].c_str());
   if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
-    category = atoi(spec[0].c_str());
-    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+    if(!convert(spec[0].c_str(), category) ||
+       category < NDB_MGM_MIN_EVENT_CATEGORY ||
        category > NDB_MGM_MAX_EVENT_CATEGORY){
       ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
       return;
     }
   }
-  
-  int level = atoi(spec[1].c_str());
-  if(level < 0 || level > 15){
+
+  int level;
+  if (!convert(spec[1].c_str(),level))
+  {
     ndbout << "Invalid level: " << spec[1].c_str() << endl;
     return;
   }
-  
+
+  ndbout << "Executing CLUSTERLOG on node " << processId << flush;
 
   struct ndb_mgm_reply reply;
   int result;
-
   result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
-					   processId, // fast fix - pekka
+					   processId,
 					   (ndb_mgm_event_category)category,
 					   level, 
 					   &reply);
   
   if (result != 0) {
-    ndbout_c("Executing CLUSTERLOG on node %d failed", processId);
+    ndbout_c(" failed."); 
     printError();
   } else {
-    ndbout << "Executing CLUSTERLOG on node " << processId << " OK!" 
-	   << endl;
+    ndbout_c(" OK!"); 
   }  
 }
 
