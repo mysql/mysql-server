@@ -1334,17 +1334,20 @@ mysql_execute_command(THD *thd)
   */
   if (lex->derived_tables)
   {
-    for (TABLE_LIST *cursor= tables;
-	 cursor;
-	 cursor= cursor->next)
-      if (cursor->derived && (res=mysql_derived(thd, lex,
-						(SELECT_LEX_UNIT *)cursor->derived,
-						cursor)))
-      {  
-	if (res < 0)
-	  send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	DBUG_VOID_RETURN;
-      }
+    for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select_in_list())
+      if (sl->linkage != DERIVED_TABLE_TYPE)
+	for (TABLE_LIST *cursor= sl->get_table_list();
+	     cursor;
+	     cursor= cursor->next)
+	  if (cursor->derived && (res=mysql_derived(thd, lex,
+						    (SELECT_LEX_UNIT *)
+						    cursor->derived,
+						    cursor)))
+	  {  
+	    if (res < 0)
+	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	    DBUG_VOID_RETURN;
+	  }
   } 
   if ((lex->select_lex.next_select_in_list() && 
        lex->unit.create_total_list(thd, lex, &tables)) ||

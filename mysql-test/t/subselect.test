@@ -152,4 +152,13 @@ CREATE TABLE `forumconthardwarefr7` (
 INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 -- error 1240
 select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+-- error 1240
+select numeropost as a FROM forumconthardwarefr7 ORDER BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
 drop table if exists forumconthardwarefr7;
+
+drop table if exists iftest;
+CREATE TABLE iftest (field char(1) NOT NULL DEFAULT 'b');
+INSERT INTO iftest VALUES ();
+-- error 1240
+SELECT field FROM iftest WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+drop table iftest;
