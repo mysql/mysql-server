@@ -1870,7 +1870,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       const char* tmp = first + 1;
       for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-      canDoTurboBM = tmp == last;
+      canDoTurboBM = (tmp == last) && !use_mb(args[0]->charset());
     }
 
     if (canDoTurboBM)
