@@ -1,12 +1,13 @@
-OriginalAuthor: PaulDuBois
+OriginalAuthor: Paul DuBois
 
 !!! ManualStyleGuidelines
 
-''Version 1.0''
+''Version 1.1''
 
 !! Revision History
 
 * 2002-05-17 ArjenLentz - Version 1.0, Posted to Wiki
+* 2002-06-03 ArjenLentz - Version 1.1, updates.
 
 !! MySQL Manual Style Guidelines
 
@@ -276,4 +277,6 @@ It's "full-text", not "fulltext".
 Logical NOT/OR/AND are operators, not functions, so they take operands, not arguments.
 
 It's NetWare, not Netware (as per Novell's trademark guidelines).
+
+It's deprecated, not depricated.
 
