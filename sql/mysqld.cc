@@ -3745,7 +3745,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     if (!(vio_tmp=vio_new(new_sock,
 			  sock == unix_sock ? VIO_TYPE_SOCKET :
 			  VIO_TYPE_TCPIP,
-			  sock == unix_sock)) ||
+			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
       if (vio_tmp)

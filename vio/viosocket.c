@@ -35,6 +35,8 @@ int vio_read(Vio * vio, gptr buf, int size)
   DBUG_ENTER("vio_read");
   DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
 
+  /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
+  DBUG_ASSERT(vio->read_end == vio->read_pos);
 #ifdef __WIN__
   r = recv(vio->sd, buf, size,0);
 #else
@@ -49,6 +51,50 @@ int vio_read(Vio * vio, gptr buf, int size)
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
+}
+
+
+/*
+  Buffered read: if average read size is small it may
+  reduce number of syscalls.
+*/
+
+int vio_read_buff(Vio *vio, gptr buf, int size)
+{
+  int rc;
+#define VIO_UNBUFFERED_READ_MIN_SIZE 2048
+  DBUG_ENTER("vio_read_buff");
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+
+  if (vio->read_pos < vio->read_end)
+  {
+    rc= min(vio->read_end - vio->read_pos, size);
+    memcpy(buf, vio->read_pos, rc);
+    vio->read_pos+= rc;
+    /*
+      Do not try to read from the socket now even if rc < size:
+      vio_read can return -1 due to an error or non-blocking mode, and
+      the safest way to handle it is to move to a separate branch.
+    */
+  }
+  else if (size < VIO_UNBUFFERED_READ_MIN_SIZE)
+  {
+    rc= vio_read(vio, vio->read_buffer, VIO_READ_BUFFER_SIZE);
+    if (rc > 0)
+    {
+      if (rc > size)
+      {
+        vio->read_pos= vio->read_buffer + size;
+        vio->read_end= vio->read_buffer + rc;
+        rc= size;
+      }
+      memcpy(buf, vio->read_buffer, rc);
+    }
+  }
+  else
+    rc= vio_read(vio, buf, size);
+  DBUG_RETURN(rc);
+#undef VIO_UNBUFFERED_READ_MIN_SIZE
 }
 
 
