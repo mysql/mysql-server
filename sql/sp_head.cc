@@ -260,25 +260,32 @@ sp_head::restore_lex(THD *thd)
 }
 
 void
-sp_head::push_backpatch(sp_instr *i)
+sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
-  (void)m_backpatch.push_front(i);
+  bp_t *bp= (bp_t *)my_malloc(sizeof(bp_t), MYF(MY_WME));
+
+  if (bp)
+  {
+    bp->lab= lab;
+    bp->instr= i;
+    (void)m_backpatch.push_front(bp);
+  }
 }
 
 void
-sp_head::backpatch()
+sp_head::backpatch(sp_label_t *lab)
 {
-  sp_instr *ip;
+  bp_t *bp;
   uint dest= instructions();
-  List_iterator_fast<sp_instr> li(m_backpatch);
+  List_iterator_fast<bp_t> li(m_backpatch);
 
-  while ((ip= li++))
-  {
-    sp_instr_jump *i= static_cast<sp_instr_jump *>(ip);
+  while ((bp= li++))
+    if (bp->lab == lab)
+    {
+      sp_instr_jump *i= static_cast<sp_instr_jump *>(bp->instr);
 
-    i->set_destination(dest);
-  }
-  m_backpatch.empty();
+      i->set_destination(dest);
+    }
 }
 
 

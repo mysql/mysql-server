@@ -24,6 +24,8 @@
 
 #include <stddef.h>
 
+struct sp_label;
+
 class sp_instr;
 
 class sp_head : public Sql_alloc
@@ -72,11 +74,14 @@ public:
   void
   restore_lex(THD *thd);
 
+  // Put the instruction on the backpatch list, associated with the label.
   void
-  push_backpatch(sp_instr *i);
+  push_backpatch(sp_instr *, struct sp_label *);
 
+  // Update all instruction with this label in the backpatch list to
+  // the current position.
   void
-  backpatch();
+  backpatch(struct sp_label *);
 
 private:
 
@@ -85,7 +90,12 @@ private:
   LEX *m_mylex;			// My own lex
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
-  List<sp_instr> m_backpatch;	// Instructions needing backpaching
+  typedef struct
+  {
+    struct sp_label *lab;
+    sp_instr *instr;
+  } bp_t;
+  List<bp_t> m_backpatch;	// Instructions needing backpaching
 
   inline sp_instr *
   get_instr(uint i)
