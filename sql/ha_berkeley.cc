@@ -1658,12 +1658,15 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   {
     if (!thd->transaction.bdb_lock_count++)
     {
+      changed_rows=0;
       /* First table lock, start transaction */
-      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
+			   OPTION_TABLE_LOCK)) &&
 	  !thd->transaction.all.bdb_tid)
       {
+	DBUG_ASSERT(thd->transaction.stmt.bdb_tid != 0);
 	/* We have to start a master transaction */
-	DBUG_PRINT("trans",("starting transaction"));
+	DBUG_PRINT("trans",("starting transaction all"));
 	if ((error=txn_begin(db_env, 0,
 			     (DB_TXN**) &thd->transaction.all.bdb_tid,
 			     0)))
@@ -1671,8 +1674,10 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	  thd->transaction.bdb_lock_count--;	// We didn't get the lock /* purecov: inspected */
 	  DBUG_RETURN(error); /* purecov: inspected */
 	}
+	if (thd->in_lock_tables)
+	  DBUG_RETURN(0);			// Don't create stmt trans
       }
-      DBUG_PRINT("trans",("starting transaction for statement"));
+      DBUG_PRINT("trans",("starting transaction stmt"));
       if ((error=txn_begin(db_env,
 			   (DB_TXN*) thd->transaction.all.bdb_tid,
 			   (DB_TXN**) &thd->transaction.stmt.bdb_tid,
@@ -1684,7 +1689,6 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
       }
     }
     transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
-    changed_rows=0;
   }
   else
   {
@@ -1722,6 +1726,7 @@ int ha_berkeley::start_stmt(THD *thd)
   DBUG_ENTER("ha_berkeley::start_stmt");
   if (!thd->transaction.stmt.bdb_tid)
   {
+    DBUG_PRINT("trans",("starting transaction stmt"));
     error=txn_begin(db_env, (DB_TXN*) thd->transaction.all.bdb_tid,
 		    (DB_TXN**) &thd->transaction.stmt.bdb_tid,
 		    0);

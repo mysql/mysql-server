@@ -5467,9 +5467,10 @@ something that is of course not true.  We could make things even worse
 by just taking the test where PostgreSQL performs worst and claim that 
 MySQL is more than 2000 times faster than PostgreSQL.
 
-The case is that MySQL does a lot of optimizations that PostgreSQL doesn't 
-do and the other way around.  An SQL optimizer is a very complex thing, and
-a company could spend years on just making the optimizer faster and faster.
+The case is that MySQL does a lot of optimizations that PostgreSQL
+doesn't do. This is of course also true the other way around.  An SQL
+optimizer is a very complex thing, and a company could spend years on
+just making the optimizer faster and faster.
 
 When looking at the benchmark results you should look for things that
 you do in your application and just use these results to decide which
@@ -5604,12 +5605,14 @@ MySQL with 2000 simultaneous connections doing 400 queries per second.
 
 It sounded like he was using a Linux kernel that either had some
 problems with many threads, such as kernels before 2.4, which had a problem 
-with this but we have documented how to fix this and Tim should be aware of
-this problem.  The other possible problem could have been an old glibc
-library and that Tim didn't use a MySQL binary from our site, which is
-linked with a corrected glibc library, but had compiled a version of his
-own with.  In any of the above cases, the symptom would have been exactly
-what Tim had measured.
+with many threads on multi-CPU machines. We have documented in this manual
+how to fix this and Tim should be aware of this problem.
+
+The other possible problem could have been an old glibc library and
+that Tim didn't use a MySQL binary from our site, which is linked with
+a corrected glibc library, but had compiled a version of his own with.
+In any of the above cases, the symptom would have been exactly what Tim
+had measured.
 
 We asked Tim if we could get access to his data so that we could repeat
 the benchmark and if he could check the MySQL version on the machine to
@@ -5617,6 +5620,16 @@ find out what was wrong and he promised to come back to us about this.
 He has not done that yet.
 
 Because of this we can't put any trust in this benchmark either :(
+
+Over time things also changes and the above benchmarks are not that
+relevant anymore.  MySQL now have a couple of different table handlers
+with different speed/concurrency tradeoffs.  @xref{Table types}. It
+would be interesting to see how the above tests would run with the
+different transactional table types in MySQL.  PostgreSQL has of course
+also got new features since the test was made.  As the above test are
+not publicly available there is no way for us to know how the
+database would preform in the same tests today.
+
 
 Conclusion:
 
@@ -5632,15 +5645,15 @@ The thing we find strange is that every test we have seen about
 PostgreSQL, that is impossible to reproduce, claims that PostgreSQL is
 better in most cases while our tests, which anyone can reproduce,
 clearly shows otherwise.  With this we don't want to say that PostgreSQL
-isn't good at many things (it is!).  We would just like to see a fair test
-where they are very good so that we could get some friendly competition
-going!
+isn't good at many things (it is!) or that it isn't faster than MySQL
+under certain conditions.  We would just like to see a fair test where
+they are very good so that we could get some friendly competition going!
 
 For more information about our benchmarks suite @xref{MySQL Benchmarks}. 
 
-We are working on an even better benchmark suite, including much better
-documentation of what the individual tests really do, and how to add more
-tests to the suite.
+We are working on an even better benchmark suite, including multi user
+tests, and a better documentation of what the individual tests really
+do and how to add more tests to the suite.
 
 
 @node TODO,  , Comparisons, Introduction
@@ -46771,7 +46784,7 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
-Fixed a problem when using @code{LOCK TABLES} and @code{BDB} tables.
+Fixed problem when using @code{LOCK TABLES} and @code{BDB} tables.
 @item
 Fixed problem with @code{REPAIR TABLE} on MyISAM tables with row lengths
 between 65517 - 65520 bytes
