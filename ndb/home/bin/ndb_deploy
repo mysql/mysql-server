@@ -1,0 +1,27 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]
+then
+    for i in $DEPLOY_DST 
+    do
+      rsync -r -v --exclude '*.a' $NDB_TOP/bin $NDB_TOP/lib $i/
+    done
+else
+    while [ $# -gt 0 ]
+    do
+      arg=$1
+      shift;
+      if [ `echo $arg | grep -c lib` -eq 0 ]
+      then
+	  dst=bin/
+      else
+	  dst=lib/
+      fi
+
+      for i in $DEPLOY_DST 
+      do
+	rsync -v $arg $i/$dst
+      done
+    done
+fi
+
