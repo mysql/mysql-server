@@ -2871,7 +2871,14 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       table->file->write_row(table->record[0]);
     }
   }
-  DBUG_RETURN(res);
+  else
+  {
+    if (tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+  }
+  DBUG_RETURN(0);
 }
 
 
