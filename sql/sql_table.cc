@@ -964,9 +964,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /* Close all instances of the table to allow repair to rename files */
-    if (open_for_modify && table->table->version)
+    if (lock_type == TL_WRITE && table->table->version)
     {
       pthread_mutex_lock(&LOCK_open);
+      const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
+					      "Waiting to get writelock");
       mysql_lock_abort(thd,table->table);
       while (remove_table_from_cache(thd, table->table->table_cache_key,
 				     table->table->real_name) &&
@@ -976,9 +978,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
 	dropping_tables--;
       }
+      thd->exit_cond(old_message);
       pthread_mutex_unlock(&LOCK_open);
       if (thd->killed)
 	goto err;
+      open_for_modify=0;
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
@@ -1026,6 +1030,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     if (fatal_error)
       table->table->version=0;			// Force close of table
+    else if (open_for_modify)
+      remove_table_from_cache(thd, table->table->table_cache_key,
+			      table->table->real_name);
     close_thread_tables(thd);
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))
