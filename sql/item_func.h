@@ -180,15 +180,15 @@ class Item_num_op :public Item_func
 class Item_int_func :public Item_func
 {
 public:
-  Item_int_func() :Item_func() {}
-  Item_int_func(Item *a) :Item_func(a) {}
-  Item_int_func(Item *a,Item *b) :Item_func(a,b) {}
-  Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) {}
-  Item_int_func(List<Item> &list) :Item_func(list) {}
+  Item_int_func() :Item_func() { max_length=21; }
+  Item_int_func(Item *a) :Item_func(a) { max_length=21; }
+  Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length=21; }
+  Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { max_length=21; }
+  Item_int_func(List<Item> &list) :Item_func(list) { max_length=21; }
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  void fix_length_and_dec() {}
   Field *tmp_table_field(TABLE *t_arg)
   {
     if (!t_arg) return result_field;
@@ -203,7 +203,7 @@ public:
   double val() { return args[0]->val(); }
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
-  { decimals=0; max_length=args[0]->max_length; unsigned_flag=0; }
+  { max_length=args[0]->max_length; unsigned_flag=0; }
 };
 
 class Item_func_unsigned :public Item_int_func
@@ -213,7 +213,7 @@ public:
   double val() { return args[0]->val(); }
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
-  { decimals=0; max_length=args[0]->max_length; unsigned_flag=1; }
+  { max_length=args[0]->max_length; unsigned_flag=1; }
 };
 
 
@@ -598,7 +598,6 @@ public:
   Item_func_ord(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "ord"; }
-  void fix_length_and_dec() { max_length=21; }
 };
 
 class Item_func_find_in_set :public Item_int_func
@@ -620,7 +619,7 @@ public:
   Item_func_bit_or(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "|"; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  void fix_length_and_dec() { unsigned_flag=1; }
 };
 
 class Item_func_bit_and :public Item_int_func
@@ -629,7 +628,7 @@ public:
   Item_func_bit_and(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "&"; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  void fix_length_and_dec() { unsigned_flag=1; }
 };
 
 class Item_func_bit_count :public Item_int_func
@@ -638,7 +637,7 @@ public:
   Item_func_bit_count(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; }
+  void fix_length_and_dec() { max_length=2; }
 };
 
 class Item_func_shift_left :public Item_int_func
@@ -647,7 +646,7 @@ public:
   Item_func_shift_left(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "<<"; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  void fix_length_and_dec() { unsigned_flag=1; }
 };
 
 class Item_func_shift_right :public Item_int_func
@@ -656,7 +655,6 @@ public:
   Item_func_shift_right(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return ">>"; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
 };
 
 class Item_func_bit_neg :public Item_int_func
@@ -665,7 +663,7 @@ public:
   Item_func_bit_neg(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "~"; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  void fix_length_and_dec() { unsigned_flag=1; }
 };
 
 class Item_func_set_last_insert_id :public Item_int_func
@@ -674,7 +672,7 @@ public:
   Item_func_set_last_insert_id(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "last_insert_id"; }
-  void fix_length_and_dec() { decimals=0; max_length=args[0]->max_length; }
+  void fix_length_and_dec() { max_length=args[0]->max_length; }
 };
 
 class Item_func_benchmark :public Item_int_func
@@ -686,7 +684,7 @@ class Item_func_benchmark :public Item_int_func
   {}
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=0; }
+  void fix_length_and_dec() { max_length=1; maybe_null=0; }
 };
 
 
@@ -818,7 +816,7 @@ class Item_func_get_lock :public Item_int_func
   Item_func_get_lock(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=1; maybe_null=1;}
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -828,7 +826,7 @@ class Item_func_release_lock :public Item_int_func
   Item_func_release_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=1; maybe_null=1;}
 };
 
 /* replication functions */
@@ -840,7 +838,7 @@ class Item_master_pos_wait :public Item_int_func
   Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=1; maybe_null=1;}
 };
 
 

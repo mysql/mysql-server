@@ -577,7 +577,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
-	grant_privilege grant_privilege_list mqh_option
+	grant_privilege grant_privilege_list
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
@@ -3395,7 +3395,7 @@ grant:
 	  lex->mqh=0;	
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_option mqh_option 
+	require_clause grant_options
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3582,17 +3582,19 @@ require_clause: /* empty */
           Lex->ssl_type=SSL_TYPE_X509;
         }
 
-grant_option:
+grant_options:
 	/* empty */ {}
-	| WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
+	| WITH grant_option_list
 
-mqh_option:
-	/* empty */ {}
-        | AND WITH MAX_QUERIES_PER_HOUR EQ NUM
-        { 
-	  Lex->mqh=atoi($5.str);
-	  if (Lex->mqh > 65535)
-	    YYABORT;
+grant_option_list:
+	grant_option_list grant_option {}
+	| grant_option {}
+
+grant_option:
+	GRANT OPTION { Lex->grant |= GRANT_ACL;}
+        | MAX_QUERIES_PER_HOUR EQ NUM
+        {
+	  Lex->mqh=atoi($3.str);
 	}
 
 begin:

@@ -35,10 +35,10 @@ struct my_option
   enum get_opt_var_type var_type;
   enum get_opt_arg_type arg_type;
   int        id;                        /* unique id or short option */
-  long long  def_value;                 /* Default value */
-  long long  min_value;                 /* Min allowed value */
-  long long  max_value;                 /* Max allowed value */
-  long long  sub_size;                  /* Subtract this from given value */
+  longlong   def_value;                 /* Default value */
+  longlong   min_value;                 /* Min allowed value */
+  longlong   max_value;                 /* Max allowed value */
+  longlong   sub_size;                  /* Subtract this from given value */
   long       block_size;                /* Value should be a mult. of this */
   int        app_type;                  /* To be used by an application */
   my_bool    changeable_var;            /* If true, the option is a variable */

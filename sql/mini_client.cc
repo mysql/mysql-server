@@ -399,7 +399,7 @@ max_allowed_packet on this server");
 }
 
 
-char *  mc_mysql_error(MYSQL *mysql)
+char *mc_mysql_error(MYSQL *mysql)
 {
   return (mysql)->net.last_error;
 }
@@ -897,7 +897,7 @@ mc_mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-void  mc_mysql_free_result(MYSQL_RES *result)
+void mc_mysql_free_result(MYSQL_RES *result)
 {
   DBUG_ENTER("mc_mysql_free_result");
   DBUG_PRINT("enter",("mysql_res: %lx",result));
@@ -1280,17 +1280,17 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
   return 0;
 }
 
-my_ulonglong  mc_mysql_num_rows(MYSQL_RES *res)
+my_ulonglong mc_mysql_num_rows(MYSQL_RES *res)
 {
   return res->row_count;
 }
 
-unsigned int  mc_mysql_num_fields(MYSQL_RES *res)
+unsigned int mc_mysql_num_fields(MYSQL_RES *res)
 {
   return res->field_count;
 }
 
-void  mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
+void mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
 {
   MYSQL_ROWS	*tmp=0;
   DBUG_PRINT("info",("mysql_data_seek(%ld)",(long) row));
@@ -1300,7 +1300,7 @@ void  mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
   result->data_cursor = tmp;
 }
 
-MYSQL_ROW  mc_mysql_fetch_row(MYSQL_RES *res)
+MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res)
 {
   DBUG_ENTER("mc_mysql_fetch_row");
   if (!res->data)
@@ -1335,7 +1335,7 @@ MYSQL_ROW  mc_mysql_fetch_row(MYSQL_RES *res)
   }
 }
 
-int  mc_mysql_select_db(MYSQL *mysql, const char *db)
+int mc_mysql_select_db(MYSQL *mysql, const char *db)
 {
   int error;
   DBUG_ENTER("mysql_select_db");

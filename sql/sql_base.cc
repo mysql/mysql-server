@@ -612,8 +612,6 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 }
 
 
-
-
 	/* move table first in unused links */
 
 static void relink_unused(TABLE *table)
@@ -2144,7 +2142,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     THD *in_use;
     table->version=0L;			/* Free when thread is ready */
     if (!(in_use=table->in_use))
+    {
+      DBUG_PRINT("info",("Table was not in use"));
       relink_unused(table);
+    }
     else if (in_use != thd)
     {
       in_use->some_tables_deleted=1;

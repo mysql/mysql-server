@@ -370,7 +370,7 @@ public:
   */
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
-  uint32 log_pos;
+  my_off_t   log_pos;
 
   THD();
   ~THD();

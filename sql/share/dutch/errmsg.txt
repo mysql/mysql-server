@@ -233,3 +233,4 @@
 "Kan de query niet uitvoeren vanwege een conflicterende read lock",
 "Het combineren van transactionele en niet-transactionele tabellen is uitgeschakeld.",
 "Optie '%s' tweemaal gebruikt in opdracht",
+"User '%-64s' has exceeded the '%s' resource (current value: %ld)",

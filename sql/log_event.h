@@ -214,7 +214,7 @@ public:
   time_t when;
   ulong exec_time;
   uint32 server_id;
-  uint32 log_pos;
+  my_off_t log_pos;
   uint16 flags;
   int cached_event_len;
   char* temp_buf;
@@ -351,12 +351,12 @@ protected:
   char* mem_pool;
   void init_from_mem_pool(int data_size);
 public:
+  my_off_t master_pos;
   char* master_host;
-  int master_host_len;
-  uint16 master_port;
   char* master_log;
+  int master_host_len;
   int master_log_len;
-  ulonglong master_pos;
+  uint16 master_port;
 
 #ifndef MYSQL_CLIENT  
   Slave_log_event(THD* thd_arg, struct st_relay_log_info* rli);

@@ -305,6 +305,8 @@ multi_delete::~multi_delete()
 bool multi_delete::send_data(List<Item> &values)
 {
   int secure_counter= -1;
+  DBUG_ENTER("multi_delete::send_data");
+
   for (table_being_deleted=delete_tables ;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next, secure_counter++)
@@ -319,13 +321,14 @@ bool multi_delete::send_data(List<Item> &values)
 
     if (secure_counter < 0)
     {
+      /* If this is the table we are scanning */
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
 	deleted++;
       else
       {
 	table->file->print_error(error,MYF(0));
-	return 1;
+	DBUG_RETURN(1);
       }
     }
     else
@@ -334,21 +337,23 @@ bool multi_delete::send_data(List<Item> &values)
       if (error)
       {
 	error=-1;
-	return 1;
+	DBUG_RETURN(1);
       }
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void multi_delete::send_error(uint errcode,const char *err)
 {
+  DBUG_ENTER("multi_delete::send_error");
+
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
   /* If nothing deleted return */
   if (!deleted)
-    return;
+    DBUG_VOID_RETURN;
 
   /* Below can happen when thread is killed early ... */
   if (!table_being_deleted)
@@ -364,7 +369,10 @@ void multi_delete::send_error(uint errcode,const char *err)
        table_being_deleted == delete_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
   else if (do_delete)
-    VOID(do_deletes(true));
+  {
+    VOID(do_deletes(1));
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -375,7 +383,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 	1 error
 */
 
-int multi_delete::do_deletes (bool from_send_error)
+int multi_delete::do_deletes(bool from_send_error)
 {
   int error = 0, counter = 0;
 
@@ -432,7 +440,7 @@ bool multi_delete::send_eof()
   thd->proc_info="deleting from reference tables";
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int error = do_deletes(false);		// returns 0 if success
+  int error = do_deletes(0);		// returns 0 if success
 
   /* reset used flags */
   thd->proc_info="end";

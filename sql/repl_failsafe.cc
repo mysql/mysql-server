@@ -201,7 +201,7 @@ void end_slave_list()
 
 static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
 {
-  uint32 log_pos = mi->pos;
+  uint32 log_pos = (uint32) mi->pos;
   uint32 target_server_id = mi->server_id;
 
   for (;;)
@@ -799,8 +799,7 @@ int load_master_data(THD* thd)
       {
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
-       // atoi() is ok, since offset is <= 1GB
-	active_mi->master_log_pos = atoi(row[1]);
+	active_mi->master_log_pos = strtoull(row[1], (char**) 0, 10);
 	if (active_mi->master_log_pos < 4)
 	  active_mi->master_log_pos = 4;	// don't hit the magic number
 	active_mi->rli.pending = 0;

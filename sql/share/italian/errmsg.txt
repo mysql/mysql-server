@@ -227,3 +227,4 @@
 "Can't execute the query because you have a conflicting read lock",
 "Mixing of transactional and non-transactional tables is disabled",
 "Option '%s' used twice in statement",
+"User '%-64s' has exceeded the '%s' resource (current value: %ld)",

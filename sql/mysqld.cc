@@ -1950,8 +1950,7 @@ The server will not act as a slave.");
   }
   if (!opt_noacl)
     (void) grant_init();
-  if (max_user_connections || mqh_used)
-    init_max_user_conn();
+  init_max_user_conn();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)

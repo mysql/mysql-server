@@ -26,17 +26,19 @@
 
 #include <assert.h>
 
-inline int my_b_safe_write(IO_CACHE* file, const char* buf,
-			      int len)
+inline int my_b_safe_write(IO_CACHE* file, const byte *buf,
+			   int len)
 {
-  // Sasha: We are not writing this with the ? operator to avoid hitting
-  // a possible compiler bug. At least gcc 2.95 cannot deal with 
-  // several layers of ternary operators that evaluated comma(,) operator
-  // expressions inside - I do have a test case if somebody wants it
+  /*
+    Sasha: We are not writing this with the ? operator to avoid hitting
+     a possible compiler bug. At least gcc 2.95 cannot deal with 
+     several layers of ternary operators that evaluated comma(,) operator
+      expressions inside - I do have a test case if somebody wants it
+  */
   if (file->type == SEQ_READ_APPEND)
-    return my_b_append(file,buf,len);
-  return my_b_write(file,buf,len);
- }
+    return my_b_append(file, buf,len);
+  return my_b_write(file, buf,len);
+}
 
 #ifdef MYSQL_CLIENT
 static void pretty_print_str(FILE* file, char* str, int len)
@@ -93,6 +95,7 @@ static void pretty_print_str(String* packet, char* str, int len)
   }
   packet->append('\'');
 }
+
 
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
@@ -382,9 +385,9 @@ int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
   event_type = get_type_str();
   net_store_data(packet, event_type, strlen(event_type));
   net_store_data(packet, server_id);
-  net_store_data(packet, log_pos);
+  net_store_data(packet, (longlong) log_pos);
   pack_info(packet);
-  return my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
+  return my_net_write(&thd->net, (char*) packet->ptr(), packet->length());
 }
 
 #endif
@@ -1218,31 +1221,30 @@ void Load_log_event::set_fields(List<Item> &fields)
 {
   uint i;
   const char* field = this->fields;
-  for(i = 0; i < num_fields; i++)
-    {
-      fields.push_back(new Item_field(db, table_name, field));	  
-      field += field_lens[i]  + 1;
-    }
-  
+  for (i = 0; i < num_fields; i++)
+  {
+    fields.push_back(new Item_field(db, table_name, field));	  
+    field += field_lens[i]  + 1;
+  }
 }
+
 
 Slave_log_event::Slave_log_event(THD* thd_arg,
 				 struct st_relay_log_info* rli):
   Log_event(thd_arg),mem_pool(0),master_host(0)
 {
-  if(!rli->inited)
+  if (!rli->inited)
     return;
   
   MASTER_INFO* mi = rli->mi;
-  // TODO: re-write this better without holding both
-  // locks at the same time
+  // TODO: re-write this better without holding both locks at the same time
   pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
   master_host_len = strlen(mi->host);
   master_log_len = strlen(rli->master_log_name);
   // on OOM, just do not initialize the structure and print the error
-  if((mem_pool = (char*)my_malloc(get_data_size() + 1,
-				  MYF(MY_WME))))
+  if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
+				   MYF(MY_WME))))
   {
     master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
     memcpy(master_host, mi->host, master_host_len + 1);
@@ -1276,8 +1278,8 @@ void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
   print_header(file);
   fputc('\n', file);
   fprintf(file, "Slave: master_host='%s' master_port=%d \
- master_log=%s master_pos=%s\n", master_host, master_port, master_log,
-	  llstr(master_pos, llbuff));
+ master_log=%s master_pos=%s\n",
+	  master_host, master_port, master_log, llstr(master_pos, llbuff));
 }
 
 #endif
@@ -1753,11 +1755,13 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
     close_temporary_tables(thd);
     cleanup_load_tmpdir();
   }
-  // we do not want to update master_log pos because we get a rotate event
-  // before stop, so by now master_log_name is set to the next log
-  // if we updated it, we will have incorrect master coordinates and this
-  // could give false triggers in MASTER_POS_WAIT() that we have reached
-  // the targed position when in fact we have not
+  /*
+    We do not want to update master_log pos because we get a rotate event
+    before stop, so by now master_log_name is set to the next log
+    if we updated it, we will have incorrect master coordinates and this
+    could give false triggers in MASTER_POS_WAIT() that we have reached
+    the targed position when in fact we have not
+  */
   rli->inc_pos(get_event_len(), 0);  
   flush_relay_log_info(rli);
   return 0;

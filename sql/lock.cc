@@ -431,10 +431,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     if (table->in_use == thd)
       DBUG_RETURN(0);
 
-  /* Create a table entry with the right key and with an old refresh version */
-  /* Note that we must use my_malloc() here as this is freed by the table
-     cache */
-
+  /*
+    Create a table entry with the right key and with an old refresh version
+    Note that we must use my_malloc() here as this is freed by the table
+    cache
+  */
   if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
 				  MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(-1);
