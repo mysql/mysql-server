@@ -790,11 +790,17 @@ bool select_subselect::send_data(List<Item> &items)
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)
-  {						// using limit offset,count
+  {				          // Using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
-  Item *val_item= (Item *)item->select_lex->item_list.head();
+  List_iterator_fast<Item> li(items);
+  Item *val_item= li++;                   // Only one (single value subselect)
+  /*
+    Following val() call have to be first, because function AVG() & STD()
+    calculate value on it & determinate "is it NULL?".
+  */
+  item->real_value= val_item->val();
   if ((item->null_value= val_item->is_null()))
   {
     item->assign_null();
@@ -804,7 +810,6 @@ bool select_subselect::send_data(List<Item> &items)
     item->binary= val_item->binary;
     val_item->val_str(&item->str_value);
     item->int_value= val_item->val_int();
-    item->real_value= val_item->val();
     item->res_type= val_item->result_type();
   }
   item->executed= 1;

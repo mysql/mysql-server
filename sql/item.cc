@@ -330,23 +330,32 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
+      SELECT_LEX *last;
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
 	   sl && !tmp;
 	   sl= sl->outer_select())
 	tmp=find_field_in_tables(thd, this,
-				 (TABLE_LIST*)sl->table_list.first);
+				 (TABLE_LIST*)(last= sl)->table_list.first);
       if (!tmp)
 	return 1;
       else
-	if( !thd->lex.select->depended )
-	{
-	  thd->lex.select->depended= 1; //Select is depended of outer select(s)
-	  //Tables will be reopened many times
-	  for (TABLE_LIST *tbl= (TABLE_LIST*)thd->lex.select->table_list.first;
-	       tbl;
-	       tbl= tbl->next)
-	    tbl->shared= 1;
-	}
+	/*
+	  Mark all selects from resolved to 1 before select where was 
+	  found table as depended (of select where was found table)
+	*/
+	for (SELECT_LEX *s= thd->lex.select;
+	     s &&s != last;
+	     s= s->outer_select())
+	  if( !s->depended )
+	  {
+	    s->depended= 1; //Select is depended of outer select
+	    //Tables will be reopened many times
+	    for (TABLE_LIST *tbl= 
+		   (TABLE_LIST*)s->table_list.first;
+		 tbl;
+		 tbl= tbl->next)
+	      tbl->shared= 1;
+	  }
     }
     set_field(tmp);
   }

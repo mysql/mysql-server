@@ -2325,7 +2325,6 @@ order_clause:
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
 	    YYABORT;
-	  /*lex->select->sort_default=1;*/
 	} order_list
 
 order_list:
