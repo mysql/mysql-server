@@ -5686,7 +5686,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 CHARSET_INFO my_charset_gb2312 =
 {
     24,			/* number */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "gb2312",		/* cs name    */
     "gb2312",		/* name */
     "",			/* comment    */

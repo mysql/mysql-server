@@ -2810,7 +2810,7 @@ static CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_latin1
   {
     8,			/* number     */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "latin1",		/* cs name    */
     "latin1",		/* name       */
     "",			/* comment    */
