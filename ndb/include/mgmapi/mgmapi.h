@@ -30,15 +30,15 @@
  * @section  General Concepts
  *
  * Each MGM API function needs a management server handle 
- * of type <CODE>Mgm_C_Api::NdbMgmHandle</CODE>.  
+ * of type Mgm_C_Api::NdbMgmHandle.  
  * This handle is initally created by calling the 
- * function <CODE>ndb_mgm_create_handle()</CODE>.
+ * function ndb_mgm_create_handle().
  *
  * A function can return:
  *  -# An integer value.  
- *     A value of <B>-1</B> indicates an error.
- *  -# A pointer value.  A <VAR>NULL</VAR> value indicates an error;
- *     Otherwise, the return value must be <CODE>free()</CODE>ed by the user of the MGM API.
+ *     A value of -1 indicates an error.
+ *  -# A pointer value.  A NULL value indicates an error;
+ *     Otherwise, the return value must be free()ed by the user of the MGM API.
  *
  * Error conditions can be identified by using the appropriate 
  * error-reporting functions.
