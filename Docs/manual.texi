@@ -37139,17 +37139,17 @@ You can combine TST and NTST tables in the same statements to get the best
 of both worlds.
 
 @menu
-* MyISAM::                      MyISAM tables
-* MERGE::                       MERGE tables
-* ISAM::                        ISAM tables
-* HEAP::                        HEAP tables
-* InnoDB::                      InnoDB tables
-* BDB::                         BDB or Berkeley_db tables
+* MyISAM::                      @code{MyISAM} tables
+* MERGE::                       @code{MERGE} tables
+* ISAM::                        @code{ISAM} tables
+* HEAP::                        @code{HEAP} tables
+* InnoDB::                      @code{InnoDB} tables
+* BDB::                         @code{BDB} or @code{Berkeley_db} tables
 @end menu
 
 
 @node MyISAM, MERGE, Table types, Table types
-@section MyISAM Tables
+@section @code{MyISAM} Tables
 
 @code{MyISAM} is the default table type in MySQL Version 3.23. It's
 based on the @code{ISAM} code and has a lot of useful extensions.
@@ -37647,7 +37647,7 @@ is not signaled to the other servers.
 
 
 @node MERGE, ISAM, MyISAM, Table types
-@section MERGE Tables
+@section @code{MERGE} Tables
 
 @cindex tables, merging
 @cindex MERGE tables, defined
@@ -37813,20 +37813,21 @@ read the new definition file.
 @end itemize
 
 @menu
-* MERGE table problems::        MERGE table problems.
+* MERGE table problems::        MERGE Table Problems
 @end menu
 
 @node MERGE table problems,  , MERGE, MERGE
-@subsection MERGE table problems.
+@subsection @code{MERGE} Table Problems
 
 The following are the known problems with @code{MERGE} tables:
 
 @itemize @bullet
 @item
-@code{MERGE} table cannot maintain UNIQUE constraints over the whole
-table.  When you do INSERT, the data goes into the first or last table
-(according to @code{INSERT_METHOD=xxx}) and this MyISAM table ensures
-that the data are unique, but it knows nothing about the first MyISAM table.
+A @code{MERGE} table cannot maintain @code{UNIQUE} constraints over the
+whole table.  When you do @code{INSERT}, the data goes into the first or
+last table (according to @code{INSERT_METHOD=xxx}) and this @code{MyISAM}
+table ensures that the data are unique, but it knows nothing about the
+first @code{MyISAM} table.
 @item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
@@ -37846,7 +37847,7 @@ different for the tables if there was an old non-unique key in the
 table. This is because @code{ALTER TABLE} puts @code{UNIQUE} keys before
 normal keys to be able to detect duplicate keys as early as possible.
 @item
-The range optimizer can't yet use @code{MERGE} table efficiently and may
+The range optimiser can't yet use @code{MERGE} table efficiently and may
 sometimes produce non-optimal joins.  This will be fixed in MySQL 4.0.x.
 @item
 @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will
@@ -37859,7 +37860,7 @@ dropping the table.  We will fix this at the same time we introduce
 @end itemize
 
 @node ISAM, HEAP, MERGE, Table types
-@section ISAM Tables
+@section @code{ISAM} Tables
 
 @cindex tables, ISAM
 
@@ -37905,7 +37906,7 @@ mysql> ALTER TABLE tbl_name TYPE = MYISAM;
 The embedded MySQL versions doesn't support @code{ISAM} tables.
 
 @node HEAP, InnoDB, ISAM, Table types
-@section HEAP Tables
+@section @code{HEAP} Tables
 
 @cindex tables, @code{HEAP}
 
@@ -37985,7 +37986,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 
 
 @node InnoDB, BDB, HEAP, Table types
-@section InnoDB Tables
+@section @code{InnoDB} Tables
 
 @menu
 * InnoDB overview::             InnoDB Tables Overview
@@ -39921,7 +39922,7 @@ Finland
 
 
 @node BDB,  , InnoDB, Table types
-@section BDB or Berkeley_DB Tables
+@section @code{BDB} or @code{Berkeley_DB} Tables
 
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
