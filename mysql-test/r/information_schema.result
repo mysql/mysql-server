@@ -611,6 +611,7 @@ Create_routine_priv	select,insert,update,references
 Alter_routine_priv	select,insert,update,references
 max_questions	select,insert,update,references
 max_connections	select,insert,update,references
+max_user_connections	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;

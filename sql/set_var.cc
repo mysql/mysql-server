@@ -252,8 +252,7 @@ sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
-sys_var_long_ptr	sys_max_user_connections("max_user_connections",
-						 &max_user_connections);
+sys_var_max_user_conn   sys_max_user_connections("max_user_connections");
 sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
@@ -2482,7 +2481,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 {
-  /* We are using Time_zone object found during check() phase */ 
+  /* We are using Time_zone object found during check() phase */
   *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
   return 0;
 }
@@ -2525,6 +2524,51 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  else
    thd->variables.time_zone= global_system_variables.time_zone;
 }
+
+
+bool sys_var_max_user_conn::check(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    return sys_var_thd::check(thd, var);
+  else
+  {
+    /*
+      Per-session values of max_user_connections can't be set directly.
+      QQ: May be we should have a separate error message for this?
+    */
+    my_error(ER_GLOBAL_VARIABLE, MYF(0), name);
+    return TRUE;
+  }
+}
+
+bool sys_var_max_user_conn::update(THD *thd, set_var *var)
+{
+  DBUG_ASSERT(var->type == OPT_GLOBAL);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  max_user_connections= var->save_result.ulonglong_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return 0;
+}
+
+
+void sys_var_max_user_conn::set_default(THD *thd, enum_var_type type)
+{
+  DBUG_ASSERT(type == OPT_GLOBAL);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  max_user_connections= (ulong) option_limits->def_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+
+byte *sys_var_max_user_conn::value_ptr(THD *thd, enum_var_type type,
+                                       LEX_STRING *base)
+{
+  if (type != OPT_GLOBAL &&
+      thd->user_connect && thd->user_connect->user_resources.user_conn)
+    return (byte*) &(thd->user_connect->user_resources.user_conn);
+  return (byte*) &(max_user_connections);
+}
+
 
 /*
   Functions to update thd->options bits
