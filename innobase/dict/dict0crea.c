@@ -1315,7 +1315,7 @@ loop:
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(dict_foreign_err_buf);
+		ut_sprintf_timestamp(ebuf);
 		sprintf(ebuf + strlen(ebuf),
 " Error in foreign key constraint creation for table %.500s.\n"
 "A foreign key constraint of name %.500s\n"
