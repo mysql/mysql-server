@@ -40,7 +40,7 @@ ulong max_allowed_packet=65536;
 extern ulong net_read_timeout,net_write_timeout;
 extern uint test_flags;
 #else
-ulong max_allowed_packet=16*1024*1024L;
+ulong max_allowed_packet=16*1024*1024L-1;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
