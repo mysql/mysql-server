@@ -10,10 +10,21 @@
 # Written by Matt Wagner <matt@mysql.com>
 #
 use strict;
+
+#
+# Use local perl libraries first. 'unshift' adds to the front of @INC
+# The local perl library dir hidden is $HOME/.perllibs on each build host
+#
+BEGIN
+{
+        my $homedir= $ENV{HOME};
+        unshift (@INC, "$homedir/.perllibs");
+}
+
 use Digest::MD5;
 use Getopt::Long;
 
-my $VER= "1.1";
+my $VER= "1.2";
 
 #
 # Strip the leading path info off the program name ($0). We want 'my_md5sum'
