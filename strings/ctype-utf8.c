@@ -2066,6 +2066,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
     my_charpos_mb,
     my_well_formed_len_mb,
     my_lengthsp_8bit,
+    my_numcells_mb,
     my_utf8_uni,
     my_uni_utf8,
     my_caseup_str_utf8,

@@ -9939,6 +9939,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
+  my_numcells_mb,
   my_mb_wc_gbk,
   my_wc_mb_gbk,
   my_caseup_str_mb,
