@@ -49,7 +49,18 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "Invalid connection handle",
+  "Invalid use of null pointer",
+  "Memory allocation error",
+  "Statement not prepared",
+  "Not all parameters data supplied",
+  "Data truncated",
+  "Not all parameters bound for the row fetch",
+  "Failed to send the parameter data",
+  "No parameters exists in the statement",
+  "Invalid parameter number",
+  "Can't send long data for non string or binary data types"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -82,7 +93,18 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "Invalid connection handle",
+  "Invalid use of null pointer",
+  "Memory allocation error",
+  "Statement not prepared",
+  "Not all parameters data supplied",
+  "Data truncated",
+  "Not all parameters bound for the row fetch",
+  "Failed to send the parameter data",
+  "No parameters exists in the statement",
+  "Invalid parameter number",
+  "Can't send long data for non string or binary data types"
 };
 
 #else /* ENGLISH */
@@ -113,7 +135,18 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "Invalid connection handle",
+  "Invalid use of null pointer",
+  "Memory allocation error",
+  "Statement not prepared",
+  "Not all parameters data supplied",
+  "Data truncated",
+  "Not all parameters bound for the row fetch",
+  "Failed to send the parameter data",
+  "No parameters exists in the statement",
+  "Invalid parameter number",
+  "Can't send long data for non string or binary data types"
 };
 #endif
 
