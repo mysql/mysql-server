@@ -47,7 +47,6 @@ static struct my_option my_long_options[] =
 static void print_version()
 {
   printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  ndbPrintVersion();
 }
 static void usage()
 {
