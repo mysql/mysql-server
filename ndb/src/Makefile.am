@@ -1,4 +1,4 @@
-SUBDIRS = common mgmapi ndbapi . kernel mgmsrv mgmclient cw
+SUBDIRS = common mgmapi ndbapi . kernel mgmclient mgmsrv cw
 
 include $(top_srcdir)/ndb/config/common.mk.am
 
