@@ -540,7 +540,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 query:
 	END_OF_INPUT
-	 {
+	{
 	   if (!current_thd->bootstrap)
 	     send_error(&current_thd->net,ER_EMPTY_QUERY);
 	   YYABORT;
@@ -699,7 +699,7 @@ create3:
 	/* empty */ {}
 	| opt_duplicate opt_as SELECT_SYM
           {
-	    Lex->lock_option= TL_READ_NO_INSERT;
+	    Lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(Lex);
           }
           select_options select_item_list opt_select_from {}
@@ -2072,7 +2072,7 @@ insert_values:
 	    LEX *lex=Lex;
 	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
-	    lex->lock_option= TL_READ_NO_INSERT;
+	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
 	  }
 	  select_options select_item_list select_from select_lock_type {}

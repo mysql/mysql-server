@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.7"
+#define MTEST_VERSION "1.8"
 
 #include <global.h>
 #include <my_sys.h>
@@ -269,6 +269,7 @@ static void die(const char* fmt, ...)
     fprintf(stderr, "%s: ", my_progname);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
+    fflush(stderr);
   }
   va_end(args);
   free_used_memory();
@@ -864,13 +865,12 @@ int close_connection(struct st_query* q)
 char* safe_get_param(char* str, char** arg, const char* msg)
 {
   DBUG_ENTER("safe_get_param");
-  while(*str && isspace(*str)) str++;
+  while (*str && isspace(*str)) str++;
   *arg = str;
-  while(*str && *str != ',' && *str != ')')
-    {
-      if (isspace(*str)) *str = 0;
-      str++;
-    }
+  for (; *str && *str != ',' && *str != ')' ; str++)
+  {
+    if (isspace(*str)) *str = 0;
+  }
   if (!*str)
     die(msg);
 
@@ -885,6 +885,7 @@ int do_connect(struct st_query* q)
     *con_db, *con_sock;
   char* p=q->first_argument;
   char buff[FN_REFLEN];
+  int con_port;
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
 
@@ -896,16 +897,27 @@ int do_connect(struct st_query* q)
   p = safe_get_param(p, &con_user, "missing connection user");
   p = safe_get_param(p, &con_pass, "missing connection password");
   p = safe_get_param(p, &con_db, "missing connection db");
-  p = safe_get_param(p, &con_port_str, "missing connection port");
-  p = safe_get_param(p, &con_sock, "missing connection socket");
+  if (!*p || *p == ';')				/* Default port and sock */
+  {
+    con_port=port;
+    con_sock=(char*) unix_sock;
+  }
+  else
+  {
+    p = safe_get_param(p, &con_port_str, "missing connection port");
+    con_port=atoi(con_port_str);
+    p = safe_get_param(p, &con_sock, "missing connection socket");
+  }
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
-  con_sock=fn_format(buff, con_sock, TMPDIR,"",0);
+  con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
+  if (!con_db[0])
+    con_db=db;
   if (!mysql_real_connect(&next_con->mysql, con_host, con_user, con_pass,
-			 con_db, atoi(con_port_str), con_sock, 0))
+			 con_db, con_port, con_sock, 0))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
@@ -1572,7 +1584,7 @@ int main(int argc, char** argv)
 {
   int error = 0;
   struct st_query* q;
-  my_bool require_file=0;
+  my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
@@ -1639,6 +1651,11 @@ int main(int argc, char** argv)
 				* read-result only ( reap) */
 	if (q->type == Q_QUERY) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
+	if (q_send_flag)
+	{
+	  flags= QUERY_SEND;
+	  q_send_flag=0;
+	}
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
@@ -1649,9 +1666,14 @@ int main(int argc, char** argv)
 	break;
       }
       case Q_SEND:
-	if(q->query == q->query_buf) /* fix up query pointer if this is
-				      * first iteration for this line
-				      */
+	if (!q->query[q->first_word_len])
+	{
+	  /* This happens when we use 'send' on it's own line */
+	  q_send_flag=1;
+	  break;
+	}
+	/* fix up query pointer if this is * first iteration for this line */
+	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
 	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
 	/* run query can execute a query partially, depending on the flags

@@ -253,7 +253,7 @@ ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
-bool opt_using_transactions;
+bool opt_using_transactions, using_update_log;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -649,7 +649,7 @@ void clean_up(void)
   if (!opt_noacl)
     udf_free();
 #endif
-  end_key_cache();			/* This is usually freed automaticly */
+  end_key_cache();
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
 #ifdef USE_RAID
   end_raid();
@@ -1683,8 +1683,11 @@ int main(int argc, char **argv)
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
   if (opt_update_log)
+  {
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
 	     LOG_NEW);
+    using_update_log=1;
+  }
 
   if (opt_bin_log && !server_id)
   {
@@ -1720,6 +1723,7 @@ The server will not act as a slave.");
     mysql_bin_log.set_index_file_name(opt_binlog_index_name);
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 	     LOG_BIN);
+    using_update_log=1;
   }
   
   if (opt_slow_log)
@@ -1730,10 +1734,10 @@ The server will not act as a slave.");
     sql_print_error("Can't init databases");
     exit(1);
   }
+  ha_key_cache();
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
   {
-    ha_key_cache();
     if (mlockall(MCL_CURRENT))
     {
       sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);

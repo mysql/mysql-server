@@ -5,3 +5,5 @@ n
 4
 5
 6
+Variable_name	Value
+Slave_open_temp_tables	0

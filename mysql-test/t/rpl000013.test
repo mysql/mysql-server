@@ -25,12 +25,12 @@ disconnect master1;
 connection slave;
 # same trick to go one more event
 sync_with_master 1;
-@r/rpl000013.result select * from t2;
-@r/rpl000013.status.result show status like 'Slave_open_temp_tables';
+select * from t2;
+show status like 'Slave_open_temp_tables';
 #
 # Clean up
 #
-connect (master2,localhost,root,,test,0,mysql-master.sock);
+connect (master2,localhost,root,,);
 connection master2;
 drop table if exists t1,t2;
 save_master_pos;

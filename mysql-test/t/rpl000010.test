@@ -11,7 +11,7 @@ insert into t1 values(2);
 save_master_pos;
 connection slave;
 sync_with_master;
-@r/rpl000010.result select n from t1;
+select n from t1;
 connection master;
 drop table t1;
 save_master_pos;

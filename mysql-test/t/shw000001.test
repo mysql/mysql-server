@@ -4,5 +4,5 @@ create table t1 (
   test_set set( 'val1', 'val2', 'val3' ) not null default '',
   name char(20) default 'O''Brien'
   ) comment = 'it\'s a table' ;
-@r/shw000001.result show create table t1 ;
+show create table t1 ;
 drop table t1;

@@ -36147,6 +36147,10 @@ The temporary file will be deleted when the thread ends.
 The @code{max_binlog_cache_size} can be used to restrict the total size used
 to cache a multi-transaction query.
 
+If you are using the update or binary log then concurrent inserts will
+not work together with @code{CREATE ... INSERT} and @code{INSERT ... SELECT}.
+This is to ensure that you can recreate an exact copy of your tables by
+applying a the log on a backup.
 @cindex slow query log
 @cindex files, slow query log
 @node Slow query log,  , Binary log, Log files
@@ -42399,6 +42403,9 @@ not yet 100 % confident in this code.
 Fixed that one can't use database names with @code{.}.  This fixes a serious
 security issue when @code{mysqld} is run as root.
 @item
+Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
+with temporary tables.
+@item
 Fixed a core-dump bug when using very complex query involving
 @code{DISTINCT} and summary functions.
 @item
@@ -42416,6 +42423,9 @@ Fixed a bug in @code{CONCAT_WS()} where it returned wrong results.
 @item
 Changed @code{CREATE ... INSERT} and @code{INSERT ... SELECT} to not
 allow concurrent inserts as this could make the binary log hard to repeat.
+(Concurrent inserts are enabled if you are not using the binary or update log).
+@item
+Changed some macros to be able to use fast mutex with glibc 2.2.
 @end itemize
 
 @node News-3.23.35, News-3.23.34a, News-3.23.36, News-3.23.x

@@ -1,5 +1,5 @@
-connect (con1,localhost,root,,test,0,mysql-master.sock);
-connect (con2,localhost,root,,test,0,mysql-master.sock);
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
 
 flush status;
 show status like 'Table_lock%';
