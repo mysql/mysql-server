@@ -31,14 +31,14 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 TransporterType _type,
 			 const char *lHostName,
 			 const char *rHostName, 
-			 int r_port,
+			 int s_port,
 			 bool _isMgmConnection,
 			 NodeId lNodeId,
 			 NodeId rNodeId,
 			 NodeId serverNodeId,
 			 int _byteorder, 
 			 bool _compression, bool _checksum, bool _signalId)
-  : m_r_port(r_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
+  : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId), isMgmConnection(_isMgmConnection),
     m_packer(_signalId, _checksum),
     m_type(_type),
@@ -63,10 +63,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   if (strlen(lHostName) > 0)
     Ndb_getInAddr(&localHostAddress, lHostName);
 
-  DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s r_port=%d",
+  DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s s_port=%d",
 		     remoteNodeId, localNodeId, isServer,
 		     remoteHostName, localHostName,
-		     r_port));
+		     s_port));
 
   byteOrder       = _byteorder;
   compressionUsed = _compression;
@@ -76,10 +76,13 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_connected     = false;
   m_timeOutMillis = 1000;
 
+  if(s_port<0)
+    s_port= -s_port; // was dynamic
+
   if (isServer)
     m_socket_client= 0;
   else
-    m_socket_client= new SocketClient(remoteHostName, r_port,
+    m_socket_client= new SocketClient(remoteHostName, s_port,
 				      new SocketAuthSimple("ndbd",
 							   "ndbd passwd"));
   DBUG_VOID_RETURN;
@@ -126,7 +129,7 @@ Transporter::connect_client() {
 
   DBUG_ENTER("Transporter::connect_client");
 
-  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_r_port,isMgmConnection));
+  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_s_port,isMgmConnection));
 
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
