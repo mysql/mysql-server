@@ -12,14 +12,24 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
         ('Full-text search in MySQL', 'implements vector space model');
 
 # nl search
- 
-explain select * from t1 where MATCH(a,b) AGAINST ("collections");
+
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 
-# UNION of fulltext's
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+
+# add_ft_keys() tests
+
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>1;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=0;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=1;
+explain select * from t1 where 0<MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 1<MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 0<=MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 1<=MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '%ll%';
 
 # boolean search
 
@@ -47,6 +57,10 @@ select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
+
+# UNION of fulltext's
+
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index
 
