@@ -6,6 +6,7 @@
 #
 -- source include/not_embedded.inc
 
+drop table if exists t1;
 #test to see if select will get the lock ahead of low priority update
 
 connect (locker,localhost,root,,);

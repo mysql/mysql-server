@@ -173,7 +173,7 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
 
   if (!t_arg)
     return result_field;
-  switch (args[0]->result_type()) {
+  switch (result_type()) {
   case INT_RESULT:
     if (max_length > 11)
       res= new Field_longlong(max_length, maybe_null, name, t_arg,

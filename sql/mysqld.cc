@@ -377,11 +377,10 @@ char mysql_real_data_home[FN_REFLEN],
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
 char *language_ptr= language;
+char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 #ifndef EMBEDDED_LIBRARY
-char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
 bool mysql_embedded=0;
 #else
-char *mysql_data_home=mysql_real_data_home;
 bool mysql_embedded=1;
 #endif
 
@@ -1959,6 +1958,7 @@ int main(int argc, char **argv)
   {
     unireg_abort(1);				/* purecov: inspected */
   }
+  mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
   server_init();
@@ -3004,10 +3004,10 @@ struct my_option my_long_options[] =
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
-   "Don't flush key buffers between writes for any MyISAM table (Depricated option, use --delay-key-write=all instead)",
+   "Don't flush key buffers between writes for any MyISAM table (Deprecated option, use --delay-key-write=all instead)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"enable-locking", OPT_ENABLE_LOCK,
-   "Depricated option, use --external-locking instead",
+   "Deprecated option, use --external-locking instead",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NT__
@@ -3244,7 +3244,7 @@ struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
-   "Depricated option; One should use GRANT SHOW DATABASES instead...",
+   "Deprecated option; One should use GRANT SHOW DATABASES instead...",
    (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
@@ -3274,8 +3274,11 @@ struct my_option my_long_options[] =
   {"skip-innodb", OPT_INNODB_SKIP, "Don't use Innodb (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
-   "Depricated option, use --skip-external-locking instead",
+   "Deprecated option, use --skip-external-locking instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-external-locking", OPT_SKIP_LOCK, "Do not use system (external) locking",
+   (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
+   0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-name-resolve", OPT_SKIP_RESOLVE,
@@ -3403,7 +3406,7 @@ struct my_option my_long_options[] =
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, 4, 2, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, 4, 1, HA_FT_MAXLEN, 0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,

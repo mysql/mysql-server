@@ -19,6 +19,9 @@
 
 #include "mysql_priv.h"
 #include <hash.h>
+#ifdef HAVE_BERKELEY_DB
+#include <ha_berkeley.h>
+#endif
 #include <myisam.h>
 #include <assert.h>
 
@@ -258,10 +261,32 @@ static int sort_keys(KEY *a, KEY *b)
 }
 
 
-/*****************************************************************************
- * Create a table.
- * If one creates a temporary table, this is automaticly opened
- ****************************************************************************/
+/*
+  Create a table
+
+  SYNOPSIS
+    mysql_create_table()
+    thd			Thread object
+    db			Database
+    table_name		Table name
+    create_info		Create information (like MAX_ROWS)
+    fields		List of fields to create
+    keys		List of keys to create
+    tmp_table		Set to 1 if this is a temporary table
+    no_log		Don't log the query to binary log.
+
+  DESCRIPTION		       
+    If one creates a temporary table, this is automaticly opened
+
+    no_log is needed for the case of CREATE ... SELECT,
+    as the logging will be done later in sql_insert.cc
+    select_field_count is also used for CREATE ... SELECT,
+    and must be zero for standard create of table.
+
+  RETURN VALUES
+    0	ok
+    -1	error
+*/
 
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
@@ -972,7 +997,9 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
     fn_format(from, from, "", MI_NAME_DEXT, 4);
     sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
 
+    pthread_mutex_lock(&LOCK_open);
     close_cached_table(thd,table->table);
+    pthread_mutex_unlock(&LOCK_open);
 
     if (lock_and_wait_for_table_name(thd,table))
       DBUG_RETURN(-1);
@@ -1871,11 +1898,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_cond_broadcast(&COND_refresh));
     goto err;
   }
-#ifdef HAVE_BERKELEY_DB
-  extern bool berkeley_flush_logs(void);
-  if (old_db_type == DB_TYPE_BERKELEY_DB &&  berkeley_flush_logs())
-    goto err;
-#endif
   thd->proc_info="end";
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
@@ -1885,6 +1907,21 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
+#ifdef HAVE_BERKELEY_DB
+  if (old_db_type == DB_TYPE_BERKELEY_DB)
+  {
+    (void) berkeley_flush_logs();
+    /*
+      For the alter table to be properly flushed to the logs, we
+      have to open the new table.  If not, we get a problem on server
+      shutdown.
+    */
+    if (!open_tables(thd, table_list))		// Should always succeed
+    {
+      close_thread_table(thd, &table_list->table);
+    }
+  }
+#endif
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 

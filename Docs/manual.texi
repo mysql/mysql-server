@@ -152,12 +152,11 @@ database server.
 production systems as well as for embedding into mass-deployed software.
 @code{MySQL} is a trademark of @code{MySQL AB}.
 
-The @code{MySQL} software has @code{Dual Licensing}, which means you can use
-the @code{MySQL} software free of charge under the
-@code{GNU General Public License} (@uref{http://www.gnu.org/licenses/}).
-You can also purchase commercial @code{MySQL} licenses from
-@code{MySQL AB} if you do not wish to be bound by the terms of the
-@code{GPL}.
+The @code{MySQL} software is @code{Dual Licensed}. Users can choose to
+use the @code{MySQL} software as an @code{Open Source}/@code{Free Software} 
+product under the terms of the @code{GNU General Public License} 
+(@uref{http://www.gnu.org/licenses/}) or can purchase a standard 
+commercial license from @code{MySQL AB}.
 @xref{Licensing and Support}.
 
 The @code{MySQL} web site (@uref{http://www.mysql.com/}) provides the
@@ -215,6 +214,7 @@ For a list of all the contributors to this project, see @ref{Credits}.
 Reports of errors (often called bugs), as well as questions and comments,
 should be sent to the mailing list at @email{mysql@@lists.mysql.com}.
 @xref{Bug reports}.
+
 The @code{mysqlbug} script should be used to generate bug reports.
 @c FIX! RPMs are also binary
 For source distributions, the @code{mysqlbug} script can be found in the
@@ -271,7 +271,7 @@ The PostScript version is produced using @code{texi2dvi} and @code{dvips}.
 The PDF version is produced with @code{pdftex}.
 
 If you have a hard time finding information in the manual, you can try
-our searchable PHP version at @uref{http://www.mysql.com/doc/}.
+our searchable version at @uref{http://www.mysql.com/doc/}.
 
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the documentation team at @email{docs@@mysql.com}.
@@ -404,9 +404,9 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @cindex MySQL, introduction
 
 @code{MySQL}, the most popular @code{Open Source} SQL database, is
-developed and provided by @code{MySQL AB}.  @code{MySQL AB} is a
-commercial company that builds its business providing services around
-the @code{MySQL} database.
+developed, distributed and supported by @code{MySQL AB}.  @code{MySQL AB} is a
+commercial company founded by the MySQL developers that builds its business 
+providing services around the @code{MySQL} database.
 @xref{What is MySQL AB}.
 
 The @code{MySQL} web site (@uref{http://www.mysql.com/})
@@ -3463,6 +3463,11 @@ that in MySQL Server, @code{VARCHAR} columns are treated the same way.
 
 @item
 You can only have up to 255 @code{ENUM} and @code{SET} columns in one table.
+
+@item
+In @code{MIN()}, @code{MAX()} and other aggregate functions, MySQL
+currently compares @code{ENUM} and @code{SET} columns by their string
+value rather than by the string's relative position in the set.
 
 @item
 @code{safe_mysqld} redirects all messages from @code{mysqld} to the
@@ -8707,7 +8712,7 @@ cat /proc/sys/fs/super-max
 @end example
 
 If you have more than 16 MB of memory, you should add something like the
-following in your boot script (@file{/etc/rc/boot.local} on SuSE):
+following to your init scripts (e.g. @file{/etc/init.d/boot.local} on SuSE Linux):
 
 @example
 echo 65536 > /proc/sys/fs/file-max
@@ -8715,10 +8720,22 @@ echo 8192 > /proc/sys/fs/dquot-max
 echo 1024 > /proc/sys/fs/super-max
 @end example
 
-You can also run the preceding commands from the command-line as root, but in this case
-your old limits will be used the next time your computer reboots.
+You can also run the preceding commands from the command-line as root, but
+these settings will be lost the next time your computer reboots.
 
-You should also add /etc/my.cnf:
+Alternatively, you can set these parameters on bootup by using the
+@code{sysctl} tool, which is used by many Linux distributions (SuSE has
+added it as well, beginning with SuSE Linux 8.0). Just put the following
+values into a file named @file{/etc/sysctl.conf}:
+
+@example
+# Increase some values for MySQL
+fs.file-max = 65536
+fs.dquot-max = 8192
+fs.super-max = 1024
+@end example
+
+You should also add the following to @file{/etc/my.cnf}:
 
 @example
 [safe_mysqld]
@@ -10460,6 +10477,18 @@ CFLAGS="-I/opt/dce/include -fpic" \
 CXXFLAGS="-I/opt/dce/include -felide-constructors -fno-exceptions \
 -fno-rtti" CXX=gcc ./configure --with-pthread \
 --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
+@end example
+
+The following configure line should work with gcc 3.1:
+
+@example
+CFLAGS="-DHPUX -I/opt/dce/include -O3 -fPIC" CXX=gcc \
+CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions \
+-fno-rtti -O3 -fPIC" ./configure --prefix=/usr/local/mysql \
+--with-extra-charsets=complex --enable-thread-safe-client \
+--enable-local-infile  --with-pthread \
+--with-named-thread-libs=-ldce --with-lib-ccflags=-fPIC
+--disable-shared
 @end example
 
 @node HP-UX 11.x, IBM-AIX, HP-UX 10.20, Other Unix Notes
@@ -23395,13 +23424,14 @@ The binary logging is done immediately after a query completes but before
 any locks are released or any commit is done. This ensures that the log
 will be logged in the execution order.
 
-All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that change
-a transactional table (like BDB tables) are cached until a @code{COMMIT}.
-Any updates to a non-transactional table are stored in the binary log at
-once.  Every thread will, on start, allocate a buffer of
-@code{binlog_cache_size} to buffer queries.  If a query is bigger than
-this, the thread will open a temporary file to handle the bigger cache.
-The temporary file will be deleted when the thread ends.
+Updates to non-transactional tables are stored in the binary log
+immediately after execution.  For transactional tables such as @code{BDB}
+or @code{InnoDB} tables, all updates (@code{UPDATE}, @code{DELETE}
+or @code{INSERT}) that change tables are cached until a @code{COMMIT}.
+Every thread will, on start, allocate a buffer of @code{binlog_cache_size}
+to buffer queries.  If a query is bigger than this, the thread will open
+a temporary file to handle the bigger cache.  The temporary file will
+be deleted when the thread ends.
 
 The @code{max_binlog_cache_size} can be used to restrict the total size used
 to cache a multi-query transaction.
@@ -24329,7 +24359,8 @@ MASTER_LOG_SEQ=log_seq AND MASTER_SERVER_ID=server_id} @tab
 This command is used when a slave of a possibly dead/unavailable master
 needs to be switched to replicate off another slave that has been
 replicating the same master. The command will return recalculated
-replication coordinates, and the output can be used in a subsequent
+replication coordinates (the slave's current binary log file
+name and position within that file). The output can be used in a subsequent
 @code{CHANGE MASTER TO} command. Normal users should never need to run
 this command. It is primarily reserved for internal use by the fail-safe
 replication code. We may later change the syntax if we find a more
@@ -26959,7 +26990,7 @@ For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
 column.  You cannot index the entire column.
 
 In MySQL Version 3.23.23 or later, you can also create special
-@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be
 created only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
@@ -28034,7 +28065,7 @@ You should not symlink tables on systems that don't have a fully
 working @code{realpath()} call. (At least Linux and Solaris support
 @code{realpath()})
 
-In MySQL 4.0 symlinks are only fully supported for @code{MyISAM}
+In MySQL 4.0 symlinks are fully supported only for @code{MyISAM}
 tables.  For other table types you will probably get strange problems
 when doing any of the above mentioned commands.
 
@@ -28044,11 +28075,11 @@ way (this is mostly relevant only for @code{MyISAM} tables).
 @itemize @bullet
 @item
 In the data directory you will always have the table definition file
-and the data/index files.
+and the data and index files.
 
 @item
-You can symlink the index file and the datafile to different directories
-independent of the other.
+You can symlink the index file and the data file to different directories
+independently of the other.
 
 @item
 The symlinking can be done from the operating system (if @code{mysqld} is
@@ -28056,28 +28087,31 @@ not running) or with the @code{INDEX/DATA DIRECTORY="path-to-dir"} command
 in @code{CREATE TABLE}. @xref{CREATE TABLE}.
 
 @item
-@code{myisamchk} will not replace a symlink with the index/file but
-work directly on the files the symlinks points to. Any temporary files
-will be created in the same directory where the data/index file is.
+@code{myisamchk} will not replace a symlink with the data or index file but
+work directly on the file the symlink points to. Any temporary files
+will be created in the same directory where the data or index file is
+located.
 
 @item
 When you drop a table that is using symlinks, both the symlink and the
-file the symlink points to is dropped.  This is a good reason to why you
-should @strong{not} run @code{mysqld} as root and not allow persons to have write
-access to the MySQL database directories.
+file the symlink points to are dropped.  This is a good reason to why you
+should @strong{not} run @code{mysqld} as @code{root} or allow
+persons to have write access to the MySQL database directories.
 
 @item
-If you rename a table with @code{ALTER TABLE RENAME} and you don't change
-database, the symlink in the database directory will be renamed to the new
-name and the data/index file will be renamed accordingly.
+If you rename a table with @code{ALTER TABLE RENAME} and you don't move
+the table to another database, the symlinks in the database directory
+will be renamed to the new names and the data and index files will be
+renamed accordingly.
 
 @item
 If you use @code{ALTER TABLE RENAME} to move a table to another database,
-then the table will be moved to the other database directory and the old
-symlinks and the files they pointed to will be deleted.
+the table will be moved to the other database directory and the old
+symlinks and the files they pointed to will be deleted.  (In other words,
+the new table will not be symlinked.)
 
 @item
-If you are not using symlinks you should use the @code{--skip-symlink}
+If you are not using symlinks, you should use the @code{--skip-symlink}
 option to @code{mysqld} to ensure that no one can drop or rename a file
 outside of the @code{mysqld} data directory.
 @end itemize
@@ -28091,7 +28125,7 @@ Things that are not yet supported:
 @item
 @code{CREATE TABLE} doesn't report if the table has symbolic links.
 @item
-@code{mysqldump} doesn't include the symbolic links information in the output.
+@code{mysqldump} doesn't include the symbolic link information in the output.
 @item
 @code{BACKUP TABLE} and @code{RESTORE TABLE} don't respect symbolic links.
 @end itemize
@@ -33845,6 +33879,11 @@ mysql> SELECT student_name, MIN(test_score), MAX(test_score)
     ->        GROUP BY student_name;
 @end example
 
+In @code{MIN()}, @code{MAX()} and other aggregate functions, MySQL
+currently compares @code{ENUM} and @code{SET} columns by their string
+value rather than by the string's relative position in the set.
+This will be rectified.
+
 @findex SUM()
 @item SUM(expr)
 Returns the sum of @code{expr}.  Note that if the return set has no rows,
@@ -36008,7 +36047,7 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 
 @item
 In MySQL Version 3.23.23 or later, you can also create special
-@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
@@ -36920,7 +36959,7 @@ Lock one table at a time until the thread gets all locks.
 This policy ensures that table locking is deadlock free. There is
 however other things one needs to be aware of with this schema:
 
-If you are using a @code{LOW_PRIORITY_WRITE} lock for a table, this
+If you are using a @code{LOW_PRIORITY WRITE} lock for a table, this
 means only that MySQL will wait for this particlar lock until
 there is no threads that wants a @code{READ} lock.  When the thread has
 got the @code{WRITE} lock and is waiting to get the lock for the next
@@ -50347,11 +50386,33 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug that caused @code{REPAIR TABLE} to fail on tables
+with duplicates in a unique key.
+@item
+Fixed a bug in guessing a field type out of the function. The error was 
+introduced in 4.0.3 so that field type depended on the first argument to
+the function instead of the function itself
+@item
+Fixed a bug with wildcarded fields in select list, which led to the wrong 
+number of elements in a list containing all fields
+@item
+Fixed bug with the @code{--slow-log} when logging an administrator command
+(like @code{FLUSH TABLES}).
+@item
+Fixed a bug that @code{OPTIMIZE} of locked and modified table,
+reported table corruption.
+@item
 Fixed a bug in my_getopt in handling of special prefixes (--skip-, --enable-).
 --skip-external-locking didn't work and the bug may have affected other
 similar options.
 @item
 Fixed bug in checking for output file name of the @code{tee} option.
+@item
+Added some more optimisation to use index for
+@code{SELECT ... FROM many_tables .. ORDER BY key limit #}
+@item
+Fixed problem in @code{SHOW OPEN TABLES} when a user didn't have access right
+to one of the opened tables.
 @end itemize
 
 @node News-4.0.3, News-4.0.2, News-4.0.4, News-4.0.x
@@ -50649,6 +50710,8 @@ Fixed incorrect error value when doing a @code{SELECT} with an empty
 @code{HEAP} table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
+(In other words, @code{NULL} values sort first in all cases, whether or
+not @code{DESC} is specified.)
 @item
 Fixed bug in @code{WHERE key_name='constant' ORDER BY key_name DESC}.
 @item
@@ -51050,11 +51113,21 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Changed @code{AND/OR} to report that they can return NULL. This fixes a
+small problem in @code{GROUP BY} on @code{AND/OR} expression that return
+@code{NULL}.
+@item
+Fixed a bug that @code{OPTIMIZE} of locked and modified MyISAM table,
+reported table corruption.
+@item
+Fixed a @code{BDB}-related @code{ALTER TABLE} bug with dropping a column
+and shutting down immediately thereafter.
+@item
 Fixed problem with @code{configure ... --localstatedir=...}.
 @item
 Fixed problem with @code{UNSIGNED BIGINT} on AIX (again).
 @item
-Fixed bug in pthread_mutex_trylock() on HPUX 11.0
+Fixed bug in pthread_mutex_trylock() on HPUX 11.0.
 @item
 Multithreaded stress tests for InnoDB.
 @end itemize

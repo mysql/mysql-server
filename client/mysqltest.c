@@ -185,7 +185,9 @@ Q_LET,		    Q_ECHO,
 Q_WHILE,	    Q_END_BLOCK,
 Q_SYSTEM,	    Q_RESULT,
 Q_REQUIRE,	    Q_SAVE_MASTER_POS,
-Q_SYNC_WITH_MASTER, Q_ERROR,
+Q_SYNC_WITH_MASTER,
+Q_SYNC_SLAVE_WITH_MASTER,
+Q_ERROR,
 Q_SEND,		    Q_REAP,
 Q_DIRTY_CLOSE,	    Q_REPLACE,
 Q_PING,		    Q_EVAL,
@@ -233,6 +235,7 @@ const char *command_names[]=
   "require",
   "save_master_pos",
   "sync_with_master",
+  "sync_slave_with_master",
   "error",
   "send",
   "reap",
@@ -966,14 +969,13 @@ int do_echo(struct st_query* q)
 }
 
 
-int do_sync_with_master(struct st_query* q)
+int do_sync_with_master2(const char* p)
 {
   MYSQL_RES* res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   char query_buf[FN_REFLEN+128];
   int offset = 0;
-  char* p = q->first_argument;
   int rpl_parse;
 
   if (!master_pos.file[0])
@@ -1005,6 +1007,10 @@ int do_sync_with_master(struct st_query* q)
   return 0;
 }
 
+int do_sync_with_master(struct st_query* q)
+{
+  return do_sync_with_master2(q->first_argument);
+}
 
 int do_save_master_pos()
 {
@@ -1298,10 +1304,9 @@ void free_replace()
   DBUG_VOID_RETURN;
 }
 
-
-int select_connection(struct st_query* q)
+int select_connection(char *p)
 {
-  char* p=q->first_argument, *name;
+  char* name;
   struct connection *con;
   DBUG_ENTER("select_connection");
   DBUG_PRINT("enter",("name: '%s'",p));
@@ -2403,7 +2408,7 @@ int main(int argc, char** argv)
       processed = 1;
       switch (q->type) {
       case Q_CONNECT: do_connect(q); break;
-      case Q_CONNECTION: select_connection(q); break;
+      case Q_CONNECTION: select_connection(q->first_argument); break;
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:
 	close_connection(q); break;
@@ -2492,6 +2497,19 @@ int main(int argc, char** argv)
 	break;
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;
+      case Q_SYNC_SLAVE_WITH_MASTER:
+      {
+	do_save_master_pos();
+	if (*q->first_argument)
+	  select_connection(q->first_argument);
+	else
+	{
+	  char buf[] = "slave";
+	  select_connection(buf);
+	}
+	do_sync_with_master2("");
+	break;
+      }
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
       case Q_PING:
