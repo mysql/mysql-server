@@ -90,15 +90,17 @@ extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
 
+#ifdef USE_MB
 /* Functions for multibyte charsets */
 extern void my_caseup_str_mb(CHARSET_INFO *, char *);
 extern void my_casedn_str_mb(CHARSET_INFO *, char *);
 extern void my_caseup_mb(CHARSET_INFO *, char *, uint);
 extern void my_casedn_mb(CHARSET_INFO *, char *, uint);
-
 extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
 extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t, uint);
+#endif
 
+#ifdef HAVE_CHARSET_big5
 /* declarations for the big5 character set */
 extern uchar ctype_big5[], to_lower_big5[], to_upper_big5[], sort_order_big5[];
 extern int     my_strnncoll_big5(CHARSET_INFO *,const uchar *, uint, const uchar *, uint);
@@ -108,7 +110,9 @@ extern my_bool my_like_range_big5(CHARSET_INFO *,const char *, uint, pchar, uint
 extern int     ismbchar_big5(const char *, const char *);
 extern my_bool ismbhead_big5(uint);
 extern int     mbcharlen_big5(uint);
+#endif
 
+#ifdef HAVE_CHARSET_czech
 /* declarations for the czech character set */
 extern uchar ctype_czech[], to_lower_czech[], to_upper_czech[], sort_order_czech[];
 extern int     my_strnncoll_czech(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
@@ -116,19 +120,25 @@ extern int     my_strnxfrm_czech(CHARSET_INFO *, uchar *, uint, const uchar *, u
 extern my_bool my_like_range_czech(CHARSET_INFO *, 
                           const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
+#endif
 
+#ifdef HAVE_CHARSET_euc_kr
 /* declarations for the euc_kr character set */
 extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_euc_kr[];
 extern int     ismbchar_euc_kr(const char *, const char *);
 extern my_bool ismbhead_euc_kr(uint);
 extern int     mbcharlen_euc_kr(uint);
+#endif
 
+#ifdef HAVE_CHARSET_gb2312
 /* declarations for the gb2312 character set */
 extern uchar ctype_gb2312[], to_lower_gb2312[], to_upper_gb2312[], sort_order_gb2312[];
 extern int     ismbchar_gb2312(const char *, const char *);
 extern my_bool ismbhead_gb2312(uint);
 extern int     mbcharlen_gb2312(uint);
+#endif
 
+#ifdef HAVE_CHARSET_gbk
 /* declarations for the gbk character set */
 extern uchar ctype_gbk[], to_lower_gbk[], to_upper_gbk[], sort_order_gbk[];
 extern int     my_strnncoll_gbk(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
@@ -138,14 +148,18 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *, const char *, uint, pchar, uint
 extern int     ismbchar_gbk(const char *, const char *);
 extern my_bool ismbhead_gbk(uint);
 extern int     mbcharlen_gbk(uint);
+#endif
 
+#ifdef HAVE_CHARSET_latin1_de
 /* declarations for the latin1_de character set */
 extern uchar ctype_latin1_de[], to_lower_latin1_de[], to_upper_latin1_de[], sort_order_latin1_de[];
 extern int     my_strnncoll_latin1_de(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
 extern int     my_strnxfrm_latin1_de(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
 extern my_bool my_like_range_latin1_de(CHARSET_INFO *, const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
+#endif
 
+#ifdef HAVE_CHARSET_sjis
 /* declarations for the sjis character set */
 extern uchar ctype_sjis[], to_lower_sjis[], to_upper_sjis[], sort_order_sjis[];
 extern int     my_strnncoll_sjis(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
@@ -155,19 +169,24 @@ extern my_bool my_like_range_sjis(CHARSET_INFO *, const char *, uint, pchar, uin
 extern int     ismbchar_sjis(const char *, const char *);
 extern my_bool ismbhead_sjis(uint);
 extern int     mbcharlen_sjis(uint);
+#endif
 
+#ifdef HAVE_CHARSET_tis620
 /* declarations for the tis620 character set */
 extern uchar ctype_tis620[], to_lower_tis620[], to_upper_tis620[], sort_order_tis620[];
 extern int     my_strnncoll_tis620(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
 extern int     my_strnxfrm_tis620(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
 extern my_bool my_like_range_tis620(CHARSET_INFO *, const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
+#endif
 
+#ifdef HAVE_CHARSET_ujis
 /* declarations for the ujis character set */
 extern uchar ctype_ujis[], to_lower_ujis[], to_upper_ujis[], sort_order_ujis[];
 extern int     ismbchar_ujis(const char *, const char *);
 extern my_bool ismbhead_ujis(uint);
 extern int     mbcharlen_ujis(uint);
+#endif
 
 
 #define	_U	01	/* Upper case */

@@ -77,6 +77,8 @@
 
 #endif
 
+#ifdef HAVE_CHARSET_czech
+
 /*
 	These are four tables for four passes of the algorithm. Please see
 	below for what are the "special values"
@@ -511,5 +513,7 @@ uchar NEAR sort_order_czech[] = {
 108, 67, 68, 69, 70, 95, 73, 75, 74, 79, 81, 82, 80, 89, 88, 77,
 255, 98, 99,101,102,103,104,255,109,119,118,120,121,126,116,255,
 };
+
+#endif
 
 #endif

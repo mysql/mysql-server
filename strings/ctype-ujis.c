@@ -28,6 +28,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_ujis
+
+
 uchar NEAR ctype_ujis[257] =
 {
     0,				/* For standard library */
@@ -198,3 +201,5 @@ int mbcharlen_ujis(uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 0);
 }
+
+#endif

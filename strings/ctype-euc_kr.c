@@ -30,6 +30,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_euc_kr
+
+
 uchar NEAR ctype_euc_kr[257] =
 {
     0,				/* For standard library */
@@ -196,3 +199,5 @@ int mbcharlen_euc_kr(uint c)
 {
   return (iseuc_kr(c) ? 2 : 0);
 }
+
+#endif

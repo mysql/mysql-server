@@ -49,6 +49,8 @@
 #include "m_ctype.h"
 #include "t_ctype.h"
 
+#ifdef HAVE_CHARSET_tis620
+
 static uchar* thai2sortable(const uchar *tstr,uint len);
 
 #define BUFFER_MULTIPLY 4
@@ -682,3 +684,5 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
     }
   }
 }
+
+#endif

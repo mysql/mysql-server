@@ -28,6 +28,8 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_gb2312
+
 uchar NEAR ctype_gb2312[257] =
 {
   0,				/* For standard library */
@@ -178,3 +180,5 @@ int mbcharlen_gb2312(uint c)
 {
   return (isgb2312head(c)? 2:0);
 }
+
+#endif

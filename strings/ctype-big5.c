@@ -31,6 +31,8 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_big5
+
 /* Support for Chinese(BIG5) characters, by jou@nematic.ieo.nctu.edu.tw
    modified by Wei He (hewei@mail.ied.ac.cn) */
 
@@ -390,3 +392,5 @@ int mbcharlen_big5(uint c)
 {
   return (isbig5head(c)? 2: 0);
 }
+
+#endif

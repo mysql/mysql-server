@@ -36,6 +36,8 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_latin1_de
+
 uchar ctype_latin1_de[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -350,3 +352,5 @@ my_bool my_like_range_latin1_de(CHARSET_INFO *cs,
     *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
 }
+
+#endif
