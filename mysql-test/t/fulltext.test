@@ -252,3 +252,11 @@ REPAIR TABLE t1;
 select count(*) from t1;
 drop table t1;
 
+#
+# testing out of bounds memory access in ft_nlq_find_relevance()
+# (bug#8522); visible in valgrind.
+#
+CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
+INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
+SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
+DROP TABLE t1;
