@@ -125,47 +125,4 @@ int writefrm(const char *name, const void *frmdata, uint len)
 
 
 
-/*
-  Try to discover table from handler and 
-  if found, write the frm file to disk.
-  
-  RETURN VALUES:
-   0 : Table existed in handler and created 
-       on disk if so requested
-   1 : Table does not exist
-  >1 : error
 
-*/
-
-int create_table_from_handler(const char *db, 
-			      const char *name,
-			      bool create_if_found)
-{
-  int error= 0;  
-  const void* frmblob = NULL;
-  char path[FN_REFLEN];
-  uint frmlen = 0;
-  DBUG_ENTER("create_table_from_handler");
-  DBUG_PRINT("enter", ("create_if_found: %d", create_if_found));
-
-  if (ha_discover(db, name, &frmblob, &frmlen))
-    DBUG_RETURN(1); // Table does not exist
-
-  // Table exists in handler  
-  if  (create_if_found)
-  {
-    (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
-    // Save the frm file    
-    error = writefrm(path, frmblob, frmlen);
-  }
-    
-  if (frmblob)
-    my_free((char*) frmblob,MYF(0));
-  DBUG_RETURN(error);  
-}
-
-int table_exists_in_handler(const char *db, 
-			     const char *name)
-{ 
-  return (create_table_from_handler(db, name, false) == 0);
-}

@@ -374,6 +374,10 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   if (wild && !wild[0])
     wild=0;
+
+  if (ha_find_files(thd,db,path,wild,dir))
+    DBUG_RETURN(-1);
+
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
