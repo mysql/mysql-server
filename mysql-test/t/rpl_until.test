@@ -3,8 +3,11 @@ source include/master-slave.inc;
 # prepare version for substitutions
 let $VERSION=`select version()`;
 
-# stop slave before he will start replication
+# stop slave before he will start replication also sync with master
+# for avoiding undetermenistic behaviour
+save_master_pos;
 connection slave;
+sync_with_master;
 stop slave;
 
 connection master;
@@ -37,7 +40,7 @@ sleep 2;
 show slave status;
 
 # try replicate all until second insert to t2;
-start slave until relay_log_file='slave-relay-bin.000002', relay_log_pos=493;
+start slave until relay_log_file='slave-relay-bin.000002', relay_log_pos=537;
 sleep 2;
 select * from t2;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
