@@ -32044,7 +32044,7 @@ mysql> select INET_ATON("209.207.224.40");
 @end example
 
 The generated number is always in network byte order; For example the
-above number is calculated as @code{209*255^3 + 207*255^2 + 224*255 +40}.
+above number is calculated as @code{209*256^3 + 207*256^2 + 224*256 +40}.
 
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)

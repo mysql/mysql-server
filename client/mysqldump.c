@@ -651,7 +651,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
 
-      sprintf(buff,"show create table `%s`",table_name);
+      sprintf(buff,"show create table `%s`",table);
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
@@ -786,7 +786,7 @@ static uint getTableStructure(char *table, char* db)
       {
         if (opt_keywords)
 	  fprintf(sql_file, "  %s.%s %s", table_name,
-		  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
+	  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
         else
 	  fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],
 						  name_buff), row[SHOW_TYPE]);
