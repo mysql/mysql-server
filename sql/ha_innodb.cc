@@ -1079,6 +1079,8 @@ innobase_init(void)
 	if (ret == FALSE) {
 	  	sql_print_error(
 			"InnoDB: syntax error in innodb_data_file_path");
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
 	  	DBUG_RETURN(TRUE);
 	}
 
@@ -1109,6 +1111,8 @@ innobase_init(void)
 		"InnoDB: syntax error in innodb_log_group_home_dir\n"
 		"InnoDB: or a wrong number of mirrored log groups\n");
 
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
 		DBUG_RETURN(TRUE);
 	}
 
@@ -1155,11 +1159,11 @@ innobase_init(void)
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
-  srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-  srv_use_checksums = (ibool) innobase_use_checksums;
+	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+	srv_use_checksums = (ibool) innobase_use_checksums;
 
-  os_use_large_pages = (ibool) innobase_use_large_pages;
-  os_large_page_size = (ulint) innobase_large_page_size;
+	os_use_large_pages = (ibool) innobase_use_large_pages;
+	os_large_page_size = (ulint) innobase_large_page_size;
   
 	srv_file_per_table = (ibool) innobase_file_per_table;
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
@@ -1197,7 +1201,8 @@ innobase_init(void)
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {
-
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
 		DBUG_RETURN(1);
 	}
 
@@ -1241,23 +1246,23 @@ innobase_end(void)
 		set_panic_flag_for_netware();
 	}
 #endif
-	if (innodb_inited)
-	{
-	  if (innobase_very_fast_shutdown) {
-	    srv_very_fast_shutdown = TRUE;
-	    fprintf(stderr,
+	if (innodb_inited) {
+	  	if (innobase_very_fast_shutdown) {
+	    		srv_very_fast_shutdown = TRUE;
+	    		fprintf(stderr,
 "InnoDB: MySQL has requested a very fast shutdown without flushing\n"
 "InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
 "InnoDB: InnoDB will do a crash recovery!\n");
+	  	}
 
-	  }
-
-	  innodb_inited= 0;
-	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
-	    err= 1;
-	  hash_free(&innobase_open_tables);
-	  my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
-	  pthread_mutex_destroy(&innobase_mutex);
+	  	innodb_inited = 0;
+	  	if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
+	    		err = 1;
+		}
+	  	hash_free(&innobase_open_tables);
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
+	  	pthread_mutex_destroy(&innobase_mutex);
 	}
 
   	DBUG_RETURN(err);
