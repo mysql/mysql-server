@@ -1,7 +1,7 @@
 /******************************************************
 The database buffer buf_pool flush algorithm
 
-(c) 1995 Innobase Oy
+(c) 1995-2001 Innobase Oy
 
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
@@ -15,13 +15,13 @@ Created 11/11/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "fil0fil.h"
-
 #include "buf0buf.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
+#include "trx0sys.h"
 
 /* When flushed, dirty blocks are searched in neigborhoods of this size, and
 flushed along with the original page. */
@@ -195,9 +195,145 @@ buf_flush_write_complete(
 }
 
 /************************************************************************
-Does an asynchronous write of a buffer page. NOTE: in simulated aio we must
-call os_aio_simulated_wake_handler_threads after we have posted a batch
-of writes! */
+Flushes possible buffered writes from the doublewrite memory buffer to disk,
+and also wakes up the aio thread if simulated aio is used. It is very
+important to call this function after a batch of writes has been posted,
+and also when we may have to wait for a page latch! Otherwise a deadlock
+of threads can occur. */
+static
+void
+buf_flush_buffered_writes(void)
+/*===========================*/
+{
+	buf_block_t*	block;
+	ulint		len;
+	ulint		i;
+
+	if (trx_doublewrite == NULL) {
+		os_aio_simulated_wake_handler_threads();
+
+		return;
+	}
+	
+	mutex_enter(&(trx_doublewrite->mutex));
+
+	/* Write first to doublewrite buffer blocks. We use synchronous
+	aio and thus know that file write has been completed when the
+	control returns. */
+
+	if (trx_doublewrite->first_free == 0) {
+
+		mutex_exit(&(trx_doublewrite->mutex));
+
+		return;
+	}
+
+	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		len = TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
+	} else {
+		len = trx_doublewrite->first_free * UNIV_PAGE_SIZE;
+	}
+	
+	fil_io(OS_FILE_WRITE,
+		TRUE, TRX_SYS_SPACE,
+		trx_doublewrite->block1, 0, len,
+		 	(void*)trx_doublewrite->write_buf, NULL);
+	
+	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		len = (trx_doublewrite->first_free
+			- TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE;
+	
+		fil_io(OS_FILE_WRITE,
+			TRUE, TRX_SYS_SPACE,
+			trx_doublewrite->block2, 0, len,
+		 	(void*)(trx_doublewrite->write_buf
+		 	+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE),
+			NULL);
+	}
+
+	/* Now flush the doublewrite buffer data to disk */
+
+	fil_flush(TRX_SYS_SPACE);
+
+	/* We know that the writes have been flushed to disk now
+	and in recovery we will find them in the doublewrite buffer
+	blocks. Next do the writes to the intended positions. */
+
+	for (i = 0; i < trx_doublewrite->first_free; i++) {
+		block = trx_doublewrite->buf_block_arr[i];
+
+		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
+		 			(void*)block->frame, (void*)block);
+	}
+	
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system */
+
+	os_aio_simulated_wake_handler_threads();
+
+	/* Wait that all async writes to tablespaces have been posted to
+	the OS */	
+	
+	os_aio_wait_until_no_pending_writes();
+
+	/* Now we flush the data to disk (for example, with fsync) */
+
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	/* We can now reuse the doublewrite memory buffer: */
+
+	trx_doublewrite->first_free = 0;
+
+	mutex_exit(&(trx_doublewrite->mutex));	
+}
+
+/************************************************************************
+Posts a buffer page for writing. If the doublewrite memory buffer is
+full, calls buf_flush_buffered_writes and waits for for free space to
+appear. */
+static
+void
+buf_flush_post_to_doublewrite_buf(
+/*==============================*/
+	buf_block_t*	block)	/* in: buffer block to write */
+{
+try_again:
+	mutex_enter(&(trx_doublewrite->mutex));
+
+	if (trx_doublewrite->first_free
+				>= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		mutex_exit(&(trx_doublewrite->mutex));
+
+		buf_flush_buffered_writes();
+
+		goto try_again;
+	}
+
+	ut_memcpy(trx_doublewrite->write_buf
+				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
+			block->frame, UNIV_PAGE_SIZE);
+
+	trx_doublewrite->buf_block_arr[trx_doublewrite->first_free] = block;
+
+	trx_doublewrite->first_free++;
+
+	if (trx_doublewrite->first_free
+				>= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		mutex_exit(&(trx_doublewrite->mutex));
+
+		buf_flush_buffered_writes();
+
+		return;
+	}
+
+	mutex_exit(&(trx_doublewrite->mutex));
+}
+
+/************************************************************************
+Does an asynchronous write of a buffer page. NOTE: in simulated aio and
+also when the doublewrite buffer is used, we must call
+buf_flush_buffered_writes after we have posted a batch of writes! */
 static
 void
 buf_flush_write_block_low(
@@ -222,15 +358,24 @@ buf_flush_write_block_low(
 	mach_write_to_8(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
 						block->newest_modification);
 
+	/* Write to the page the space id and page number */
+
+	mach_write_to_4(block->frame + FIL_PAGE_SPACE, block->space);
+	mach_write_to_4(block->frame + FIL_PAGE_OFFSET, block->offset);
+
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	a page checksum */
 
 	mach_write_to_4(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
 			buf_calc_page_checksum(block->frame));
 
-	fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
+	if (!trx_doublewrite) {
+		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
 		 			(void*)block->frame, (void*)block);
+	} else {
+		buf_flush_post_to_doublewrite_buf(block);
+	}
 }
 
 /************************************************************************
@@ -251,14 +396,14 @@ buf_flush_try_page(
 	buf_block_t*	block;
 	ibool		locked;
 	
-	ut_ad((flush_type == BUF_FLUSH_LRU) || (flush_type == BUF_FLUSH_LIST)
-				|| (flush_type == BUF_FLUSH_SINGLE_PAGE));
+	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
+				|| flush_type == BUF_FLUSH_SINGLE_PAGE);
 
 	mutex_enter(&(buf_pool->mutex));
 
 	block = buf_page_hash_get(space, offset);
 
-	if ((flush_type == BUF_FLUSH_LIST)
+	if (flush_type == BUF_FLUSH_LIST
 	    && block && buf_flush_ready_for_flush(block, flush_type)) {
 	
 		block->io_fix = BUF_IO_WRITE;
@@ -286,7 +431,7 @@ buf_flush_try_page(
 		mutex_exit(&(buf_pool->mutex));
 
 		if (!locked) {
-			os_aio_simulated_wake_handler_threads();
+			buf_flush_buffered_writes();
 
 			rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 		}
@@ -300,7 +445,7 @@ buf_flush_try_page(
 		
 		return(1);
 
-	} else if ((flush_type == BUF_FLUSH_LRU) && block
+	} else if (flush_type == BUF_FLUSH_LRU && block
 			&& buf_flush_ready_for_flush(block, flush_type)) {
 
 		/* VERY IMPORTANT:
@@ -328,7 +473,7 @@ buf_flush_try_page(
 
 		return(1);
 
-	} else if ((flush_type == BUF_FLUSH_SINGLE_PAGE) && block
+	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE && block
 			&& buf_flush_ready_for_flush(block, flush_type)) {
 	
 		block->io_fix = BUF_IO_WRITE;
@@ -387,6 +532,14 @@ buf_flush_try_neighbors(
 	
 		low = offset;
 		high = offset + 1;
+	} else if (flush_type == BUF_FLUSH_LIST) {
+		/* Since semaphore waits require us to flush the
+		doublewrite buffer to disk, it is best that the
+		search area is just the page itself, to minimize
+		chances for semaphore waits */
+
+		low = offset;
+		high = offset + 1;
 	}		
 
 	/* printf("Flush area: low %lu high %lu\n", low, high); */
@@ -417,13 +570,6 @@ buf_flush_try_neighbors(
 	}
 				
 	mutex_exit(&(buf_pool->mutex));
-
-	/* In simulated aio we wake up the i/o-handler threads now that
-	we have posted a batch of writes: */
-	
-	/*	printf("Flush count %lu ; Waking i/o handlers\n", count); */
-
-	os_aio_simulated_wake_handler_threads();
 
 	return(count);
 }
@@ -565,13 +711,15 @@ buf_flush_batch(
 
 	mutex_exit(&(buf_pool->mutex));
 
-	if (buf_debug_prints && (page_count > 0)) {
+	buf_flush_buffered_writes();
+
+	if (buf_debug_prints && page_count > 0) {
 		if (flush_type == BUF_FLUSH_LRU) {
-			printf("To flush %lu pages in LRU flush\n",
+			printf("Flushed %lu pages in LRU flush\n",
 						page_count);
 		} else if (flush_type == BUF_FLUSH_LIST) {
-			printf("To flush %lu pages in flush list flush\n",
-						page_count, flush_type);
+			printf("Flushed %lu pages in flush list flush\n",
+						page_count);
 		} else {
 			ut_error;
 		}

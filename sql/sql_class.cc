@@ -125,6 +125,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   server_status=SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   options=thd_startup_options;
+  sql_mode=(uint) opt_sql_mode;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;
   tx_isolation=session_tx_isolation=default_tx_isolation;

@@ -9,11 +9,12 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
-#undef UNIV_INTEL_X86
-
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(MYSQL_SERVER)
+#if (defined(_WIN32) || defined(_WIN64))
 #define __WIN__
+
+#ifndef MYSQL_SERVER
 #include <windows.h>
+#endif
 
 /* If you want to check for errors with compiler level -W4,
 comment out the above include of windows.h and let the following defines
@@ -40,10 +41,8 @@ subdirectory of 'mysql'. */
 #include <global.h>
 #include <my_pthread.h>
 
-#ifndef __WIN__
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 #include <sys/stat.h>
-#endif
 
 #undef PACKAGE
 #undef VERSION
@@ -63,19 +62,21 @@ subdirectory of 'mysql'. */
 
 /*			DEBUG VERSION CONTROL
 			===================== */
+
+/*
+#define UNIV_SYNC_DEBUG
+*/
+
 /* Make a non-inline debug version */
 /*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
-#define UNIV_SYNC_DEBUG
 #define UNIV_SEARCH_DEBUG
 
 #define UNIV_IBUF_DEBUG
 
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
-
-#define UNIV_DEBUG_FILE_ACCESSES
 */
 #define UNIV_LIGHT_MEM_DEBUG
 
@@ -191,6 +192,13 @@ headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 /* The following number as the length of a logical field means that the field
 has the SQL NULL as its value. */
 #define UNIV_SQL_NULL 	ULINT_UNDEFINED
+
+/* Lengths which are not UNIV_SQL_NULL, but bigger than the following
+number indicate that a field contains a reference to an externally
+stored part of the field in the tablespace. The length field then
+contains the sum of the following flag and the locally stored len. */
+
+#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
 /* The following definition of __FILE__ removes compiler warnings
 associated with const char* / char* mismatches with __FILE__ */

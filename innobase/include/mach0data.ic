@@ -115,7 +115,7 @@ mach_write_to_4(
 {
 	ut_ad(b);
 
-#if notdefined && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
+#if (0 == 1) && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
 
 	/* We do not use this even on Intel, because unaligned accesses may
 	be slow */
@@ -143,7 +143,7 @@ mach_read_from_4(
 			/* out: ulint integer */
 	byte*   b)      /* in: pointer to four bytes */
 {
-#if notdefined && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
+#if (0 == 1) && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
 	/* We do not use this even on Intel, because unaligned accesses may
 	be slow */
 

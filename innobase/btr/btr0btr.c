@@ -71,30 +71,6 @@ btr_page_create(
 	dict_tree_t*	tree,	/* in: index tree */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
-Allocates a new file page to be used in an index tree. */
-static
-page_t*
-btr_page_alloc(
-/*===========*/
-					/* out: new allocated page,
-					x-latched */
-	dict_tree_t*	tree,		/* in: index tree */
-	ulint		hint_page_no,	/* in: hint of a good page */
-	byte		file_direction,	/* in: direction where a possible
-					page split is made */
-	ulint		level,		/* in: level where the page is placed
-					in the tree */
-	mtr_t*		mtr);		/* in: mtr */
-/******************************************************************
-Frees a file page used in an index tree. */
-static
-void
-btr_page_free(
-/*==========*/
-	dict_tree_t*	tree,	/* in: index tree */
-	page_t*		page,	/* in, own: page to be freed */	
-	mtr_t*		mtr);	/* in: mtr */
-/******************************************************************
 Sets the child node file address in a node pointer. */
 UNIV_INLINE
 void
@@ -319,11 +295,12 @@ btr_page_alloc_for_ibuf(
 /******************************************************************
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents! */
-static
+
 page_t*
 btr_page_alloc(
 /*===========*/
-					/* out: new allocated page, x-latched */
+					/* out: new allocated page, x-latched;
+					NULL if out of space */
 	dict_tree_t*	tree,		/* in: index tree */
 	ulint		hint_page_no,	/* in: hint of a good page */
 	byte		file_direction,	/* in: direction where a possible
@@ -358,7 +335,10 @@ btr_page_alloc(
 	
 	new_page_no = fseg_alloc_free_page_general(seg_header, hint_page_no,
 						file_direction, TRUE, mtr);
-	ut_a(new_page_no != FIL_NULL);
+	if (new_page_no == FIL_NULL) {
+
+		return(NULL);
+	}
 
 	new_page = buf_page_get(dict_tree_get_space(tree), new_page_no,
 							RW_X_LATCH, mtr);
@@ -435,20 +415,22 @@ btr_page_free_for_ibuf(
 }
 
 /******************************************************************
-Frees a file page used in an index tree. */
-static
+Frees a file page used in an index tree. Can be used also to (BLOB)
+external storage pages, because the page level 0 can be given as an
+argument. */
+
 void
-btr_page_free(
-/*==========*/
+btr_page_free_low(
+/*==============*/
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */	
+	ulint		level,	/* in: page level */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	fseg_header_t*	seg_header;
 	page_t*		root;
 	ulint		space;
 	ulint		page_no;
-	ulint		level;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -465,8 +447,6 @@ btr_page_free(
 	}
 
 	root = btr_root_get(tree, mtr);
-
-	level = btr_page_get_level(page, mtr);
 	
 	if (level == 0) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
@@ -478,6 +458,26 @@ btr_page_free(
 	page_no = buf_frame_get_page_no(page);
 	
 	fseg_free_page(seg_header, space, page_no, mtr);
+}	
+
+/******************************************************************
+Frees a file page used in an index tree. NOTE: cannot free field external
+storage pages because the page must contain info on its level. */
+
+void
+btr_page_free(
+/*==========*/
+	dict_tree_t*	tree,	/* in: index tree */
+	page_t*		page,	/* in: page to be freed, x-latched */	
+	mtr_t*		mtr)	/* in: mtr */
+{
+	ulint		level;
+
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+			      				MTR_MEMO_PAGE_X_FIX));
+	level = btr_page_get_level(page, mtr);
+	
+	btr_page_free_low(tree, page, level, mtr);
 }	
 
 /******************************************************************
@@ -1276,6 +1276,7 @@ btr_insert_on_non_leaf_level(
 	dtuple_t*	tuple,	/* in: the record to be inserted */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	big_rec_t*	dummy_big_rec;
 	btr_cur_t	cursor;		
 	ulint		err;
 	rec_t*		rec;
@@ -1294,7 +1295,7 @@ btr_insert_on_non_leaf_level(
 					| BTR_KEEP_SYS_FLAG
 					| BTR_NO_UNDO_LOG_FLAG,
 					&cursor, tuple,
-					&rec, NULL, mtr);
+					&rec, &dummy_big_rec, NULL, mtr);
 	ut_a(err == DB_SUCCESS);
 }
 
