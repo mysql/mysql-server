@@ -121,3 +121,18 @@ eval alter table t1 index directory="$MYSQL_TEST_DIR/var/log";
 enable_query_log;
 show create table t1;
 drop table t1;
+
+#
+# Test specifying DATA DIRECTORY that is the same as what would normally
+# have been chosen. (Bug #8707)
+#
+disable_query_log;
+eval create table t1 (i int) data directory = "$MYSQL_TEST_DIR/var/master-data/test/";
+enable_query_log;
+show create table t1;
+drop table t1;
+disable_query_log;
+eval create table t1 (i int) index directory = "$MYSQL_TEST_DIR/var/master-data/test/";
+enable_query_log;
+show create table t1;
+drop table t1;
