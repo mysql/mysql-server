@@ -322,6 +322,13 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
+struct Query_cache_query_flags
+{
+  unsigned int client_long_flag:1;
+  uint charset_num;
+  ha_rows limit;
+};
+#define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
@@ -335,6 +342,7 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #define query_cache_invalidate_by_MyISAM_filename_ref \
   &query_cache_invalidate_by_MyISAM_filename
 #else
+#define QUERY_CACHE_FLAGS_SIZE 0
 #define query_cache_store_query(A, B)
 #define query_cache_destroy()
 #define query_cache_result_size_limit(A)
