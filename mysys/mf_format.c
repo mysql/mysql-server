@@ -96,14 +96,13 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
 #endif
     (void) strmov(pos,ext);			/* Don't convert extension */
   }
-  if (flag & 16)
+  if (flag & 32)
+    (void) my_realpath(to, to, MYF(flag & 32 ? 0 : MY_RESOLVE_LINK));
+  else if (flag & 16)
   {
     strmov(buff,to);
-    my_readlink(to, buff, MYF(flag & 32 ? 0 : MY_RESOLVE_LINK));
+    (void) my_readlink(to, buff, MYF(0));
   }
-  else if (flag & 32)
-    my_realpath(to, to, MYF(flag & 32 ? 0 : MY_RESOLVE_LINK));
-
   DBUG_RETURN (to);
 } /* fn_format */
 
