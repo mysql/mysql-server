@@ -2407,10 +2407,11 @@ row_sel_store_mysql_rec(
 			collations will be introduced in 4.1,
 			we hardcode the charset-collation codes here.
 			5.0 will use a different approach. */
-			if (templ->charset == 35
+			if (pad_char != '\0'
+					&& (templ->charset == 35
 					|| templ->charset == 90
 					|| (templ->charset >= 128
-					&& templ->charset <= 144)) {
+					&& templ->charset <= 144))) {
 				/* There are two bytes per char, so the length
 				has to be an even number. */
 				ut_a(!(templ->mysql_col_len & 1));
