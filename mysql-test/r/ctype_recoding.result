@@ -54,7 +54,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
-поле	char(32)				
+поле	char(32)	NO			
 SET CHARACTER SET cp1251;
 SHOW TABLES;
 Tables_in_test
@@ -66,7 +66,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
-ОНКЕ	char(32)				
+ОНКЕ	char(32)	NO			
 SET CHARACTER SET utf8;
 SHOW TABLES;
 Tables_in_test
@@ -78,7 +78,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
-п©п╬п╩п╣	char(32)				
+п©п╬п╩п╣	char(32)	NO			
 SET CHARACTER SET koi8r;
 DROP TABLE таблица;
 SET CHARACTER SET default;
