@@ -3004,10 +3004,10 @@ struct my_option my_long_options[] =
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
-   "Don't flush key buffers between writes for any MyISAM table (Depricated option, use --delay-key-write=all instead)",
+   "Don't flush key buffers between writes for any MyISAM table (Deprecated option, use --delay-key-write=all instead)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"enable-locking", OPT_ENABLE_LOCK,
-   "Depricated option, use --external-locking instead",
+   "Deprecated option, use --external-locking instead",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NT__
@@ -3244,7 +3244,7 @@ struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
-   "Depricated option; One should use GRANT SHOW DATABASES instead...",
+   "Deprecated option; One should use GRANT SHOW DATABASES instead...",
    (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
@@ -3274,7 +3274,7 @@ struct my_option my_long_options[] =
   {"skip-innodb", OPT_INNODB_SKIP, "Don't use Innodb (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
-   "Depricated option, use --skip-external-locking instead",
+   "Deprecated option, use --skip-external-locking instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-external-locking", OPT_SKIP_LOCK, "Do not use system (external) locking",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
