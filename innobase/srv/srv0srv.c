@@ -2449,12 +2449,6 @@ loop:
 
 	os_thread_sleep(10000000);
 
-	printf("Validating has index\n");
-
-	btr_search_validate();
-
-	printf("Hash index validated\n");
-
 	sync_array_print_long_waits();
 
 	/* Flush stdout and stderr so that a database user gets their output
