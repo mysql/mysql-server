@@ -859,6 +859,11 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
     else
       numTestsOk++;
     numTestsExecuted++;
+
+    if (result == NDBT_OK && createTable == true){
+      pDict->dropTable(pTab->getName());
+    }
+    
     delete ctx;
   }
 }
