@@ -115,6 +115,9 @@ static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 3, 4, 4};
 
+#define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
+                              (d)->buf[(d)->len-1] | 1))
+
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \
         {                                                               \
@@ -206,7 +209,7 @@ int decimal2string(decimal *from, char *to, int *to_len)
   DBUG_ASSERT(*to_len > 2+from->sign);
 
   /* removing leading zeroes */
-  i=intg % DIG_PER_DEC1;
+  i=((intg-1) % DIG_PER_DEC1)+1;
   while (intg > 0 && *buf0 == 0)
   {
     intg-=i;
@@ -305,6 +308,8 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
   char *s=from, *s1;
   int i, intg, frac, error, intg1, frac1;
   dec1 x,*buf;
+
+  sanity(to);
 
   while (my_isspace(&my_charset_latin1, *s))
     s++;
@@ -461,7 +466,9 @@ static int ull2dec(ulonglong from, decimal *to)
   ulonglong x=from;
   dec1 *buf;
 
-  for (intg1=1; from > DIG_BASE; intg1++, from/=DIG_BASE);
+  sanity(to);
+
+  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE);
   if (unlikely(intg1 > to->len))
   {
     intg1=to->len;
@@ -684,6 +691,8 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   dec1 *buf=to->buf, mask=(*from <0) ? -1 : 0;
   char *stop;
 
+  sanity(to);
+
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
   if (unlikely(error))
   {
@@ -807,11 +816,13 @@ int decimal_bin_size(int precision, int scale)
     E_DEC_OK/E_DEC_TRUNCATED
 */
 
-int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
+int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode)
 {
   int frac0=ROUND_UP(scale), frac1=ROUND_UP(from->frac),
       intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
+
+  sanity(to);
 
   if (unlikely(frac0+intg0 > len))
   {
@@ -856,7 +867,7 @@ int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
     if (mode != TRUNCATE)
     {
       x=buf0[1]/DIG_MASK;
-      if (x > 5 || (x == 5 && *buf0 & 1))
+      if (x > 5 || (x == 5 && (mode == HALF_UP || *buf0 & 1)))
         (*buf1)++;
     }
   }
@@ -867,22 +878,19 @@ int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
     {
       x=*buf1 / powers10[pos];
       y=x % 10;
-      if (y > 5 || (y == 5 && (x/10) & 1))
+      if (y > 5 || (y == 5 && (mode == HALF_UP || (x/10) & 1)))
         x+=10;
-      *buf1=x*powers10[pos]-y;
+      *buf1=powers10[pos]*(x-y);
     }
     else
       *buf1=(*buf1/powers10[pos+1])*powers10[pos+1];
   }
-  if (*buf1 > DIG_BASE)
+  if (*buf1 >= DIG_BASE)
   {
     carry=1;
     *buf1-=DIG_BASE;
-    while (carry && buf1 >= to->buf)
-    {
+    while (carry && --buf1 >= to->buf)
       ADD(*buf1, *buf1, 0, carry);
-      buf1--;
-    }
     if (unlikely(carry))
     {
       /* shifting the number to create space for new digit */
@@ -954,6 +962,8 @@ static int do_add(decimal *from1, decimal *from2, decimal *to)
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
       frac0=max(frac1, frac2), intg0=max(intg1, intg2), error;
   dec1 *buf1, *buf2, *buf0, *stop, *stop2, x, carry;
+
+  sanity(to);
 
   /* is there a need for extra word because of carry ? */
   x=intg1 > intg2 ? from1->buf[0] :
@@ -1071,6 +1081,8 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
 
   if (to == 0) /* decimal_cmp() */
     return carry == from1->sign ? 1 : -1;
+
+  sanity(to);
 
   to->sign=from1->sign;
 
@@ -1190,6 +1202,8 @@ int decimal_mul(decimal *from1, decimal *from2, decimal *to)
   dec1 *buf1=from1->buf+intg1, *buf2=from2->buf+intg2, *buf0,
        *start2, *stop2, *stop1, *start0, carry;
 
+  sanity(to);
+
   i=intg0;
   j=frac0;
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
@@ -1265,8 +1279,10 @@ static int do_div_mod(decimal *from1, decimal *from2,
   if (mod)
     to=mod;
 
+  sanity(to);
+
   /* removing all the leading zeroes */
-  i=prec1 % DIG_PER_DEC1;
+  i=((prec1-1) % DIG_PER_DEC1)+1;
   while (prec1 > 0 && *buf1 == 0)
   {
     prec1-=i;
@@ -1281,7 +1297,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
   for (i=(prec1-1) % DIG_PER_DEC1; *buf1 < powers10[i--]; prec1--) ;
   DBUG_ASSERT(prec1 > 0);
 
-  i=prec2 % DIG_PER_DEC1;
+  i=((prec2-1) % DIG_PER_DEC1)+1;
   while (prec2 > 0 && *buf2 == 0)
   {
     prec2-=i;
@@ -1388,7 +1404,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
       dlen1=len2;
     }
     guess=(norm_factor*x+norm_factor*y/DIG_BASE)/norm2;
-    if (unlikely(guess > DIG_BASE))
+    if (unlikely(guess >= DIG_BASE))
       guess=DIG_BASE-1;
     if (likely(len2>1))
     {
@@ -1792,7 +1808,7 @@ void test_md(char *s1, char *s2)
   printf("\n");
 }
 
-void test_ro(char *s1, int n, dec_round_mode mode)
+void test_ro(char *s1, int n, decimal_round_mode mode)
 {
   char s[100];
   int res;
@@ -1874,6 +1890,7 @@ main()
 
   printf("==== do_add ====\n");
   test_da(".00012345000098765" ,"123.45");
+  test_da(".1" ,".45");
   test_da("1234500009876.5" ,".00012345000098765");
   test_da("9999909999999.5" ,".555");
   test_da("99999999" ,"1");
@@ -1921,17 +1938,18 @@ main()
   test_dv("0", "987");
 
   printf("==== decimal_round ====\n");
-  test_ro("15.1",0,EVEN);
-  test_ro("15.5",0,EVEN);
-  test_ro("15.9",0,EVEN);
-  test_ro("-15.1",0,EVEN);
-  test_ro("-15.5",0,EVEN);
-  test_ro("-15.9",0,EVEN);
-  test_ro("15.1",1,EVEN);
-  test_ro("-15.1",1,EVEN);
-  test_ro("15.17",1,EVEN);
-  test_ro("15.4",-1,EVEN);
-  test_ro("-15.4",-1,EVEN);
+  test_ro("15.1",0,HALF_UP);
+  test_ro("15.5",0,HALF_UP);
+  test_ro("15.5",0,HALF_UP);
+  test_ro("15.9",0,HALF_UP);
+  test_ro("-15.1",0,HALF_UP);
+  test_ro("-15.5",0,HALF_UP);
+  test_ro("-15.9",0,HALF_UP);
+  test_ro("15.1",1,HALF_UP);
+  test_ro("-15.1",1,HALF_UP);
+  test_ro("15.17",1,HALF_UP);
+  test_ro("15.4",-1,HALF_UP);
+  test_ro("-15.4",-1,HALF_UP);
   test_ro("5678.123451",-4,TRUNCATE);
   test_ro("5678.123451",-3,TRUNCATE);
   test_ro("5678.123451",-2,TRUNCATE);
