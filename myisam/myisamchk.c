@@ -228,9 +228,11 @@ static struct my_option my_long_options[] =
   {"sort-recover", 'n',
    "Force recovering with sorting even if the temporary file was very big.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef DEBUG
   {"start-check-pos", OPT_START_CHECK_POS,
    "No help available.",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
    (gptr*) &check_param.auto_increment_value,
@@ -330,16 +332,22 @@ static void usage(void)
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname);
   puts("\nGlobal options:\n\
-  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename`\n\
+  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'\n\
   -?, --help          Display this help and exit.\n\
   -O, --set-variable var=option\n\
-		      Change the value of a variable.\n\
+                      Change the value of a variable. Please note that\n\
+                      this option is deprecated; you can set variables\n\
+                      directly with '--variable-name=value'.\n\
+  -t, --tmpdir=path   Path for temporary files\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent\n\
   -v, --verbose       Print more information. This can be used with\n\
                       --description and --check. Use many -v for more verbosity!\n\
   -V, --version       Print version and exit.\n\
   -w, --wait          Wait if table is locked.\n");
+#ifdef DEBUG
+  puts("  --start-check-pos=# Start reading file at given offset.\n");
+#endif
 
   puts("Check options (check is the default action for myisamchk):\n\
   -c, --check	      Check table for errors\n\
@@ -349,15 +357,15 @@ static void usage(void)
   -F, --fast	      Check only tables that haven't been closed properly\n\
   -C, --check-only-changed\n\
 		      Check only tables that have changed since last check\n\
-  -f, --force         Restart with -r if there are any errors in the table.\n\
-		      States will be updated as with --update-state\n\
+  -f, --force         Restart with '-r' if there are any errors in the table.\n\
+		      States will be updated as with '--update-state'\n\
   -i, --information   Print statistics information about table that is checked\n\
   -m, --medium-check  Faster than extended-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases\n\
   -U  --update-state  Mark tables as crashed if you find any errors\n\
   -T, --read-only     Don't mark table as checked\n");
 
-  puts("Repair options (When using -r or -o) \n\
+  puts("Repair options (When using '-r' or '-o') \n\
   -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
@@ -371,8 +379,12 @@ static void usage(void)
 		      get faster inserts!\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
-  -n, --sort-recover  Force recovering with sorting even if the temporary\n\
+  -n, --sort-recover  Forces recovering with sorting even if the temporary\n\
 		      file would be very big.\n\
+  -p, --parallel-recover\n\
+                      Uses the same technique as '-r' and '-n', but creates\n\
+                      all the keys in parallel, in different threads.\n\
+                      THIS IS ALPHA CODE. USE AT YOUR OWN RISK!\n\
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
@@ -380,7 +392,6 @@ static void usage(void)
                       Directory where character sets are\n\
   --set-character-set=name\n\
  		      Change the character set used by the index\n\
-  -t, --tmpdir=path   Path for temporary files\n\
   -q, --quick         Faster repair by not modifying the data file.\n\
                       One can give a second '-q' to force myisamchk to\n\
 		      modify the original datafile in case of duplicate keys\n\
@@ -401,7 +412,9 @@ static void usage(void)
   -R, --sort-records=#\n\
 		      Sort records according to an index.  This makes your\n\
 		      data much more localized and may speed up things\n\
-		      (It may be VERY slow to do a sort the first time!)");
+		      (It may be VERY slow to do a sort the first time!)\n\
+  -b,  --block-search=#\n\
+                       Find a record, a block at given offset belongs to.");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
