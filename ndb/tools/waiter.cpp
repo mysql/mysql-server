@@ -22,6 +22,7 @@
 #include <NdbSleep.h>
 #include <getarg.h>
 #include <kernel/ndb_limits.h>
+#include "../src/common/mgmcommon/LocalConfig.hpp"
 
 #include <NDBT.hpp>
 
@@ -47,9 +48,43 @@ int main(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
+
+  char buf[255];
   _hostName = argv[optind];
 
-  //  NdbRestarter restarter(_hostName);
+  if (_hostName == NULL){
+    LocalConfig lcfg;
+    if(!lcfg.init())
+    {
+      lcfg.printError();
+      lcfg.printUsage();
+      g_err  << "Error parsing local config file" << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+
+    for (int i = 0; i<lcfg.items; i++)
+    {
+      MgmtSrvrId * m = lcfg.ids[i];
+      
+      switch(m->type){
+      case MgmId_TCP:
+	snprintf(buf, 255, "%s:%d", m->data.tcp.remoteHost, m->data.tcp.port);
+	_hostName = buf;
+	break;
+      case MgmId_File:
+	break;
+      default:
+	break;
+      }
+      if (_hostName != NULL)
+	break;
+    }
+    if (_hostName == NULL)
+    {
+      g_err << "No management servers configured in local config file" << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+  }
 
   if (waitClusterStarted(_hostName) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
@@ -137,15 +172,6 @@ waitClusterStarted(const char* _addr, unsigned int _timeout)
   int _nodes[MAX_NDB_NODES];
   int _num_nodes = 0;
 
-  if (getStatus() != 0)
-    return -1;
-  
-  // Collect all nodes into nodes
-  for (size_t i = 0; i < ndbNodes.size(); i++){
-    _nodes[i] = ndbNodes[i].node_id;
-    _num_nodes++;
-  }
-
   handle = ndb_mgm_create_handle();   
   if (handle == NULL){
     g_err << "handle == NULL" << endl;
@@ -156,6 +182,15 @@ waitClusterStarted(const char* _addr, unsigned int _timeout)
     MGMERR(handle);
     g_err  << "Connection to " << _addr << " failed" << endl;
     return -1;
+  }
+
+  if (getStatus() != 0)
+    return -1;
+  
+  // Collect all nodes into nodes
+  for (size_t i = 0; i < ndbNodes.size(); i++){
+    _nodes[i] = ndbNodes[i].node_id;
+    _num_nodes++;
   }
 
   unsigned int attempts = 0;
