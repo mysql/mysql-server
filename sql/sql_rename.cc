@@ -31,8 +31,8 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
-  bool error=1,cerror,got_all_locks=1;
-  TABLE_LIST *lock_table,*ren_table=0;
+  bool error=1, cerror;
+  TABLE_LIST *ren_table= 0;
   DBUG_ENTER("mysql_rename_tables");
   
   /* Avoid problems with a rename on a table that we have locked or
@@ -45,23 +45,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
       
   VOID(pthread_mutex_lock(&LOCK_open));
-  for (lock_table=table_list ; lock_table ; lock_table=lock_table->next)
-  {
-    int got_lock;
-    if ((got_lock=lock_table_name(thd,lock_table)) < 0)
-      goto end;
-    if (got_lock)
-      got_all_locks=0;
-  }
-  
-  if (!got_all_locks && wait_for_locked_table_names(thd,table_list))
-    goto end;
+  if (lock_table_names(thd, table_list))
+    goto err;
 
-  if (!(ren_table=rename_tables(thd,table_list,0)))
-    error=0;
-  
-end:
-  if (ren_table)
+  error= 0;
+  if ((ren_table=rename_tables(thd,table_list,0)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *prev=0,*table;
@@ -83,7 +71,7 @@ end:
     table=table->next->next;			// Skipp error table
     /* Revert to old names */
     rename_tables(thd, table, 1);
-    /* Note that lock_table == 0 here, so the unlock loop will work */
+    error= 1;
   }
 
   /* Lets hope this doesn't fail as the result will be messy */ 
@@ -103,9 +91,9 @@ end:
     send_ok(&thd->net);
   }
 
-  for (TABLE_LIST *table=table_list ; table != lock_table ; table=table->next)
-    unlock_table_name(thd,table);
-  pthread_cond_broadcast(&COND_refresh);
+  unlock_table_names(thd,table_list);
+
+err:
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(error);
 }
