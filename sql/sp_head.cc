@@ -1080,7 +1080,7 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
 //
 // Security context swapping
 //
-
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
 sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 {
@@ -1136,3 +1136,5 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
     strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
   }
 }
+
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
