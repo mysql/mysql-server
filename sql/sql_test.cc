@@ -322,8 +322,9 @@ w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	 my_blocks_used,my_blocks_changed,my_cache_w_requests,
-	 my_cache_write,my_cache_r_requests,my_cache_read);
+	 dflt_key_cache_var.blocks_used,dflt_key_cache_var.blocks_changed,
+         dflt_key_cache_var.cache_w_requests,dflt_key_cache_var.cache_write,
+         dflt_key_cache_var.cache_r_requests,dflt_key_cache_var.cache_read);
   pthread_mutex_unlock(&THR_LOCK_keycache);
 
   if (thd)

@@ -419,6 +419,10 @@ bool check_stack_overrun(THD *thd,char *dummy);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
+void assign_cache_init(void);
+void assign_cache_free(void);
+void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
+                        KEY_CACHE_VAR *new_key_cache);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
@@ -448,7 +452,10 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 			HA_CHECK_OPT* check_opt);
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
+int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache, 
+                             char *dest_name, bool remove_fl);
 
 bool check_simple_select();
 
@@ -821,7 +828,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables, LOCK_user_conn;
+       LOCK_global_system_variables, LOCK_user_conn, LOCK_assign;
 extern rw_lock_t      LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;

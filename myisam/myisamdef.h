@@ -166,6 +166,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   char  *data_file_name,		/* Resolved path names from symlinks */
         *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
+  KEY_CACHE_HANDLE *keycache;           /* ref to the current key cache */
+  KEY_CACHE_HANDLE *reg_keycache;       /* ref to the registered key cache */
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
@@ -546,11 +548,12 @@ extern int _mi_search_next(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 extern int _mi_search_first(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
 extern int _mi_search_last(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
 extern uchar *_mi_fetch_keypage(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t page,
-				uchar *buff,int return_buffer);
+				int level,uchar *buff,int return_buffer);
 extern int _mi_write_keypage(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t page,
-			     uchar *buff);
-extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
-extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo);
+			     int level, uchar *buff);
+extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos,
+                      int level);
+extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo,int level);
 extern uint _mi_make_key(MI_INFO *info,uint keynr,uchar *key,
 			 const byte *record,my_off_t filepos);
 extern uint _mi_pack_key(MI_INFO *info,uint keynr,uchar *key,uchar *old,

@@ -44,6 +44,7 @@ static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_charset_name, *opt_tmpdir;
 static CHARSET_INFO *set_charset;
 static long opt_myisam_block_size;
+static long opt_key_cache_block_size;
 static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR myisamchk_tmpdir;
@@ -148,7 +149,8 @@ int main(int argc, char **argv)
 
 enum options_mc {
   OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS,
-  OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE, OPT_MYISAM_BLOCK_SIZE,
+  OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE,
+  OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT
@@ -283,6 +285,11 @@ static struct my_option my_long_options[] =
     (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
+  { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
+    (gptr*) &opt_key_cache_block_size,
+    (gptr*) &opt_key_cache_block_size, 0,
+    GET_LONG, REQUIRED_ARG, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
+    MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0},
   { "myisam_block_size", OPT_MYISAM_BLOCK_SIZE,  "",
     (gptr*) &opt_myisam_block_size, (gptr*) &opt_myisam_block_size, 0,
     GET_LONG, REQUIRED_ARG, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
@@ -1025,7 +1032,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
-	  VOID(init_key_cache(param->use_buffers));
+	  VOID(init_key_cache(dflt_keycache,opt_key_cache_block_size,
+                              param->use_buffers,&dflt_key_cache_var));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1448,7 +1456,8 @@ static int mi_sort_records(MI_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(param->use_buffers);
+  init_key_cache(dflt_keycache,opt_key_cache_block_size,param->use_buffers,
+                 &dflt_key_cache_var);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))

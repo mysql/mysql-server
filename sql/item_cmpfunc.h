@@ -245,7 +245,7 @@ public:
   longlong val_int();
   enum Functype functype() const { return NE_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  optimize_type select_optimize() const { return OPTIMIZE_KEY; } 
   const char *func_name() const { return "<>"; }
 };
 
