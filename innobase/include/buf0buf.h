@@ -472,6 +472,13 @@ buf_print_io(
 /*=========*/
 	char*	buf,	/* in/out: buffer where to print */
 	char*	buf_end);/* in: buffer end */
+/*************************************************************************
+Returns the ratio in percents of modified pages in the buffer pool /
+database pages in the buffer pool. */
+
+ulint
+buf_get_modified_ratio_pct(void);
+/*============================*/
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 
