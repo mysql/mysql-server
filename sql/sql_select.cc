@@ -289,7 +289,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 						   fields_list,
 						   &all_fields, wild_num))) ||
       setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
-						select_lex->with_sum_func +
+						select_lex->select_items +
 						og_num)) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||

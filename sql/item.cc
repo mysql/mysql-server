@@ -46,6 +46,8 @@ Item::Item():
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
   loop_id= 0;
+  if (thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
+    thd->lex.current_select->select_items++;
 }
 
 /*
