@@ -3783,13 +3783,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
-    case Item_sum::STD_FUNC:			/* Place for sum & count */
+    case Item_sum::VARIANCE_FUNC:			/* Place for sum & count */
+    case Item_sum::STD_FUNC:	
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
 				 maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);
+				item->name,table,item_sum->decimals);				
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
     default:
