@@ -687,7 +687,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(thd, table, db, table_name, table_name,0) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name, 1) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
     {
@@ -1259,14 +1259,14 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       if (error < 0)
       {
 	if (!locked)
-	  pthread_mutex_lock(&LOCK_open);
+	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
       if (wait_for_locked_table_names(thd,&table_list))
       {
 	unlock_table_name(thd,&table_list);
 	if (!locked)
-	  pthread_mutex_lock(&LOCK_open);
+	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
     }

@@ -234,9 +234,10 @@ public:
   virtual int index_last(byte * buf)=0;
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
   virtual int ft_init()
-                                 { return -1; }
-  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort)
-                                 { return (void *)NULL; }
+    { return -1; }
+  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen,
+			    bool presort)
+    { return (void *)NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
   virtual int rnd_end() { return 0; }
@@ -275,6 +276,9 @@ public:
   // not implemented by default
   virtual int net_read_dump(NET* net)
   { return ER_DUMP_NOT_IMPLEMENTED; }
+  virtual char *update_table_comment(const char * comment)
+  { return (char*) comment;}
+  virtual void append_create_info(String *packet) {}
 
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;

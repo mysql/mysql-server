@@ -1,0 +1,7 @@
+include ..\include\makefile.i
+
+lock.lib: lock0lock.obj
+	lib -out:..\libs\lock.lib lock0lock.obj
+
+lock0lock.obj: lock0lock.c
+	$(CCOM) $(CFL) -c lock0lock.c

@@ -142,6 +142,10 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
 			 (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
 		       !(thd->options &
 			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
+  /* We need to add code to not generate table based on the table type */
+#ifdef HAVE_INNOBASE_DB
+  use_generate_table=0;
+#endif
   if (use_generate_table && ! thd->open_tables)
   {
     error=generate_table(thd,table_list,(TABLE*) 0);

@@ -1,0 +1,21 @@
+include ..\include\makefile.i
+
+ut.lib: ut0ut.obj ut0mem.obj ut0byte.obj ut0dbg.obj ut0rnd.obj
+	lib -out:..\libs\ut.lib ut0ut.obj ut0mem.obj ut0byte.obj ut0dbg.obj ut0rnd.obj
+
+ut0ut.obj: ut0ut.c
+	$(CCOM) $(CFL) -c ut0ut.c
+
+ut0mem.obj: ut0mem.c
+	$(CCOM) $(CFL) -c ut0mem.c
+
+ut0byte.obj: ut0byte.c
+	$(CCOM) $(CFL) -c ut0byte.c
+
+ut0dbg.obj: ut0dbg.c
+	$(CCOM) $(CFL) -c ut0dbg.c
+
+ut0rnd.obj: ut0rnd.c
+	$(CCOM) $(CFL) -c ut0rnd.c
+
+

@@ -156,6 +156,7 @@ version see the relevant distribution.
 General Information About MySQL
 
 * What-is::                     What is @strong{MySQL}?
+* What is MySQL AB::            
 * Manual-info::                 About this manual
 * History::                     History of @strong{MySQL}
 * MySQL-Books::                 Books about MySQL
@@ -486,6 +487,7 @@ MySQL Table Types
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
+* INNOBASE::                    
 
 MyISAM Tables
 
@@ -573,7 +575,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -1045,6 +1047,7 @@ Debugging a MySQL server
 
 @menu
 * What-is::                     What is @strong{MySQL}?
+* What is MySQL AB::            
 * Manual-info::                 About this manual
 * History::                     History of @strong{MySQL}
 * MySQL-Books::                 Books about MySQL
@@ -1077,6 +1080,9 @@ provides the latest information about @strong{MySQL}.
 The following list describes some useful sections of the manual:
 
 @itemize @bullet
+@item
+To get information about the company behind MySQL, see @xref{What is MySQL AB}.
+
 @item
 For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
 
@@ -1141,8 +1147,13 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 @cindex MySQL, defined
 @cindex MySQL, introduction
-@node What-is, Manual-info, Introduction, Introduction
+@node What-is, What is MySQL AB, Introduction, Introduction
 @section What Is MySQL
+
+@strong{MySQL}, the most popular Open Source SQL database, is provided
+by @strong{MySQL AB}.  @strong{MySQL AB} is a commercial company that
+builds is business providing services around the @strong{MySQL} database.
+@xref{What is MySQL AB}.
 
 @table @asis
 
@@ -1206,6 +1217,10 @@ a client/server system that consists of a multi-threaded SQL server
 that supports different backends, several different client programs and
 libraries, administrative tools, and a programming interface.
 
+We also provide @strong{MySQL} as a multi-threaded library which you can
+link into your application to get a smaller, faster, easier to manage
+product.
+
 @item @strong{MySQL} has a lot of contributed software available.
 
 It is very likely that you will find that your favorite
@@ -1219,9 +1234,75 @@ application/language already supports @strong{MySQL}.
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
 MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
 
+@cindex MySQL AB, defined
+@node What is MySQL AB, Manual-info, What-is, Introduction
+@section What Is MySQL AB
 
+@strong{MySQL AB} is the Swedish company owned and run by the @strong{MySQL}
+founders and main developers. We are dedicated to developing
+@strong{MySQL} and spreading our database to new users. @strong{MySQL AB}
+owns the copyright to the @strong{MySQL} server source code and the
+@strong{MySQL} trademark.  A significant amount of revenues from our
+services goes to developing @strong{MySQL}. @xref{What-is}.
 
-@strong{MySQL} core values
+@strong{MySQL AB} has been profitable providing MySQL AB from the start.
+We don't get any outside funding, but have earned all our money ourselves.
+
+We are searching after partners that would like to support our
+development of @strong{MySQL} so that we could accelerate the
+development pace.  If you are interested in doing this, you can email
+@email{partner@@mysql.com} about this!
+
+@strong{MYSQL AB} has currently 20+ people on it's payroll and is
+growing rapidly.  @uref{http://www.mysql.com/development/team.html}.
+
+Our main streams of income are
+
+@itemize @bullet
+@item
+Commercial high quality support for @strong{MySQL} provided by
+@strong{MySQL} developers.  If you are interested in getting support,
+please visit @uref{https://order.mysql.com/} to view our support options
+or to order support.
+@item
+Consulting services.  We have developers/consults in 12 countries and
+partners in many other countries that can help you with almost any
+@strong{MySQL} related issues.  If you need consulting services, please
+email a good description of your needs to @email{info@@mysql.com}!  If we
+can't handle this ourselves we can usually find a partner or a developer
+that can help you with your problems.
+@item
+We sell licenses for using @strong{MySQL} as an embedded
+database. @xref{Cost}.  If you have a commercial product for which you
+need a fast high quality database but you can't afford to make your
+product Open Source, you can buy the right to use the @strong{MySQL} server
+under a normal commercial copyright.  If you are interested in this you can
+buy @strong{MySQL} licenses at @uref{https://order.mysql.com/} or contact
+us at @email{licensing@@mysql.com}.
+@item
+Advertising; @uref{http://www.mysql.com} is a very popular web site with
+more than 10,000,000 page views per months (January 2001).  By putting a
+banner on this you are guaranteed to reach a lot of potential customers
+in the Open source, Linux and database community. If you are interested
+in this email @email{advertising@@mysql.com}.
+@item
+We are building a partner program to be able to provide @strong{MySQL}
+services in every country.  If you are interested in becomming a partner
+of @strong{MySQL AB} please visit
+@uref{http://ww.mysql.com/information/partners.html} or email
+@email{partner@@mysql.com}.
+@item
+We provide @strong{MySQL} training through our partner programs. For more
+information, please email @email{info@@mysql.com}.
+@item
+The @strong{MySQL} brand has since 1995 been associated with speed,
+reliability and is known to be something you can depend upon. If you are
+interested in using the @strong{MySQL} trademark in your marketing, you
+can email @email{info@@mysql.com} about this.
+@end itemize
+
+The @strong{MySQL} core values shows our dedication to @strong{MySQL} and
+Open Source:
 
 We want @strong{MySQL} to be:
 
@@ -1257,7 +1338,7 @@ Are a virtual company, networking with others
 Work against software patents
 @end itemize
 
-@node Manual-info, History, What-is, Introduction
+@node Manual-info, History, What is MySQL AB, Introduction
 @section About This Manual
 
 @menu
@@ -1268,7 +1349,7 @@ This manual is currently available in Texinfo, plain text, Info, HTML,
 PostScript, and PDF versions.  The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
 @code{texi2html}. The plain text and Info versions are produced with
- @code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
+@code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
 and @code{dvips}. The PDF version is produced with @code{pdftex}.
 
 @cindex manual, available formats
@@ -1857,7 +1938,7 @@ In-memory hash tables which are used as temporary tables.
 @item
 Handles large databases.  We are using @strong{MySQL} with some
 databases that contain 50,000,000 records and we know of users that
-uses @code{MySQL} with 60,000 tables and about 5,000,000,000 rows
+uses @strong{MySQL} with 60,000 tables and about 5,000,000,000 rows
 
 @item
 All columns have default values.  You can use @code{INSERT} to insert a
@@ -3638,15 +3719,23 @@ EURO (European Union Euro). One EURO is about 1.17 USD.
 
 @multitable @columnfractions .5 .5
 @item @strong{Type of support}  @tab @strong{Cost per year}
-@item Basic e-mail support      @tab EURO 170
-@item Extended e-mail support   @tab EURO 1000
-@item Login support             @tab EURO 2000
-@item Extended login support    @tab EURO 5000
+@item Basic e-mail support. @xref{Basic email support}. @tab EURO 170
+@item Extended e-mail support @xref{Extended email support}. @tab EURO 1000
+@item Login support @xref{Login support}.            @tab EURO 2000
+@item Extended login support @xref{Extended login support}.  @tab EURO 5000
 @end multitable
 
-You may upgrade from any
-lower level of support to a higher level of support for the difference
-in price between the two support levels.
+You may upgrade from any lower level of support to a higher level of
+support for the difference in price between the two support levels.
+
+We do also provide telephone support (mostly emergency support but also
+24/7 support). This support option doesn't however have a fixed price
+but is negotiated for case to case. If you are interested in this option
+you can email @email{sales@@mysql.com} and tell us about your needs.
+
+Note that as our sales staff is very busy, it may take some time until
+your request is handled.  Our support staff does however always answer
+promptly to support questions!
 
 @cindex payment information
 @node Payment information, Contact information, Cost, Cost
@@ -5882,7 +5971,6 @@ shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 Note that the given file must be an absolute pathname!
 @cindex socket location
 
-
 @item
 If you want to compile statically linked programs (for example, to make a
 binary distribution, to get more speed, or to work around problems with some
@@ -5913,6 +6001,43 @@ shell> CC=gcc CXX=gcc ./configure
 When you use @code{gcc} as your C++ compiler, it will not attempt to link in
 @code{libg++} or @code{libstdc++}.
 
+Here is some common environment variables to set depending on
+the compiler you are using:
+
+@tindex CXXFLAGS environment variable
+@tindex Environment variable, CXXFLAGS
+@multitable @columnfractions .20 .80
+@item gcc 2.7.2.1 @tab
+CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors"
+@item egcs 1.0.3a @tab
+CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti"
+@item gcc 2.95.2 @tab
+CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
+@item pgcc 2.90.29 or newer @tab
+CFLAGS="-O6 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
+@end multitable
+
+In most cases you can get a resonable optimal @strong{MySQL} binary
+picking the options from the above and add the following options to the
+configure line: 
+
+@example
+--prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+@end example
+
+The full configure line would in other words be something like the
+following for all recent gcc versions:
+
+@example
+CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+@end example
+
+The binaries we provide at on the MySQL home site
+@uref{http://www.mysql.com}, are all compiled with full optimization and
+should be ok for most users.  @xref{MySQL binaries}. There is some
+things one can tweak to make an even faster binary, but this is only for
+advanced users.  @xref{Compile and link options}.
+
 If the build fails and produces errors about your compiler or linker not
 being able to create the shared library @file{libmysqlclient.so.#} (@samp{#}
 is a version number), you can work around this problem by giving the
@@ -5934,7 +6059,6 @@ shell> CXXFLAGS=-DDONT_USE_DEFAULT_FIELDS ./configure
 @end example
 @cindex default values, suppression
 @cindex suppression, default values
-
 
 @item
 By default, @strong{MySQL} uses the ISO-8859-1 (Latin1) character set. To
@@ -6976,7 +7100,7 @@ we have not yet done any testing.
 
 We have also tested @strong{MySQL} on Linux Version 2.4 on a 2 CPU machine and
 @strong{MySQL} scales MUCH better on this!  If your plan to set up a
-dedicated Linux SMP machine to run @code{MySQL} under heavy load, we
+dedicated Linux SMP machine to run @strong{MySQL} under heavy load, we
 recommend that you give Version 2.4 a try!
 
 The current implementation of mutex in Linuxthreads is also very bad for
@@ -7745,6 +7869,19 @@ On some BSDI Version 4.x systems, you may get problems with shared libraries.
 The symptom is that you can't execute any client programs, for example,
 @code{mysqladmin}.  In this case you need to reconfigure not to use
 shared libraries with the @code{--disable-shared} option to configure.
+
+Some customers have had problems on BSDI 4.0.1 that the @code{mysqld}
+binary after a while can't open tables.  This is because some
+library/system related bug causes @code{mysqld} to change current
+directory without asking for this!
+
+The fix is to either upgrade to 3.23.34 or after running @code{configure}
+remove the line @code{#define HAVE_REALPATH} from @code{config.h}
+before running make.
+
+Note that the above means that you can't symbolic link a database directories
+to another database directory or symbolic link a table to another database
+on BSDI!  (Making a symbolic link to another disk is ok).
 
 @node SCO, SCO Unixware, BSDI, Source install system issues
 @subsection SCO Notes
@@ -8779,7 +8916,7 @@ following compilers and options:
 
 @table @asis
 @item SunOS 4.1.4 2 sun4c with @code{gcc} 2.7.2.1
-@code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex}
+@code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
 @code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
@@ -9845,7 +9982,7 @@ The above output contains all options for the groups 'client' and 'mysql'.
 
 In some cases you may want to have many different @code{mysqld} deamons
 (servers) running on the same machine.  You may for example want to run
-a new version of @code{MySQL} for testing together with an old version
+a new version of @strong{MySQL} for testing together with an old version
 that is in production.  Another case is when you want to give different
 users access to different mysqld servers that they manage themself.
 
@@ -13659,7 +13796,7 @@ In @strong{MySQL} Version 3.23, this is a true floating-point value.  In
 earlier @strong{MySQL} versions, @code{FLOAT(precision)} always has 2 decimals.
 
 Note that using @code{FLOAT} may give you some unexpected problems as
-all calculation in @code{MySQL} is done with double precision.
+all calculation in @strong{MySQL} is done with double precision.
 @xref{No matching rows}.
 
 @cindex ODBC compatibility
@@ -17875,7 +18012,7 @@ reference_option:
         RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
 
 table_options:
-	TYPE = @{ISAM | MYISAM | HEAP | MERGE@}
+	TYPE = @{BDB | HEAP | ISAM | INNOBASE | MERGE | MYISAM @}
 or	AUTO_INCREMENT = #
 or	AVG_ROW_LENGTH = #
 or	CHECKSUM = @{0 | 1@}
@@ -18111,11 +18248,12 @@ implemented in @strong{MySQL} Version 3.23 and above.
 The different table types are:
 
 @multitable @columnfractions .20 .80
-@item BDB or Berkeley_db @tab Transaction-safe tables @xref{BDB}.
+@item BDB or Berkeley_db @tab Transaction-safe tables with page locking. @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
+@item INNOBASE @tab Transaction-safe tables with row locking. @xref{INNOBASE}.
 @item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
-@item MyISAM @tab The new binary portable table handler. @xref{MyISAM}.
+@item MyISAM @tab The new binary portable table handler that is replacing ISAM. @xref{MyISAM}.
 @end multitable
 @xref{Table types}.
 
@@ -19070,7 +19208,7 @@ temporary table with a key on the @code{GROUP BY} elements.
 @item
 If you use @code{GROUP BY}, the output rows will be sorted according to the
 @code{GROUP BY} as if you would have had an @code{ORDER BY} over all the fields
-in the @code{GROUP BY}. @code{MySQL} has extended the @code{GROUP BY} so that
+in the @code{GROUP BY}. @strong{MySQL} has extended the @code{GROUP BY} so that
 you can also specify @code{ASC} and @code{DESC} to @code{GROUP BY}:
 
 @example
@@ -20370,7 +20508,7 @@ The following columns are returned:
 @multitable @columnfractions .30 .70
 @item @strong{Column} @tab @strong{Meaning}
 @item @code{Name} @tab Name of the table.
-@item @code{Type} @tab Type of table (BDB, ISAM, MERGE, MyISAM, or HEAP).
+@item @code{Type} @tab Type of table. @xref{Table types}.
 @item @code{Row_format} @tab The row storage format (Fixed, Dynamic, or Compressed).
 @item @code{Rows} @tab Number of rows.
 @item @code{Avg_row_length} @tab Average row length.
@@ -20385,6 +20523,9 @@ The following columns are returned:
 @item @code{Create_options} @tab Extra options used with @code{CREATE TABLE}.
 @item @code{Comment} @tab The comment used when creating the table (or some information why @strong{MySQL} couldn't access the table information).
 @end multitable
+
+@code{INNOBASE} tables will report the free space in the tablespace
+in the table comment.
 
 @node SHOW STATUS, SHOW VARIABLES, SHOW TABLE STATUS, SHOW
 @subsection SHOW Status Information
@@ -20955,7 +21096,7 @@ The value of the @code{--pid-file} option.
 The value of the @code{--port} option.
 
 @item @code{protocol_version}
-The protocol version used by the @code{MySQL} server.
+The protocol version used by the @strong{MySQL} server.
 
 @item @code{record_buffer}
 Each thread that does a sequential scan allocates a buffer of this
@@ -21506,7 +21647,8 @@ By default, @strong{MySQL} runs in @code{autocommit} mode. This means that
 as soon as you execute an update, @strong{MySQL} will store the update on
 disk.
 
-If you are using @code{BDB} tables, you can put @strong{MySQL} into
+If you are using transactions safe tables (like @code{BDB},
+@code{INNOBASE} or @code{GEMINI}), you can put @strong{MySQL} into
 non-@code{autocommit} mode with the following command:
 
 @example
@@ -22018,7 +22160,7 @@ an user, all privileges the user has granted are revoked. In
 you have to revoke these yourself if needed.
 
 @item
-If you in @code{MySQL} have the @code{INSERT} grant on only part of the
+If you in @strong{MySQL} have the @code{INSERT} grant on only part of the
 columns in a table, you can execute @code{INSERT} statements on the
 table; The columns for which you don't have the @code{INSERT} privilege
 will set to their default values. ANSI SQL requires you to have the
@@ -22303,21 +22445,25 @@ used them.
 @cindex table types, choosing
 @cindex @code{BDB} table type
 @cindex @code{Berkeley_db} table type
-@cindex ISAM table type
 @cindex @code{HEAP} table type
+@cindex @code{ISAM} table type
+@cindex @code{INNOBASE} table type
 @cindex @code{MERGE} table type
 @cindex MySQL table types
-@cindex MyISAM table type
+@cindex @code{MyISAM} table type
 @cindex types, of tables
 @node Table types, Tutorial, Reference, Top
 @chapter MySQL Table Types
 
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
-table formats. When you create a new table, you can tell @strong{MySQL}
-which table type it should use for the table.  @strong{MySQL} will
-always create a @code{.frm} file to hold the table and column
-definitions.  Depending on the table type, the index and data will be
-stored in other files.
+table formats (@code{ISAM}, @code{HEAP} and @code{MyISAM}.  Newer
+@strong{MySQL} may support additional table type, depending on how you
+compile it.
+ 
+When you create a new table, you can tell @strong{MySQL} which table
+type it should use for the table.  @strong{MySQL} will always create a
+@code{.frm} file to hold the table and column definitions.  Depending on
+the table type, the index and data will be stored in other files.
 
 The default table type in @strong{MySQL} is @code{MyISAM}. If you are
 trying to use a table type that is not incompiled or activated,
@@ -22327,8 +22473,9 @@ You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that @strong{MySQL} supports two different kinds of
-tables. Transaction-safe tables (@code{BDB}) and not transaction-safe
-tables (@code{ISAM}, @code{MERGE}, @code{MyISAM}, and @code{HEAP}).
+tables. Transaction-safe tables (@code{BDB}, @code{INNOBASE} or
+@code{GEMINI}) and not transaction-safe tables (@code{HEAP}, @code{ISAM},
+@code{MERGE}, and @code{MyISAM}).
 
 Advantages of transaction-safe tables (TST):
 
@@ -22368,6 +22515,7 @@ of both worlds.
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
+* INNOBASE::                    
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
@@ -22735,6 +22883,10 @@ that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
 @code{MERGE} table, you are only dropping the @code{MERGE}
 specification.
 
+Note that @code{DELETE FROM merge_table} used without a @code{WHERE}
+will only clear the mapping for the table, not delete everything in the
+mapped tables. (We plan to fix this in 4.0).
+
 With identical tables we mean that all tables are created with identical
 column information.  You can't put a MERGE over tables where the columns
 are packed differently or doesn't have exactly the same columns.
@@ -22790,8 +22942,8 @@ The disadvantages with @code{MERGE} tables are:
 
 @itemize @bullet
 @item
-You can't use @code{INSERT} on @code{MERGE} tables, as @strong{MySQL} can't know
-in which of the tables we should insert the row.
+You can't use @code{INSERT} on @code{MERGE} tables, as @strong{MySQL}
+can't know in which of the tables we should insert the row.
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @item
@@ -22809,7 +22961,11 @@ will need to read the next key block. This makes @code{MERGE} keys much slower
 on @code{eq_ref} searches, but not much slower on @code{ref} searches.
 @xref{EXPLAIN}.
 @item
-You can't yet easily map the @code{MERGE} table from within @strong{MySQL}.
+You can't do @code{DROP TABLE}, @code{ALTER TABLE} or @code{DELETE FROM
+table_name} without a @code{WHERE} clause on any of the table that is
+mapped by a @code{MERGE} table that is 'open'.  If you do this, the
+@code{MERGE} table may still refer to the original table and you will
+get unexpected results.
 @end itemize
 
 The following example shows you how to use @code{MERGE} tables:
@@ -22827,7 +22983,7 @@ Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 table.
 
 Note that you can also manipulate the @code{.MRG} file directly from
-the outside of the @code{MySQL} server:
+the outside of the @strong{MySQL} server:
 
 @example
 shell> cd /mysql-data-directory/current-database
@@ -22978,7 +23134,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
-@node BDB,  , HEAP, Table types
+@node BDB, INNOBASE, HEAP, Table types
 @section BDB or Berkeley_db Tables
 
 @menu
@@ -22992,6 +23148,9 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 
 @node BDB overview, BDB install, BDB, BDB
 @subsection Overview over BDB tables
+
+Innobase is included in the @strong{MySQL} source distribution starting
+from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
 
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction-safe table handler. This will survive
@@ -23025,7 +23184,7 @@ gzip -cd /tmp/db-3.2.3h.tar.gz | tar xf -
 If you would like to install Berkeley DB separately, to use with
 other applications and MySQL, this is possible.  Follow the directions
 for installing Berkeley DB in the Berkeley DB README file.  Then, pass
-the @code{--with-berkeley-db=DIR} option to @code{MySQL}'s @code{configure},
+the @code{--with-berkeley-db=DIR} option to @strong{MySQL}'s @code{configure},
 where @code{DIR} refers to the installation prefix used when installing
 Berkeley DB (by default it is
 /usr/local/BerkeleyDB.3.2). You can give additional options to
@@ -23204,6 +23363,134 @@ error file:
 This is not fatal but we don't recommend that you delete tables if you are
 not in @code{auto_commit} mode, until this problem is fixed (the fix is
 not trivial).
+
+@node INNOBASE,  , BDB, Table types
+@section INNOBASE Tables
+
+Innobase is included in the @strong{MySQL} source distribution starting
+from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+
+Innobase provides MySQL with a transaction safe table handler with
+commit, rollback, and crash recovery capabilities.  Innobase does
+locking on row level, and also provides an Oracle-style consistent
+non-locking read in @code{SELECTS}, which increases transaction
+concurrency. There is neither need for lock escalation in Innobase,
+because row level locks in Innobase fit in very small space.
+
+Innobase is a table handler that is under the GNU GPL License Version 2
+(of June 1991). In the source distribution of MySQL, Innobase appears as
+a subdirectory.
+
+Technically, Innobase is a database backend placed under MySQL. Innobase
+has its own buffer pool for caching data and indexes in main
+memory. Innobase stores its tables and indexes in a tablespace, which
+may consist of several files. This is different from, for example,
+@code{MyISAM} tables where each table is stored as a separate file.
+
+To create a table in the Innobase format you must specify
+@code{TYPE = INNOBASE} in the table creation SQL command:
+
+@example
+CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNOBASE;
+@end example
+
+A consistent non-locking read is the default locking behavior when you
+do a @code{SELECT} from an Innobase table. For a searched update and an
+insert row level exclusive locking is performed.
+
+To use Innobase tables you must specify configuration parameters
+in the MySQL configuration file in the @code{[mysqld]} section of
+the configuration file. Below is an example of possible configuration
+parameters in my.cnf for Innobase:
+
+@example
+innobase_data_home_dir = c:\ibdata\
+innobase_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
+set-variable = innobase_mirrored_log_groups=1
+innobase_log_group_home_dir = c:\iblogs\
+set-variable = innobase_log_files_in_group=3
+set-variable = innobase_log_file_size=5M
+set-variable = innobase_log_buffer_size=8M
+innobase_flush_log_at_trx_commit=1
+innobase_log_arch_dir = c:\iblogs\
+innobase_log_archive=0
+set-variable = innobase_buffer_pool_size=16M
+set-variable = innobase_additional_mem_pool_size=2M
+set-variable = innobase_file_io_threads=4
+set-variable = innobase_lock_wait_timeout=50
+@end example
+
+The meanings of the configuration parameters are the following:
+
+@multitable @columnfractions .30 .70
+@item @code{innobase_data_home_dir} @tab
+The common part of the directory path for all innobase data files.
+@item @code{innobase_data_file_path} @tab
+Paths to individual data files and their sizes. The full directory path
+to each data file is acquired by concatenating innobase_data_home_dir to
+the paths specified here. The file sizes are specified in megabytes,
+hence the 'M' after the size specification above. Do not set a file size
+bigger than 4000M, and on most operating systems not bigger than 2000M.
+innobase_mirrored_log_groups Number of identical copies of log groups we
+keep for the database. Currently this should be set to 1.
+@item @code{innobase_log_group_home_dir} @tab
+Directory path to Innobase log files.
+@item @code{innobase_log_files_in_group} @tab
+Number of log files in the log group. Innobase writes to the files in a
+circular fashion.  Value 3 is recommended here.
+@item @code{innobase_log_file_size} @tab
+Size of each log file in a log group in megabytes. Sensible values range
+from 1M to the size of the buffer pool specified below. The bigger the
+value, the less checkpoint flush activity is needed in the buffer pool,
+saving disk i/o. But bigger log files also mean that recovery will be
+slower in case of a crash. File size restriction as for a data file.
+@item @code{innobase_log_buffer_size} @tab
+The size of the buffer which Innobase uses to write log to the log files
+on disk.  Sensible values range from 1M to half the combined size of log
+files. A big log buffer allows large transactions to run without a need
+to write the log to disk until the transaction commit. Thus, if you have
+big transactions, making the log buffer big will save disk i/o.
+@item @code{innobase_flush_log_at_trx_commit} @tab
+Normally this is set to 1, meaning that at a transaction commit the log
+is flushed to disk, and the modifications made by the transaction become
+permanent, and survive a database crash. If you are willing to
+compromise this safety, and you are running small transactions, you may
+set this to 0 to reduce disk i/o to the logs.
+@item @code{innobase_log_arch_dir} @tab
+The directory where fully written log files would be archived if we used
+log archiving.  The value of this parameter should currently be set the
+same as @code{innobase_log_group_home_dir}.
+@item  @code{innobase_log_archive} @tab
+This value should currently be set to 0.  As recovery from a backup is
+done by MySQL using its own log files, there is currently no need to
+archive Innobase log files.
+@item @code{innobase_buffer_pool_size} @tab
+The size of the memory buffer Innobase uses to cache data and indexes of
+its tables.  The bigger you set this the less disk i/o is needed to
+access data in tables. On a dedicated database server you may set this
+parameter up to 90 % of the machine physical memory size. Do not set it
+too large, though, because competition of the physical memory may cause
+paging in the operating system.
+@item @code{innobase_additional_mem_pool_size} @tab
+Size of a memory pool Innobase uses to store data dictionary information
+and other internal data structures. A sensible value for this might be
+2M, but the more tables you have in your application the more you will
+need to allocate here. If Innobase runs out of memory in this pool, it
+will start to allocate memory from the operating system, and write
+warning messages to the MySQL error log.
+
+@item @code{innobase_file_io_threads} @tab
+Number of file i/o threads in Innobase. Normally, this should be 4, but
+on Windows NT disk i/o may benefit from a larger number.
+@item @code{innobase_lock_wait_timeout} @tab
+Timeout in seconds an Innobase transaction may wait for a lock before
+being rolled back.  Innobase automatically detects transaction deadlocks
+in its own lock table and rolls back the transaction. If you use
+@code{LOCK TABLES} command, or other transaction safe table handlers
+than Innobase in the same transaction, then a deadlock may arise which
+Innobase cannot notice. In cases like this the timeout is useful to
+resolve the situation.
+@end multitable
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -25939,7 +26226,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -26562,7 +26849,7 @@ can connect.
 
 After 3.23.26, we have locked the replication protocol for modifications, so
 you can upgrade masters and slave on the fly to a newer 3.23 version and you
-can have different versions of @code{MySQL} running on the slave and the
+can have different versions of @strong{MySQL} running on the slave and the
 master, as long as they are both newer than 3.23.26. 
 
 @cindex replication, two-way
@@ -26654,7 +26941,7 @@ functions. What is important is having unified interface for connecting
 for reads, connecting for writes, doing a read, and doing a write.
 
 
-@strong{Q}: When and how much can @code{MySQL} replication improve the performance
+@strong{Q}: When and how much can @strong{MySQL} replication improve the performance
 of my system?
 
 @strong{A}: @strong{MySQL} replication is most beneficial for a system
@@ -29206,7 +29493,7 @@ edited version that you can reinstall.
 @cindex multi mysqld
 @cindex @code{mysqld_multi}
 @node  mysqld_multi, mysql, safe_mysqld, Tools
-@section mysqld_multi, program for managing multiple @code{MySQL} servers
+@section mysqld_multi, program for managing multiple @strong{MySQL} servers
 
 @code{mysqld_multi} is meant for managing several @code{mysqld}
 processes running in different UNIX sockets and TCP/IP ports.
@@ -33276,7 +33563,7 @@ Try to make a test case that we can use to reproduce the problem.
 @xref{Reproducable test case}.
 
 @item
-Try running the included mysql-test test and the @code{MySQL}
+Try running the included mysql-test test and the @strong{MySQL}
 benchmarks.  @xref{MySQL test suite}.  They should test @strong{MySQL}
 rather well.  You can also add code that to the benchmarks to simulates
 your application!  The benchmarks can be found in the @file{bench}
@@ -34971,6 +35258,17 @@ to the log file (by default named 'hostname.log').  This log can
 be very useful when you suspect an error in a client and want to know
 exactly what @code{mysqld} thought the client send to it.
 
+By default, the @code{mysql.server} script starts the @strong{MySQL}
+server with the @code{-l} option.  If you need better performance when
+you start using @strong{MySQL} in a production environment, you can
+remove the @code{-l} option from @code{mysql.server} or change it to
+@code{--log-binary}.
+
+The entries in this log are written as @code{mysqld} receives the questions.
+This may be different than the order in which the statements is executed.
+This is in contrast to the update log and the binary log which is written
+after the query is executed, but before any locks are released.
+
 @cindex update log
 @cindex files, update log
 @node Update log, Binary log, Query log, Log files
@@ -35006,16 +35304,14 @@ cp hostname-old.log to-backup-directory
 rm hostname-old.log
 @end example
 
-By default, the @code{mysql.server} script starts the @strong{MySQL}
-server with the @code{-l} option.  If you need better performance when
-you start using @strong{MySQL} in a production environment, you can
-remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-update}.
-
 Update logging is smart because it logs only statements that really update
 data. So an @code{UPDATE} or a @code{DELETE} with a @code{WHERE} that finds no
 rows is not written to the log. It even skips @code{UPDATE} statements that
 set a column to the value it already has.
+
+The update logging is done immediately after a query completes but before
+any locks are released or any commit is done. This ensures that the log
+will be logged in the execution order.
 
 If you want to update a database from update log files, you could do the
 following (assuming your update logs have names of the form
@@ -35086,6 +35382,10 @@ this program!
 If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
 the @strong{MySQL} binary log for backups instead of the old update log.
 
+The binary logging is done immediately after a query completes but before
+any locks are released or any commit is done. This ensures that the log
+will be logged in the execution order.
+
 All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
 a transactional table (like BDB tables) is cached until a @code{COMMIT}.
 Any updates to a not transactional table is stored in the binary log at
@@ -35106,6 +35406,10 @@ When started with the @code{--log-slow-queries[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that took
 more than @code{long_query_time} to execute. The time to get the initial
 table locks are not counted as execution time.
+
+The slow query log is logged after the query is executed and after all
+locks has been released. This may be different than the order in which
+the statements is executed.
 
 If no file name is given, it defaults to the name of the host machine
 suffixed with @code{-slow.log}. If a filename is given, but doesn't
@@ -39970,8 +40274,8 @@ give you an idea of how other @strong{MySQL} users are using
 
 This manual section is very new and we plan to add more stories here
 shortly.  If you are interested in contributing of how you use
-@code{MySQL} in a unique environment or have success store about how you
-use @code{MySQL}, you can write to @code{docs@@lists.mysql.com} with
+@strong{MySQL} in a unique environment or have success store about how you
+use @strong{MySQL}, you can write to @code{docs@@lists.mysql.com} with
 subject @code{Success:}.  Note that as we are very busy it may take some
 time before you get some feedback for your story.
 
@@ -40080,7 +40384,7 @@ variables.
 @item OLEDB
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe, MyOLEDB.exe}
-OLEDB handler for @code{MySQL}. By SWsoft.
+OLEDB handler for @strong{MySQL}. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip, MySamples.zip}
 Examples and documentation for MyOLEDB. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip, Myoledb.zip}
@@ -40220,7 +40524,7 @@ VB, VC++ skipping the slower ODBC methods. Fully updateble, multithreaded with f
 for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
 
 @item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
-How to use the LUA language to write @code{MySQL} @code{PROCEDURE} that can
+How to use the LUA language to write @strong{MySQL} @code{PROCEDURE} that can
 be loaded runtime.
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
@@ -40286,7 +40590,7 @@ New version of netadmin. See above for details.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip, mysqlfront}
-Home page: @uref{http://my.mysqlfront.de/}.
+Home page: @uref{http://www.mysqlfront.de/}.
 Win32-Client for accessing and managing dbs, tables, table-data, indexes,
 import-/export-files. (Freeware).  By Ansgar Becker.
 
@@ -41278,6 +41582,20 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Allow space around @code{=} in argument to @code{--set-variable}.
+@item
+Fixed problem in automatic repair that could let some threads in state
+@code{Waiting for table}.
+@item
+@code{SHOW CREATE TABLE} now dumps the @code{UNION()} for @code{MERGE} tables.
+@item
+Fixed bug when replicating timestamps.
+@item
+Fixed bug in bi-directonal replication.
+@item
+Added the @code{INNOBASE} table handler and the @code{BDB} table handler
+to the @strong{MySQL} source distribution.
+@item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
 @item
@@ -41286,8 +41604,8 @@ This ensures that on gets same values for date functions like @code{NOW()}
 when using @code{mysqlbinlog} to pipe the queries to another server.
 @item
 Allow one to use @code{--skip-gemeni}, @code{--skip-bdb} and
-@code{--skip-innobase} to mysqld even if these databases are not compiled
-in @code{mysqld}.
+@code{--skip-innobase} to @code{mysqld} even if these databases are not
+compiled in @code{mysqld}.
 @item
 One can now do @code{GROUP BY ... DESC}.
 @end itemize
@@ -46059,6 +46377,10 @@ For the moment @code{MATCH} only works with @code{SELECT} statements.
 When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table and column names.
 @item
+@code{DELETE FROM merge_table} used without a @code{WHERE}
+will only clear the mapping for the table, not delete everything in the
+mapped tables
+@item
 You cannot build in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not
 likely to fix this.
@@ -46362,8 +46684,6 @@ if they haven't been used in a while.
 @item
 Allow join on key parts (optimization issue).
 @item
-Entry for @code{DECRYPT()}.
-@item
 @code{INSERT SQL_CONCURRENT} and @code{mysqld --concurrent-insert} to do
 a concurrent insert at the end of the file if the file is read-locked.
 @item
@@ -46445,8 +46765,6 @@ Add use of @code{t1 JOIN t2 ON ...} and @code{t1 JOIN t2 USING ...}
 Currently, you can only use this syntax with @code{LEFT JOIN}.
 @item
 Add full support for @code{unsigned long long} type.
-@item
-Function @code{CASE}.
 @item
 Many more variables for @code{show status}.  Counts for:
 @code{INSERT}/@code{DELETE}/@code{UPDATE} statements. Records reads and

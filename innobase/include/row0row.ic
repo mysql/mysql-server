@@ -1,0 +1,165 @@
+/******************************************************
+General row routines
+
+(c) 1996 Innobase Oy
+
+Created 4/20/1996 Heikki Tuuri
+*******************************************************/
+
+#include "dict0dict.h"
+#include "rem0rec.h"
+#include "trx0undo.h"
+
+/*************************************************************************
+Reads the trx id or roll ptr field from a clustered index record: this function
+is slower than the specialized inline functions. */
+
+dulint
+row_get_rec_sys_field(
+/*==================*/
+				/* out: value of the field */
+	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index);	/* in: clustered index */
+/*************************************************************************
+Sets the trx id or roll ptr field in a clustered index record: this function
+is slower than the specialized inline functions. */
+
+void
+row_set_rec_sys_field(
+/*==================*/
+				/* out: value of the field */
+	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: clustered index */
+	dulint		val);	/* in: value to set */
+
+/*************************************************************************
+Reads the trx id field from a clustered index record. */
+UNIV_INLINE
+dulint
+row_get_rec_trx_id(
+/*===============*/
+				/* out: value of the field */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index)	/* in: clustered index */
+{
+	ulint	offset;
+
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	offset = index->trx_id_offset;
+	
+	if (offset) {
+		return(trx_read_trx_id(rec + offset));
+	} else {
+		return(row_get_rec_sys_field(DATA_TRX_ID, rec, index));
+	}
+}
+
+/*************************************************************************
+Reads the roll pointer field from a clustered index record. */
+UNIV_INLINE
+dulint
+row_get_rec_roll_ptr(
+/*=================*/
+				/* out: value of the field */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index)	/* in: clustered index */
+{
+	ulint	offset;
+
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	offset = index->trx_id_offset;
+	
+	if (offset) {
+		return(trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
+	} else {
+		return(row_get_rec_sys_field(DATA_ROLL_PTR, rec, index));
+	}
+}
+
+/*************************************************************************
+Writes the trx id field to a clustered index record. */
+UNIV_INLINE
+void
+row_set_rec_trx_id(
+/*===============*/
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: clustered index */
+	dulint		trx_id)	/* in: value of the field */
+{
+	ulint	offset;
+
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	offset = index->trx_id_offset;
+	
+	if (offset) {
+		trx_write_trx_id(rec + offset, trx_id);
+	} else {
+		row_set_rec_sys_field(DATA_TRX_ID, rec, index, trx_id);
+	}
+}
+
+/*************************************************************************
+Sets the roll pointer field in a clustered index record. */
+UNIV_INLINE
+void
+row_set_rec_roll_ptr(
+/*=================*/
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: clustered index */
+	dulint		roll_ptr)/* in: value of the field */
+{
+	ulint	offset;
+
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	offset = index->trx_id_offset;
+	
+	if (offset) {
+		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
+	} else {
+	 	row_set_rec_sys_field(DATA_ROLL_PTR, rec, index, roll_ptr);
+	}
+}
+
+/***********************************************************************
+Builds from a secondary index record a row reference with which we can
+search the clustered index record. */
+UNIV_INLINE
+void
+row_build_row_ref_fast(
+/*===================*/
+	dtuple_t*	ref,	/* in: typed data tuple where the reference
+				is built */
+	ulint*		map,	/* in: array of field numbers in rec telling
+				how ref should be built from the fields of
+				rec */
+	rec_t*		rec)	/* in: record in the index; must be preserved
+				while ref is used, as we do not copy field
+				values to heap */
+{
+	dfield_t*	dfield;
+	byte*		field;
+	ulint		len;
+	ulint		ref_len;
+	ulint		field_no;
+	ulint		i;
+	
+	ref_len = dtuple_get_n_fields(ref);
+	
+	for (i = 0; i < ref_len; i++) {
+		dfield = dtuple_get_nth_field(ref, i);
+
+		field_no = *(map + i);
+
+		if (field_no != ULINT_UNDEFINED) {
+
+			field = rec_get_nth_field(rec, field_no, &len);
+			dfield_set_data(dfield, field, len);
+		}
+	}
+}

@@ -1,0 +1,22 @@
+# Process this file with autoconf to produce a configure script
+AC_INIT(./os/os0file.c)
+AM_CONFIG_HEADER(ib_config.h)
+AM_INIT_AUTOMAKE(ib, 0.90)
+AC_PROG_CC
+AC_PROG_RANLIB
+AC_CHECK_HEADERS(aio.h)
+AC_CHECK_SIZEOF(int, 4)
+AC_C_INLINE
+AC_C_BIGENDIAN
+
+
+AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile
+		buf/Makefile com/Makefile data/Makefile
+		dict/Makefile dyn/Makefile
+		eval/Makefile fil/Makefile fsp/Makefile fut/Makefile
+		ha/Makefile ibuf/Makefile lock/Makefile log/Makefile
+		mach/Makefile mem/Makefile mtr/Makefile odbc/Makefile
+		page/Makefile pars/Makefile que/Makefile
+		read/Makefile rem/Makefile row/Makefile
+		srv/Makefile sync/Makefile thr/Makefile trx/Makefile
+		usr/Makefile)

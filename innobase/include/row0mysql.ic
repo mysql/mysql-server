@@ -1,0 +1,97 @@
+/******************************************************
+MySQL interface for Innobase
+
+(C) 2001 Innobase Oy
+
+Created 1/23/2001 Heikki Tuuri
+*******************************************************/
+
+/***********************************************************************
+Stores a variable-length field (like VARCHAR) length to dest, in the
+MySQL format. No real var implemented in MySQL yet! */
+UNIV_INLINE
+byte*
+row_mysql_store_var_len(
+/*====================*/
+			/* out: dest + 2 */
+	byte*	dest,	/* in: where to store */
+	ulint	len)	/* in: length, must fit in two bytes */
+{
+	ut_ad(len < 256 * 256);
+/*	
+	mach_write_to_2_little_endian(dest, len);
+
+	return(dest + 2);
+*/
+	return(dest);	/* No real var implemented in MySQL yet! */
+}
+
+/***********************************************************************
+Reads a MySQL format variable-length field (like VARCHAR) length and
+returns pointer to the field data. No real var implemented in MySQL yet! */
+UNIV_INLINE
+byte*
+row_mysql_read_var_ref(
+/*===================*/
+			/* out: field + 2 */
+	ulint*	len,	/* out: variable-length field length; does not work
+			yet! */
+	byte*	field)	/* in: field */
+{
+/*	
+	*len = mach_read_from_2_little_endian(field);
+
+	return(field + 2);
+*/
+	return(field);	/* No real var implemented in MySQL yet! */
+}
+
+/******************************************************************
+Stores a non-SQL-NULL field given in the MySQL format in the Innobase
+format. */
+UNIV_INLINE
+void
+row_mysql_store_col_in_innobase_format(
+/*===================================*/
+	dfield_t*	dfield,		/* in/out: dfield */
+	byte*		buf,		/* in/out: buffer for the converted
+					value */
+	byte*		mysql_data,	/* in: MySQL column value, not
+					SQL NULL; NOTE that dfield may also
+					get a pointer to mysql_data,
+					therefore do not discard this as long
+					as dfield is used! */
+	ulint		col_len,	/* in: MySQL column length */
+	ulint		type,		/* in: data type */
+	ulint		is_unsigned)	/* in: != 0 if unsigned integer type */
+{
+	byte*	ptr 	= mysql_data;
+
+	if (type == DATA_INT) {
+		/* Store integer data in Innobase in a big-endian format,
+		sign bit negated */
+
+		ptr = buf + col_len;
+
+		for (;;) {
+			ptr--;
+			*ptr = *mysql_data;
+			if (ptr == buf) {
+				break;
+			}
+			mysql_data++;
+		}
+
+		if (!is_unsigned) {
+			*ptr = *ptr ^ 128;
+		}
+	} else if (type == DATA_VARCHAR || type == DATA_VARMYSQL
+						|| type == DATA_BINARY) {
+		ptr = row_mysql_read_var_ref(&col_len, mysql_data); 
+
+	} else if (type == DATA_BLOB) {
+		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
+	}
+
+	dfield_set_data(dfield, ptr, col_len);
+}

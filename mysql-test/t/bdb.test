@@ -371,7 +371,6 @@ alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
-
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';

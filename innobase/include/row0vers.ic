@@ -1,0 +1,83 @@
+/******************************************************
+Row versions
+
+(c) 1997 Innobase Oy
+
+Created 2/6/1997 Heikki Tuuri
+*******************************************************/
+
+#include "row0row.h"
+#include "dict0dict.h"
+#include "read0read.h"
+#include "page0page.h"
+#include "log0recv.h"
+
+/*************************************************************************
+Fetches the trx id of a clustered index record or version. */
+UNIV_INLINE
+dulint
+row_vers_get_trx_id(
+/*================*/
+				/* out: trx id or ut_dulint_zero if the
+				clustered index record not found */
+	rec_t*		rec,	/* in: clustered index record, or an old
+				version of it */
+	dict_table_t*	table)	/* in: table */
+{
+	return(row_get_rec_trx_id(rec, dict_table_get_first_index(table)));
+}
+
+/*************************************************************************
+Checks if a consistent read can be performed immediately on the index
+record, or if an older version is needed. */
+UNIV_INLINE
+ibool
+row_vers_clust_rec_sees_older(
+/*==========================*/
+				/* out: FALSE if can read immediately */
+	rec_t*		rec,	/* in: record which should be read or passed
+				over by a read cursor */
+	dict_index_t*	index,	/* in: clustered index */
+	read_view_t*	view)	/* in: read view */
+{
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	if (read_view_sees_trx_id(view, row_get_rec_trx_id(rec, index))) {
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+
+/*************************************************************************
+Checks if a secondary index record can be read immediately by a consistent
+read, or if an older version may be needed. To be sure, we will have to
+look in the clustered index. */
+UNIV_INLINE
+ibool
+row_vers_sec_rec_may_see_older(
+/*===========================*/
+				/* out: FALSE if can be read immediately */
+	rec_t*		rec,	/* in: record which should be read or passed */
+	dict_index_t*	index,	/* in: secondary index */
+	read_view_t*	view)	/* in: read view */
+{
+	page_t*	page;
+	
+	ut_ad(!(index->type & DICT_CLUSTERED));
+
+	page = buf_frame_align(rec);
+
+	if ((ut_dulint_cmp(page_get_max_trx_id(page), view->up_limit_id) >= 0)
+	    || recv_recovery_is_on()) {
+
+		/* It may be that the record was inserted or modified by a
+		transaction the view should not see: we have to look in the
+		clustered index */
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}

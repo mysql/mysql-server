@@ -1,0 +1,223 @@
+/******************************************************
+The B-tree
+
+(c) 1994-1996 Innobase Oy
+
+Created 6/2/1994 Heikki Tuuri
+*******************************************************/
+
+#include "mach0data.h"
+#include "mtr0mtr.h"
+#include "mtr0log.h"
+
+#define BTR_MAX_NODE_LEVEL	50	/* used in debug checking */
+
+/******************************************************************
+Gets a buffer page and declares its latching order level. */
+UNIV_INLINE
+page_t*
+btr_page_get(
+/*=========*/
+	ulint	space,		/* in: space id */
+	ulint	page_no,	/* in: page number */
+	ulint	mode,		/* in: latch mode */
+	mtr_t*	mtr)		/* in: mtr */
+{
+	page_t*	page;
+
+	page = buf_page_get(space, page_no, mode, mtr);
+#ifdef UNIV_SYNC_DEBUG
+	if (mode != RW_NO_LATCH) {
+	
+		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+	}
+#endif
+	return(page);
+}
+
+/******************************************************************
+Sets the index id field of a page. */
+UNIV_INLINE
+void
+btr_page_set_index_id(
+/*==================*/
+	page_t*		page,	/* in: page to be created */
+	dulint		id,	/* in: index id */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	mlog_write_dulint(page + PAGE_HEADER + PAGE_INDEX_ID, id,
+							MLOG_8BYTES, mtr);
+}
+
+/******************************************************************
+Gets the index id field of a page. */
+UNIV_INLINE
+dulint
+btr_page_get_index_id(
+/*==================*/
+				/* out: index id */
+	page_t*		page)	/* in: index page */
+{
+	return(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID));
+}
+
+/************************************************************
+Gets the node level field in an index page. */
+UNIV_INLINE
+ulint
+btr_page_get_level_low(
+/*===================*/
+			/* out: level, leaf level == 0 */
+	page_t*	page)	/* in: index page */
+{
+	ulint	level;
+
+	ut_ad(page);
+	
+	level = mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL);
+
+	ut_ad(level <= BTR_MAX_NODE_LEVEL);
+
+	return(level);
+}
+
+/************************************************************
+Gets the node level field in an index page. */
+UNIV_INLINE
+ulint
+btr_page_get_level(
+/*===============*/
+			/* out: level, leaf level == 0 */
+	page_t*	page,	/* in: index page */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+
+	return(btr_page_get_level_low(page));	
+}
+
+/************************************************************
+Sets the node level field in an index page. */
+UNIV_INLINE
+void
+btr_page_set_level(
+/*===============*/
+	page_t*	page,	/* in: index page */
+	ulint	level,	/* in: level, leaf level == 0 */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+	ut_ad(level <= BTR_MAX_NODE_LEVEL);
+
+	mlog_write_ulint(page + PAGE_HEADER + PAGE_LEVEL, level,
+							 MLOG_2BYTES, mtr);
+}
+
+/************************************************************
+Gets the next index page number. */
+UNIV_INLINE
+ulint
+btr_page_get_next(
+/*==============*/
+			/* out: next page number */
+	page_t*	page,	/* in: index page */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+			      				MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(page),
+			      				MTR_MEMO_PAGE_S_FIX));
+
+	return(mach_read_from_4(page + FIL_PAGE_NEXT));
+}
+
+/************************************************************
+Sets the next index page field. */
+UNIV_INLINE
+void
+btr_page_set_next(
+/*==============*/
+	page_t*	page,	/* in: index page */
+	ulint	next,	/* in: next page number */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+
+	mlog_write_ulint(page + FIL_PAGE_NEXT, next, MLOG_4BYTES, mtr);
+}
+
+/************************************************************
+Gets the previous index page number. */
+UNIV_INLINE
+ulint
+btr_page_get_prev(
+/*==============*/
+			/* out: prev page number */
+	page_t*	page,	/* in: index page */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+	
+	return(mach_read_from_4(page + FIL_PAGE_PREV));
+}
+
+/************************************************************
+Sets the previous index page field. */
+UNIV_INLINE
+void
+btr_page_set_prev(
+/*==============*/
+	page_t*	page,	/* in: index page */
+	ulint	prev,	/* in: previous page number */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(page && mtr);
+
+	mlog_write_ulint(page + FIL_PAGE_PREV, prev, MLOG_4BYTES, mtr);
+}
+
+/******************************************************************
+Gets the child node file address in a node pointer. */
+UNIV_INLINE
+ulint
+btr_node_ptr_get_child_page_no(
+/*===========================*/
+			   	/* out: child node address */
+	rec_t*	rec)		/* in: node pointer record */
+{
+	ulint	n_fields;
+	byte*	field;
+	ulint	len;
+
+	n_fields = rec_get_n_fields(rec);
+
+	/* The child address is in the last field */	
+	field = rec_get_nth_field(rec, n_fields - 1, &len);
+
+	ut_ad(len == 4);
+	
+	return(mach_read_from_4(field));
+}
+
+/******************************************************************
+Releases the latches on a leaf page and bufferunfixes it. */
+UNIV_INLINE
+void
+btr_leaf_page_release(
+/*==================*/
+	page_t*	page,		/* in: page */
+	ulint	latch_mode,	/* in: BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
+	mtr_t*	mtr)		/* in: mtr */
+{
+	ut_ad(!mtr_memo_contains(mtr, buf_block_align(page),
+							MTR_MEMO_MODIFY));
+	if (latch_mode == BTR_SEARCH_LEAF) {
+		mtr_memo_release(mtr, buf_block_align(page), 
+							MTR_MEMO_PAGE_S_FIX);
+	} else {
+		ut_ad(latch_mode == BTR_MODIFY_LEAF);
+		mtr_memo_release(mtr, buf_block_align(page), 
+							MTR_MEMO_PAGE_X_FIX);
+	}
+}

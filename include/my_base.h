@@ -90,7 +90,8 @@ enum ha_extra_function {
   HA_EXTRA_NO_ROWS,			/* Don't write rows */
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
-  HA_EXTRA_NO_IGNORE_DUP_KEY
+  HA_EXTRA_NO_IGNORE_DUP_KEY,
+  HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE	/* Cursor will not be used for update */
 };
 
 	/* The following is parameter to ha_panic() */
