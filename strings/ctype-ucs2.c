@@ -926,15 +926,16 @@ bs:
   return (negative ? -((longlong) res) : (longlong) res);
 }
 
-double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   char *nptr, uint length, 
-			   char **endptr, int *err)
+
+double my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                       char *nptr, uint length, 
+                       char **endptr, int *err)
 {
   char     buf[256];
   double   res;
   register char *b=buf;
   register const uchar *s= (const uchar*) nptr;
-  register const uchar *end;
+  const uchar *end;
   my_wc_t  wc;
   int      cnv;
 
@@ -951,13 +952,10 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
       break;					/* Can't be part of double */
     *b++= (char) wc;
   }
-  *b= 0;
 
-  errno= 0;
-  res=my_strtod(buf, endptr);
-  *err= errno;
-  if (endptr)
-    *endptr=(char*) (*endptr-buf+nptr);
+  *endptr= b;
+  res= my_strtod(buf, endptr, err);
+  *endptr= nptr + (uint) (*endptr- buf);
   return res;
 }
 
