@@ -3642,7 +3642,7 @@ lock_table(
 		/* Another trx has a request on the table in an incompatible
 		mode: this trx may have to wait */
 
-		err = lock_table_enqueue_waiting(mode, table, thr);
+		err = lock_table_enqueue_waiting(mode | flags, table, thr);
 			
 		lock_mutex_exit_kernel();
 
@@ -4438,6 +4438,7 @@ lock_table_queue_validate(
 
 	while (lock) {
 		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
+		     || ((lock->trx)->conc_state == TRX_PREPARED)
 		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
 	
 		if (!lock_get_wait(lock)) {
@@ -4485,6 +4486,7 @@ lock_rec_queue_validate(
 
 		while (lock) {
 			ut_a(lock->trx->conc_state == TRX_ACTIVE
+			     || lock->trx->conc_state == TRX_PREPARED
 		     	     || lock->trx->conc_state
 						== TRX_COMMITTED_IN_MEMORY);
 	
@@ -4539,6 +4541,7 @@ lock_rec_queue_validate(
 
 	while (lock) {
 		ut_a(lock->trx->conc_state == TRX_ACTIVE
+		     || lock->trx->conc_state == TRX_PREPARED
 		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 	
@@ -4621,6 +4624,7 @@ loop:
 
 	ut_a(trx_in_trx_list(lock->trx));
 	ut_a(lock->trx->conc_state == TRX_ACTIVE
+		     || lock->trx->conc_state == TRX_PREPARED
 		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
