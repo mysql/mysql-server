@@ -238,3 +238,4 @@
 "Uso/posizione di '%s' sbagliato",
 "Questa versione di MySQL non supporta ancora '%s'",
 "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario",
+"Slave SQL thread ignored the query because of replicate-*-table rules"
