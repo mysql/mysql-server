@@ -16,4 +16,5 @@ while ($1)
 }
 enable_query_log;
 select count(distinct n) from t1;
+explain extended select count(distinct n) from t1;
 drop table t1;

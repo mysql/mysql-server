@@ -292,7 +292,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real(NullS,M_PI,6,8);
+  return new Item_real("Pi()",M_PI,6,8);
 }
 
 Item *create_func_pow(Item* a, Item *b)

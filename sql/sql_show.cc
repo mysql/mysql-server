@@ -1111,12 +1111,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (field->has_charset())
     {
       if (field->charset() == &my_charset_bin)
-        packet->append(" binary");
+        packet->append(" binary", 7);
       else if (!limited_mysql_mode && !foreign_db_mode)
       {
 	if (field->charset() != table->table_charset)
 	{
-	  packet->append(" character set ");
+	  packet->append(" character set ", 15);
 	  packet->append(field->charset()->csname);
 	}
 	/* 
@@ -1253,32 +1253,32 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
 	!(thd->variables.sql_mode & MODE_MYSQL40))
     {
-      packet->append(" CHARSET=");
+      packet->append(" CHARSET=", 9);
       packet->append(table->table_charset->csname);
       if (!(table->table_charset->state & MY_CS_PRIMARY))
       {
-	packet->append(" COLLATE=");
+	packet->append(" COLLATE=", 9);
 	packet->append(table->table_charset->name);
       }
     }
 
     if (table->min_rows)
     {
-      packet->append(" MIN_ROWS=");
+      packet->append(" MIN_ROWS=", 10);
       end= longlong10_to_str(table->min_rows, buff, 10);
       packet->append(buff, (uint) (end- buff));
     }
 
     if (table->max_rows)
     {
-      packet->append(" MAX_ROWS=");
+      packet->append(" MAX_ROWS=", 10);
       end= longlong10_to_str(table->max_rows, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
 
     if (table->avg_row_length)
     {
-      packet->append(" AVG_ROW_LENGTH=");
+      packet->append(" AVG_ROW_LENGTH=", 16);
       end= longlong10_to_str(table->avg_row_length, buff,10);
       packet->append(buff, (uint) (end - buff));
     }

@@ -349,6 +349,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
+  void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
 };
 
@@ -780,7 +781,7 @@ public:
   ~Item_func_regex();
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
-  const char *func_name() const { return "regex"; }
+  const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
 };
 

@@ -219,7 +219,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
 
 void Item_maxmin_subselect::print(String *str)
 {
-  str->append(max?"<max>":"<min>");
+  str->append(max?"<max>":"<min>", 5);
   Item_singlerow_subselect::print(str);
 }
 
@@ -403,7 +403,7 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
 
 void Item_exists_subselect::print(String *str)
 {
-  str->append("exists");
+  str->append("exists", 6);
   Item_subselect::print(str);
 }
 
@@ -841,11 +841,11 @@ Item_in_subselect::select_transformer(JOIN *join)
 void Item_in_subselect::print(String *str)
 {
   if (transformed)
-    str->append("<exists>");
+    str->append("<exists>", 8);
   else
   {
     left_expr->print(str);
-    str->append(" in ");
+    str->append(" in ", 4);
   }
   Item_subselect::print(str);
 }
@@ -864,7 +864,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 void Item_allany_subselect::print(String *str)
 {
   if (transformed)
-    str->append("<exists>");
+    str->append("<exists>", 8);
   else
   {
     left_expr->print(str);
@@ -872,22 +872,22 @@ void Item_allany_subselect::print(String *str)
     if (all)
     {
       if (func ==  &Item_bool_func2::lt_creator)
-	str->append(">=");
+	str->append(">=", 2);
       else if (func ==  &Item_bool_func2::gt_creator)
-	str->append("<=");
+	str->append("<=", 2);
       else if (func ==  &Item_bool_func2::le_creator)
 	str->append('>');
       else if (func ==  &Item_bool_func2::ge_creator)
 	str->append('<');
       else if (func ==  &Item_bool_func2::eq_creator)
-	str->append("<>");
+	str->append("<>", 2);
       else if (func ==  &Item_bool_func2::ne_creator)
 	str->append('=');
       else
       {
 	DBUG_ASSERT(0);  // Impossible
       }
-      str->append(" all ");
+      str->append(" all ", 5);
     }
     else
     {
@@ -896,18 +896,18 @@ void Item_allany_subselect::print(String *str)
       else if (func ==  &Item_bool_func2::gt_creator)
 	str->append('>');
       else if (func ==  &Item_bool_func2::le_creator)
-	str->append("<=");
+	str->append("<=", 2);
       else if (func ==  &Item_bool_func2::ge_creator)
-	str->append(">=");
+	str->append(">=", 2);
       else if (func ==  &Item_bool_func2::eq_creator)
 	str->append('=');
       else if (func ==  &Item_bool_func2::ne_creator)
-	str->append("<>");
+	str->append("<>", 2);
       else
       {
 	DBUG_ASSERT(0);  // Impossible
       }
-      str->append(" any ");
+      str->append(" any ", 5);
     }
   }
   Item_subselect::print(str);
@@ -1330,16 +1330,16 @@ void subselect_union_engine::print(String *str)
 
 void subselect_uniquesubquery_engine::print(String *str)
 {
-  str->append("<primary_index_lookup>(");
+  str->append("<primary_index_lookup>(", 23);
   tab->ref.items[0]->print(str);
-  str->append(" in ");
+  str->append(" in ", 4);
   str->append(tab->table->real_name);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
-  str->append(" on ");
+  str->append(" on ", 4);
   str->append(key_info->name);
   if (cond)
   {
-    str->append(" where ");
+    str->append(" where ", 7);
     cond->print(str);
   }
   str->append(')');
@@ -1348,18 +1348,18 @@ void subselect_uniquesubquery_engine::print(String *str)
 
 void subselect_indexsubquery_engine::print(String *str)
 {
-  str->append("<index_lookup>(");
+  str->append("<index_lookup>(", 15);
   tab->ref.items[0]->print(str);
-  str->append(" in ");
+  str->append(" in ", 4);
   str->append(tab->table->real_name);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
-  str->append(" on ");
+  str->append(" on ", 4);
   str->append(key_info->name);
   if (check_null)
-    str->append(" chicking NULL");
+    str->append(" chicking NULL", 14);
     if (cond)
   {
-    str->append(" where ");
+    str->append(" where ", 7);
     cond->print(str);
   }
   str->append(')');

@@ -139,6 +139,7 @@ SHOW FIELDS FROM  t1;
 SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';

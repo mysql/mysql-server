@@ -433,7 +433,7 @@ String *make_datetime(String *str, TIME *l_time,
 	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
 	if (l_time->day >= 10 &&  l_time->day <= 19)
-	  str->append("th");
+	  str->append("th", 2);
 	else
 	{
 	  switch (l_time->day %10) {
@@ -531,7 +531,7 @@ String *make_datetime(String *str, TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	if (add_second_frac)
 	{
-	  str->append(".", 1);
+	  str->append('.');
 	  length= int10_to_str(l_time->second_part, intbuff, 10) - intbuff;
 	  str->append_with_prefill(intbuff, length, 6, '0');
 	}
@@ -1660,15 +1660,16 @@ void Item_date_add_interval::print(String *str)
   args[0]->print(str);
   str->append(date_sub_interval?" - interval ":" + interval ");
   args[1]->print(str);
+  str->append(' ');
   str->append(interval_names[int_type]);
   str->append(')');
 }
 
 void Item_extract::print(String *str)
 {
-  str->append("extract(");
+  str->append("extract(", 8);
   str->append(interval_names[int_type]);
-  str->append(' ');
+  str->append(" from ", 6);
   args[0]->print(str);
   str->append(')');
 }
@@ -1780,29 +1781,31 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
 
 void Item_typecast::print(String *str)
 {
-  str->append("cast(");
+  str->append("cast(", 5);
   args[0]->print(str);
-  str->append(" as ");
+  str->append(" as ", 4);
   str->append(cast_type());
   str->append(')');
 }
 
 void Item_char_typecast::print(String *str)
 {
-  str->append("cast(");
+  str->append("cast(", 5);
   args[0]->print(str);
-  str->append(" as char");
+  str->append(" as char", 8);
   if (cast_length >= 0)
   {
     str->append('(');
-    char buff[10];
-    snprintf(buff, 10, "%d", cast_length);
-    str->append(buff);
+    char buffer[20];
+    // latin1 is good enough for numbers
+    String st(buffer, sizeof(buffer), &my_charset_latin1);
+    st.set((ulonglong)cast_length, &my_charset_latin1);
+    str->append(st);
     str->append(')');
   }
   if (cast_cs)
   {
-    str->append(" charset ");
+    str->append(" charset ", 9);
     str->append(cast_cs->name);
   }
   str->append(')');
@@ -2095,14 +2098,14 @@ void Item_func_add_time::print(String *str)
   if (is_date)
   {
     DBUG_ASSERT(sign > 0);
-    str->append("timestamp(");
+    str->append("timestamp(", 10);
   }
   else
   {
     if (sign > 0)
-      str->append("addtime(");
+      str->append("addtime(", 8);
     else
-      str->append("subtime(");
+      str->append("subtime(", 8);
   }
   args[0]->print(str);
   str->append(',');

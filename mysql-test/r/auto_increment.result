@@ -112,6 +112,11 @@ insert into t1 set i = null;
 select last_insert_id();
 last_insert_id()
 255
+explain extended select last_insert_id();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority no_cache 255 AS `last_insert_id()`
 insert into t1 set i = 254;
 ERROR 23000: Duplicate entry '254' for key 1
 select last_insert_id();

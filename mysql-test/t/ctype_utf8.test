@@ -23,6 +23,8 @@ select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2);
 select locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2 collate utf8_bin);
 select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2 collate utf8_bin);
 
+select length(_utf8 0xD0B1), bit_length(_utf8 0xD0B1), char_length(_utf8 0xD0B1);
+
 select 'a' like 'a';
 select 'A' like 'a';
 select 'A' like 'a' collate utf8_bin;

@@ -284,9 +284,11 @@ select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
 spid	count(*)
 2	2
 1	1
-explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using filesort
+Warnings:
+Note	1003	select high_priority big_result test.t1.spID AS `spid`,sum(test.t1.userID) AS `sum(userid)` from test.t1 group by test.t1.spID desc
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	

@@ -199,7 +199,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
 Warnings:
-Note	1003	select high_priority (select test.t3.a AS `a` from test.t3 where (test.t3.a < 8) order by test.t3.a desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,t2.a AS `a` from (select test.t2.a AS `a`,test.t2.b AS `b` from test.t2 where (test.t2.a > 1)) tt
+Note	1003	select high_priority (select test.t3.a AS `a` from test.t3 where (test.t3.a < 8) order by test.t3.a desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,tt.a AS `a` from (select test.t2.a AS `a`,test.t2.b AS `b` from test.t2 where (test.t2.a > 1)) tt
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -1013,7 +1013,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select high_priority no_cache (select no_cache benchmark(1) AS `BENCHMARK(1,1)` from test.t1) AS `(SELECT BENCHMARK(1,1) FROM t1)` from test.t1
+Note	1003	select high_priority no_cache (select no_cache benchmark(1,1) AS `BENCHMARK(1,1)` from test.t1) AS `(SELECT BENCHMARK(1,1) FROM t1)` from test.t1
 drop table t1;
 CREATE TABLE `t1` (
 `mot` varchar(30) character set latin1 NOT NULL default '',
@@ -1486,16 +1486,20 @@ explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
-explain select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
-explain select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from test.t1
+explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
 Warnings:
-Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from test.t1
+Note	1003	select high_priority test.t1.s1 AS `s1`,<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL))) AS `s1 = ANY (SELECT s1 FROM t2)` from test.t1
+explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 <> ALL (SELECT s1 FROM t2)` from test.t1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index

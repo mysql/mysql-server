@@ -16,6 +16,11 @@ cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
 select ~5, cast(~5 as signed);
 ~5	cast(~5 as signed)
 18446744073709551610	-6
+explain extended select ~5, cast(~5 as signed);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority ~(5) AS `~5`,cast(~(5) as signed) AS `cast(~5 as signed)`
 select cast(5 as unsigned) -6.0;
 cast(5 as unsigned) -6.0
 -1.0

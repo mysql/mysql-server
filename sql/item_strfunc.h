@@ -112,6 +112,7 @@ public:
     return separator->walk(processor, arg) ||
       Item_str_func::walk(processor, arg);
   }
+  void print(String *str);
 };
 
 class Item_func_reverse :public Item_str_func
@@ -426,6 +427,7 @@ public:
     return item->walk(processor, arg) ||
       Item_str_func::walk(processor, arg);
   }
+  void print(String *str);
 };
 
 
@@ -441,6 +443,7 @@ public:
     max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
   }
   const char *func_name() const { return "format"; }
+  void print(String *);
 };
 
 
@@ -602,7 +605,8 @@ public:
   { conv_charset=cs; }
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "conv_charset"; }
+  const char *func_name() const { return "convert"; }
+  void print(String *str);
 };
 
 class Item_func_set_collation :public Item_str_func
@@ -612,7 +616,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
-  const char *func_name() const { return "set_collation"; }
+  const char *func_name() const { return "collate"; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_conv_charset3 :public Item_str_func
@@ -622,7 +627,7 @@ public:
     :Item_str_func(arg1,arg2,arg3) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "conv_charset3"; }
+  const char *func_name() const { return "convert"; }
 };
 
 class Item_func_charset :public Item_str_func

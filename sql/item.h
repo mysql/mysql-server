@@ -316,7 +316,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
-  void print(String *str) { str->append("NULL"); }
+  void print(String *str) { str->append("NULL", 4); }
 };
 
 class Item_param :public Item
