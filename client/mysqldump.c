@@ -1389,7 +1389,7 @@ static int dump_all_tables_in_db(char *database)
   if (opt_xml)
     fprintf(md_result_file, "</database>\n");
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -1435,7 +1435,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (opt_xml)
     fprintf(md_result_file, "</database>\n");
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_selected_tables */
 
