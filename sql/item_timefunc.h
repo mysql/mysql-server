@@ -478,9 +478,10 @@ public:
 enum interval_type
 {
   INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR, INTERVAL_MINUTE,
-  INTERVAL_SECOND, INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE,
-  INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
-  INTERVAL_MINUTE_SECOND
+  INTERVAL_SECOND, INTERVAL_MICROSECOND ,INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR,
+  INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE,
+  INTERVAL_HOUR_SECOND, INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND,
+  INTERVAL_HOUR_MICROSECOND, INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND
 };
 
 
@@ -590,5 +591,159 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_datetime(maybe_null, name, t_arg, default_charset()));
+  }
+};
+
+class Item_func_makedate :public Item_str_func
+{
+public:
+  Item_func_makedate(Item *a,Item *b) :Item_str_func(a,b) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "makedate"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=8*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_add_time :public Item_str_func
+{
+  int sign;
+  enum_field_types cached_field_type;
+
+public:
+  Item_func_add_time(Item *a, Item *b, bool neg_arg)
+    :Item_str_func(a, b) { sign= neg_arg ? -1 : 1; }
+  String *val_str(String *str);
+  const char *func_name() const { return "addtime"; }
+  enum_field_types field_type() const { return cached_field_type; }
+  void fix_length_and_dec();
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (cached_field_type == MYSQL_TYPE_TIME)
+      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    else if (cached_field_type == MYSQL_TYPE_DATETIME)
+      return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_timediff :public Item_str_func
+{
+public:
+  Item_func_timediff(Item *a, Item *b)
+    :Item_str_func(a, b) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "timediff"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=17*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_maketime :public Item_str_func
+{
+public:
+  Item_func_maketime(Item *a, Item *b, Item *c)
+    :Item_str_func(a, b ,c) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "maketime"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=8*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_timestamp :public Item_str_func
+{
+public:
+  Item_func_timestamp(Item *a, Item *b) :Item_str_func(a, b) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "timestamp"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=26*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_date :public Item_str_func
+{
+public:
+  Item_func_date(Item *a)
+    :Item_str_func(a) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "date"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=10*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_time :public Item_str_func
+{
+public:
+  Item_func_time(Item *a)
+    :Item_str_func(a) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "time"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=15*my_charset_bin.mbmaxlen;
+  }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};
+
+class Item_func_microsecond :public Item_int_func
+{
+public:
+  Item_func_microsecond(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "microsecond"; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0;
+    maybe_null=1;
   }
 };

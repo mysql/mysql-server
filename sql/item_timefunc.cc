@@ -55,6 +55,70 @@ static String day_names[] =
   String("Sunday",	&my_charset_latin1)
 };
 
+enum date_time_format_types { TIME_ONLY= 0, TIME_MICROSECOND,
+			      DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND};
+
+typedef struct date_time_format {
+  const char* format_str;
+  uint length;
+};
+
+static struct date_time_format date_time_formats[]=
+{
+  {"%s%02d:%02d:%02d", 10},
+  {"%s%02d:%02d:%02d.%06d", 17},
+  {"%04d-%02d-%02d", 10},
+  {"%04d-%02d-%02d %02d:%02d:%02d", 19},
+  {"%04d-%02d-%02d %02d:%02d:%02d.%06d", 26}
+};
+
+
+String *make_datetime(String *str, TIME *ltime, 
+		      enum date_time_format_types format)
+{
+  char *buff;
+  CHARSET_INFO *cs= &my_charset_bin;
+  uint length= date_time_formats[format].length + 32;
+  const char* format_str= date_time_formats[format].format_str;
+
+  if (str->alloc(length))
+    return 0;
+
+  buff= (char*) str->ptr();
+  switch (format) {
+  case TIME_ONLY:
+    length= cs->cset->snprintf(cs, buff, length, format_str, ltime->neg ? "-" : "",
+			       ltime->hour, ltime->minute, ltime->second);
+    break;
+  case TIME_MICROSECOND:
+    length= cs->cset->snprintf(cs, buff, length, format_str, ltime->neg ? "-" : "",
+			       ltime->hour, ltime->minute, ltime->second,
+			       ltime->second_part);
+    break;
+  case DATE_ONLY:
+    length= cs->cset->snprintf(cs, buff, length, format_str,
+			       ltime->year, ltime->month, ltime->day);
+    break;
+  case DATE_TIME:
+    length= cs->cset->snprintf(cs, buff, length, format_str,
+			       ltime->year, ltime->month, ltime->day,
+			       ltime->hour, ltime->minute, ltime->second);
+    break;
+  case DATE_TIME_MICROSECOND:
+    length= cs->cset->snprintf(cs, buff, length, format_str,
+			       ltime->year, ltime->month, ltime->day,
+			       ltime->hour, ltime->minute, ltime->second,
+			       ltime->second_part);
+    break;
+  default:
+    return 0;
+  }
+
+  str->length(length);
+  str->set_charset(cs);
+  return str;
+}
+
 /*
 ** Get a array of positive numbers from a string object.
 ** Each number is separated by 1 non digit character
@@ -309,7 +373,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
   CHARSET_INFO *cs=str_value->charset();
 
   bzero((char*) t,sizeof(*t));
-  if ((int) int_type <= INTERVAL_SECOND)
+  if ((int) int_type <= INTERVAL_MICROSECOND)
   {
     value=(long) args->val_int();
     if (args->null_value)
@@ -352,6 +416,9 @@ static bool get_interval_value(Item *args,interval_type int_type,
   case INTERVAL_HOUR:
     t->hour=value;
     break;
+  case INTERVAL_MICROSECOND:
+    t->second_part=value;
+    break;
   case INTERVAL_MINUTE:
     t->minute=value;
     break;
@@ -370,6 +437,15 @@ static bool get_interval_value(Item *args,interval_type int_type,
     t->day=array[0];
     t->hour=array[1];
     break;
+  case INTERVAL_DAY_MICROSECOND:
+    if (get_interval_info(str,length,cs,5,array))
+      return (1);
+    t->day=array[0];
+    t->hour=array[1];
+    t->minute=array[2];
+    t->second=array[3];
+    t->second_part=array[4];
+    break;
   case INTERVAL_DAY_MINUTE:
     if (get_interval_info(str,length,cs,3,array))
       return (1);
@@ -385,6 +461,14 @@ static bool get_interval_value(Item *args,interval_type int_type,
     t->minute=array[2];
     t->second=array[3];
     break;
+  case INTERVAL_HOUR_MICROSECOND:
+    if (get_interval_info(str,length,cs,4,array))
+      return (1);
+    t->hour=array[0];
+    t->minute=array[1];
+    t->second=array[2];
+    t->second_part=array[3];
+    break;
   case INTERVAL_HOUR_MINUTE:
     if (get_interval_info(str,length,cs,2,array))
       return (1);
@@ -398,11 +482,24 @@ static bool get_interval_value(Item *args,interval_type int_type,
     t->minute=array[1];
     t->second=array[2];
     break;
+  case INTERVAL_MINUTE_MICROSECOND:
+    if (get_interval_info(str,length,cs,3,array))
+      return (1);
+    t->minute=array[0];
+    t->second=array[1];
+    t->second_part=array[2];
+    break;
   case INTERVAL_MINUTE_SECOND:
     if (get_interval_info(str,length,cs,2,array))
       return (1);
     t->minute=array[0];
     t->second=array[1];
+    break;
+  case INTERVAL_SECOND_MICROSECOND:
+    if (get_interval_info(str,length,cs,2,array))
+      return (1);
+    t->second=array[0];
+    t->second_part=array[1];
     break;
   }
   return 0;
@@ -687,6 +784,9 @@ uint Item_func_date_format::format_length(const String *format)
       case 'T': /* time, 24-hour (hh:mm:ss) */
 	size += 8;
 	break;
+      case 'f': /* microseconds */
+	size += 6;
+	break;
       case 'w': /* day (of the week), numeric */
       case '%':
       default:
@@ -842,6 +942,10 @@ String *Item_func_date_format::val_str(String *str)
 	break;
       case 'e':
 	sprintf(intbuff,"%d",l_time.day);
+	str->append(intbuff);
+	break;
+      case 'f':
+	sprintf(intbuff,"%06ld",l_time.second_part);
 	str->append(intbuff);
 	break;
       case 'H':
@@ -1005,7 +1109,7 @@ void Item_date_add_interval::fix_length_and_dec()
   enum_field_types arg0_field_type;
   set_charset(default_charset());
   maybe_null=1;
-  max_length=19*default_charset()->mbmaxlen;
+  max_length=26*default_charset()->mbmaxlen;
   value.alloc(32);
 
   /*
@@ -1051,27 +1155,43 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
   null_value=0;
   switch (int_type) {
   case INTERVAL_SECOND:
+  case INTERVAL_SECOND_MICROSECOND:
+  case INTERVAL_MICROSECOND:
   case INTERVAL_MINUTE:
   case INTERVAL_HOUR:
+  case INTERVAL_MINUTE_MICROSECOND:
   case INTERVAL_MINUTE_SECOND:
+  case INTERVAL_HOUR_MICROSECOND:
   case INTERVAL_HOUR_SECOND:
   case INTERVAL_HOUR_MINUTE:
+  case INTERVAL_DAY_MICROSECOND:
   case INTERVAL_DAY_SECOND:
   case INTERVAL_DAY_MINUTE:
   case INTERVAL_DAY_HOUR:
-    long sec,days,daynr;
+    long sec,days,daynr,microseconds,extra_sec;
     ltime->time_type=TIMESTAMP_FULL;		// Return full date
+    microseconds= ltime->second_part + sign*interval.second_part;
+    extra_sec= microseconds/1000000L;
+    microseconds= microseconds%1000000L;
 
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
 	 sign*(interval.day*3600*24L +
-	       interval.hour*3600+interval.minute*60+interval.second));
+	       interval.hour*3600+interval.minute*60+interval.second))+
+      extra_sec;
+
+    if (microseconds < 0)
+    {
+      microseconds+= 1000000L;	
+      sec--;
+    }
     days=sec/(3600*24L); sec=sec-days*3600*24L;
     if (sec < 0)
     {
       days--;
       sec+=3600*24L;
     }
+    ltime->second_part= microseconds;
     ltime->second=sec % 60;
     ltime->minute=sec/60 % 60;
     ltime->hour=sec/3600;
@@ -1124,34 +1244,21 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
 String *Item_date_add_interval::val_str(String *str)
 {
   TIME ltime;
-  CHARSET_INFO *cs=default_charset();
-  uint32 l;
+  enum date_time_format_types format;
 
   if (Item_date_add_interval::get_date(&ltime,0))
     return 0;
-  if (ltime.time_type == TIMESTAMP_DATE)
-  {
-    l=11*cs->mbmaxlen+32;
-    if (str->alloc(l))
-      goto null_date;
-    l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d",
-	    ltime.year,ltime.month,ltime.day);
-    str->length(l);
-  }
-  else
-  {
-    l=20*cs->mbmaxlen+32;
-    if (str->alloc(l))
-      goto null_date;
-    l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
-	    ltime.year,ltime.month,ltime.day,
-	    ltime.hour,ltime.minute,ltime.second);
-    str->length(l);
-  }
-  str->set_charset(cs);
-  return str;
 
- null_date:
+  if (ltime.time_type == TIMESTAMP_DATE)
+    format= DATE_ONLY;
+  else if (ltime.second_part)
+    format= DATE_TIME_MICROSECOND;
+  else
+    format= DATE_TIME;
+
+  if (make_datetime(str, &ltime, format))
+    return str;
+
   null_value=1;
   return 0;
 }
@@ -1188,6 +1295,11 @@ void Item_extract::fix_length_and_dec()
   case INTERVAL_MINUTE:		max_length=2; date_value=0; break;
   case INTERVAL_MINUTE_SECOND:	max_length=4; date_value=0; break;
   case INTERVAL_SECOND:		max_length=2; date_value=0; break;
+  case INTERVAL_MICROSECOND:	max_length=2; date_value=0; break;
+  case INTERVAL_DAY_MICROSECOND: max_length=20; date_value=0; break;
+  case INTERVAL_HOUR_MICROSECOND: max_length=13; date_value=0; break;
+  case INTERVAL_MINUTE_MICROSECOND: max_length=11; date_value=0; break;
+  case INTERVAL_SECOND_MICROSECOND: max_length=9; date_value=0; break;
   }
 }
 
@@ -1234,6 +1346,21 @@ longlong Item_extract::val_int()
   case INTERVAL_MINUTE:		return (long) ltime.minute*neg;
   case INTERVAL_MINUTE_SECOND:	return (long) (ltime.minute*100+ltime.second)*neg;
   case INTERVAL_SECOND:		return (long) ltime.second*neg;
+  case INTERVAL_MICROSECOND:	return (long) ltime.second_part*neg;
+  case INTERVAL_DAY_MICROSECOND: return (((longlong)ltime.day*1000000L +
+					  (longlong)ltime.hour*10000L +
+					  ltime.minute*100 +
+					  ltime.second)*1000000L +
+					 ltime.second_part)*neg;
+  case INTERVAL_HOUR_MICROSECOND: return (((longlong)ltime.hour*10000L +
+					   ltime.minute*100 +
+					   ltime.second)*1000000L +
+					  ltime.second_part)*neg;
+  case INTERVAL_MINUTE_MICROSECOND: return (((longlong)(ltime.minute*100+
+							ltime.second))*1000000L+
+					    ltime.second_part)*neg;
+  case INTERVAL_SECOND_MICROSECOND: return ((longlong)ltime.second*1000000L+
+					    ltime.second_part)*neg;
   }
   return 0;					// Impossible
 }
@@ -1246,4 +1373,359 @@ void Item_typecast::print(String *str)
   str->append(" AS ");
   str->append(func_name());
   str->append(')');
+}
+
+/*
+  MAKEDATE(a,b) is a date function that creates a date value 
+  from a year and day value.
+*/
+
+String *Item_func_makedate::val_str(String *str)
+{
+  TIME l_time;
+  long daynr= args[1]->val_int();
+  long yearnr= args[0]->val_int();
+  long days;
+
+  if (args[0]->null_value || args[1]->null_value ||
+      yearnr < 0 || daynr <= 0)
+    goto null_date;
+
+  days= calc_daynr(yearnr,1,1) + daynr - 1;
+  if (days > 0 || days < 3652424L) // Day number from year 0 to 9999-12-31
+  {
+    null_value=0;
+    get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);
+    if (make_datetime(str, &l_time, DATE_ONLY))
+      return str;
+  }
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+
+void Item_func_add_time::fix_length_and_dec()
+{
+  enum_field_types arg0_field_type;
+  decimals=0;
+  max_length=26*my_charset_bin.mbmaxlen;
+
+  /*
+    The field type for the result of an Item_func_add_time function is defined as
+    follows:
+
+    - If first arg is a MYSQL_TYPE_DATETIME or MYSQL_TYPE_TIMESTAMP 
+      result is MYSQL_TYPE_DATETIME
+    - If first arg is a MYSQL_TYPE_TIME result is MYSQL_TYPE_TIME
+    - Otherwise the result is MYSQL_TYPE_STRING
+  */
+
+  cached_field_type= MYSQL_TYPE_STRING;
+  arg0_field_type= args[0]->field_type();
+  if (arg0_field_type == MYSQL_TYPE_DATETIME ||
+      arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+    cached_field_type= MYSQL_TYPE_DATETIME;
+  else if (arg0_field_type == MYSQL_TYPE_TIME)
+    cached_field_type= MYSQL_TYPE_TIME;
+}
+
+/*
+  ADDTIME(t,a) and SUBTIME(t,a) are time functions that calculate a time/datetime value 
+
+  t: time_or_datetime_expression
+  a: time_expression
+  
+  Result: Time value or datetime value
+*/
+
+String *Item_func_add_time::val_str(String *str)
+{
+  TIME l_time1, l_time2, l_time3;
+  bool is_time;
+  long microseconds, seconds, days= 0;
+  int l_sign= sign;
+
+  null_value=0;
+  if (args[0]->get_time(&l_time1) || 
+      args[1]->get_time(&l_time2) ||
+      l_time2.time_type == TIMESTAMP_FULL)
+    goto null_date;
+  is_time= (l_time1.time_type == TIMESTAMP_TIME);
+  l_time3.neg= 0;
+  if (is_time)
+  {
+    if ((l_time2.neg == l_time1.neg) && l_time1.neg)
+      l_time3.neg= 1;
+  }
+  if (l_time1.neg != l_time2.neg)
+    l_sign= -l_sign;
+
+  microseconds= l_time1.second_part + l_sign*l_time2.second_part;
+  seconds= (l_time1.hour*3600L + l_time1.minute*60L + l_time1.second +
+	    (l_time2.day*86400L + l_time2.hour*3600L +
+	     l_time2.minute*60L + l_time2.second)*l_sign);
+  if (is_time)
+    seconds+= l_time1.day*86400L;
+  else
+    days+= calc_daynr((uint) l_time1.year,(uint) l_time1.month, (uint) l_time1.day);
+  seconds= seconds + microseconds/1000000L;
+  microseconds= microseconds%1000000L;
+  days+= seconds/86400L;
+  seconds= seconds%86400L;
+
+  if (microseconds < 0)
+  {
+    microseconds+= 1000000L;
+    seconds--;
+  }
+  if (seconds < 0)
+  {
+    days+= seconds/86400L - 1;
+    seconds+= 86400L;
+  }
+  if (days < 0)
+  {
+    if (!is_time)
+      goto null_date;
+    if (microseconds)
+    {
+      microseconds= 1000000L - microseconds;
+      seconds++; 
+    }
+    seconds= 86400L - seconds;
+    days= -(++days);
+    l_time3.neg= 1;
+  }
+
+  calc_time_from_sec(&l_time3, seconds, microseconds);
+  if (!is_time)
+  {
+    get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
+    if (l_time3.day &&
+	make_datetime(str, &l_time3, DATE_TIME_MICROSECOND))
+      return str;
+    goto null_date;
+  }
+
+  l_time3.hour+= days*24;
+  if (make_datetime(str, &l_time3, TIME_MICROSECOND))
+    return str;
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+/*
+  TIMEDIFF(t,s) is a time function that calculates the 
+  time value between a start and end time.
+
+  t and s: time_or_datetime_expression
+  Result: Time value
+*/
+
+String *Item_func_timediff::val_str(String *str)
+{
+  longlong seconds;
+  long microseconds;
+  long days;
+  int l_sign= 1;
+  TIME l_time1 ,l_time2, l_time3;
+
+  null_value= 0;  
+  if (args[0]->get_time(&l_time1) ||
+      args[1]->get_time(&l_time2) ||
+      l_time1.time_type != l_time2.time_type)
+    goto null_date;
+
+  if (l_time1.neg != l_time2.neg)
+    l_sign= -l_sign;
+
+  if (l_time1.time_type == TIMESTAMP_TIME)  // Time value
+    days= l_time1.day - l_sign*l_time2.day;
+  else                                      // DateTime value
+    days= (calc_daynr((uint) l_time1.year,
+		      (uint) l_time1.month,
+		      (uint) l_time1.day) - 
+	   l_sign*calc_daynr((uint) l_time2.year,
+			     (uint) l_time2.month,
+			     (uint) l_time2.day));
+
+  microseconds= l_time1.second_part - l_sign*l_time2.second_part;
+  seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
+	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
+	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+l_time2.second));
+
+  l_time3.neg= 0;
+  if (seconds < 0)
+  {
+    seconds= -seconds;
+    l_time3.neg= 1;
+  }
+  else if (seconds == 0 && microseconds < 0)
+  {
+    microseconds= -microseconds;
+    l_time3.neg= 1;
+  }
+  if (microseconds < 0)
+  {
+    microseconds+= 1000000L;
+    seconds--;
+  }
+  if ((l_time2.neg == l_time1.neg) && l_time1.neg)
+    l_time3.neg= l_time3.neg ? 0 : 1;
+
+  calc_time_from_sec(&l_time3, seconds, microseconds);
+  if (make_datetime(str, &l_time3, TIME_MICROSECOND))
+    return str;
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+/*
+  MAKETIME(h,m,s) is a time function that calculates a time value 
+  from the total number of hours, minutes, and seconds.
+  Result: Time value
+*/
+
+String *Item_func_maketime::val_str(String *str)
+{
+  TIME ltime;
+
+  long hour= args[0]->val_int();
+  long minute= args[1]->val_int();
+  long second= args[2]->val_int();
+
+  if ((null_value=(args[0]->null_value || 
+		   args[1]->null_value ||
+		   args[2]->null_value || 
+		   minute > 59 || minute < 0 || 
+		   second > 59 || second < 0)))
+    goto null_date;
+
+  ltime.neg= 0;
+  if (hour < 0)
+  {
+    ltime.neg= 1;
+    hour= -hour;
+  }
+  ltime.hour= (ulong)hour;
+  ltime.minute= (ulong)minute;
+  ltime.second= (ulong)second;
+  if (make_datetime(str, &ltime, TIME_ONLY))
+    return str;
+
+null_date:
+    return 0;
+}
+
+/*
+  TIMESTAMP(a,b) is a function ( extraction) that calculates a datetime value
+  comprising a date value, time value.
+
+  a: Date_or_datetime value
+  b: Time value
+  Result: Datetime value
+*/
+
+String *Item_func_timestamp::val_str(String *str)
+{
+  TIME l_time1 ,l_time2, l_time3;
+  long seconds;
+  long microseconds;
+  long days;
+  int l_sign;
+
+  if (get_arg0_date(&l_time1,1) || 
+      args[1]->get_time(&l_time2) ||
+      l_time1.time_type == TIMESTAMP_TIME || 
+      l_time2.time_type != TIMESTAMP_TIME)
+    goto null_date;
+
+  l_sign= l_time2.neg ? -1 : 1;
+  days= (calc_daynr((uint) l_time1.year,(uint) l_time1.month,
+		    (uint) l_time1.day) + l_sign*l_time2.day);
+
+  microseconds= l_time1.second_part + l_sign*l_time2.second_part;
+  seconds= (l_time1.hour*3600L + l_time1.minute*60L + l_time1.second +
+	    (l_time2.day*86400L + l_time2.hour*3600L +
+	     l_time2.minute*60L + l_time2.second)*l_sign);
+  days+= seconds/86400L;
+  seconds%= 86400L;
+  if (microseconds < 0)
+  {
+    microseconds+= 1000000L;
+    seconds--;
+  }
+  if (seconds < 0)
+  {
+    days--;
+    seconds+= 86400L;
+  }
+  if (days < 0)
+    goto null_date;
+
+  calc_time_from_sec(&l_time3, seconds, microseconds);
+  get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
+  make_datetime(str, &l_time3, DATE_TIME_MICROSECOND);
+  return str;
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+/*
+  DATE(a) is a function ( extraction) that calculates a date value.
+
+  a: Datetime value
+  Result: Date value
+*/
+String *Item_func_date::val_str(String *str)
+{
+  TIME ltime;
+
+  if (!get_arg0_date(&ltime,1) &&
+      make_datetime(str, &ltime, DATE_ONLY))
+  return str;
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+/*
+  TIME(a) is a function ( extraction) that calculates a time value.
+
+  a: Datetime value
+  Result: Time value
+*/
+String *Item_func_time::val_str(String *str)
+{
+  TIME ltime;
+
+  if (!get_arg0_time(&ltime) &&
+      make_datetime(str, &ltime, TIME_MICROSECOND))
+    return str;
+
+  null_value=1;
+  return 0;
+}
+
+/*
+  MICROSECOND(a) is a function ( extraction) that extracts the microseconds from a.
+
+  a: Datetime or time value
+  Result: int value
+*/
+longlong Item_func_microsecond::val_int()
+{
+  TIME ltime;
+  if (!get_arg0_time(&ltime))
+    return ltime.second_part;
+  return 0;
 }
