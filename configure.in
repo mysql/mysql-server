@@ -731,7 +731,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h)
+ sys/ioctl.h malloc.h sys/malloc.h linux/config.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -2831,7 +2831,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
- sql-common/Makefile dnl
+ sql-common/Makefile SSL/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl

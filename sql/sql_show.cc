@@ -173,38 +173,11 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 ** List all table types supported 
 ***************************************************************************/
 
-struct show_table_type_st {
-  const char *type;
-  SHOW_COMP_OPTION *value;
-  const char *comment;
-};
-
-
-SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
-static struct show_table_type_st sys_table_types[]=
-{
-  {"MyISAM", &have_yes,
-   "Default type from 3.23 with great performance"},
-  {"HEAP"  , &have_yes,
-   "Hash based, stored in memory, useful for temporary tables"},
-  {"MERGE",  &have_yes,
-   "Collection of identical MyISAM tables"},
-  {"ISAM",   &have_isam,
-   "Obsolete table type; Is replaced by MyISAM"},
-  {"InnoDB", &have_innodb,
-   "Supports transactions, row-level locking and foreign keys"},
-  {"BDB",    &have_berkeley_db,
-   "Supports transactions and page-level locking"},
-  {NullS, NULL, NullS}
-};
-
-
-int mysqld_show_table_types(THD *thd)
+int mysqld_show_storage_engines(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_table_types");
+  DBUG_ENTER("mysqld_show_storage_engines");
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Support",10));
@@ -213,8 +186,8 @@ int mysqld_show_table_types(THD *thd)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  const char *default_type_name=
-    ha_table_typelib.type_names[thd->variables.table_type];
+  const char *default_type_name= 
+    ha_get_storage_engine((enum db_type)thd->variables.table_type);
 
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
@@ -411,11 +384,23 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 #ifdef USE_SYMDIR
       char *ext;
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
+      {
+	/* Only show the sym file if it points to a directory */
+	char buff[FN_REFLEN], *end;
+	MY_STAT status;
         *ext=0;                                 /* Remove extension */
+	unpack_dirname(buff, file->name);
+	end= strend(buff);
+	if (end != buff && end[-1] == FN_LIBCHAR)
+	  end[-1]= 0;				// Remove end FN_LIBCHAR
+	if (!my_stat(buff, &status, MYF(0)) ||
+	    !MY_S_ISDIR(status.st_mode))
+	  continue;
+      }
       else
 #endif
       {
-        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
+        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
             (wild && wild_compare(file->name,wild,0)))
           continue;
       }
@@ -702,7 +687,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   restore_record(table,default_values);      // Get empty record
 
   Field **ptr,*field;
-  String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
     if (!wild || !wild[0] || 
@@ -741,7 +725,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp),system_charset_info);
+          type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
@@ -892,7 +876,6 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  String *packet= &thd->packet;
   KEY *key_info=table->key_info;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   for (uint i=0 ; i < table->keys ; i++,key_info++)
@@ -1143,10 +1126,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp),&my_charset_bin);
+        type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
 	if (type.length())
-          append_unescaped(packet, type.ptr(), type.length());
+	{
+   	  String def_val;
+	  /* convert to system_charset_info == utf8 */
+	  def_val.copy(type.ptr(), type.length(), field->charset(),
+		       system_charset_info);
+          append_unescaped(packet, def_val.ptr(), def_val.length());
+	}
         else
 	  packet->append("''",2);
       }
@@ -1246,7 +1235,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" TYPE=", 6);
+    packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&
@@ -1641,9 +1630,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       }
       case SHOW_CHAR:
-	pos= value;
-	end= strend(pos);
+      {
+        if (!(pos= value))
+          pos= "";
+        end= strend(pos);
         break;
+       }
       case SHOW_STARTTIME:
 	nr= (long) (thd->query_start() - start_time);
 	end= int10_to_str(nr, buff, 10);
@@ -1669,10 +1661,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       case SHOW_CHAR_PTR:
       {
-	if (!(pos= *(char**) value))
-	  pos= "";
-	end= strend(pos);
-	break;
+        if (!(pos= *(char**) value))
+          pos= "";
+        end= strend(pos);
+        break;
       }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */

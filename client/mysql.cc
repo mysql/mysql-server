@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.2";
+const char *VER= "14.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -134,7 +134,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       default_charset_used= 0;
+	       default_charset_used= 0, opt_secure_auth= 0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -380,7 +380,7 @@ int main(int argc,char *argv[])
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %ld to server version: %s\n",
+	  "Your MySQL connection id is %lu to server version: %s\n",
 	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
@@ -613,8 +613,8 @@ static struct my_option my_long_options[] =
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 16 *1024L*1024L, 4096, 512*1024L*1024L, MALLOC_OVERHEAD,
-   1024, 0},
+   REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
+   MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
@@ -623,6 +623,9 @@ static struct my_option my_long_options[] =
   {"max_join_size", OPT_MAX_JOIN_SIZE, "", (gptr*) &max_join_size,
    (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
    0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol", (gptr*) &opt_secure_auth,
+    (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -706,7 +709,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     break;
   }
-    break;
+  break;
   case 'A':
     rehash= 0;
     break;
@@ -1621,7 +1624,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
   ulong		timer, warnings;
-  uint		error=0;
+  uint		error= 0;
+  int           err= 0;
 
   if (!status.batch)
   {
@@ -1665,79 +1669,84 @@ com_go(String *buffer,char *line __attribute__((unused)))
     buffer->length(0); // Remove query on error
     return error;
   }
-
   error=0;
   buffer->length(0);
 
-  if (quick)
+  do
   {
-    if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
-      return put_error(&mysql);
-  }
-  else
-  {
-    error= mysql_store_result_for_lazy(&result);
-    if (error)
-      return error;
-  }
-
-  if (verbose >= 3 || !opt_silent)
-    mysql_end_timer(timer,time_buff);
-  else
-    time_buff[0]=0;
-  if (result)
-  {
-    if (!mysql_num_rows(result) && ! quick)
+    if (quick)
     {
-      strmov(buff, "Empty set");
+      if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
+	return put_error(&mysql);
     }
     else
     {
-      init_pager();
-      if (opt_html)
-	print_table_data_html(result);
-      else if (opt_xml)
-	print_table_data_xml(result);
-      else if (vertical)
-	print_table_data_vertically(result);
-      else if (opt_silent && verbose <= 2 && !output_tables)
-	print_tab_data(result);
-      else
-	print_table_data(result);
-      sprintf(buff,"%ld %s in set",
-	      (long) mysql_num_rows(result),
-	      (long) mysql_num_rows(result) == 1 ? "row" : "rows");
-      end_pager();
+      error= mysql_store_result_for_lazy(&result);
+      if (error)
+	return error;
     }
-  }
-  else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
-    strmov(buff,"Query OK");
-  else
-    sprintf(buff,"Query OK, %ld %s affected",
-	    (long) mysql_affected_rows(&mysql),
-	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
 
-  pos=strend(buff);
-  if ((warnings= mysql_warning_count(&mysql)))
-  {
-    *pos++= ',';
-    *pos++= ' ';
-    pos=int2str(warnings, pos, 10);
-    pos=strmov(pos, " warning");
-    if (warnings != 1)
-      *pos++= 's';
-  }
-  strmov(pos, time_buff);
-  put_info(buff,INFO_RESULT);
-  if (mysql_info(&mysql))
-    put_info(mysql_info(&mysql),INFO_RESULT);
-  put_info("",INFO_RESULT);			// Empty row
+    if (verbose >= 3 || !opt_silent)
+      mysql_end_timer(timer,time_buff);
+    else
+      time_buff[0]=0;
+    if (result)
+    {
+      if (!mysql_num_rows(result) && ! quick)
+      {
+	strmov(buff, "Empty set");
+      }
+      else
+      {
+	init_pager();
+	if (opt_html)
+	  print_table_data_html(result);
+	else if (opt_xml)
+	  print_table_data_xml(result);
+	else if (vertical)
+	  print_table_data_vertically(result);
+	else if (opt_silent && verbose <= 2 && !output_tables)
+	  print_tab_data(result);
+	else
+	  print_table_data(result);
+	sprintf(buff,"%ld %s in set",
+		(long) mysql_num_rows(result),
+		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
+	end_pager();
+      }
+    }
+    else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
+      strmov(buff,"Query OK");
+    else
+      sprintf(buff,"Query OK, %ld %s affected",
+	      (long) mysql_affected_rows(&mysql),
+	      (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
 
-  if (result && !mysql_eof(result))	/* Something wrong when using quick */
+    pos=strend(buff);
+    if ((warnings= mysql_warning_count(&mysql)))
+    {
+      *pos++= ',';
+      *pos++= ' ';
+      pos=int2str(warnings, pos, 10);
+      pos=strmov(pos, " warning");
+      if (warnings != 1)
+	*pos++= 's';
+    }
+    strmov(pos, time_buff);
+    put_info(buff,INFO_RESULT);
+    if (mysql_info(&mysql))
+      put_info(mysql_info(&mysql),INFO_RESULT);
+    put_info("",INFO_RESULT);			// Empty row
+
+    if (result && !mysql_eof(result))	/* Something wrong when using quick */
+      error= put_error(&mysql);
+    else if (unbuffered)
+      fflush(stdout);
+    mysql_free_result(result);
+  } while (!(err= mysql_next_result(&mysql)));
+  if (err >= 1)
     error= put_error(&mysql);
-  else if (unbuffered)
-    fflush(stdout);
-  mysql_free_result(result);
+
   return error;				/* New command follows */
 }
 
@@ -2337,7 +2346,7 @@ com_connect(String *buffer, char *line)
 
   if (connected)
   {
-    sprintf(buff,"Connection id:    %ld",mysql_thread_id(&mysql));
+    sprintf(buff,"Connection id:    %lu",mysql_thread_id(&mysql));
     put_info(buff,INFO_INFO);
     sprintf(buff,"Current database: %s\n",
 	    current_db ? current_db : "*** NONE ***");
@@ -2416,6 +2425,7 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
   }
   strmake(delimiter, tmp, sizeof(delimiter) - 1);
   delimiter_length= strlen(delimiter);
+  delimiter_str= delimiter;
   return 0;
 }
 
@@ -2535,8 +2545,11 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  mysql_close(&mysql);
-  connected= 0;
+  if (connected)
+  {
+    connected= 0;
+    mysql_close(&mysql);
+  }
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
@@ -2546,6 +2559,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
+  if (opt_secure_auth)
+    mysql_options(&mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
@@ -2640,7 +2655,7 @@ com_status(String *buffer __attribute__((unused)),
   {
     MYSQL_RES *result;
     LINT_INIT(result);
-    tee_fprintf(stdout, "\nConnection id:\t\t%ld\n",mysql_thread_id(&mysql));
+    tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
     if (!mysql_query(&mysql,"select DATABASE(),USER()") &&
 	(result=mysql_use_result(&mysql)))
     {

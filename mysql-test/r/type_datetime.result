@@ -1,6 +1,12 @@
 drop table if exists t1;
 create table t1 (t datetime);
-insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959);
+insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+Warnings:
+Warning	1264	Data truncated for column 't' at row 13
+Warning	1264	Data truncated for column 't' at row 14
+Warning	1264	Data truncated for column 't' at row 15
+Warning	1264	Data truncated for column 't' at row 16
+Warning	1264	Data truncated for column 't' at row 17
 select * from t1;
 t
 2000-01-01 00:00:00
@@ -15,6 +21,11 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
 delete from t1 where t > 0;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
@@ -22,7 +33,8 @@ test.t1	optimize	status	OK
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959");
+delete from t1;
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
 select * from t1;
 t
 2000-01-01 00:00:00
@@ -38,6 +50,11 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
 drop table t1;
 CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
@@ -71,7 +88,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`numfacture`),
 KEY `date` (`date`),
 KEY `expedition` (`expedition`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
 SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 date	numfacture	expedition

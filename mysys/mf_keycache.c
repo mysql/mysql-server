@@ -15,14 +15,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  These functions are to handle keyblock cacheing
-  for NISAM, MISAM and PISAM databases.
+  These functions handle keyblock cacheing for ISAM and MyISAM tables.
+
   One cache can handle many files.
   It must contain buffers of the same blocksize.
   init_key_cache() should be used to init cache handler.
 */
 
 #include "mysys_priv.h"
+#include <keycache.h>
 #include "my_static.h"
 #include <m_string.h>
 #include <errno.h>
@@ -85,28 +86,22 @@
 
 typedef pthread_cond_t KEYCACHE_CONDVAR;
 
-/* info about requests in a waiting queue */
-typedef struct st_keycache_wqueue
-{
-  struct st_my_thread_var *last_thread;  /* circular list of waiting threads */
-} KEYCACHE_WQUEUE;
-
 /* descriptor of the page in the key cache block buffer */
-typedef struct st_keycache_page
+struct st_keycache_page
 {
   int file;               /* file to which the page belongs to  */
   my_off_t filepos;       /* position of the page in the file   */
-} KEYCACHE_PAGE;
+};
 
 /* element in the chain of a hash table bucket */
-typedef struct st_hash_link
+struct st_hash_link
 {
   struct st_hash_link *next, **prev; /* to connect links in the same bucket  */
   struct st_block_link *block;       /* reference to the block for the page: */
   File file;                         /* from such a file                     */
   my_off_t diskpos;                  /* with such an offset                  */
   uint requests;                     /* number of requests for the page      */
-} HASH_LINK;            /* offset is always alighed for key_cache_block_size */
+};
 
 /* simple states of a block */
 #define BLOCK_ERROR       1   /* an error occured when performing disk i/o   */
@@ -122,7 +117,7 @@ typedef struct st_hash_link
 #define PAGE_WAIT_TO_BE_READ    2
 
 /* key cache block */
-typedef struct st_block_link
+struct st_block_link
 {
   struct st_block_link
     *next_used, **prev_used;   /* to connect links in the LRU chain (ring)   */
@@ -138,52 +133,19 @@ typedef struct st_block_link
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
-} BLOCK_LINK;
-
-KEY_CACHE_VAR dflt_key_cache_var=
-{
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-KEY_CACHE_HANDLE *dflt_keycache= &dflt_key_cache_var.cache;
 
-#define CHANGED_BLOCKS_HASH 128             /* must be power of 2            */
+KEY_CACHE dflt_key_cache_var;
+KEY_CACHE *dflt_key_cache= &dflt_key_cache_var;
+
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
-typedef struct st_key_cache
-{
-  KEY_CACHE_VAR *env;            /* pointer to key cache variables (if any)  */
-  my_bool key_cache_inited;
-  uint key_cache_shift;
-  ulong key_cache_mem_size;      /* specified size of the cache memory       */
-  uint key_cache_block_size;     /* size of the page buffer of a cache block */
-  ulong min_warm_blocks;         /* min number of warm blocks;               */
-  ulong age_threshold;           /* age threshold for hot blocks             */
-  ulonglong keycache_time;       /* total number of block link operations    */
-  uint hash_entries;             /* max number of entries in the hash table  */
-  int hash_links;                /* max number of hash links                 */
-  int hash_links_used;           /* number of hash links currently used      */
-  int disk_blocks;               /* max number of blocks in the cache        */
-  ulong blocks_used;             /* number of currently used blocks          */
-  ulong blocks_changed;          /* number of currently dirty blocks         */
-  ulong warm_blocks;             /* number of blocks in warm sub-chain       */
-#if defined(KEYCACHE_DEBUG)
-  long blocks_available;      /* number of blocks available in the LRU chain */
-#endif
-  HASH_LINK **hash_root;         /* arr. of entries into hash table buckets  */
-  HASH_LINK *hash_link_root;     /* memory for hash table links              */
-  HASH_LINK *free_hash_list;     /* list of free hash links                  */
-  BLOCK_LINK *block_root;        /* memory for block links                   */
-  byte HUGE_PTR *block_mem;      /* memory for block buffers                 */
-  BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
-  BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
-  pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
-  KEYCACHE_WQUEUE waiting_for_hash_link; /* waiting for a free hash link     */
-  KEYCACHE_WQUEUE waiting_for_block;    /* requests waiting for a free block */
-  BLOCK_LINK *changed_blocks[CHANGED_BLOCKS_HASH]; /* hash for dirty file bl.*/
-  BLOCK_LINK *file_blocks[CHANGED_BLOCKS_HASH];    /* hash for other file bl.*/
-} KEY_CACHE;
-
-static int flush_all_key_blocks(KEY_CACHE_HANDLE keycache);
+static int flush_all_key_blocks(KEY_CACHE *keycache);
+static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
+                                   struct st_my_thread_var *thread);
+static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
+                                     struct st_my_thread_var *thread);
+static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block);
 static void test_key_cache(KEY_CACHE *keycache,
                            const char *where, my_bool lock);
 
@@ -202,10 +164,10 @@ static void test_key_cache(KEY_CACHE *keycache,
 static FILE *keycache_debug_log=NULL;
 static void keycache_debug_print _VARARGS((const char *fmt,...));
 #define KEYCACHE_DEBUG_OPEN                                                   \
-          keycache_debug_log=fopen(KEYCACHE_DEBUG_LOG, "w")
+          if (!keycache_debug_log) keycache_debug_log=fopen(KEYCACHE_DEBUG_LOG, "w")
 
 #define KEYCACHE_DEBUG_CLOSE                                                  \
-          if (keycache_debug_log) fclose(keycache_debug_log)
+          if (keycache_debug_log) { fclose(keycache_debug_log); keycache_debug_log=0; }
 #else
 #define KEYCACHE_DEBUG_OPEN
 #define KEYCACHE_DEBUG_CLOSE
@@ -230,8 +192,8 @@ static long keycache_thread_id;
              KEYCACHE_DBUG_PRINT(l,("|thread %ld",keycache_thread_id))
 
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)                                        \
-            { struct st_my_thread_var *thread_var =my_thread_var;             \
-              keycache_thread_id=my_thread_var->id;                           \
+            { struct st_my_thread_var *thread_var= my_thread_var;             \
+              keycache_thread_id= my_thread_var->id;                          \
               KEYCACHE_DBUG_PRINT(l,("[thread %ld",keycache_thread_id)) }
 
 #define KEYCACHE_THREAD_TRACE_END(l)                                          \
@@ -268,10 +230,10 @@ static int keycache_pthread_cond_broadcast(pthread_cond_t *cond);
 
 static uint next_power(uint value)
 {
-  uint old_value=1;
+  uint old_value= 1;
   while (value)
   {
-    old_value=value;
+    old_value= value;
     value&= value-1;
   }
   return (old_value << 1);
@@ -282,41 +244,35 @@ static uint next_power(uint value)
   Initialize a key cache
 
   SYNOPSIS
-    init_ky_cache()
-      pkeycache in/out        pointer to the key cache handle
-      key_cache_block_size    size of blocks to keep cached data
-      use_mem                 total memory to use for the key cache
-      env                     ref to other parameters of the key cache, if any
+    init_key_cache()
+    keycache			pointer to a key cache data structure
+    key_cache_block_size	size of blocks to keep cached data
+    use_mem                 	total memory to use for the key cache
+    division_limit		division limit (may be zero)
+    age_threshold		age threshold (may be zero)
 
   RETURN VALUE
     number of blocks in the key cache, if successful,
     0 - otherwise.
 
   NOTES.
-    If pkeycache points to an undefined handle (NULL), a new KEY_CACHE
-    data structure is created and a pointer to it is returned as a new
-    key cache handle, otherwise *pkeycache is considered as a reused
-    handle for a key cache with new blocks.
+    if keycache->key_cache_inited != 0 we assume that the key cache
+    is already initialized.  This is for now used by myisamchk, but shouldn't
+    be something that a program should rely on!
+
     It's assumed that no two threads call this function simultaneously
     referring to the same key cache handle.
 
 */
 
-int init_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
-                   ulong use_mem, KEY_CACHE_VAR *env)
+int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
+		   ulong use_mem, uint division_limit,
+		   uint age_threshold)
 {
   uint blocks, hash_links, length;
   int error;
-  KEY_CACHE *keycache;
   DBUG_ENTER("init_key_cache");
   DBUG_ASSERT(key_cache_block_size >= 512);
-
-  if (!(keycache= (KEY_CACHE *) *pkeycache) &&
-      !(keycache= (KEY_CACHE *) my_malloc(sizeof(KEY_CACHE),
-                                          MYF(MY_ZEROFILL))))
-    DBUG_RETURN(0);
-
-  keycache->env= env;
 
   KEYCACHE_DEBUG_OPEN;
   if (keycache->key_cache_inited && keycache->disk_blocks > 0)
@@ -324,35 +280,23 @@ int init_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
     DBUG_PRINT("warning",("key cache already in use"));
     DBUG_RETURN(0);
   }
-  if (env && ! keycache->key_cache_inited)
-  {
-    env->cache_w_requests= env->cache_r_requests= 0;
-    env->cache_read= env->cache_write=0;
-  }
 
+  keycache->global_cache_w_requests= keycache->global_cache_r_requests= 0;
+  keycache->global_cache_read= keycache->global_cache_write= 0;
+  keycache->disk_blocks= -1;
   if (! keycache->key_cache_inited)
   {
     keycache->key_cache_inited= 1;
-    keycache->disk_blocks= -1;
+    keycache->in_init= 0;
     pthread_mutex_init(&keycache->cache_lock, MY_MUTEX_INIT_FAST);
-    keycache->key_cache_shift= my_bit_log2(key_cache_block_size);
-    keycache->key_cache_mem_size= use_mem;
-    keycache->key_cache_block_size= key_cache_block_size;
-    DBUG_PRINT("info", ("key_cache_block_size: %u",
-			key_cache_block_size));
+    keycache->resize_queue.last_thread= NULL;
   }
 
-  /*
-    These are safety deallocations: actually we always call the
-    function after having called end_key_cache that deallocates
-    these memory itself.
-  */
-  if (keycache->block_mem)
-    my_free_lock((gptr) keycache->block_mem, MYF(0));
-  keycache->block_mem= NULL;
-  if (keycache->block_root)
-    my_free((gptr) keycache->block_root, MYF(0));
-  keycache->block_root= NULL;
+  keycache->key_cache_mem_size= use_mem;
+  keycache->key_cache_block_size= key_cache_block_size;
+  keycache->key_cache_shift= my_bit_log2(key_cache_block_size);
+  DBUG_PRINT("info", ("key_cache_block_size: %u",
+		      key_cache_block_size));
 
   blocks= (uint) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
 			     sizeof(HASH_LINK*) * 5/4 + key_cache_block_size));
@@ -412,48 +356,47 @@ int init_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
     keycache->hash_links_used= 0;
     keycache->free_hash_list= NULL;
     keycache->blocks_used= keycache->blocks_changed= 0;
-    if (env)
-      env->blocks_used= env->blocks_changed= 0;
-#if defined(KEYCACHE_DEBUG)
-    keycache->blocks_available=0;
-#endif
+
+    keycache->global_blocks_used= keycache->global_blocks_changed= 0;
+    keycache->blocks_available=0;		/* For debugging */
+
     /* The LRU chain is empty after initialization */
     keycache->used_last= NULL;
     keycache->used_ins= NULL;
     keycache->keycache_time= 0;
     keycache->warm_blocks= 0;
-    keycache->min_warm_blocks= (env && env->division_limit ?
-				blocks * env->division_limit / 100 + 1 :
+    keycache->min_warm_blocks= (division_limit ?
+				blocks * division_limit / 100 + 1 :
 				blocks);
-    keycache->age_threshold= (env && env->age_threshold ?
-			      blocks * env->age_threshold / 100 :
+    keycache->age_threshold= (age_threshold ?
+			      blocks * age_threshold / 100 :
 			      blocks);
+
+    keycache->cnt_for_resize_op= 0;
+    keycache->resize_in_flush= 0;
+    keycache->can_be_used= 1;
 
     keycache->waiting_for_hash_link.last_thread= NULL;
     keycache->waiting_for_block.last_thread= NULL;
     DBUG_PRINT("exit",
-	       ("disk_blocks: %d  block_root: %lx  hash_entries: %d  hash_root: %lx  \
-       hash_links: %d hash_link_root %lx",
+	       ("disk_blocks: %d  block_root: %lx  hash_entries: %d\
+ hash_root: %lx hash_links: %d hash_link_root %lx",
 		keycache->disk_blocks, keycache->block_root,
 		keycache->hash_entries, keycache->hash_root,
 		keycache->hash_links, keycache->hash_link_root));
+    bzero((gptr) keycache->changed_blocks,
+	  sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
+    bzero((gptr) keycache->file_blocks,
+	  sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
   }
-  bzero((gptr) keycache->changed_blocks,
-        sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
-  bzero((gptr) keycache->file_blocks,
-        sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
 
-  if (env)
-    env->blocks= keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
-  *pkeycache= keycache;
-  DBUG_PRINT("exit", ("key_cache: %lx", keycache));
-  DBUG_RETURN((int) blocks);
+  keycache->blocks= keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
+  DBUG_RETURN((int) keycache->disk_blocks);
 
 err:
   error= my_errno;
   keycache->disk_blocks= 0;
-  if (env)
-    env->blocks=  0;
+  keycache->blocks=  0;
   if (keycache->block_mem)
   {
     my_free_lock((gptr) keycache->block_mem, MYF(0));
@@ -465,6 +408,7 @@ err:
     keycache->block_root= NULL;
   }
   my_errno= error;
+  keycache->can_be_used= 0;
   DBUG_RETURN(0);
 }
 
@@ -474,9 +418,11 @@ err:
 
   SYNOPSIS
     resize_key_cache()
-      pkeycache in/out        pointer to the key cache handle
-      key_cache_block_size    size of blocks to keep cached data
-      use_mem                 total memory to use for the new key cache
+    keycache     	        pointer to a key cache data structure
+    key_cache_block_size        size of blocks to keep cached data
+    use_mem			total memory to use for the new key cache
+    division_limit		new division limit (if not zero)
+    age_threshold		new age threshold (if not zero)
 
   RETURN VALUE
     number of blocks in the key cache, if successful,
@@ -484,45 +430,108 @@ err:
 
   NOTES.
     The function first compares the memory size and the block size parameters
-    with the corresponding parameters of the key cache referred by
-    *pkeycache. If they differ the function free the the memory allocated
-    for the old key cache blocks by calling the end_key_cache function
-    and then rebuilds the key cache with new blocks by calling init_key_cache.
+    with the key cache values.
+
+    If they differ the function free the the memory allocated for the
+    old key cache blocks by calling the end_key_cache function and
+    then rebuilds the key cache with new blocks by calling
+    init_key_cache.
+
+    The function starts the operation only when all other threads
+    performing operations with the key cache let her to proceed
+    (when cnt_for_resize=0).
 */
 
-int resize_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
-                     ulong use_mem)
+int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
+		     ulong use_mem, uint division_limit,
+		     uint age_threshold)
 {
   int blocks;
-  KEY_CACHE *keycache= *pkeycache;
+  struct st_my_thread_var *thread;
+  KEYCACHE_WQUEUE *wqueue;
   DBUG_ENTER("resize_key_cache");
 
-  if (key_cache_block_size == keycache->key_cache_block_size &&
-      use_mem == keycache->key_cache_mem_size)
-    return keycache->disk_blocks;
+  if (!keycache->key_cache_inited)
+    DBUG_RETURN(keycache->disk_blocks);
+  
+  if(key_cache_block_size == keycache->key_cache_block_size &&
+     use_mem == keycache->key_cache_mem_size)
+  {
+    change_key_cache_param(keycache, division_limit, age_threshold);
+    DBUG_RETURN(keycache->disk_blocks);
+  }    
 
   keycache_pthread_mutex_lock(&keycache->cache_lock);
+
+  wqueue= &keycache->resize_queue;
+  thread= my_thread_var;
+  link_into_queue(wqueue, thread);
+
+  while (wqueue->last_thread->next != thread)
+  {
+    keycache_pthread_cond_wait(&thread->suspend, &keycache->cache_lock);
+  }
+
+  keycache->resize_in_flush= 1;
   if (flush_all_key_blocks(keycache))
   {
     /* TODO: if this happens, we should write a warning in the log file ! */
-    keycache_pthread_mutex_unlock(&keycache->cache_lock);
-    return 0;
+    keycache->resize_in_flush= 0;
+    blocks= 0;
+    keycache->can_be_used= 0;
+    goto finish;
   }
+  keycache->resize_in_flush= 0;
+  keycache->can_be_used= 0;   
+  while (keycache->cnt_for_resize_op)
+  {
+    keycache_pthread_cond_wait(&thread->suspend, &keycache->cache_lock);
+  }
+
+  end_key_cache(keycache, 0);			/* Don't free mutex */
+  /* The following will work even if use_mem is 0 */
+  blocks= init_key_cache(keycache, key_cache_block_size, use_mem,
+			 division_limit, age_threshold);
+
+finish:
+  unlink_from_queue(wqueue, thread);
+  /* Signal for the next resize request to proceeed if any */
+  if (wqueue->last_thread)
+    keycache_pthread_cond_signal(&wqueue->last_thread->next->suspend);
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
-  end_key_cache(keycache, 0);
-  /* the following will work even if memory is 0 */
-  blocks= init_key_cache(pkeycache, key_cache_block_size, use_mem,
-			 keycache->env);
   return blocks;
 }
 
+
+/*
+  Increment counter blocking resize key cache operation
+*/
+static inline void inc_counter_for_resize_op(KEY_CACHE *keycache)
+{
+  keycache->cnt_for_resize_op++;
+}
+
+
+/*
+  Decrement counter blocking resize key cache operation;
+  Signal the operation to proceed when counter becomes equal zero
+*/
+static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
+{
+  struct st_my_thread_var *last_thread;  
+  if (!--keycache->cnt_for_resize_op &&
+      (last_thread= keycache->resize_queue.last_thread)) 
+    keycache_pthread_cond_signal(&last_thread->next->suspend);
+}
 
 /*
   Change the key cache parameters
 
   SYNOPSIS
     change_key_cache_param()
-      keycache                the key cache handle
+    keycache			pointer to a key cache data structure 
+    division_limit		new division limit (if not zero)
+    age_threshold		new age threshold (if not zero)
 
   RETURN VALUE
     none
@@ -530,24 +539,22 @@ int resize_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
   NOTES.
     Presently the function resets the key cache parameters
     concerning midpoint insertion strategy - division_limit and
-    age_threshold. It corresponding values are passed through
-    the keycache->env structure.
+    age_threshold.
 */
 
-void change_key_cache_param(KEY_CACHE_HANDLE keycache)
+void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
+			    uint age_threshold)
 {
-  KEY_CACHE_VAR *env= keycache->env;
   DBUG_ENTER("change_key_cache_param");
 
-  if (env)
-  {
-    if (env->division_limit)
-      keycache->min_warm_blocks= (keycache->disk_blocks *
-				  env->division_limit / 100 + 1);
-    if (env->age_threshold)
-      keycache->age_threshold=   (keycache->disk_blocks *
-				  env->age_threshold / 100);
-  }
+  keycache_pthread_mutex_lock(&keycache->cache_lock);
+  if (division_limit)
+    keycache->min_warm_blocks= (keycache->disk_blocks *
+				division_limit / 100 + 1);
+  if (age_threshold)
+    keycache->age_threshold=   (keycache->disk_blocks *
+				age_threshold / 100);
+  keycache_pthread_mutex_unlock(&keycache->cache_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -557,26 +564,21 @@ void change_key_cache_param(KEY_CACHE_HANDLE keycache)
 
   SYNOPSIS
     end_key_cache()
-      pkeycache in/out        pointer to the key cache handle
-      cleanup                 <-> the key cache data structure is freed as well
+    keycache		key cache handle
+    cleanup		Complete free (Free also mutex for key cache)
 
   RETURN VALUE
     none
-
-  NOTES.
-    If the cleanup parameter is TRUE the data structure with all associated
-    elements are freed completely
-    Otherwise only memory used by the key cache blocks is freed.
 */
 
-void end_key_cache(KEY_CACHE_HANDLE keycache, my_bool cleanup)
+void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 {
-  KEY_CACHE_VAR *env;
   DBUG_ENTER("end_key_cache");
   DBUG_PRINT("enter", ("key_cache: %lx", keycache));
 
-  if (!keycache)
+  if (!keycache->key_cache_inited)
     DBUG_VOID_RETURN;
+
   if (keycache->disk_blocks > 0)
   {
     if (keycache->block_mem)
@@ -587,22 +589,22 @@ void end_key_cache(KEY_CACHE_HANDLE keycache, my_bool cleanup)
       keycache->block_root= NULL;
     }
     keycache->disk_blocks= -1;
+    /* Reset blocks_changed to be safe if flush_all_key_blocks is called */
+    keycache->blocks_changed= 0;
   }
-  KEYCACHE_DEBUG_CLOSE;
-  keycache->key_cache_inited= 0;
-  if ((env= keycache->env))
-  {
-    DBUG_PRINT("status",
-               ("used: %d  changed: %d  w_requests: %ld  \
-                writes: %ld  r_requests: %ld  reads: %ld",
-                env->blocks_used, env->blocks_changed,
-                env->cache_w_requests, env->cache_write,
-                env->cache_r_requests, env->cache_read));
-  }
+
+  DBUG_PRINT("status",
+    ("used: %d  changed: %d  w_requests: %ld  \
+writes: %ld  r_requests: %ld  reads: %ld",
+      keycache->global_blocks_used, keycache->global_blocks_changed,
+      keycache->global_cache_w_requests, keycache->global_cache_write,
+      keycache->global_cache_r_requests, keycache->global_cache_read));
+
   if (cleanup)
   {
     pthread_mutex_destroy(&keycache->cache_lock);
-    my_free((gptr) keycache, MYF(0));
+    keycache->key_cache_inited= 0;
+    KEYCACHE_DEBUG_CLOSE;
   }
   DBUG_VOID_RETURN;
 } /* end_key_cache */
@@ -730,8 +732,8 @@ static inline void add_to_queue(KEYCACHE_WQUEUE *wqueue,
 
 static void release_queue(KEYCACHE_WQUEUE *wqueue)
 {
-  struct st_my_thread_var *last=wqueue->last_thread;
-  struct st_my_thread_var *next=last->next;
+  struct st_my_thread_var *last= wqueue->last_thread;
+  struct st_my_thread_var *next= last->next;
   struct st_my_thread_var *thread;
   do
   {
@@ -786,8 +788,7 @@ static void link_to_file_list(KEY_CACHE *keycache,
   {
     block->status&= ~BLOCK_CHANGED;
     keycache->blocks_changed--;
-    if (keycache->env)
-      keycache->env->blocks_changed--;
+    keycache->global_blocks_changed--;
   }
 }
 
@@ -805,8 +806,7 @@ static inline void link_to_changed_list(KEY_CACHE *keycache,
                &keycache->changed_blocks[FILE_HASH(block->hash_link->file)]);
   block->status|=BLOCK_CHANGED;
   keycache->blocks_changed++;
-  if (keycache->env)
-    keycache->env->blocks_changed++;
+  keycache->global_blocks_changed++;
 }
 
 
@@ -1051,7 +1051,7 @@ static inline void remove_reader(BLOCK_LINK *block)
 
 static inline void wait_for_readers(KEY_CACHE *keycache, BLOCK_LINK *block)
 {
-  struct st_my_thread_var *thread=my_thread_var;
+  struct st_my_thread_var *thread= my_thread_var;
   while (block->hash_link->requests)
   {
     block->condvar= &thread->suspend;
@@ -1089,7 +1089,7 @@ static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
   hash_link->block= NULL;
   if (keycache->waiting_for_hash_link.last_thread)
   {
-    /* Signal that A free hash link appeared */
+    /* Signal that a free hash link has appeared */
     struct st_my_thread_var *last_thread=
                                keycache->waiting_for_hash_link.last_thread;
     struct st_my_thread_var *first_thread= last_thread->next;
@@ -1275,9 +1275,57 @@ restart:
       block->hash_link == hash_link && (block->status & BLOCK_READ))
     page_status= PAGE_READ;
 
-  if (page_status == PAGE_READ && (block->status & BLOCK_IN_SWITCH))
+  if (wrmode && keycache->resize_in_flush)
+  {
+    /* This is a write request during the flush phase of a resize operation */
+
+    if (page_status != PAGE_READ)
+    {
+      /* We don't need the page in the cache: we are going to write on disk */
+      hash_link->requests--;
+      unlink_hash(keycache, hash_link);
+      return 0;
+    }
+    if (!(block->status & BLOCK_IN_FLUSH))
+    { 
+      hash_link->requests--;
+      /*
+        Remove block to invalidate the page in the block buffer
+        as we are going to write directly on disk.
+        Although we have an exlusive lock for the updated key part
+        the control can be yieded by the current thread as we might
+        have unfinished readers of other key parts in the block
+        buffer. Still we are guaranteed not to have any readers
+        of the key part we are writing into until the block is
+        removed from the cache as we set the BLOCL_REASSIGNED
+        flag (see the code below that handles reading requests). 
+      */
+      free_block(keycache, block); 
+      return 0;
+    }
+    /* Wait intil the page is flushed on disk */
+    hash_link->requests--;
+    {
+      struct st_my_thread_var *thread= my_thread_var;
+      add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
+      do
+      {
+        keycache_pthread_cond_wait(&thread->suspend,
+                                   &keycache->cache_lock);
+      }
+      while(thread->next);
+    }
+    /* Invalidate page in the block if it has not been done yet */
+    if (block->status)
+      free_block(keycache, block);
+    return 0;
+  }
+    
+  if (page_status == PAGE_READ &&
+      (block->status & (BLOCK_IN_SWITCH | BLOCK_REASSIGNED)))
   {
     /* This is a request for a page to be removed from cache */
+
     KEYCACHE_DBUG_PRINT("find_key_block",
              ("request for old page in block %u",BLOCK_NUMBER(block)));
     /*
@@ -1328,8 +1376,7 @@ restart:
         block->offset= keycache->key_cache_block_size;
         block->requests= 1;
         keycache->blocks_used++;
-        if (keycache->env)
-          keycache->env->blocks_used++;
+	keycache->global_blocks_used++;
         keycache->warm_blocks++;
         block->hits_left= init_hits_left;
         block->last_hit_time= 0;
@@ -1342,10 +1389,11 @@ restart:
       else
       {
 	/* There are no never used blocks, use a block from the LRU chain */
+
         /*
-           Wait until a new block is added to the LRU chain;
-           several threads might wait here for the same page,
-           all of them must get the same block
+          Wait until a new block is added to the LRU chain;
+          several threads might wait here for the same page,
+          all of them must get the same block
         */
 
         if (! keycache->used_last)
@@ -1401,8 +1449,7 @@ restart:
 			     block->hash_link->diskpos+ block->offset,
 			     MYF(MY_NABP | MY_WAIT_IF_FULL));
             keycache_pthread_mutex_lock(&keycache->cache_lock);
-            if (keycache->env)
-              keycache->env->cache_write++;
+	    keycache->global_cache_write++;
           }
 
           block->status|= BLOCK_REASSIGNED;
@@ -1441,8 +1488,7 @@ restart:
                               PAGE_READ : PAGE_WAIT_TO_BE_READ;
         }
       }
-      if (keycache->env)
-        keycache->env->cache_read++;
+      keycache->global_cache_read++;
     }
     else
     {
@@ -1582,42 +1628,48 @@ static void read_block(KEY_CACHE *keycache,
     have to be a multiple of key_cache_block_size;
 */
 
-byte *key_cache_read(KEY_CACHE_HANDLE keycache,
+byte *key_cache_read(KEY_CACHE *keycache,
                      File file, my_off_t filepos, int level,
                      byte *buff, uint length,
 		     uint block_length __attribute__((unused)),
 		     int return_buffer __attribute__((unused)))
 {
   int error=0;
+  uint offset= 0;
+  byte *start= buff;
   DBUG_ENTER("key_cache_read");
   DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
                (uint) file, (ulong) filepos, length));
 
-  if (keycache && keycache->disk_blocks > 0)
+  if (keycache->can_be_used)
   {
     /* Key cache is used */
     reg1 BLOCK_LINK *block;
-    uint offset= (uint) (filepos & (keycache->key_cache_block_size-1));
-    byte *start= buff;
     uint read_length;
     uint status;
     int page_st;
 
-#ifndef THREAD
-    if (block_length > keycache->key_cache_block_size || offset)
-      return_buffer=0;
-#endif
-
     /* Read data in key_cache_block_size increments */
-    filepos-= offset;
     do
     {
+      keycache_pthread_mutex_lock(&keycache->cache_lock);
+      if (!keycache->can_be_used)	
+      {
+	keycache_pthread_mutex_unlock(&keycache->cache_lock);
+	goto no_key_cache;
+      }
       read_length= length > keycache->key_cache_block_size ?
                    keycache->key_cache_block_size : length;
       KEYCACHE_DBUG_ASSERT(read_length > 0);
-      keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (keycache->env)
-        keycache->env->cache_r_requests++;
+      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+      filepos-= offset;
+#ifndef THREAD
+      if (block_length > keycache->key_cache_block_size || offset)
+	return_buffer=0;
+#endif
+
+      inc_counter_for_resize_op(keycache);
+      keycache->global_cache_r_requests++;
       block=find_key_block(keycache, file, filepos, level, 0, &page_st);
       if (block->status != BLOCK_ERROR && page_st != PAGE_READ)
       {
@@ -1667,35 +1719,33 @@ byte *key_cache_read(KEY_CACHE_HANDLE keycache,
       */
       unreg_request(keycache, block, 1);
 
+      dec_counter_for_resize_op(keycache);
+
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
 
       if (status & BLOCK_ERROR)
         DBUG_RETURN((byte *) 0);
 
 #ifndef THREAD
+      /* This is only true if we where able to read everything in one block */
       if (return_buffer)
-          return (block->buffer);
+	return (block->buffer);
 #endif
-
       buff+= read_length;
       filepos+= read_length;
-      offset= 0;
 
     } while ((length-= read_length));
     DBUG_RETURN(start);
   }
 
-  /* Key cache is not used */
-  if (keycache && keycache->env)
-  {
-    statistic_increment(keycache->env->cache_r_requests,
-                        &keycache->cache_lock);
-    statistic_increment(keycache->env->cache_read,
-                        &keycache->cache_lock);
-  }
-  if (my_pread(file, (byte*) buff, length, filepos, MYF(MY_NABP)))
+no_key_cache:					/* Key cache is not used */
+
+  /* We can't use mutex here as the key cache may not be initialized */
+  keycache->global_cache_r_requests++;
+  keycache->global_cache_read++;
+  if (my_pread(file, (byte*) buff, length, filepos+offset, MYF(MY_NABP)))
     error= 1;
-  DBUG_RETURN(error? (byte*) 0 : buff);
+  DBUG_RETURN(error ? (byte*) 0 : start);
 }
 
 
@@ -1703,20 +1753,23 @@ byte *key_cache_read(KEY_CACHE_HANDLE keycache,
   Insert a block of file data from a buffer into key cache
 
   SYNOPSIS
-
     key_cache_insert()
-      keycache            pointer to a key cache data structure
-      file                handler for the file to insert data from
-      filepos             position of the block of data in the file to insert
-      level               determines the weight of the data
-      buff                buffer to read data from
-      length              length of the data in the buffer
+    keycache            pointer to a key cache data structure
+    file                handler for the file to insert data from
+    filepos             position of the block of data in the file to insert
+    level               determines the weight of the data
+    buff                buffer to read data from
+    length              length of the data in the buffer
+
+  NOTES
+    This is used by MyISAM to move all blocks from a index file to the key
+    cache
 
   RETURN VALUE
     0 if a success, 1 - otherwise.
 */
 
-int key_cache_insert(KEY_CACHE_HANDLE keycache,
+int key_cache_insert(KEY_CACHE *keycache,
                      File file, my_off_t filepos, int level,
                      byte *buff, uint length)
 {
@@ -1724,24 +1777,32 @@ int key_cache_insert(KEY_CACHE_HANDLE keycache,
   DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
                (uint) file,(ulong) filepos, length));
 
-  if (keycache->disk_blocks > 0)
+  if (keycache->can_be_used)
   {
     /* Key cache is used */
     reg1 BLOCK_LINK *block;
-    uint offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     uint read_length;
     int page_st;
+    int error;
 
-    /* Read data into key cache from buff in key_cache_block_size increments */
-    filepos-= offset;
     do
     {
+      uint offset;
+      keycache_pthread_mutex_lock(&keycache->cache_lock);
+      if (!keycache->can_be_used)	
+      {
+	keycache_pthread_mutex_unlock(&keycache->cache_lock);
+	DBUG_RETURN(0);
+      }
       read_length= length > keycache->key_cache_block_size ?
                    keycache->key_cache_block_size : length;
       KEYCACHE_DBUG_ASSERT(read_length > 0);
-      keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (keycache->env)
-        keycache->env->cache_r_requests++;
+      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+      /* Read data into key cache from buff in key_cache_block_size incr. */
+      filepos-= offset;
+
+      inc_counter_for_resize_op(keycache);
+      keycache->global_cache_r_requests++;
       block= find_key_block(keycache, file, filepos, level, 0, &page_st);
       if (block->status != BLOCK_ERROR && page_st != PAGE_READ)
       {
@@ -1770,14 +1831,17 @@ int key_cache_insert(KEY_CACHE_HANDLE keycache,
       */
       unreg_request(keycache, block, 1);
 
+      error= (block->status & BLOCK_ERROR);
+
+      dec_counter_for_resize_op(keycache);      
+
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
 
-      if (block->status & BLOCK_ERROR)
+      if (error)
         DBUG_RETURN(1);
 
       buff+= read_length;
       filepos+= read_length;
-      offset=0;
 
     } while ((length-= read_length));
   }
@@ -1812,7 +1876,7 @@ int key_cache_insert(KEY_CACHE_HANDLE keycache,
     have to be a multiple of key_cache_block_size;
 */
 
-int key_cache_write(KEY_CACHE_HANDLE keycache,
+int key_cache_write(KEY_CACHE *keycache,
                     File file, my_off_t filepos, int level,
                     byte *buff, uint length,
                     uint block_length  __attribute__((unused)),
@@ -1829,9 +1893,7 @@ int key_cache_write(KEY_CACHE_HANDLE keycache,
   if (!dont_write)
   {
     /* Force writing from buff into disk */
-    if (keycache && keycache->env)
-      statistic_increment(keycache->env->cache_write,
-                          &keycache->cache_lock);
+    keycache->global_cache_write++;
     if (my_pwrite(file, buff, length, filepos, MYF(MY_NABP | MY_WAIT_IF_FULL)))
       DBUG_RETURN(1);
   }
@@ -1841,24 +1903,47 @@ int key_cache_write(KEY_CACHE_HANDLE keycache,
                test_key_cache(keycache, "start of key_cache_write", 1););
 #endif
 
-  if (keycache && keycache->disk_blocks > 0)
+  if (keycache->can_be_used)
   {
     /* Key cache is used */
     uint read_length;
-    uint offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     int page_st;
 
-    /* Write data in key_cache_block_size increments */
-    filepos-= offset;
     do
     {
-      read_length= length > keycache->key_cache_block_size ?
-                   keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
+      uint offset;
       keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (keycache->env)
-        keycache->env->cache_w_requests++;
+      if (!keycache->can_be_used)	
+      {
+	keycache_pthread_mutex_unlock(&keycache->cache_lock);
+	goto no_key_cache;
+      }
+      read_length= length > keycache->key_cache_block_size ?
+	keycache->key_cache_block_size : length;
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
+      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
+      /* Write data in key_cache_block_size increments */
+      filepos-= offset;
+
+      inc_counter_for_resize_op(keycache);
+      keycache->global_cache_w_requests++;
       block= find_key_block(keycache, file, filepos, level, 1, &page_st);
+      if (!block)
+      {
+        /* It happens only for requests submitted during resize operation */
+        dec_counter_for_resize_op(keycache);
+	keycache_pthread_mutex_unlock(&keycache->cache_lock);
+	if (dont_write)
+        {
+          keycache->global_cache_w_requests++;
+          keycache->global_cache_write++;
+          if (my_pwrite(file, (byte*) buff, length, filepos,
+		        MYF(MY_NABP | MY_WAIT_IF_FULL)))
+            error=1;
+	}
+        goto next_block;
+      }
+
       if (block->status != BLOCK_ERROR && page_st != PAGE_READ &&
           (offset || read_length < keycache->key_cache_block_size))
         read_block(keycache, block,
@@ -1900,32 +1985,31 @@ int key_cache_write(KEY_CACHE_HANDLE keycache,
         break;
       }
 
-      keycache_pthread_mutex_unlock(&keycache->cache_lock);
+      dec_counter_for_resize_op(keycache);
 
+      keycache_pthread_mutex_unlock(&keycache->cache_lock);
+    
+    next_block:
       buff+= read_length;
       filepos+= read_length;
       offset= 0;
 
     } while ((length-= read_length));
-  }
-  else
-  {
-    /* Key cache is not used */
-    if (dont_write)
-    {
-      if (keycache && keycache->env)
-      {
-        statistic_increment(keycache->env->cache_w_requests,
-                            &keycache->cache_lock);
-        statistic_increment(keycache->env->cache_write,
-                            &keycache->cache_lock);
-      }
-      if (my_pwrite(file, (byte*) buff, length, filepos,
-                    MYF(MY_NABP | MY_WAIT_IF_FULL)))
-        error=1;
-    }
+    goto end;
   }
 
+no_key_cache:
+  /* Key cache is not used */
+  if (dont_write)
+  {
+    keycache->global_cache_w_requests++;
+    keycache->global_cache_write++;
+    if (my_pwrite(file, (byte*) buff, length, filepos,
+		  MYF(MY_NABP | MY_WAIT_IF_FULL)))
+      error=1;
+  }
+
+end:
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("exec",
                test_key_cache(keycache, "end of key_cache_write", 1););
@@ -2007,20 +2091,24 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
                      block->hash_link->diskpos+ block->offset,
                      MYF(MY_NABP | MY_WAIT_IF_FULL));
     keycache_pthread_mutex_lock(&keycache->cache_lock);
-    if (keycache->env)
-      keycache->env->cache_write++;
+    keycache->global_cache_write++;
     if (error)
     {
       block->status|= BLOCK_ERROR;
       if (!last_errno)
         last_errno= errno ? errno : -1;
     }
+    /* 
+      Let to proceed for possible waiting requests to write to the block page.
+      It might happen only during an operation to resize the key cache.
+    */
+    if (block->wqueue[COND_FOR_SAVED].last_thread)
+      release_queue(&block->wqueue[COND_FOR_SAVED]);
     /* type will never be FLUSH_IGNORE_CHANGED here */
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
     {
       keycache->blocks_changed--;
-      if (keycache->env)
-        keycache->env->blocks_changed--;
+      keycache->global_blocks_changed--;
       free_block(keycache, block);
     }
     else
@@ -2053,10 +2141,9 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
     1  error
 */
 
-static int flush_key_blocks_int(KEY_CACHE_HANDLE keycache,
+static int flush_key_blocks_int(KEY_CACHE *keycache,
 				File file, enum flush_type type)
 {
-  KEY_CACHE_VAR *env;
   BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
   DBUG_ENTER("flush_key_blocks_int");
@@ -2161,8 +2248,7 @@ restart:
           {
             /* It's a temporary file */
             keycache->blocks_changed--;
-            if (keycache->env)
-              keycache->env->blocks_changed--;
+	    keycache->global_blocks_changed--;
             free_block(keycache, block);
           }
         }
@@ -2227,9 +2313,6 @@ restart:
     }
   }
 
-  if (type == FLUSH_REMOVE && (env= keycache->env) && (env->action))
-    (*env->action)((void *) env);
-
 #ifndef DBUG_OFF
   DBUG_EXECUTE("check_keycache",
                test_key_cache(keycache, "end of flush_key_blocks", 0););
@@ -2257,18 +2340,20 @@ restart:
     1  error
 */
 
-int flush_key_blocks(KEY_CACHE_HANDLE key_cache,
+int flush_key_blocks(KEY_CACHE *keycache,
                      File file, enum flush_type type)
 {
   int res;
   DBUG_ENTER("flush_key_blocks");
-  DBUG_PRINT("enter", ("key_cache: %lx", key_cache));
+  DBUG_PRINT("enter", ("keycache: %lx", keycache));
 
-  if (!key_cache || !key_cache->disk_blocks)
+  if (keycache->disk_blocks <= 0)
     DBUG_RETURN(0);
-  keycache_pthread_mutex_lock(&key_cache->cache_lock);
-  res= flush_key_blocks_int(key_cache, file, type);
-  keycache_pthread_mutex_unlock(&key_cache->cache_lock);
+  keycache_pthread_mutex_lock(&keycache->cache_lock);
+  inc_counter_for_resize_op(keycache);
+  res= flush_key_blocks_int(keycache, file, type);
+  dec_counter_for_resize_op(keycache);
+  keycache_pthread_mutex_unlock(&keycache->cache_lock);
   DBUG_RETURN(res);
 }
 

@@ -81,7 +81,7 @@ CREATE TABLE `t1` (
   `maxnumrep` int(10) unsigned NOT NULL default '0',
   PRIMARY KEY  (`numeropost`),
   KEY `maxnumrep` (`maxnumrep`)
-) TYPE=MyISAM ROW_FORMAT=FIXED;
+) ENGINE=MyISAM ROW_FORMAT=FIXED;
 INSERT INTO t1 (titre,maxnumrep) VALUES
 ('test1','1'),('test2','2'),('test3','3');
 SELECT SQL_CALC_FOUND_ROWS titre,numeropost,maxnumrep FROM t1 WHERE numeropost IN (1,2) ORDER BY maxnumrep DESC LIMIT 0, 1;
@@ -94,4 +94,18 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 0;
 SELECT FOUND_ROWS();
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 ORDER BY numeropost  LIMIT 0;
 SELECT FOUND_ROWS();
+drop table t1;
+
+#
+# Test problem with impossible WHERE (Bug #1468)
+#
+
+create table t1 (id int, primary key (id));
+insert into t1 values (1), (2), (3), (4), (5);
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 limit 0, 1;
+select FOUND_ROWS();
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 AND 1=2 limit 0, 1;
+select FOUND_ROWS();
+select SQL_CALC_FOUND_ROWS * from t1 where id > 6 limit 0, 1;
+select FOUND_ROWS();
 drop table t1;

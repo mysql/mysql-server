@@ -166,7 +166,7 @@ int mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
-    thd->lex->select_lex.options|=QUERY_NO_INDEX_USED;
+    thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
@@ -351,7 +351,9 @@ int mysql_update(THD *thd,
     This must be before binlog writing and ha_autocommit_...
   */
   if (updated)
+  {
     query_cache_invalidate3(thd, table_list, 1);
+  }
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
@@ -359,6 +361,8 @@ int mysql_update(THD *thd,
   {
     if (mysql_bin_log.is_open())
     {
+      if (error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -468,7 +472,7 @@ int mysql_multi_update(THD *thd,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
-		    result, unit, select_lex, 0);
+		    result, unit, select_lex);
   delete result;
   DBUG_RETURN(res);
 }
@@ -480,7 +484,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0)
+   do_update(1), trans_safe(0), transactional_tables(1)
 {}
 
 
@@ -488,7 +492,8 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   Connect fields with tables and create list of tables that are updated
 */
 
-int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
+int multi_update::prepare(List<Item> &not_used_values,
+			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;
@@ -583,6 +588,27 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
+
+  /*
+    Mark all copies of tables that are updates to ensure that
+    init_read_record() will not try to enable a cache on them
+
+    The problem is that for queries like
+
+    UPDATE t1, t1 AS t2 SET t1.b=t2.c WHERE t1.a=t2.a;
+
+    the row buffer may contain things that doesn't match what is on disk
+    which will cause an error when reading a row.
+    (This issue is mostly relevent for MyISAM tables)
+  */
+  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
+  {
+    TABLE *table=table_ref->table;
+    if (!(tables_to_update & table->map) && 
+	find_real_table_in_list(update_tables, table_ref->db,
+				table_ref->real_name))
+      table->no_cache= 1;			// Disable row cache
+  }
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
@@ -742,7 +768,7 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next)
-    table->table->no_keyread=0;
+    table->table->no_keyread= table->table->no_cache= 0;
 
   if (tmp_tables)
   {
@@ -877,8 +903,11 @@ int multi_update::do_updates(bool from_send_error)
   ha_rows org_updated;
   TABLE *table;
   DBUG_ENTER("do_updates");
+  
 
-  do_update= 0;					// Don't retry this function
+  do_update= 0;					// Don't retry this function  
+  if (!found)
+    DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     table = cur_table->table;
@@ -1004,6 +1033,8 @@ bool multi_update::send_eof()
   {
     if (mysql_bin_log.is_open())
     {
+      if (local_error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && trans_safe)

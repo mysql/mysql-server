@@ -1052,4 +1052,49 @@
       /* Remove an SP from cache */
       void sp_cache_remove(sp_cache **cp, sp_head *sp);
 
---
+
+  - The mysql.proc schema:
+
+    CREATE TABLE proc (
+      db                char(64) binary DEFAULT '' NOT NULL,
+      name              char(64) binary DEFAULT '' NOT NULL,
+      type              enum('FUNCTION','PROCEDURE') NOT NULL,
+      specific_name     char(64) binary DEFAULT '' NOT NULL,
+      language          enum('SQL') DEFAULT 'SQL' NOT NULL,
+      sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
+      is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
+      security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
+      param_list        blob DEFAULT '' NOT NULL,
+      returns           char(64) DEFAULT '' NOT NULL,
+      body              blob DEFAULT '' NOT NULL,
+      definer           char(77) binary DEFAULT '' NOT NULL,
+      created           timestamp,
+      modified          timestamp,
+      sql_mode          set(
+                            'REAL_AS_FLOAT',
+                            'PIPES_AS_CONCAT',
+                            'ANSI_QUOTES',
+                            'IGNORE_SPACE',
+                            'NOT_USED',
+                            'ONLY_FULL_GROUP_BY',
+                            'NO_UNSIGNED_SUBTRACTION',
+                            'NO_DIR_IN_CREATE',
+                            'POSTGRESQL',
+                            'ORACLE',
+                            'MSSQL',
+                            'DB2',
+                            'MAXDB',
+                            'NO_KEY_OPTIONS',
+                            'NO_TABLE_OPTIONS',
+                            'NO_FIELD_OPTIONS',
+                            'MYSQL323',
+                            'MYSQL40',
+                            'ANSI',
+                            'NO_AUTO_VALUE_ON_ZERO'
+                        ) DEFAULT 0 NOT NULL,
+      comment           char(64) binary DEFAULT '' NOT NULL,
+      PRIMARY KEY (db,name,type)
+    ) comment='Stored Procedures';
+        
+ --
+ 

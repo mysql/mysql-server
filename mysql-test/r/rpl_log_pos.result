@@ -5,38 +5,38 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.000001	79		
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	95		
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	79	slave-relay-bin.000002	123	master-bin.000001	Yes	Yes							0		0	79	123	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	95	#	#	master-bin.000001	Yes	Yes							0		0	95	#	None		0	No						#
 stop slave;
 change master to master_log_pos=73;
 start slave;
 stop slave;
 change master to master_log_pos=73;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	73	slave-relay-bin.000001	4	master-bin.000001	No	No							0		0	73	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	73	#	#	master-bin.000001	No	No							0		0	73	#	None		0	No						#
 start slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	73	slave-relay-bin.000001	48	master-bin.000001	No	Yes							0		0	73	48	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	73	#	#	master-bin.000001	No	Yes							0		0	73	#	None		0	No						#
 stop slave;
 change master to master_log_pos=173;
 start slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	173	slave-relay-bin.000001	4	master-bin.000001	No	Yes							0		0	173	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	173	#	#	master-bin.000001	No	Yes							0		0	173	#	None		0	No						#
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.000001	79		
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	95		
 create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
 stop slave;
-change master to master_log_pos=79;
+change master to master_log_pos=95;
 start slave;
 select * from t1;
 n

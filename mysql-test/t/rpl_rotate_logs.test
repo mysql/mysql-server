@@ -55,7 +55,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 select * from t1;
 connection master;
@@ -101,13 +101,14 @@ show master logs;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
 show binary logs;
---sleep 1;
+# sleeping 10 seconds or more would make the slave believe connection is down
+--real_sleep 1;
 purge master logs before now();
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 select * from t2;
 
@@ -129,6 +130,7 @@ while ($1)
  dec $1;
 }
 enable_query_log;
+select count(*) from t3 where n >= 4;
 create table t4 select * from temp_table;
 show binary logs;
 show master status;
@@ -138,7 +140,7 @@ sync_with_master;
 select * from t4;
 
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock

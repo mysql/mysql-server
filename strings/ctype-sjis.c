@@ -191,7 +191,7 @@ static int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (issjishead((uchar) c) ? 2: 0);
+  return (issjishead((uchar) c) ? 2 : 1);
 }
 
 
@@ -4428,22 +4428,23 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if(wc<0x80)
+  if ((int) wc < 0x80)
   {
-    s[0]=wc;
+    s[0]= (uchar) wc;
     return 1;
   }
   
-  if(!(code=func_uni_sjis_onechar(wc)))
+  if (!(code=func_uni_sjis_onechar(wc)))
     return MY_CS_ILUNI;
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOSMALL;
   
   s[0]=code>>8;
   s[1]=code&0xFF;
   return 2;
 }
+
 
 static int 
 my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
@@ -4453,16 +4454,16 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOFEW(0);
   
-  if(hi<0x80)
+  if (hi<0x80)
   {
     pwc[0]=hi;
     return 1;
   }
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOFEW(0);
   
-  if(!(pwc[0]=func_sjis_uni_onechar((hi<<8)+s[1])))
+  if (!(pwc[0]=func_sjis_uni_onechar((hi<<8)+s[1])))
     return MY_CS_ILSEQ;
   
   return 2;
@@ -4480,6 +4481,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_instr_mb,
   my_hash_sort_simple,
 };
+
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {

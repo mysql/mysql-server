@@ -28,5 +28,4 @@ extern void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
 extern void *create_embedded_thd(int client_flag, char *db);
 extern MYSQL_METHODS embedded_methods;
 void free_old_query(MYSQL *mysql);
-extern my_bool server_inited;
 C_MODE_END

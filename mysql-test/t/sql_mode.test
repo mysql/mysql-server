@@ -8,7 +8,7 @@ CREATE TABLE `t1` (
   `email` varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  (a),
   UNIQUE KEY `email` USING BTREE (`email`) 
-) TYPE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
+) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
 show variables like 'sql_mode';
 show create table t1;

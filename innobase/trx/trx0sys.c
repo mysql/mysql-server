@@ -434,7 +434,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 		  	fprintf(stderr,
 "InnoDB: Warning: a page in the doublewrite buffer is not within space\n"
 "InnoDB: bounds; space id %lu page number %lu, page %lu in doublewrite buf.\n",
-				space_id, page_no, i);
+				(ulong) space_id, (ulong) page_no, (ulong) i);
 		
 		} else if (space_id == TRX_SYS_SPACE
 		    && (  (page_no >= block1
@@ -457,7 +457,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 
 		  		fprintf(stderr,
 		"InnoDB: Warning: database page corruption or a failed\n"
-		"InnoDB: file read of page %lu.\n", page_no);
+		"InnoDB: file read of page %lu.\n", (ulong) page_no);
 		  		fprintf(stderr,
 		"InnoDB: Trying to recover it from the doublewrite buffer.\n");
 				
@@ -589,7 +589,7 @@ trx_sys_update_mysql_binlog_offset(
 
 		mlog_write_string(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_NAME,
-			file_name, 1 + ut_strlen(file_name), mtr);
+			(byte*) file_name, 1 + ut_strlen(file_name), mtr);
 	}
 
 	if (mach_read_from_4(sys_header + field
@@ -628,9 +628,9 @@ trx_sys_print_mysql_binlog_offset_from_page(
 
 		printf(
 	"ibbackup: Last MySQL binlog file position %lu %lu, file name %s\n",
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 	}
@@ -662,9 +662,9 @@ trx_sys_print_mysql_binlog_offset(void)
 
 	fprintf(stderr,
 	"InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 
@@ -698,9 +698,9 @@ trx_sys_print_mysql_master_log_pos(void)
 	fprintf(stderr,
 "InnoDB: In a MySQL replication slave the last master binlog file\n"
 "InnoDB: position %lu %lu, file name %s\n",
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 						+ TRX_SYS_MYSQL_LOG_NAME);
@@ -872,12 +872,12 @@ trx_sys_init_at_db_start(void)
 		fprintf(stderr,
 "InnoDB: %lu transaction(s) which must be rolled back or cleaned up\n"
 "InnoDB: in total %lu%s row operations to undo\n",
-				UT_LIST_GET_LEN(trx_sys->trx_list),
-				(ulint)rows_to_undo, unit);
+				(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
+				(ulong) rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n", 
-			ut_dulint_get_high(trx_sys->max_trx_id),
-			ut_dulint_get_low(trx_sys->max_trx_id));
+			(ulong) ut_dulint_get_high(trx_sys->max_trx_id),
+			(ulong) ut_dulint_get_low(trx_sys->max_trx_id));
 	}
 
 	UT_LIST_INIT(trx_sys->view_list);

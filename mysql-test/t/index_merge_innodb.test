@@ -14,7 +14,7 @@ create table t1
   
   INDEX i1(key1),
   INDEX i2(key2),
-) type=innodb;
+) engine=innodb;
 
 --disable_query_log
 let $1=200;

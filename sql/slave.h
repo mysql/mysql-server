@@ -67,11 +67,6 @@ extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
 
-enum enum_binlog_formats {
-  BINLOG_FORMAT_CURRENT=0, /* 0 is important for easy 'if (mi->old_format)' */
-  BINLOG_FORMAT_323_LESS_57, 
-  BINLOG_FORMAT_323_GEQ_57 };
-
 /*
   TODO: this needs to be redone, but for now it does not matter since
   we do not have multi-master yet.
@@ -186,6 +181,8 @@ typedef struct st_relay_log_info
   ulonglong group_relay_log_pos;
   char event_relay_log_name[FN_REFLEN];
   ulonglong event_relay_log_pos;
+  ulonglong future_event_relay_log_pos;
+
   /* 
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)
@@ -207,11 +204,13 @@ typedef struct st_relay_log_info
 
   /*
     InnoDB internally stores the master log position it has processed
-    so far; the position to store is really the sum of 
-    pos + pending + event_len here since we must store the pos of the
-    END of the current log event
+    so far; when the InnoDB code to store this position is called, we have not
+    updated rli->group_master_log_pos yet. So the position is the event's
+    log_pos (the position of the end of the event); we save it in the variable
+    below. It's the *coming* group_master_log_pos (the one which will be
+    group_master_log_pos in the coming milliseconds).
   */
-  int event_len;
+  ulonglong future_group_master_log_pos;
 
   time_t last_master_timestamp; 
 
@@ -285,16 +284,17 @@ typedef struct st_relay_log_info
       until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
   }
   
-  inline void inc_event_relay_log_pos(ulonglong val)
+  inline void inc_event_relay_log_pos()
   {
-    event_relay_log_pos+= val;
+    event_relay_log_pos= future_event_relay_log_pos;
   }
 
-  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
+  void inc_group_relay_log_pos(ulonglong log_pos,
+                               bool skip_lock=0)  
   {
     if (!skip_lock)
       pthread_mutex_lock(&data_lock);
-    inc_event_relay_log_pos(val);
+    inc_event_relay_log_pos();
     group_relay_log_pos= event_relay_log_pos;
     strmake(group_relay_log_name,event_relay_log_name,
             sizeof(group_relay_log_name)-1);
@@ -311,8 +311,31 @@ typedef struct st_relay_log_info
       not advance as it should on the non-transactional slave (it advances by
       big leaps, whereas it should advance by small leaps).
     */
-    if (log_pos) // 3.23 binlogs don't have log_posx
-      group_master_log_pos= log_pos+ val;
+    /*
+      In 4.x we used the event's len to compute the positions here. This is
+      wrong if the event was 3.23/4.0 and has been converted to 5.0, because
+      then the event's len is not what is was in the master's binlog, so this
+      will make a wrong group_master_log_pos (yes it's a bug in 3.23->4.0
+      replication: Exec_master_log_pos is wrong). Only way to solve this is to
+      have the original offset of the end of the event the relay log. This is
+      what we do in 5.0: log_pos has become "end_log_pos" (because the real use
+      of log_pos in 4.0 was to compute the end_log_pos; so better to store
+      end_log_pos instead of begin_log_pos.
+      If we had not done this fix here, the problem would also have appeared
+      when the slave and master are 5.0 but with different event length (for
+      example the slave is more recent than the master and features the event
+      UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
+      SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
+      value which would lead to badly broken replication.
+      Even the relay_log_pos will be corrupted in this case, because the len is
+      the relay log is not "val".
+      With the end_log_pos solution, we avoid computations involving lengthes.
+    */
+    DBUG_PRINT("info", ("log_pos=%lld group_master_log_pos=%lld",
+                        log_pos,group_master_log_pos));
+    if (log_pos) // some events (like fake Rotate) don't have log_pos
+      // when we are here, log_pos is the end of the event
+      group_master_log_pos= log_pos;
     pthread_cond_broadcast(&data_cond);
     if (!skip_lock)
       pthread_mutex_unlock(&data_lock);
@@ -389,7 +412,6 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  enum enum_binlog_formats old_format;
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
   /* 
@@ -404,7 +426,7 @@ typedef struct st_master_info
   long clock_diff_with_master; 
   
   st_master_info()
-    :ssl(0), fd(-1),  io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
+    :ssl(0), fd(-1),  io_thd(0), inited(0),
      abort_slave(0),slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
@@ -461,7 +483,7 @@ typedef struct st_table_rule_ent
 
 int init_slave();
 void init_slave_skip_errors(const char* arg);
-bool flush_master_info(MASTER_INFO* mi);
+bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache);
 bool flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
@@ -535,10 +557,12 @@ void lock_slave_threads(MASTER_INFO* mi);
 void unlock_slave_threads(MASTER_INFO* mi);
 void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse);
 int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
-		       bool need_data_lock, const char** errmsg);
+		       bool need_data_lock, const char** errmsg,
+                       bool look_for_description_event);
 
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
+void set_slave_thread_options(THD* thd);
 void rotate_relay_log(MASTER_INFO* mi);
 
 extern "C" pthread_handler_decl(handle_slave_io,arg);

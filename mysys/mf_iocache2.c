@@ -66,6 +66,13 @@ my_off_t my_b_append_tell(IO_CACHE* info)
   return res;
 }
 
+my_off_t my_b_safe_tell(IO_CACHE *info)
+{
+  if (unlikely(info->type == SEQ_READ_APPEND))
+    return my_b_append_tell(info);
+  return my_b_tell(info);
+}
+
 /*
   Make next read happen at the given position
   For write cache, make next write happen at the given position

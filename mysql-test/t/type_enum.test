@@ -24,3 +24,24 @@ drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 drop table t1;
+
+#
+# Tests of wrong enum values (bug #2023)
+#
+
+create table t1 (a enum ('0','1'));
+insert into t1 set a='foobar';
+select * from t1;
+update t1 set a = replace(a,'x','y');
+select * from t1;
+drop table t1;
+
+#
+# Bug #2077
+#
+
+set names latin1;
+create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
+show columns from t1;
+show create table t1;
+drop table t1;

@@ -289,7 +289,7 @@ TODO list:
 
       if (thd->temp_tables || global_merge_table_count)
 
-    - Another option would be to set thd->lex.safe_to_cache_query to 0
+    - Another option would be to set thd->lex->safe_to_cache_query to 0
       in 'get_lock_data' if any of the tables was a tmp table or a
       MRG_ISAM table.
       (This could be done with almost no speed penalty)
@@ -1211,9 +1211,29 @@ void Query_cache::invalidate(char *db)
     if (query_cache_size > 0)
     {
       DUMP(this);
-	/* invalidate_table reduce list while only root of list remain */
-      while (tables_blocks !=0 )
-	invalidate_table(tables_blocks);
+  restart_search:
+      if (tables_blocks)
+      {
+	Query_cache_block *curr= tables_blocks;
+	Query_cache_block *next;
+	do
+	{
+	  next= curr->next;
+	  if (strcmp(db, (char*)(curr->table()->db())) == 0)
+	    invalidate_table(curr);
+	  /*
+	    invalidate_table can freed block on which point 'next' (if
+	    table of this block used only in queries which was deleted
+	    by invalidate_table). As far as we do not allocate new blocks
+	    and mark all headers of freed blocks as 'FREE' (even if they are
+	    merged with other blocks) we can just test type of block
+	    to be sure that block is not deleted
+	  */
+	  if (next->type == Query_cache_block::FREE)
+	    goto restart_search;
+	  curr= next;
+	} while (curr != tables_blocks);
+      }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
   }
@@ -2223,9 +2243,11 @@ void Query_cache::free_memory_block(Query_cache_block *block)
 {
   DBUG_ENTER("Query_cache::free_memory_block");
   block->used=0;
-  DBUG_PRINT("qcache",("first_block 0x%lx, block 0x%lx, pnext 0x%lx pprev 0x%lx",
-		     (ulong) first_block, (ulong) block,block->pnext,
-		     (ulong) block->pprev));
+  block->type= Query_cache_block::FREE; // mark block as free in any case
+  DBUG_PRINT("qcache",
+	     ("first_block 0x%lx, block 0x%lx, pnext 0x%lx pprev 0x%lx",
+	      (ulong) first_block, (ulong) block, (ulong) block->pnext,
+	      (ulong) block->pprev));
 
   if (block->pnext != first_block && block->pnext->is_free())
     block = join_free_blocks(block, block->pnext);

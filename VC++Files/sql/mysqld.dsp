@@ -466,20 +466,14 @@ SOURCE=.\item_func.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
 
-# ADD CPP /G5 /I "../zlib"
+# ADD CPP /G5
 # SUBTRACT CPP /YX /Yc /Yu
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
 
-# ADD CPP /I "../zlib"
-
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
 
-# ADD CPP /I "../zlib"
-
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
-
-# ADD CPP /I "../zlib"
 
 !ENDIF
 
@@ -789,6 +783,10 @@ SOURCE=.\protocol.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\protocol_cursor.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\records.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -818,6 +816,26 @@ SOURCE=.\set_var.cpp
 # Begin Source File
 
 SOURCE=.\slave.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp_cache.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp_head.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp_pcontext.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp_rcontext.cpp
 # End Source File
 # Begin Source File
 

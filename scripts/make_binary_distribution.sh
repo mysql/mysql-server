@@ -87,7 +87,7 @@ done
 
 # Non platform-specific doc files:
 DOC_FILES=" \
-  COPYING COPYING.LIB README LICENSE.doc \
+  COPYING README LICENSE.doc \
   Docs/mysqlbug.txt \ 
 ";
 

@@ -61,10 +61,11 @@ typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr
 {
   FTB_EXPR *up;
-  byte     *quot, *qend;
-  my_off_t  docid[2];             /* for index search and for scan */
+  my_off_t  docid[2];
+/* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   float     weight;
   float     cur_weight;
+  byte     *quot, *qend;
   uint      flags;
   uint      yesses;               /* number of "yes" words matched */
   uint      nos;                  /* number of "no"  words matched */
@@ -77,6 +78,7 @@ typedef struct st_ftb_word
   FTB_EXPR  *up;
   MI_KEYDEF *keyinfo;
   my_off_t   docid[2];             /* for index search and for scan */
+/* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   my_off_t   key_root;
   float      weight;
   uint       ndepth;
@@ -166,11 +168,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw->word[0]=w.len;
         if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
-#ifdef TO_BE_REMOVED
-        /* after removing the following line,
-           ftb->with_scan handling can be simplified (no longer a bitmap) */
         ftb->with_scan|=(param.trunc & FTB_FLAG_TRUNC);
-#endif
         break;
       case 2: /* left bracket */
         ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
@@ -251,7 +249,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     }
 
     /* going up to the first-level tree to continue search there */
-    _mi_dpointer(info, ftbw->word+ftbw->off+HA_FT_WLEN, ftbw->key_root);
+    _mi_dpointer(info, (uchar*) (ftbw->word+ftbw->off+HA_FT_WLEN),
+		 ftbw->key_root);
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;
@@ -298,13 +297,15 @@ static void _ftb_init_index_search(FT_INFO *ftb)
     if (ftbw->flags & FTB_FLAG_TRUNC)
     {
       /*
-	special treatment for truncation operator :((
-        1. +trunc* and there're other (not +trunc*) words
+	special treatment for truncation operator
+        1. there are some (besides this) +words
            | no need to search in the index, it can never ADD new rows
            | to the result, and to remove half-matched rows we do scan anyway
         2. -trunc*
            | same as 1.
-        3. trunc*
+        3. in 1 and 2, +/- need not be on the same expr. level,
+           but can be on any upper level, as in +word +(trunc1* trunc2*)
+        4. otherwise
            | We have to index-search for this prefix.
            | It may cause duplicates, as in the index (sorted by <word,docid>)
            |   <aaaa,row1>
@@ -312,22 +313,31 @@ static void _ftb_init_index_search(FT_INFO *ftb)
            |   <aacc,row1>
            | Searching for "aa*" will find row1 twice...
       */
-      if ( test(ftbw->flags&FTB_FLAG_NO) ||                 /* 2 */
-          (test(ftbw->flags&FTB_FLAG_YES) &&                /* 1 */
-           ftbw->up->ythresh - ftbw->up->yweaks >1))        /* 1 */
+      FTB_EXPR *ftbe;
+      for (ftbe=(FTB_EXPR*)ftbw;
+           ftbe->up && !(ftbe->up->flags & FTB_FLAG_TRUNC);
+           ftbe->up->flags|= FTB_FLAG_TRUNC, ftbe=ftbe->up)
       {
-        ftbw->docid[0]=HA_POS_ERROR;
-        ftbw->up->yweaks++;
+        if (ftbe->flags & FTB_FLAG_NO ||                     /* 2 */
+             ftbe->up->ythresh - ftbe->up->yweaks >1)        /* 1 */
+        {
+          FTB_EXPR *top_ftbe=ftbe->up->up;
+          ftbw->docid[0]=HA_POS_ERROR;
+          for (ftbe=ftbw->up; ftbe != top_ftbe; ftbe=ftbe->up)
+            if (ftbe->flags & FTB_FLAG_YES)
+              ftbe->yweaks++;
+          ftbe=0;
+          break;
+        }
+      }
+      if (!ftbe)
         continue;
-      }
-      else /* 3 */
-      {
-        if (!is_tree_inited(& ftb->no_dupes))
-          init_tree(&ftb->no_dupes,0,0,sizeof(my_off_t),
-		    _ftb_no_dupes_cmp, 0, NULL, NULL);
-        else
-          reset_tree(& ftb->no_dupes);
-      }
+      /* 3 */
+      if (!is_tree_inited(& ftb->no_dupes))
+        init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
+            _ftb_no_dupes_cmp,0,0,0);
+      else
+        reset_tree(& ftb->no_dupes);
     }
 
     if (_ft2_search(ftb, ftbw, 1))
@@ -363,10 +373,13 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     to alloc queue with alloc_root()
   */
   res=ftb->queue.max_elements=1+query_len/(min(ft_min_word_len,2)+1);
-  ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
+  if (!(ftb->queue.root=
+        (byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*))))
+    goto err;
   reinit_queue(& ftb->queue, res, 0, 0,
                          (int (*)(void*,byte*,byte*))FTB_WORD_cmp, 0);
-  ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
+  if (!(ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
+    goto err;
   ftbe->weight=1;
   ftbe->flags=FTB_FLAG_YES;
   ftbe->nos=1;
@@ -384,6 +397,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
   ftb->state=READY;
   return ftb;
+err:
+  free_root(& ftb->mem_root, MYF(0));
+  my_free((gptr)ftb,MYF(0));
+  return 0;
 }
 
 

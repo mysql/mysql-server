@@ -18,6 +18,7 @@
 
 #include "heapdef.h"
 #include <m_ctype.h>
+#include <assert.h>
 
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       uint start_key_len,
@@ -566,50 +567,87 @@ my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
   return 0;
 }
 
+
+/*
+  Update auto_increment info
+
+  SYNOPSIS
+    update_auto_increment()
+    info			MyISAM handler
+    record			Row to update
+
+  IMPLEMENTATION
+    Only replace the auto_increment value if it is higher than the previous
+    one. For signed columns we don't update the auto increment value if it's
+    less than zero.
+*/
+
 void heap_update_auto_increment(HP_INFO *info, const byte *record)
 {
-  ulonglong value;
+  ulonglong value= 0;			/* Store unsigned values here */
+  longlong s_value= 0;			/* Store signed values here */
+
   HA_KEYSEG *keyseg= info->s->keydef[info->s->auto_key - 1].seg;
   const uchar *key=  (uchar*) record + keyseg->start;
 
   switch (info->s->auto_key_type) {
   case HA_KEYTYPE_INT8:
+    s_value= (longlong) *(char*)key;
+    break;
   case HA_KEYTYPE_BINARY:
-    value= (ulonglong) *(uchar*) key;
+    value=(ulonglong)  *(uchar*) key;
     break;
   case HA_KEYTYPE_SHORT_INT:
+    s_value= (longlong) sint2korr(key);
+    break;
   case HA_KEYTYPE_USHORT_INT:
-    value= (ulonglong) uint2korr(key);
+    value=(ulonglong) uint2korr(key);
     break;
   case HA_KEYTYPE_LONG_INT:
+    s_value= (longlong) sint4korr(key);
+    break;
   case HA_KEYTYPE_ULONG_INT:
-    value= (ulonglong) uint4korr(key);
+    value=(ulonglong) uint4korr(key);
     break;
   case HA_KEYTYPE_INT24:
-  case HA_KEYTYPE_UINT24:
-    value= (ulonglong) uint3korr(key);
+    s_value= (longlong) sint3korr(key);
     break;
-  case HA_KEYTYPE_FLOAT:			/* This shouldn't be used */
+  case HA_KEYTYPE_UINT24:
+    value=(ulonglong) uint3korr(key);
+    break;
+  case HA_KEYTYPE_FLOAT:                        /* This shouldn't be used */
   {
     float f_1;
-    float4get(f_1, key);
-    value= (ulonglong) f_1;
+    float4get(f_1,key);
+    /* Ignore negative values */
+    value = (f_1 < (float) 0.0) ? 0 : (ulonglong) f_1;
     break;
   }
-  case HA_KEYTYPE_DOUBLE:			/* This shouldn't be used */
+  case HA_KEYTYPE_DOUBLE:                       /* This shouldn't be used */
   {
     double f_1;
-    float8get(f_1, key);
-    value= (ulonglong) f_1;
+    float8get(f_1,key);
+    /* Ignore negative values */
+    value = (f_1 < 0.0) ? 0 : (ulonglong) f_1;
     break;
   }
   case HA_KEYTYPE_LONGLONG:
+    s_value= sint8korr(key);
+    break;
   case HA_KEYTYPE_ULONGLONG:
     value= uint8korr(key);
     break;
   default:
-    value= 0;					/* Error */
+    DBUG_ASSERT(0);
+    value=0;                                    /* Error */
     break;
   }
-  set_if_bigger(info->s->auto_increment, value);
+
+  /*
+    The following code works becasue if s_value < 0 then value is 0
+    and if s_value == 0 then value will contain either s_value or the
+    correct value.
+  */
+  set_if_bigger(info->s->auto_increment,
+                (s_value > 0) ? (ulonglong) s_value : value);
 }

@@ -177,7 +177,7 @@ struct st_vio
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
   int     (*read)(Vio*, gptr, int);
-  int     (*write)(Vio*, gptr, int);
+  int     (*write)(Vio*, const gptr, int);
   int     (*vioblocking)(Vio*, my_bool, my_bool *);
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);

@@ -14,6 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  Mostly this file is used in the server. But a little part of it is used in
+  mysqlbinlog too (definition of SELECT_DISTINCT and others).
+  The consequence is that 90% of the file is wrapped in #ifndef MYSQL_CLIENT,
+  except the part which must be in the server and in the client.
+*/
+
+#ifndef MYSQL_CLIENT
+
 #include <my_global.h>
 #include <assert.h>
 #include <mysql_version.h>
@@ -119,6 +128,26 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
 
 /*
+  Number of comparisons of table rowids equivalent to reading one row from a 
+  table.
+*/
+#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+
+/*
+  For sequential disk seeks the cost formula is:
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip  
+  
+  The cost of average seek 
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
+*/
+#define DISK_SEEK_BASE_COST ((double)0.5)
+
+#define BLOCKS_IN_AVG_SEEK  128
+
+#define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
+
+
+/*
   Number of rows in a reference table when refereed through a not unique key.
   This value is only used when we don't know anything about the key
   distribution.
@@ -176,51 +205,57 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
 
-/* options for select set by the yacc parser (stored in lex->options) */
-#define SELECT_DISTINCT		1
-#define SELECT_STRAIGHT_JOIN	2
-#define SELECT_DESCRIBE		4
-#define SELECT_SMALL_RESULT	8
-#define SELECT_BIG_RESULT	16
-#define OPTION_FOUND_ROWS	32
-#define OPTION_TO_QUERY_CACHE   64
-#define SELECT_NO_JOIN_CACHE	256		/* Intern */
+#endif
 
-#define OPTION_BIG_TABLES	512		/* for SQL OPTION */
-#define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
-#define OPTION_LOG_OFF		2048
-#define OPTION_UPDATE_LOG	4096		/* update log flag */
-#define TMP_TABLE_ALL_COLUMNS	8192
-#define OPTION_WARNINGS		16384
-#define OPTION_AUTO_IS_NULL	32768
-#define OPTION_FOUND_COMMENT	65536L
-#define OPTION_SAFE_UPDATES	OPTION_FOUND_COMMENT*2
-#define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
-#define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
-#define OPTION_NOT_AUTOCOMMIT	OPTION_BIN_LOG*2
-#define OPTION_BEGIN		OPTION_NOT_AUTOCOMMIT*2
-#define OPTION_TABLE_LOCK	OPTION_BEGIN*2
-#define OPTION_QUICK		OPTION_TABLE_LOCK*2
-#define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
-#define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
+/* 
+   This is included in the server and in the client.
+   Options for select set by the yacc parser (stored in lex->options).
+   None of the 32 defines below should have its value changed, or this will
+   break replication.
+*/
 
-/* options for UNION set by the yacc parser (stored in unit->union_option) */
-#define UNION_ALL		1
+#define SELECT_DISTINCT		(1L << 0)
+#define SELECT_STRAIGHT_JOIN	(1L << 1)
+#define SELECT_DESCRIBE		(1L << 2)
+#define SELECT_SMALL_RESULT	(1L << 3)
+#define SELECT_BIG_RESULT	(1L << 4)
+#define OPTION_FOUND_ROWS	(1L << 5)
+#define OPTION_TO_QUERY_CACHE   (1L << 6)
+#define SELECT_NO_JOIN_CACHE	(1L << 7)       /* Intern */
+#define OPTION_BIG_TABLES       (1L << 8)       /* for SQL OPTION */
+#define OPTION_BIG_SELECTS      (1L << 9)       /* for SQL OPTION */
+#define OPTION_LOG_OFF          (1L << 10)
+#define OPTION_UPDATE_LOG       (1L << 11)      /* update log flag */
+#define TMP_TABLE_ALL_COLUMNS   (1L << 12)
+#define OPTION_WARNINGS         (1L << 13)
+#define OPTION_AUTO_IS_NULL     (1L << 14)
+#define OPTION_FOUND_COMMENT    (1L << 15)
+#define OPTION_SAFE_UPDATES     (1L << 16)
+#define OPTION_BUFFER_RESULT    (1L << 17)
+#define OPTION_BIN_LOG          (1L << 18)
+#define OPTION_NOT_AUTOCOMMIT   (1L << 19)
+#define OPTION_BEGIN            (1L << 20)
+#define OPTION_TABLE_LOCK       (1L << 21)
+#define OPTION_QUICK            (1L << 22)
+#define OPTION_QUOTE_SHOW_CREATE (1L << 23)
+#define OPTION_INTERNAL_SUBTRANSACTIONS (1L << 24)
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE 	OPTION_INTERNAL_SUBTRANSACTIONS*2
+#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25)
 
-/* The following is set when parsing the query */
-#define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
-#define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS	QUERY_NO_GOOD_INDEX_USED*2
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26)
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS	OPTION_NO_FOREIGN_KEY_CHECKS*2
-#define SELECT_NO_UNLOCK	((ulong) OPTION_RELAXED_UNIQUE_CHECKS*2)
-/* NOTE: we have now used up all 32 bits of the OPTION flag! */
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
+#define SELECT_NO_UNLOCK                (1L << 28)
+
+/* The rest of the file is included in the server only */
+#ifndef MYSQL_CLIENT
+
+/* options for UNION set by the yacc parser (stored in unit->union_option) */
+#define UNION_ALL               1
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
@@ -287,6 +322,11 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 
 #define tmp_file_prefix "#sql"			/* Prefix for tmp tables */
 #define tmp_file_prefix_length 4
+
+/* Flags for calc_week() function.  */
+#define WEEK_MONDAY_FIRST    1
+#define WEEK_YEAR            2
+#define WEEK_FIRST_WEEKDAY   4
 
 struct st_table;
 class THD;
@@ -423,6 +463,7 @@ int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *dummy);
 #else
@@ -432,23 +473,15 @@ bool check_stack_overrun(THD *thd,char *dummy);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
-void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
-                        KEY_CACHE_VAR *new_key_cache);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
                           bool *write_to_binlog);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
-#else
-#define check_access(thd, access, db, save_priv, no_grant, no_errors) false
-#define  check_table_access(thd, want_access, tables, no_errors) false
-#define check_global_access(thd, want_access) false
-#endif
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
@@ -466,8 +499,8 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 			     LEX_STRING *key_cache_name);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR *src_cache,
-                             KEY_CACHE_VAR *dst_cache);
+int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
+                             KEY_CACHE *dst_cache);
 
 bool check_simple_select();
 
@@ -484,7 +517,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 COND *conds, uint og_num, ORDER *order, ORDER *group,
 		 Item *having, ORDER *proc_param, ulong select_type, 
 		 select_result *result, SELECT_LEX_UNIT *unit, 
-		 SELECT_LEX *select_lex,  bool tables_and_fields_initied);
+		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
 void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
@@ -493,7 +526,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex, select_result *result,
-		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+		SELECT_LEX_UNIT *unit);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
@@ -544,7 +577,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
 void kill_delayed_threads(void);
-int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
+int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
@@ -561,6 +594,8 @@ bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex);
 extern const Field *not_found_field;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    TABLE_LIST **where, bool report_error);
@@ -611,14 +646,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		pthread_mutex_t *mutex);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
-int mysqld_show_table_types(THD *thd);
+int mysqld_show_storage_engines(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key);
-void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
@@ -677,7 +710,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
-void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
@@ -854,24 +886,22 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t      LOCK_grant;
+extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
-extern String my_null_string;
+extern const String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
-extern struct show_table_type_st table_type_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
-extern KEY_CACHE_VAR *sql_key_cache;
-extern KEY_CACHE_HANDLE sql_key_cache_handle;
+extern KEY_CACHE *sql_key_cache;
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
@@ -985,8 +1015,7 @@ void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
-	       uint *year);
+uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
@@ -1110,3 +1139,5 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
 }
+
+#endif /* MYSQL_CLIENT */

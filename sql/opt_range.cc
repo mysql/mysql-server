@@ -68,7 +68,7 @@ public:
   {}
   inline bool is_same(SEL_ARG *arg)
   {
-    if (type != arg->type)
+    if (type != arg->type || part != arg->part)
       return 0;
     if (type != KEY_RANGE)
       return 1;
@@ -274,7 +274,11 @@ class SEL_TREE :public Sql_alloc
 public:
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
-  SEL_TREE() :type(KEY) { keys_map.clear_all(); bzero((char*) keys,sizeof(keys));}
+  SEL_TREE() :type(KEY) 
+  {
+    keys_map.clear_all(); 
+    bzero((char*) keys,sizeof(keys));
+  }
   SEL_ARG *keys[MAX_KEY];
   key_map keys_map;        /* bitmask of non-NULL elements in keys         */
   List<SEL_IMERGE> merges; /* possible ways to read rows using index_merge */
@@ -292,6 +296,9 @@ typedef struct st_qsel_param {
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
+
+  uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
+  uint imerge_cost_buff_size; /* size of the buffer */
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
@@ -306,13 +313,20 @@ static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 				char *max_key, uint max_key_flag);
 
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
-                                     SEL_ARG *key_tree, MEM_ROOT *alloc = NULL);
-static int get_quick_select_params(SEL_TREE *tree, PARAM& param,
-                                   key_map& needed_reg, TABLE *head,
+                                     SEL_ARG *key_tree, 
+                                     MEM_ROOT *alloc = NULL);
+static int get_quick_select_params(SEL_TREE *tree, PARAM *param,
+                                   key_map& needed_reg,
                                    bool index_read_can_be_used,
-                                   double* read_time, 
-                                   ha_rows* records,
+                                   double *read_time, 
+                                   ha_rows *records,
                                    SEL_ARG*** key_to_read);
+static int get_index_merge_params(PARAM *param, key_map& needed_reg,
+                           SEL_IMERGE *imerge, double *read_time, 
+                           ha_rows* imerge_rows);
+inline double get_index_only_read_time(PARAM* param, ha_rows records, 
+                                       int keynr);
+
 #ifndef DBUG_OFF
 static void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick,
                                    const key_map *needed_reg);
@@ -332,7 +346,8 @@ bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
-static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length);
+static bool null_part_in_key(KEY_PART *key_part, const char *key, 
+                             uint length);
 bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param);
 
 
@@ -453,7 +468,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree)
     }
   }
 
-  /* new tree cannot be combined with any of existing trees */
+  /* New tree cannot be combined with any of existing trees. */
   return or_sel_tree(param, new_tree);
 }
 
@@ -482,8 +497,7 @@ int SEL_IMERGE::or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge)
 
 
 /* 
-  Perform AND operation on two index_merge lists, storing result in *im1.
-
+  Perform AND operation on two index_merge lists and store result in *im1.
 */
 
 inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2)
@@ -503,18 +517,16 @@ inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2)
     i.e. all conjuncts except the first one are currently dropped. 
     This is done to avoid producing N*K ways to do index_merge.
 
-    If (a_1||b_1) produce a condition that is always true, NULL is 
-    returned and index_merge is discarded. (while it is actually 
-    possible to try harder).
+    If (a_1||b_1) produce a condition that is always true, NULL is returned
+    and index_merge is discarded (while it is actually possible to try 
+    harder).
 
-    As a consequence of this, choice of keys to do index_merge 
-    read may depend on the order of conditions in WHERE part of 
-    the query.
+    As a consequence of this, choice of keys to do index_merge read may depend
+    on the order of conditions in WHERE part of the query.
 
   RETURN
-    0     OK, result is stored in *im1 
+    0     OK, result is stored in *im1
     other Error, both passed lists are unusable
-
 */
 
 int imerge_list_or_list(PARAM *param, 
@@ -533,7 +545,7 @@ int imerge_list_or_list(PARAM *param,
   Perform OR operation on index_merge list and key tree.
 
   RETURN
-    0     OK, result is stored in *im1 
+    0     OK, result is stored in *im1.
     other Error
   
 */
@@ -617,10 +629,11 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr, 
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),error(0),it(ranges),range(0)
+  :dont_free(0),error(0),cur_range(NULL),range(0)
 {
   index= key_nr;
   head=  table;
+  my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
   if (!no_alloc && !parent_alloc)
   {
@@ -640,47 +653,67 @@ int QUICK_RANGE_SELECT::init()
 }
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
-{
+{  
   if (!dont_free)
   {
     file->index_end();
+    delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
   }
 }
 
 
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table)
-  :cur_quick_it(quick_selects), index_merge(thd)
+QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param, 
+                                                   TABLE *table)
+  :cur_quick_it(quick_selects),pk_quick_select(NULL),unique(NULL),
+   thd(thd_param)
 {
   index= MAX_KEY;
   head= table;
+  reset_called= false;
+  bzero(&read_record, sizeof(read_record));
   init_sql_alloc(&alloc,1024,0);
 }
 
 int QUICK_INDEX_MERGE_SELECT::init()
 {
-  int error;
   cur_quick_it.rewind();
   cur_quick_select= cur_quick_it++;
-  if ((error= index_merge.init(head)))
-    return error;
-  return cur_quick_select->init();
+  return 0;
 }
 
-void QUICK_INDEX_MERGE_SELECT::reset()
+int QUICK_INDEX_MERGE_SELECT::reset()
 {
-  cur_quick_select->reset();
+  int result;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::reset");
+  if (reset_called)
+    DBUG_RETURN(0);
+
+  reset_called= true;
+  result = cur_quick_select->reset() || prepare_unique();
+  DBUG_RETURN(result);
 }
 
 bool 
 QUICK_INDEX_MERGE_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
 {
-  return quick_selects.push_back(quick_sel_range);
+  /* 
+    Save quick_select that does scan on clustered primary key as it will be 
+    processed separately.
+  */
+  if (head->file->primary_key_is_clustered() && 
+      quick_sel_range->index == head->primary_key)
+    pk_quick_select= quick_sel_range;
+  else
+    return quick_selects.push_back(quick_sel_range);
+  return 0;
 }
 
 QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
 {
+  delete unique;
   quick_selects.delete_elements();
+  delete pk_quick_select;
   free_root(&alloc,MYF(0));
 }
 
@@ -923,6 +956,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
+    param.imerge_cost_buff_size= 0;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -981,7 +1015,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	ha_rows found_records;
 	double found_read_time= read_time;
 
-        if (!get_quick_select_params(tree, param, needed_reg, head, true,
+        if (!get_quick_select_params(tree, &param, needed_reg, false,
                                      &found_read_time, &found_records,
                                      &best_key))
         {
@@ -1001,105 +1035,58 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         }
 
         /* 
-           btw, tree type SEL_TREE::INDEX_MERGE was not introduced 
-           intentionally
+           Btw, tree type SEL_TREE::INDEX_MERGE was not introduced 
+           intentionally.
         */
 
-        /* if no range select could be built, try using index_merge */
+        /* If no range select could be built, try using index_merge. */
         if (!quick && !tree->merges.is_empty())
         {
           DBUG_PRINT("info",("No range reads possible,"
                              " trying to construct index_merge"));
           SEL_IMERGE *imerge;
           SEL_IMERGE *min_imerge= NULL;
-          double  min_imerge_cost= DBL_MAX;
+          double  min_imerge_read_time;
           ha_rows min_imerge_records;
+	  LINT_INIT(min_imerge_records); // Protected by min_imerge
           
+          if (!head->used_keys.is_clear_all())
+          {           
+            int key_for_use= find_shortest_key(head, &head->used_keys);
+            ha_rows total_table_records= (0 == head->file->records)? 1 : 
+                                          head->file->records;
+            read_time = get_index_only_read_time(&param, total_table_records,
+                                                 key_for_use);
+            DBUG_PRINT("info", 
+                       ("'all' scan will be using key %d, read time %g",
+                       key_for_use, read_time));
+          }
+          
+          min_imerge_read_time=read_time;
+          /* 
+            Ok, read_time contains best 'all' read time.
+            Now look for index_merge with cost < read_time 
+           */
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           while ((imerge= it++))
           {
-            double  imerge_cost= 0;
-            ha_rows imerge_total_records= 0;
-            double  tree_read_time;
-            ha_rows tree_records;
-            imerge->best_keys=
-              (SEL_ARG***)alloc_root(&alloc,
-                                     (imerge->trees_next - imerge->trees)*
-                                     sizeof(void*));
-            for (SEL_TREE **ptree= imerge->trees;
-                 ptree != imerge->trees_next;
-                 ptree++)
-            {
-              tree_read_time= read_time;              
-              if (get_quick_select_params(*ptree, param, needed_reg, head, 
-                                          false,
-                                          &tree_read_time, &tree_records,
-                                          &(imerge->best_keys[ptree - 
-                                          imerge->trees])))
-                goto imerge_fail;
-
-              imerge_cost += tree_read_time;
-              imerge_total_records += tree_records;
-            }
-            imerge_total_records= min(imerge_total_records, 
-                                      head->file->records);
-            imerge_cost += imerge_total_records / TIME_FOR_COMPARE;
-            if (imerge_cost < min_imerge_cost)
-            {
+            if (!get_index_merge_params(&param, needed_reg, imerge, 
+                                        &min_imerge_read_time, 
+                                        &min_imerge_records))
               min_imerge= imerge;
-              min_imerge_cost= imerge_cost;
-              min_imerge_records= imerge_total_records;
-            }
-imerge_fail:;
           }
           
           if (!min_imerge)
             goto end_free;
           
           records= min_imerge_records;
-          /* ok, got minimal imerge, *min_imerge, with cost min_imerge_cost */
-          
-          if (!head->used_keys.is_clear_all())
-          {
-            /* check if "ALL" +"using index" read would be faster */
-            int key_for_use= find_shortest_key(head, &head->used_keys);
-            ha_rows total_table_records= (0 == head->file->records)? 1 : 
-                                          head->file->records;
-            uint keys_per_block= (head->file->block_size/2/
-                                  (head->key_info[key_for_use].key_length+
-                                  head->file->ref_length) + 1);
-            double all_index_scan_read_time= ((double)(total_table_records+
-                                              keys_per_block-1)/
-                                              (double) keys_per_block);
-
-            DBUG_PRINT("info", 
-                       ("'all' scan will be using key %d, read time %g",
-                       key_for_use, all_index_scan_read_time));
-            if (all_index_scan_read_time < min_imerge_cost)
-            {
-              DBUG_PRINT("info", 
-                         ("index merge would be slower, "
-                         "will do full 'index' scan"));
-              goto end_free;
-            }
-          }
-          else
-          {
-            /* check if "ALL" would be faster */
-            if (read_time < min_imerge_cost)
-            {
-              DBUG_PRINT("info", 
-                         ("index merge would be slower, "
-                         "will do full table scan"));
-              goto end_free;
-            }
-          }
-
+                    
+          /* Ok, using index_merge is the best option, so construct it. */
           if (!(quick= quick_imerge= new QUICK_INDEX_MERGE_SELECT(thd, head)))
             goto end_free;
 
           quick->records= min_imerge_records;
-          quick->read_time= min_imerge_cost;
+          quick->read_time= min_imerge_read_time;
           
           my_pthread_setspecific_ptr(THR_MALLOC, &quick_imerge->alloc);
 
@@ -1117,10 +1104,10 @@ imerge_fail:;
                                              &quick_imerge->alloc)))
             {
               new_quick->records= min_imerge_records;
-              new_quick->read_time= min_imerge_cost;
+              new_quick->read_time= min_imerge_read_time;
               /*
                 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT leaves THR_MALLOC
-                pointing to its allocator, restore it back
+                pointing to its allocator, restore it back.
               */
               quick_imerge->last_quick_select= new_quick;
 
@@ -1150,12 +1137,6 @@ imerge_fail:;
                        ("Failed to allocate index merge structures,"
                        "falling back to full scan."));
           }
-          else
-          {
-            /* with 'using filesort' quick->reset() is not called */
-            quick->reset();
-          }
-
           goto end;
         }
       }
@@ -1185,26 +1166,286 @@ end:
 
 
 /*
-  Calculate quick select read time, # of records, and best key to use 
-  without constructing QUICK_SELECT
+  Calculate index merge cost and save parameters for its construction.
+
+  SYNOPSIS 
+    get_index_merge_params()
+      param       in      parameter with structure.
+      needed_reg  in/out  needed_reg from this SQL_SELECT
+      imerge      in      index_merge description structure
+      read_time   in/out  in:  cost of an existing way to read a table
+                          out: cost of index merge
+      imerge_rows out     pessimistic estimate of # of rows to be retrieved
+
+  RETURN
+    0   Cost of this index_merge is less than passed *read_time, 
+        *imerge_rows and *read_time contain new index_merge parameters.
+    1   Cost of this index_merge is more than *read_time, 
+        *imerge_rows and *read_time are not modified.
+   -1   error
+
+  NOTES
+    index_merge_cost = 
+      cost(index_reads) +         (see #1)
+      cost(rowid_to_row_scan) +   (see #2)
+      cost(unique_use)            (see #3)
+
+    1. cost(index_reads) =SUM_i(cost(index_read_i))
+       For non-CPK scans, 
+         cost(index_read_i) = {cost of ordinary 'index only' scan} 
+       For CPK scan,
+         cost(index_read_i) = {cost of non-'index only' scan}
+
+    2. cost(rowid_to_row_scan)
+      If table PK is clustered then
+        cost(rowid_to_row_scan) = 
+          {cost of ordinary clustered PK scan with n_ranges=n_rows}
+      
+      Otherwise, we use the following model to calculate costs:      
+      We need to retrieve n_rows rows from file that occupies n_blocks blocks.
+      We assume that offsets of rows we need are independent variates with 
+      uniform distribution in [0..max_file_offset] range.
+      
+      We'll denote block as "busy" if it contains row(s) we need to retrieve
+      and "empty" if doesn't contain rows we need.
+      
+      Probability that a block is empty is (1 - 1/n_blocks)^n_rows (this
+      applies to any block in file). Let x_i be a variate taking value 1 if 
+      block #i is empty and 0 otherwise.
+      
+      Then E(x_i) = (1 - 1/n_blocks)^n_rows;
+
+      E(n_empty_blocks) = E(sum(x_i)) = sum(E(x_i)) = 
+        = n_blocks * ((1 - 1/n_blocks)^n_rows) = 
+       ~= n_blocks * exp(-n_rows/n_blocks).
+
+      E(n_busy_blocks) = n_blocks*(1 - (1 - 1/n_blocks)^n_rows) =
+       ~= n_blocks * (1 - exp(-n_rows/n_blocks)).
+      
+      Average size of "hole" between neighbor non-empty blocks is
+           E(hole_size) = n_blocks/E(n_busy_blocks).
+      
+      The total cost of reading all needed blocks in one "sweep" is:
+
+      E(n_busy_blocks)*
+       (DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*n_blocks/E(n_busy_blocks)).
+
+    3. Cost of Unique use is calculated in Unique::get_use_cost function.
 */
 
-static int get_quick_select_params(SEL_TREE *tree, PARAM& param, 
-                                   key_map& needed_reg, TABLE *head,
-                                   bool index_read_can_be_used,
-                                   double* read_time, ha_rows* records,
-                                   SEL_ARG*** key_to_read)
+static int get_index_merge_params(PARAM *param, key_map& needed_reg,
+                                  SEL_IMERGE *imerge, double *read_time,
+                                  ha_rows* imerge_rows)
+{
+  double  imerge_cost= 0.0; /* cost of this index_merge */
+  bool    imerge_too_expensive= false;
+  double  tree_read_time;
+  ha_rows tree_records;
+  bool    pk_is_clustered= param->table->file->primary_key_is_clustered();
+  bool    have_cpk_scan= false;
+  ha_rows records_for_unique= 0;
+  ha_rows cpk_records= 0;
+  
+  DBUG_ENTER("get_index_merge_params");
+
+  /* allocate structs to save construction info */
+  imerge->best_keys=
+    (SEL_ARG***)alloc_root(param->mem_root,
+                           (imerge->trees_next - imerge->trees)*
+                           sizeof(void*));  
+  /*
+    PHASE 1: get the best keys to use for this index_merge 
+  */
+
+  /*
+    It may be possible to use different keys for index_merge scans, e.g. for
+    query like 
+    ...WHERE (key1 < c2 AND key2 < c2) OR (key3 < c3 AND key4 < c4)
+    we have to make choice between key1 and key2 for one scan and between
+    key3, key4 for another.
+    We assume we'll get the best if we choose the best key read inside each
+    of the conjuncts.
+  */
+  for (SEL_TREE **ptree= imerge->trees;
+       ptree != imerge->trees_next;
+       ptree++)
+  {
+    SEL_ARG **tree_best_key;
+    tree_read_time= *read_time;
+
+    if (get_quick_select_params(*ptree, param, needed_reg, true,
+                                &tree_read_time, &tree_records,
+                                &tree_best_key))
+    {
+      /*
+        One of index scans in this index_merge is more expensive than entire
+        table read for another available option. The entire index_merge will 
+        be more expensive then, too. We continue here only to update 
+        SQL_SELECT members.
+      */
+      imerge_too_expensive= true;
+    }
+
+    if (imerge_too_expensive)
+      continue;
+    
+    uint keynr= param->real_keynr[(tree_best_key-(*ptree)->keys)];
+    imerge->best_keys[ptree - imerge->trees]= tree_best_key;
+    imerge_cost += tree_read_time;
+
+    if (pk_is_clustered && keynr == param->table->primary_key)
+    {
+      have_cpk_scan= true;
+      cpk_records= tree_records;
+    }
+    else
+      records_for_unique += tree_records;
+  }  
+  DBUG_PRINT("info",("index_merge cost of index reads: %g", imerge_cost));
+
+  if (imerge_too_expensive)
+    DBUG_RETURN(1);
+  
+  if ((imerge_cost > *read_time) || 
+      ((records_for_unique + cpk_records) >= param->table->file->records) &&
+       *read_time != DBL_MAX)
+  {
+    /* Bail out if it is obvious that index_merge would be more expensive */
+    DBUG_RETURN(1);
+  }
+
+  if (have_cpk_scan)
+  {
+    /* 
+      Add one ROWID comparison for each row retrieved on non-CPK scan.
+      (it is done in QUICK_RANGE_SELECT::row_in_ranges)
+    */
+    imerge_cost += records_for_unique / TIME_FOR_COMPARE_ROWID;
+  }
+
+  /* PHASE 2: Calculate cost(rowid_to_row_scan) */
+  if (pk_is_clustered)
+  {
+    imerge_cost +=
+      param->table->file->read_time(param->table->primary_key,
+                                    records_for_unique,
+                                    records_for_unique)
+       + rows2double(records_for_unique) / TIME_FOR_COMPARE;
+  }
+  else
+  {    
+    double n_blocks=
+      ceil((double)(longlong)param->table->file->data_file_length / IO_SIZE);
+    double busy_blocks=
+       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, (double) records_for_unique));
+    
+    JOIN *join= param->thd->lex->select_lex.join;
+    if (!join || join->tables == 1)
+      imerge_cost += busy_blocks*(DISK_SEEK_BASE_COST + 
+                                DISK_SEEK_PROP_COST*n_blocks/busy_blocks);
+    else
+    {
+      /* 
+        It can be a join with source table being non-last table, so assume
+        that disk seeks are random here.
+        (TODO it is possible to determine if this is a last table in 'index
+         checked for each record' join)
+      */
+      imerge_cost += busy_blocks;
+    }
+  }
+  DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g", imerge_cost));
+
+  /* PHASE 3: Add Unique operations cost */
+  register uint unique_calc_buff_size= 
+    Unique::get_cost_calc_buff_size(records_for_unique, 
+                                    param->table->file->ref_length,
+                                    param->thd->variables.sortbuff_size);
+  if (param->imerge_cost_buff_size < unique_calc_buff_size)
+  {
+    if (!(param->imerge_cost_buff= (uint*)alloc_root(param->mem_root,
+                                                     unique_calc_buff_size)))
+      DBUG_RETURN(1);
+    param->imerge_cost_buff_size= unique_calc_buff_size;
+  }
+
+  imerge_cost += 
+    Unique::get_use_cost(param->imerge_cost_buff, records_for_unique,
+                         param->table->file->ref_length,
+                         param->thd->variables.sortbuff_size);
+
+  DBUG_PRINT("info",("index_merge total cost: %g", imerge_cost));
+  if (imerge_cost < *read_time)
+  {
+    *read_time=   imerge_cost;
+    records_for_unique += cpk_records;
+    *imerge_rows= min(records_for_unique, param->table->file->records);    
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+
+/*
+  Calculate cost of 'index only' scan for given index and number of records.
+    (We can resolve this by only reading through this key.)
+
+  SYNOPSIS
+    get_whole_index_read_time()
+      param    parameters structure
+      records  #of records to read
+      keynr    key to read
+
+  NOTES
+    It is assumed that we will read trough the whole key range and that all 
+    key blocks are half full (normally things are much better).
+*/
+
+inline double get_index_only_read_time(PARAM* param, ha_rows records, 
+                                       int keynr)
+{
+  double read_time;
+  uint keys_per_block= (param->table->file->block_size/2/
+			(param->table->key_info[keynr].key_length+
+			 param->table->file->ref_length) + 1);
+  read_time=((double) (records+keys_per_block-1)/
+             (double) keys_per_block);
+  return read_time; 
+}
+
+
+/*
+  Calculate quick range select read time, # of records, and best key to use
+  without constructing QUICK_RANGE_SELECT object.
+  SYNOPSIS
+    get_quick_select_params
+      tree        in         make range select for this SEL_TREE 
+      param       in         parameters from test_quick_select
+      needed_reg  in/out     other table data needed by this quick_select
+      index_read_must_be_used if true, assume 'index only' option will be set 
+                             (except for clustered PK indexes)
+      read_time   out        read time estimate
+      records     out        # of records estimate
+      key_to_read out        SEL_ARG to be used for creating quick select
+*/
+
+static int get_quick_select_params(SEL_TREE *tree, PARAM *param,
+                                   key_map& needed_reg,
+                                   bool index_read_must_be_used,
+                                   double *read_time, ha_rows *records,
+                                   SEL_ARG ***key_to_read)
 {
   int idx;
   int result = 1;
+  bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   /*
-    Note that there may be trees that have type SEL_TREE::KEY but contain 
-    no key reads at all. For example, tree for expression "key1 is not null"
-    where key1 is defined as "not null".
+    Note that there may be trees that have type SEL_TREE::KEY but contain no 
+    key reads at all, e.g. tree for expression "key1 is not null" where key1 
+    is defined as "not null".
   */
   SEL_ARG **key,**end;
 
-  for (idx= 0,key=tree->keys, end=key+param.keys ;
+  for (idx= 0,key=tree->keys, end=key+param->keys ;
        key != end ;
        key++,idx++)
   {
@@ -1212,38 +1453,38 @@ static int get_quick_select_params(SEL_TREE *tree, PARAM& param,
     double found_read_time;
     if (*key)
     {
-      uint keynr= param.real_keynr[idx];
+      uint keynr= param->real_keynr[idx];
       if ((*key)->type == SEL_ARG::MAYBE_KEY ||
           (*key)->maybe_flag)
         needed_reg.set_bit(keynr);
       
-      bool read_index_only= index_read_can_be_used? head->used_keys.is_set(keynr): false;
-      found_records=check_quick_select(&param, idx, *key);
+      bool read_index_only= index_read_must_be_used? true :
+                            (bool)param->table->used_keys.is_set(keynr);
+      found_records=check_quick_select(param, idx, *key);
+
       if (found_records != HA_POS_ERROR && found_records > 2 &&
           read_index_only &&
-          (head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
+          (param->table->file->index_flags(keynr) & HA_KEY_READ_ONLY) &&
+          !(pk_is_clustered && keynr == param->table->primary_key))
       {
-        /*
-          We can resolve this by only reading through this key.
-          Assume that we will read trough the whole key range
-          and that all key blocks are half full (normally things are
-          much better).
-        */
-        uint keys_per_block= (head->file->block_size/2/
-			      (head->key_info[keynr].key_length+
-			       head->file->ref_length) + 1);
-	found_read_time=((double) (found_records+keys_per_block-1)/
-			 (double) keys_per_block);
+        /* We can resolve this by only reading through this key. */
+        found_read_time=get_index_only_read_time(param, found_records, keynr);
       }
       else
-	found_read_time= (head->file->read_time(keynr,
-						param.range_count,
-						found_records)+
+      {
+        /* 
+          cost(read_through_index) = cost(disk_io) + cost(row_in_range_checks)
+          The row_in_range check is in QUICK_RANGE_SELECT::cmp_next function.
+        */
+	found_read_time= (param->table->file->read_time(keynr,
+						        param->range_count,
+						        found_records)+
 			  (double) found_records / TIME_FOR_COMPARE);
+      }
       if (*read_time > found_read_time && found_records != HA_POS_ERROR)
       {
         *read_time=   found_read_time;
-        *records=     found_records;
+        *records=     found_records; 
         *key_to_read= key;
         result = 0;
       }
@@ -1449,6 +1690,7 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
     if (tree2)
       tree= tree_or(param,tree,tree2);
   }
+
   DBUG_RETURN(tree);
 }
 
@@ -1457,9 +1699,10 @@ static SEL_ARG *
 get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
-  uint maybe_null=(uint) field->real_maybe_null();
+  uint maybe_null=(uint) field->real_maybe_null(), copies;
   uint field_length=field->pack_length()+maybe_null;
   SEL_ARG *tree;
+  char *str, *str2;
   DBUG_ENTER("get_mm_leaf");
 
   if (type == Item_func::LIKE_FUNC)
@@ -1560,16 +1803,38 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     /* This happens when we try to insert a NULL field in a not null column */
     DBUG_RETURN(&null_element);			// cmp with NULL is never true
   }
-  // Get local copy of key
-  char *str= (char*) alloc_root(param->mem_root,
-				key_part->part_length+maybe_null);
+  /* Get local copy of key */
+  copies= 1;
+  if (field->key_type() == HA_KEYTYPE_VARTEXT)
+    copies= 2;
+  str= str2= (char*) alloc_root(param->mem_root,
+				(key_part->part_length+maybe_null)*copies+1);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length,
 		       field->charset(),key_part->image_type);
-  if (!(tree=new SEL_ARG(field,str,str)))
+  if (copies == 2)
+  {
+    /*
+      The key is stored as 2 byte length + key
+      key doesn't match end space. In other words, a key 'X ' should match
+      all rows between 'X' and 'X           ...'
+    */
+    uint length= uint2korr(str+maybe_null);
+    str2= str+ key_part->part_length + maybe_null;
+    /* remove end space */
+    while (length > 0 && str[length+HA_KEY_BLOB_LENGTH+maybe_null-1] == ' ')
+      length--;
+    int2store(str+maybe_null, length);
+    /* Create key that is space filled */
+    memcpy(str2, str, length + HA_KEY_BLOB_LENGTH + maybe_null);
+    bfill(str2+ length+ HA_KEY_BLOB_LENGTH +maybe_null,
+	  key_part->part_length-length - HA_KEY_BLOB_LENGTH, ' ');
+    int2store(str2+maybe_null, key_part->part_length - HA_KEY_BLOB_LENGTH);
+  }
+  if (!(tree=new SEL_ARG(field,str,str2)))
     DBUG_RETURN(0);		// out of memory
 
   switch (type) {
@@ -1752,14 +2017,16 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 
 
 /*
-  Check if two SEL_TREES can be combined into one without using index_merge
+  Check if two SEL_TREES can be combined into one (i.e. a single key range 
+  read can be constructed for "cond_of_tree1 OR cond_of_tree2" ) without 
+  using index_merge.
 */
 
 bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param)
 {
   key_map common_keys= tree1->keys_map;
-  common_keys.intersect(tree2->keys_map);
   DBUG_ENTER("sel_trees_can_be_ored");
+  common_keys.intersect(tree2->keys_map);
 
   if (common_keys.is_clear_all())
     DBUG_RETURN(false);
@@ -2035,7 +2302,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
     }
     return 0;
   }
-  else if (!key2)
+  if (!key2)
   {
     key1->use_count--;
     key1->free_tree();
@@ -2794,7 +3061,8 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
       (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
-      (param->table->key_info[keynr].flags & HA_NOSAME) &&
+      (param->table->key_info[keynr].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+      HA_NOSAME &&
       min_key_length == max_key_length &&
       !memcmp(param->min_key,param->max_key,min_key_length))
     tmp=1;					// Max one record
@@ -2870,7 +3138,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree,
                     sizeof(KEY_PART)*
                     param->table->key_info[param->real_keynr[idx]].key_parts);
     }
-  }
+  }  
   DBUG_RETURN(quick);
 }
 
@@ -2950,7 +3218,8 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     {
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
-      if (table_key->flags & HA_NOSAME && key->part == table_key->key_parts-1)
+      if ((table_key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
+	  key->part == table_key->key_parts-1)
       {
 	if (!(table_key->flags & HA_NULL_PART_KEY) ||
 	    !null_part_in_key(key,
@@ -2974,7 +3243,9 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length,range->min_length);
   set_if_bigger(quick->max_used_key_length,range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  quick->ranges.push_back(range);
+  if (insert_dynamic(&quick->ranges, (gptr)&range))
+    return 1;
+
 
  end:
   if (key_tree->right != &null_element)
@@ -2992,11 +3263,11 @@ bool QUICK_RANGE_SELECT::unique_key_range()
 {
   if (ranges.elements == 1)
   {
-    QUICK_RANGE *tmp;
-    if (((tmp=ranges.head())->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
+    QUICK_RANGE *tmp= *((QUICK_RANGE**)ranges.buffer);
+    if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
-      return ((key->flags & HA_NOSAME) &&
+      return ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
 	      key->key_length == tmp->min_length);
     }
   }
@@ -3032,6 +3303,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   QUICK_RANGE_SELECT *quick=new QUICK_RANGE_SELECT(thd, table, ref->key, 1);  
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
+  QUICK_RANGE *range;
   uint part;
 
   if (!quick)
@@ -3045,18 +3317,17 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (cp_buffer_from_ref(ref))
   {
     if (thd->is_fatal_error)
-      return 0;					// out of memory
-    return quick;				// empty range
+      goto err;					// out of memory
   }
 
-  QUICK_RANGE *range= new QUICK_RANGE();
-  if (!range)
+  if (!(range= new QUICK_RANGE()))
     goto err;			// out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
   range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & HA_NOSAME)) ? EQ_RANGE : 0);
+		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+		 HA_NOSAME) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
@@ -3071,7 +3342,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
       key_part->part_length+=HA_KEY_BLOB_LENGTH;
     key_part->null_bit=     key_info->key_part[part].null_bit;
   }
-  if (!quick->ranges.push_back(range))
+  if (!insert_dynamic(&quick->ranges,(gptr)&range))
     return quick;
 
 err:
@@ -3079,197 +3350,129 @@ err:
   return 0;
 }
 
-INDEX_MERGE::INDEX_MERGE(THD *thd_arg) :
-  dont_save(false), thd(thd_arg)  
-{}
 
-String *INDEX_MERGE::Item_rowid::val_str(String *str)
-{
-  str->set_quick((char*)head->file->ref, head->file->ref_length, collation.collation);
-  return str;
-}
-
-
-/* 
-  Initialize index_merge operation.
-  RETURN 
-    0     - OK 
-    other - error.
-*/
-
-int INDEX_MERGE::init(TABLE *table)
-{
-  DBUG_ENTER("INDEX_MERGE::init");
-  
-  head= table;
-  if (!(rowid_item= new Item_rowid(table)))
-    DBUG_RETURN(1);  
-
-  tmp_table_param.copy_field= 0;
-  tmp_table_param.end_write_records= HA_POS_ERROR;
-  tmp_table_param.group_length= table->file->ref_length;
-  tmp_table_param.group_parts= 1;
-  tmp_table_param.group_null_parts= 0;
-  tmp_table_param.hidden_field_count= 0;
-  tmp_table_param.field_count= 0;
-  tmp_table_param.func_count= 1;
-  tmp_table_param.sum_func_count= 0;
-  tmp_table_param.quick_group= 1;
-
-  bzero(&order, sizeof(ORDER));
-  order.item= (Item**)&rowid_item;
-  order.asc= 1;
-
-  fields.push_back(rowid_item);
-
-  temp_table= create_tmp_table(thd,
-                               &tmp_table_param,
-                               fields,
-                               &order,
-                               false,
-                               0,
-                               SELECT_DISTINCT,
-                               HA_POS_ERROR,
-                               (char *)"");
-  DBUG_RETURN(!temp_table);
-}
+#define MEM_STRIP_BUF_SIZE thd->variables.sortbuff_size
 
 /*
-  Check if record with ROWID record_pos has already been processed and 
-  if not - store the ROWID value.
+  Fetch all row ids into unique.
 
+  If table has a clustered primary key that covers all rows (true for bdb 
+     and innodb currently) and one of the index_merge scans is a scan on PK,
+  then 
+    primary key scan rowids are not put into Unique and also 
+    rows that will be retrieved by PK scan are not put into Unique
+  
   RETURN
-    0 - record has not been processed yet
-    1 - record has already been processed.
-   -1 - an error occurred and query processing should be terminated.
-        Error code is stored in INDEX_MERGE::error
+    0     OK
+    other error
 */
 
-int INDEX_MERGE::check_record_in()
-{ 
-  return (dont_save)? 
-           check_record() : 
-           put_record();
-}
-
-
-/*
-  Stop remembering records in check(). 
-  (this should be called just before the last key scan)
-
-  RETURN 
-    0 - OK
-    1 - error occurred initializing table index. 
-*/
-
-int INDEX_MERGE::start_last_quick_select()
+int QUICK_INDEX_MERGE_SELECT::prepare_unique()
 {
-  int result= 0;
-  if (!temp_table->uniques)
-  {
-    dont_save= true;
-    result= temp_table->file->index_init(0);
-  }
-  return result;
-}
-
-
-inline int INDEX_MERGE::put_record()
-{
-  DBUG_ENTER("INDEX_MERGE::put_record");
+  int result;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
   
-  copy_funcs(tmp_table_param.items_to_copy);
-  
-  if ((error= temp_table->file->write_row(temp_table->record[0])))
-  {
-    if (error == HA_ERR_FOUND_DUPP_KEY ||
-	error == HA_ERR_FOUND_DUPP_UNIQUE)
-      DBUG_RETURN(1);
+  /* We're going to just read rowids. */
+  head->file->extra(HA_EXTRA_KEYREAD);
 
-    DBUG_PRINT("info", 
-               ("Error writing row to temp. table: %d, converting to myisam", 
-               error));
-    if (create_myisam_from_heap(current_thd, temp_table, &tmp_table_param,
-				error,1))
-    {
-      DBUG_PRINT("info", ("Table conversion failed, bailing out"));
-      DBUG_RETURN(-1);
-    }
-  }
+  /* 
+    Make innodb retrieve all PK member fields, so 
+     * ha_innobase::position (which uses them) call works.
+     * We can filter out rows that will be retrieved by clustered PK.
+    (This also creates a deficiency - it is possible that we will retrieve
+     parts of key that are not used by current query at all.)
+  */
+  head->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
-  DBUG_RETURN(0);
-}
+  cur_quick_select->init();
 
-inline int INDEX_MERGE::check_record()
-{
-  int result= 1;
-  DBUG_ENTER("INDEX_MERGE::check_record");  
-
-  if ((error= temp_table->file->index_read(temp_table->record[0],
-                                           head->file->ref,
-                                           head->file->ref_length,
-                                           HA_READ_KEY_EXACT)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND)
-      result= -1;
-    else
-      result= 0;
-  }
-
-  DBUG_RETURN(result);
-}
-
-INDEX_MERGE::~INDEX_MERGE()
-{
-  if (temp_table)
-  {
-    DBUG_PRINT("info", ("Freeing temp. table"));
-    free_tmp_table(current_thd, temp_table);
-  }
-  /* rowid_item is freed automatically */
-  list_node* node;
-  node= fields.first_node();
-  fields.remove(&node);
-}
-
-int QUICK_INDEX_MERGE_SELECT::get_next()
-{
-  int       result;
-  int       put_result;
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::get_next");
-
+  unique= new Unique(refposcmp2, (void *) &head->file->ref_length,
+                     head->file->ref_length,
+                     MEM_STRIP_BUF_SIZE);
+  if (!unique)
+    DBUG_RETURN(1);
   do
-  { 
+  {
     while ((result= cur_quick_select->get_next()) == HA_ERR_END_OF_FILE)
-    {      
+    {
       cur_quick_select= cur_quick_it++;
       if (!cur_quick_select)
         break;
 
-      cur_quick_select->init();
+      if (cur_quick_select->init())
+        DBUG_RETURN(1);
+
+      /* QUICK_RANGE_SELECT::reset never fails */
       cur_quick_select->reset();
-      
-      if (last_quick_select == cur_quick_select)
-      {
-        if ((result= index_merge.start_last_quick_select()))
-          DBUG_RETURN(result);
-      }
     }
 
     if (result)
-    {
-      /* 
-        table read error (including HA_ERR_END_OF_FILE on last quick select
-        in index_merge)
-      */
-      DBUG_RETURN(result);
+    {      
+      if (result != HA_ERR_END_OF_FILE)
+        DBUG_RETURN(result);
+      break;
     }
     
-    cur_quick_select->file->position(cur_quick_select->record);
-    put_result= index_merge.check_record_in();
-  }while(put_result == 1); /* While record is processed */
+    if (thd->killed)
+      DBUG_RETURN(1);
+    
+    /* skip row if it will be retrieved by clustered PK scan */
+    if (pk_quick_select && pk_quick_select->row_in_ranges())
+      continue;
 
-  DBUG_RETURN((put_result != -1) ? result : index_merge.error);
+    cur_quick_select->file->position(cur_quick_select->record);
+    result= unique->unique_add((char*)cur_quick_select->file->ref);
+    
+    if (result)
+      DBUG_RETURN(1);
+
+  }while(true);  
+
+  /* ok, all row ids are in Unique */
+  result= unique->get(head);
+  doing_pk_scan= false;
+  init_read_record(&read_record, thd, head, NULL, 1, 1);
+  /* index_merge currently doesn't support "using index" at all */
+  head->file->extra(HA_EXTRA_NO_KEYREAD);
+
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Get next row for index_merge.
+  NOTES
+    The rows are read from
+      1. rowids stored in Unique.
+      2. QUICK_RANGE_SELECT with clustered primary key (if any).
+    The sets of rows retrieved in 1) and 2) are guaranteed to be disjoint.
+*/
+
+int QUICK_INDEX_MERGE_SELECT::get_next()
+{
+  int result;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::get_next");
+  
+  if (doing_pk_scan)
+    DBUG_RETURN(pk_quick_select->get_next());
+
+  result= read_record.read_record(&read_record);
+
+  if (result == -1)
+  {
+    result= HA_ERR_END_OF_FILE;
+    end_read_record(&read_record);
+    /* All rows from Unique have been retrieved, do a clustered PK scan */
+    if(pk_quick_select)
+    {
+      doing_pk_scan= true;
+      if ((result= pk_quick_select->init()))
+        DBUG_RETURN(result);
+      DBUG_RETURN(pk_quick_select->get_next());
+    }
+  }
+
+  DBUG_RETURN(result);
 }
 
 	/* get next possible record using quick-struct */
@@ -3295,16 +3498,22 @@ int QUICK_RANGE_SELECT::get_next()
 
       if (!result)
       {
-	if ((range->flag & GEOM_FLAG) || !cmp_next(*it.ref()))
+	if ((range->flag & GEOM_FLAG) || !cmp_next(*cur_range))
 	  DBUG_RETURN(0);
       }
       else if (result != HA_ERR_END_OF_FILE)
 	DBUG_RETURN(result);
     }
+    
+    if (!cur_range)
+      range= *(cur_range= (QUICK_RANGE**)ranges.buffer);
+    else 
+      range=
+        (cur_range == ((QUICK_RANGE**)ranges.buffer + ranges.elements - 1))?
+         NULL: *(++cur_range);
 
-    if (!(range=it++))
+    if (!range)
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
-
     if (range->flag & GEOM_FLAG)
     {
       if ((result = file->index_read(record,
@@ -3395,6 +3604,46 @@ int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg)
 
 
 /*
+  Check if current row will be retrieved by this QUICK_RANGE_SELECT
+
+  NOTES
+    It is assumed that currently a scan is being done on another index 
+    which reads all necessary parts of the index that is scanned by this 
+    quick select.
+    The implementation does a binary search on sorted array of disjoint 
+    ranges, without taking size of range into account.
+
+    This function is used to filter out clustered PK scan rows in 
+    index_merge quick select.
+
+  RETURN
+    true  if current row will be retrieved by this quick select
+    false if not
+*/
+
+bool QUICK_RANGE_SELECT::row_in_ranges()
+{
+  QUICK_RANGE *range;
+  uint min= 0;
+  uint max= ranges.elements - 1;
+  uint mid= (max + min)/2;
+
+  while (min != max)
+  {    
+    if (cmp_next(*(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid)))
+    {
+      /* current row value > mid->max */
+      min= mid + 1;
+    }
+    else
+      max= mid;
+    mid= (min + max) / 2;
+  }
+  range= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
+  return (!cmp_next(range) && !cmp_prev(range));
+}
+
+/*
   This is a hack: we inherit from QUICK_SELECT so that we can use the
   get_next() interface, but we have to hold a pointer to the original
   QUICK_SELECT because its data are used all over the place.  What
@@ -3410,14 +3659,15 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
 {
   bool not_read_after_key = file->table_flags() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
-
-  it.rewind();
-  for (r = it++; r; r = it++)
+  
+  QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
+  QUICK_RANGE **last_range= pr + ranges.elements;
+  for (; pr!=last_range; ++pr)
   {
+    r= *pr;
     rev_ranges.push_front(r);
     if (not_read_after_key && range_reads_after_key(r))
     {
-      it.rewind();				// Reset range
       error = HA_ERR_UNSUPPORTED;
       dont_free=1;				// Don't free memory from 'q'
       return;
@@ -3535,7 +3785,7 @@ int QUICK_SELECT_DESC::get_next()
   Returns 0 if found key is inside range (found key >= range->min_key).
 */
 
-int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg)
+int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg)
 {
   if (range_arg->flag & NO_MIN_RANGE)
     return 0;					/* key can't be to small */
@@ -3686,10 +3936,14 @@ static void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick,
   {
     print_quick_sel_range(quick_range_sel, needed_reg);
   }
+  if (quick->pk_quick_select)
+    print_quick_sel_range(quick->pk_quick_select, needed_reg);
+
   DBUG_VOID_RETURN;
 }
 
-void print_quick_sel_range(QUICK_RANGE_SELECT *quick,const key_map *needed_reg)
+void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
+                           const key_map *needed_reg)
 {
   QUICK_RANGE *range;
   char buf[MAX_KEY/8+1];
@@ -3697,12 +3951,15 @@ void print_quick_sel_range(QUICK_RANGE_SELECT *quick,const key_map *needed_reg)
   if (! _db_on_ || !quick)
     DBUG_VOID_RETURN;
 
-  List_iterator<QUICK_RANGE> li(quick->ranges);
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: 0x%s):\n",
 	  quick->index, needed_reg->print(buf));
-  while ((range=li++))
+
+  QUICK_RANGE **pr= (QUICK_RANGE**)quick->ranges.buffer;
+  QUICK_RANGE **last_range= pr + quick->ranges.elements;
+  for (; pr!=last_range; ++pr)
   {
+    range= *pr;
     if (!(range->flag & NO_MIN_RANGE))
     {
       print_key(quick->key_parts,range->min_key,range->min_length);

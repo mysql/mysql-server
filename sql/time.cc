@@ -124,6 +124,8 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
   *my_timezone= current_timezone;
+  if (tmp < 0 && t->year <= 1900+YY_PART_YEAR)
+    tmp= 0;
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -174,42 +176,72 @@ uint calc_days_in_year(uint year)
     366 : 365;
 }
 
-/* Calculate week.  If 'with_year' is not set, then return a week 0-53, where
-   0 means that it's the last week of the previous year.
-   If 'with_year' is set then the week will always be in the range 1-53 and
-   the year out parameter will contain the year for the week */
 
-uint calc_week(TIME *l_time, bool with_year, bool sunday_first_day_of_week,
-	       uint *year)
+/*
+  The bits in week_format has the following meaning:
+   WEEK_MONDAY_FIRST (0)  If not set	Sunday is first day of week
+      		   	  If set	Monday is first day of week
+   WEEK_YEAR (1)	  If not set	Week is in range 0-53
+
+   	Week 0 is returned for the the last week of the previous year (for
+	a date at start of january) In this case one can get 53 for the
+	first week of next year.  This flag ensures that the week is
+	relevant for the given year. Note that this flag is only
+	releveant if WEEK_JANUARY is not set.
+
+			  If set	 Week is in range 1-53.
+
+	In this case one may get week 53 for a date in January (when
+	the week is that last week of previous year) and week 1 for a
+	date in December.
+
+  WEEK_FIRST_WEEKDAY (2)  If not set	Weeks are numbered according
+			   		to ISO 8601:1988
+			  If set	The week that contains the first
+					'first-day-of-week' is week 1.
+	
+	ISO 8601:1988 means that if the week containing January 1 has
+	four or more days in the new year, then it is week 1;
+	Otherwise it is the last week of the previous year, and the
+	next week is week 1.
+*/
+
+uint calc_week(TIME *l_time, uint week_behaviour, uint *year)
 {
   uint days;
   ulong daynr=calc_daynr(l_time->year,l_time->month,l_time->day);
   ulong first_daynr=calc_daynr(l_time->year,1,1);
-  uint weekday=calc_weekday(first_daynr,sunday_first_day_of_week);
+  bool monday_first= test(week_behaviour & WEEK_MONDAY_FIRST);
+  bool week_year= test(week_behaviour & WEEK_YEAR);
+  bool first_weekday= test(week_behaviour & WEEK_FIRST_WEEKDAY);
+
+  uint weekday=calc_weekday(first_daynr, !monday_first);
   *year=l_time->year;
-  if (l_time->month == 1 && l_time->day <= 7-weekday &&
-      ((!sunday_first_day_of_week && weekday >= 4) ||
-       (sunday_first_day_of_week && weekday != 0)))
+
+  if (l_time->month == 1 && l_time->day <= 7-weekday)
   {
-    /* Last week of the previous year */
-    if (!with_year)
+    if (!week_year && 
+	(first_weekday && weekday != 0 ||
+	 !first_weekday && weekday >= 4))
       return 0;
-    with_year=0;				// Don't check the week again
+    week_year= 1;
     (*year)--;
     first_daynr-= (days=calc_days_in_year(*year));
     weekday= (weekday + 53*7- days) % 7;
   }
-  if ((sunday_first_day_of_week && weekday != 0) ||
-      (!sunday_first_day_of_week && weekday >= 4))
+
+  if ((first_weekday && weekday != 0) ||
+      (!first_weekday && weekday >= 4))
     days= daynr - (first_daynr+ (7-weekday));
   else
     days= daynr - (first_daynr - weekday);
-  if (with_year && days >= 52*7)
+
+  if (week_year && days >= 52*7)
   {
-    /* Check if we are on the first week of the next year (or week 53) */
     weekday= (weekday + calc_days_in_year(*year)) % 7;
-    if (weekday < 4)
-    {					// We are at first week on next year
+    if (!first_weekday && weekday < 4 ||
+	first_weekday && weekday == 0)
+    {
       (*year)++;
       return 1;
     }
@@ -357,7 +389,6 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   const char *end=str+length;
   const uchar *format_position;
   bool found_delimitier= 0, found_space= 0;
-  DATE_TIME_FORMAT *format;
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
 
@@ -606,7 +637,7 @@ time_t str_to_timestamp(const char *str,uint length)
 
   if (str_to_TIME(str,length,&l_time,0) <= TIMESTAMP_DATETIME_ERROR)
     return(0);
-  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
+  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
   {
     current_thd->cuted_fields++;
     return(0);

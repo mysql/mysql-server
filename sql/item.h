@@ -98,7 +98,7 @@ public:
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -129,7 +129,7 @@ public:
   virtual ~Item() { name=0; cleanup(); }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup() {}
+  virtual void cleanup() { fixed=0; }
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   virtual int save_in_field(Field *field, bool no_conversions);
@@ -174,7 +174,17 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  /* 
+    Returns true if this is constant (during query execution, i.e. its value
+    will not change until next fix_fields) and its value is known.
+  */
   virtual bool const_item() const { return used_tables() == 0; }
+  /* 
+    Returns true if this is constant but its value may be not known yet.
+    (Can be used for parameters of prep. stmts or of stored procedures.)
+  */
+  virtual bool const_during_execution() const 
+  { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
@@ -250,10 +260,7 @@ public:
 
   // Abstract methods inherited from Item. Just defer the call to
   // the item in the frame
-  inline enum Type type() const
-  {
-    return this_const_item()->type();
-  }
+  enum Type type() const;
 
   inline double val()
   {
@@ -323,11 +330,7 @@ public:
   const char *field_name;
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
-	     const char *field_name_par)
-    :db_name(db_name_par), table_name(table_name_par),
-     field_name(field_name_par), depended_from(0)
-    { name = (char*) field_name_par; }
-  // Constructor used by Item_field & Item_ref (see Item comment)
+	     const char *field_name_par);
   Item_ident(THD *thd, Item_ident &item);
   const char *full_name() const;
 
@@ -412,6 +415,7 @@ public:
 class Item_param :public Item
 {
 public:    
+  bool value_is_set;
   longlong int_value;
   double   real_value;
   TIME     ltime;
@@ -430,6 +434,7 @@ public:
     item_result_type = STRING_RESULT;
     item_is_time= false;
     long_data_supplied= false;
+    value_is_set= 0;
   }
   enum Type type() const { return item_type; }
   double val();
@@ -457,6 +462,13 @@ public:
   String *query_val_str(String *str);
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   Item *new_item() { return new Item_param(pos_in_query); }
+  /* 
+    If value for parameter was not set we treat it as non-const 
+    so noone will use parameters value in fix_fields still 
+    parameter is constant during execution.
+  */
+  virtual table_map used_tables() const
+  { return value_is_set ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str) { str->append('?'); }
 };
 
@@ -465,17 +477,17 @@ class Item_int :public Item
 public:
   const longlong value;
   Item_int(int32 i,uint length=11) :value((longlong) i)
-    { max_length=length;}
+    { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
   Item_int(longlong i,uint length=21) :value(i)
-    { max_length=length;}
+    { max_length=length; fixed= 1;}
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
-    { max_length=length; name=(char*) str_arg;}
+    { max_length=length; name=(char*) str_arg; fixed= 1; }
   Item_int(const char *str_arg) :
     value(str_arg[0] == '-' ? strtoll(str_arg,(char**) 0,10) :
 	  (longlong) strtoull(str_arg,(char**) 0,10))
-    { max_length= (uint) strlen(str_arg); name=(char*) str_arg;}
+    { max_length= (uint) strlen(str_arg); name=(char*) str_arg; fixed= 1; }
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
@@ -498,6 +510,7 @@ public:
   double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
+  int save_in_field(Field *field, bool no_conversions);
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
   {
     bool res= Item::fix_fields(thd, list, item);
@@ -904,14 +917,14 @@ public:
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
-  int save_in_field(Field *field, bool no_conversions)
+  int save_in_field(Field *field_arg, bool no_conversions)
   {
     if (!arg)
     {
-      field->set_default();
+      field_arg->set_default();
       return 0;
     }
-    return Item_field::save_in_field(field, no_conversions);
+    return Item_field::save_in_field(field_arg, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
   
@@ -932,9 +945,9 @@ public:
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
-  int save_in_field(Field *field, bool no_conversions)
+  int save_in_field(Field *field_arg, bool no_conversions)
   {
-    return Item_field::save_in_field(field, no_conversions);
+    return Item_field::save_in_field(field_arg, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
 
@@ -1061,6 +1074,28 @@ public:
   bool null_inside();
   void bring_value();
 };
+
+
+/*
+  Used to store type. name, length of Item for UNIONS & derived table
+*/
+class Item_type_holder: public Item
+{
+protected:
+  Item_result item_type;
+  Field *field_example;
+public:
+  Item_type_holder(THD*, Item*);
+
+  Item_result result_type () const { return item_type; }
+  enum Type type() const { return TYPE_HOLDER; }
+  double val();
+  longlong val_int();
+  String *val_str(String*);
+  bool join_types(THD *thd, Item *);
+  Field *example() { return field_example; }
+};
+
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);

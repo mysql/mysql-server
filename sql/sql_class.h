@@ -26,6 +26,7 @@
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
+class Format_description_log_event;
 class sp_rcontext;
 class sp_cache;
 
@@ -99,7 +100,14 @@ class MYSQL_LOG
   enum cache_type io_cache_type;
   bool write_error, inited;
   bool need_start_event;
-  bool no_auto_events;				// For relay binlog
+  /*
+    no_auto_events means we don't want any of these automatic events :
+    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't want
+    a Rotate_log event to be written to the relay log. When we start a relay log
+    etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
+    In 5.0 it's 0 for relay logs too!
+  */
+  bool no_auto_events;			     
   /* 
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -116,6 +124,18 @@ class MYSQL_LOG
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
+
+  /* 
+     These describe the log's format. This is used only for relay logs.
+     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
+     necessary to have 2 distinct objects, because the I/O thread may be reading
+     events in a different format from what the SQL thread is reading (consider
+     the case of a master which has been upgraded from 5.0 to 5.1 without doing
+     RESET MASTER, or from 4.x to 5.0).
+  */
+  Format_description_log_event *description_event_for_exec,
+    *description_event_for_queue;
+
   void reset_bytes_written()
   {
     bytes_written = 0;
@@ -144,7 +164,8 @@ public:
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size);
+	    bool no_auto_events_arg, ulong max_size,
+            bool null_created);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
@@ -330,30 +351,6 @@ public:
 };
 
 
-/* This is a struct as it's allocated in tree_insert */
-
-typedef struct st_prep_stmt
-{
-  THD *thd;
-  LEX  lex; 
-  Item_param **param;
-  Item *free_list;
-  MEM_ROOT mem_root;
-  String *query;
-  ulong stmt_id;
-  uint param_count;
-  uint last_errno;
-  char last_error[MYSQL_ERRMSG_SIZE];
-  bool error_in_prepare, long_data_used;
-  bool log_full_query;
-#ifndef EMBEDDED_LIBRARY
-  bool (*setup_params)(st_prep_stmt *stmt, uchar *pos, uchar *read_pos);
-#else
-  bool (*setup_params_data)(st_prep_stmt *stmt);
-#endif
-} PREP_STMT;
-
-
 class delayed_insert;
 class select_result;
 
@@ -375,7 +372,6 @@ struct system_variables
   ulong max_error_count;
   ulong max_heap_table_size;
   ulong max_length_for_sort_data;
-  ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong myisam_repair_threads;
@@ -431,12 +427,158 @@ struct system_variables
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
+
+class Prepared_statement;
+
+/*
+  State of a single command executed against this connection.
+  One connection can contain a lot of simultaneously running statements,
+  some of which could be:
+   - prepared, that is, contain placeholders,
+   - opened as cursors. We maintain 1 to 1 relationship between
+     statement and cursor - if user wants to create another cursor for his
+     query, we create another statement for it. 
+  To perform some action with statement we reset THD part to the state  of
+  that statement, do the action, and then save back modified state from THD
+  to the statement. It will be changed in near future, and Statement will
+  be used explicitly.
+*/
+
+class Statement
+{
+  Statement(const Statement &rhs);              /* not implemented: */
+  Statement &operator=(const Statement &rhs);   /* non-copyable */
+public:
+  /* FIXME: must be private */
+  LEX     main_lex;
+public:
+  /*
+    Uniquely identifies each statement object in thread scope; change during
+    statement lifetime. FIXME: must be const
+  */
+   ulong id;
+
+  /*
+    Id of current query. Statement can be reused to execute several queries
+    query_id is global in context of the whole MySQL server.
+    ID is automatically generated from mutex-protected counter.
+    It's used in handler code for various purposes: to check which columns
+    from table are necessary for this select, to check if it's necessary to
+    update auto-updatable fields (like auto_increment and timestamp).
+  */
+  ulong query_id;
+  /*
+    - if set_query_id=1, we set field->query_id for all fields. In that case 
+    field list can not contain duplicates.
+  */
+  bool set_query_id;
+  /*
+    This variable is used in post-parse stage to declare that sum-functions,
+    or functions which have sense only if GROUP BY is present, are allowed.
+    For example in queries
+    SELECT MIN(i) FROM foo
+    SELECT GROUP_CONCAT(a, b, MIN(i)) FROM ... GROUP BY ...
+    MIN(i) have no sense.
+    Though it's grammar-related issue, it's hard to catch it out during the
+    parse stage because GROUP BY clause goes in the end of query. This
+    variable is mainly used in setup_fields/fix_fields.
+    See item_sum.cc for details.
+  */
+  bool allow_sum_func;
+  /*
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    first byte of the packet in do_command()
+  */
+  enum enum_server_command command;
+
+  LEX *lex;                                     // parse tree descriptor
+  /*
+    Points to the query associated with this statement. It's const, but
+    we need to declare it char * because all table handlers are written
+    in C and need to point to it.
+  */
+  char *query;
+  uint32 query_length;                          // current query length
+  /*
+    List of items created in the parser for this query. Every item puts 
+    itself to the list on creation (see Item::Item() for details))
+  */
+  Item *free_list;
+  MEM_ROOT mem_root;
+
+public:
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT,
+    PREPARED_STATEMENT
+  };
+
+  /*
+    This constructor is called when statement is a subobject of THD:
+    some variables are initialized in THD::init due to locking problems
+  */
+  Statement();
+
+  Statement(THD *thd);
+  virtual ~Statement();
+
+  /* Assign execution context (note: not all members) of given stmt to self */
+  void set_statement(Statement *stmt);
+  /* return class type */
+  virtual Type type() const;
+};
+
+
+/*
+  Used to seek all existing statements in the connection
+  Deletes all statements in destructor.
+*/
+
+class Statement_map
+{
+public:
+  Statement_map();
+  
+  int insert(Statement *statement)
+  {
+    int rc= my_hash_insert(&st_hash, (byte *) statement);
+    if (rc == 0)
+      last_found_statement= statement;
+    return rc;
+  }
+
+  Statement *find(ulong id)
+  {
+    if (last_found_statement == 0 || id != last_found_statement->id)
+      last_found_statement= (Statement *) hash_search(&st_hash, (byte *) &id,
+                                                      sizeof(id));
+    return last_found_statement;
+  }
+  void erase(Statement *statement)
+  {
+    if (statement == last_found_statement)
+      last_found_statement= 0;
+    hash_delete(&st_hash, (byte *) statement);
+  }
+
+  ~Statement_map()
+  {
+    hash_free(&st_hash);
+  }
+private:
+  HASH st_hash;
+  Statement *last_found_statement;
+};
+
+
 /*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
 
-class THD :public ilink
+class THD :public ilink, 
+           public Statement
 {
 public:
 #ifdef EMBEDDED_LIBRARY
@@ -449,23 +591,25 @@ public:
   ulong extra_length;
 #endif
   NET	  net;				// client connection descriptor
-  LEX     main_lex;
-  LEX	  *lex;				// parse tree descriptor
-  MEM_ROOT mem_root;			// 1 command-life memory pool
-  MEM_ROOT con_root;                    // connection-life memory
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_simple protocol_simple;	// Normal protocol
   Protocol_prep protocol_prep;		// Binary protocol
   HASH    user_vars;			// hash for user variables
-  TREE	  prepared_statements;
   String  packet;			// dynamic buffer for network I/O
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
 
-  char	  *query;			// Points to the current query,
+  /* all prepared statements and cursors of this connection */
+  Statement_map stmt_map; 
+  /*
+    keeps THD state while it is used for active statement
+    Note, that double free_root() is safe, so we don't need to do any
+    special cleanup for it in THD destructor.
+  */
+  Statement stmt_backup;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -478,9 +622,17 @@ public:
      the connection
     priv_user - The user privilege we are using. May be '' for anonymous user.
     db - currently selected database
+    catalog - currently selected catalog
     ip - client IP
+    WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
+    set and alloced by the slave SQL thread (for the THD of that thread); that
+    thread is (and must remain, for now) the only responsible for freeing these
+    3 members. If you add members here, and you add code to set them in
+    replication, don't forget to free_them_and_set_them_to_0 in replication
+    properly. For details see the 'err:' label of the pthread_handler_decl of
+    the slave SQL thread, in sql/slave.cc.
    */
-  char	  *host,*user,*priv_user,*db,*ip;
+  char	  *host,*user,*priv_user,*db,*catalog,*ip;
   char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;
@@ -505,16 +657,18 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
-  // TODO: document the variables below
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  /*
+    One thread can hold up to one named user-level lock. This variable
+    points to a lock object if the lock is present. See item_func.cc and
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+  */
   ULL		*ull;
-  PREP_STMT	*last_prepared_stmt;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
-  enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /*
@@ -547,7 +701,6 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
     }
   } transaction;
-  Item	     *free_list;
   Field      *dupp_field;
 #ifndef __WIN__
   sigset_t signals,block_signals;
@@ -578,18 +731,25 @@ public:
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   List<TABLE> temporary_tables_should_be_free; // list of temporary tables
+  /*
+    FIXME: this, and some other variables like 'count_cuted_fields'
+    maybe should be statement/cursor local, that is, moved to Statement
+    class. With current implementation warnings produced in each prepared
+    statement/cursor settle here.
+  */
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
-  ulong	     query_id, warn_id, version, options, thread_id, col_access;
-  ulong      current_stmt_id;
+  ulong	     warn_id, version, options, thread_id, col_access;
+
+  /* Statement id is thread-wide. This counter is used to generate ids */
+  ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table;
-  uint	     server_status,open_options;
-  uint32     query_length;
+  uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
@@ -602,11 +762,11 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread;
-  bool	     set_query_id,locked,some_tables_deleted;
+  bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
-  bool	     no_errors, allow_sum_func, password, is_fatal_error;
+  bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     system_thread,in_lock_tables,global_read_lock;
+  bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
 
   enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
@@ -620,7 +780,6 @@ public:
     my_error(killed_errno(), MYF(0));
   }
 
-  bool       prepare_command;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
@@ -648,7 +807,6 @@ public:
 
   void init(void);
   void change_user(void);
-  void init_for_queries();
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -689,8 +847,11 @@ public:
   inline void	end_time()    { time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
   inline void	lock_time()   { time(&time_after_lock); }
-  inline void	insert_id(ulonglong id)
-  { last_insert_id=id; insert_id_used=1; }
+  inline void	insert_id(ulonglong id_arg)
+  {
+    last_insert_id= id_arg;
+    insert_id_used=1;
+  }
   inline ulonglong insert_id(void)
   {
     if (!last_insert_id_used)
@@ -765,6 +926,11 @@ public:
   void update_charset();
 };
 
+/* Flags for the THD::system_thread (bitmap) variable */
+#define SYSTEM_THREAD_DELAYED_INSERT 1
+#define SYSTEM_THREAD_SLAVE_IO 2
+#define SYSTEM_THREAD_SLAVE_SQL 4
+
 /*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
@@ -776,7 +942,7 @@ public:
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
-  uint skip_lines;
+  ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
   ~sql_exchange() {}
 };
@@ -914,7 +1080,12 @@ public:
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
- public:
+private:
+  /* Prevent use of these (not safe because of lists and copy_field) */
+  TMP_TABLE_PARAM(const TMP_TABLE_PARAM &);
+  void operator=(TMP_TABLE_PARAM &);
+
+public:
   List<Item> copy_funcs;
   List<Item> save_copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
@@ -939,6 +1110,7 @@ class TMP_TABLE_PARAM :public Sql_alloc
   {
     cleanup();
   }
+  void init(void);
   inline void cleanup(void)
   {
     if (copy_field)				/* Fix for Intel compiler */
@@ -964,6 +1136,7 @@ class select_union :public select_result {
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
+  void set_table(TABLE *tbl) { table= tbl; }
 };
 
 /* Base subselect interface class */
@@ -1080,8 +1253,13 @@ class user_var_entry
   DTCollation collation;
 };
 
-
-/* Class for unique (removing of duplicates) */
+/*
+   Unique -- class for unique (removing of duplicates). 
+   Puts all values to the TREE. If the tree becomes too big,
+   it's dumped to the file. User can request sorted values, or
+   just iterate through them. In the last case tree merging is performed in
+   memory simultaneously with iteration, so it should be ~2-3x faster.
+ */
 
 class Unique :public Sql_alloc
 {
@@ -1095,10 +1273,10 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
-  inline bool unique_add(gptr ptr)
+  inline bool unique_add(void *ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
@@ -1106,6 +1284,18 @@ public:
   }
 
   bool get(TABLE *table);
+  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
+                             ulong max_in_memory_size);
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+                                            ulong max_in_memory_size)
+  {
+    register ulong max_elems_in_tree= 
+      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+    return sizeof(uint)*(1 + nkeys/max_elems_in_tree);
+  }
+
+  void reset();
+  bool walk(tree_walk_action action, void *walk_action_arg);
 
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
@@ -1117,7 +1307,7 @@ class multi_delete :public select_result
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
   THD *thd;
-  ha_rows deleted;
+  ha_rows deleted, found;
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, log_delayed, normal_tables;

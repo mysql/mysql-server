@@ -76,7 +76,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
-  SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
+  SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
   SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
   SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
@@ -306,7 +306,6 @@ class JOIN;
 class select_union;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
-  List<Item> item_list; 
   TABLE_LIST result_table_list;
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
@@ -316,9 +315,19 @@ protected:
   ulong found_rows_for_union;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
-    executed, // already executed
-    t_and_f;  // used for transferring tables_and_fields_initied UNIT:: methods 
+    executed; // already executed
+
 public:
+  // list of fields which points to temporary table for union
+  List<Item> item_list;
+  /*
+    list of types of items inside union (used for union & derived tables)
+    
+    Item_type_holders from which this list consist may have pointers to Field,
+    pointers is valid only after preparing SELECTS of this unit and before
+    any SELECT of this unit execution
+  */
+  List<Item> types;
   /*
     Pointer to 'last' select or pointer to unit where stored
     global parameters for union
@@ -353,7 +362,7 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result, bool tables_and_fields_initied);
+  int prepare(THD *thd, select_result *result);
   int exec();
   int cleanup();
 
@@ -508,6 +517,13 @@ public:
 typedef class st_select_lex SELECT_LEX;
 
 
+struct st_sp_chistics
+{
+  LEX_STRING comment;
+  enum suid_behaviour suid;
+  bool detistic;
+};
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -574,7 +590,6 @@ typedef struct st_lex
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
   enum tablespace_op_type tablespace_op;
-  enum suid_behaviour suid;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
@@ -589,6 +604,7 @@ typedef struct st_lex
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
+  st_sp_chistics sp_chistics;
 
   st_lex()
   {

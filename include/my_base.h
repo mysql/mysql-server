@@ -46,7 +46,6 @@
 #define HA_OPEN_DELAY_KEY_WRITE		8	/* Don't update index  */
 #define HA_OPEN_ABORT_IF_CRASHED	16
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
-#define HA_OPEN_TO_ASSIGN               64    /* Open for key cache assignment */
 
 	/* The following is parameter to ha_rkey() how to use key */
 
@@ -133,7 +132,7 @@ enum ha_extra_function {
   HA_EXTRA_RETRIEVE_ALL_COLS,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
-  HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
 };
 
 	/* The following is parameter to ha_panic() */
@@ -191,11 +190,17 @@ enum ha_base_keytype {
 /* poor old NISAM has 8-bit flags :-( */
 #define HA_SORT_ALLOWS_SAME	 128	/* Intern bit when sorting records */
 #endif
+/*
+  Key has a part that can have end space.  If this is an unique key
+  we have to handle it differently from other unique keys as we can find
+  many matching rows for one key (becaue end space are not compared)
+*/
+#define HA_END_SPACE_KEY	4096
 
-	/* These flags can be order to key-seg-flag */
+	/* These flags can be added to key-seg-flag */
 
 #define HA_SPACE_PACK		 1	/* Pack space in key-seg */
-#define HA_PART_KEY		 4	/* Used by MySQL for part-key-cols */
+#define HA_PART_KEY_SEG		 4	/* Used by MySQL for part-key-cols */
 #define HA_VAR_LENGTH		 8
 #define HA_NULL_PART		 16
 #define HA_BLOB_PART		 32

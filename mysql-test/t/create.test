@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3;
+drop database if exists test_$1;
 --enable_warnings
 
 create table t1 (b char(0));
@@ -17,7 +18,7 @@ insert into t1 values (""),(null);
 select * from t1;
 drop table t1;
 
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
 drop table t1;
 
 #
@@ -25,18 +26,18 @@ drop table t1;
 #
 
 --error 1146
-create table t2 type=heap select * from t1;
+create table t2 engine=heap select * from t1;
 --error 1146
 create table t2 select auto+1 from t1;
 drop table if exists t1,t2;
 --error 1167
 create table t1 (b char(0) not null, index(b));
 --error 1163
-create table t1 (a int not null,b text) type=heap;
+create table t1 (a int not null,b text) engine=heap;
 drop table if exists t1;
 
 --error 1075
-create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 
 -- error 1044,1
 create table not_existing_database.test (a int);
@@ -57,6 +58,7 @@ select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 drop table 1ea10;
 create table t1 (t1.index int);
 drop table t1;
+# Test that we get warning for this
 drop database if exists test_$1;
 create database test_$1;
 create table test_$1.$test1 (a$1 int, $b int, c$ int);
@@ -150,17 +152,17 @@ drop table if exists t1;
 #
 # Test default table type
 #
-SET SESSION table_type="heap";
-SELECT @@table_type;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
-# Test what happens when using a non existing table type
-SET SESSION table_type="gemini";
-SELECT @@table_type;
+--error 1285
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 
 
@@ -245,7 +247,6 @@ drop table t3;
 show create table t3;
 select * from t3;
 drop table t2, t3;
-drop database if exists test_$1;
 create database test_$1;
 create table test_$1.t3 like t1;
 create temporary table t3 like test_$1.t3;
@@ -271,17 +272,17 @@ drop database test_$1;
 #
 # Test default table type
 #
-SET SESSION table_type="heap";
-SELECT @@table_type;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
-# Test what happens when using a non existing table type
-SET SESSION table_type="gemini";
-SELECT @@table_type;
+--error 1285
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 
 #
@@ -317,18 +318,38 @@ select
     addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
 from t1;
 explain t2;
-			
 select * from t2;
+drop table t1, t2;
 
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+show create table t2;
+drop table t1,t2;
+
+#
+# Test of default()
+#
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+insert into t1 values ('','',0,0.0);
+describe t1;
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+describe t2;
+drop table t1, t2;
+
+#
+# Bug #2075
+#
+
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
 drop table t1, t2;
 
 #
 # Bug #1209
 #
 
---disable_warnings
-drop database if exists test_$1;
---enable_warnings
 create database test_$1;
 use test_$1;
 select database();

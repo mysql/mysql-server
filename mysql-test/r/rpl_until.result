@@ -13,16 +13,16 @@ insert into t2 values (1),(2);
 insert into t2 values (3),(4);
 drop table t2;
 show binlog events;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
-master-bin.000001	79	Query	1	79	use `test`; create table t1(n int not null auto_increment primary key)
-master-bin.000001	172	Query	1	172	use `test`; insert into t1 values (1),(2),(3),(4)
-master-bin.000001	244	Query	1	244	use `test`; drop table t1
-master-bin.000001	292	Query	1	292	use `test`; create table t2(n int not null auto_increment primary key)
-master-bin.000001	385	Query	1	385	use `test`; insert into t2 values (1),(2)
-master-bin.000001	449	Query	1	449	use `test`; insert into t2 values (3),(4)
-master-bin.000001	513	Query	1	513	use `test`; drop table t2
-start slave until master_log_file='master-bin.000001', master_log_pos=244;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	95	Query	1	210	use `test`; create table t1(n int not null auto_increment primary key)
+master-bin.000001	210	Query	1	304	use `test`; insert into t1 values (1),(2),(3),(4)
+master-bin.000001	304	Query	1	374	use `test`; drop table t1
+master-bin.000001	374	Query	1	489	use `test`; create table t2(n int not null auto_increment primary key)
+master-bin.000001	489	Query	1	575	use `test`; insert into t2 values (1),(2)
+master-bin.000001	575	Query	1	661	use `test`; insert into t2 values (3),(4)
+master-bin.000001	661	Query	1	731	use `test`; drop table t2
+start slave until master_log_file='master-bin.000001', master_log_pos=304;
 select * from t1;
 n
 1
@@ -30,8 +30,8 @@ n
 3
 4
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	561	slave-relay-bin.000002	332	master-bin.000001	Yes	No							0		0	244	649	Master	master-bin.000001	244	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	731	slave-relay-bin.000004	439	master-bin.000001	Yes	No							0		0	304	866	Master	master-bin.000001	304	No						#
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 select * from t1;
 n
@@ -40,22 +40,22 @@ n
 3
 4
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	561	slave-relay-bin.000002	332	master-bin.000001	Yes	No							0		0	244	649	Master	master-no-such-bin.000001	291	No						#
-start slave until relay_log_file='slave-relay-bin.000002', relay_log_pos=537;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	731	slave-relay-bin.000004	#	master-bin.000001	Yes	No							0		0	304	#	Master	master-no-such-bin.000001	291	No						#
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=710;
 select * from t2;
 n
 1
 2
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	561	slave-relay-bin.000002	537	master-bin.000001	Yes	No							0		0	449	649	Relay	slave-relay-bin.000002	537	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	731	slave-relay-bin.000004	#	master-bin.000001	Yes	No							0		0	575	#	Relay	slave-relay-bin.000004	710	No						#
 start slave;
 stop slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=561;
+start slave until master_log_file='master-bin.000001', master_log_pos=710;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	561	slave-relay-bin.000002	649	master-bin.000001	Yes	No							0		0	561	693	Master	master-bin.000001	561	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	731	slave-relay-bin.000004	#	master-bin.000001	Yes	No							0		0	731	#	Master	master-bin.000001	710	No						#
 start slave until master_log_file='master-bin', master_log_pos=561;
 ERROR HY000: Wrong parameter or combination of parameters for START SLAVE UNTIL
 start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
@@ -67,6 +67,6 @@ ERROR HY000: Wrong parameter or combination of parameters for START SLAVE UNTIL
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 ERROR HY000: Wrong parameter or combination of parameters for START SLAVE UNTIL
 start slave sql_thread;
-start slave until master_log_file='master-bin.000001', master_log_pos=561;
+start slave until master_log_file='master-bin.000001', master_log_pos=710;
 Warnings:
 Note	1253	Slave is already running

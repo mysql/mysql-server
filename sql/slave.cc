@@ -73,8 +73,6 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name, bool overwrite);
-static int check_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
-
 
 /*
   Find out which replications threads are running
@@ -215,6 +213,12 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
     pos			Position in relay log file 
     need_data_lock	Set to 1 if this functions should do mutex locks
     errmsg		Store pointer to error message here
+    look_for_description_event 
+                        1 if we should look for such an event. We only need
+                        this when the SQL thread starts and opens an existing
+                        relay log and has to execute it (possibly from an offset
+                        >4); then we need to read the first event of the relay
+                        log to be able to parse the events we have to execute.
 
   DESCRIPTION
   - Close old open relay log files.
@@ -232,15 +236,35 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 
 int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
 		       ulonglong pos, bool need_data_lock,
-		       const char** errmsg)
+		       const char** errmsg,
+                       bool look_for_description_event)
 {
   DBUG_ENTER("init_relay_log_pos");
+  DBUG_PRINT("info", ("pos=%lu", pos));
 
   *errmsg=0;
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
   
   if (need_data_lock)
     pthread_mutex_lock(&rli->data_lock);
+
+  /*
+    Slave threads are not the only users of init_relay_log_pos(). CHANGE MASTER
+    is, too, and init_slave() too; these 2 functions allocate a description
+    event in init_relay_log_pos, which is not freed by the terminating SQL slave
+    thread as that thread is not started by these functions. So we have to free
+    the description_event here, in case, so that there is no memory leak in
+    running, say, CHANGE MASTER.
+  */
+  delete rli->relay_log.description_event_for_exec;
+  /*
+    By default the relay log is in binlog format 3 (4.0).
+    Even if format is 4, this will work enough to read the first event
+    (Format_desc) (remember that format 4 is just lenghtened compared to format
+    3; format 3 is a prefix of format 4). 
+  */
+  rli->relay_log.description_event_for_exec= new
+    Format_description_log_event(3);
   
   pthread_mutex_lock(log_lock);
   
@@ -280,8 +304,8 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       In this case, we will use the same IO_CACHE pointer to
       read data as the IO thread is using to write data.
     */
-    if (my_b_tell((rli->cur_log=rli->relay_log.get_log_file())) == 0 &&
-	check_binlog_magic(rli->cur_log,errmsg))
+    my_b_seek((rli->cur_log=rli->relay_log.get_log_file()), (off_t)0);
+    if (check_binlog_magic(rli->cur_log,errmsg))
       goto err;
     rli->cur_log_old_open_count=rli->relay_log.get_open_count();
   }
@@ -295,8 +319,85 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       goto err;
     rli->cur_log = &rli->cache_buf;
   }
-  if (pos >= BIN_LOG_HEADER_SIZE)
+  /*
+    In all cases, check_binlog_magic() has been called so we're at offset 4 for
+    sure.
+  */
+  if (pos > BIN_LOG_HEADER_SIZE) /* If pos<=4, we stay at 4 */
+  {
+    Log_event* ev;
+    while (look_for_description_event) 
+    {
+      /*
+        Read the possible Format_description_log_event; if position was 4, no need, it will
+        be read naturally.
+      */
+      DBUG_PRINT("info",("looking for a Format_description_log_event"));
+
+      if (my_b_tell(rli->cur_log) >= pos)
+        break;
+
+      /*
+        Because of we have rli->data_lock and log_lock, we can safely read an
+        event
+      */
+      if (!(ev=Log_event::read_log_event(rli->cur_log,0,
+                                         rli->relay_log.description_event_for_exec)))
+      {
+        DBUG_PRINT("info",("could not read event, rli->cur_log->error=%d",
+                           rli->cur_log->error));
+        if (rli->cur_log->error) /* not EOF */
+        {
+          *errmsg= "I/O error reading event at position 4";
+          goto err;
+        }
+        break;
+      }
+      else if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      {
+        DBUG_PRINT("info",("found Format_description_log_event"));
+        delete rli->relay_log.description_event_for_exec;
+        rli->relay_log.description_event_for_exec= (Format_description_log_event*) ev;
+        /*
+          As ev was returned by read_log_event, it has passed is_valid(), so
+          my_malloc() in ctor worked, no need to check again.
+        */
+        /*
+          Ok, we found a Format_description event. But it is not sure that this
+          describes the whole relay log; indeed, one can have this sequence
+          (starting from position 4):
+          Format_desc (of slave)
+          Rotate (of master)
+          Format_desc (of slave)
+          So the Format_desc which really describes the rest of the relay log is
+          the 3rd event (it can't be further than that, because we rotate the
+          relay log when we queue a Rotate event from the master).
+          But what describes the Rotate is the first Format_desc.
+          So what we do is:
+          go on searching for Format_description events, until you exceed the
+          position (argument 'pos') or until you find another event than Rotate
+          or Format_desc.
+        */
+      }
+      else 
+      {
+        DBUG_PRINT("info",("found event of another type=%d",
+                           ev->get_type_code()));
+        look_for_description_event= (ev->get_type_code() == ROTATE_EVENT);
+        delete ev;
+      }
+    }
     my_b_seek(rli->cur_log,(off_t)pos);
+#ifndef DBUG_OFF
+  {
+    char llbuf1[22], llbuf2[22];
+    DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
+                        llstr(my_b_tell(rli->cur_log),llbuf1), 
+                        llstr(rli->event_relay_log_pos,llbuf2)));
+  }
+#endif
+
+  }
 
 err:
   /*
@@ -311,6 +412,8 @@ err:
 
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
+  if (!rli->relay_log.description_event_for_exec->is_valid() && !*errmsg)
+    *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
@@ -428,13 +531,15 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 	  sizeof(rli->group_relay_log_name)-1);
   strmake(rli->event_relay_log_name, rli->relay_log.get_log_fname(),
  	  sizeof(rli->event_relay_log_name)-1);
-  // Just first log with magic number and nothing else
-  rli->log_space_total= BIN_LOG_HEADER_SIZE;
   rli->group_relay_log_pos= rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
-  rli->relay_log.reset_bytes_written();
+  if (count_relay_log_space(rli))
+  {
+    *errmsg= "Error counting relay log space";
+    goto err;
+  }
   if (!just_reset)
     error= init_relay_log_pos(rli, rli->group_relay_log_name, rli->group_relay_log_pos,
-  			      0 /* do not need data lock */, errmsg);
+  			      0 /* do not need data lock */, errmsg, 0);
   
 err:
 #ifndef DBUG_OFF
@@ -693,6 +798,10 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     different results. Note also the order of precedence of the do/ignore 
     rules (see code below). For that reason, users should not set conflicting 
     rules because they may get unpredicted results.
+    Thought which arose from a question of a big customer "I want to include all
+    tables like "abc.%" except the "%.EFG"". This can't be done now. If we
+    supported Perl regexps we could do it with this pattern: /^abc\.(?!EFG)/
+    (I could not find an equivalent in the regex library MySQL uses).
 
   RETURN VALUES
     0           should not be logged/replicated
@@ -1087,28 +1196,86 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   return 1;
 }
 
+/*
+  Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
+  relying on the binlog's version. This is not perfect: imagine an upgrade
+  of the master without waiting that all slaves are in sync with the master;
+  then a slave could be fooled about the binlog's format. This is what happens
+  when people upgrade a 3.23 master to 4.0 without doing RESET MASTER: 4.0
+  slaves are fooled. So we do this only to distinguish between 3.23 and more
+  recent masters (it's too late to change things for 3.23).
+  
+  RETURNS
+  0       ok
+  1       error
+*/
 
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
-  
+
   /*
-    Note the following switch will bug when we have MySQL branch 30 ;)
+    Free old description_event_for_queue (that is needed if we are in
+    a reconnection).
   */
-  switch (*mysql->server_version) {
-  case '3':
-    mi->old_format = 
-      (strncmp(mysql->server_version, "3.23.57", 7) < 0) /* < .57 */ ?
-      BINLOG_FORMAT_323_LESS_57 : 
-      BINLOG_FORMAT_323_GEQ_57 ;
-    break;
-  case '4':
-  case '5':
-    mi->old_format = BINLOG_FORMAT_CURRENT;
-    break;
-  default:
+  delete mi->rli.relay_log.description_event_for_queue;
+  mi->rli.relay_log.description_event_for_queue= 0;
+  
+  if (!my_isdigit(&my_charset_bin,*mysql->server_version))
     errmsg = "Master reported unrecognized MySQL version";
-    break;
+  else
+  {
+    /*
+      Note the following switch will bug when we have MySQL branch 30 ;)
+    */
+    switch (*mysql->server_version) 
+    {
+    case '0':
+    case '1':
+    case '2':
+      errmsg = "Master reported unrecognized MySQL version";
+      break;
+    case '3':
+      mi->rli.relay_log.description_event_for_queue= new
+        Format_description_log_event(1, mysql->server_version); 
+      break;
+    case '4':
+      mi->rli.relay_log.description_event_for_queue= new
+        Format_description_log_event(3, mysql->server_version); 
+      break;
+    default: 
+      /*
+        Master is MySQL >=5.0. Give a default Format_desc event, so that we can
+        take the early steps (like tests for "is this a 3.23 master") which we
+        have to take before we receive the real master's Format_desc which will
+        override this one. Note that the Format_desc we create below is garbage
+        (it has the format of the *slave*); it's only good to help know if the
+        master is 3.23, 4.0, etc.
+      */
+      mi->rli.relay_log.description_event_for_queue= new
+        Format_description_log_event(4, mysql->server_version); 
+      break;
+    }
+  }
+  
+  /* 
+     This does not mean that a 5.0 slave will be able to read a 6.0 master; but
+     as we don't know yet, we don't want to forbid this for now. If a 5.0 slave
+     can't read a 6.0 master, this will show up when the slave can't read some
+     events sent by the master, and there will be error messages.
+  */
+  
+  if (errmsg)
+  {
+    sql_print_error(errmsg);
+    return 1;
+  }
+
+  /* as we are here, we tried to allocate the event */
+  if (!mi->rli.relay_log.description_event_for_queue)
+  {
+    sql_print_error("Slave I/O thread failed to create a default Format_description_log_event");
+    return 1;
   }
 
   MYSQL_RES *master_clock_res;
@@ -1367,32 +1534,9 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   }
 
   /*
-    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
-    notable that the last kilobytes of it (8 kB for example) may live in
-    memory, not on disk (depending on what the thread using it does). While
-    this is efficient, it has a side-effect one must know: 
-    The size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
-    few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
-    happens when only the IO thread is started (not the SQL thread). The
-    "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
-    SLAVE IO_THREAD', and are flushed to disk when the slave's mysqld stops. So
-    this does not cause any bug. Example of how disk size grows by leaps:
-
-     Read_Master_Log_Pos: 7811 -rw-rw----    1 guilhem  qq              4 Jun  5 16:19 gbichot2-relay-bin.002
-     ...later...
-     Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
-
-    See how 4 is less than 7811 and 8192 is less than 9744.
-
-    WARNING: this is risky because the slave can stay like this for a long
-    time; then if it has a power failure, master.info says the I/O thread has
-    read until 9744 while the relay-log contains only until 8192 (the
-    in-memory part from 8192 to 9744 has been lost), so the SQL slave thread
-    will miss some events, silently breaking replication.
-    Ideally we would like to flush master.info only when we know that the relay
-    log has no in-memory tail.
-    Note that the above problem may arise only when only the IO thread is
-    started, which is unlikely.
+    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
+    Note that the I/O thread flushes it to disk after writing every event, in
+    flush_master_info(mi, 1).
   */
 
   /*
@@ -1408,9 +1552,10 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
-	       1 /* no auto events */,
+	       0 /* starting from 5.0 we want relay logs to have auto events */,
                max_relay_log_size ? max_relay_log_size : max_binlog_size))
   {
+    pthread_mutex_unlock(&rli->data_lock);
     sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
   }
@@ -1442,7 +1587,7 @@ file '%s', errno %d)", fname, my_errno);
 
     /* Init relay log with first entry in the relay index file */
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
-			   &msg))
+			   &msg, 0))
     {
       sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4)");
       goto err;
@@ -1507,7 +1652,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
 			   rli->group_relay_log_name,
 			   rli->group_relay_log_pos,
 			   0 /* no data lock*/,
-			   &msg))
+			   &msg, 0))
     {
       char llbuf[22];
       sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
@@ -1516,8 +1661,18 @@ Failed to open the existing relay log info file '%s' (errno %d)",
       goto err;
     }
   }
-  DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
-  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
+
+#ifndef DBUG_OFF
+  {
+    char llbuf1[22], llbuf2[22];
+    DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
+                        llstr(my_b_tell(rli->cur_log),llbuf1), 
+                        llstr(rli->event_relay_log_pos,llbuf2)));
+    DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
+    DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
+  }
+#endif
+
   /*
     Now change the cache from READ to WRITE - must do this
     before flush_relay_log_info
@@ -1578,7 +1733,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   save_proc_info= thd->enter_cond(&rli->log_space_cond,
 				  &rli->log_space_lock, 
 				  "\
-Waiting for the SQL slave thread to free enough relay log space");
+Waiting for the slave SQL thread to free enough relay log space");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
@@ -1849,7 +2004,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  if ((error=test(flush_master_info(mi))))
+  if ((error=test(flush_master_info(mi, 1))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -1964,7 +2119,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 						     sizeof(mi->user)));
   field_list.push_back(new Item_return_int("Master_Port", 7,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Connect_retry", 10,
+  field_list.push_back(new Item_return_int("Connect_Retry", 10,
 					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Master_Log_File",
 					     FN_REFLEN));
@@ -1978,24 +2133,24 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 					     FN_REFLEN));
   field_list.push_back(new Item_empty_string("Slave_IO_Running", 3));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
-  field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_do_table", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_table", 23));
-  field_list.push_back(new Item_empty_string("Replicate_wild_do_table", 24));
-  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table",
+  field_list.push_back(new Item_empty_string("Replicate_Do_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Do_Table", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_Table", 23));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Do_Table", 24));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Ignore_Table",
 					     28));
-  field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_error", 20));
-  field_list.push_back(new Item_return_int("Skip_counter", 10,
+  field_list.push_back(new Item_return_int("Last_Errno", 4, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Last_Error", 20));
+  field_list.push_back(new Item_return_int("Skip_Counter", 10,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Exec_master_log_pos", 10,
+  field_list.push_back(new Item_return_int("Exec_Master_Log_Pos", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_return_int("Relay_log_space", 10,
+  field_list.push_back(new Item_return_int("Relay_Log_Space", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Until_condition", 6));
+  field_list.push_back(new Item_empty_string("Until_Condition", 6));
   field_list.push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
-  field_list.push_back(new Item_return_int("Until_Log_pos", 10, 
+  field_list.push_back(new Item_return_int("Until_Log_Pos", 10, 
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
   field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
@@ -2008,7 +2163,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_cipher)));
   field_list.push_back(new Item_empty_string("Master_SSL_Key", 
                                              sizeof(mi->ssl_key)));
-  field_list.push_back(new Item_return_int("Seconds_behind_master", 10,
+  field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   
   if (protocol->send_fields(&field_list, 1))
@@ -2099,12 +2254,36 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 }
 
 
-bool flush_master_info(MASTER_INFO* mi)
+bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
+
+  /*
+    Flush the relay log to disk. If we don't do it, then the relay log while
+    have some part (its last kilobytes) in memory only, so if the slave server
+    dies now, with, say, from master's position 100 to 150 in memory only (not
+    on disk), and with position 150 in master.info, then when the slave
+    restarts, the I/O thread will fetch binlogs from 150, so in the relay log
+    we will have "[0, 100] U [150, infinity[" and nobody will notice it, so the
+    SQL thread will jump from 100 to 150, and replication will silently break.
+
+    When we come to this place in code, relay log may or not be initialized;
+    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
+  */
+  if (flush_relay_log_cache)
+    flush_io_cache(mi->rli.relay_log.get_log_file());
+
+  /*
+    We flushed the relay log BEFORE the master.info file, because if we crash
+    now, we will get a duplicate event in the relay log at restart. If we
+    flushed in the other order, we would get a hole in the relay log.
+    And duplicate is better than hole (with a duplicate, in later versions we
+    can add detection and scrap one event; with a hole there's nothing we can
+    do).
+  */
 
   /*
      In certain cases this code may create master.info files that seems 
@@ -2250,14 +2429,18 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }    
 
+  int cmp_result;
+
   /* The "compare and wait" main loop */
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
          slave_running)
   {
-    bool pos_reached;
-    int cmp_result= 0;
-    DBUG_ASSERT(*group_master_log_name || group_master_log_pos == 0);
+    /*
+      If we are after RESET SLAVE, and the SQL slave thread has not processed
+      any event yet, it could be that group_master_log_name is "". In that case,
+      just wait for more events (as there is no sensible comparison to do).
+    */
     if (*group_master_log_name)
     {
       char *basename= group_master_log_name + dirname_length(group_master_log_name);
@@ -2279,18 +2462,17 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       if (group_master_log_name_extension < log_name_extension)
         cmp_result = -1 ;
       else
-        cmp_result= (group_master_log_name_extension > log_name_extension) ? 1 : 0 ;
+        cmp_result= (group_master_log_name_extension > log_name_extension) ? 
+          1 : 0 ;
+      if (((!cmp_result && group_master_log_pos >= (ulonglong)log_pos) ||
+           cmp_result > 0) || thd->killed)
+        break;
     }
-    pos_reached = ((!cmp_result && group_master_log_pos >= (ulonglong)log_pos) ||
-                   cmp_result > 0);
-    if (pos_reached || thd->killed)
-      break;
-
     //wait for master update, with optional timeout.
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for the SQL slave thread to \
+                                      "Waiting for the slave SQL thread to \
 advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
@@ -2342,6 +2524,11 @@ improper_arguments: %d  timed_out: %d",
   DBUG_RETURN( error ? error : event_count );
 }
 
+void set_slave_thread_options(THD* thd)
+{
+  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
+    OPTION_AUTO_IS_NULL;
+}
 
 /*
   init_slave_thread()
@@ -2350,7 +2537,9 @@ improper_arguments: %d  timed_out: %d",
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-  thd->system_thread = thd->bootstrap = 1;
+  thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
+    SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
+  thd->bootstrap= 1;
   thd->host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
@@ -2358,10 +2547,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL;
+  set_slave_thread_options(thd);
   /* 
-     It's nonsense to constraint the slave threads with max_join_size; if a
+     It's nonsense to constrain the slave threads with max_join_size; if a
      query succeeded on master, we HAVE to execute it.
   */
   thd->variables.max_join_size= HA_POS_ERROR;    
@@ -2622,13 +2810,14 @@ bool st_relay_log_info::is_until_satisfied()
   
   if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
   {
-    /* 
-       We have no cached comaprison results so we should compare log names
-       and cache result
+    /*
+      We have no cached comparison results so we should compare log names
+      and cache result.
+      If we are after RESET SLAVE, and the SQL slave thread has not processed
+      any event yet, it could be that group_master_log_name is "". In that case,
+      just wait for more events (as there is no sensible comparison to do).
     */
 
-    DBUG_ASSERT(*log_name || log_pos == 0);
-    
     if (*log_name)
     {
       const char *basename= log_name + dirname_length(log_name);
@@ -2703,28 +2892,62 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     int exec_res;
 
     /*
-      Skip queries originating from this server or number of
-      queries specified by the user in slave_skip_counter
-      We can't however skip event's that has something to do with the
+      Queries originating from this server must be skipped.
+      Low-level events (Format_desc, Rotate, Stop) from this server
+      must also be skipped. But for those we don't want to modify
+      group_master_log_pos, because these events did not exist on the master.
+      Format_desc is not completely skipped.
+      Skip queries specified by the user in slave_skip_counter.
+      We can't however skip events that has something to do with the
       log files themselves.
+      Filtering on own server id is extremely important, to ignore execution of
+      events created by the creation/rotation of the relay log (remember that
+      now the relay log starts with its Format_desc, has a Rotate etc).
     */
-
-    if (ev->server_id == (uint32) ::server_id ||
-	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
+    
+    DBUG_PRINT("info",("type_code=%d, server_id=%d",type_code,ev->server_id));
+    
+    if ((ev->server_id == (uint32) ::server_id &&
+         type_code!= FORMAT_DESCRIPTION_EVENT) ||
+ 	(rli->slave_skip_counter && 
+         type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
+         type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
     {
-      /* TODO: I/O thread should not even log events with the same server id */
-      rli->inc_group_relay_log_pos(ev->get_event_len(),
-		   type_code != STOP_EVENT ? ev->log_pos : LL(0),
-		   1/* skip lock*/);
-      flush_relay_log_info(rli);
-
+      DBUG_PRINT("info", ("event skipped"));
+      if (thd->options & OPTION_BEGIN)
+        rli->inc_event_relay_log_pos();
+      else
+      {
+        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT || 
+                                      type_code == STOP_EVENT ||
+                                      type_code == FORMAT_DESCRIPTION_EVENT) ?
+                                     LL(0) : ev->log_pos,
+                                     1/* skip lock*/);
+        flush_relay_log_info(rli);
+      }
+      
       /*
-	Protect against common user error of setting the counter to 1
-	instead of 2 while recovering from an failed auto-increment insert
+ 	Protect against common user error of setting the counter to 1
+ 	instead of 2 while recovering from an insert which used auto_increment,
+ 	rand or user var.
       */
       if (rli->slave_skip_counter && 
-	  !((type_code == INTVAR_EVENT || type_code == STOP_EVENT) &&
-	    rli->slave_skip_counter == 1))
+ 	  !((type_code == INTVAR_EVENT ||
+             type_code == RAND_EVENT || 
+             type_code == USER_VAR_EVENT) &&
+ 	    rli->slave_skip_counter == 1) &&
+          /*
+            The events from ourselves which have something to do with the relay
+            log itself must be skipped, true, but they mustn't decrement
+            rli->slave_skip_counter, because the user is supposed to not see
+            these events (they are not in the master's binlog) and if we
+            decremented, START SLAVE would for example decrement when it sees
+            the Rotate, so the event which the user probably wanted to skip
+            would not be skipped.
+          */
+          !(ev->server_id == (uint32) ::server_id &&
+            (type_code == ROTATE_EVENT || type_code == STOP_EVENT ||
+             type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
         --rli->slave_skip_counter;
       pthread_mutex_unlock(&rli->data_lock);
       delete ev;     
@@ -2740,7 +2963,16 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     ev->thd = thd;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
-    delete ev;
+    /* 
+       Format_description_log_event should not be deleted because it will be
+       used to read info about the relay log's format; it will be deleted when
+       the SQL thread does not need it, i.e. when this thread terminates.
+    */
+    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    {
+      DBUG_PRINT("info", ("Deleting the event after it has been executed"));
+      delete ev;
+    }
     return exec_res;
   }
   else
@@ -2841,7 +3073,8 @@ connected:
   thd->proc_info = "Checking master version";
   if (get_master_version_and_clock(mysql, mi))
     goto err;
-  if (!mi->old_format)
+
+  if (mi->rli.relay_log.description_event_for_queue->binlog_version > 1)
   {
     /*
       Register ourselves with the master.
@@ -2981,7 +3214,7 @@ reconnect done to recover from failed read");
 	sql_print_error("Slave I/O thread could not queue event from master");
 	goto err;
       }
-      flush_master_info(mi);
+      flush_master_info(mi, 1); /* sure that we can flush the relay log */
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli.log_space_lock here; this dirty read saves time
@@ -3042,6 +3275,9 @@ err:
   pthread_mutex_lock(&mi->run_lock);
   mi->slave_running = 0;
   mi->io_thd = 0;
+  /* Forget the relay log's format */
+  delete mi->rli.relay_log.description_event_for_queue;
+  mi->rli.relay_log.description_event_for_queue= 0;
   // TODO: make rpl_status part of MASTER_INFO
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   mi->abort_slave = 0; // TODO: check if this is needed
@@ -3106,7 +3342,6 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
-  thd->init_for_queries();
   rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);
@@ -3121,9 +3356,10 @@ slave_begin:
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
     thread may execute no Query_log_event, so the error will remain even
     though there's no problem anymore). Do not reset the master timestamp
-    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE: as
-    we are not sure that we are going to receive a query, we want to remember
-    the last master timestamp (to say how many seconds behind we are now.
+    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE:
+    as we are not sure that we are going to receive a query, we want to
+    remember the last master timestamp (to say how many seconds behind we are
+    now.
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   clear_slave_error(rli);
@@ -3136,15 +3372,38 @@ slave_begin:
   if (init_relay_log_pos(rli,
 			 rli->group_relay_log_name,
 			 rli->group_relay_log_pos,
-			 1 /*need data lock*/, &errmsg))
+			 1 /*need data lock*/, &errmsg,
+                         1 /*look for a description_event*/))
   {
     sql_print_error("Error initializing relay log position: %s",
 		    errmsg);
     goto err;
   }
   THD_CHECK_SENTRY(thd);
-  DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
-  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
+#ifndef DBUG_OFF
+  {
+    char llbuf1[22], llbuf2[22];
+    DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
+                        llstr(my_b_tell(rli->cur_log),llbuf1), 
+                        llstr(rli->event_relay_log_pos,llbuf2)));
+    DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
+    /*
+      Wonder if this is correct. I (Guilhem) wonder if my_b_tell() returns the
+      correct position when it's called just after my_b_seek() (the questionable
+      stuff is those "seek is done on next read" comments in the my_b_seek()
+      source code).
+      The crude reality is that this assertion randomly fails whereas
+      replication seems to work fine. And there is no easy explanation why it
+      fails (as we my_b_seek(rli->event_relay_log_pos) at the very end of
+      init_relay_log_pos() called above). Maybe the assertion would be
+      meaningful if we held rli->data_lock between the my_b_seek() and the
+      DBUG_ASSERT().
+    */
+#ifdef SHOULD_BE_CHECKED
+    DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
+#endif
+  }
+#endif
   DBUG_ASSERT(rli->sql_thd == thd);
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
@@ -3155,6 +3414,18 @@ slave_begin:
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
 		    llstr(rli->group_relay_log_pos,llbuff1));
+
+  /* execute init_slave variable */
+  if (sys_init_slave.value)
+  {
+    execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
+    if (thd->query_error)
+    {
+      sql_print_error("\
+Slave SQL thread aborted. Can't execute init_slave query");
+      goto err;
+    }
+  }
 
   /* Read queries from the IO/THREAD until this thread is killed */
 
@@ -3183,7 +3454,12 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query = thd->db = 0; // extra safety
+  /*
+    Some extra safety, which should not been needed (normally, event deletion
+    should already have done these assignments (each event which sets these
+    variables is supposed to set them to 0 before terminating)).
+  */
+  thd->query= thd->db= thd->catalog= 0; 
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
@@ -3192,11 +3468,9 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0; 
-  /* 
-     Going out of the transaction. Necessary to mark it, in case the user
-     restarts replication from a non-transactional statement (with CHANGE
-     MASTER).
-  */
+  /* Forget the relay log's format */
+  delete rli->relay_log.description_event_for_exec;
+  rli->relay_log.description_event_for_exec= 0;
   /* Wake up master_pos_wait() */
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
@@ -3286,7 +3560,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       {
 	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
 	Execute_load_log_event xev(thd,0,0);
-	xev.log_pos = mi->master_log_pos;
+	xev.log_pos = cev->log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
 	{
 	  sql_print_error("Slave I/O: error writing Exec_load event to \
@@ -3300,7 +3574,6 @@ relay log");
       {
 	cev->block = (char*)net->read_pos;
 	cev->block_len = num_bytes;
-	cev->log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(cev)))
 	{
 	  sql_print_error("Slave I/O: error writing Create_file event to \
@@ -3314,7 +3587,7 @@ relay log");
       {
 	aev.block = (char*)net->read_pos;
 	aev.block_len = num_bytes;
-	aev.log_pos = mi->master_log_pos;
+	aev.log_pos = cev->log_pos;
 	if (unlikely(mi->rli.relay_log.append(&aev)))
 	{
 	  sql_print_error("Slave I/O: error writing Append_block event to \
@@ -3342,6 +3615,7 @@ err:
   DESCRIPTION
     Updates the master info with the place in the next binary
     log where we should start reading.
+    Rotate the relay log to avoid mixed-format relay logs.
 
   NOTES
     We assume we already locked mi->data_lock
@@ -3373,21 +3647,30 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   if (disconnect_slave_event_count)
     events_till_disconnect++;
 #endif
+  /*
+    If description_event_for_queue is format <4, there is conversion in the
+    relay log to the slave's format (4). And Rotate can mean upgrade or
+    nothing. If upgrade, it's to 5.0 or newer, so we will get a Format_desc, so
+    no need to reset description_event_for_queue now. And if it's nothing (same
+    master version as before), no need (still using the slave's format).
+  */
+  if (mi->rli.relay_log.description_event_for_queue->binlog_version >= 4)
+  {
+    delete mi->rli.relay_log.description_event_for_queue;
+    /* start from format 3 (MySQL 4.0) again */
+    mi->rli.relay_log.description_event_for_queue= new
+      Format_description_log_event(3);
+  }
+
+  rotate_relay_log(mi); /* will take the right mutexes */
   DBUG_RETURN(0);
 }
 
-
 /*
-  queue_old_event()
-
-  Writes a 3.23 event to the relay log.
-
-  TODO: 
-    Test this code before release - it has to be tested on a separate
-    setup with 3.23 master 
+  Reads a 3.23 event and converts it to the slave's format. This code was copied
+  from MySQL 4.0.
 */
-
-static int queue_old_event(MASTER_INFO *mi, const char *buf,
+static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
 			   ulong event_len)
 {
   const char *errmsg = 0;
@@ -3395,7 +3678,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   bool ignore_event= 0;
   char *tmp_buf = 0;
   RELAY_LOG_INFO *rli= &mi->rli;
-  DBUG_ENTER("queue_old_event");
+  DBUG_ENTER("queue_binlog_ver_1_event");
 
   /*
     If we get Load event, we need to pass a non-reusable buffer
@@ -3419,7 +3702,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     connected to the master).
   */
   Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
-					    1 /*old format*/ );
+                                            mi->rli.relay_log.description_event_for_queue);
   if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
@@ -3429,7 +3712,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     DBUG_RETURN(1);
   }
   pthread_mutex_lock(&mi->data_lock);
-  ev->log_pos = mi->master_log_pos;
+  ev->log_pos= mi->master_log_pos; /* 3.23 events don't contain log_pos */
   switch (ev->get_type_code()) {
   case STOP_EVENT:
     ignore_event= 1;
@@ -3454,9 +3737,11 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   {
     /* We come here when and only when tmp_buf != 0 */
     DBUG_ASSERT(tmp_buf);
+    inc_pos=event_len;
+    ev->log_pos+= inc_pos;
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
-    mi->master_log_pos += event_len;
+    mi->master_log_pos += inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));
@@ -3468,6 +3753,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   }
   if (likely(!ignore_event))
   {
+    if (ev->log_pos) 
+      /* 
+         Don't do it for fake Rotate events (see comment in
+      Log_event::Log_event(const char* buf...) in log_event.cc).
+      */
+      ev->log_pos+= event_len; /* make log_pos be the pos of the end of the event */
     if (unlikely(rli->relay_log.append(ev)))
     {
       delete ev;
@@ -3483,10 +3774,98 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   DBUG_RETURN(0);
 }
 
+/*
+  Reads a 4.0 event and converts it to the slave's format. This code was copied
+  from queue_binlog_ver_1_event(), with some affordable simplifications.
+*/
+static int queue_binlog_ver_3_event(MASTER_INFO *mi, const char *buf,
+			   ulong event_len)
+{
+  const char *errmsg = 0;
+  ulong inc_pos;
+  char *tmp_buf = 0;
+  RELAY_LOG_INFO *rli= &mi->rli;
+  DBUG_ENTER("queue_binlog_ver_3_event");
+
+  /* read_log_event() will adjust log_pos to be end_log_pos */
+  Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
+                                            mi->rli.relay_log.description_event_for_queue);
+  if (unlikely(!ev))
+  {
+    sql_print_error("Read invalid event from master: '%s',\
+ master could be corrupt but a more likely cause of this is a bug",
+		    errmsg);
+    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    DBUG_RETURN(1);
+  }
+  pthread_mutex_lock(&mi->data_lock);
+  switch (ev->get_type_code()) {
+  case STOP_EVENT:
+    goto err;
+  case ROTATE_EVENT:
+    if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
+    {
+      delete ev;
+      pthread_mutex_unlock(&mi->data_lock);
+      DBUG_RETURN(1);
+    }
+    inc_pos= 0;
+    break;
+  default:
+    inc_pos= event_len;
+    break;
+  }
+  if (unlikely(rli->relay_log.append(ev)))
+  {
+    delete ev;
+    pthread_mutex_unlock(&mi->data_lock);
+    DBUG_RETURN(1);
+  }
+  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  delete ev;
+  mi->master_log_pos+= inc_pos;
+err:
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  pthread_mutex_unlock(&mi->data_lock);
+  DBUG_RETURN(0);
+}
+
+/*
+  queue_old_event()
+
+  Writes a 3.23 or 4.0 event to the relay log, after converting it to the 5.0
+  (exactly, slave's) format. To do the conversion, we create a 5.0 event from
+  the 3.23/4.0 bytes, then write this event to the relay log.
+
+  TODO: 
+    Test this code before release - it has to be tested on a separate
+    setup with 3.23 master or 4.0 master
+*/
+
+static int queue_old_event(MASTER_INFO *mi, const char *buf,
+			   ulong event_len)
+{
+  switch (mi->rli.relay_log.description_event_for_queue->binlog_version)
+  {
+  case 1:
+      return queue_binlog_ver_1_event(mi,buf,event_len);
+  case 3:
+      return queue_binlog_ver_3_event(mi,buf,event_len);
+  default: /* unsupported format; eg version 2 */
+    DBUG_PRINT("info",("unsupported binlog format %d in queue_old_event()",
+                       mi->rli.relay_log.description_event_for_queue->binlog_version));  
+    return 1;
+  }
+}
 
 /*
   queue_event()
 
+  If the event is 3.23/4.0, passes it to queue_old_event() which will convert
+  it. Otherwise, writes a 5.0 (or newer) event to the relay log. Then there is
+  no format conversion, it's pure read/write of bytes.
+  So a 5.0.0 slave's relay log can contain events in the slave's format or in
+  any >=5.0.0 format.
 */
 
 int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
@@ -3496,7 +3875,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   RELAY_LOG_INFO *rli= &mi->rli;
   DBUG_ENTER("queue_event");
 
-  if (mi->old_format)
+  if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
+      buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
   pthread_mutex_lock(&mi->data_lock);
@@ -3523,7 +3903,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     goto err;
   case ROTATE_EVENT:
   {
-    Rotate_log_event rev(buf,event_len,0);
+    Rotate_log_event rev(buf,event_len,mi->rli.relay_log.description_event_for_queue); 
     if (unlikely(process_io_rotate(mi,&rev)))
     {
       error= 1;
@@ -3536,6 +3916,42 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     inc_pos= 0;
     break;
   }
+  case FORMAT_DESCRIPTION_EVENT:
+  {
+    /*
+      Create an event, and save it (when we rotate the relay log, we will have
+      to write this event again).
+    */
+    /*
+      We are the only thread which reads/writes description_event_for_queue. The
+      relay_log struct does not move (though some members of it can change), so
+      we needn't any lock (no rli->data_lock, no log lock).
+    */
+    Format_description_log_event* tmp;
+    const char* errmsg;
+    if (!(tmp= (Format_description_log_event*)
+          Log_event::read_log_event(buf, event_len, &errmsg,
+                                    mi->rli.relay_log.description_event_for_queue)))
+    {
+      error= 2;
+      goto err;
+    }
+    delete mi->rli.relay_log.description_event_for_queue;
+    mi->rli.relay_log.description_event_for_queue= tmp;
+    /* 
+       Though this does some conversion to the slave's format, this will
+       preserve the master's binlog format version, and number of event types. 
+    */
+    /* 
+       If the event was not requested by the slave (the slave did not ask for
+       it), i.e. has end_log_pos=0, we do not increment mi->master_log_pos 
+    */
+    inc_pos= uint4korr(buf+LOG_POS_OFFSET) ? event_len : 0;
+    DBUG_PRINT("info",("binlog format is now %d",
+                       mi->rli.relay_log.description_event_for_queue->binlog_version));  
+
+  }
+  break;
   default:
     inc_pos= event_len;
     break;
@@ -3561,20 +3977,29 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       We still want to increment, so that we won't re-read this event from the
       master if the slave IO thread is now stopped/restarted (more efficient if
       the events we are ignoring are big LOAD DATA INFILE).
+      But events which were generated by this slave and which do not exist in
+      the master's binlog (i.e. Format_desc, Rotate & Stop) should not increment
+      mi->master_log_pos.
     */
-    mi->master_log_pos+= inc_pos;
+    if (buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
+        buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
+      mi->master_log_pos+= inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
   }  
   else /* write the event to the relay log */
-    if (likely(!(error= rli->relay_log.appendv(buf,event_len,0))))
+    if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
       DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
+    else
+      error=3;
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
+  DBUG_PRINT("info", ("error=%d", error));
   DBUG_RETURN(error);
 }
 
@@ -3599,6 +4024,7 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
   }
   rli->inited = 0;
   rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance
@@ -3796,8 +4222,6 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
     error=1;
   if (flush_io_cache(file))
     error=1;
-  if (flush_io_cache(rli->cur_log))		// QQ Why this call ?
-    error=1;
   return error;
 }
 
@@ -3821,6 +4245,7 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
     relay_log_pos	Current log pos
     pending		Number of bytes already processed from the event
   */
+  rli->event_relay_log_pos= max(rli->event_relay_log_pos, BIN_LOG_HEADER_SIZE);
   my_b_seek(cur_log,rli->event_relay_log_pos);
   DBUG_RETURN(cur_log);
 }
@@ -3879,28 +4304,40 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	hot_log=0;				// Using old binary log
       }
     }
+
 #ifndef DBUG_OFF
     {
+      /* This is an assertion which sometimes fails, let's try to track it */
       char llbuf1[22], llbuf2[22];
-      DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-      /*
-	The next assertion sometimes (very rarely) fails, let's try to track
-	it
-      */
-      DBUG_PRINT("info", ("\
-Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
+      DBUG_PRINT("info", ("my_b_tell(cur_log)=%s rli->event_relay_log_pos=%s",
                           llstr(my_b_tell(cur_log),llbuf1), 
-                          llstr(rli->group_relay_log_pos,llbuf2)));
-       DBUG_ASSERT(my_b_tell(cur_log) == rli->event_relay_log_pos);
+                          llstr(rli->event_relay_log_pos,llbuf2)));
+      DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
+      DBUG_ASSERT(my_b_tell(cur_log) == rli->event_relay_log_pos);
     }
 #endif
     /*
       Relay log is always in new format - if the master is 3.23, the
-      I/O thread will convert the format for us
+      I/O thread will convert the format for us.
+      A problem: the description event may be in a previous relay log. So if the
+      slave has been shutdown meanwhile, we would have to look in old relay
+      logs, which may even have been deleted. So we need to write this
+      description event at the beginning of the relay log.
+      When the relay log is created when the I/O thread starts, easy: the master
+      will send the description event and we will queue it.
+      But if the relay log is created by new_file(): then the solution is:
+      MYSQL_LOG::open() will write the buffered description event.
     */
-    if ((ev=Log_event::read_log_event(cur_log,0,(bool)0 /* new format */)))
+    if ((ev=Log_event::read_log_event(cur_log,0,
+                                      rli->relay_log.description_event_for_exec)))
+      
     {
       DBUG_ASSERT(thd==rli->sql_thd);
+      /*
+        read it while we have a lock, to avoid a mutex lock in
+        inc_event_relay_log_pos()
+      */
+      rli->future_event_relay_log_pos= my_b_tell(cur_log);
       if (hot_log)
 	pthread_mutex_unlock(log_lock);
       DBUG_RETURN(ev);
@@ -4023,8 +4460,20 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
 		sizeof(rli->event_relay_log_name)-1);
 	flush_relay_log_info(rli);
       }
-	
-      // next log is hot 
+
+      /*
+        Now we want to open this next log. To know if it's a hot log (the one
+        being written by the I/O thread now) or a cold log, we can use
+        is_active(); if it is hot, we use the I/O cache; if it's cold we open
+        the file normally. But if is_active() reports that the log is hot, this
+        may change between the test and the consequence of the test. So we may
+        open the I/O cache whereas the log is now cold, which is nonsense.
+        To guard against this, we need to have LOCK_log.
+      */
+
+      DBUG_PRINT("info",("hot_log: %d",hot_log));
+      if (!hot_log) /* if hot_log, we already have this mutex */
+        pthread_mutex_lock(log_lock);
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
@@ -4037,15 +4486,24 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
 	  
 	/*
 	  Read pointer has to be at the start since we are the only
-	  reader
+	  reader.
+          We must keep the LOCK_log to read the 4 first bytes, as this is a hot
+          log (same as when we call read_log_event() above: for a hot log we
+          take the mutex).
 	*/
 	if (check_binlog_magic(cur_log,&errmsg))
+        {
+          if (!hot_log) pthread_mutex_unlock(log_lock);
 	  goto err;
+        }
+        if (!hot_log) pthread_mutex_unlock(log_lock);
 	continue;
       }
+      if (!hot_log) pthread_mutex_unlock(log_lock);
       /*
-	if we get here, the log was not hot, so we will have to
-	open it ourselves
+	if we get here, the log was not hot, so we will have to open it
+	ourselves. We are sure that the log is still not hot now (a log can get
+	from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
       sql_print_error("next log '%s' is not active",
@@ -4095,8 +4553,9 @@ void rotate_relay_log(MASTER_INFO* mi)
   DBUG_ENTER("rotate_relay_log");
   RELAY_LOG_INFO* rli= &mi->rli;
 
-  lock_slave_threads(mi);
-  pthread_mutex_lock(&rli->data_lock);
+  /* We don't lock rli->run_lock. This would lead to deadlocks. */
+  pthread_mutex_lock(&mi->run_lock);
+
   /* 
      We need to test inited because otherwise, new_file() will attempt to lock
      LOCK_log, which may not be inited (if we're not a slave).
@@ -4125,8 +4584,7 @@ void rotate_relay_log(MASTER_INFO* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  pthread_mutex_unlock(&rli->data_lock);
-  unlock_slave_threads(mi);
+  pthread_mutex_unlock(&mi->run_lock);
   DBUG_VOID_RETURN;
 }
 

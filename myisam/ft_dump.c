@@ -29,7 +29,7 @@ static my_bool verbose;
 static char *query=NULL;
 static uint lengths[256];
 
-#define MAX_LEN (HA_FT_MAXLEN+10)
+#define MAX_LEN (HA_FT_MAXBYTELEN+10)
 #define HOW_OFTEN_TO_WRITE 10000
 
 static struct my_option my_long_options[] =
@@ -80,7 +80,7 @@ int main(int argc,char *argv[])
   if (argc < 2)
     usage();
 
-  init_key_cache(dflt_keycache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT,0);
+  init_key_cache(dflt_key_cache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT, 0, 0);
 
   if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
@@ -172,9 +172,9 @@ int main(int argc,char *argv[])
       if (dump)
       {
         if (subkeys>=0)
-          printf("%9qx %20.7f %s\n",info->lastpos,weight,buf);
+          printf("%9lx %20.7f %s\n", (long) info->lastpos,weight,buf);
         else
-          printf("%9qx => %17d %s\n",info->lastpos,-subkeys,buf);
+          printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys,buf);
       }
       if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
         printf("%10ld\r",total);
@@ -189,12 +189,12 @@ int main(int argc,char *argv[])
         if ((ulong) count >= total/2)
           break;
       }
-      printf("Total rows: %qu\nTotal words: %lu\n"
+      printf("Total rows: %lu\nTotal words: %lu\n"
              "Unique words: %lu\nLongest word: %lu chars (%s)\n"
              "Median length: %u\n"
              "Average global weight: %f\n"
              "Most common word: %lu times, weight: %f (%s)\n",
-             (ulonglong)info->state->records, total, uniq, maxlen, buf_maxlen,
+             (long) info->state->records, total, uniq, maxlen, buf_maxlen,
              inx, avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
     }
     if (lstats)

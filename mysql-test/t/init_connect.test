@@ -1,0 +1,34 @@
+#
+# Test of init_connect variable
+#
+
+connect (con0,localhost,root,,);
+connection con0;
+select hex(@a);
+connect (con1,localhost,user_1,,);
+connection con1;
+select hex(@a);
+connection con0;
+set global init_connect="set @a=2;set @b=3";
+connect (con2,localhost,user_1,,);
+connection con2;
+select @a, @b;
+connection con0;
+set GLOBAL init_connect=DEFAULT;
+connect (con3,localhost,user_1,,);
+connection con3;
+select @a;
+connection con0;
+set global init_connect="create table t1(a char(10));\
+insert into t1 values ('\0');insert into t1 values('abc')";
+connect (con4,localhost,user_1,,);
+connection con4;
+select hex(a) from t1;
+connection con0;
+set GLOBAL init_connect="adsfsdfsdfs";
+connect (con5,localhost,user_1,,);
+connection con5;
+--error 2013,2006
+select @a;
+connection con0;
+drop table t1;

@@ -19,6 +19,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "sql_acl.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -145,6 +146,7 @@ sp_head::operator delete(void *ptr, size_t size)
   MEM_ROOT own_root;
   sp_head *sp= (sp_head *)ptr;
 
+  DBUG_PRINT("info", ("root: %lx", &sp->m_mem_root));
   memcpy(&own_root, (const void *)&sp->m_mem_root, sizeof(MEM_ROOT));
   free_root(&own_root, MYF(0));
 
@@ -163,18 +165,55 @@ sp_head::sp_head()
 }
 
 void
-sp_head::init(LEX_STRING *name, LEX *lex)
+sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
-  const char *dstr = (const char*)lex->buf;
+
+  lex->spcont= m_pcont= new sp_pcontext();
+  my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
+  m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
+  m_name.str= m_params.str= m_retstr.str= m_body.str= m_defstr.str= 0;
+  m_name.length= m_params.length= m_retstr.length= m_body.length=
+    m_defstr.length= 0;
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_head::init_strings(THD *thd, LEX *lex, LEX_STRING *name)
+{
+  DBUG_ENTER("sp_head::init_strings");
+  /* During parsing, we must use thd->mem_root */
+  MEM_ROOT *root= &thd->mem_root;
 
   DBUG_PRINT("info", ("name: %*s", name->length, name->str));
   m_name.length= name->length;
-  m_name.str= lex->thd->strmake(name->str, name->length);
+  m_name.str= strmake_root(root, name->str, name->length);
+  m_params.length= m_param_end- m_param_begin;
+  m_params.str= strmake_root(root,
+			     (char *)m_param_begin, m_params.length);
+  if (m_returns_begin && m_returns_end)
+  {
+    /* QQ KLUDGE: We can't seem to cut out just the type in the parser
+       (without the RETURNS), so we'll have to do it here. :-( */
+    char *p= (char *)m_returns_begin+strspn((char *)m_returns_begin,"\t\n\r ");
+    p+= strcspn(p, "\t\n\r ");
+    p+= strspn(p, "\t\n\r ");
+    if (p < (char *)m_returns_end)
+      m_returns_begin= (uchar *)p;
+    /* While we're at it, trim the end too. */
+    p= (char *)m_returns_end-1;
+    while (p > (char *)m_returns_begin &&
+	   (*p == '\t' || *p == '\n' || *p == '\r' || *p == ' '))
+      p-= 1;
+    m_returns_end= (uchar *)p+1;
+    m_retstr.length=  m_returns_end - m_returns_begin;
+    m_retstr.str= strmake_root(root,
+			       (char *)m_returns_begin, m_retstr.length);
+  }
+  m_body.length= lex->end_of_query - m_body_begin;
+  m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
   m_defstr.length= lex->end_of_query - lex->buf;
-  m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
-  lex->spcont= m_pcont= new sp_pcontext();
-  my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
+  m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -184,20 +223,12 @@ sp_head::create(THD *thd)
   DBUG_ENTER("sp_head::create");
   int ret;
 
-  DBUG_PRINT("info", ("type: %d name: %s def: %s",
-		      m_type, m_name.str, m_defstr.str));
+  DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
+		      m_type, m_name.str, m_params.str, m_body.str));
   if (m_type == TYPE_ENUM_FUNCTION)
-    ret= sp_create_function(thd,
-			    m_name.str, m_name.length,
-			    m_defstr.str, m_defstr.length,
-			    m_comment.str, m_comment.length,
-			    m_suid);
+    ret= sp_create_function(thd, this);
   else
-    ret= sp_create_procedure(thd,
-			     m_name.str, m_name.length,
-			     m_defstr.str, m_defstr.length,
-			     m_comment.str, m_comment.length,
-			     m_suid);
+    ret= sp_create_procedure(thd, this);
 
   DBUG_RETURN(ret);
 }
@@ -255,6 +286,7 @@ sp_head::execute(THD *thd)
 
   if (ctx)
     ctx->clear_handler();
+  thd->query_error= 0;
   do
   {
     sp_instr *i;
@@ -287,10 +319,11 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed);
+  } while (ret == 0 && !thd->killed && !thd->query_error);
 
-  DBUG_PRINT("info", ("ret=%d killed=%d", ret, thd->killed));
-  if (thd->killed)
+  DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
+		      ret, thd->killed, thd->query_error));
+  if (thd->killed || thd->query_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
@@ -379,7 +412,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret;
-  sp_instr *p;
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();
@@ -537,6 +569,7 @@ sp_head::restore_lex(THD *thd)
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
+  SELECT_LEX *sl;
 
   if (! oldlex)
     return;			// Nothing to restore
@@ -544,7 +577,7 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
-  for (SELECT_LEX *sl= sublex->all_selects_list ;
+  for (sl= sublex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
@@ -584,7 +617,7 @@ sp_head::restore_lex(THD *thd)
   // QQ ...or just open tables in thd->open_tables?
   //    This is not entirerly clear at the moment, but for now, we collect
   //    tables here.
-  for (SELECT_LEX *sl= sublex.all_selects_list ;
+  for (sl= sublex.all_selects_list ;
        sl ;
        sl= sl->next_select())
   {
@@ -636,6 +669,34 @@ sp_head::backpatch(sp_label_t *lab)
 
       i->set_destination(dest);
     }
+}
+
+void
+sp_head::set_info(char *definer, uint definerlen,
+		  longlong created, longlong modified,
+		  st_sp_chistics *chistics)
+{
+  char *p= strchr(definer, '@');
+  uint len;
+
+  if (! p)
+    p= definer;		// Weird...
+  len= p-definer;
+  m_definer_user.str= strmake_root(&m_mem_root, definer, len);
+  m_definer_user.length= len;
+  len= definerlen-len-1;
+  m_definer_host.str= strmake_root(&m_mem_root, p+1, len);
+  m_definer_host.length= len;
+  m_created= created;
+  m_modified= modified;
+  m_chistics= (st_sp_chistics *)alloc_root(&m_mem_root, sizeof(st_sp_chistics));
+  memcpy(m_chistics, chistics, sizeof(st_sp_chistics));
+  if (m_chistics->comment.length == 0)
+    m_chistics->comment.str= 0;
+  else
+    m_chistics->comment.str= strmake_root(&m_mem_root,
+					  m_chistics->comment.str,
+					  m_chistics->comment.length);
 }
 
 int
@@ -714,6 +775,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
   Item *freelist;
+  SELECT_LEX *sl;
   int res;
 
   olex= thd->lex;		// Save the other lex
@@ -726,7 +788,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 
   // Copy WHERE clause pointers to avoid damaging by optimisation
   // Also clear ref_pointer_arrays.
-  for (SELECT_LEX *sl= lex->all_selects_list ;
+  for (sl= lex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
@@ -772,7 +834,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
     close_thread_tables(thd);			/* Free tables */
   }
 
-  for (SELECT_LEX *sl= lex->all_selects_list ;
+  for (sl= lex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
@@ -972,7 +1034,7 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
       res= -1;
     else
       res= exec_stmt(thd, lex);
-    c->post_open(thd, (res == 0 ? TRUE : FALSE));
+    c->post_open(thd, (lex ? TRUE : FALSE));
   }
 
   *nextp= m_ip+1;
@@ -1014,3 +1076,66 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
   *nextp= m_ip+1;
   DBUG_RETURN(res);
 }
+
+
+//
+// Security context swapping
+//
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+void
+sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+{
+  ctxp->changed= (sp->m_chistics->suid != IS_NOT_SUID &&
+		   (strcmp(sp->m_definer_user.str, thd->priv_user) ||
+		    strcmp(sp->m_definer_host.str, thd->priv_host)));
+
+  if (ctxp->changed)
+  {
+    ctxp->master_access= thd->master_access;
+    ctxp->db_access= thd->db_access;
+    ctxp->db= thd->db;
+    ctxp->db_length= thd->db_length;
+    ctxp->priv_user= thd->priv_user;
+    strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
+    ctxp->user= thd->user;
+    ctxp->host= thd->host;
+    ctxp->ip= thd->ip;
+
+    /* Change thise just to do the acl_getroot_no_password */
+    thd->user= sp->m_definer_user.str;
+    thd->host= thd->ip = sp->m_definer_host.str;
+
+    if (acl_getroot_no_password(thd))
+    {			// Failed, run as invoker for now
+      ctxp->changed= FALSE;
+      thd->master_access= ctxp->master_access;
+      thd->db_access= ctxp->db_access;
+      thd->db= ctxp->db;
+      thd->db_length= ctxp->db_length;
+      thd->priv_user= ctxp->priv_user;
+      strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+    }
+
+    /* Restore these immiediately */
+    thd->user= ctxp->user;
+    thd->host= ctxp->host;
+    thd->ip= ctxp->ip;
+  }
+}
+
+void
+sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+{
+  if (ctxp->changed)
+  {
+    ctxp->changed= FALSE;
+    thd->master_access= ctxp->master_access;
+    thd->db_access= ctxp->db_access;
+    thd->db= ctxp->db;
+    thd->db_length= ctxp->db_length;
+    thd->priv_user= ctxp->priv_user;
+    strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+  }
+}
+
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */

@@ -294,6 +294,9 @@ C_MODE_END
 #endif
 #ifdef HAVE_ATOMIC_ADD
 #define __SMP__
+#ifdef HAVE_LINUX_CONFIG_H
+#include <linux/config.h>	/* May define CONFIG_SMP */
+#endif
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif
@@ -633,10 +636,25 @@ extern double		my_atof(const char*);
 #define HAVE_LONG_LONG 1
 #endif
 
+/*
+  Some pre-ANSI-C99 systems like AIX 5.1 and Linux/GCC 2.95 define
+  ULONGLONG_MAX, LONGLONG_MIN, LONGLONG_MAX; we use them if they're defined.
+  Also on Windows we define these constants by hand in config-win.h.
+*/
+
 #if defined(HAVE_LONG_LONG) && !defined(LONGLONG_MIN)
 #define LONGLONG_MIN	((long long) 0x8000000000000000LL)
 #define LONGLONG_MAX	((long long) 0x7FFFFFFFFFFFFFFFLL)
 #endif
+
+#if defined(HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)
+/* First check for ANSI C99 definition: */
+#ifdef ULLONG_MAX
+#define ULONGLONG_MAX  ULLONG_MAX
+#else
+#define ULONGLONG_MAX ((unsigned long long)(~0ULL))
+#endif
+#endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
 #if SIZEOF_LONG == 4
 #define INT_MIN32	(long) 0x80000000L
@@ -664,6 +682,17 @@ extern double		my_atof(const char*);
 #ifndef DBL_MAX
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
+#endif
+
+/* Define missing math constants. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.7182818284590452354
+#endif
+#ifndef M_LN2
+#define M_LN2 0.69314718055994530942
 #endif
 
 /*
@@ -695,7 +724,8 @@ typedef long long	my_ptrdiff_t;
 #endif
 #endif
 #if defined(__IBMC__) || defined(__IBMCPP__)
-#define STDCALL _System _Export
+/* This was  _System _Export but caused a lot of warnings on _AIX43 */
+#define STDCALL
 #elif !defined( STDCALL)
 #define STDCALL
 #endif
@@ -1148,6 +1178,12 @@ typedef union {
 #define DES_set_key_unchecked(k,ks) des_set_key_unchecked((k),*(ks))
 #define DES_ede3_cbc_encrypt(i,o,l,k1,k2,k3,iv,e) des_ede3_cbc_encrypt((i),(o),(l),*(k1),*(k2),*(k3),(iv),(e))
 #endif
+#endif
+
+#ifdef HAVE_CHARSET_utf8
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#else
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
 #endif /* my_global_h */

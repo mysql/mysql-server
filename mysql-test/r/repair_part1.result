@@ -4,7 +4,7 @@ repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
-alter table t1 TYPE=HEAP;
+alter table t1 ENGINE=HEAP;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	The storage engine for the table doesn't support repair
@@ -12,4 +12,4 @@ drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	Table 'test.t1' doesn't exist
-create table t1 type=myisam SELECT 1,"table 1";
+create table t1 engine=myisam SELECT 1,"table 1";

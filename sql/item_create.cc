@@ -18,10 +18,6 @@
 
 #include "mysql_priv.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 Item *create_func_abs(Item* a)
 {
   return new Item_func_abs(a);
@@ -76,7 +72,7 @@ Item *create_func_ceiling(Item* a)
 Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
-  thd->lex->safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query= 0;
   return new Item_int(NullS,(longlong)
                       ((thd->slave_thread) ?
                        thd->variables.pseudo_thread_id :
@@ -148,7 +144,7 @@ Item *create_func_floor(Item* a)
 Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
-  thd->lex->safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query= 0;
   return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
@@ -310,11 +306,6 @@ Item *create_func_current_user()
 		  buff);
   return new Item_string(NullS, thd->memdup(buff, length), length,
 			 system_charset_info);
-}
-
-Item *create_func_quarter(Item* a)
-{
-  return new Item_func_quarter(a);
 }
 
 Item *create_func_radians(Item *a)

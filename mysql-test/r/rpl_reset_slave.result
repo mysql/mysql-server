@@ -5,21 +5,21 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	79	slave-relay-bin.000002	123	master-bin.000001	Yes	Yes							0		0	79	123	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	95	#	#	master-bin.000001	Yes	Yes							0		0	95	#	None		0	No						#
 stop slave;
 change master to master_user='test';
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	test	MASTER_PORT	1	master-bin.000001	79	slave-relay-bin.000001	4	master-bin.000001	No	No							0		0	79	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	test	MASTER_PORT	1	master-bin.000001	95	#	#	master-bin.000001	No	No							0		0	95	#	None		0	No						#
 reset slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1		4	slave-relay-bin.000001	4		No	No							0		0	0	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1		4	#	#		No	No							0		0	0	#	None		0	No						#
 start slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	79	slave-relay-bin.000002	123	master-bin.000001	Yes	Yes							0		0	79	123	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	95	#	#	master-bin.000001	Yes	Yes							0		0	95	#	None		0	No						#
 stop slave;
 reset slave;
 start slave;

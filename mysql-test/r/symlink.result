@@ -40,7 +40,7 @@ t9	CREATE TABLE `t9` (
   `b` char(16) NOT NULL default '',
   `c` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
-) TYPE=MyISAM CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
@@ -62,5 +62,27 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL default '0',
   `d` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
-) TYPE=MyISAM CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 drop database mysqltest;
+create table t1 (a int not null) type=myisam;
+Warnings:
+Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 add b int;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

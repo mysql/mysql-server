@@ -62,7 +62,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
     ulong length;
     CHARSET_INFO *cs= (create && create->default_table_charset) ? 
 		     create->default_table_charset :
-		     thd->variables.collation_database;
+		     thd->variables.collation_server;
     length= my_sprintf(buf,(buf,
 			    "default-character-set=%s\ndefault-collation=%s\n",
 			    cs->csname,cs->name));
@@ -101,7 +101,7 @@ static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   uint nbytes;
 
   bzero((char*) create,sizeof(*create));
-  create->default_table_charset= global_system_variables.collation_database;
+  create->default_table_charset= thd->variables.collation_server;
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -264,7 +264,6 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   char path[FN_REFLEN+16];
   long result=1;
   int error = 0;
-  uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_alter_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -290,13 +289,14 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   {
     thd->db_charset= (create_info && create_info->default_table_charset) ?
 		     create_info->default_table_charset : 
-		     global_system_variables.collation_database;
+		     thd->variables.collation_server;
     thd->variables.collation_database= thd->db_charset;
   }
 
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    thd->clear_error();
     mysql_bin_log.write(&qinfo);
   }
   send_ok(thd, result);
@@ -382,6 +382,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, query, query_length, 0);
+	thd->clear_error();
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd,(ulong) deleted);
@@ -438,7 +439,6 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next;
   List<String> raid_dirs;
-
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -514,17 +514,24 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       deleted++;
     }
   }
+  List_iterator<String> it(raid_dirs);
+  String *dir;
+
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
   {
+    /* Free memory for allocated raid dirs */
+    while ((dir= it++))
+      delete dir;
     my_dirend(dirp);
     DBUG_RETURN(-1);
   }
-  List_iterator<String> it(raid_dirs);
-  String *dir;
   while ((dir= it++))
+  {
     if (rmdir(dir->c_ptr()) < 0)
       found_other_files++;
+    delete dir;
+  }
   my_dirend(dirp);  
   
   /*
@@ -655,7 +662,7 @@ bool mysql_change_db(THD *thd, const char *name)
   load_db_opt(thd, path, &create);
   thd->db_charset= create.default_table_charset ?
 		   create.default_table_charset :
-		   global_system_variables.collation_database;
+		   thd->variables.collation_server;
   thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }

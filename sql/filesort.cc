@@ -48,7 +48,8 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       BUFFPEK *buffpek,
 		       uint maxbuffer,IO_CACHE *tempfile,
 		       IO_CACHE *outfile);
-static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
+static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
+                       FILESORT_INFO *table_sort);
 static uint sortlength(SORT_FIELD *sortorder, uint s_length,
 		       bool *multi_byte_charset);
 static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
@@ -85,8 +86,16 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
-
-  outfile= table->sort.io_cache;
+  FILESORT_INFO table_sort;
+  /* 
+    Don't use table->sort in filesort as it is also used by 
+    QUICK_INDEX_MERGE_SELECT. Work with a copy and put it back at the end 
+    when index_merge select has finished with it.
+  */
+  memcpy(&table_sort, &table->sort, sizeof(FILESORT_INFO));
+  table->sort.io_cache= NULL;
+  
+  outfile= table_sort.io_cache;
   my_b_clear(&tempfile);
   my_b_clear(&buffpek_pointers);
   buffpek=0;
@@ -107,14 +116,15 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                                         param.sort_length,
                                         &param.addon_length);
   }
-  table->sort.addon_buf= 0;
-  table->sort.addon_length= param.addon_length;
-  table->sort.addon_field= param.addon_field;
-  table->sort.unpack= unpack_addon_fields;
+
+  table_sort.addon_buf= 0;
+  table_sort.addon_length= param.addon_length;
+  table_sort.addon_field= param.addon_field;
+  table_sort.unpack= unpack_addon_fields;
   if (param.addon_field)
   {
     param.res_length= param.addon_length;
-    if (!(table->sort.addon_buf= (byte *) my_malloc(param.addon_length,
+    if (!(table_sort.addon_buf= (byte *) my_malloc(param.addon_length,
                                                     MYF(MY_WME))))
       goto err;
   }
@@ -151,8 +161,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=table->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
-  if (param.rec_length == param.ref_length && records > param.max_rows)
-    records=param.max_rows;			/* purecov: inspected */
 
   if (multi_byte_charset &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
@@ -182,7 +190,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		       DISK_BUFFER_SIZE, MYF(MY_WME)))
     goto err;
 
-  param.keys--;
+  param.keys--;  			/* TODO: check why we do this */
   param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
   if ((records=find_all_keys(&param,select,sort_keys, &buffpek_pointers,
@@ -193,7 +201,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   if (maxbuffer == 0)			// The whole set is in memory
   {
-    if (save_index(&param,sort_keys,(uint) records))
+    if (save_index(&param,sort_keys,(uint) records, &table_sort))
       goto err;
   }
   else
@@ -256,6 +264,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+  memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
   DBUG_PRINT("exit",("records: %ld",records));
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
@@ -359,12 +368,24 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 		    current_thd->variables.read_buff_size);
   }
 
+  READ_RECORD read_record_info;
+  if (quick_select)
+  {
+    if (select->quick->reset())
+      DBUG_RETURN(HA_POS_ERROR);
+    init_read_record(&read_record_info, current_thd, select->quick->head,
+                     select, 1, 1);
+  }
+
   for (;;)
   {
     if (quick_select)
     {
-      if ((error=select->quick->get_next()))
-	break;
+      if ((error= read_record_info.read_record(&read_record_info)))
+      {
+        error= HA_ERR_END_OF_FILE;
+        break;
+      }
       file->position(sort_form->record[0]);
     }
     else					/* Not quick-select */
@@ -392,6 +413,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       if (error && error != HA_ERR_RECORD_DELETED)
 	break;
     }
+
     if (*killed)
     {
       DBUG_PRINT("info",("Sort killed by user"));
@@ -408,16 +430,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
 	  DBUG_RETURN(HA_POS_ERROR);
 	idx=0;
-	if (param->ref_length == param->rec_length &&
-	    my_b_tell(tempfile)/param->rec_length >= param->max_rows)
-	{
-	  /*
-	    We are writing the result index file and have found all
-	    rows that we need.  Abort the sort and return the result.
-	  */
-	  error=HA_ERR_END_OF_FILE;
-	  break;			/* Found enough records */
-	}
 	indexpos++;
       }
       make_sortkey(param,sort_keys[idx++],ref_pos);
@@ -425,8 +437,20 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     else
       file->unlock_row();
   }
-  (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
-  file->rnd_end();
+  if (quick_select)
+  {
+    /*
+      index_merge quick select uses table->sort when retrieving rows, so free
+      resoures it has allocated.
+    */
+    end_read_record(&read_record_info);
+  }
+  else
+  {
+    (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
+    file->rnd_end();
+  }
+
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
   {
@@ -664,8 +688,8 @@ static void make_sortkey(register SORTPARAM *param,
   return;
 }
 
-
-static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count)
+static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count, 
+                       FILESORT_INFO *table_sort)
 {
   uint offset,res_length;
   byte *to;
@@ -676,7 +700,7 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count)
   offset= param->rec_length-res_length;
   if ((ha_rows) count > param->max_rows)
     count=(uint) param->max_rows;
-  if (!(to= param->sort_form->sort.record_pointers=
+  if (!(to= table_sort->record_pointers= 
         (byte*) my_malloc(res_length*count, MYF(MY_WME))))
     DBUG_RETURN(1);                 /* purecov: inspected */
   for (uchar **end= sort_keys+count ; sort_keys != end ; sort_keys++)
@@ -756,6 +780,39 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 } /* read_to_buffer */
 
 
+/*
+    Put all room used by freed buffer to use in adjacent buffer.  Note, that
+    we can't simply distribute memory evenly between all buffers, because
+    new areas must not overlap with old ones.
+  SYNOPSYS
+    reuse_freed_buff()
+    queue      IN  list of non-empty buffers, without freed buffer
+    reuse      IN  empty buffer
+    key_length IN  key length
+*/
+
+void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
+{
+  uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
+  for (uint i= 0; i < queue->elements; ++i)
+  {
+    BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
+    if (bp->base + bp->max_keys * key_length == reuse->base)
+    {
+      bp->max_keys+= reuse->max_keys;
+      return;
+    }
+    else if (bp->base == reuse_end)
+    {
+      bp->base= reuse->base;
+      bp->max_keys+= reuse->max_keys;
+      return;
+    }
+  }
+  DBUG_ASSERT(0);
+}
+
+
 /* 
    Merge buffers to one buffer 
 */
@@ -771,7 +828,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;
-  BUFFPEK *buffpek,**refpek;
+  BUFFPEK *buffpek;
   QUEUE queue;
   qsort2_cmp cmp;
   volatile THD::killed_state *killed= &current_thd->killed;
@@ -881,29 +938,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
         if (!(error= (int) read_to_buffer(from_file,buffpek,
                                           rec_length)))
         {
-          uchar *base= buffpek->base;
-          ulong max_keys= buffpek->max_keys;
-
           VOID(queue_remove(&queue,0));
-
-          /* Put room used by buffer to use in other buffer */
-          for (refpek= (BUFFPEK**) &queue_top(&queue);
-               refpek <= (BUFFPEK**) &queue_end(&queue);
-               refpek++)
-          {
-            buffpek= *refpek;
-            if (buffpek->base+buffpek->max_keys*rec_length == base)
-            {
-              buffpek->max_keys+= max_keys;
-              break;
-            }
-            else if (base+max_keys*rec_length == buffpek->base)
-            {
-              buffpek->base= base;
-              buffpek->max_keys+= max_keys;
-              break;
-            }
-          }
+          reuse_freed_buff(&queue, buffpek, rec_length);
           break;                        /* One buffer have been removed */
         }
         else if (error == -1)

@@ -21,8 +21,8 @@ day	id	category	name
 2003-03-22	2161	c	asdf
 2003-03-22	2416	a	bbbbb
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
-slave-bin.000001	964		
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+slave-bin.000001	1068		
 drop table t1;
 drop table t2;
 drop table t3;
@@ -32,8 +32,8 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 set global sql_slave_skip_counter=1;
 start slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1311	slave-relay-bin.000002	1355	master-bin.000001	Yes	Yes							0		0	1311	1355	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1503	#	#	master-bin.000001	Yes	Yes							0		0	1503	#	None		0	No						#
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
@@ -42,8 +42,8 @@ stop slave;
 change master to master_user='test';
 change master to master_user='root';
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1442	slave-relay-bin.000001	4	master-bin.000001	No	No							0		0	1442	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1611	#	#	master-bin.000001	No	No							0		0	1611	#	None		0	No						#
 set global sql_slave_skip_counter=1;
 start slave;
 set sql_log_bin=0;
@@ -53,8 +53,8 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 stop slave;
 reset slave;
 show slave status;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
-#	127.0.0.1	root	MASTER_PORT	1		4	slave-relay-bin.000001	4		No	No							0		0	0	4	None		0	No						#
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1		4	#	#		No	No							0		0	0	#	None		0	No						#
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day));
@@ -63,6 +63,6 @@ terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 1
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.000001	491		
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	529		
 drop table t2;

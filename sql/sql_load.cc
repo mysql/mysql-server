@@ -72,10 +72,11 @@ public:
 };
 
 static int read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,
-			     List<Item> &fields, READ_INFO &read_info);
+			     List<Item> &fields, READ_INFO &read_info,
+			     ulong skip_lines);
 static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 			  List<Item> &fields, READ_INFO &read_info,
-			  String &enclosed);
+			  String &enclosed, ulong skip_lines);
 
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
@@ -85,8 +86,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   File file;
   TABLE *table;
   int error;
-  String *field_term=ex->field_term,*escaped=ex->escaped,
-    *enclosed=ex->enclosed;
+  String *field_term=ex->field_term,*escaped=ex->escaped;
+  String *enclosed=ex->enclosed;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -95,6 +96,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* If no current database, use database where table is located */
   char *tdb= thd->db ? thd->db : db;
   bool transactional_table, log_delayed;
+  ulong skip_lines= ex->skip_lines;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -254,16 +256,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
-  if (ex->line_term->length() && field_term->length())
+  /* Skip lines if there is a line terminator */
+  if (ex->line_term->length())
   {
-    // ex->skip_lines needs to be preserved for logging
-    uint skip_lines = ex->skip_lines;
-    while (skip_lines--)
+    /* ex->skip_lines needs to be preserved for logging */
+    while (skip_lines > 0)
     {
+      skip_lines--;
       if (read_info.next_line())
 	break;
     }
   }
+
   if (!(error=test(read_info.error)))
   {
     uint save_time_stamp=table->time_stamp;
@@ -279,9 +283,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->file->deactivate_non_unique_index((ha_rows) 0);
     table->copy_blobs=1;
     if (!field_term->length() && !enclosed->length())
-      error=read_fixed_length(thd,info,table,fields,read_info);
+      error=read_fixed_length(thd,info,table,fields,read_info,
+			      skip_lines);
     else
-      error=read_sep_field(thd,info,table,fields,read_info,*enclosed);
+      error=read_sep_field(thd,info,table,fields,read_info,*enclosed,
+			   skip_lines);
     if (table->file->extra(HA_EXTRA_NO_CACHE))
       error=1;					/* purecov: inspected */
     if (table->file->activate_all_index(thd))
@@ -290,7 +296,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->time_stamp=save_time_stamp;
     table->next_number_field=0;
   }
-  if  (file >= 0) my_close(file,MYF(0));
+  if (file >= 0)
+    my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -392,7 +399,7 @@ err:
 
 static int
 read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
-		  READ_INFO &read_info)
+		  READ_INFO &read_info, ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
@@ -411,6 +418,17 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     {
       thd->send_kill_message();
       DBUG_RETURN(1);
+    }
+    if (skip_lines)
+    {
+      /*
+	We could implement this with a simple seek if:
+	- We are not using DATA INFILE LOCAL
+	- escape character is  ""
+	- line starting prefix is ""
+      */
+      skip_lines--;
+      continue;
     }
     it.rewind();
     byte *pos=read_info.row_start;
@@ -482,7 +500,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 static int
 read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	       List<Item> &fields, READ_INFO &read_info,
-	       String &enclosed)
+	       String &enclosed, ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
@@ -533,6 +551,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     }
     if (read_info.error)
       break;
+    if (skip_lines)
+    {
+      if (!--skip_lines)
+	thd->cuted_fields= 0L;			// Reset warnings
+      continue;
+    }
     if (sql_field)
     {						// Last record
       if (sql_field == (Item_field*) fields.head())
@@ -756,8 +780,7 @@ int READ_INFO::read_field()
     {
       chr = GET;
 #ifdef USE_MB
-      if (use_mb(read_charset) &&
-          (my_mbcharlen(read_charset, chr) >1 )&&
+      if ((my_mbcharlen(read_charset, chr) > 1) &&
           to+my_mbcharlen(read_charset, chr) <= end_of_buff)
       {
 	  uchar* p = (uchar*)to;
@@ -873,7 +896,18 @@ found_eof:
 }
 
 /*
-** One can't use fixed length with multi-byte charset **
+  Read a row with fixed length.
+
+  NOTES
+    The row may not be fixed size on disk if there are escape
+    characters in the file.
+
+  IMPLEMENTATION NOTE
+    One can't use fixed length with multi-byte charset **
+
+  RETURN
+    0  ok
+    1  error
 */
 
 int READ_INFO::read_fixed_length()
@@ -943,7 +977,7 @@ int READ_INFO::next_line()
   {
     int chr = GET;
 #ifdef USE_MB
-   if (use_mb(read_charset) && (my_mbcharlen(read_charset, chr) >1 ))
+   if (my_mbcharlen(read_charset, chr) > 1)
    {
        for (int i=1;
             chr != my_b_EOF && i<my_mbcharlen(read_charset, chr);

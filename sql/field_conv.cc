@@ -17,7 +17,7 @@
 
 /*
  Functions to copy data to or from fields
- This could be done with a single short function but opencooding this
+ This could be done with a single short function but opencoding this
  gives much more speed.
  */
 
@@ -549,6 +549,7 @@ void field_conv(Field *to,Field *from)
     if (to->pack_length() == from->pack_length() &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
+        from->charset() == to->charset() &&
 	to->table->db_low_byte_first == from->table->db_low_byte_first)
     {						// Identical fields
       memcpy(to->ptr,from->ptr,to->pack_length());
@@ -562,7 +563,7 @@ void field_conv(Field *to,Field *from)
     if (!blob->value.is_alloced() &&
 	from->real_type() != FIELD_TYPE_STRING)
       blob->value.copy();
-    blob->store(blob->value.ptr(),blob->value.length(),to->charset());
+    blob->store(blob->value.ptr(),blob->value.length(),from->charset());
     return;
   }
   if ((from->result_type() == STRING_RESULT &&
@@ -574,8 +575,7 @@ void field_conv(Field *to,Field *from)
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());
     from->val_str(&result,&result);
-    to->store(result.c_ptr_quick(),result.length(),to->charset());
-    // QQ: what to do if "from" and "to" are of dirrent charsets?
+    to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
   else if (from->result_type() == REAL_RESULT)
     to->store(from->val_real());

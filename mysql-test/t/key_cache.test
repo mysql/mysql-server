@@ -42,7 +42,7 @@ SET @@global.key_buffer_size=@save_key_buffer;
 --error 1064
 SELECT @@default.key_buffer_size;
 --error 1271
-SELECT @@skr.table_type="test";
+SELECT @@skr.storage_engine="test";
 
 select @@keycache1.key_cache_block_size;
 select @@keycache1.key_buffer_size;
@@ -135,4 +135,8 @@ drop table t1,t2,t3;
 
 # Cleanup
 # We don't reset keycache2 as we want to ensure that mysqld will reset it
-set global keycache1.key_buffer_size=0;
+set global keycache2.key_buffer_size=0;
+
+# Test to set up a too small size for a key cache (bug #2064)
+set global keycache3.key_buffer_size=100;
+set global keycache3.key_buffer_size=0;

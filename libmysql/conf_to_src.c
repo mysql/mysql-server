@@ -16,9 +16,9 @@
 
 /* can't use -lmysys because this prog is used to create -lstrings */
 
+
+#include <my_global.h>
 #include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 

@@ -95,11 +95,34 @@ week(19981231,2)	week(19981231,3)	week(20000101,2)	week(20000101,3)
 52	53	52	52
 select week(20001231,2),week(20001231,3);
 week(20001231,2)	week(20001231,3)
-1	52
+53	52
+select week(19981231,0) as '0', week(19981231,1) as '1', week(19981231,2) as '2', week(19981231,3) as '3', week(19981231,4) as '4', week(19981231,5) as '5', week(19981231,6) as '6', week(19981231,7) as '7';
+0	1	2	3	4	5	6	7
+52	53	52	53	52	52	52	52
+select week(20000101,0) as '0', week(20000101,1) as '1', week(20000101,2) as '2', week(20000101,3) as '3', week(20000101,4) as '4', week(20000101,5) as '5', week(20000101,6) as '6', week(20000101,7) as '7';
+0	1	2	3	4	5	6	7
+0	0	52	52	0	0	52	52
+select week(20000106,0) as '0', week(20000106,1) as '1', week(20000106,2) as '2', week(20000106,3) as '3', week(20000106,4) as '4', week(20000106,5) as '5', week(20000106,6) as '6', week(20000106,7) as '7';
+0	1	2	3	4	5	6	7
+1	1	1	1	1	1	1	1
+select week(20001231,0) as '0', week(20001231,1) as '1', week(20001231,2) as '2', week(20001231,3) as '3', week(20001231,4) as '4', week(20001231,5) as '5', week(20001231,6) as '6', week(20001231,7) as '7';
+0	1	2	3	4	5	6	7
+53	52	53	52	53	52	1	52
+select week(20010101,0) as '0', week(20010101,1) as '1', week(20010101,2) as '2', week(20010101,3) as '3', week(20010101,4) as '4', week(20010101,5) as '5', week(20010101,6) as '6', week(20010101,7) as '7';
+0	1	2	3	4	5	6	7
+0	1	53	1	1	1	1	1
+select yearweek(20001231,0), yearweek(20001231,1), yearweek(20001231,2), yearweek(20001231,3), yearweek(20001231,4), yearweek(20001231,5), yearweek(20001231,6), yearweek(20001231,7);
+yearweek(20001231,0)	yearweek(20001231,1)	yearweek(20001231,2)	yearweek(20001231,3)	yearweek(20001231,4)	yearweek(20001231,5)	yearweek(20001231,6)	yearweek(20001231,7)
+200053	200052	200053	200052	200101	200052	200101	200052
+set default_week_format = 6;
+select week(20001231), week(20001231,6);
+week(20001231)	week(20001231,6)
+1	1
+set default_week_format = 0;
 set default_week_format = 2;
 select week(20001231),week(20001231,2),week(20001231,0);
 week(20001231)	week(20001231,2)	week(20001231,0)
-1	1	53
+53	53	53
 set default_week_format = 0;
 select date_format('1998-12-31','%x-%v'),date_format('1999-01-01','%x-%v');
 date_format('1998-12-31','%x-%v')	date_format('1999-01-01','%x-%v')
@@ -353,7 +376,7 @@ monthname(date)
 NULL
 January
 drop table t1,t2;
-CREATE TABLE t1 (updated text) TYPE=MyISAM;
+CREATE TABLE t1 (updated text) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 month(updated)
@@ -408,6 +431,15 @@ select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 start	ctime1	ctime2
 2002-11-04 00:00:00	2002-10-29 16:51:06	2002-11-05 16:47:31
 drop table t1,t2,t3;
+select @a:=FROM_UNIXTIME(1);
+@a:=FROM_UNIXTIME(1)
+1970-01-01 03:00:01
+select unix_timestamp(@a);
+unix_timestamp(@a)
+1
+select unix_timestamp('1969-12-01 19:00:01');
+unix_timestamp('1969-12-01 19:00:01')
+0
 CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
 INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
 SELECT * from t1;
@@ -464,6 +496,63 @@ date_add(date,INTERVAL "1 1:1" DAY_MINUTE)
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
 date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
 2003-01-03 01:01:01
+select date_add(date,INTERVAL "1" WEEK) from t1;
+date_add(date,INTERVAL "1" WEEK)
+2003-01-09 00:00:00
+select date_add(date,INTERVAL "1" QUARTER) from t1;
+date_add(date,INTERVAL "1" QUARTER)
+2003-04-02
+select timestampadd(MINUTE, 1, date) from t1;
+timestampadd(MINUTE, 1, date)
+2003-01-02 00:01:00
+select timestampadd(WEEK, 1, date) from t1;
+timestampadd(WEEK, 1, date)
+2003-01-09 00:00:00
+select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
+timestampadd(SQL_TSI_SECOND, 1, date)
+2003-01-02 00:00:01
+select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
+timestampadd(SQL_TSI_FRAC_SECOND, 1, date)
+2003-01-02 00:00:00.000001
+select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
+a
+3
+select timestampdiff(YEAR, '2002-05-01', '2001-01-01') as a;
+a
+-1
+select timestampdiff(QUARTER, '2002-05-01', '2001-01-01') as a;
+a
+-5
+select timestampdiff(MONTH, '2000-03-28', '2000-02-29') as a;
+a
+0
+select timestampdiff(MONTH, '1991-03-28', '2000-02-29') as a;
+a
+107
+select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a;
+a
+12
+select timestampdiff(SQL_TSI_HOUR, '2001-02-01', '2001-05-01') as a;
+a
+2136
+select timestampdiff(SQL_TSI_DAY, '2001-02-01', '2001-05-01') as a;
+a
+89
+select timestampdiff(SQL_TSI_MINUTE, '2001-02-01 12:59:59', '2001-05-01 12:58:59') as a;
+a
+128159
+select timestampdiff(SQL_TSI_SECOND, '2001-02-01 12:59:59', '2001-05-01 12:58:58') as a;
+a
+7689539
+select timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a;
+a
+7689538999999
+select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
+timestampdiff(SQL_TSI_DAY, '1900-02-01', '1900-03-01') as a2,
+timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
+timestampdiff(SQL_TSI_DAY, '2000-02-01', '2000-03-01') as a4;
+a1	a2	a3	a4
+28	28	29	29
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
 2006-07-08 00:00:01
@@ -508,3 +597,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select high_priority no_cache period_add(_latin1'9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,_latin1'9404') AS `period_diff(199505,"9404")`,from_days(to_days(_latin1'960101')) AS `from_days(to_days("960101"))`,dayofmonth(_latin1'1997-01-02') AS `dayofmonth("1997-01-02")`,month(_latin1'1997-01-02') AS `month("1997-01-02")`,monthname(_latin1'1972-03-04') AS `monthname("1972-03-04")`,dayofyear(_latin1'0000-00-00') AS `dayofyear("0000-00-00")`,hour(_latin1'1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute(_latin1'23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week(_latin1'1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek(_latin1'2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year(_latin1'98-02-03') AS `year("98-02-03")`,(weekday(to_days(curdate())) - weekday(to_days(now()))) AS `weekday(curdate())-weekday(now())`,dayname(to_days(_latin1'1962-03-03')) AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec(_latin1'0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format(_latin1'1997-01-02 03:04:05',_latin1'%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp(_latin1'1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,(_latin1'1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,(_latin1'1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from _latin1'1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
+explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
+timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority timestamp_diff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS `a1`,timestamp_diff(SECOND_FRAC,_latin1'2001-02-01 12:59:59.120000',_latin1'2001-05-01 12:58:58.119999') AS `a2`

@@ -104,16 +104,16 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
   Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
   if (sum_item && sum_item->result_field)	   // If not a const sum func
   {
-    Field *result_field= sum_item->result_field;
+    Field *result_field_tmp= sum_item->result_field;
     for (uint i=0 ; i < sum_item->arg_count ; i++)
     {
       Item *arg= sum_item->args[i];
       if (!arg->const_item())
       {
 	if (arg->type() == Item::FIELD_ITEM)
-	  ((Item_field*) arg)->field= result_field++;
+	  ((Item_field*) arg)->field= result_field_tmp++;
 	else
-	  sum_item->args[i]= new Item_field(result_field++);
+	  sum_item->args[i]= new Item_field(result_field_tmp++);
       }
     }
   }
@@ -140,7 +140,7 @@ Item_sum_num::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -148,10 +148,13 @@ Item_sum_num::val_str(String *str)
 String *
 Item_sum_int::val_str(String *str)
 {
-  longlong nr=val_int();
+  longlong nr= val_int();
   if (null_value)
     return 0;
-  str->set(nr,default_charset());
+  if (unsigned_flag)
+    str->set((ulonglong) nr, &my_charset_bin);
+  else
+    str->set(nr, &my_charset_bin);
   return str;
 }
 
@@ -261,6 +264,122 @@ double Item_sum_sum::val()
   return sum;
 }
 
+
+/* Item_sum_sum_distinct */
+
+Item_sum_sum_distinct::Item_sum_sum_distinct(Item *item)
+  :Item_sum_num(item), sum(0.0), tree(0)
+{
+  /*
+    quick_group is an optimizer hint, which means that GROUP BY can be
+    handled with help of index on grouped columns.
+    By setting quick_group to zero we force creation of temporary table
+    to perform GROUP BY.
+  */
+  quick_group= 0;
+}
+
+
+Item_sum_sum_distinct::Item_sum_sum_distinct(THD *thd,
+                                             Item_sum_sum_distinct &original)
+  :Item_sum_num(thd, original), sum(0.0), tree(0)
+{
+  quick_group= 0;
+}
+
+
+Item_sum_sum_distinct::~Item_sum_sum_distinct()
+{
+  delete tree;
+}
+  
+
+Item *
+Item_sum_sum_distinct::copy_or_same(THD *thd)
+{
+  return new (&thd->mem_root) Item_sum_sum_distinct(thd, *this);
+}
+
+C_MODE_START
+
+static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
+{
+  return memcmp(key1, key2, *(uint *) arg);
+}
+
+C_MODE_END
+
+bool Item_sum_sum_distinct::setup(THD *thd)
+{
+  SELECT_LEX *select_lex= thd->lex->current_select;
+  /* what does it mean??? */
+  if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
+    return 1;
+
+  DBUG_ASSERT(tree == 0);                 /* setup can not be called twice */
+
+  /*
+    Uniques handles all unique elements in a tree until they can't fit in.
+    Then thee tree is dumped to the temporary file.
+    See class Unique for details.
+  */
+  null_value= maybe_null= 1;
+  /*
+    TODO: if underlying item result fits in 4 bytes we can take advantage
+    of it and have tree of long/ulong. It gives 10% performance boost
+  */
+  static uint key_length= sizeof(double);
+  tree= new Unique(simple_raw_key_cmp, &key_length, key_length,
+                   thd->variables.max_heap_table_size);
+  return tree == 0;
+}
+
+void Item_sum_sum_distinct::clear()
+{
+  DBUG_ASSERT(tree);                            /* we always have a tree */
+  null_value= 1; 
+  tree->reset();
+}
+
+bool Item_sum_sum_distinct::add()
+{
+  /* args[0]->val() may reset args[0]->null_value */
+  double val= args[0]->val();
+  if (!args[0]->null_value)
+  {
+    DBUG_ASSERT(tree);
+    null_value= 0;
+    if (val)
+      return tree->unique_add(&val);
+  }
+  return 0;
+}
+
+C_MODE_START
+
+static int sum_sum_distinct(void *element, element_count num_of_dups,
+                     void *item_sum_sum_distinct)
+{ 
+  ((Item_sum_sum_distinct *)
+   (item_sum_sum_distinct))->add(* (double *) element);
+  return 0;
+}
+
+C_MODE_END
+
+double Item_sum_sum_distinct::val()
+{
+  /*
+    We don't have a tree only if 'setup()' hasn't been called;
+    this is the case of sql_select.cc:return_zero_rows.
+  */
+  sum= 0.0;
+  if (tree) 
+    tree->walk(sum_sum_distinct, (void *) this);
+  return sum;
+}
+
+/* end of Item_sum_sum_distinct */
 
 Item *Item_sum_count::copy_or_same(THD* thd)
 {
@@ -474,13 +593,13 @@ Item_sum_hybrid::val_str(String *str)
   case STRING_RESULT:
     return &value;
   case REAL_RESULT:
-    str->set(sum,decimals,default_charset());
+    str->set(sum,decimals, &my_charset_bin);
     break;
   case INT_RESULT:
     if (unsigned_flag)
-      str->set((ulonglong) sum_int,default_charset());
+      str->set((ulonglong) sum_int, &my_charset_bin);
     else
-      str->set((longlong) sum_int,default_charset());
+      str->set((longlong) sum_int, &my_charset_bin);
     break;
   case ROW_RESULT:
   default:
@@ -776,9 +895,16 @@ void Item_sum_avg::reset_field()
 
 void Item_sum_bit::reset_field()
 {
+  reset();
+  int8store(result_field->ptr, bits);
+}
+
+void Item_sum_bit::update_field()
+{
   char *res=result_field->ptr;
-  ulonglong nr=(ulonglong) args[0]->val_int();
-  int8store(res,nr);
+  bits= uint8korr(res);
+  add();
+  int8store(res, bits);
 }
 
 /*
@@ -916,37 +1042,6 @@ Item_sum_hybrid::min_max_update_int_field()
 }
 
 
-void Item_sum_or::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr|= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-void Item_sum_xor::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr^= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-void Item_sum_and::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr&= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-
 Item_avg_field::Item_avg_field(Item_sum_avg *item)
 {
   name=item->name;
@@ -955,6 +1050,7 @@ Item_avg_field::Item_avg_field(Item_sum_avg *item)
   field=item->result_field;
   maybe_null=1;
 }
+
 
 double Item_avg_field::val()
 {
@@ -978,7 +1074,7 @@ String *Item_avg_field::val_str(String *str)
   double nr=Item_avg_field::val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -1026,7 +1122,7 @@ String *Item_variance_field::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -1035,11 +1131,6 @@ String *Item_variance_field::val_str(String *str)
 ****************************************************************************/
 
 #include "sql_select.h"
-
-int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
-{
-  return memcmp(key1, key2, *(uint*) arg);
-}
 
 int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
@@ -1415,8 +1506,7 @@ String *Item_sum_udf_float::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
-  else
-    str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -1441,8 +1531,7 @@ String *Item_sum_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
-    str->set(nr,default_charset());
+  str->set(nr, &my_charset_bin);
   return str;
 }
 
@@ -1642,10 +1731,8 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
   original= 0;
   quick_group= 0;
   mark_as_sum_func();
-  item_thd= current_thd;
-  SELECT_LEX *select_lex= item_thd->lex->current_select;
   order= 0;
-  group_concat_max_len= item_thd->variables.group_concat_max_len;
+  group_concat_max_len= current_thd->variables.group_concat_max_len;
 
     
   arg_show_fields= arg_count_field= is_select->elements;
@@ -1791,6 +1878,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
+  item_thd= thd;
   for (i= 0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
@@ -1968,6 +2056,7 @@ String* Item_func_group_concat::val_str(String* str)
   }
   return &result;
 }
+
 
 void Item_func_group_concat::print(String *str)
 {

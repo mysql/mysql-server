@@ -39,7 +39,7 @@ mysqlbinlog_SOURCES =   mysqlbinlog.cc ../mysys/mf_tempdir.c
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
 mysqlmanagerc_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-sql_src=log_event.h log_event.cc
+sql_src=log_event.h mysql_priv.h log_event.cc
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK

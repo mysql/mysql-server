@@ -491,7 +491,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) NOT NULL default ''
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)				
@@ -501,7 +501,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	
@@ -510,7 +510,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	

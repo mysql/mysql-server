@@ -319,7 +319,8 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
+     *opt_init_connect, *opt_init_slave;
 
 const char *opt_date_time_formats[3];
 
@@ -358,7 +359,7 @@ struct system_variables max_system_variables;
 
 MY_TMPDIR mysql_tmpdir_list;
 MY_BITMAP temp_pool;
-KEY_CACHE_VAR *sql_key_cache;
+KEY_CACHE *sql_key_cache;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -378,7 +379,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-rw_lock_t	LOCK_grant;
+rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
@@ -499,6 +500,8 @@ static uint set_maximum_open_files(uint max_file_limit);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
+static int test_if_case_insensitive(const char *dir_name);
+static void create_pid_file();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -926,6 +929,8 @@ void clean_up(bool print_message)
 	  MYF(MY_ALLOW_ZERO_PTR));
   if (defaults_argv)
     free_defaults(defaults_argv);
+  my_free(sys_init_connect.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_init_slave.value, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -997,6 +1002,8 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_rpl_status);
 #endif
   (void) pthread_mutex_destroy(&LOCK_active_mi);
+  (void) rwlock_destroy(&LOCK_sys_init_connect);
+  (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
@@ -1056,7 +1063,7 @@ static void set_user(const char *user)
     }
     return;
   }
-  else if (!user)
+  if (!user)
   {
     if (!opt_bootstrap)
     {
@@ -1271,7 +1278,7 @@ static void server_init(void)
 void yyerror(const char *s)
 {
   THD *thd=current_thd;
-  char *yytext=(char*) thd->lex->tok_start;
+  char *yytext= (char*) thd->lex->tok_start;
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
@@ -1478,16 +1485,7 @@ static void start_signal_handler(void)
 {
   // Save vm id of this process
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
   // no signal handler
 }
 
@@ -1568,14 +1566,14 @@ We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
-          (ulong) sql_key_cache->buff_size);
+          (ulong) sql_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", ((ulong) sql_key_cache->buff_size +
+bytes of memory\n", ((ulong) sql_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
@@ -1773,16 +1771,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /* Save pid to this process (or thread on Linux) */
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      ulong length= my_sprintf(buff, (buff,"%lu",(ulong) getpid()));
-      (void) my_write(pidFile, buff, length, MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
+
 #ifdef HAVE_STACK_TRACE_ON_SEGV
   if (opt_do_pstack)
   {
@@ -1895,7 +1885,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       DBUG_RETURN(0);
     }
     /*
-      thd->lex.current_select == 0 if lex structure is not inited
+      thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
     if (thd->lex->current_select &&
@@ -2018,7 +2008,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
   }
   return log->open(opt_name, type, 0, index_file_name,
 		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-		   no_auto_events, max_size);
+		   no_auto_events, max_size, 0);
 }
 
 
@@ -2044,7 +2034,6 @@ bool init_global_datetime_format(timestamp_type format_type,
 {
   /* Get command line option */
   const char *str= opt_date_time_formats[format_type];
-  DATE_TIME_FORMAT *format;
 
   if (!str)					// No specified format
   {
@@ -2075,6 +2064,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   start_time=time((time_t*) 0);
+  if (init_thread_environment())
+    return 1;
   mysql_init_variables();
 
 #ifdef OS2
@@ -2117,8 +2108,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
-  if (init_thread_environment())
-    return 1;
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -2180,7 +2169,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_database=	 default_charset_info;
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+  global_system_variables.character_set_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
+
+  sys_init_connect.value_length= 0;
+  if ((sys_init_connect.value= opt_init_connect))
+    sys_init_connect.value_length= strlen(opt_init_connect);
+
+  sys_init_slave.value_length= 0;
+  if ((sys_init_slave.value= opt_init_slave))
+    sys_init_slave.value_length= strlen(opt_init_slave);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -2207,6 +2205,8 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
+  (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -2379,7 +2379,7 @@ Now disabling --log-slave-updates.");
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
   /* We must set dflt_key_cache in case we are using ISAM tables */
-  dflt_keycache= &sql_key_cache->cache;
+  dflt_key_cache= sql_key_cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
@@ -2794,7 +2794,7 @@ default_service_handling(char **argv,
   }
   /* We must have servicename last */
   *pos++= ' ';
-  strmake(pos, servicename, (uint) (end+2 - pos));
+  (void) add_quoted_string(pos, servicename, end);
 
   if (Service.got_service_option(argv, "install"))
   {
@@ -2825,6 +2825,9 @@ int main(int argc, char **argv)
   int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
           "MySQLShutdown"), 10);
   
+  /* Must be initialized early for comparison of service name */
+  system_charset_info= &my_charset_utf8_general_ci;
+
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];
@@ -3374,34 +3377,20 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 #ifdef HAVE_SMEM
 pthread_handler_decl(handle_connections_shared_memory,arg)
 {
-/*
-  event_connect_request is event object for start connection actions
-  event_connect_answer is event object for confirm, that server put data
-  handle_connect_file_map is file-mapping object, use for create shared memory
-  handle_connect_map is pointer on shared memory
-  handle_map is pointer on shared memory for client
-  event_server_wrote,
-  event_server_read,
-  event_client_wrote,
-  event_client_read are events for transfer data between server and client
-  handle_file_map is file-mapping object, use for create shared memory
-*/
-  HANDLE handle_connect_file_map = NULL;
-  char  *handle_connect_map = NULL;
-  HANDLE event_connect_request = NULL;
-  HANDLE event_connect_answer = NULL;
-  ulong smem_buffer_length = shared_memory_buffer_length + 4;
-  ulong connect_number = 1;
-  my_bool error_allow;
-  THD *thd;
+  /* file-mapping object, use for create shared memory */
+  HANDLE handle_connect_file_map= 0;
+  char  *handle_connect_map= 0;  		// pointer on shared memory
+  HANDLE event_connect_request= 0;		// for start connection actions
+  HANDLE event_connect_answer= 0;
+  ulong smem_buffer_length= shared_memory_buffer_length + 4;
+  ulong connect_number= 1;
   char tmp[63];
   char *suffix_pos;
   char connect_number_char[22], *p;
-
+  const char *errmsg= 0;
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
-
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -3410,166 +3399,165 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       shared_memory_base_name is unique value for each server
       unique_part is unique value for each object (events and file-mapping)
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  suffix_pos= strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+  if ((event_connect_request= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! The request event don't create.");
+    errmsg= "Could not create request event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+  if ((event_connect_answer= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! The answer event don't create.");
+    errmsg="Could not create answer event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_DATA");
-  if ((handle_connect_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,PAGE_READWRITE,
-                                 0,sizeof(connect_number),tmp)) == 0)
+  if ((handle_connect_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
+						   PAGE_READWRITE,
+						   0,sizeof(connect_number),
+						   tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! File mapping don't create.");
+    errmsg= "Could not create file mapping";
     goto error;
   }
-  if ((handle_connect_map = (char *)MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,
-                            sizeof(DWORD))) == 0)
+  if ((handle_connect_map= (char *)MapViewOfFile(handle_connect_file_map,
+						  FILE_MAP_WRITE,0,0,
+						  sizeof(DWORD))) == 0)
   {
-    sql_perror("Can't create shared memory service ! Map of memory don't create.");
+    errmsg= "Could not create shared memory service";
     goto error;
   }
-
 
   while (!abort_loop)
   {
-/*
- Wait a request from client
-*/
+    /* Wait a request from client */
     WaitForSingleObject(event_connect_request,INFINITE);
-    error_allow = FALSE;
 
-    HANDLE handle_client_file_map = NULL;
-    char  *handle_client_map = NULL;
-    HANDLE event_client_wrote = NULL;
-    HANDLE event_client_read = NULL;
-    HANDLE event_server_wrote = NULL;
-    HANDLE event_server_read = NULL;
+    HANDLE handle_client_file_map= 0;
+    char  *handle_client_map= 0;
+    HANDLE event_client_wrote= 0;
+    HANDLE event_client_read= 0;    // for transfer data server <-> client
+    HANDLE event_server_wrote= 0;
+    HANDLE event_server_read= 0;
+    THD *thd= 0;
 
-    p = int2str(connect_number, connect_number_char, 10);
-/*
-  The name of event and file-mapping events create agree next rule:
-    shared_memory_base_name+unique_part+number_of_connection
-  Where:
-    shared_memory_base_name is uniquel value for each server
-    unique_part is unique value for each object (events and file-mapping)
-    number_of_connection is number of connection between server and client
-*/
-    suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+    p= int2str(connect_number, connect_number_char, 10);
+    /*
+      The name of event and file-mapping events create agree next rule:
+        shared_memory_base_name+unique_part+number_of_connection
+        Where:
+	  shared_memory_base_name is uniquel value for each server
+	  unique_part is unique value for each object (events and file-mapping)
+	  number_of_connection is connection-number between server and client
+    */
+    suffix_pos= strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
+			 "_",NullS);
     strmov(suffix_pos, "DATA");
-    if ((handle_client_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,
-                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0)
+    if ((handle_client_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
+						    PAGE_READWRITE,0,
+						    smem_buffer_length,
+						    tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! File mapping don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create file mapping";
       goto errorconn;
     }
-    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0)
+    if ((handle_client_map= (char*)MapViewOfFile(handle_client_file_map,
+						  FILE_MAP_WRITE,0,0,
+						  smem_buffer_length)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! Map of memory don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create memory map";
       goto errorconn;
     }
-
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! CW event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create client write event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! CR event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create client read event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! SR event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create server read event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! SW event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create server write event";
       goto errorconn;
     }
-
-    if (abort_loop) break;
-    if ( !(thd = new THD))
-    {
-      error_allow = TRUE;
+    if (abort_loop)
       goto errorconn;
-    }
-
-/*
-Send number of connection to client
-*/
+    if (!(thd= new THD))
+      goto errorconn;
+    /* Send number of connection to client */
     int4store(handle_connect_map, connect_number);
-
-/*
-  Send number of connection to client
-*/
     if (!SetEvent(event_connect_answer))
     {
-      sql_perror("Can't create connection with client in shared memory service ! Can't send answer event.");
-      error_allow = TRUE;
+      errmsg= "Could not send answer event";
       goto errorconn;
     }
-
-/*
-  Set event that client should receive data
-*/
+    /* Set event that client should receive data */
     if (!SetEvent(event_client_read))
     {
-      sql_perror("Can't create connection with client in shared memory service ! Can't set client to read's mode.");
-      error_allow = TRUE;
+      errmsg= "Could not set client to read mode";
       goto errorconn;
     }
-    if (!(thd->net.vio = vio_new_win32shared_memory(&thd->net,handle_client_file_map,handle_client_map,event_client_wrote,
-                         event_client_read,event_server_wrote,event_server_read)) ||
-                          my_net_init(&thd->net, thd->net.vio))
+    if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
+						   handle_client_file_map,
+						   handle_client_map,
+						   event_client_wrote,
+						   event_client_read,
+						   event_server_wrote,
+						   event_server_read)) ||
+	my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-      delete thd;
-      error_allow = TRUE;
+      errmsg= 0;
+      goto errorconn;
     }
-    /* host name is unknown */
-errorconn:
-    if (error_allow)
-    {
-      if (!handle_client_map) UnmapViewOfFile(handle_client_map);
-      if (!handle_client_file_map) CloseHandle(handle_client_file_map);
-      if (!event_server_wrote) CloseHandle(event_server_wrote);
-      if (!event_server_read) CloseHandle(event_server_read);
-      if (!event_client_wrote) CloseHandle(event_client_wrote);
-      if (!event_client_read) CloseHandle(event_client_read);
-      continue;
-    }
-    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    thd->host= my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
-    uint4korr(connect_number++);
+    connect_number++;
+    continue;
+
+errorconn:
+    /* Could not form connection;  Free used handlers/memort and retry */
+    if (errmsg)
+    {
+      char buff[180];
+      strxmov(buff, "Can't create shared memory connection: ", errmsg, ".",
+	      NullS);
+      sql_perror(buff);
+    }
+    if (handle_client_file_map) CloseHandle(handle_client_file_map);
+    if (handle_client_map)	UnmapViewOfFile(handle_client_map);
+    if (event_server_wrote)	CloseHandle(event_server_wrote);
+    if (event_server_read)	CloseHandle(event_server_read);
+    if (event_client_wrote)	CloseHandle(event_client_wrote);
+    if (event_client_read)	CloseHandle(event_client_read);
+    delete thd;
   }
+
+  /* End shared memory handling */
 error:
-  if (!handle_connect_map) UnmapViewOfFile(handle_connect_map);
-  if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
-  if (!event_connect_answer) CloseHandle(event_connect_answer);
-  if (!event_connect_request) CloseHandle(event_connect_request);
+  if (errmsg)
+  {
+    char buff[180];
+    strxmov(buff, "Can't create shared memory service: ", errmsg, ".", NullS);
+    sql_perror(buff);
+  }
+  if (handle_connect_map)	UnmapViewOfFile(handle_connect_map);
+  if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
+  if (event_connect_answer)	CloseHandle(event_connect_answer);
+  if (event_connect_request)	CloseHandle(event_connect_request);
 
   decrement_handler_count();
   DBUG_RETURN(0);
@@ -3597,7 +3585,7 @@ enum options_mysqld
   OPT_SKIP_HOST_CACHE,         OPT_SHORT_LOG_FORMAT,
   OPT_FLUSH,                   OPT_SAFE,
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
-  OPT_TABLE_TYPE,              OPT_INIT_FILE,
+  OPT_STORAGE_ENGINE,          OPT_INIT_FILE,
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
@@ -3665,7 +3653,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT, OPT_MAX_PREP_STMT,
+  OPT_MAX_ERROR_COUNT,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -3708,6 +3696,8 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_INIT_CONNECT,
+  OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
   OPT_DATE_FORMAT,
   OPT_TIME_FORMAT,
@@ -3804,8 +3794,11 @@ Disable with --skip-bdb (will save memory).",
   {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-table-type", OPT_TABLE_TYPE,
-   "Set the default table type for tables.", 0, 0,
+  {"default-storage-engine", OPT_STORAGE_ENGINE,
+   "Set the default storage engine (table tyoe) for tables.", 0, 0,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-table-type", OPT_STORAGE_ENGINE,
+   "(deprecated) Use default-storage-engine.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -3884,6 +3877,12 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &innobase_file_per_table,
    (gptr*) &innobase_file_per_table, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
+  {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
+   (gptr*) &opt_init_connect, (gptr*) &opt_init_connect, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+   (gptr*) &opt_init_slave, (gptr*) &opt_init_slave, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 
    (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -4292,11 +4291,11 @@ log and this option does nothing anymore.",
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, 4, 1, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, HA_FT_MAXCHARLEN, 10, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_query_expansion_limit", OPT_FT_QUERY_EXPANSION_LIMIT,
     "Number of best matches to use for query expansion",
     (gptr*) &ft_query_expansion_limit, (gptr*) &ft_query_expansion_limit, 0, GET_ULONG,
@@ -4370,26 +4369,26 @@ log and this option does nothing anymore.",
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
-   (gptr*) &dflt_key_cache_var.buff_size,
+   (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
-   (gptr*) &dflt_key_cache_var.block_size,
+   (gptr*) &dflt_key_cache_var.param_block_size,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
-   (gptr*) &dflt_key_cache_var.division_limit,
+   (gptr*) &dflt_key_cache_var.param_division_limit,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
   {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
-   (gptr*) &dflt_key_cache_var.age_threshold,
+   (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
@@ -4455,11 +4454,6 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
-  {"max_prepared_statements", OPT_MAX_PREP_STMT,
-   "Max number of prepared_statements for a thread.",
-   (gptr*) &global_system_variables.max_prep_stmt_count,
-   (gptr*) &max_system_variables.max_prep_stmt_count, 0, GET_ULONG,
-   REQUIRED_ARG, DEFAULT_PREP_STMT_COUNT, 0, ~0L, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 expected, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
@@ -4640,7 +4634,7 @@ The minimum value for this variable is 4096.",
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 16384, 0, 1,
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
    0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
@@ -4658,7 +4652,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (gptr*) &thread_stack,
    (gptr*) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024*32, ~0L, 0, 1024, 0},
+   1024L*128L, ~0L, 0, 1024, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -4683,7 +4677,7 @@ The minimum value for this variable is 4096.",
     "The default week format used by WEEK() functions.",
     (gptr*) &global_system_variables.default_week_format,
     (gptr*) &max_system_variables.default_week_format,
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
     (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
@@ -4782,8 +4776,8 @@ struct show_var_st status_vars[]= {
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
   {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
+  {"Com_show_storage_engines", (char*) (com_stat+(uint) SQLCOM_SHOW_STORAGE_ENGINES),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
-  {"Com_show_table_types",     (char*) (com_stat+(uint) SQLCOM_SHOW_TABLE_TYPES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
   {"Com_show_warnings",        (char*) (com_stat+(uint) SQLCOM_SHOW_WARNS),SHOW_LONG},
   {"Com_slave_start",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_START),SHOW_LONG},
@@ -4811,17 +4805,17 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
-  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.blocks_changed,
+  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
+  {"Key_blocks_used",          (char*) &dflt_key_cache_var.global_blocks_used,
    SHOW_KEY_CACHE_LONG},
-  {"Key_read_requests",        (char*) &dflt_key_cache_var.cache_r_requests,
+  {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests,
    SHOW_KEY_CACHE_LONG},
-  {"Key_reads",                (char*) &dflt_key_cache_var.cache_read,
+  {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read,
    SHOW_KEY_CACHE_LONG},
-  {"Key_write_requests",       (char*) &dflt_key_cache_var.cache_w_requests,
+  {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests,
    SHOW_KEY_CACHE_LONG},
-  {"Key_writes",               (char*) &dflt_key_cache_var.cache_write,
+  {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
    SHOW_KEY_CACHE_LONG},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
@@ -4894,8 +4888,8 @@ struct show_var_st status_vars[]= {
 
 static void print_version(void)
 {
-  printf("%s  Ver %s for %s on %s\n",my_progname,
-	 server_version,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
+	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
 static void use_help(void)
@@ -5421,11 +5415,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (!argument ||
-	(my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
+    if ((my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
-      if (argument || argument[0])
+      if (argument[0])
 	ent=gethostbyname(argument);
       else
       {
@@ -5470,15 +5463,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
     break;
-  case OPT_TABLE_TYPE:
+  case OPT_STORAGE_ENGINE:
   {
-    int type;
-    if ((type=find_type(argument, &ha_table_typelib, 2)) <= 0)
+    if ((enum db_type)((global_system_variables.table_type= 
+    	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown table type: %s\n",argument);
       exit(1);
     }
-    global_system_variables.table_type= type-1;
     break;
   }
   case OPT_SERVER_ID:
@@ -5662,18 +5654,18 @@ mysql_getopt_value(const char *keyname, uint key_length,
   case OPT_KEY_CACHE_DIVISION_LIMIT:
   case OPT_KEY_CACHE_AGE_THRESHOLD:
   {
-    KEY_CACHE_VAR *key_cache;
+    KEY_CACHE *key_cache;
     if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
       exit(1);
     switch (option->id) {
     case OPT_KEY_BUFFER_SIZE:
-      return (gptr*) &key_cache->buff_size;
+      return (gptr*) &key_cache->param_buff_size;
     case OPT_KEY_CACHE_BLOCK_SIZE:
-      return (gptr*) &key_cache->block_size;
+      return (gptr*) &key_cache->param_block_size;
     case OPT_KEY_CACHE_DIVISION_LIMIT:
-      return (gptr*) &key_cache->division_limit;
+      return (gptr*) &key_cache->param_division_limit;
     case OPT_KEY_CACHE_AGE_THRESHOLD:
-      return (gptr*) &key_cache->age_threshold;
+      return (gptr*) &key_cache->param_age_threshold;
     }
   }
   }
@@ -5836,6 +5828,18 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 1;
+  }
 }
 
 
@@ -5854,62 +5858,79 @@ static void fix_paths(void)
 */
 
 #ifdef SET_RLIMIT_NOFILE
+
+#ifndef RLIM_INFINITY
+#define RLIM_INFINITY ((uint) 0xffffffff)
+#endif
+
 static uint set_maximum_open_files(uint max_file_limit)
 {
   struct rlimit rlimit;
-  ulong old_cur;
+  uint old_cur;
+  DBUG_ENTER("set_maximum_open_files");
+  DBUG_PRINT("enter",("files: %u", max_file_limit));
 
   if (!getrlimit(RLIMIT_NOFILE,&rlimit))
   {
-    old_cur=rlimit.rlim_cur;
-    if (rlimit.rlim_cur >= max_file_limit)	// Nothing to do
-      return rlimit.rlim_cur;			/* purecov: inspected */
-    rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
+    old_cur= (uint) rlimit.rlim_cur;
+    DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
+			(uint) rlimit.rlim_cur,
+			(uint) rlimit.rlim_max));
+    if (rlimit.rlim_cur >= max_file_limit ||
+	rlimit.rlim_cur == RLIM_INFINITY)
+      DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */
+    rlimit.rlim_cur= rlimit.rlim_max= max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %u (request: %u)",
 			old_cur, max_file_limit); /* purecov: inspected */
-      max_file_limit=old_cur;
+      max_file_limit= old_cur;
     }
     else
     {
+      rlimit.rlim_cur= 0;			// Safety if next call fails
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      if ((uint) rlimit.rlim_cur != max_file_limit &&
+      DBUG_PRINT("info", ("rlim_cur: %u", (uint) rlimit.rlim_cur));
+      if ((uint) rlimit.rlim_cur < max_file_limit &&
 	  global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
-			(ulong) rlimit.rlim_cur,
+	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %u (request: %u)",
+			(uint) rlimit.rlim_cur,
 			max_file_limit); /* purecov: inspected */
-      max_file_limit=rlimit.rlim_cur;
+      max_file_limit= (uint) rlimit.rlim_cur;
     }
   }
-  return max_file_limit;
+  DBUG_PRINT("exit",("max_file_limit: %u", max_file_limit));
+  DBUG_RETURN(max_file_limit);
 }
 #endif
+
 
 #ifdef OS2
 static uint set_maximum_open_files(uint max_file_limit)
 {
-   LONG     cbReqCount;
-   ULONG    cbCurMaxFH, cbCurMaxFH0;
-   APIRET   ulrc;
+  LONG     cbReqCount;
+  ULONG    cbCurMaxFH, cbCurMaxFH0;
+  APIRET   ulrc;
+  DBUG_ENTER("set_maximum_open_files");
 
-   // get current limit
-   cbReqCount = 0;
-   DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
+  // get current limit
+  cbReqCount = 0;
+  DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
 
-   // set new limit
-   cbReqCount = max_file_limit - cbCurMaxFH0;
-   ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-   if (ulrc) {
-      sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
-         cbCurMaxFH0);
-      cbCurMaxFH = cbCurMaxFH0;
-   }
+  // set new limit
+  cbReqCount = max_file_limit - cbCurMaxFH0;
+  ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
+  if (ulrc) {
+    sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
+		    cbCurMaxFH0);
+    cbCurMaxFH = cbCurMaxFH0;
+  }
 
-   return cbCurMaxFH;
+  DBUG_RETURN(cbCurMaxFH);
 }
 #endif
+
 
 /*
   Return a bitfield from a string of substrings separated by ','
@@ -5970,6 +5991,61 @@ skipp: ;
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
 } /* find_bit_type */
+
+
+/*
+  Check if file system used for databases is case insensitive
+
+  SYNOPSIS
+    test_if_case_sensitive()
+    dir_name			Directory to test
+
+  RETURN
+    -1  Don't know (Test failed)
+    0   File system is case sensitive
+    1   File system is case insensitive
+*/
+
+static int test_if_case_insensitive(const char *dir_name)
+{
+  int result= 0;
+  File file;
+  char buff[FN_REFLEN], buff2[FN_REFLEN];
+  MY_STAT stat_info;
+
+  fn_format(buff, glob_hostname, dir_name, ".lower-test",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  fn_format(buff2, glob_hostname, dir_name, ".LOWER-TEST",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  (void) my_delete(buff2, MYF(0));
+  if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
+  {
+    sql_print_error("Warning: Can't create test file %s", buff);
+    return -1;
+  }
+  my_close(file, MYF(0));
+  if (my_stat(buff2, &stat_info, MYF(0)))
+    result= 1;					// Can access file
+  (void) my_delete(buff, MYF(MY_WME));
+  return result;
+}
+
+
+/* Create file to store pid number */
+
+static void create_pid_file()
+{
+  File file;
+  if ((file = my_create(pidfile_name,0664,
+			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
+  {
+    char buff[21], *end;
+    end= int2str((long) getpid(), buff, 10);
+    *end++= '\n';
+    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
+    (void) my_close(file, MYF(0));
+  }
+}
 
 
 /*****************************************************************************

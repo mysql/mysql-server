@@ -397,13 +397,12 @@ int Arg_comparator::compare_row()
 
 int Arg_comparator::compare_e_row()
 {
-  int res= 0;
   (*a)->bring_value();
   (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= !comparators[i].compare()))
+    if (!comparators[i].compare())
       return 0;
   }
   return 1;
@@ -604,7 +603,7 @@ longlong Item_func_interval::val_int()
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
-    start= 1;
+    start= 0;
     end=   row->cols()-2;
     while (start != end)
     {
@@ -1096,8 +1095,10 @@ void Item_func_case::fix_length_and_dec()
     return;
   
   
-  //  Aggregate first expression and all THEN expression types
-  //  and collations when string comparison
+  /*
+    Aggregate first expression and all THEN expression types
+    and collations when string comparison
+  */
   if (first_expr_num != -1)
   {
     agg[0]= args[first_expr_num];
@@ -1110,7 +1111,7 @@ void Item_func_case::fix_length_and_dec()
     return;
   }
   
-  if (!else_expr_num != -1 || args[else_expr_num]->maybe_null)
+  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
     maybe_null=1;
   
   max_length=0;
@@ -1126,6 +1127,7 @@ void Item_func_case::fix_length_and_dec()
     set_if_bigger(decimals,args[else_expr_num]->decimals);
   }
 }
+
 
 /* TODO:  Fix this so that it prints the whole CASE expression */
 
@@ -1375,6 +1377,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
   return 0; // to satisfy compiler :)
 }
 
+
 cmp_item* cmp_item_sort_string::make_same()
 {
   return new cmp_item_sort_string_in_static(cmp_charset);
@@ -1395,26 +1398,45 @@ cmp_item* cmp_item_row::make_same()
   return new cmp_item_row();
 }
 
+
+cmp_item_row::~cmp_item_row()
+{
+  DBUG_ENTER("~cmp_item_row");
+  DBUG_PRINT("enter",("this: %lx", this));
+  if (comparators)
+  {
+    for (uint i= 0; i < n; i++)
+    {
+      if (comparators[i])
+	delete comparators[i];
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void cmp_item_row::store_value(Item *item)
 {
-  THD *thd= current_thd;
+  DBUG_ENTER("cmp_item_row::store_value");
   n= item->cols();
-  if ((comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n)))
+  if (!comparators)
+    comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+  if (comparators)
   {
     item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
-      if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
-      {
-	comparators[i]->store_value(item->el(i));
-	item->null_value|= item->el(i)->null_value;
-      }
-      else
-	return;
+    {
+      if (!comparators[i])
+	if (!(comparators[i]= cmp_item::get_comparator(item->el(i))))
+	  break;					// new failed
+      comparators[i]->store_value(item->el(i));
+      item->null_value|= item->el(i)->null_value;
+    }
   }
-  else
-    return;
+  DBUG_VOID_RETURN;
 }
+
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
 {
@@ -1430,18 +1452,16 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
     item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
-      if ((comparators[i]= tmpl->comparators[i]->make_same()))
-      {
-	comparators[i]->store_value_by_template(tmpl->comparators[i],
-						item->el(i));
-	item->null_value|= item->el(i)->null_value;
-      }
-      else
-	return;
+    {
+      if (!(comparators[i]= tmpl->comparators[i]->make_same()))
+	break;					// new failed
+      comparators[i]->store_value_by_template(tmpl->comparators[i],
+					      item->el(i));
+      item->null_value|= item->el(i)->null_value;
+    }
   }
-  else
-    return;
 }
+
 
 int cmp_item_row::cmp(Item *arg)
 {
@@ -1454,24 +1474,30 @@ int cmp_item_row::cmp(Item *arg)
   bool was_null= 0;
   arg->bring_value();
   for (uint i=0; i < n; i++)
+  {
     if (comparators[i]->cmp(arg->el(i)))
     {
       if (!arg->el(i)->null_value)
 	return 1;
       was_null= 1;
     }
+  }
   return (arg->null_value= was_null);
 }
 
+
 int cmp_item_row::compare(cmp_item *c)
 {
-  int res;
   cmp_item_row *cmp= (cmp_item_row *) c;
   for (uint i=0; i < n; i++)
+  {
+    int res;
     if ((res= comparators[i]->compare(cmp->comparators[i])))
       return res;
+  }
   return 0;
 }
+
 
 bool Item_func_in::nulls_in_row()
 {
@@ -1484,12 +1510,14 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
+
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }
+
 
 void Item_func_in::fix_length_and_dec()
 {
@@ -1512,7 +1540,6 @@ void Item_func_in::fix_length_and_dec()
   {
     switch (cmp_type) {
     case STRING_RESULT:
-      uint i;
       array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
 			  cmp_collation.collation);
       break;
@@ -1696,7 +1723,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (item->maybe_null)
       maybe_null=1;
   }
-  thd->lex->current_select->cond_count+=list.elements;
+  thd->lex->current_select->cond_count+= list.elements;
   fix_length_and_dec();
   fixed= 1;
   return 0;

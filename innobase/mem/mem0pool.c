@@ -279,7 +279,8 @@ mem_pool_fill_free_list(
 	                fprintf(stderr,
 "  InnoDB: Error: mem pool free list %lu length is %lu\n"
 "InnoDB: though the list is empty!\n",
-			i + 1, UT_LIST_GET_LEN(pool->free_list[i + 1]));
+			(ulong) i + 1,
+			(ulong) UT_LIST_GET_LEN(pool->free_list[i + 1]));
 		}
 
 		ret = mem_pool_fill_free_list(i + 1, pool);
@@ -360,7 +361,7 @@ mem_area_alloc(
 	        fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu though the\n"
 "InnoDB: element is not marked free!\n",
-			n);
+			(ulong) n);
 
 		mem_analyze_corruption((byte*)area);
 
@@ -380,7 +381,7 @@ mem_area_alloc(
 	        fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu\n"
 "InnoDB: though the list length is 0!\n",
-			n);
+			(ulong) n);
 		mem_analyze_corruption((byte*)area);
 
 		ut_a(0);
@@ -504,7 +505,7 @@ mem_area_free(
 		        fprintf(stderr,
 "InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
 "InnoDB: Possibly a memory overrun of the buffer being freed here.\n",
-			  size, next_size);
+			  (ulong) size, (ulong) next_size);
 			mem_analyze_corruption((byte*)area);
 
 			ut_a(0);
@@ -632,13 +633,13 @@ mem_pool_print_info(
 
 			fprintf(outfile,
 			  "Free list length %lu for blocks of size %lu\n",
-			  UT_LIST_GET_LEN(pool->free_list[i]),
-			  ut_2_exp(i));
+			  (ulong) UT_LIST_GET_LEN(pool->free_list[i]),
+			  (ulong) ut_2_exp(i));
 		}	
 	}
 
-	fprintf(outfile, "Pool size %lu, reserved %lu.\n", pool->size,
-							pool->reserved);
+	fprintf(outfile, "Pool size %lu, reserved %lu.\n", (ulong) pool->size,
+						       (ulong) pool->reserved);
 	mutex_exit(&(pool->mutex));
 }
 
