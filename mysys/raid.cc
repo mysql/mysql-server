@@ -79,8 +79,6 @@
 #include <m_string.h>
 #include <assert.h>
 
-const char *raid_type_string[]={"none","striped"};
-
 #if defined(USE_RAID) && !defined(MYSQL_CLIENT)
 
 #define RAID_SEEK_DONE ~(off_t) 0
