@@ -1069,6 +1069,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
+  table->insert_values= 0;
   table->used_keys= table->keys_for_keyread;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
@@ -2793,10 +2794,6 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   TABLE_LIST *first_select_table= (select_insert ?
                                    tables->next_local:
                                    0);
-  if (!tables || tables->setup_is_done)
-    DBUG_RETURN(0);
-  tables->setup_is_done= 1;
-
   if (!(*leaves))
     make_leaves_list(leaves, tables);
 

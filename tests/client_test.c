@@ -734,8 +734,8 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
 {
   ulonglong affected_rows= mysql_stmt_affected_rows(stmt);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-            affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
   DIE_UNLESS(affected_rows == exp_count);
 }
 
@@ -746,8 +746,8 @@ static void verify_affected_rows(ulonglong exp_count)
 {
   ulonglong affected_rows= mysql_affected_rows(mysql);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-          affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
   DIE_UNLESS(affected_rows == exp_count);
 }
 
@@ -780,8 +780,8 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
 
   affected_rows= mysql_stmt_affected_rows(stmt);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-            affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
 
   DIE_UNLESS(affected_rows == exp_count);
   mysql_stmt_close(stmt);
@@ -1017,7 +1017,8 @@ my_bool fetch_n(const char **query_list, unsigned query_count)
           fprintf(stderr,
                   "Got error reading rows from statement %d,\n"
                   "query is: %s,\n"
-                  "error message: %s", fetch - fetch_array, fetch->query,
+                  "error message: %s", (int) (fetch - fetch_array),
+                  fetch->query,
                   mysql_stmt_error(fetch->handle));
           error_count++;
         }
@@ -1479,6 +1480,7 @@ static void test_prepare()
   double     double_data, o_double_data;
   ulong      length[7], len;
   my_bool    is_null[7];
+  char	     llbuf[22];
   MYSQL_BIND bind[7];
 
   myheader("test_prepare");
@@ -1596,7 +1598,8 @@ static void test_prepare()
       fprintf(stdout, "\n\t tiny   : %d (%lu)", tiny_data, length[0]);
       fprintf(stdout, "\n\t short  : %d (%lu)", small_data, length[3]);
       fprintf(stdout, "\n\t int    : %d (%lu)", int_data, length[2]);
-      fprintf(stdout, "\n\t big    : %lld (%lu)", big_data, length[4]);
+      fprintf(stdout, "\n\t big    : %s (%lu)", llstr(big_data, llbuf),
+              length[4]);
 
       fprintf(stdout, "\n\t float  : %f (%lu)", real_data, length[5]);
       fprintf(stdout, "\n\t double : %f (%lu)", double_data, length[6]);
@@ -3446,7 +3449,7 @@ static void test_bind_result_ext()
   MYSQL_BIND bind[8];
   ulong      length[8];
   my_bool    is_null[8];
-
+  char	     llbuf[22];
   myheader("test_bind_result_ext");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
@@ -3520,7 +3523,7 @@ static void test_bind_result_ext()
     fprintf(stdout, "\n data (tiny)   : %d", t_data);
     fprintf(stdout, "\n data (short)  : %d", s_data);
     fprintf(stdout, "\n data (int)    : %d", i_data);
-    fprintf(stdout, "\n data (big)    : %lld", b_data);
+    fprintf(stdout, "\n data (big)    : %s", llstr(b_data, llbuf));
 
     fprintf(stdout, "\n data (float)  : %f", f_data);
     fprintf(stdout, "\n data (double) : %f", d_data);
@@ -5286,7 +5289,7 @@ static void test_manual_sample()
   affected_rows= mysql_stmt_affected_rows(stmt);
 
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+    fprintf(stdout, "\n total affected rows: %ld", (ulong) affected_rows);
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
@@ -5311,7 +5314,7 @@ static void test_manual_sample()
   affected_rows= mysql_stmt_affected_rows(stmt);
 
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+    fprintf(stdout, "\n total affected rows: %ld", (ulong) affected_rows);
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
@@ -5467,9 +5470,9 @@ DROP TABLE IF EXISTS test_multi_tab";
       mysql_free_result(result);
     }
     else if (!opt_silent)
-      fprintf(stdout, "OK, %lld row(s) affected, %d warning(s)\n",
-              mysql_affected_rows(mysql_local),
-              mysql_warning_count(mysql_local));
+      fprintf(stdout, "OK, %ld row(s) affected, %ld warning(s)\n",
+              (ulong) mysql_affected_rows(mysql_local),
+              (ulong) mysql_warning_count(mysql_local));
 
     exp_value= (uint) mysql_affected_rows(mysql_local);
     if (rows[count] !=  exp_value)
@@ -6549,7 +6552,7 @@ static void test_ushort_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
-
+  char       llbuf[22];
   myheader("test_ushort_bug");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_ushort");
@@ -6601,7 +6604,8 @@ static void test_ushort_bug()
   {
     fprintf(stdout, "\n ushort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
   }
 
@@ -6636,6 +6640,7 @@ static void test_sshort_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
+  char       llbuf[22];
 
   myheader("test_sshort_bug");
 
@@ -6686,7 +6691,8 @@ static void test_sshort_bug()
   {
     fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
   }
 
@@ -6721,6 +6727,7 @@ static void test_stiny_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
+  char       llbuf[22];
 
   myheader("test_stiny_bug");
 
@@ -6770,7 +6777,8 @@ static void test_stiny_bug()
   {
     fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld  (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s  (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, t_length);
   }
 
@@ -11263,7 +11271,7 @@ static void test_bug5399()
 
   for (stmt= stmt_list; stmt != stmt_list + NUM_OF_USED_STMT; ++stmt)
   {
-    sprintf(buff, "select %d", stmt - stmt_list);
+    sprintf(buff, "select %d", (int) (stmt - stmt_list));
     *stmt= mysql_stmt_init(mysql);
     rc= mysql_stmt_prepare(*stmt, buff, strlen(buff));
     check_execute(*stmt, rc);
@@ -11452,7 +11460,7 @@ static void test_bug5194()
 
     if (!opt_silent)
       printf("Insert: query length= %d, row count= %d, param count= %lu\n",
-             strlen(query), nrows, mysql_stmt_param_count(stmt));
+             (int) strlen(query), nrows, mysql_stmt_param_count(stmt));
 
     /* bind the parameter array and execute the query */
     rc= mysql_stmt_bind_param(stmt, bind);

@@ -501,7 +501,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -511,7 +510,6 @@ abort:
     end_delayed_insert(thd);
 #endif
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(TRUE);
 }
@@ -1737,12 +1735,6 @@ bool mysql_insert_select_prepare(THD *thd)
                            &lex->select_lex.where, TRUE))
     DBUG_RETURN(TRUE);
 
-  /*
-    setup was done in mysql_prepare_insert_check_table, but we have to mark
-    first local table
-  */
-  if (first_select_table)
-    first_select_table->setup_is_done= 1;
   /*
     exclude first table from leaf tables list, because it belong to
     INSERT
