@@ -23341,7 +23341,7 @@ To the binary log filename @code{mysqld} will append an extension that
 is a number that is incremented each time you execute @code{mysqladmin
 refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH
 LOGS} statement or restart the server. A new binary log will also
-automatically be created when it reaches @code{max_bin_log_size}. You can
+automatically be created when it reaches @code{max_binlog_size}. You can
 delete all not active binary log files with the @code{RESET MASTER}
 command. @xref{RESET}.
 
