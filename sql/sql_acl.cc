@@ -983,7 +983,7 @@ static void init_check_host(void)
   VOID(my_init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
   VOID(hash_init(&acl_check_hosts,&my_charset_latin1,acl_users.elements,0,0,
-		 (hash_get_key) check_get_key,0,HASH_CASE_INSENSITIVE));
+		 (hash_get_key) check_get_key,0,0));
   if (!allow_all_hosts)
   {
     for (uint i=0 ; i < acl_users.elements ; i++)
@@ -1639,8 +1639,7 @@ public:
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
     (void) hash_init(&hash_columns,&my_charset_latin1,
-		     0,0,0, (hash_get_key) get_key_column,0,
-		     HASH_CASE_INSENSITIVE);
+		     0,0,0, (hash_get_key) get_key_column,0,0);
   }
 
   GRANT_TABLE (TABLE *form, TABLE *col_privs)
@@ -1674,8 +1673,7 @@ public:
     cols =  fix_rights_for_column(cols);
 
     (void) hash_init(&hash_columns,&my_charset_latin1,
-		     0,0,0, (hash_get_key) get_key_column,0,
-		     HASH_CASE_INSENSITIVE);
+		     0,0,0, (hash_get_key) get_key_column,0,0);
     if (cols)
     {
       int key_len;

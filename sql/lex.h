@@ -533,6 +533,13 @@ static SYMBOL sql_functions[] = {
   { "MAKE_SET",		SYM(MAKE_SET_SYM),0,0},
   { "MASTER_POS_WAIT",	SYM(MASTER_POS_WAIT),0,0},
   { "MAX",		SYM(MAX_SYM),0,0},
+  { "MBRCONTAINS",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_contains)},
+  { "MBRDISJOINT",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_disjoint)},
+  { "MBREQUAL",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_equals)},
+  { "MBRINTERSECTS",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_intersects)},
+  { "MBROVERLAPS",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_overlaps)},
+  { "MBRTOUCHES",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_touches)},
+  { "MBRWITHIN",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_within)},
   { "MD5",              SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_md5)},
   { "MID",		SYM(SUBSTRING),0,0},	/* unireg function */
   { "MIN",		SYM(MIN_SYM),0,0},

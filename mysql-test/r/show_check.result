@@ -99,8 +99,8 @@ t1	CREATE TABLE `t1` (
 ) TYPE=MyISAM CHARSET=latin1 COMMENT='it''s a table'
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-test_set	set('val1','val2','val3')	latin1					select,insert,update,references	
-name	char(20)	latin1	YES		O'Brien		select,insert,update,references	O'Brien as default
+test_set	set('val1','val2','val3')	latin1_swedish_ci					select,insert,update,references	
+name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
 c	int(11)	binary			0		select,insert,update,references	int column
 drop table t1;
 create table t1 (a int not null, unique aa (a));

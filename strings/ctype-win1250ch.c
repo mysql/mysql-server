@@ -645,7 +645,7 @@ CHARSET_INFO my_charset_win1250ch =
     34,0,0,			/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
     "cp1250",			/* cs name    */
-    "cp1250_czech",		/* name      */
+    "cp1250_czech_ci",		/* name      */
     "",				/* comment   */
     ctype_win1250ch,
     to_lower_win1250ch,
@@ -662,7 +662,6 @@ CHARSET_INFO my_charset_win1250ch =
     my_wildcmp_8bit,		/* wildcmp   */
     1,				/* mbmaxlen  */
     NULL,			/* ismbchar  */
-    NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
@@ -672,10 +671,7 @@ CHARSET_INFO my_charset_win1250ch =
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,			/* tosort     */
     my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    my_hash_caseup_simple,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,

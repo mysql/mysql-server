@@ -85,17 +85,17 @@ create table t1(x varchar(50) );
 create table t2 select x from t1 where 1=2;
 describe t1;
 Field	Type	Collation	Null	Key	Default	Extra
-x	varchar(50)	latin1	YES		NULL	
+x	varchar(50)	latin1_swedish_ci	YES		NULL	
 describe t2;
 Field	Type	Collation	Null	Key	Default	Extra
-x	char(50)	latin1	YES		NULL	
+x	char(50)	latin1_swedish_ci	YES		NULL	
 drop table t2;
 create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
 describe t2;
 Field	Type	Collation	Null	Key	Default	Extra
-a	datetime	latin1			0000-00-00 00:00:00	
-b	time	latin1			00:00:00	
-c	date	latin1			0000-00-00	
+a	datetime	latin1_swedish_ci			0000-00-00 00:00:00	
+b	time	latin1_swedish_ci			00:00:00	
+c	date	latin1_swedish_ci			0000-00-00	
 d	bigint(17)	binary			0	
 e	double(18,1)	binary			0.0	
 f	bigint(17)	binary			0	
@@ -103,9 +103,9 @@ drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
 Field	Type	Collation	Null	Key	Default	Extra
-d	date	latin1			0000-00-00	
-t	time	latin1			00:00:00	
-dt	datetime	latin1			0000-00-00 00:00:00	
+d	date	latin1_swedish_ci			0000-00-00	
+t	time	latin1_swedish_ci			00:00:00	
+dt	datetime	latin1_swedish_ci			0000-00-00 00:00:00	
 drop table t1,t2;
 create table t1 (a tinyint);
 create table t2 (a int) select * from t1;

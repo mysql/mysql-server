@@ -939,7 +939,8 @@ static COMMANDS *find_command (char *name,char cmd_char)
   {
     if (commands[i].func &&
 	((name && 
-	  !my_strncasecmp(charset_info,name,commands[i].name,len) &&
+	  !my_strnncoll(charset_info,(uchar*)name,len,
+				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
 	 !name && commands[i].cmd_char == cmd_char))
