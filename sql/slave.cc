@@ -2429,9 +2429,7 @@ err:
     goto slave_begin;
 #endif  
   my_thread_end();
-#ifndef __NETWARE__
   pthread_exit(0);
-#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
 
@@ -2573,9 +2571,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     goto slave_begin;
 #endif  
   my_thread_end();
-#ifndef __NETWARE__
   pthread_exit(0);
-#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
 

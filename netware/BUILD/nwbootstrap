@@ -3,10 +3,10 @@
 # debug
 #set -x
 
-path=`dirname $0`
-
 # stop on errors
 set -e
+
+path=`dirname $0`
 
 # repository direcotry
 repo_dir=`pwd`
@@ -24,6 +24,7 @@ temp_dir=""
 revision=""
 rev=""
 build=""
+suffix=""
 mwenv=""
 
 # show usage
@@ -81,6 +82,7 @@ for arg do
     --wine-build-dir=*) wine_build_dir=`echo "$arg" | sed -e "s;--wine-build-dir=;;"` ;;
     --revision=*) revision=`echo "$arg" | sed -e "s;--revision=;;"` ;;
     --build=*) build=`echo "$arg" | sed -e "s;--build=;;"` ;;
+    --suffix=*) suffix=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
     --doc-dir=*) doc_dir=`echo "$arg" | sed -e "s;--doc-dir=;;"` ;;
     *) show_usage ;;
   esac
@@ -111,6 +113,12 @@ echo "version: $version"
 # build target directory
 target_dir="$build_dir/mysql-$version"
 
+# add suffix
+if test $suffix
+then
+  target_dir="$target_dir-$suffix"
+fi
+
 # delete any old target
 if test -d $target_dir.old; then rm -rf $target_dir.old; fi
 
@@ -139,16 +147,29 @@ then
 fi
 
 # make files writeable
+echo "making files writable..."
 cd $target_dir
 chmod -R u+rw,g+rw .
 
 # edit the mvenv file
+echo "updating the mwenv environment file..."
 mwenv="./netware/BUILD/mwenv"
 mv -f $mwenv $mwenv.org
 sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
 	-e "s;BUILD_DIR;$build_dir;g" \
   -e "s;VERSION;$version;g" $mwenv.org > $mwenv
 chmod +rwx $mwenv
+
+#edit the def file versions
+echo "updating *.def file versions..."
+nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1, \2, \3;"`
+
+for file in ./netware/*.def
+do
+mv -f $file $file.org
+sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file 
+rm $file.org
+done
 
 # build linux tools
 echo "compiling linux tools..."

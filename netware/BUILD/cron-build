@@ -1,0 +1,46 @@
+#! /bin/sh
+
+# debug
+#set -x
+
+# stop on errors
+set -e
+
+# repository direcotry
+repo_dir=`pwd`
+
+# show usage
+show_usage()
+{
+	cat << EOF
+
+usage: cron-patch
+
+EOF
+	exit 0;
+}
+
+echo "starting build..."
+
+# check for bk and repo_dir
+bk help > /dev/null
+repo_dir=`bk root $repo_dir`
+cd $repo_dir
+
+# pull latest code
+echo 'y' | bk pull
+
+# determine version
+version=`grep -e "AM_INIT_AUTOMAKE(mysql, .*)" < configure.in | sed -e "s/AM_INIT_AUTOMAKE(mysql, \(.*\))/\1/"`
+echo "version: $version"
+
+# latest revision
+rev=`bk changes -e -n -d':REV:' | head -1`
+echo "latest revision: $rev"
+
+# run bootstrap
+./netware/BUILD/nwbootstrap --revision=$rev --suffix=$rev --build=all
+
+echo "done"
+
+
