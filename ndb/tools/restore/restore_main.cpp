@@ -109,8 +109,10 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  ndb_std_get_one_option(optid, opt, argument ? argument :
-			 "d:t:O,/tmp/ndb_restore.trace");
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_restore.trace";
+#endif
+  ndb_std_get_one_option(optid, opt, argument);
   switch (optid) {
   case 'n':
     if (ga_nodeId == 0)
