@@ -1620,7 +1620,7 @@ int mysql_insert_select_prepare(THD *thd)
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
     clasue if table is VIEW
   */
-  table_list->no_where_clause= 1;
+  lex->query_tables->no_where_clause= 1;
   if (mysql_prepare_insert_check_table(thd, lex->query_tables,
                                        lex->field_list,
                                        &lex->select_lex.where))
