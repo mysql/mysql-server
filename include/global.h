@@ -22,11 +22,11 @@
 #define _global_h
 
 #if defined( __EMX__) && !defined( MYSQL_SERVER)
-// moved here to use below VOID macro redefinition
+/* moved here to use below VOID macro redefinition */
 #define INCL_BASE
 #define INCL_NOPMAPI
 #include <os2.h>
-#endif // __EMX__
+#endif /* __EMX__ */
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
