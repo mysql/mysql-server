@@ -54,7 +54,7 @@ explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
---replace_result 87 # 48 # 43 # 24 # 6 # 3 #
+--replace_result 87 # 50 # 48 # 43 # 25 # 24 # 6 # 3 #
 show keys from t1;
 drop table t1;
 

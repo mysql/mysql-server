@@ -894,7 +894,7 @@ extern "C" void unireg_abort(int exit_code)
   DBUG_ENTER("unireg_abort");
   if (exit_code)
     sql_print_error("Aborting\n");
-  clean_up(1); /* purecov: inspected */
+  clean_up(exit_code || !opt_bootstrap); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   my_thread_end();
   clean_up_mutexes();
