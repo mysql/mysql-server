@@ -643,21 +643,21 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_BDB], [
   AC_ARG_WITH([berkeley-db],
-              [\
+              [
   --with-berkeley-db[=DIR]
                           Use BerkeleyDB located in DIR],
               [bdb="$withval"],
               [bdb=no])
 
   AC_ARG_WITH([berkeley-db-includes],
-              [\
+              [
   --with-berkeley-db-includes=DIR
                           Find Berkeley DB headers in DIR],
               [bdb_includes="$withval"],
               [bdb_includes=default])
 
   AC_ARG_WITH([berkeley-db-libs],
-              [\
+              [
   --with-berkeley-db-libs=DIR
                           Find Berkeley DB libraries in DIR],
               [bdb_libs="$withval"],
@@ -905,7 +905,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
-              [\
+              [
   --with-innodb         Use Innodb],
               [innodb="$withval"],
               [innodb=no])
@@ -985,7 +985,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_GEMINI], [
   AC_ARG_WITH([gemini],
-              [\
+              [
   --with-gemini[=DIR] Use Gemini DB located in DIR],
               [gemini="$withval"],
               [gemini=no])
