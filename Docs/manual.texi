@@ -16120,7 +16120,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @example
 GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
-    TO user_name [IDENTIFIED BY 'password']
+    TO user_name [IDENTIFIED BY [PASSWORD] 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
     [REQUIRE 
     	[@{SSL| X509@}] 
@@ -16265,6 +16265,9 @@ if a new user is created or if you have global grant privileges, the user's
 password will be set to the password specified by the @code{IDENTIFIED BY}
 clause, if one is given.  If the user already had a password, it is replaced
 by the new one.
+
+Optional @code{PASSWORD} changes behaviour of @code{IDENTIFIED BY} from 
+accepting plain password to accept encrypted password as argument. 
 
 @strong{Warning:} If you create a new user but do not specify an
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
