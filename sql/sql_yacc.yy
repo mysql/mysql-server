@@ -3235,7 +3235,6 @@ alter:
           }
 	  sp_a_chistics
 	  {
-	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
@@ -3249,7 +3248,6 @@ alter:
           }
 	  sp_a_chistics
 	  {
-	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
@@ -4480,7 +4478,6 @@ simple_expr:
 	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
-	    LEX *lex= Lex;
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
@@ -6429,24 +6426,24 @@ field_term_list:
 field_term:
 	TERMINATED BY text_string 
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->field_term= $3;
           }
 	| OPTIONALLY ENCLOSED BY text_string
 	  {
             LEX *lex= Lex;
-            DBUG_ASSERT(lex->exchange);
+            DBUG_ASSERT(lex->exchange != 0);
             lex->exchange->enclosed= $4;
             lex->exchange->opt_enclosed= 1;
 	  }
         | ENCLOSED BY text_string
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->enclosed= $3;
           }
         | ESCAPED BY text_string
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->escaped= $3;
           };
 
@@ -6461,12 +6458,12 @@ line_term_list:
 line_term:
         TERMINATED BY text_string
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->line_term= $3;
           }
         | STARTING BY text_string
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->line_start= $3;
           };
 
@@ -6474,7 +6471,7 @@ opt_ignore_lines:
 	/* empty */
         | IGNORE_SYM NUM LINES
           {
-            DBUG_ASSERT(Lex->exchange);
+            DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->skip_lines= atol($2.str);
           };
 
@@ -7306,7 +7303,6 @@ option_value:
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
-	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
 	  $2= $2 ? $2 : global_system_variables.character_set_client;
 	  $3= $3 ? $3 : $2;

@@ -557,14 +557,13 @@ HANDLE_DECL(handle_set_exec_stderr)
 static int set_exec_param(struct manager_thd* thd, char* args_start,
 			  char* args_end, PARAM_TYPE param_type)
 {
-  int num_args;
   const char* error=0;
   struct manager_exec* e;
   char* arg_p;
   char* param;
   int param_size;
 
-  if ((num_args=tokenize_args(args_start,&args_end))<2)
+  if (tokenize_args(args_start,&args_end) < 2)
   {
     error="Too few arguments";
     goto err;
@@ -607,12 +606,11 @@ err:
 
 HANDLE_DECL(handle_start_exec)
 {
-  int num_args;
   struct manager_exec* e;
   int ident_len;
   const char* error=0;
   struct timespec t;
-  if ((num_args=tokenize_args(args_start,&args_end))<1)
+  if (tokenize_args(args_start,&args_end) < 1)
   {
     error="Too few arguments";
     goto err;
@@ -656,12 +654,11 @@ err:
 
 HANDLE_DECL(handle_stop_exec)
 {
-  int num_args;
   struct timespec abstime;
   struct manager_exec* e;
   int ident_len;
   const char* error=0;
-  if ((num_args=tokenize_args(args_start,&args_end))<2)
+  if (tokenize_args(args_start,&args_end) <2)
   {
     error="Too few arguments";
     goto err;
