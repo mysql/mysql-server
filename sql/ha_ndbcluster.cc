@@ -1281,6 +1281,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 
 int ha_ndbcluster::write_row(byte *record)
 {
+  bool has_auto_increment;
   uint i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
@@ -1290,7 +1291,8 @@ int ha_ndbcluster::write_row(byte *record)
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
-  if (table->next_number_field && record == table->record[0])
+  has_auto_increment= (table->next_number_field && record == table->record[0]);
+  if (has_auto_increment)
     update_auto_increment();
 
   if (!(op= trans->getNdbOperation(m_tabname)))
@@ -1344,6 +1346,13 @@ int ha_ndbcluster::write_row(byte *record)
     if (trans->execute(NoCommit) != 0)
       DBUG_RETURN(ndb_err(trans));
   }
+  if ( (has_auto_increment) && (!auto_increment_column_changed) )
+  {    
+    Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
+    DBUG_PRINT("info", ("Setting next auto increment value to %u", next_val));
+    m_ndb->setAutoIncrementValue(m_tabname, next_val, true);
+  }
+
   DBUG_RETURN(0);
 }
 

@@ -1415,11 +1415,11 @@ public:
    * @return tuple id or 0 on error
    */
   Uint64 getAutoIncrementValue(const char* aTableName, Uint32 cacheSize = 1);
-  bool setAutoIncrementValue(const char* aTableName, Uint64 val);
+  bool setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase = false);
   Uint64 getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize = 1000 );
   Uint64 getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize = 1000 );
-  bool setTupleIdInNdb(const char* aTableName, Uint64 val);
-  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val);
+  bool setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase = false);
+  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase = false);
   Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
 #endif
 
