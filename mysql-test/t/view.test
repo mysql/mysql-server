@@ -1153,7 +1153,7 @@ create function x1 () returns int return 5;
 create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
--- error 1304
+-- error 1305
 select * from v1;
 --replace_column 12 # 13 #
 show table status;
@@ -1211,12 +1211,12 @@ drop view v4, v3, v2, v1;
 #
 # VIEW over SELECT with prohibited clauses
 #
--- error 1349
+-- error 1350
 create view v1 as select 5 into @w;
--- error 1349
+-- error 1350
 create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
--- error 1349
+-- error 1350
 create view v1 as select a from t1 procedure analyse();
 drop table t1;
 
