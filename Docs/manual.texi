@@ -19316,11 +19316,11 @@ The status variables listed above have the following meaning:
 @item @code{Aborted_connects} @tab Number of tries to connect to the MySQL server that failed. @xref{Communication errors}.
 @item @code{Bytes_received} @tab Number of bytes received from all clients.
 @item @code{Bytes_sent} @tab Number of bytes sent to all clients.
-@item @code{Com_xxxx} @tab Number of times the xxx commands has been executed.
+@item @code{Com_xxx} @tab Number of times each xxx command has been executed.
 @item @code{Connections} @tab Number of connection attempts to the MySQL server.
 @item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk created while executing statements.
 @item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory created while executing statements.
-@item @code{Created_tmp_files} @tab How many temporary files @code{mysqld} have created.
+@item @code{Created_tmp_files} @tab How many temporary files @code{mysqld} has created.
 @item @code{Delayed_insert_threads} @tab Number of delayed insert handler threads in use.
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
@@ -19388,9 +19388,9 @@ Some comments about the above:
 If @code{Opened_tables} is big, then your @code{table_cache}
 variable is probably too small.
 @item
-If @code{key_reads} is big, then your @code{key_cache} is probably too
+If @code{Key_reads} is big, then your @code{key_cache} is probably too
 small.  The cache hit rate can be calculated with
-@code{key_reads}/@code{key_read_requests}.
+@code{Key_reads}/@code{Key_read_requests}.
 @item
 If @code{Handler_read_rnd} is big, then you probably have a lot of
 queries that require MySQL to scan whole tables or you have
