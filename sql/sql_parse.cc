@@ -1220,7 +1220,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   thd->free_list = 0;
   thd->query_length=(uint) strlen(tbl_name);
   thd->query = tbl_name;
-  if ((error = mysqld_dump_create_info(thd, table, -1)))
+  if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
     goto err;
