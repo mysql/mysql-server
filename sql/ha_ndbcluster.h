@@ -73,7 +73,7 @@ class ha_ndbcluster: public handler
   int index_prev(byte *buf);
   int index_first(byte *buf);
   int index_last(byte *buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_end();
   int rnd_next(byte *buf);
   int rnd_pos(byte *buf, byte *pos);

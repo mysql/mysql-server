@@ -271,8 +271,8 @@ public:
   uint block_size;			/* index block size */
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
-  bool  auto_increment_column_changed;
   enum {NONE=0, INDEX, RND} inited;
+  bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
 
 
@@ -316,7 +316,7 @@ public:
     inited=NONE;
     return index_end();
   }
-  int ha_rnd_init(bool scan=1)
+  int ha_rnd_init(bool scan)
   {
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited=RND;
