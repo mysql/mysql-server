@@ -9149,7 +9149,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
-	for (group_tmp= start_group, i-- ;
+	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
 	  if (*group_tmp->item == item)
