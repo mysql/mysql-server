@@ -2181,7 +2181,17 @@ EOF
   then
     sql_server_dirs="innobase $sql_server_dirs"
     echo "CONFIGURING FOR INNODB" 
-    (cd innobase && sh ./configure) \
+    if test ! -d "innobase"; then
+        # This should only happen when doing a VPATH build
+        echo "NOTICE: I have to make the Innobase directory: `pwd`/innobase"
+	mkdir "innobase" || exit 1
+    fi
+    rel_srcdir=
+    case "$srcdir" in
+	/* ) rel_srcdir="$srcdir" ;;
+	* )  rel_srcdir="../$srcdir" ;;
+    esac
+    (cd innobase && sh $rel_srcdir/innobase/configure) \
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"
