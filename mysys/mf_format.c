@@ -33,10 +33,14 @@
 	/*		32  Resolve filename to full path */
 	/*		64  Return NULL if too long path */
 
+#ifdef SCO
+#define BUFF_LEN 4097
+#else
 #ifdef MAXPATHLEN
 #define BUFF_LEN MAXPATHLEN
 #else
 #define BUFF_LEN FN_LEN
+#endif
 #endif
 
 my_string fn_format(my_string to, const char *name, const char *dsk,
