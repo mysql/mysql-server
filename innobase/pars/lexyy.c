@@ -8,6 +8,7 @@
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
 
+#include "univ.i"
 #include <stdio.h>
 
 
