@@ -1430,7 +1430,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
 #endif
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case COM_REFRESH:
     {
       statistic_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
@@ -1444,7 +1443,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         send_ok(thd);
       break;
     }
-#endif
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
     statistic_increment(com_other,&LOCK_status);
@@ -1649,7 +1647,7 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
-#ifdef HAVE_REPLICATON
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /*
@@ -3111,6 +3109,7 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_RESET:
     /* 
        RESET commands are never written to the binary log, so we have to
@@ -3147,7 +3146,6 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
     break;
@@ -4352,7 +4350,6 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
   b->natural_join=a;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Reload/resets privileges and the different caches.
 
@@ -4379,6 +4376,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   bool result=0;
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
     acl_reload(thd);
@@ -4386,6 +4384,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (mqh_used)
       reset_mqh(thd,(LEX_USER *) NULL,true);
   }
+#endif
   if (options & REFRESH_LOG)
   {
     /*
@@ -4476,14 +4475,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    UNLOCK_ACTIVE_MI;
  }
 #endif
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
+#endif
  if (write_to_binlog)
    *write_to_binlog= tmp_write_to_binlog;
  return result;
 }
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-
 
 /*
   kill on thread
