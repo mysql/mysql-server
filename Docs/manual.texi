@@ -7472,6 +7472,9 @@ Configure @strong{MySQL} with the @code{--with-named-z-libs=no} option.
 @node Solaris x86, SunOS, Solaris 2.7, Source install system issues
 @subsection Solaris x86 Notes
 
+On Solaris 2.8 on x86, @strong{mysqld} will core dump if you run
+'strip' in.
+
 If you are using @code{gcc} or @code{egcs} on Solaris x86 and you
 experience problems with core dumps under load, you should use the
 following @code{configure} command:
@@ -7529,6 +7532,11 @@ binary in most cases is the best choice.
 Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile @strong{MySQL}.   You can get 
 LinuxThreads at @uref{http://www.mysql.com/Downloads/Linux}.
+
+@strong{NOTE:} We have seen some strange problems with Linux 2.2.14 and
+@strong{MySQL} on SMP systems; If you have a SMP system, we recommend
+you to upgrade to Linux 2.4 ASAP!  Your system will be faster and more
+stable by doing this!
 
 Note that @code{glibc} versions before and including Version 2.1.1 have
 a fatal bug in @code{pthread_mutex_timedwait} handling, which is used
@@ -43627,15 +43635,15 @@ application.  If you need speed, @strong{MySQL} is probably your best
 choice. If you need some of the extra features that only @code{PostgreSQL}
 can offer, you should use @code{PostgreSQL}.
 
-@cindex PostgreSQL/MySQL, goals
+@cindex PostgreSQL/MySQL, strategies
 @menu
-* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development goals
+* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
 * MySQL-PostgreSQL features::   Featurevise Comparison of MySQL and PostgreSQL
 * MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
 @end menu
 
 @node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
-@subsection MySQL and PostgreSQL development goals
+@subsection MySQL and PostgreSQL development strategies
 
 When adding things to MySQL we take pride to do an optimal, definite
 solution.  The code should be so good that we shouldn't have any need to
@@ -43718,7 +43726,8 @@ you never have to run any cleanups on @code{MySQL}.  PostgreSQL doesn't
 yet support 24/7 systems because you have have to run @code{vacuum()}
 once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
 commands and to perform statistics analyzes that are critical to get
-good performance with PostgreSQL. On a busy system with lots of changes
+good performance with PostgreSQL. Vacuum is also needed after adding
+a lot of new rows to a table. On a busy system with lots of changes
 vacuum must be run very frequently, in the worst cases even many times a
 day.  During the @code{vacuum()} run, which may take hours if the
 database is big, the database is from a production standpoint
@@ -43809,7 +43818,7 @@ Tools to repair and optimize @strong{MyISAM} tables (the most common
 physical corruption of a data file happens, usually from a hardware
 failure. It allows a majority of the data to be recovered.
 @item
-Upgrading @strong{MySQL} is painless. When you upgrading @strong{MySQL},
+Upgrading @strong{MySQL} is painless. When you are upgrading @strong{MySQL},
 you don't need to dump/restore your data, as you have to do with most
 PostgreSQL upgrades.
 @end itemize
@@ -43907,7 +43916,7 @@ We have many times asked the PostgreSQL developers and some PostgreSQL
 users to help us extend this benchmark to make the definitive benchmark
 for databases, but unfortunately we haven't got any feedback for this.
 
-We, the @strong{MySQL} developers, has because of this spent a lot of
+We, the @strong{MySQL} developers, have because of this spent a lot of
 hours to get maximum performance from PostgreSQL for the benchmarks, but
 because we don't know PostgreSQL intimately we are sure that there are
 things that we have missed.  We have on the benchmark page documented
@@ -44002,8 +44011,8 @@ optimized indexes boost performance by some margin".  Our benchmarks
 clearly indicates that the difference in running a lot of selects on a
 database with and without vacuum() can easily differ by a factor of 10.
 @item
-The test results where also strange; The ASPAP3 test benchmark
-documentation mentions that the test does:
+The test results where also strange; The AS3AP test documentation
+mentions that the test does:
 
 "selections, simple joins, projections, aggregates, one-tuple updates,
 and bulk updates"
@@ -44031,13 +44040,13 @@ be regarded as fair play. They should have done two tests with and
 without ODBC to provide the right facts (after having got experts to tune
 all involved databases of course).
 @item
-They refer to the TCP-C tests, but doesn't anywhere mention that the
-tests they did where not a true TCP-C test and they where not even
-allowed to call it a TCP-C test.  A TCP-C test can only be conducted by
-the rules approved by the @uref{http://www.tpc.org,TCP-council}. Great
-Bridge didn't do that. By doing this they have both violated the TCP
+They refer to the TPC-C tests, but doesn't anywhere mention that the
+tests they did where not a true TPC-C test and they where not even
+allowed to call it a TPC-C test.  A TPC-C test can only be conducted by
+the rules approved by the @uref{http://www.tpc.org,TPC-council}. Great
+Bridge didn't do that. By doing this they have both violated the TPC
 trademark and miscredited their own benchmarks.  The rules set by the
-TCP-council are very strict to ensure that no one can produce false
+TPC-council are very strict to ensure that no one can produce false
 results or make unprovable statements. Apparently Great Bridge wasn't
 interested in doing this.
 @item
@@ -44054,7 +44063,7 @@ standard binary (used by 80% of our users), which was statically linked
 with a fixed glibc library.
 
 According to what we know, Great Bridge did nothing to ensure that the
-other databases was setup correctly to run good in their test
+other databases where setup correctly to run good in their test
 environment. We are sure however that they didn't contact Oracle or
 Microsoft to ask for their advice in this matter ;)
 @item
@@ -44095,7 +44104,7 @@ The only benchmarks that exist today that anyone can download and run
 against @strong{MySQL}and PostgreSQL is the MySQL benchmarks.  We here
 at @strong{MySQL} believe that open source databases should be tested
 with open source tools!  This is the only way to ensure that no one
-does tests that none can reproduce and use this to claim that a
+does tests that nobody can reproduce and use this to claim that a
 database is better than another. Without knowing all the facts it's
 impossible to answer the claims of the tester.
 
@@ -44110,8 +44119,9 @@ going!
 For more information about our benchmarks suite see @xref{MySQL
 Benchmarks}. 
 
-We are working on even better benchmarks including much better
-documentation (the current is lacking).
+We are working on an even better benchmark suite, including much better
+documentation of what the individual tests really do and how to add more
+tests to the suite.
 
 @cindex internals
 @cindex threads
@@ -46347,8 +46357,10 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
-If one dropped and added an @code{auto_increment} column, the
-@code{auto_increment} value wasn't reset.
+If one dropped and added an @code{AUTO_INCREMENT} column, the
+@code{AUTO_INCREMENT} sequence wasn't reset.
+@item
+@code{CREATE .. SELECT} now creates not unique indexes delayed.
 @item
 Fixed problem where @code{LOCK TABLES table_name READ} followed by
 @code{FLUSH TABLES} put a exclusive lock on the table.

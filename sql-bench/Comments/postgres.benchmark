@@ -84,6 +84,7 @@ run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --u
 # the database between each major update of the tables:
 # vacuum table
 # or
+# vacuum analyze
 # vacuum
 
 # The time for vacuum() is accounted for in the book-keeping() column, not
