@@ -37,6 +37,7 @@
  */
 
 #include <ndb_global.h>
+#undef test
 #include <ndb_version.h>
 #include <kernel/ndb_limits.h>
 #include <Bitmask.hpp>
@@ -1281,6 +1282,7 @@ struct Fld {
 	    return test.verify(m_double, m_ind, fld.m_double, fld.m_ind);
 	}
 	assert(false);
+	return false;
     }
     // debug
     void print() const {

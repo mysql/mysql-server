@@ -60,3 +60,16 @@ select _koi8r  0xF7 regexp _koi8r  '[[:alpha:]]';
 
 select _latin1'a' regexp _latin1'A' collate latin1_general_ci;
 select _latin1'a' regexp _latin1'A' collate latin1_bin;
+
+#
+# regexp cleanup()
+#
+create table t1 (a varchar(40));
+insert into t1 values ('C1'),('C2'),('R1'),('C3'),('R2'),('R3');
+prepare stmt1 from 'select a from t1 where a rlike ? order by a';
+set @a="^C.*";
+execute stmt1 using @a;
+set @a="^R.*";
+execute stmt1 using @a;
+deallocate prepare stmt1;
+drop table t1;

@@ -192,9 +192,9 @@ length(quote(concat(char(0),"test")))
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))))
 27E0E3E6E7E8EAEB27
-select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678");
-unhex(hex("foobar"))	hex(unhex("1234567890ABCDEF"))	unhex("345678")
-foobar	1234567890ABCDEF	4Vx
+select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678"), unhex(NULL);
+unhex(hex("foobar"))	hex(unhex("1234567890ABCDEF"))	unhex("345678")	unhex(NULL)
+foobar	1234567890ABCDEF	4Vx	NULL
 select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
 hex(unhex("1"))	hex(unhex("12"))	hex(unhex("123"))	hex(unhex("1234"))	hex(unhex("12345"))	hex(unhex("123456"))
 01	12	0123	1234	012345	123456
@@ -528,6 +528,9 @@ latin2_general_ci	3
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	3
+select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
+collation(encode('abcd','ab'))	coercibility(encode('abcd','ab'))
+binary	3
 create table t1 
 select
 bin(130),
@@ -559,7 +562,8 @@ quote(_latin2'ab'),
 soundex(_latin2'ab'),
 substring(_latin2'ab',1),
 insert(_latin2'abcd',2,3,_latin2'ef'),
-replace(_latin2'abcd',_latin2'b',_latin2'B')
+replace(_latin2'abcd',_latin2'b',_latin2'B'),
+encode('abcd','ab')
 ;
 Warnings:
 Warning	1265	Data truncated for column 'format(130,10)' at row 1
@@ -595,7 +599,8 @@ t1	CREATE TABLE `t1` (
   `soundex(_latin2'ab')` char(4) character set latin2 NOT NULL default '',
   `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
   `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default '',
-  `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
+  `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default '',
+  `encode('abcd','ab')` binary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select SUBSTR('abcdefg',3,2);

@@ -980,8 +980,8 @@ UtilTransactions::verifyIndex(Ndb* pNdb,
   }
 
   switch (pIndex->getType()){
-  case UniqueHashIndex:
-  case OrderedIndex:
+  case NdbDictionary::Index::UniqueHashIndex:
+  case NdbDictionary::Index::OrderedIndex:
     return verifyUniqueIndex(pNdb, indexName, parallelism, transactional);
     break;
   default:

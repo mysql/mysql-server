@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 
 #include <NdbMain.h>
+#include <mgmapi.h>
 #include <ConfigRetriever.hpp>
 #include <Properties.hpp>
 #include <NdbOut.hpp>
@@ -50,9 +51,9 @@ NDB_COMMAND(printConfig,
     return 0;
   }
   
-  Properties * p = 0;
   ConfigRetriever c; 
-  
+  struct ndb_mgm_configuration * p = 0;
+
   if(strcmp("host", argv[1]) == 0){
     int verId = 0;
     if(argc > 5)
@@ -64,7 +65,6 @@ NDB_COMMAND(printConfig,
     
     p = c.getConfig(argv[2], 
 		    atoi(argv[3]), 
-		    atoi(argv[4]), 
 		    verId);
   } else if (strcmp("file", argv[1]) == 0){
     int verId = 0;
@@ -79,12 +79,11 @@ NDB_COMMAND(printConfig,
   }
   
   if(p != 0){
-    p->print(stdout);
+    //
+    free(p);
   } else {
     ndbout << "Configuration not found: " << c.getErrorString() << endl;
   }
-
-  delete p;
 
   return 0;
 }

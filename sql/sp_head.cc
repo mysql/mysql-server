@@ -485,9 +485,14 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
     nctx->push_item(sp_eval_func_item(thd, *argp++, pvar->type));
   }
-  // Close tables opened for subselect in argument list
+#ifdef NOT_WORKING
+  /*
+    Close tables opened for subselect in argument list
+    This can't be done as this will close all other tables used
+    by the query.
+  */
   close_thread_tables(thd);
-
+#endif
   // The rest of the frame are local variables which are all IN.
   // Default all variables to null (those with default clauses will
   // be set by an set instruction).
@@ -917,7 +922,6 @@ sp_head::show_create_function(THD *thd)
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
-
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 

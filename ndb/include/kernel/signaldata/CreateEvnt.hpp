@@ -250,7 +250,7 @@ struct CreateEvntReq {
     return tmp;
   }
   void setAttrListBitmask(const AttributeMask & val) {
-    m_attrListBitmask = val;
+    AttributeMask::assign(m_attrListBitmask.data, val);
   }
   Uint32 getEventType() const {
     return m_eventType;

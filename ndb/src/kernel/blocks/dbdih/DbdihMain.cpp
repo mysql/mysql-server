@@ -32,7 +32,6 @@
 #include <signaldata/DictStart.hpp>
 #include <signaldata/DiGetNodes.hpp>
 #include <signaldata/DihContinueB.hpp>
-#include <signaldata/DihSizeAltReq.hpp>
 #include <signaldata/DihSwitchReplica.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EmptyLcp.hpp>
@@ -45,7 +44,6 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/StartFragReq.hpp>
 #include <signaldata/StartInfo.hpp>
 #include <signaldata/StartMe.hpp>
@@ -68,7 +66,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
- 
+#include <signaldata/FsOpenReq.hpp>
 #include <DebuggerNames.hpp>
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
@@ -212,7 +210,7 @@ void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId)
   signal->theData[0] = reference();
   signal->theData[1] = c_nodeStartMaster.startNode;
   signal->theData[2] = c_nodeStartMaster.failNr;
-  signal->theData[3] = c_nodeStartMaster.ndbVersion;
+  signal->theData[3] = 0;
   signal->theData[4] = currentgcp;  
   sendSignal(nodeDihRef, GSN_INCL_NODEREQ, signal, 5, JBB);
 }//Dbdih::sendINCL_NODEREQ()
@@ -290,13 +288,6 @@ void Dbdih::sendUPDATE_TOREQ(Signal* signal, Uint32 nodeId)
   const BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_UPDATE_TOREQ, signal, UpdateToReq::SignalLength, JBB);
 }//sendUPDATE_TOREQ()
-
-void Dbdih::execCNTR_CHANGEREP(Signal* signal) 
-{
-  (void)signal;  // Don't want compiler warning
-  jamEntry();
-  return;
-}//Dbdih::execCNTR_CHANGEREP()
 
 void Dbdih::execCONTINUEB(Signal* signal)
 {
@@ -542,7 +533,10 @@ void Dbdih::execCONTINUEB(Signal* signal)
     }
   case DihContinueB::ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal, signal->theData[1]);
+    initialiseRecordsLab(signal, 
+			 signal->theData[1], 
+			 signal->theData[2], 
+			 signal->theData[3]);
     return;
     break;
   case DihContinueB::ZSTART_PERMREQ_AGAIN:
@@ -1023,17 +1017,30 @@ void Dbdih::execGETGCIREQ(Signal* signal)
   sendSignal(userRef, GSN_GETGCICONF, signal, 2, JBB);
 }//Dbdih::execGETGCIREQ()
 
-void Dbdih::execSIZEALT_REP(Signal* signal) 
+void Dbdih::execREAD_CONFIG_REQ(Signal* signal) 
 {
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
   jamEntry();
-  capiConnectFileSize = signal->theData[DihSizeAltReq::IND_API_CONNECT];
-  cconnectFileSize =    signal->theData[DihSizeAltReq::IND_CONNECT];
-  cfragstoreFileSize =  signal->theData[DihSizeAltReq::IND_FRAG_CONNECT];
-  creplicaFileSize =    signal->theData[DihSizeAltReq::IND_REPLICAS];
-  ctabFileSize =        signal->theData[DihSizeAltReq::IND_TABLE];
-  cfileFileSize = (2 * ctabFileSize) + 2;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
+				       &capiConnectFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,&cconnectFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
+					&cfragstoreFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_REPLICAS, 
+					&creplicaFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize))
+    cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
-  initialiseRecordsLab(signal, 0);
+  initialiseRecordsLab(signal, 0, ref, senderData);
   return;
 }//Dbdih::execSIZEALT_REP()
 
@@ -1158,11 +1165,8 @@ void Dbdih::execNDB_STTOR(Signal* signal)
   Uint32 ownNodeId = signal->theData[1];          /* OWN PROCESSOR ID*/
   Uint32 phase = signal->theData[2];              /* INTERNAL START PHASE*/
   Uint32 typestart = signal->theData[3];
-  const Uint32 tconfig1 = signal->theData[8];
-  const Uint32 tconfig2 = signal->theData[9];
 
   cstarttype = typestart;
-  
   cstartPhase = phase;
 
   switch (phase){
@@ -1171,10 +1175,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     /*----------------------------------------------------------------------*/
     /* Set the delay between local checkpoints in ndb startphase 1.         */
     /*----------------------------------------------------------------------*/
-    c_lcpState.clcpDelay = tconfig1 > 31 ? 31 : tconfig1;
-
-    cminHotSpareNodes = tconfig2 > 2 ? 2 : tconfig2;
-    
     cownNodeId = ownNodeId;
     /*-----------------------------------------------------------------------*/
     // Compute all static block references in this node as part of
@@ -1193,8 +1193,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // Set the number of replicas,  maximum is 4 replicas.
     // Read the ndb nodes from the configuration.
     /*-----------------------------------------------------------------------*/
-    cnoReplicas = tconfig1 > 4 ? 4 : tconfig1;
-    cgcpDelay = tconfig2 > 60000 ? 60000 : (tconfig2 < 10 ? 10 : tconfig2);
     
     /*-----------------------------------------------------------------------*/
     // For node restarts we will also add a request for permission
@@ -1261,7 +1259,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
        */
       StartMeReq * req = (StartMeReq*)&signal->theData[0];
       req->startingRef = reference();
-      req->startingVersion = NDB_VERSION;
+      req->startingVersion = 0; // Obsolete
       sendSignal(cmasterdihref, GSN_START_MEREQ, signal, 
 		 StartMeReq::SignalLength, JBB);
       return;
@@ -1623,7 +1621,8 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   c_nodeStartMaster.startInfoErrorCode = 0;
   c_nodeStartMaster.startNode = nodeId;
   c_nodeStartMaster.activeState = true;
-
+  c_nodeStartMaster.m_outstandingGsn =  GSN_START_INFOREQ;
+  
   setNodeStatus(nodeId, NodeRecord::STARTING);
   /**
    * But if it's a NodeState::ST_INITIAL_NODE_RESTART
@@ -1704,13 +1703,11 @@ void Dbdih::execSTART_MEREQ(Signal* signal)
   jamEntry();
   const BlockReference Tblockref = req->startingRef;
   const Uint32 Tnodeid = refToNode(Tblockref);
-  const Uint32 TndbVersion = req->startingVersion;
 
   ndbrequire(isMaster());
   ndbrequire(c_nodeStartMaster.startNode == Tnodeid);
   ndbrequire(getNodeStatus(Tnodeid) == NodeRecord::STARTING);
   
-  c_nodeStartMaster.ndbVersion  = TndbVersion;
   sendSTART_RECREQ(signal, Tnodeid);
 }//Dbdih::execSTART_MEREQ()
 
@@ -2011,7 +2008,6 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Uint32 retRef = signal->theData[0];
   Uint32 nodeId = signal->theData[1];
   Uint32 tnodeStartFailNr = signal->theData[2];
-  Uint32 TndbVersion = signal->theData[3];
   currentgcp = signal->theData[4];
   CRASH_INSERTION(7127);
   cnewgcp = currentgcp;
@@ -2063,7 +2059,6 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   nodePtr.p->nodeStatus = NodeRecord::ALIVE;
   nodePtr.p->useInTransactions = true;
   nodePtr.p->m_inclDihLcp = true;
-  nodePtr.p->ndbversion = TndbVersion;
 
   removeDeadNode(nodePtr);
   insertAlive(nodePtr);
@@ -3391,7 +3386,8 @@ void Dbdih::readGciFileLab(Signal* signal)
   filePtr.i = crestartInfoFile[0];
   ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
   filePtr.p->reqStatus = FileRecord::OPENING_GCP;
-  openFileRw(signal, filePtr);
+
+  openFileRo(signal, filePtr);
 }//Dbdih::readGciFileLab()
 
 void Dbdih::openingGcpLab(Signal* signal, FileRecordPtr filePtr) 
@@ -3455,6 +3451,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   signal->theData[0] = masterCandidateId;
   signal->theData[1] = gci;
   sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal, 2, JBB);
+  setNodeGroups();
 }//Dbdih::selectMasterCandidate()
 
 /* ------------------------------------------------------------------------- */
@@ -3472,7 +3469,7 @@ void Dbdih::openingGcpErrorLab(Signal* signal, FileRecordPtr filePtr)
     /* --------------------------------------------------------------------- */
     filePtr.i = crestartInfoFile[1];
     ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
-    openFileRw(signal, filePtr);
+    openFileRo(signal, filePtr);
     filePtr.p->reqStatus = FileRecord::OPENING_GCP;
   } else {
     jam();
@@ -3762,6 +3759,7 @@ void Dbdih::checkCopyTab(NodeRecordPtr failedNodePtr)
     c_COPY_TABREQ_Counter.clearWaitingFor(failedNodePtr.i);
     c_nodeStartMaster.wait = ZFALSE;
     break;
+  case GSN_START_INFOREQ:
   case GSN_START_PERMCONF:
   case GSN_DICTSTARTREQ:
   case GSN_START_MECONF:
@@ -10863,6 +10861,26 @@ void Dbdih::initCommonData()
   c_nodeStartMaster.wait = ZFALSE;
 
   memset(&sysfileData[0], 0, sizeof(sysfileData));
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  c_lcpState.clcpDelay = 20;
+  ndb_mgm_get_int_parameter(p, CFG_DB_LCP_INTERVAL, &c_lcpState.clcpDelay);
+  c_lcpState.clcpDelay = c_lcpState.clcpDelay > 31 ? 31 : c_lcpState.clcpDelay;
+  
+  cminHotSpareNodes = 0;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_MIN_HOT_SPARES, &cminHotSpareNodes);
+  cminHotSpareNodes = cminHotSpareNodes > 2 ? 2 : cminHotSpareNodes;
+
+  cnoReplicas = 1;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
+  cnoReplicas = cnoReplicas > 4 ? 4 : cnoReplicas;
+
+  cgcpDelay = 2000;
+  ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &cgcpDelay);
+  cgcpDelay =  cgcpDelay > 60000 ? 60000 : (cgcpDelay < 10 ? 10 : cgcpDelay);
 }//Dbdih::initCommonData()
 
 void Dbdih::initFragstore(FragmentstorePtr fragPtr) 
@@ -10901,7 +10919,6 @@ void Dbdih::initNodeState(NodeRecordPtr nodePtr)
   nodePtr.p->nodeStatus = NodeRecord::NOT_IN_CLUSTER;
   nodePtr.p->useInTransactions = false;
   nodePtr.p->copyCompleted = false;
-  nodePtr.p->ndbversion = 0xffff;
 }//Dbdih::initNodeState()
 
 /*************************************************************************/
@@ -11070,44 +11087,43 @@ void Dbdih::initTableFile(TabRecordPtr tabPtr)
   /* --------------------------------------------------------------------- */
 }//Dbdih::initTableFile()
 
-void Dbdih::initialiseRecordsLab(Signal* signal, Uint32 stepNo) 
+void Dbdih::initialiseRecordsLab(Signal* signal, 
+				 Uint32 stepNo, Uint32 retRef, Uint32 retData) 
 {
   switch (stepNo) {
   case 0:
     jam();
     initCommonData();
     break;
-  case 1:
-    {
-      ApiConnectRecordPtr apiConnectptr;
-      jam();
-      /******** INTIALIZING API CONNECT RECORDS ********/
-      for (apiConnectptr.i = 0; apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++) {
-	ptrAss(apiConnectptr, apiConnectRecord);
-	apiConnectptr.p->nextApi = RNIL;
-      }//for
-      jam();
-      break;
-    }
-  case 2:
-    {
-      ConnectRecordPtr connectPtr;
-      jam();
-      /****** CONNECT ******/
-      for (connectPtr.i = 0; connectPtr.i < cconnectFileSize; connectPtr.i++) {
-	ptrAss(connectPtr, connectRecord);
-	connectPtr.p->userpointer = RNIL;
-	connectPtr.p->userblockref = ZNIL;
-	connectPtr.p->connectState = ConnectRecord::FREE;
-	connectPtr.p->table = RNIL;
-	connectPtr.p->nfConnect = connectPtr.i + 1;
-      }//for
-      connectPtr.i = cconnectFileSize - 1;
+  case 1:{
+    ApiConnectRecordPtr apiConnectptr;
+    jam();
+    /******** INTIALIZING API CONNECT RECORDS ********/
+    for (apiConnectptr.i = 0; apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++) {
+      ptrAss(apiConnectptr, apiConnectRecord);
+      apiConnectptr.p->nextApi = RNIL;
+    }//for
+    jam();
+    break;
+  }
+  case 2:{
+    ConnectRecordPtr connectPtr;
+    jam();
+    /****** CONNECT ******/
+    for (connectPtr.i = 0; connectPtr.i < cconnectFileSize; connectPtr.i++) {
       ptrAss(connectPtr, connectRecord);
-      connectPtr.p->nfConnect = RNIL;
-      cfirstconnect = 0;
-      break;
-    }
+      connectPtr.p->userpointer = RNIL;
+      connectPtr.p->userblockref = ZNIL;
+      connectPtr.p->connectState = ConnectRecord::FREE;
+      connectPtr.p->table = RNIL;
+      connectPtr.p->nfConnect = connectPtr.i + 1;
+    }//for
+    connectPtr.i = cconnectFileSize - 1;
+    ptrAss(connectPtr, connectRecord);
+    connectPtr.p->nfConnect = RNIL;
+    cfirstconnect = 0;
+    break;
+  }
   case 3:
     {
       FileRecordPtr filePtr;
@@ -11208,8 +11224,12 @@ void Dbdih::initialiseRecordsLab(Signal* signal, Uint32 stepNo)
 	initTakeOver(takeOverPtr);
 	releaseTakeOver(takeOverPtr.i);
       }//for
-      signal->theData[0] = DBDIH_REF;
-      sendSignal(CMVMI_REF, GSN_SIZEALT_ACK, signal, 2, JBB);
+
+      ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = retData;
+      sendSignal(retRef, GSN_READ_CONFIG_CONF, signal, 
+		 ReadConfigConf::SignalLength, JBB);
       return;
       break;
     }
@@ -11218,12 +11238,14 @@ void Dbdih::initialiseRecordsLab(Signal* signal, Uint32 stepNo)
     break;
   }//switch
   jam();
-  /* ------------------------------------------------------------------------- */
-  /* SEND REAL-TIME BREAK DURING INIT OF VARIABLES DURING SYSTEM RESTART.      */
-  /* ------------------------------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* SEND REAL-TIME BREAK DURING INIT OF VARIABLES DURING SYSTEM RESTART.   */
+  /* ---------------------------------------------------------------------- */
   signal->theData[0] = DihContinueB::ZINITIALISE_RECORDS;
   signal->theData[1] = stepNo + 1;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = retRef;
+  signal->theData[3] = retData;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
 }//Dbdih::initialiseRecordsLab()
 
 /*************************************************************************/
@@ -11512,8 +11534,6 @@ void Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
       nodePtr.p->nodeStatus = NodeRecord::DEAD;
       insertDeadNode(nodePtr);
     }//if
-    nodePtr.p->ndbversion = readNodes->getVersionId(nodePtr.i,
-						    readNodes->theVersionIds);
   }//for
 }//Dbdih::makePrnList()
 
@@ -11563,7 +11583,19 @@ void Dbdih::openFileRw(Signal* signal, FileRecordPtr filePtr)
   signal->theData[3] = filePtr.p->fileName[1];
   signal->theData[4] = filePtr.p->fileName[2];
   signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = ZOPEN_READ_WRITE;
+  signal->theData[6] = FsOpenReq::OM_READWRITE;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+}//Dbdih::openFileRw()
+
+void Dbdih::openFileRo(Signal* signal, FileRecordPtr filePtr) 
+{
+  signal->theData[0] = reference();
+  signal->theData[1] = filePtr.i;
+  signal->theData[2] = filePtr.p->fileName[0];
+  signal->theData[3] = filePtr.p->fileName[1];
+  signal->theData[4] = filePtr.p->fileName[2];
+  signal->theData[5] = filePtr.p->fileName[3];
+  signal->theData[6] = FsOpenReq::OM_READONLY;
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
 }//Dbdih::openFileRw()
 
@@ -12502,7 +12534,10 @@ void Dbdih::setNodeGroups()
   }//for    
   for (sngNodeptr.i = 1; sngNodeptr.i < MAX_NDB_NODES; sngNodeptr.i++) {
     ptrAss(sngNodeptr, nodeRecord);
-    switch (sngNodeptr.p->activeStatus) {
+    Sysfile::ActiveStatus s = 
+      (Sysfile::ActiveStatus)Sysfile::getNodeStatus(sngNodeptr.i,
+						    SYSFILE->nodeStatus);
+    switch (s){
     case Sysfile::NS_Active:
     case Sysfile::NS_ActiveMissed_1:
     case Sysfile::NS_ActiveMissed_2:
@@ -12911,8 +12946,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               cnoHotSpare, c_nodeStartMaster.startNode, c_nodeStartMaster.wait);
   }//if  
   if (signal->theData[0] == 7007) {
-    infoEvent("c_nodeStartMaster.failNr = %d, c_nodeStartMaster.ndbVersion = %d",
-              c_nodeStartMaster.failNr, c_nodeStartMaster.ndbVersion);
+    infoEvent("c_nodeStartMaster.failNr = %d", c_nodeStartMaster.failNr);
     infoEvent("c_nodeStartMaster.startInfoErrorCode = %d",
               c_nodeStartMaster.startInfoErrorCode);
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d",
@@ -13391,7 +13425,7 @@ Dbdih::execNDB_TAMPER(Signal* signal)
 }//Dbdih::execNDB_TAMPER()
 
 void Dbdih::execSET_VAR_REQ(Signal* signal) {
-
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
   int val = setVarReq->value();
@@ -13411,6 +13445,7 @@ void Dbdih::execSET_VAR_REQ(Signal* signal) {
   default:
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
   } // switch
+#endif
 }
 
 void Dbdih::execBLOCK_COMMIT_ORD(Signal* signal){

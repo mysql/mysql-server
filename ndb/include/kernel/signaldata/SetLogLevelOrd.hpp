@@ -18,6 +18,7 @@
 #define SET_LOGLEVEL_ORD_HPP
 
 #include <LogLevel.hpp>
+#include "SignalData.hpp"
 
 /**
  * 

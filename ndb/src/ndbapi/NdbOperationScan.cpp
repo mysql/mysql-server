@@ -31,7 +31,7 @@ NdbOperation::openScanRead(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -48,7 +48,7 @@ NdbOperation::openScanExclusive(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
   
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -65,7 +65,7 @@ NdbOperation::openScanReadHoldLock(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -82,7 +82,7 @@ NdbOperation::openScanReadCommitted(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -569,8 +569,35 @@ NdbOperation::takeOverScanOp(OperationType opType, NdbConnection* updateTrans)
     }
   }
 
+  // create blob handles automatically
+  if (opType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
+    for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
+      NdbColumnImpl* c = m_currentTable->m_columns[i];
+      assert(c != 0);
+      if (c->getBlobType()) {
+        if (newOp->getBlobHandle(updateTrans, c) == NULL)
+          return NULL;
+      }
+    }
+  }
+
   return newOp;
 }
 
-
-
+int
+NdbOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
+{
+  const NdbScanReceiver* tScanRec = theNdbCon->thePreviousScanRec;
+  NdbApiSignal* tSignal = tScanRec->theFirstKEYINFO20_Recv;
+  unsigned pos = 0;
+  unsigned n = 0;
+  while (pos < size) {
+    if (n == 20) {
+      tSignal = tSignal->next();
+      n = 0;
+    }
+    const unsigned h = KeyInfo20::HeaderLength;
+    data[pos++] = tSignal->getDataPtrSend()[h + n++];
+  }
+  return 0;
+}

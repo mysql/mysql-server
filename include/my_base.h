@@ -383,7 +383,4 @@ typedef ulong		ha_rows;
 #define MAX_FILE_SIZE	LONGLONG_MAX
 #endif
 
-/* Currently used for saying which interfaces a Storage Engine implements */
-#define HA_ERR_NOT_IMPLEMENTED -1
-
 #endif /* _my_base_h */

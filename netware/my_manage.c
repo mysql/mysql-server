@@ -200,11 +200,11 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port,ch
   add_arg(&al, "--password=%s", password);
   add_arg(&al, "--silent");
 
-  /** Not supported on NetWare
+#ifdef NOT_USED
   add_arg(&al, "-O");
   add_arg(&al, "connect_timeout=10");
   add_arg(&al, "-w");
-  **/
+#endif
 
   add_arg(&al, "--host=localhost");
   add_arg(&al, "ping");
@@ -475,4 +475,3 @@ void get_basedir(char *argv0, char *basedir)
 		strcpy(basedir, temp);
 	}
 }
-

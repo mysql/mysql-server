@@ -206,6 +206,7 @@ execute(void * callbackObj,
 	LinearSectionPtr ptr[3]){
 
   const Uint32 secCount = header->m_noOfSections;
+  const Uint32 length = header->theLength;
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",
@@ -225,6 +226,11 @@ execute(void * callbackObj,
   case 1:
     ok &= import(secPtr[0], ptr[0].p, ptr[0].sz);
   }
+
+  /**
+   * Check that we haven't received a too long signal
+   */
+  ok &= (length + secCount <= 25);
   
   Uint32 secPtrI[3];
   if(ok){
@@ -234,6 +240,7 @@ execute(void * callbackObj,
     secPtrI[0] = secPtr[0].i;
     secPtrI[1] = secPtr[1].i;
     secPtrI[2] = secPtr[2].i;
+
     globalScheduler.execute(header, prio, theData, secPtrI);  
     return;
   }

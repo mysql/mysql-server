@@ -183,7 +183,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif /* EMBEDDED_LIBRARY */
     res= open_and_lock_tables(thd, table_list);
-  if (res)
+  if (res || thd->is_fatal_error)
     DBUG_RETURN(-1);
 
   table= table_list->table;
@@ -943,6 +943,10 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   /* _rowid is not used with delayed insert */
   copy->rowid_field=0;
+
+  /* Adjust in_use for pointing to client thread */
+  copy->in_use= client_thd;
+  
   return copy;
 
   /* Got fatal error */
@@ -1109,7 +1113,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     thd->fatal_error();				// Abort waiting inserts
     goto end;
   }
-  if (di->table->file->has_transactions())
+  if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
@@ -1215,8 +1219,10 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     di->status=0;
     if (!di->stacked_inserts && !di->tables_in_use && thd->lock)
     {
-      /* No one is doing a insert delayed;
-	 Unlock it so that other threads can use it */
+      /*
+        No one is doing a insert delayed
+        Unlock table so that other threads can use it
+      */
       MYSQL_LOCK *lock=thd->lock;
       thd->lock=0;
       pthread_mutex_unlock(&di->mutex);

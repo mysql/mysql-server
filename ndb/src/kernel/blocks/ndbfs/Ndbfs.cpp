@@ -60,10 +60,11 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   theFileSystemPath = conf.fileSystemPath();
   theRequestPool = new Pool<Request>;
 
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  ndbrequire(p->get("MaxNoOfOpenFiles", &m_maxFiles));
+  m_maxFiles = 40;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
 
   // Create idle AsyncFiles
   Uint32 noIdleFiles = 16;

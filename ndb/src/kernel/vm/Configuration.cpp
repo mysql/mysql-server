@@ -27,6 +27,15 @@
 
 #include <getarg.h>
 
+#include <mgmapi_configuration.hpp>
+#include <mgmapi_config_parameters_debug.h>
+#include <kernel_config_parameters.h>
+
+#include <kernel_types.h>
+#include <ndb_limits.h>
+#include "pc.hpp"
+#include <LogLevel.hpp>
+
 extern "C" {
   void ndbSetOwnVersion();
 }
@@ -122,10 +131,8 @@ Configuration::init(int argc, const char** argv){
   return true;
 }
 
-Configuration::Configuration():
-  the_clusterConfigurationData()
+Configuration::Configuration()
 {
-  m_ownProperties = 0;
   _programName = 0;
   _connectString = 0;
   _fsPath = 0;
@@ -134,19 +141,11 @@ Configuration::Configuration():
 }
 
 Configuration::~Configuration(){
-  delete m_ownProperties;
-  
   if(_programName != NULL)
     free(_programName);
 
   if(_fsPath != NULL)
     free(_fsPath);
-}
-
-const
-ClusterConfiguration& 
-Configuration::clusterConfiguration() const {
-  return the_clusterConfigurationData;
 }
 
 void
@@ -157,7 +156,7 @@ Configuration::setupConfiguration(){
   ConfigRetriever cr;
   cr.setConnectString(_connectString);
   stopOnError(true); 
-  Properties * p = cr.getConfig("DB", NDB_VERSION);
+  ndb_mgm_configuration * p = cr.getConfig(NDB_VERSION, NODE_TYPE_DB);
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
@@ -171,56 +170,46 @@ Configuration::setupConfiguration(){
 	      "/invalid configuration", s);
   }
 
+  Uint32 nodeId = globalData.ownId = cr.getOwnNodeId();
+
   /**
    * Configure transporters
    */
   {  
-    IPCConfig * theIPC = new IPCConfig(p);
-    
-    if(theIPC->init() != 0){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "");
-    }
-    
-    if(theIPC->configureTransporters(&globalTransporterRegistry) <= 0){
+    int res = IPCConfig::configureTransporters(nodeId, 
+					       * p, 
+					       globalTransporterRegistry);
+    if(res <= 0){
       ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 		"No transporters configured");
     }
-    
-    globalData.ownId = theIPC->ownId();
-    delete theIPC;
   }
 
   /**
    * Setup cluster configuration data
    */
-  const Properties * db = 0;
-  if (!p->get("Node", globalData.ownId, &db)) {
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, globalData.ownId)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
-  const char * type;
-  if(!(db->get("Type", &type) && strcmp(type, "DB") == 0)){
+
+  unsigned type;
+  if(!(iter.get(CFG_TYPE_OF_SECTION, &type) == 0 && type == NODE_TYPE_DB)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched",
 	      "I'm wrong type of node");
   }
   
-  /**
-   * Save properties object to use in getOwnProperties()
-   */
-  m_ownProperties = new Properties(* db);
-
-  the_clusterConfigurationData.init(* p, * db);
-  
-  if(!db->get("MaxNoOfSavedMessages", &_maxErrorLogs)){
+  if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "MaxNoOfSavedMessages missing");
   }
   
-  if(!db->get("LockPagesInMainMemory", &_lockPagesInMainMemory)){
+  if(iter.get(CFG_DB_MEMLOCK, &_lockPagesInMainMemory)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "LockPagesInMainMemory missing");
   }
 
-  if(!db->get("TimeBetweenWatchDogCheck", &_timeBetweenWatchDogCheck)){
+  if(iter.get(CFG_DB_WATCHDOG_INTERVAL, &_timeBetweenWatchDogCheck)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheck missing");
   }
@@ -230,16 +219,16 @@ Configuration::setupConfiguration(){
    */  
   { 
     const char* pFileSystemPath = NULL;
-    if(!db->get("FileSystemPath", &pFileSystemPath)){
+    if(iter.get(CFG_DB_FILESYSTEM_PATH, &pFileSystemPath)){
       ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 		"FileSystemPath missing");
     } 
-
+    
     if(pFileSystemPath == 0 || strlen(pFileSystemPath) == 0){
       ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 		"Configuration does not contain valid filesystem path");
     }
-
+    
     if(pFileSystemPath[strlen(pFileSystemPath) - 1] == '/')
       _fsPath = strdup(pFileSystemPath);
     else {
@@ -248,18 +237,16 @@ Configuration::setupConfiguration(){
       strcat(_fsPath, "/");
     }
   }
-
-  if(!db->get("StopOnError", &_stopOnError)){
+  
+  if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "StopOnError missing");
   }
-
-  if(!db->get("RestartOnErrorInsert", &m_restartOnErrorInsert)){
+  
+  if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
-
-  delete p;
 
   /**
    * Create the watch dog thread
@@ -269,7 +256,14 @@ Configuration::setupConfiguration(){
     t = globalEmulatorData.theWatchDog ->setCheckInterval(t);
     _timeBetweenWatchDogCheck = t;
   }
+  
+  ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
+  m_clusterConfig = p;
+  m_clusterConfigIter = ndb_mgm_create_configuration_iterator
+    (p, CFG_SECTION_NODE);
+
+  calcSizeAlt(cf);
 }
 
 bool 
@@ -280,12 +274,6 @@ Configuration::lockPagesInMainMemory() const {
 int 
 Configuration::timeBetweenWatchDogCheck() const {
   return _timeBetweenWatchDogCheck;
-}
-
-const 
-ClusterConfiguration::ClusterData&
-Configuration::clusterConfigurationData() const {
-  return the_clusterConfigurationData.clusterData();
 }
 
 void 
@@ -313,11 +301,6 @@ Configuration::stopOnError(bool val){
   _stopOnError = val;
 }
 
-const Properties * 
-Configuration::getOwnProperties() const {
-  return m_ownProperties;
-}
-
 int
 Configuration::getRestartOnErrorInsert() const {
   return m_restartOnErrorInsert;
@@ -333,6 +316,350 @@ Configuration::getConnectStringCopy() const {
   if(_connectString != 0)
     return strdup(_connectString);
   return 0;
+}
+
+const ndb_mgm_configuration_iterator * 
+Configuration::getOwnConfigIterator() const {
+  return m_ownConfigIterator;
+}
+  
+ndb_mgm_configuration_iterator * 
+Configuration::getClusterConfigIterator() const {
+  return m_clusterConfigIter;
+}
+
+void
+Configuration::calcSizeAlt(ConfigValues * ownConfig){
+  const char * msg = "Invalid configuration fetched";
+  char buf[255];
+
+  unsigned int noOfTables = 0;
+  unsigned int noOfIndexes = 0;
+  unsigned int noOfReplicas = 0;
+  unsigned int noOfDBNodes = 0;
+  unsigned int noOfAPINodes = 0;
+  unsigned int noOfMGMNodes = 0;
+  unsigned int noOfNodes = 0;
+  unsigned int noOfAttributes = 0;
+  unsigned int noOfOperations = 0;
+  unsigned int noOfTransactions = 0;
+  unsigned int noOfIndexPages = 0;
+  unsigned int noOfDataPages = 0;
+  unsigned int noOfScanRecords = 0;
+  m_logLevel = new LogLevel();
+  
+  /**
+   * {"NoOfConcurrentCheckpointsDuringRestart", &cd.ispValues[1][5] },
+   * {"NoOfConcurrentCheckpointsAfterRestart", &cd.ispValues[2][4] },
+   * {"NoOfConcurrentProcessesHandleTakeover", &cd.ispValues[1][7] },
+   * {"TimeToWaitAlive", &cd.ispValues[0][0] },
+   */
+  struct AttribStorage { int paramId; Uint32 * storage; };
+  AttribStorage tmp[] = {
+    { CFG_DB_NO_SCANS, &noOfScanRecords },
+    { CFG_DB_NO_TABLES, &noOfTables },
+    { CFG_DB_NO_INDEXES, &noOfIndexes },
+    { CFG_DB_NO_REPLICAS, &noOfReplicas },
+    { CFG_DB_NO_ATTRIBUTES, &noOfAttributes },
+    { CFG_DB_NO_OPS, &noOfOperations },
+    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions }
+#if 0
+    { "NoOfDiskPagesToDiskDuringRestartTUP", &cd.ispValues[3][8] },
+    { "NoOfDiskPagesToDiskAfterRestartTUP", &cd.ispValues[3][9] },
+    { "NoOfDiskPagesToDiskDuringRestartACC", &cd.ispValues[3][10] },
+    { "NoOfDiskPagesToDiskAfterRestartACC", &cd.ispValues[3][11] },
+#endif
+  };
+
+  ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
+  
+  const int sz = sizeof(tmp)/sizeof(AttribStorage);
+  for(int i = 0; i<sz; i++){
+    if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
+      snprintf(buf, sizeof(buf), "ConfigParam: %d not found", tmp[i].paramId);
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    }
+  }
+
+  Uint64 indexMem = 0, dataMem = 0;
+  ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
+  ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
+  if(dataMem == 0){
+    snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_DATA_MEM);
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+  }
+
+  if(indexMem == 0){
+    snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+  }
+
+  noOfDataPages = (dataMem / 8192);
+  noOfIndexPages = (indexMem / 8192);
+
+  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
+    Uint32 tmp;
+    if(!ndb_mgm_get_int_parameter(&db, LogLevel::MIN_LOGLEVEL_ID+j, &tmp)){
+      m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
+    }
+  }
+  
+  // tmp
+  ndb_mgm_configuration_iterator * p = m_clusterConfigIter;
+
+  Uint32 nodeNo = noOfNodes = 0;
+  NodeBitmask nodes;
+  for(ndb_mgm_first(p); ndb_mgm_valid(p); ndb_mgm_next(p), nodeNo++){
+    
+    Uint32 nodeId;
+    Uint32 nodeType;
+    
+    if(ndb_mgm_get_int_parameter(p, CFG_NODE_ID, &nodeId)){
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Id) missing");
+    }
+    
+    if(ndb_mgm_get_int_parameter(p, CFG_TYPE_OF_SECTION, &nodeType)){
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Type) missing");
+    }
+    
+    if(nodeId > MAX_NODES || nodeId == 0){
+      snprintf(buf, sizeof(buf),
+	       "Invalid node id: %d", nodeId);
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    }
+    
+    if(nodes.get(nodeId)){
+      snprintf(buf, sizeof(buf), "Two node can not have the same node id: %d",
+	       nodeId);
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    }
+    nodes.set(nodeId);
+        
+    switch(nodeType){
+    case NODE_TYPE_DB:
+      noOfDBNodes++; // No of NDB processes
+      
+      if(nodeId > MAX_NDB_NODES){
+	snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
+		 MAX_NDB_NODES);
+	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      }
+      break;
+    case NODE_TYPE_API:
+      noOfAPINodes++; // No of API processes
+      break;
+    case NODE_TYPE_REP:
+      break;
+    case NODE_TYPE_MGM:
+      noOfMGMNodes++; // No of MGM processes
+      break;
+    case NODE_TYPE_EXT_REP:
+      break;
+    default:
+      snprintf(buf, sizeof(buf), "Unknown node type: %d", nodeType);
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    }
+  }
+  noOfNodes = nodeNo;
+  
+  /**
+   * Do size calculations
+   */
+  ConfigValuesFactory cfg(ownConfig);
+
+  noOfTables++;         		 // Remove impact of system table
+  noOfTables += noOfIndexes; // Indexes are tables too
+  noOfAttributes += 2;  // ---"----
+  noOfTables *= 2;      // Remove impact of Dict need 2 ids for each table
+
+  if (noOfDBNodes > 15) {
+    noOfDBNodes = 15;
+  }//if
+  Uint32 noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
+  Uint32 noOfTCScanRecords = noOfScanRecords;
+
+  {
+    /**
+     * Acc Size Alt values
+     */
+    // Can keep 65536 pages (= 0.5 GByte)
+    cfg.put(CFG_ACC_DIR_RANGE, 
+	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas); 
+    
+    cfg.put(CFG_ACC_DIR_ARRAY,
+	    (noOfIndexPages >> 8) + 
+	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    cfg.put(CFG_ACC_FRAGMENT,
+	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    /*-----------------------------------------------------------------------*/
+    // The extra operation records added are used by the scan and node 
+    // recovery process. 
+    // Node recovery process will have its operations dedicated to ensure
+    // that they never have a problem with allocation of the operation record.
+    // The remainder are allowed for use by the scan processes.
+    /*-----------------------------------------------------------------------*/
+    cfg.put(CFG_ACC_OP_RECS,
+	    noOfReplicas*((16 * noOfOperations) / 10 + 50) + 
+	    (noOfLocalScanRecords * MAX_PARALLEL_SCANS_PER_FRAG) +
+	    NODE_RECOVERY_SCAN_OP_RECORDS);
+    
+    cfg.put(CFG_ACC_OVERFLOW_RECS,
+	    noOfIndexPages + 
+	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    cfg.put(CFG_ACC_PAGE8, 
+	    noOfIndexPages + 32);
+    
+    cfg.put(CFG_ACC_ROOT_FRAG, 
+	    NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    cfg.put(CFG_ACC_TABLE, noOfTables);
+    
+    cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
+  }
+  
+  {
+    /**
+     * Dict Size Alt values
+     */
+    cfg.put(CFG_DICT_ATTRIBUTE, 
+	    noOfAttributes);
+    
+    cfg.put(CFG_DICT_CONNECT, 
+	    noOfOperations + 32);   
+    
+    cfg.put(CFG_DICT_FRAG_CONNECT, 
+	    NO_OF_FRAG_PER_NODE * noOfDBNodes * noOfReplicas);
+
+    cfg.put(CFG_DICT_TABLE, 
+	    noOfTables);
+    
+    cfg.put(CFG_DICT_TC_CONNECT, 
+	    2* noOfOperations);
+  }
+  
+  {
+    /**
+     * Dih Size Alt values
+     */
+    cfg.put(CFG_DIH_API_CONNECT, 
+	    2 * noOfTransactions);
+    
+    cfg.put(CFG_DIH_CONNECT, 
+	    noOfOperations + 46);
+    
+    cfg.put(CFG_DIH_FRAG_CONNECT, 
+	    NO_OF_FRAG_PER_NODE *  noOfTables *  noOfDBNodes);
+    
+    int temp;
+    temp = noOfReplicas - 2;
+    if (temp < 0)
+      temp = 1;
+    else
+      temp++;
+    cfg.put(CFG_DIH_MORE_NODES, 
+	    temp * NO_OF_FRAG_PER_NODE *
+	    noOfTables *  noOfDBNodes);
+    
+    cfg.put(CFG_DIH_REPLICAS, 
+	    NO_OF_FRAG_PER_NODE * noOfTables *
+	    noOfDBNodes * noOfReplicas);
+
+    cfg.put(CFG_DIH_TABLE, 
+	    noOfTables);
+  }
+  
+  {
+    /**
+     * Lqh Size Alt values
+     */
+    cfg.put(CFG_LQH_FRAG, 
+	    NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
+    
+    cfg.put(CFG_LQH_CONNECT, 
+	    noOfReplicas*((11 * noOfOperations) / 10 + 50));
+    
+    cfg.put(CFG_LQH_TABLE, 
+	    noOfTables);
+
+    cfg.put(CFG_LQH_TC_CONNECT, 
+	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+    
+    cfg.put(CFG_LQH_REPLICAS, 
+	    noOfReplicas);
+
+    cfg.put(CFG_LQH_SCAN, 
+	    noOfLocalScanRecords);
+  }
+  
+  {
+    /**
+     * Tc Size Alt values
+     */
+    cfg.put(CFG_TC_API_CONNECT, 
+	    3 * noOfTransactions);
+    
+    cfg.put(CFG_TC_TC_CONNECT, 
+	    noOfOperations + 16 + noOfTransactions);
+    
+    cfg.put(CFG_TC_TABLE, 
+	    noOfTables);
+    
+    cfg.put(CFG_TC_LOCAL_SCAN, 
+	    noOfLocalScanRecords);
+    
+    cfg.put(CFG_TC_SCAN, 
+	    noOfTCScanRecords);
+  }
+  
+  {
+    /**
+     * Tup Size Alt values
+     */
+    cfg.put(CFG_TUP_FRAG, 
+	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    cfg.put(CFG_TUP_OP_RECS, 
+	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+    
+    cfg.put(CFG_TUP_PAGE, 
+	    noOfDataPages);
+    
+    cfg.put(CFG_TUP_PAGE_RANGE, 
+	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+    
+    cfg.put(CFG_TUP_TABLE, 
+	    noOfTables);
+    
+    cfg.put(CFG_TUP_TABLE_DESC, 
+	    4 * NO_OF_FRAG_PER_NODE * noOfAttributes* noOfReplicas +
+	    12 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas );
+    
+    cfg.put(CFG_TUP_STORED_PROC,
+	    noOfLocalScanRecords);
+  }
+
+  {
+    /**
+     * Tux Size Alt values
+     */
+    cfg.put(CFG_TUX_INDEX, 
+	    noOfTables);
+    
+    cfg.put(CFG_TUX_FRAGMENT, 
+	    2 * NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
+    
+    cfg.put(CFG_TUX_ATTRIBUTE, 
+	    noOfIndexes * 4);
+
+    cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
+  }
+
+  m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
+  m_ownConfigIterator = ndb_mgm_create_configuration_iterator
+    (m_ownConfig, 0);
 }
 
 void

@@ -17,18 +17,10 @@
 #ifndef NDB_VERSION_H
 #define NDB_VERSION_H
 
+#include <ndb_global.h>
 #include <version.h>
 
 #define MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
-
-/**
- * version of this build
- */
-
-#define NDB_VERSION_MAJOR 3
-#define NDB_VERSION_MINOR 5
-#define NDB_VERSION_BUILD 0
-#define NDB_VERSION_STATUS "alpha"
 
 #define NDB_VERSION_D MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
 

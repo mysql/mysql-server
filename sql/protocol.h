@@ -18,7 +18,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define PACKET_BUFFET_EXTRA_ALLOC	1024
 
 class i_string;
 class THD;
@@ -36,8 +35,10 @@ protected:
   enum enum_field_types *field_types;
 #endif
   uint field_count;
+#ifndef EMBEDDED_LIBRARY
   bool net_store_data(const char *from, uint length);
-#ifdef EMBEDDED_LIBRARY
+#else
+  virtual bool net_store_data(const char *from, uint length);
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;

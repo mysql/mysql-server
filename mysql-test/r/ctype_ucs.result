@@ -47,6 +47,15 @@ t1	CREATE TABLE `t1` (
   `r` char(10) character set ucs2 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+create table t2(f1 Char(30));
+insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
+select lpad(f1, 12, "-o-/") from t2;
+lpad(f1, 12, "-o-/")
+-o-/-o103000
+-o-/22720000
+-o-/-3401200
+-o-/-o-78000
+drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 create table t1 (a varchar(10) character set ucs2, key(a));

@@ -20,7 +20,8 @@
 #include <UtilBuffer.hpp>
 #include <BaseString.hpp>
 
-int base64_encode(UtilBuffer &src, BaseString &dst);
-int base64_decode(BaseString &src, UtilBuffer &dst);
+int base64_encode(const UtilBuffer &src, BaseString &dst);
+int base64_decode(const BaseString &src, UtilBuffer &dst);
+int base64_decode(const char * s, size_t len, UtilBuffer &dst);
 
 #endif /* !__BASE64_HPP_INCLUDED__ */

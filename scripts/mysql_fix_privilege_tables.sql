@@ -2,7 +2,7 @@
 -- for MySQL 4.0.
 
 -- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
--- as this just means that your tables where already up to date.
+-- because these just mean that your tables are already up to date.
 -- This script is safe to run even if your tables are already up to date!
 
 -- On unix, you should use the mysql_fix_privilege_tables script to execute
@@ -179,6 +179,45 @@ name varchar(64) not null,
 primary key (help_keyword_id),
 unique index (name)
 ) comment='help keywords';
+
+#
+# Create missing time zone related tables
+#
+
+CREATE TABLE IF NOT EXISTS time_zone_name (
+Name char(64) NOT NULL,   
+Time_zone_id int  unsigned NOT NULL,
+PRIMARY KEY Name (Name) 
+) DEFAULT CHARACTER SET latin1 comment='Time zone names';
+
+CREATE TABLE IF NOT EXISTS time_zone (
+Time_zone_id int unsigned NOT NULL auto_increment,
+Use_leap_seconds  enum('Y','N') DEFAULT 'N' NOT NULL,
+PRIMARY KEY TzId (Time_zone_id) 
+) DEFAULT CHARACTER SET latin1 comment='Time zones';
+
+CREATE TABLE IF NOT EXISTS time_zone_transition (
+Time_zone_id int unsigned NOT NULL,
+Transition_time bigint signed NOT NULL,   
+Transition_type_id int unsigned NOT NULL,
+PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time) 
+) DEFAULT CHARACTER SET latin1 comment='Time zone transitions';
+
+CREATE TABLE IF NOT EXISTS time_zone_transition_type (
+Time_zone_id int unsigned NOT NULL,
+Transition_type_id int unsigned NOT NULL,
+Offset int signed DEFAULT 0 NOT NULL,
+Is_DST tinyint unsigned DEFAULT 0 NOT NULL,
+Abbreviation char(8) DEFAULT '' NOT NULL,
+PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id) 
+) DEFAULT CHARACTER SET latin1 comment='Time zone transition types';
+
+CREATE TABLE IF NOT EXISTS time_zone_leap_second (
+Transition_time bigint signed NOT NULL,
+Correction int signed NOT NULL,   
+PRIMARY KEY TranTime (Transition_time) 
+) DEFAULT CHARACTER SET latin1   comment='Leap seconds information for time zones';
+
 
 #
 # Create proc table if it doesn't exists

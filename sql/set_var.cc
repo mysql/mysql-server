@@ -183,7 +183,7 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
+sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
 sys_var_thd_bool	sys_low_priority_updates("low_priority_updates",
@@ -330,6 +330,10 @@ sys_var_thd_table_type  sys_table_type("table_type",
 				       &SV::table_type);
 sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
+#ifdef HAVE_REPLICATION
+sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
+#endif
+sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -352,13 +356,13 @@ sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_p
 
 sys_var_thd_date_time_format sys_time_format("time_format",
 					     &SV::time_format,
-					     TIMESTAMP_TIME);
+					     MYSQL_TIMESTAMP_TIME);
 sys_var_thd_date_time_format sys_date_format("date_format",
 					     &SV::date_format,
-					     TIMESTAMP_DATE);
+					     MYSQL_TIMESTAMP_DATE);
 sys_var_thd_date_time_format sys_datetime_format("datetime_format",
 						 &SV::datetime_format,
-						 TIMESTAMP_DATETIME);
+						 MYSQL_TIMESTAMP_DATETIME);
 
 /* Variables that are bits in THD */
 
@@ -442,6 +446,7 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
                                                          &SV::group_concat_max_len);
 
+sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
@@ -580,11 +585,16 @@ sys_var *sys_variables[]=
   &sys_sql_mode,
   &sys_sql_warnings,
   &sys_storage_engine,
+#ifdef HAVE_REPLICATION
+  &sys_sync_binlog_period,
+#endif
+  &sys_sync_frm,
   &sys_table_cache_size,
   &sys_table_type,
   &sys_thread_cache_size,
   &sys_time_format,
   &sys_timestamp,
+  &sys_time_zone,
   &sys_tmp_table_size,
   &sys_trans_alloc_block_size,
   &sys_trans_prealloc_size,
@@ -645,15 +655,18 @@ struct show_var_st init_vars[]= {
   {"ft_query_expansion_limit",(char*) &ft_query_expansion_limit,    SHOW_LONG},
   {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
+  {"have_archive",	      (char*) &have_archive_db,	            SHOW_HAVE},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
+  {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
+  {"have_rtree_keys",         (char*) &have_rtree_keys,             SHOW_HAVE},
   {"have_symlink",            (char*) &have_symlink,                SHOW_HAVE},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
@@ -796,6 +809,13 @@ struct show_var_st init_vars[]= {
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
+#ifdef HAVE_REPLICATION
+  {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+#endif
+  {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
+#ifdef HAVE_TZNAME
+  {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
+#endif
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -804,9 +824,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
-#ifdef HAVE_TZNAME
-  {"timezone",                time_zone,                            SHOW_CHAR},
-#endif
+  {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
@@ -1719,19 +1737,31 @@ CHARSET_INFO *get_old_charset_by_name(const char *name)
 bool sys_var_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
 
-  if (!(res=var->value->val_str(&str)))
+  if (var->value->result_type() == STRING_RESULT)
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
-    return 1;
+    char buff[80];
+    String str(buff,sizeof(buff), system_charset_info), *res;
+    if (!(res=var->value->val_str(&str)))
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      return 1;
+    }
+    if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+    {
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
+      return 1;
+    }
   }
-
-  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+  else // INT_RESULT
   {
-    my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
-    return 1;
+    if (!(tmp=get_charset((int) var->value->val_int(),MYF(0))))
+    {
+      char buf[20];
+      int10_to_str((int) var->value->val_int(), buf, -10);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+      return 1;
+    }
   }
   var->save_result.charset= tmp;	// Save for update
   return 0;
@@ -1741,23 +1771,36 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 bool sys_var_character_set::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
 
-  if (!(res=var->value->val_str(&str)))
-  { 
-    if (!nullable)
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    char buff[80];
+    String str(buff,sizeof(buff), system_charset_info), *res;
+    if (!(res=var->value->val_str(&str)))
     {
-      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      if (!nullable)
+      {
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+        return 1;
+      }
+      tmp= NULL;
+    }
+    else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
+             !(tmp=get_old_charset_by_name(res->c_ptr())))
+    {
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
       return 1;
     }
-    tmp= NULL;
   }
-  else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
-	   !(tmp=get_old_charset_by_name(res->c_ptr())))
+  else // INT_RESULT
   {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-    return 1;
+    if (!(tmp=get_charset((int) var->value->val_int(),MYF(0))))
+    {
+      char buf[20];
+      int10_to_str((int) var->value->val_int(), buf, -10);
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), buf);
+      return 1;
+    }
   }
   var->save_result.charset= tmp;	// Save for update
   return 0;
@@ -1870,6 +1913,20 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+bool sys_var_character_set_server::check(THD *thd, set_var *var)
+{
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing \
+the global server character set or collation", MYF(0));
+    return 1;
+  }
+  return sys_var_character_set::check(thd,var);
+}
+#endif
 
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
@@ -1963,6 +2020,20 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+bool sys_var_collation_server::check(THD *thd, set_var *var)
+{
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing \
+the global server character set or collation", MYF(0));
+    return 1;
+  }
+  return sys_var_collation::check(thd,var);
+}
+#endif
 
 bool sys_var_collation_server::update(THD *thd, set_var *var)
 {
@@ -2264,6 +2335,22 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
+
+
+bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
+{
+  pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
+  sync_binlog_period= var->save_result.ulong_value;
+  /*
+    Must reset the counter otherwise it may already be beyond the new period
+    and so the new period will not be taken into account. Need mutex otherwise
+    might be cancelled by a simultanate ++ in MYSQL_LOG::write().
+  */
+  pthread_mutex_lock(lock_log);
+  sync_binlog_counter= 0;
+  pthread_mutex_unlock(lock_log);
+  return 0;
+}
 #endif /* HAVE_REPLICATION */
 
 bool sys_var_rand_seed1::update(THD *thd, set_var *var)
@@ -2278,6 +2365,77 @@ bool sys_var_rand_seed2::update(THD *thd, set_var *var)
   return 0;
 }
 
+
+bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
+{
+  char buff[MAX_TIME_ZONE_NAME_LENGTH]; 
+  String str(buff, sizeof(buff), &my_charset_latin1);
+  String *res= var->value->val_str(&str);
+
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing "
+                       "of the global server time zone", MYF(0));
+    return 1;
+  }
+#endif
+  
+  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
+  {
+    my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
+    return 1;
+  }
+  return 0;
+}
+
+
+bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
+{
+  /* We are using Time_zone object found during check() phase */ 
+  *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
+  return 0;
+}
+
+
+byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
+{
+  /* 
+    We can use ptr() instead of c_ptr() here because String contaning
+    time zone name is guaranteed to be zero ended.
+  */
+  return (byte *)((*get_tz_ptr(thd,type))->get_name()->ptr());
+}
+
+
+Time_zone** sys_var_thd_time_zone::get_tz_ptr(THD *thd, 
+                                              enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.time_zone;
+  else
+    return &thd->variables.time_zone;
+}
+
+
+void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+ {
+   if (default_tz_name)
+   {
+     String str(default_tz_name, &my_charset_latin1);
+     global_system_variables.time_zone= my_tz_find(thd, &str);
+   }
+   else
+     global_system_variables.time_zone= my_tz_SYSTEM;
+ }
+ else
+   thd->variables.time_zone= global_system_variables.time_zone;
+}
 
 /*
   Functions to update thd->options bits
@@ -2556,6 +2714,38 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   while ((var=it++))
     error|= var->update(thd);			// Returns 0, -1 or 1
   DBUG_RETURN(error);
+}
+
+
+/*
+  Say if all variables set by a SET support the ONE_SHOT keyword (currently,
+  only character set and collation do; later timezones will).
+
+  SYNOPSIS
+
+  not_all_support_one_shot
+    set_var	List of variables to update
+
+  NOTES
+    It has a "not_" because it makes faster tests (no need to "!")
+
+    RETURN VALUE
+    0	all variables of the list support ONE_SHOT
+    1	at least one does not support ONE_SHOT
+*/
+
+bool not_all_support_one_shot(List<set_var_base> *var_list)
+{
+#if MYSQL_VERSION_ID < 50000
+  List_iterator_fast<set_var_base> it(*var_list);
+  set_var_base *var;
+  while ((var= it++))
+  {
+    if (var->no_support_one_shot())
+      return 1;
+  }
+#endif
+  return 0;
 }
 
 

@@ -40,6 +40,197 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
 				 uint level);
 
+/* Database options hash */
+static HASH dboptions;
+static my_bool dboptions_init= 0;
+static rw_lock_t LOCK_dboptions;
+
+/* Structure for database options */
+typedef struct my_dbopt_st
+{
+  char *name;			/* Database name                  */
+  uint name_length;		/* Database length name           */
+  CHARSET_INFO *charset;	/* Database default character set */
+} my_dbopt_t;
+
+
+/*
+  Function we use in the creation of our hash to get key.
+*/
+static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
+                               my_bool not_used __attribute__((unused)))
+{
+  *length= opt->name_length;
+  return (byte*) opt->name;
+}
+
+
+/*
+  Function to free dboptions hash element
+*/
+
+static void free_dbopt(void *dbopt)
+{
+  my_free((gptr) dbopt, MYF(0));
+}
+
+
+/* 
+  Initialize database option hash
+
+  SYNOPSIS
+    my_dbopt_init()
+
+  NOTES
+    Must be called before any other database function is called.
+
+  RETURN
+    0	ok
+    1	Fatal error
+*/
+
+bool my_dbopt_init(void)
+{
+  bool error= 0;
+  (void) my_rwlock_init(&LOCK_dboptions, NULL);
+  if (!dboptions_init)
+  {
+    dboptions_init= 1;
+    error= hash_init(&dboptions, lower_case_table_names ? 
+                     &my_charset_bin : system_charset_info,
+                     32, 0, 0, (hash_get_key) dboptions_get_key,
+                     free_dbopt,0);
+  }
+  return error;
+}
+
+
+/* 
+  Free database option hash.
+*/
+
+void my_dbopt_free(void)
+{
+  if (dboptions_init)
+  {
+    dboptions_init= 0;
+    hash_free(&dboptions);
+    (void) rwlock_destroy(&LOCK_dboptions);
+  }
+}
+
+
+void my_dbopt_cleanup(void)
+{
+  rw_wrlock(&LOCK_dboptions);
+  hash_free(&dboptions);
+  hash_init(&dboptions, lower_case_table_names ? 
+            &my_charset_bin : system_charset_info,
+            32, 0, 0, (hash_get_key) dboptions_get_key,
+            free_dbopt,0);
+  rw_unlock(&LOCK_dboptions);
+}
+
+
+/*
+  Find database options in the hash.
+  
+  DESCRIPTION
+    Search a database options in the hash, usings its path.
+    Fills "create" on success.
+  
+  RETURN VALUES
+    0 on success.
+    1 on error.
+*/
+
+static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
+{
+  my_dbopt_t *opt;
+  uint length;
+  my_bool error= 1;
+  
+  length= (uint) strlen(dbname);
+  
+  rw_rdlock(&LOCK_dboptions);
+  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  {
+    create->default_table_charset= opt->charset;
+    error= 0;
+  }
+  rw_unlock(&LOCK_dboptions);
+  return error;
+}
+
+
+/*
+  Writes database options into the hash.
+  
+  DESCRIPTION
+    Inserts database options into the hash, or updates
+    options if they are already in the hash.
+  
+  RETURN VALUES
+    0 on success.
+    1 on error.
+*/
+
+static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
+{
+  my_dbopt_t *opt;
+  uint length;
+  my_bool error= 0;
+  DBUG_ENTER("put_dbopt");
+
+  length= (uint) strlen(dbname);
+  
+  rw_wrlock(&LOCK_dboptions);
+  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  { 
+    /* Options are not in the hash, insert them */
+    char *tmp_name;
+    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         NullS))
+    {
+      error= 1;
+      goto end;
+    }
+    
+    opt->name= tmp_name;
+    strmov(opt->name, dbname);
+    opt->name_length= length;
+    
+    if ((error= my_hash_insert(&dboptions, (byte*) opt)))
+    {
+      my_free((gptr) opt, MYF(0));
+      goto end;
+    }
+  }
+
+  /* Update / write options in hash */
+  opt->charset= create->default_table_charset;
+
+end:
+  rw_unlock(&LOCK_dboptions);  
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Deletes database options from the hash.
+*/
+
+void del_dbopt(const char *path)
+{
+  my_dbopt_t *opt;
+  rw_wrlock(&LOCK_dboptions);
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, path, strlen(path))))
+    hash_delete(&dboptions, (byte*) opt);
+  rw_unlock(&LOCK_dboptions);
+}
+
+
 /* 
   Create database options file:
 
@@ -57,15 +248,20 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   char buf[256]; // Should be enough for one option
   bool error=1;
 
+  if (!create->default_table_charset)
+    create->default_table_charset= thd->variables.collation_server;
+  
+  if (put_dbopt(path, create))
+    return 1;
+  
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
-    CHARSET_INFO *cs= ((create && create->default_table_charset) ? 
-		       create->default_table_charset :
-		       thd->variables.collation_server);
-    length= my_sprintf(buf,(buf,
-			    "default-character-set=%s\ndefault-collation=%s\n",
-			    cs->csname,cs->name));
+    length= (ulong) (strxnmov(buf, sizeof(buf), "default-character-set=",
+                              create->default_table_charset->csname,
+                              "\ndefault-collation=",
+                              create->default_table_charset->name,
+                              "\n", NullS) - buf);
 
     /* Error is written by my_write */
     if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
@@ -102,6 +298,12 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   bzero((char*) create,sizeof(*create));
   create->default_table_charset= thd->variables.collation_server;
+  
+  /* Check if options for this database are already in the hash */
+  if (!get_dbopt(path, create))
+    DBUG_RETURN(0);	   
+  
+  /* Otherwise, load options from the .opt file */
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -138,9 +340,16 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	}
       }
     }
-    error=0;
     end_io_cache(&cache);
     my_close(file,MYF(0));
+    /*
+      Put the loaded value into the hash.
+      Note that another thread could've added the same
+      entry to the hash after we called get_dbopt(),
+      but it's not an error, as put_dbopt() takes this
+      possibility into account.
+    */
+    error= put_dbopt(path, create);
   }
   DBUG_RETURN(error);
 }
@@ -168,10 +377,11 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 		    bool silent)
 {
   char	 path[FN_REFLEN+16];
-  long result=1;
-  int error = 0;
+  long result= 1;
+  int error= 0;
   MY_STAT stat_info;
-  uint create_options = create_info ? create_info->options : 0;
+  uint create_options= create_info ? create_info->options : 0;
+  uint path_len;
   DBUG_ENTER("mysql_create_db");
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -185,17 +395,18 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
   /* Check directory */
   strxmov(path, mysql_data_home, "/", db, NullS);
-  unpack_dirname(path,path);			// Convert if not unix
+  path_len= unpack_dirname(path,path);    // Convert if not unix
+  path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
   {
    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
       my_error(ER_DB_CREATE_EXISTS,MYF(0),db);
-      error = -1;
+      error= -1;
       goto exit;
     }
-    result = 0;
+    result= 0;
   }
   else
   {
@@ -204,23 +415,23 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       my_error(EE_STAT, MYF(0),path,my_errno);
       goto exit;
     }
-    strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
       my_error(ER_CANT_CREATE_DB,MYF(0),db,my_errno);
-      error = -1;
+      error= -1;
       goto exit;
     }
   }
 
-  unpack_dirname(path, path);
-  strcat(path,MY_DB_OPT_FILE);
+  path[path_len-1]= FN_LIBCHAR;
+  strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
   if (write_db_opt(thd, path, create_info))
   {
     /*
       Could not create options file.
       Restore things to beginning.
     */
+    path[path_len]= 0;
     if (rmdir(path) >= 0)
     {
       error= -1;
@@ -271,7 +482,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   char path[FN_REFLEN+16];
   long result=1;
-  int error = 0;
+  int error= 0;
   DBUG_ENTER("mysql_alter_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -281,7 +492,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     goto exit2;
 
   /* Check directory */
-  (void)sprintf(path,"%s/%s/%s", mysql_data_home, db, MY_DB_OPT_FILE);
+  strxmov(path, mysql_data_home, "/", db, "/", MY_DB_OPT_FILE, NullS);
   fn_format(path, path, "", "", MYF(MY_UNPACK_FILENAME));
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
@@ -334,9 +545,11 @@ exit2:
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
-  int error = 0;
+  int error= 0;
   char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
+  uint length;
+  my_dbopt_t *dbopt;
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -349,23 +562,37 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
-  unpack_dirname(path,path);			// Convert if not unix
+  length= unpack_dirname(path,path);		// Convert if not unix
+  strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
+  del_dbopt(path);				// Remove dboption hash entry
+  path[length]= '\0';				// Remove file name
+
   /* See if the directory exists */
-  if (!(dirp = my_dir(path,MYF(MY_DONT_SORT))))
+  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
   {
     if (!if_exists)
     {
       error= -1;
       my_error(ER_DB_DROP_EXISTS,MYF(0),db);
+      goto exit;
     }
     else
-    {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
-      if (!silent)
-        send_ok(thd,0);
+  }
+  else
+  {
+    pthread_mutex_lock(&LOCK_open);
+    remove_db_from_cache(db);
+    pthread_mutex_unlock(&LOCK_open);
+    
+    error= -1;
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
+    {
+      ha_drop_database(path);
+      query_cache_invalidate1(db);  
+      error = 0;
     }
-    goto exit;
   }
   if (lower_case_table_names)
   {
@@ -374,41 +601,29 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
-
-  pthread_mutex_lock(&LOCK_open);
-  remove_db_from_cache(db);
-  pthread_mutex_unlock(&LOCK_open);
-
-  error = -1;
-  if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
+  if (!silent && deleted>=0 && thd)
   {
-    ha_drop_database(path);
-    query_cache_invalidate1(db);  
-    if (!silent)
+    const char *query;
+    ulong query_length;
+    if (!thd->query)
     {
-      const char *query;
-      ulong query_length;
-      if (!thd->query)
-      {
-	/* The client used the old obsolete mysql_drop_db() call */
-	query= path;
-	query_length = (uint) (strxmov(path,"drop database `", db, "`",
-				       NullS)- path);
-      }
-      else
-      {
-	query=thd->query;
-	query_length=thd->query_length;
-      }
-      if (mysql_bin_log.is_open())
-      {
-	Query_log_event qinfo(thd, query, query_length, 0);
-	thd->clear_error();
-	mysql_bin_log.write(&qinfo);
-      }
-      send_ok(thd,(ulong) deleted);
+      /* The client used the old obsolete mysql_drop_db() call */
+      query= path;
+      query_length= (uint) (strxmov(path, "drop database `", db, "`",
+                                     NullS) - path);
     }
-    error = 0;
+    else
+    {
+      query =thd->query;
+      query_length= thd->query_length;
+    }
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, query, query_length, 0);
+      thd->clear_error();
+      mysql_bin_log.write(&qinfo);
+    }
+    send_ok(thd, (ulong) deleted);
   }
 
 exit:
@@ -637,8 +852,10 @@ bool mysql_change_db(THD *thd, const char *name)
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
-  ulong db_access;
   HA_CREATE_INFO create;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  ulong db_access;
+#endif
   DBUG_ENTER("mysql_change_db");
 
   if (!dbname || !(db_length= strlen(dbname)))
@@ -699,4 +916,3 @@ bool mysql_change_db(THD *thd, const char *name)
   thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }
-

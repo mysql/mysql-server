@@ -14,105 +14,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NDBT_Table.hpp"
+#include <NDBT_Table.hpp>
 #include <NdbTimer.hpp>
 #include <NDBT.hpp>
-
 
 class NdbOut& 
 operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
 
   NdbDictionary::Column::Type type = attr.getType();
-  bool key = attr.getPrimaryKey();
-  bool null = attr.getNullable();
 
-  ndbout << attr.getName() << "\t";
-  char tmp[100];
-  if(attr.getLength() != 1)
-    snprintf(tmp, 100," [%d]", attr.getLength());
-  else
-    tmp[0] = 0;
+  ndbout << attr.getName() << " " << type;
   
   switch(type){
-  case NdbDictionary::Column::Tinyint:
-    ndbout << "Tinyint" << tmp;
-    break;
-  case NdbDictionary::Column::Tinyunsigned:
-    ndbout << "Tinyunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Smallint:
-    ndbout << "Smallint" << tmp;
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    ndbout << "Smallunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Mediumint:
-    ndbout << "Mediumint" << tmp;
-    break;
-  case NdbDictionary::Column::Mediumunsigned:
-    ndbout << "Mediumunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Int:
-    ndbout << "Int" << tmp;
-    break;
-  case NdbDictionary::Column::Unsigned:
-    ndbout << "Unsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Bigint:
-    ndbout << "Bigint"  << tmp;
-    break;
-  case NdbDictionary::Column::Bigunsigned:
-    ndbout << "Bigunsigned"  << tmp;
-    break;
-  case NdbDictionary::Column::Float:
-    ndbout << "Float" << tmp;
-    break;
-  case NdbDictionary::Column::Double:
-    ndbout << "Double"  << tmp;
-    break;
   case NdbDictionary::Column::Decimal:
-    ndbout << "Decimal(" 
-	   << attr.getScale() << ", " << attr.getPrecision() << ")"
-	   << tmp;
-    break;
-  case NdbDictionary::Column::Char:
-    ndbout << "Char(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Varchar:
-    ndbout << "Varchar(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Binary:
-    ndbout << "Binary(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Varbinary:
-    ndbout << "Varbinary(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Datetime:
-    ndbout << "Datetime"  << tmp;
-    break;
-  case NdbDictionary::Column::Timespec:
-    ndbout << "Timespec"  << tmp;
-    break;
-  case NdbDictionary::Column::Blob:
-    ndbout << "Blob"  << tmp;
-    break;
-  case NdbDictionary::Column::Undefined:
-    ndbout << "Undefined"  << tmp;
+    ndbout << "(" << attr.getScale() << ", " << attr.getPrecision() << ")";
     break;
   default:
-    ndbout << "Unknown(" << type << ")";
+    break;
   }
   
-  ndbout << "\t";
-  if(null){
-    ndbout << "NULL";
-  } else {
-    ndbout << "NOT NULL";
-  }
-  ndbout << "\t";
+  if(attr.getLength() != 1)
+    ndbout << "[" << attr.getLength() << "]";
+
+  if(attr.getNullable())
+    ndbout << " NULL";
+  else
+    ndbout << " NOT NULL";
   
-  if(key)
-    ndbout << "\tprimary key";
+  if(attr.getPrimaryKey())
+    ndbout << " PRIMARY KEY";
   
   return ndbout;
 }
@@ -130,6 +60,9 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "Temporary table: " <<  (tab.getStoredTable() ? "no" : "yes") << endl;
   ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
   ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
+  ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
+
+
   //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;
   ndbout << "TableStatus: ";
   switch(tab.getObjectStatus()){
@@ -154,3 +87,32 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   
   return ndbout;
 }
+
+class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index & idx)
+{
+  ndbout << idx.getName();
+  ndbout << "(";
+  for (unsigned i=0; i < idx.getNoOfColumns(); i++)
+  {
+    const NdbDictionary::Column *col = idx.getColumn(i);
+    ndbout << col->getName();
+    if (i < idx.getNoOfColumns()-1)
+      ndbout << ", ";
+  }
+  ndbout << ")";
+  
+  ndbout << " - ";
+  switch (idx.getType()) {
+  case NdbDictionary::Object::UniqueHashIndex:
+    ndbout << "UniqueHashIndex";
+    break;
+  case NdbDictionary::Object::OrderedIndex:
+    ndbout << "OrderedIndex";
+    break;
+  default:
+    ndbout << "Type " << idx.getType();
+    break;
+  }
+  return ndbout;
+}
+

@@ -15,10 +15,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
+//#include "NdbSchemaOp.hpp"
+//#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbConnection.hpp"
 #include "NdbRecAttr.hpp"
@@ -54,7 +56,7 @@ Ndb(const char* aDataBase);
 Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
-Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
+Ndb::Ndb( const char* aDataBase , const char* aSchema) :
   theNdbObjectIdMap(0),
   thePreparedTransactionsArray(NULL),
   theSentTransactionsArray(NULL),
@@ -72,8 +74,8 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theOpIdleList(NULL),
   theScanOpIdleList(NULL),
   theIndexOpIdleList(NULL),
-  theSchemaConIdleList(NULL),
-  theSchemaConToNdbList(NULL),
+//  theSchemaConIdleList(NULL),
+//  theSchemaConToNdbList(NULL),
   theTransactionList(NULL),
   theConnectionArray(NULL),
   theRecAttrIdleList(NULL),
@@ -83,6 +85,7 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theSubroutineList(NULL),
   theCallList(NULL),
   theScanList(NULL),
+  theNdbBlobIdleList(NULL),
   theNoOfDBnodes(0),
   theDBnodes(NULL),
   the_release_ind(NULL),
@@ -92,6 +95,8 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theNdbBlockNumber(-1),
   theInitState(NotConstructed)
 {
+  fullyQualifiedNames = true;
+
   cgetSignals =0;
   cfreeSignals = 0;
   cnewSignals = 0;
@@ -116,28 +121,22 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
     theLastTupleId[i] = 0;
   }//for
   
-  if (aDataBase)
-    strncpy(theDataBase, aDataBase, NDB_MAX_DATABASE_NAME_SIZE);
-  else
-    memset(theDataBase, 0, sizeof(theDataBase));
-  strncpy(theDataBaseSchema, aDataBaseSchema, NDB_MAX_SCHEMA_NAME_SIZE);
-  // Prepare prefix for faster operations
-  uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-  uint schema_len = 
-    MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-  strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-  prefixName[db_len] = '/';
-  strncpy(prefixName+db_len+1, theDataBaseSchema, 
-	  NDB_MAX_SCHEMA_NAME_SIZE - 1);
-  prefixName[db_len+schema_len+1] = '/';
-  prefixName[db_len+schema_len+2] = '\0';
-  prefixEnd = prefixName + db_len+schema_len + 2;
+  snprintf(theDataBase, sizeof(theDataBase), "%s",
+           aDataBase ? aDataBase : "");
+  snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
+	   aSchema ? aSchema : "");
+
+  int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                     theDataBase, table_name_separator,
+                     theDataBaseSchema, table_name_separator);
+  prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                            sizeof(prefixName) - 1);
 
   NdbMutex_Lock(&createNdbMutex);
   
   TransporterFacade * m_facade = 0;
   if(theNoOfNdbObjects == 0){
-    if ((m_facade = TransporterFacade::start_instance(0,ndbConnectString)) == 0)
+    if ((m_facade = TransporterFacade::start_instance(ndbConnectString)) == 0)
       theInitState = InitConfigError;
   } else {
     m_facade = TransporterFacade::instance();
@@ -207,8 +206,8 @@ Ndb::~Ndb()
 
   NdbMutex_Unlock(&createNdbMutex);
   
-  if (theSchemaConToNdbList != NULL)
-    closeSchemaTransaction(theSchemaConToNdbList);
+//  if (theSchemaConToNdbList != NULL)
+//    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
     freeNdbCon();
   while ( theSignalIdleList != NULL )
@@ -231,6 +230,8 @@ Ndb::~Ndb()
     freeNdbCall();
   while (theScanList != NULL)
     freeNdbScanRec();
+  while (theNdbBlobIdleList != NULL)
+    freeNdbBlob();
   
   releaseTransactionArrays();
   startTransactionNodeSelectionData.release();

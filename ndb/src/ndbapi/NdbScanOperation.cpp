@@ -34,6 +34,7 @@
 #include "NdbApiSignal.hpp"
 #include <NdbOut.hpp>
 #include "NdbDictionaryImpl.hpp"
+#include "NdbBlob.hpp"
 
 NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   NdbCursorOperation(aNdb),
@@ -86,8 +87,10 @@ NdbScanOperation::init(NdbTableImpl* tab, NdbConnection* myConnection)
   m_transConnection = myConnection;
   //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
   NdbConnection* aScanConnection = theNdb->hupp(myConnection);
-  if (!aScanConnection)
+  if (!aScanConnection){
+    setErrorCodeAbort(theNdb->getNdbError().code);
     return -1;
+  }
   aScanConnection->theFirstOpInList = this;
   aScanConnection->theLastOpInList = this;
   NdbCursorOperation::cursInit();
@@ -106,11 +109,11 @@ NdbResultSet* NdbScanOperation::readTuples(Uint32 parallell,
     break;
   case NdbCursorOperation::LM_Exclusive:
     parallell = (parallell == 0 ? 1 : parallell);
-    res = openScan(parallell, true, /*irrelevant*/true, /*irrelevant*/false);
+    res = openScan(parallell, true, true, false);
     break;
   case NdbCursorOperation::LM_Dirty:
     parallell = (parallell == 0 ? 240 : parallell);
-    res = openScan(parallell, true, /*irrelevant*/true, /*irrelevant*/false);
+    res = openScan(parallell, false, false, true);
     break;
   default:
     res = -1;
@@ -292,6 +295,18 @@ int  NdbScanOperation::setValue(Uint32 anAttrId, double aValue)
   return 0;
 }
 
+NdbBlob*
+NdbScanOperation::getBlobHandle(const char* anAttrName)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, m_currentTable->getColumn(anAttrName));
+}
+
+NdbBlob*
+NdbScanOperation::getBlobHandle(Uint32 anAttrId)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, m_currentTable->getColumn(anAttrId));
+}
+
 // Private methods
 
 int NdbScanOperation::executeCursor(int ProcessorId)
@@ -341,6 +356,15 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     // to the real trans
     const NdbError err = theNdbCon->getNdbError();
     m_transConnection->setOperationErrorCode(err.code);
+  }
+  if (result == 0) {
+    // handle blobs
+    NdbBlob* tBlob = theBlobList;
+    while (tBlob != NULL) {
+      if (tBlob->atNextResult() == -1)
+        return -1;
+      tBlob = tBlob->theNext;
+    }
   }
   return result;
 }

@@ -84,9 +84,10 @@ extern "C" {
     NDB_MGM_NODE_TYPE_API     = 0,          /*/< An application node (API)*/
     NDB_MGM_NODE_TYPE_NDB     = 1,          /*/< A database node (DB)*/
     NDB_MGM_NODE_TYPE_MGM     = 2,          /*/< A management server node (MGM)*/
+    NDB_MGM_NODE_TYPE_REP     = 3,          ///< A replication node
 
     NDB_MGM_NODE_TYPE_MIN     = 0,          /*/< Min valid value*/
-    NDB_MGM_NODE_TYPE_MAX     = 2           /*/< Max valid value*/
+    NDB_MGM_NODE_TYPE_MAX     = 3           /*/< Max valid value*/
   };
 
   /**
@@ -199,6 +200,8 @@ extern "C" {
     int node_group;                         ///< Node group of node
                                             ///< (only valid for DB nodes)
     int version;                            ///< Internal version number
+    int connect_count;                      ///< No of times node has connected
+                                            ///< or disconnected to the mgm srv
   };
 
   /**
@@ -654,6 +657,36 @@ extern "C" {
   int ndb_mgm_exit_single_user(NdbMgmHandle handle, 
 			       struct ndb_mgm_reply* reply);
   
+  /**
+   * Get configuration
+   * @param   handle     NDB management handle.
+   * @param   version    Version of configuration, 0 means latest
+   *                     @see MAKE_VERSION
+   * @Note the caller must free the pointer returned.
+   */
+  struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
+							   unsigned version);
+  /**
+   * Config iterator
+   */
+  typedef struct ndb_mgm_configuration_iterator ndb_mgm_configuration_iterator;
+
+  ndb_mgm_configuration_iterator* ndb_mgm_create_configuration_iterator
+  (struct ndb_mgm_configuration *, unsigned type_of_section);
+  void ndb_mgm_destroy_iterator(ndb_mgm_configuration_iterator*);
+  
+  int ndb_mgm_first(ndb_mgm_configuration_iterator*);
+  int ndb_mgm_next(ndb_mgm_configuration_iterator*);
+  int ndb_mgm_valid(const ndb_mgm_configuration_iterator*);
+  int ndb_mgm_find(ndb_mgm_configuration_iterator*, 
+		   int param, unsigned value);
+  
+  int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*, 
+				int param, unsigned * value);
+  int ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator*,
+				  int param, unsigned long long * value);
+  int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
+				   int param, const char  ** value);
 #ifdef __cplusplus
 }
 #endif

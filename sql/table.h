@@ -157,7 +157,8 @@ struct st_table {
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
   ulong		query_id;
-  uint        temp_pool_slot;		/* Used by intern temp tables */
+  uchar		frm_version;
+  uint          temp_pool_slot;		/* Used by intern temp tables */
   struct st_table_list *pos_in_table_list;/* Element referring to this table */
   /* number of select if it is derived table */
   uint          derived_select_number;

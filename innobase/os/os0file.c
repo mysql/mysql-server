@@ -311,13 +311,10 @@ os_file_handle_error(
 /*=================*/
 				/* out: TRUE if we should retry the
 				operation */
-	os_file_t	file,	/* in: file pointer */
 	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
-
-	UT_NOT_USED(file);
 
 	err = os_file_get_last_error(FALSE);
 	
@@ -371,7 +368,7 @@ os_file_handle_error(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__)
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__) || defined(__NETWARE__)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  * On FreeBSD with LinuxThreads, advisory locking does not work properly.
@@ -387,22 +384,19 @@ os_file_lock(
 /*=========*/
 				/* out: 0 on success */
 	int		fd,	/* in: file descriptor */
-	const char*	name,	/* in: file name */
-        uint lock_type)         /* in: lock_type */
+	const char*	name)	/* in: file name */
 {
 	struct flock lk;
-	lk.l_type = lock_type;
+	lk.l_type = F_WRLCK;
 	lk.l_whence = SEEK_SET;
 	lk.l_start = lk.l_len = 0;
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 		fprintf(stderr,
-			"InnoDB: Unable to lock %s with lock %d, error: %d",
-                        name, lock_type, errno);
-		perror (": fcntl");
+			"InnoDB: Unable to lock %s, error: %d", name, errno);
 		close(fd);
 		return(-1);
 	}
-	return 0;
+	return(0);
 }
 #endif /* USE_FILE_LOCK */
 
@@ -485,6 +479,25 @@ os_io_init_simple(void)
 }
 
 /***************************************************************************
+Creates a temporary file. In case of error, causes abnormal termination. */
+
+FILE*
+os_file_create_tmpfile(void)
+/*========================*/
+				/* out: temporary file handle (never NULL) */
+{
+	FILE*	file	= tmpfile();
+	if (file == NULL) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: unable to create temporary file\n",
+			stderr);
+		os_file_handle_error(NULL, "tmpfile");
+		ut_error;
+	}
+	return(file);
+}
+
+/***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
@@ -526,7 +539,7 @@ os_file_opendir(
 	if (dir == INVALID_HANDLE_VALUE) {
 
 		if (error_is_fatal) {
-		        os_file_handle_error(NULL, dirname, "opendir");
+		        os_file_handle_error(dirname, "opendir");
 		}
 
 		return(NULL);
@@ -537,7 +550,7 @@ os_file_opendir(
 	dir = opendir(dirname);
 
 	if (dir == NULL && error_is_fatal) {
-	        os_file_handle_error(0, dirname, "opendir");
+	        os_file_handle_error(dirname, "opendir");
 	}
 
 	return(dir);
@@ -720,7 +733,7 @@ os_file_create_directory(
 	if (!(rcode != 0 ||
 		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(NULL, pathname, "CreateDirectory");
+		os_file_handle_error(pathname, "CreateDirectory");
 
 		return(FALSE);
 	}
@@ -733,7 +746,7 @@ os_file_create_directory(
 
 	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(0, pathname, "mkdir");
+		os_file_handle_error(pathname, "mkdir");
 
 		return(FALSE);
 	}
@@ -812,7 +825,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -862,14 +875,15 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name, F_WRLCK)) {
+	} else if (access_type == OS_FILE_READ_WRITE
+			&& os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -980,7 +994,8 @@ os_file_create_simple_no_error_handling(
 	if (file == -1) {
 		*success = FALSE;
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name, F_WRLCK)) {
+	} else if (access_type == OS_FILE_READ_WRITE
+			&& os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -1102,7 +1117,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_CREATE ?
 				"create" : "open");
 		if (retry) {
@@ -1187,14 +1202,15 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_CREATE ?
 				"create" : "open");
 		if (retry) {
 			goto try_again;
 		}
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name, F_WRLCK)) {
+	} else if (create_mode != OS_FILE_OPEN_RAW
+			&& os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -1258,7 +1274,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1320,7 +1336,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1350,7 +1366,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, oldpath, "rename");
+	os_file_handle_error(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1359,7 +1375,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(0, oldpath, "rename");
+		os_file_handle_error(oldpath, "rename");
 
 		return(FALSE);
 	}
@@ -1389,19 +1405,16 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "close");
+	os_file_handle_error(NULL, "close");
 
 	return(FALSE);
 #else
 	int	ret;
 
-#ifdef USE_FILE_LOCK
-        (void) os_file_lock(file, "unknown", F_UNLCK);
-#endif
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(file, NULL, "close");
+		os_file_handle_error(NULL, "close");
 
 		return(FALSE);
 	}
@@ -1434,9 +1447,6 @@ os_file_close_no_error_handling(
 #else
 	int	ret;
 
-#ifdef USE_FILE_LOCK
-        (void) os_file_lock(file, "unknown", F_UNLCK);
-#endif
 	ret = close(file);
 
 	if (ret == -1) {
@@ -1657,7 +1667,7 @@ os_file_flush(
 	        return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1692,7 +1702,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1740,7 +1750,7 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-#ifdef HAVE_PREAD
+#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
@@ -1815,7 +1825,7 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#ifdef HAVE_PWRITE
+#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
@@ -1952,7 +1962,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(file, NULL, "read"); 
+	retry = os_file_handle_error(NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -2331,31 +2341,25 @@ os_file_dirname(
 				pathname */
 	const char*	path)	/* in: pathname */
 {
-	char*	dir;
-	int 	i, length, last_slash;
+	/* Find the offset of the last slash */
+	const char* last_slash = strrchr(path, OS_FILE_PATH_SEPARATOR);
+	if (!last_slash) {
+		/* No slash in the path, return "." */
 
-	/* find the offset of the last slash */
-	length = ut_strlen(path);
-	for (i = length - 1; i >= 0 && path[i] != OS_FILE_PATH_SEPARATOR; i++);
-	last_slash = i;
-
-	if (last_slash < 0) {
-		/* no slash in the path, return "." */
 		return(mem_strdup("."));
 	}
 
-	/* ok, there is a slash */
+	/* Ok, there is a slash */
 
-	if (last_slash == 0) {
+	if (last_slash == path) {
 		/* last slash is the first char of the path */
+
 		return(mem_strdup("/"));
 	}
 
-	/* non-trivial directory component */
-	dir = mem_strdup(path);
-	dir[last_slash] = 0;
+	/* Non-trivial directory component */
 
-	return(dir);
+	return(mem_strdupl(path, last_slash - path));
 }
 	
 /********************************************************************
@@ -2369,30 +2373,33 @@ os_file_create_subdirs_if_needed(
 	const char*	path)	/* in: path name */
 {
 	char*		subdir;
-	static char 	rootdir[2] = { OS_FILE_PATH_SEPARATOR, 0 };
 	ibool 		success, subdir_exists;
 	os_file_type_t	type;
 
 	subdir = os_file_dirname(path);
-	if (0 == strcmp(subdir, rootdir) || 0 == strcmp(subdir, ".")) {
+	if (strlen(subdir) == 1
+	    && (*subdir == OS_FILE_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
-		ut_free(subdir);
+		mem_free(subdir);
+
 		return(TRUE);
 	}
 
-	/* test if subdir exists */
+	/* Test if subdir exists */
 	success = os_file_status(subdir, &subdir_exists, &type);
 	if (success && !subdir_exists) {
 		/* subdir does not exist, create it */
 		success = os_file_create_subdirs_if_needed(subdir);
 		if (!success) {
-			ut_free(subdir);
+			mem_free(subdir);
+
 			return(FALSE);
 		}
 		success = os_file_create_directory(subdir, FALSE);
 	}
 
-	ut_free(subdir);
+	mem_free(subdir);
+
 	return(success);
 }
 
@@ -3172,7 +3179,7 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name,
+	retry = os_file_handle_error(name,
 			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
@@ -3272,7 +3279,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name, "Windows aio");
+		os_file_handle_error(slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  

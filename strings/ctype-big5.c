@@ -251,11 +251,12 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
 
 static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
 			     const uchar *a, uint a_length,
-			     const uchar *b, uint b_length)
+                             const uchar *b, uint b_length,
+                             my_bool b_is_prefix)
 {
   uint length= min(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
-  return res ? res : (int) (a_length - b_length);
+  return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
 
 
@@ -402,7 +403,7 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;				/* Skipp escape */
+      ptr++;				/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
@@ -6269,6 +6270,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_big5,
   my_strnncollsp_big5,
   my_strnxfrm_big5,
@@ -6281,6 +6283,7 @@ static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_big5_handler=
 {
+  NULL,			/* init */
   ismbchar_big5,
   mbcharlen_big5,
   my_numchars_mb,
@@ -6297,7 +6300,6 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   my_long10_to_str_8bit,
   my_longlong10_to_str_8bit,
   my_fill_8bit,
-    
   my_strntol_8bit,
   my_strntoul_8bit,
   my_strntoll_8bit,
@@ -6313,20 +6315,22 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     "big5",		/* cs name    */
     "big5_chinese_ci",	/* name       */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_big5,
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -6339,20 +6343,22 @@ CHARSET_INFO my_charset_big5_bin=
     "big5",		/* cs name    */
     "big5_bin",		/* name       */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_big5,
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

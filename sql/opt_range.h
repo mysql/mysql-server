@@ -133,6 +133,9 @@ public:
       other  Error code
   */
   virtual int  reset(void) = 0;
+
+  /* Range end should be called when we have looped over the whole index */
+  virtual void range_end() {}
   virtual int  get_next() = 0;   /* get next record to retrieve */
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
@@ -273,6 +276,8 @@ public:
   }
   int init();
   int get_next();
+  void range_end();
+
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
   int init_ror_merged_scan(bool reuse_handler);

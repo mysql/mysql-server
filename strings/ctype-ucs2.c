@@ -182,7 +182,8 @@ static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
 			     const uchar *s, uint slen, 
-			     const uchar *t, uint tlen)
+                             const uchar *t, uint tlen,
+                             my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -213,7 +214,14 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
+}
+
+static int my_strnncollsp_ucs2(CHARSET_INFO *cs, 
+                               const uchar *s, uint slen, 
+                               const uchar *t, uint tlen)
+{
+  return my_strnncoll_ucs2(cs,s,slen,t,tlen,0);
 }
 
 
@@ -312,7 +320,6 @@ static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 
 #include <m_string.h>
 #include <stdarg.h>
-#include <assert.h>
 
 static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
 {
@@ -1224,8 +1231,9 @@ int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
 
 static
 int my_strnncoll_ucs2_bin(CHARSET_INFO *cs, 
-				 const uchar *s, uint slen,
-				 const uchar *t, uint tlen)
+                          const uchar *s, uint slen,
+                          const uchar *t, uint tlen,
+                          my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -1250,7 +1258,14 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
+}
+
+static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
+                                   const uchar *s, uint slen, 
+                                   const uchar *t, uint tlen)
+{
+  return my_strnncoll_ucs2_bin(cs,s,slen,t,tlen,0);
 }
 
 
@@ -1373,8 +1388,9 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_ucs2,
-    my_strnncoll_ucs2,
+    my_strnncollsp_ucs2,
     my_strnxfrm_ucs2,
     my_like_range_ucs2,
     my_wildcmp_ucs2_ci,
@@ -1386,8 +1402,9 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 {
+    NULL,		/* init */
     my_strnncoll_ucs2_bin,
-    my_strnncoll_ucs2_bin,
+    my_strnncollsp_ucs2_bin,
     my_strnxfrm_ucs2_bin,
     my_like_range_simple,
     my_wildcmp_ucs2_bin,
@@ -1399,6 +1416,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 
 MY_CHARSET_HANDLER my_charset_ucs2_handler=
 {
+    NULL,		/* init */
     my_ismbchar_ucs2,	/* ismbchar     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
@@ -1427,19 +1445,21 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
 CHARSET_INFO my_charset_ucs2_general_ci=
 {
     35,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
     to_upper_ucs2,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
@@ -1452,19 +1472,21 @@ CHARSET_INFO my_charset_ucs2_general_ci=
 CHARSET_INFO my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONTEXT,
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
     "ucs2_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
     to_upper_ucs2,	/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */

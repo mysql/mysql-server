@@ -411,9 +411,13 @@ INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 month(updated)
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: ''
 SELECT year(updated) from t1;
 year(updated)
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: ''
 drop table t1;
 create table t1 (d date, dt datetime, t timestamp, c char(10));
 insert into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
@@ -585,7 +589,9 @@ a1	a2	a3	a4
 28	28	29	29
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
-2006-07-08 00:00:01
+NULL
+Warnings:
+Warning	1264	Data truncated; out of range for column 'time' at row 1
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
@@ -593,6 +599,8 @@ last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
 last_day('2001-02-12');
 f1	f2	f3	f4	f5	last_day(NULL)	last_day('2001-02-12')
 2000-02-29	2002-12-31	NULL	2003-04-30	2001-01-31	NULL	2001-02-28
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2003-03-32'
 create table t1 select last_day('2000-02-05') as a,
 from_days(to_days("960101")) as b;
 describe t1;

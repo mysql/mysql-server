@@ -35,10 +35,11 @@
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
+#ifdef HAVE_ARCHIVE_DB
+#include "examples/ha_archive.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
-#else
-#define innobase_query_caching_of_table_permitted(X,Y,Z) 1
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
@@ -88,6 +89,8 @@ struct show_table_type_st sys_table_types[]=
    "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
   {"EXAMPLE",&have_example_db,
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
+  {"ARCHIVE",&have_archive_db,
+   "Archive storage engine", DB_TYPE_ARCHIVE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -189,6 +192,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_EXAMPLE_DB:
     return new ha_example(table);
 #endif
+#ifdef HAVE_ARCHIVE_DB
+  case DB_TYPE_ARCHIVE_DB:
+    return new ha_archive(table);
+#endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
     return new ha_ndbcluster(table);
@@ -208,6 +215,16 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_MRG_MYISAM:
     return new ha_myisammrg(table);
   }
+}
+
+bool ha_caching_allowed(THD* thd, char* table_key,
+                        uint key_length, uint8 cache_type)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
+    return innobase_query_caching_of_table_permitted(thd, table_key, key_length);
+#endif
+  return 1;
 }
 
 int ha_init()
@@ -366,17 +383,25 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 #ifdef HAVE_INNOBASE_DB
   THD_TRANS *trans;
   trans = &thd->transaction.all;
-  if (trans->innobase_tid)
+  if (trans->innodb_active_trans)
   {
+    /*
+      If we updated some InnoDB tables (innodb_active_trans is true), the
+      binlog coords will be reported into InnoDB during the InnoDB commit
+      (innobase_report_binlog_offset_and_commit). But if we updated only
+      non-InnoDB tables, we need an explicit call to report it.
+    */
     if ((error=innobase_report_binlog_offset_and_commit(thd,
-							trans->innobase_tid,
-							log_file_name,
-							end_offset)))
+                                                        trans->innobase_tid,
+                                                        log_file_name,
+                                                        end_offset)))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
   }
+  else if (opt_innodb_safe_binlog) // Don't report if not useful
+    innobase_store_binlog_offset_and_flush_log(log_file_name, end_offset);
 #endif
   return error;
 }
@@ -469,7 +494,10 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     {
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+	if (error == -1)
+	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+	else
+	    ndbcluster_print_error(error);
         error=1;
       }
       if (trans == &thd->transaction.all)
@@ -535,7 +563,10 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     {
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
-        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+	if (error == -1)
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);	  
+	else
+	  ndbcluster_print_error(error);
         error=1;
       }
       trans->ndb_tid = 0;
@@ -569,10 +600,11 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     if ((trans == &thd->transaction.all) && mysql_bin_log.is_open())
     {
       /* 
-         Update the binary log with a BEGIN/ROLLBACK block if we have cached some
-         queries and we updated some non-transactional table. Such cases should
-         be rare (updating a non-transactional table inside a transaction...).
-         Count disk writes to trans_log in any case.
+         Update the binary log with a BEGIN/ROLLBACK block if we have
+         cached some queries and we updated some non-transactional
+         table. Such cases should be rare (updating a
+         non-transactional table inside a transaction...).  Count disk
+         writes to trans_log in any case.
       */
       if (my_b_tell(&thd->transaction.trans_log))
       {
@@ -593,13 +625,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       reinit_io_cache(&thd->transaction.trans_log,
                       WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      if (operation_done)
+        thd->transaction.cleanup();
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-    {
       statistic_increment(ha_rollback_count,&LOCK_status);
-      thd->transaction.cleanup();
-    }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -617,12 +648,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   simply truncate the binlog cache, we lose the part of the binlog cache where
   the update is. If we want to not lose it, we need to write the SAVEPOINT
   command and the ROLLBACK TO SAVEPOINT command to the binlog cache. The latter
-  is easy: it's just write at the end of the binlog cache, but the former should
-  be *inserted* to the place where the user called SAVEPOINT. The solution is
-  that when the user calls SAVEPOINT, we write it to the binlog cache (so no
-  need to later insert it). As transactions are never intermixed in the binary log
-  (i.e. they are serialized), we won't have conflicts with savepoint names when
-  using mysqlbinlog or in the slave SQL thread.
+  is easy: it's just write at the end of the binlog cache, but the former
+  should be *inserted* to the place where the user called SAVEPOINT. The
+  solution is that when the user calls SAVEPOINT, we write it to the binlog
+  cache (so no need to later insert it). As transactions are never intermixed
+  in the binary log (i.e. they are serialized), we won't have conflicts with
+  savepoint names when using mysqlbinlog or in the slave SQL thread.
   Then when ROLLBACK TO SAVEPOINT is called, if we updated some
   non-transactional table, we don't truncate the binlog cache but instead write
   ROLLBACK TO SAVEPOINT to it; otherwise we truncate the binlog cache (which
@@ -856,46 +887,6 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   DBUG_RETURN(error);
 }
 
-int handler::check(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::repair(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
@@ -913,32 +904,20 @@ int handler::read_first_row(byte * buf, uint primary_key)
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
   */
-  if (deleted < 10 || primary_key >= MAX_KEY || 
-      !(index_flags(primary_key) & HA_READ_ORDER))
+  if (deleted < 10 || primary_key >= MAX_KEY)
   {
-    (void) rnd_init();
+    (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) rnd_end();
+    (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
-    (void) index_init(primary_key);
+    (void) ha_index_init(primary_key);
     error=index_first(buf);
-    (void) index_end();
+    (void) ha_index_end();
   }
   DBUG_RETURN(error);
-}
-
-
-/*
-  The following function is only needed for tables that may be temporary tables
-  during joins
-*/
-
-int handler::restart_rnd_next(byte *buf, byte *pos)
-{
-  return HA_ERR_WRONG_COMMAND;
 }
 
 
@@ -1121,12 +1100,42 @@ void handler::print_error(int error, myf errflag)
     break;
   default:
     {
-      my_error(ER_GET_ERRNO,errflag,error);
+      /* The error was "unknown" to this function.
+	 Ask handler if it has got a message for this error */
+      bool temporary= FALSE;
+      String str;
+      temporary= get_error_message(error, &str);
+      if (!str.is_empty())
+      {
+	const char* engine= table_type();
+	if (temporary)
+	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,str.ptr(),engine);
+	else
+	  my_error(ER_GET_ERRMSG,MYF(0),error,str.ptr(),engine);
+      }
+      else       
+	my_error(ER_GET_ERRNO,errflag,error);
       DBUG_VOID_RETURN;
     }
   }
   my_error(textno,errflag,table->table_name,error);
   DBUG_VOID_RETURN;
+}
+
+
+/* 
+   Return an error message specific to this handler
+   
+   SYNOPSIS
+   error        error code previously returned by handler
+   buf          Pointer to String where to add error message
+   
+   Returns true if this is a temporary error
+ */
+
+bool handler::get_error_message(int error, String* buf)
+{
+  return FALSE;
 }
 
 
@@ -1195,30 +1204,6 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 }
 
 
-/*
-  This is called to delete all rows in a table
-  If the handler don't support this, then this function will
-  return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-  by one.
-*/
-
-int handler::delete_all_rows()
-{
-  return (my_errno=HA_ERR_WRONG_COMMAND);
-}
-
-bool handler::caching_allowed(THD* thd, char* table_key,
-			      uint key_length, uint8 cache_type)
-{
-#ifdef HAVE_INNOBASE_DB
-  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
-    return innobase_query_caching_of_table_permitted(thd, table_key,
-						     key_length);
-  else
-#endif
-    return 1;
-}
-
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
@@ -1241,8 +1226,6 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (update_create_info)
   {
     update_create_info_from_table(create_info, &table);
-    if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
-      table.file->delete_table(name);
   }
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -1498,4 +1481,15 @@ int handler::compare_key(key_range *range)
   if (!cmp)
     cmp= key_compare_result_on_equal;
   return cmp;
+}
+
+int handler::index_read_idx(byte * buf, uint index, const byte * key,
+			     uint key_len, enum ha_rkey_function find_flag)
+{
+  int error= ha_index_init(index);
+  if (!error)
+    error= index_read(buf, key, key_len, find_flag);
+  if (!error)
+    error= ha_index_end();
+  return error;
 }

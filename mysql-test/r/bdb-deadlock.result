@@ -9,7 +9,7 @@ set autocommit=0;
 update t2 set x = 1 where id = 0;
 select x from t1 where id = 0;
 select x from t2 where id = 0;
-ERROR 40001: Deadlock found when trying to get lock; Try restarting transaction
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 commit;
 x
 1

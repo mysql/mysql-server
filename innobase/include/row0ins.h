@@ -145,11 +145,10 @@ struct ins_node_struct{
 				entry_list and sys fields are stored here;
 				if this is NULL, entry list should be created
 				and buffers for sys fields in row allocated */
-#ifdef UNIV_DEBUG
 	ulint		magic_n;
-#define	INS_NODE_MAGIC_N	15849075
-#endif /* UNIV_DEBUG */
 };
+
+#define	INS_NODE_MAGIC_N	15849075
 
 /* Insert node types */
 #define INS_SEARCHED	0	/* INSERT INTO ... SELECT ... */
