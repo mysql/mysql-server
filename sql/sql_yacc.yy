@@ -3636,18 +3636,20 @@ delete_limit_clause:
 	};
 
 ULONG_NUM:
-	NUM	    { $$= strtoul($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulong) strtoll($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
-	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };
+	NUM	        { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| REAL_NUM 	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	;
 
 ulonglong_num:
-	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
-	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); };
+	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| REAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| FLOAT_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	;
 
 procedure_clause:
 	/* empty */
