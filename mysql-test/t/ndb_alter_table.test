@@ -107,11 +107,11 @@ CREATE TABLE t1 (
 ) ENGINE=ndbcluster;
 
 INSERT INTO t1 VALUES (0,1),(17,18);
-select * from t1;
+select * from t1 order by a;
 alter table  t1 add c int not null unique auto_increment;
-select * from t1 order by a;
-INSERT INTO t1 VALUES (18,19,3),(20,21,0);
-select * from t1 order by a;
+select c from t1 order by c;
+INSERT INTO t1 VALUES (1,2,0),(18,19,4),(20,21,0);
+select c from t1 order by c;
 drop table t1;
 
 #--disable_warnings
