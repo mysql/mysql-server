@@ -266,20 +266,21 @@ typedef struct st_dynamic_string {
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
+  my_off_t pos_in_file,end_of_file;
   byte	*rc_pos,*rc_end,*buffer,*rc_request_pos;
+  int (*read_function)(struct st_io_cache *,byte *,uint);
+  char *file_name;			/* if used with 'open_cached_file' */
+  char *dir,*prefix;
   File file;
   int	seek_not_done,error;
   uint	buffer_length,read_length;
-  my_off_t pos_in_file,end_of_file;
   myf	myflags;			/* Flags used to my_read/my_write */
+  enum cache_type type;
 #ifdef HAVE_AIOWAIT
   uint inited;
   my_off_t aio_read_pos;
   my_aio_result aio_result;
 #endif
-  enum cache_type type;
-  int (*read_function)(struct st_io_cache *,byte *,uint);
-  char *file_name;			/* if used with 'open_cached_file' */
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -399,7 +400,7 @@ extern void TERMINATE(FILE *file);
 #endif
 extern void init_glob_errs(void);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
-extern FILE *my_fdopen(File Filedes,int Flags,myf MyFlags);
+extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern int my_chsize(File fd,my_off_t newlength,myf MyFlags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
@@ -430,7 +431,7 @@ extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
-extern void convert_dirname(my_string name);
+extern char *convert_dirname(my_string name);
 extern void to_unix_path(my_string name);
 extern my_string fn_ext(const char *name);
 extern my_string fn_same(my_string toname,const char *name,int flag);
@@ -507,6 +508,8 @@ extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 myf cache_myflags);
 extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
+File create_temp_file(char *to, const char *dir, const char *pfx,
+		      int mode, myf MyFlags);
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
 				  uint init_alloc,uint alloc_increment);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);

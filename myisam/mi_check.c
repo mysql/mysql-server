@@ -1759,6 +1759,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.key_read=sort_key_read;
   sort_param.lock_in_memory=lock_memory;
   sort_param.tmpdir=param->tmpdir;
+  sort_param.myf_rw=param->myf_rw;
   sort_param.sort_info=sort_info;
 
   del=info->state->del;
