@@ -43,6 +43,96 @@ enum enum_check_fields { CHECK_FIELD_IGNORE, CHECK_FIELD_WARN,
 extern char internal_table_name[2];
 extern const char **errmesg;
 
+#define TC_LOG_PAGE_SIZE   8192
+#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
+extern uint opt_tc_log_size;
+extern uint tc_log_max_pages_used;
+extern uint tc_log_page_size;
+extern uint tc_log_page_waits;
+
+#define TC_HEURISTIC_RECOVER_COMMIT   1
+#define TC_HEURISTIC_RECOVER_ROLLBACK 2
+extern uint tc_heuristic_recover;
+
+/*
+  Transaction Coordinator log - a base abstract class
+  for two different implementations
+*/
+class TC_LOG
+{
+  public:
+  int using_heuristic_recover();
+  TC_LOG() {}
+  virtual ~TC_LOG() {}
+
+  virtual int open(const char *opt_name)=0;
+  virtual void close()=0;
+  virtual int log(THD *thd, my_xid xid)=0;
+  virtual void unlog(ulong cookie, my_xid xid)=0;
+};
+
+class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
+{
+  public:
+  int open(const char *opt_name)        { return 0; }
+  void close()                          { }
+  int log(THD *thd, my_xid xid)         { return 1; }
+  void unlog(ulong cookie, my_xid xid)  { }
+};
+
+class TC_LOG_MMAP: public TC_LOG
+{
+  private:
+
+  typedef enum {
+    POOL,                 // page is in pool
+    ERROR,                // last sync failed
+    DIRTY                 // new xids added since last sync
+  } PAGE_STATE;
+
+  typedef struct st_page {
+    struct st_page *next; // page a linked in a fifo queue
+    my_xid *start, *end;  // usable area of a page
+    my_xid *ptr;          // next xid will be written here
+    int size, free;       // max and current number of free xid slots on the page
+    int waiters;          // number of waiters on condition
+    PAGE_STATE state;     // see above
+    pthread_mutex_t lock; // to access page data or control structure
+    pthread_cond_t  cond; // to wait for a sync
+  } PAGE;
+
+  char logname[FN_REFLEN];
+  File fd;
+  uint file_length, npages, inited;
+  uchar *data;
+  struct st_page *pages, *syncing, *active, *pool, *pool_last;
+  /*
+    note that, e.g. LOCK_active is only used to protect
+    'active' pointer, to protect the content of the active page
+    one has to use active->lock.
+    Same for LOCK_pool and LOCK_sync
+  */
+  pthread_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
+  pthread_cond_t COND_pool, COND_active;
+
+  public:
+  TC_LOG_MMAP(): inited(0) {}
+  int open(const char *opt_name);
+  void close();
+  int log(THD *thd, my_xid xid);
+  void unlog(ulong cookie, my_xid xid);
+  int recover();
+
+  private:
+  void get_active_from_pool();
+  int sync();
+  int overflow();
+};
+
+extern TC_LOG *tc_log;
+extern TC_LOG_MMAP tc_log_mmap;
+extern TC_LOG_DUMMY tc_log_dummy;
+
 /* log info errors */
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
@@ -81,8 +171,18 @@ typedef struct st_user_var_events
 
 class Log_event;
 
-class MYSQL_LOG
- {
+/*
+  TODO split MYSQL_LOG into base MYSQL_LOG and
+  MYSQL_QUERY_LOG, MYSQL_SLOW_LOG, MYSQL_BIN_LOG
+  most of the code from MYSQL_LOG should be in the MYSQL_BIN_LOG
+  only (TC_LOG included)
+
+  TODO use mmap instead of IO_CACHE for binlog
+  (mmap+fsync is two times faster than write+fsync)
+*/
+
+class MYSQL_LOG: public TC_LOG
+{
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_log, LOCK_index;
@@ -108,8 +208,8 @@ class MYSQL_LOG
     etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
     In 5.0 it's 0 for relay logs too!
   */
-  bool no_auto_events;			     
-  /* 
+  bool no_auto_events;
+  /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
      For a binlog, max_size should be max_binlog_size.
@@ -117,16 +217,26 @@ class MYSQL_LOG
      max_binlog_size otherwise.
      max_size is set in init(), and dynamically changed (when one does SET
      GLOBAL MAX_BINLOG_SIZE|MAX_RELAY_LOG_SIZE) by fix_max_binlog_size and
-     fix_max_relay_log_size). 
+     fix_max_relay_log_size).
   */
   ulong max_size;
+
+  ulong prepared_xids; /* for tc log - number of xids to remember */
+  pthread_mutex_t LOCK_prep_xids;
+  pthread_cond_t  COND_prep_xids;
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
 
-  /* 
+  int open(const char *opt_name);
+  void close();
+  int log(THD *thd, my_xid xid);
+  void unlog(ulong cookie, my_xid xid);
+  int recover(IO_CACHE *log, Format_description_log_event *fdle);
+
+  /*
      These describe the log's format. This is used only for relay logs.
      _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
      necessary to have 2 distinct objects, because the I/O thread may be reading
@@ -145,7 +255,7 @@ public:
   {
 #ifndef DBUG_OFF
     char buf1[22],buf2[22];
-#endif	
+#endif
     DBUG_ENTER("harvest_bytes_written");
     (*counter)+=bytes_written;
     DBUG_PRINT("info",("counter: %s  bytes_written: %s", llstr(*counter,buf1),
@@ -162,18 +272,36 @@ public:
 	    bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,enum_log_type log_type,
-	    const char *new_name, const char *index_file_name_arg,
+  bool open(const char *log_name,
+            enum_log_type log_type,
+            const char *new_name,
 	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg, ulong max_size,
             bool null_created);
+  const char *generate_name(const char *log_name, const char *suffix,
+                            bool strip_ext, char *buff);
+  /* simplified open_xxx wrappers for the gigantic open above */
+  bool open_query_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, ".log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+  }
+  bool open_slow_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, "-slow.log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+  }
+  bool open_index_file(const char *index_file_name_arg,
+                       const char *log_name);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool commit_or_rollback);
+  bool write(THD *thd, IO_CACHE *cache);
 
   /*
     v stands for vector
@@ -181,20 +309,18 @@ public:
   */
   bool appendv(const char* buf,uint len,...);
   bool append(Log_event* ev);
-  
+
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  int purge_logs(const char *to_log, bool included, 
+  int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
-  int purge_first_log(struct st_relay_log_info* rli, bool included); 
+  int purge_first_log(struct st_relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
   void close(uint exiting);
-  bool cut_spurious_tail();
-  void report_pos_in_innodb();
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
@@ -487,6 +613,10 @@ typedef struct system_status_var
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
+  ulong ha_prepare_count;
+  ulong ha_discover_count;
+  ulong ha_savepoint_count;
+  ulong ha_savepoint_rollback_count;
 
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
@@ -765,6 +895,14 @@ private:
   Statement *last_found_statement;
 };
 
+struct st_savepoint {
+  struct st_savepoint *prev;
+  char                *name;
+  uint                 length, nht;
+};
+
+enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+extern const char *xa_state_names[];
 
 /*
   A registry for item tree transformations performed during
@@ -907,15 +1045,15 @@ public:
   thr_lock_type update_lock_default;
   delayed_insert *di;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+  /* container for handler's private per-connection data */
+  void *ha_data[MAX_HA];
   struct st_transactions {
-    IO_CACHE trans_log;                 // Inited ONLY if binlog is open !
+    SAVEPOINT *savepoints;
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
-    uint bdb_lock_count;
-#ifdef HAVE_NDBCLUSTER_DB
-    void* thd_ndb;
-#endif
     bool on;
+    XID  xid;
+    enum xa_states xa_state;
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
@@ -926,8 +1064,18 @@ public:
     void cleanup()
     {
       changed_tables = 0;
+#ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+#endif
     }
+#ifdef USING_TRANSACTIONS
+    st_transactions()
+    {
+      bzero((char*)this, sizeof(*this));
+      xid.null();
+      init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    }
+#endif
   } transaction;
   Field      *dupp_field;
 #ifndef __WIN__
@@ -1126,7 +1274,7 @@ public:
   inline ulonglong insert_id(void)
   {
     if (!last_insert_id_used)
-    {      
+    {
       last_insert_id_used=1;
       current_insert_id=last_insert_id;
     }
@@ -1135,13 +1283,11 @@ public:
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
-  }                                                                         
+  }
   inline bool active_transaction()
   {
-#ifdef USING_TRANSACTIONS    
-    return (transaction.all.bdb_tid != 0 ||
-	    transaction.all.innodb_active_trans != 0 ||
-	    transaction.all.ndb_tid != 0);
+#ifdef USING_TRANSACTIONS
+    return server_status & SERVER_STATUS_IN_TRANS;
 #else
     return 0;
 #endif
@@ -1662,7 +1808,7 @@ class multi_delete :public select_result_interceptor
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
-  bool do_delete, transactional_tables, log_delayed, normal_tables;
+  bool do_delete, transactional_tables, normal_tables;
 public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
@@ -1689,7 +1835,8 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed, ignore;
+  bool do_update, trans_safe, transactional_tables;
+  bool do_update, trans_safe, transactional_tables, ignore;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,

@@ -302,6 +302,41 @@ struct sql_ex_info
 #define LOG_EVENT_TIME_F            0x1
 #define LOG_EVENT_FORCED_ROTATE_F   0x2
 #endif
+
+/*
+   This flag only makes sense for Format_description_log_event. It is set
+   when the event is written, and *reset* when a binlog file is
+   closed (yes, it's the only case when MySQL modifies already written
+   part of binlog).  Thus it is a reliable indicator that binlog was
+   closed correctly.  (Stop_log_event is not enough, there's always a
+   small chance that mysqld crashes in the middle of insert and end of
+   the binlog would look like a Stop_log_event).
+
+   This flag is used to detect a restart after a crash,
+   and to provide "unbreakable" binlog. The problem is that on a crash
+   storage engines rollback automatically, while binlog does not.
+   To solve this we use this flag and automatically append ROLLBACK
+   to every non-closed binlog (append virtually, on reading, file itself
+   is not changed). If this flag is found, mysqlbinlog simply prints "ROLLBACK"
+   Replication master does not abort on binlog corruption, but takes it as EOF,
+   and replication slave forces a rollback in this case (see below).
+
+   Note, that old binlogs does not have this flag set, so we get a
+   a backward-compatible behaviour.
+*/
+
+#define LOG_EVENT_BINLOG_IN_USE_F       0x1
+
+/*
+  This flag is only used for fake Rotate_log_event. When a master, doing
+  binlog dump, reaches the end of the binlog and fakes a rotate to make
+  the slave to go to a new file, this flag is used if there was no
+  "natural" Rotate_log_event.
+  If this flag is set, slave will execute ROLLBACK before going further
+*/
+
+#define LOG_EVENT_FORCE_ROLLBACK_F      0x1
+
 /*
    If the query depends on the thread (for example: TEMPORARY TABLE).
    Currently this is used by mysqlbinlog to know it must print
@@ -309,26 +344,6 @@ struct sql_ex_info
    for every query but this would be slow).
 */
 #define LOG_EVENT_THREAD_SPECIFIC_F 0x4
-
-/*
-   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must be written
-   to the binlog. OPTIONS_WRITTEN_TO_BINLOG could be written into the
-   Format_description_log_event, so that if later we don't want to replicate a
-   variable we did replicate, or the contrary, it's doable. But it should not be
-   too hard to decide once for all of what we replicate and what we don't, among
-   the fixed 32 bits of thd->options.
-   I (Guilhem) have read through every option's usage, and it looks like
-   OPTION_AUTO_IS_NULL and OPTION_NO_FOREIGN_KEYS are the only ones which alter
-   how the query modifies the table. It's good to replicate
-   OPTION_RELAXED_UNIQUE_CHECKS too because otherwise, the slave may insert data
-   slower than the master, in InnoDB.
-   OPTION_BIG_SELECTS is not needed (the slave thread runs with
-   max_join_size=HA_POS_ERROR) and OPTION_BIG_TABLES is not needed either, as
-   the manual says (because a too big in-memory temp table is automatically
-   written to disk).
-*/
-#define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
-OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
 
 /*
   Suppress the generation of 'USE' statements before the actual
@@ -343,24 +358,51 @@ OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
  */
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
+/*
+   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must be
+   written to the binlog. OPTIONS_WRITTEN_TO_BINLOG could be written
+   into the Format_description_log_event, so that if later we don't want
+   to replicate a variable we did replicate, or the contrary, it's
+   doable. But it should not be too hard to decide once for all of what
+   we replicate and what we don't, among the fixed 32 bits of
+   thd->options.
+   I (Guilhem) have read through every option's usage, and it looks like
+   OPTION_AUTO_IS_NULL and OPTION_NO_FOREIGN_KEYS are the only ones
+   which alter how the query modifies the table. It's good to replicate
+   OPTION_RELAXED_UNIQUE_CHECKS too because otherwise, the slave may
+   insert data slower than the master, in InnoDB.
+   OPTION_BIG_SELECTS is not needed (the slave thread runs with
+   max_join_size=HA_POS_ERROR) and OPTION_BIG_TABLES is not needed
+   either, as the manual says (because a too big in-memory temp table is
+   automatically written to disk).
+*/
+#define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
+OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
+
 enum Log_event_type
 {
   /*
     Every time you update this enum (when you add a type), you have to
-    update the code of Format_description_log_event::Format_description_log_event().
-    Make sure you always insert new types ***BEFORE*** ENUM_END_EVENT.
+    fix Format_description_log_event::Format_description_log_event().
   */
   UNKNOWN_EVENT= 0, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
   INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
   APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
   /*
-    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer sql_ex,
-    allowing multibyte TERMINATED BY etc; both types share the same class
-    (Load_log_event)
+    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
+    sql_ex, allowing multibyte TERMINATED BY etc; both types share the
+    same class (Load_log_event)
   */
   NEW_LOAD_EVENT,
   RAND_EVENT, USER_VAR_EVENT,
   FORMAT_DESCRIPTION_EVENT,
+  XID_EVENT,
+
+  /*
+    add new events here - right above this comment!
+    existing events should never change their numbers
+  */
+
   ENUM_END_EVENT /* end marker */
 };
 
@@ -461,16 +503,15 @@ public:
   ulong data_written;
 
   /*
-    The master's server id (is preserved in the relay log; used to prevent from
-    infinite loops in circular replication).
+    The master's server id (is preserved in the relay log; used to
+    prevent from infinite loops in circular replication).
   */
   uint32 server_id;
 
   /*
-    Some 16 flags. Only one is really used now; look above for
-    LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F,
-    LOG_EVENT_THREAD_SPECIFIC_F, and LOG_EVENT_SUPPRESS_USE_F for
-    notes.
+    Some 16 flags. Look above for LOG_EVENT_TIME_F,
+    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
+    LOG_EVENT_SUPPRESS_USE_F for notes.
   */
   uint16 flags;
 
@@ -566,11 +607,11 @@ public:
       temp_buf = 0;
     }
   }
-  virtual int get_data_size() { return 0;}
   /*
     Get event length for simple events. For complicated events the length
     is calculated during write()
   */
+  virtual int get_data_size() { return 0;}
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
@@ -1037,6 +1078,40 @@ class Rand_log_event: public Log_event
   bool is_valid() const { return 1; }
 };
 
+/*****************************************************************************
+
+  Xid Log Event class
+
+  Logs xid of the transaction-to-be-committed in the 2pc protocol.
+  Has no meaning in replication, slaves ignore it.
+
+ ****************************************************************************/
+#ifdef MYSQL_CLIENT
+typedef ulong my_xid;
+#endif
+
+class Xid_log_event: public Log_event
+{
+ public:
+   my_xid xid;
+
+#ifndef MYSQL_CLIENT
+  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
+#ifdef HAVE_REPLICATION
+  void pack_info(Protocol* protocol);
+  int exec_event(struct st_relay_log_info* rli);
+#endif /* HAVE_REPLICATION */
+#else
+  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+#endif
+
+  Xid_log_event(const char* buf, const Format_description_log_event* description_event);
+  ~Xid_log_event() {}
+  Log_event_type get_type_code() { return XID_EVENT;}
+  int get_data_size() { return sizeof(xid); }
+  bool write(IO_CACHE* file);
+  bool is_valid() const { return 1; }
+};
 
 /*****************************************************************************
 
@@ -1086,8 +1161,6 @@ public:
   Stop Log Event class
 
  ****************************************************************************/
-#ifdef HAVE_REPLICATION
-
 class Stop_log_event: public Log_event
 {
 public:
@@ -1107,14 +1180,11 @@ public:
   bool is_valid() const { return 1; }
 };
 
-#endif /* HAVE_REPLICATION */
-
-
 /*****************************************************************************
 
   Rotate Log Event class
 
-  This will be depricated when we move to using sequence ids.
+  This will be deprecated when we move to using sequence ids.
 
  ****************************************************************************/
 

@@ -1243,7 +1243,7 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   thd->free_list= NULL;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query_id= query_id++;
+  thd->query_id= next_query_id();
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   reset_stmt_for_execute(thd, lex);

@@ -1,7 +1,7 @@
 drop table if exists t1, t2, t3, t4;
 drop table if exists t1, t2, t3, t4;
 start slave;
-Got one of the listed errors
+ERROR HY000: File 'TESTDIR/var/slave-data/master.info' not found (Errcode: 13)
 start slave;
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
@@ -16,7 +16,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000001	549	#	#	master-bin.000001	Yes	Yes							0		0	549	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	60	master-bin.000001	522	#	#	master-bin.000001	Yes	Yes							0		0	522	#	None		0	No						#
 select * from t1;
 s
 Could not break slave
@@ -57,7 +57,7 @@ master-bin.000003
 insert into t2 values (65);
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000003	497	#	#	master-bin.000003	Yes	Yes							0		0	497	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	60	master-bin.000003	470	#	#	master-bin.000003	Yes	Yes							0		0	470	#	None		0	No						#
 select * from t2;
 m
 34
@@ -79,13 +79,13 @@ master-bin.000004
 master-bin.000005
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000005	2050		
+master-bin.000005	1388		
 select * from t4;
 a
 testing temporary tables part 2
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	60	master-bin.000005	2050	#	#	master-bin.000005	Yes	Yes							0		0	2050	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	60	master-bin.000005	1388	#	#	master-bin.000005	Yes	Yes							0		0	1388	#	None		0	No						#
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
