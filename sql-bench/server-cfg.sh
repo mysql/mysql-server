@@ -335,6 +335,12 @@ sub reconnect_on_errors
   return 0;
 }
 
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
 #
 # Optimize tables for better performance
 #
@@ -353,7 +359,6 @@ sub vacuum
       Benchmark::timestr(Benchmark::timediff($end_time, $loop_time),"all") . "\n\n";
   }
 }
-
 
 #############################################################################
 #		     Definitions for mSQL
@@ -546,6 +551,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 #############################################################################
@@ -804,6 +815,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 sub vacuum
@@ -1070,6 +1087,12 @@ sub abort_if_fatal_error
 sub small_rollback_segment
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 sub reconnect_on_errors
@@ -1811,7 +1834,7 @@ sub query {
 sub fix_for_insert
 {
   my ($self,$cmd) = @_;
-  $cmd =~ s/\\'//g;
+  $cmd =~ s/\\\'//g;
   return $cmd;
 }
 
@@ -1843,6 +1866,7 @@ sub reconnect_on_errors
 {
   return 0;
 }
+
 
 #############################################################################
 #	     Configuration for Access
@@ -2019,6 +2043,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 1;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 #############################################################################
@@ -2209,6 +2239,12 @@ sub reconnect_on_errors
   return 0;
 }
 
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
 #############################################################################
 #	     Configuration for Sybase
 #############################################################################
@@ -2382,6 +2418,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 #
@@ -2617,6 +2659,12 @@ sub reconnect_on_errors
   return 0;
 }
 
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
 #############################################################################
 #	     Configuration for IBM DB2
 #############################################################################
@@ -2789,6 +2837,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 #############################################################################
@@ -2990,6 +3044,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 0;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 #############################################################################
@@ -3205,6 +3265,12 @@ sub reconnect_on_errors
   return 1;
 }
 
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
 #############################################################################
 #	     Configuration for FrontBase 
 #############################################################################
@@ -3408,6 +3474,12 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 1;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
 }
 
 1;

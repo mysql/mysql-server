@@ -7704,6 +7704,11 @@ also work. There have been some problems with the @code{glibc} RPMs from
 RedHat, so if you have problems, check whether or not there are any updates!
 The @code{glibc} 2.0.7-19 and 2.0.7-29 RPMs are known to work.
 
+If you are using gcc 3.0 and above to compile MySQL, you must install
+the @code{libstdc++v3} library before compiling MySQL; If you don't do
+this you will get an error about a missing @code{__cxa_pure_virtual}
+symbol during linking!
+
 On some older Linux distributions, @code{configure} may produce an error
 like this:
 
@@ -7757,7 +7762,7 @@ shell> CXX=gcc ./configure
 @end example
 
 If you are running gcc 3.0 and above, you can't use the above trick with
-CXX=gcc, but you have to install libstd++.
+setting to CXX=gcc.
 
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
@@ -9419,7 +9424,7 @@ work:
 CC="cc -pthread"
 CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 CXX="cxx -pthread"
-CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
+CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host -noexceptions -nortti"
 export CC CFLAGS CXX CXXFLAGS
 ./configure \
 --prefix=/usr/local/mysql \
@@ -18622,36 +18627,103 @@ one extra connection for a client with the @code{Process_priv} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
-Some frequently asked states in @code{mysqladmin processlist}
+Some frequently states in @code{mysqladmin processlist}
 
-@code{WAITING FOR TABLES}
+@itemize @bullet
+@item @code{Checking table}
+The thread doing an [automatic ?] checking of the table.
+@item @code{Closing tables}
+Means that the thread is flushing the changed table data to disk and
+closing the used tables. This should be a fast operation.  If not, then
+you should check that you don't have a full disk or that the disk is not
+in very heavy use.
+@item @code{Copying to tmp table on disk}
+The temporary result set was larger than @code{tmp_table_size} and the
+thread is now changing the in memory based temporary table to a disk
+based one to save memory.
+@item @code{Creating tmp table}
+The thread is creating a temporary table to hold a part of the result for
+the query.
+@item @code{deleting from main table}
+When executing the first part of a multi-table delete and we are only
+deleting from the first table.
+@item @code{deleting from reference tables}
+When executing the second part of a multi-table delete and we are deleting
+the matched rows from the other tables.
+@item @code{Flushing tables}
+The thread is executing @code{FLUSH TABLES} and is waiting for all
+threads to close their tables.
+@item @code{Killed}
+Someone has sent a kill to the thread and it should abort next time it
+checks the kill flag.  The flag is checked in each major loop in MySQL,
+but in some cases it may still take a short time for the thread to die.
+If the thread is locked by some other thread, the kill will take affect
+as soon as the other thread releases it's lock.
+@item @code{Sending data}
+The thread is processing rows for a @code{SELECT} statement and is
+also sending data to the client.
+@item @code{Sorting for group}
+The thread is doing a sort to satsify a @code{GROUP BY}.
+@item @code{Sorting for order}
+The thread is doing a sort to satsify a @code{ORDER BY}.
+@item @code{Opening tables}
+This simply means that the thread is trying to open a table. This is
+should be very fast procedure, unless something prevents opening. For
+example an @code{ALTER TABLE} or a @code{LOCK TABLE} can prevent opening
+a table until the command is finished.
+@item @code{Removing duplicates}
+The query was using @code{SELECT DISTINCT} in such a way that MySQL
+couldn't optimize that distinct away at an early stage. Because of this
+MySQL has to do an extra stage to remove all duplicated rows before
+sending the result to the client.
+@item @code{Reopen table}
+The thread got a lock for the table, but noticed after getting the lock
+that the underlying table structure changed. It has freed the lock,
+closed the table and is now trying to reopen it.
+@item @code{Repair by sorting}
+The repair code is using sorting to create indexes.
+@item @code{Repair with keycache}
+The repair code is using creating keys one by one through the key cache.
+This is much slower than @code{Repair by sorting}.
+@item @code{Searching rows for update}
+The thread is doing a first phase to find all matching rows before
+updating them.  This has to be done if the @code{UPDATE} is changing
+the index that is used to find the involved rows.
+@item @code{Sleeping}
+The thread is wating for the client to send a new command to it.
+@item @code{System lock}
+The thread is waiting for getting to get a external system lock for the
+table. If you are not using multiple mysqld servers that are accessing
+the same tables, you can disable system locks with the
+@code{--skip-locking} option.
+@item @code{Upgrading lock}
+The @code{INSERT DELAYED} handler is trying to get a lock for the table
+to insert rows.
+@item @code{Updating}
+The thread is searching for rows to update and updating them.
+@item @code{User Lock}
+The thread is waiting on a @code{GET_LOCK()}.
+@item @code{Waiting for tables}
+The thread got a notification that the underlying structure for a table
+has changed and it needs to reopen the table to get the new structure.
+To be able to reopen the table it must however wait until all other
+threads have closed the table in question.
 
-This means that the server is trying to get a lock of a
-table(s). Usually this should happen very fast, unless there is some
-problem around, such as another program holding table files open (e.g
-@code{myisamchk}, anohter instance of @code{mysqld}), @code{mysqld} is
-run without @code{--skip-locking}, table files are nfs mounted for
-@code{mysqld}, etc.
+This notification happens if another thread has used @code{FLUSH TABLES}
+or one of the following commands on the table in question: @code{FLUSH
+TABLES table_name}, @code{ALTER TABLE}, @code{RENAME TABLE},
+@code{REPAIR TABLE}, @code{ANALYZE TABLE} or @code{OPTIMIZE TABLE}.
+@item @code{waiting for handler insert}
+The @code{INSERT DELAYED} handler has processed all inserts and are
+waiting to get new ones.
+@end itemize
 
-@code{OPENING TABLES}
+Most states are very quick operations. If threads last in any of these
+states for many seconds, there may be a problem around that needs to be
+investigated.
 
-This simply means that the thread is trying to open a table. This also
-should be very instant procedure, unless something prevents opening. An
-@code{ALTER TABLE}, for example, can prevent opening a table until the
-command is finished. If someone runs @code{FLUSH TABLES} simultaneously
-with an @code{ALTER TABLE}, then all the threads that are trying to use
-the table in @code{ALTER TABLE} query will be in this state.
-
-@code{CLOSING TABLES}
-
-Means that the thread is closing the tables that the thread was using.
-If this is taking long, please check for the above for possible reasons
-why it might be taking long.
-
-All of the above are usually very quick operations. If threads last
-in any of these states for many seconds, there may be a problem around
-that needs to be investigated. Check also that you have not run out
-of harddisk space.
+There are some other states that are not mentioned above, but most of
+these are only useful to find bugs in @code{mysqld}.
 
 @node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
 @subsubsection @code{SHOW GRANTS}

@@ -589,7 +589,7 @@ enum myisam_log_commands {
 #define myisam_log_record(a,b,c,d,e) if (myisam_log_file >= 0) _myisam_log_record(a,b,c,d,e)
 
 #define fast_mi_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _mi_writeinfo((INFO),0)
-#define fast_mi_readinfo(INFO) (!(INFO)->lock_type == F_UNLCK) && _mi_readinfo((INFO),F_RDLCK,1)
+#define fast_mi_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _mi_readinfo((INFO),F_RDLCK,1)
 
 #ifdef	__cplusplus
 extern "C" {

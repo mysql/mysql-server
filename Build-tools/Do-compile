@@ -19,7 +19,7 @@ if ($opt_innodb || $opt_bdb)
 
 chomp($host=`hostname`);
 $full_host_name=$host;
-info("Compiling MySQL$version_suffix at $host, stage: $opt_stage\n");
+info("Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n");
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
@@ -35,6 +35,10 @@ if (defined($gcc_version) && ! $opt_config_env)
   if ($tmp =~ /version 2\.7\./)
   {
     $opt_config_env= 'CC=gcc CFLAGS="-O2 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fno-omit-frame-pointer"';
+  }
+  elsif ($tmp =~ /version 3\.0\./)
+  {
+    $opt_config_env= 'CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
   }
   else
   {
@@ -107,7 +111,6 @@ $|=1;
 safe_cd("$host");
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
-  my ($name);
   safe_system("gunzip < $opt_distribution | $tar xf -");
 
   # Fix file times; This is needed because the time for files may be
