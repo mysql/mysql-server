@@ -307,9 +307,23 @@ static int add_collation(CHARSET_INFO *cs)
     }
     else
     {
+      /*
+        We need the below to make get_charset_name()
+        and get_charset_number() working even if a
+        character set has not been really incompiled.
+        The above functions are used for example
+        in error message compiler extra/comp_err.c.
+        If a character set was compiled, this information
+        will get lost and overwritten in add_compiled_collation().
+      */
       CHARSET_INFO *dst= all_charsets[cs->number];
+      dst->number= cs->number;
       if (cs->comment)
 	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
+      if (cs->csname)
+        dst->csname= my_once_strdup(cs->csname,MYF(MY_WME));
+      if (cs->name)
+        dst->name= my_once_strdup(cs->name,MYF(MY_WME));
     }
     cs->number= 0;
     cs->primary_number= 0;
