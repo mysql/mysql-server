@@ -38131,32 +38131,32 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
 @item
-Fixed that @code{<>} works properly with @code{NULL}.
+Fixed @code{<>} to work properly with @code{NULL}.
 @item
 Fixed problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
 (Patch by Alexander Igonitchev)
 @item
-@code{CREATE TEMPORARY TABLE IF NOT EXISTS} doesn't anymore give an error
-if the table existed.
+Fix @code{CREATE TEMPORARY TABLE IF NOT EXISTS} not to give an error
+if the table exists.
 @item
-If one don't create a @code{PRIMARY KEY} in a BDB table, a hidden
+If you don't create a @code{PRIMARY KEY} in a BDB table, a hidden
 @code{PRIMARY KEY} will be created.
 @item
 Added read-only-key optimization to BDB tables.
 @item
-@code{LEFT JOIN} did in some case prefer a full table scan when one
-didn't have a @code{WHERE} clause.
+@code{LEFT JOIN} in some cases preferred a full table scan when there was
+no @code{WHERE} clause.
 @item
 When using @code{--log-slow-queries}, don't count the time waiting for a lock.
 @item
 Fixed bug in lock code on @code{windows} which could cause the key cache
-to report that the key file was crashed even if it was ok.
+to report that the key file was crashed even if it was okay.
 @item
 Automatic repair of @code{MyISAM} tables if you start @code{mysqld} with
 @code{--myisam-recover}.
 @item
 Removed the @code{TYPE=} keyword from @code{CHECK} and
-@code{REPAIR}. Allow one to combine @code{CHECK} options. (One can still
+@code{REPAIR}. Allow @code{CHECK} options to be combined. (You can still
 use @code{TYPE=} but this usage is deprecated).
 @item
 Fixed mutex bug in the binary replication log - long update queries could
@@ -38177,7 +38177,7 @@ Added @code{--replicate-rewrite-db} option to @code{mysqld}.
 @item
 Added @code{--skip-slave-start} option to @code{mysqld}.
 @item
-Updates that generated an error code ( such as @code{INSERT INTO foo(some_key)
+Updates that generated an error code (such as @code{INSERT INTO foo(some_key)
 values (1),(1)}) erroneously terminated the slave thread.
 @item
 Added optimization of queries where @code{DISTINCT} is only used on columns
