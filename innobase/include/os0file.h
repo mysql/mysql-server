@@ -341,6 +341,8 @@ os_aio_windows_handle(
 	void**	message2,
 	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
 #endif
+
+/* Currently we do not use Posix async i/o */
 #ifdef POSIX_ASYNC_IO
 /**************************************************************************
 This function is only used in Posix asynchronous i/o. Waits for an aio

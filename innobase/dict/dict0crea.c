@@ -1201,7 +1201,8 @@ loop:
 					ut_dulint_get_low(id),
 					table->name,
 					foreign->referenced_table_name,
-					foreign->n_fields);
+					foreign->n_fields
+					+ (foreign->type << 24));
 
 	for (i = 0; i < foreign->n_fields; i++) {
 

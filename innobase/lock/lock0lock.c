@@ -1534,6 +1534,8 @@ lock_rec_enqueue_waiting(
 
 	if (que_thr_stop(thr)) {
 
+		ut_a(0);
+
 		return(DB_QUE_THR_SUSPENDED);
 	}
 		
@@ -2918,6 +2920,7 @@ lock_table_enqueue_waiting(
 	stopped anyway */
 
 	if (que_thr_stop(thr)) {
+		ut_a(0);
 
 		return(DB_QUE_THR_SUSPENDED);
 	}

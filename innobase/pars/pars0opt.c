@@ -526,7 +526,8 @@ opt_search_plan_for_table(
 	dict_index_t*	best_index;
 	ulint		n_fields;
 	ulint		goodness;
-	ulint		last_op;
+	ulint		last_op		= 75946965;	/* Eliminate a Purify
+							warning */
 	ulint		best_goodness;
 	ulint		best_last_op;
 	ulint		mix_id_pos;

@@ -1648,7 +1648,7 @@ dict_foreign_find_index(
 							->col->name;
 				if (ut_strlen(columns[i]) !=
 						ut_strlen(col_name)
-				    || 0 != ut_memcmp(columns[i],
+				    || 0 != ut_cmp_in_lower_case(columns[i],
 				    			col_name,
 				  			ut_strlen(col_name))) {
 				  	break;
@@ -1853,8 +1853,9 @@ dict_scan_col(
 	ibool*		success,/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table in which the column is */
 	dict_col_t**	column,	/* out: pointer to column if success */
-	char**		column_name)/* out: pointer to column->name if
+	char**		column_name,/* out: pointer to column->name if
 				success */
+	ulint*		column_name_len)/* out: column name length */
 {
 	dict_col_t*	col;
 	char*		old_ptr;
@@ -1882,20 +1883,28 @@ dict_scan_col(
 		ptr++;
 	}
 
-	for (i = 0; i < dict_table_get_n_cols(table); i++) {
+	*column_name_len = (ulint)(ptr - old_ptr);
+	
+	if (table == NULL) {
+		*success = TRUE;
+		*column = NULL;
+		*column_name = old_ptr;
+	} else {
+	    	for (i = 0; i < dict_table_get_n_cols(table); i++) {
 
-		col = dict_table_get_nth_col(table, i);
+			col = dict_table_get_nth_col(table, i);
 
-		if (ut_strlen(col->name) == (ulint)(ptr - old_ptr)
-		    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
+			if (ut_strlen(col->name) == (ulint)(ptr - old_ptr)
+			    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
 						(ulint)(ptr - old_ptr))) {
-		    	/* Found */
+		    		/* Found */
 
-		    	*success = TRUE;
-		    	*column = col;
-		    	*column_name = col->name;
+		    		*success = TRUE;
+		    		*column = col;
+		    		*column_name = col->name;
 
-		    	break;
+		    		break;
+			}
 		}
 	}
 	
@@ -1914,14 +1923,18 @@ dict_scan_table_name(
 /*=================*/
 				/* out: scanned to */
 	char*		ptr,	/* in: scanned to */
-	dict_table_t**	table,	/* out: table object or NULL if error */
-	char*		name)	/* in: foreign key table name */
+	dict_table_t**	table,	/* out: table object or NULL */
+	char*		name,	/* in: foreign key table name */
+	ibool*		success,/* out: TRUE if ok name found */
+	char*		second_table_name)/* in/out: buffer where to store
+				the referenced table name; must be at least
+				2500 bytes */
 {
 	char*	dot_ptr			= NULL;
 	char*	old_ptr;
 	ulint	i;
-	char	second_table_name[10000];
 	
+	*success = FALSE;
 	*table = NULL;
 
 	while (isspace(*ptr)) {
@@ -1947,7 +1960,7 @@ dict_scan_table_name(
 		ptr++;
 	}
 
-	if (ptr - old_ptr > 9000) {
+	if (ptr - old_ptr > 2000) {
 		return(old_ptr);
 	}
 	
@@ -1977,6 +1990,8 @@ dict_scan_table_name(
 		second_table_name[dot_ptr - old_ptr] = '/';
 		second_table_name[ptr - old_ptr] = '\0';
 	}
+
+	*success = TRUE;
 
 	*table = dict_table_get_low(second_table_name);
 
@@ -2043,9 +2058,12 @@ dict_create_foreign_constraints(
 	ibool		success;
 	ulint		error;
 	ulint		i;
-	dict_col_t*	columns[1000];
-	char*		column_names[1000];
-
+	ulint		j;
+	dict_col_t*	columns[500];
+	char*		column_names[500];
+	ulint		column_name_lens[500];
+	char		referenced_table_name[2500];
+	
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = dict_table_get_low(name);
@@ -2090,7 +2108,7 @@ loop:
 	/* Scan the columns in the first list */
 col_loop1:
 	ptr = dict_scan_col(ptr, &success, table, columns + i,
-							column_names + i);
+				column_names + i, column_name_lens + i);
 	if (!success) {
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
@@ -2141,9 +2159,13 @@ col_loop1:
 					1 + ut_strlen(columns[i]->name));
 	}
 	
-	ptr = dict_scan_table_name(ptr, &referenced_table, name);
+	ptr = dict_scan_table_name(ptr, &referenced_table, name,
+					&success, referenced_table_name);
 
-	if (!referenced_table) {
+	/* Note that referenced_table can be NULL if the user has suppressed
+	checking of foreign key constraints! */
+
+	if (!success || (!referenced_table && trx->check_foreigns)) {
 		dict_foreign_free(foreign);
 
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -2161,7 +2183,7 @@ col_loop1:
 
 col_loop2:
 	ptr = dict_scan_col(ptr, &success, referenced_table, columns + i,
-							column_names + i);
+				column_names + i, column_name_lens + i);
 	i++;
 	
 	if (!success) {
@@ -2183,43 +2205,104 @@ col_loop2:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
+	ptr = dict_accept(ptr, "ON", &success);
+
+	if (!success) {
+
+		goto try_find_index;
+	}
+
+	ptr = dict_accept(ptr, "DELETE", &success);
+
+	if (!success) {
+
+		goto try_find_index;
+	}
+
+	ptr = dict_accept(ptr, "CASCADE", &success);
+
+	if (success) {
+
+		foreign->type = DICT_FOREIGN_ON_DELETE_CASCADE;
+
+		goto try_find_index;
+	}
+
+	ptr = dict_accept(ptr, "SET", &success);
+
+	if (!success) {
+
+		goto try_find_index;
+	}
+
+	ptr = dict_accept(ptr, "NULL", &success);
+
+	if (success) {
+		for (j = 0; j < foreign->n_fields; j++) {
+			if ((dict_index_get_nth_type(
+				foreign->foreign_index, j)->prtype)
+				& DATA_NOT_NULL) {
+
+				/* It is not sensible to define SET NULL
+				if the column is not allowed to be NULL! */
+
+				dict_foreign_free(foreign);
+				return(DB_CANNOT_ADD_CONSTRAINT);
+			}
+		}
+
+		foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
+
+		goto try_find_index;
+	}
+	
+try_find_index:
 	/* Try to find an index which contains the columns as the first fields
 	and in the right order, and the types are the same as in
 	foreign->foreign_index */
 
-	index = dict_foreign_find_index(referenced_table, column_names, i,
+	if (referenced_table) {
+		index = dict_foreign_find_index(referenced_table,
+						column_names, i,
 						foreign->foreign_index);
-
-	if (!index) {
-		dict_foreign_free(foreign);
-		return(DB_CANNOT_ADD_CONSTRAINT);
+		if (!index) {
+			dict_foreign_free(foreign);
+			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+	} else {
+		ut_a(trx->check_foreigns == FALSE);
+		index = NULL;
 	}
 
 	foreign->referenced_index = index;
 	foreign->referenced_table = referenced_table;
 
 	foreign->referenced_table_name = mem_heap_alloc(foreign->heap,
-					1 + ut_strlen(referenced_table->name));
+					1 + ut_strlen(referenced_table_name));
 
-	ut_memcpy(foreign->referenced_table_name, referenced_table->name,
-					1 + ut_strlen(referenced_table->name));
+	ut_memcpy(foreign->referenced_table_name, referenced_table_name,
+					1 + ut_strlen(referenced_table_name));
 					
 	foreign->referenced_col_names = mem_heap_alloc(foreign->heap,
 							i * sizeof(void*));
 	for (i = 0; i < foreign->n_fields; i++) {
 		foreign->referenced_col_names[i]
 				= mem_heap_alloc(foreign->heap,
-					1 + ut_strlen(columns[i]->name));
-		ut_memcpy(
-			foreign->referenced_col_names[i], columns[i]->name,
-					1 + ut_strlen(columns[i]->name));
+					1 + column_name_lens[i]);
+		ut_memcpy(foreign->referenced_col_names[i], column_names[i],
+					column_name_lens[i]);
+		(foreign->referenced_col_names[i])[column_name_lens[i]] = '\0';
 	}
 
 	/* We found an ok constraint definition: add to the lists */
 	
 	UT_LIST_ADD_LAST(foreign_list, table->foreign_list, foreign);
-	UT_LIST_ADD_LAST(referenced_list, referenced_table->referenced_list,
+
+	if (referenced_table) {
+		UT_LIST_ADD_LAST(referenced_list,
+					referenced_table->referenced_list,
 								foreign);
+	}
 	goto loop;
 }
 
@@ -3033,6 +3116,14 @@ dict_print_info_on_foreign_keys_in_create_format(
 		}
 
 		buf2 += sprintf(buf2, ")");
+
+		if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
+			buf2 += sprintf(buf2, " ON DELETE CASCADE");
+		}
+	
+		if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
+			buf2 += sprintf(buf2, " ON DELETE SET NULL");
+		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
