@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.2";
+$VER="2.3";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -183,7 +183,7 @@ sub report_mysqlds
 
 sub start_mysqlds()
 {
-  my (@groups, $com, $i, @options, $j);
+  my (@groups, $com, $tmp, $i, @options, $j);
 
   if (!$opt_no_log)
   {
@@ -202,11 +202,20 @@ sub start_mysqlds()
     @options = `$com`;
     chop @options;
 
-    $com = "$mysqld";
-    for ($j = 0; defined($options[$j]); $j++)
+    $com= "$mysqld";
+    for ($j = 0, $tmp= ""; defined($options[$j]); $j++)
     {
-      $com.= " $options[$j]";
+      if ("--mysqld=" eq substr($options[$j], 0, 9))
+      {
+	$options[$j]=~ s/\-\-mysqld\=//;
+	$com= $options[$j];
+      }
+      else
+      {
+	$tmp.= " $options[$j]";
+      }
     }
+    $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     $com.= " &";
     system($com);
@@ -595,6 +604,11 @@ Options:
                    to this option also. The options are passed to mysqld. Just
                    make sure you have mysqld in your PATH or fix mysqld_safe.
                    Using: $mysqld
+                   Please note: Since mysqld_multi version 2.3 you can also
+                   give this option in groups [mysqld#]! This will be
+                   recognized as a special option and will not be passed
+                   to the mysqld. This will allow one to start different
+                   mysqld versions with mysqld_multi.
 --no-log           Print to stdout instead of the log file. By default the log
                    file is turned on.
 --password=...     Password for user for mysqladmin.
