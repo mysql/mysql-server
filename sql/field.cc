@@ -2844,7 +2844,6 @@ String *Field_timestamp::val_str(String *val_buffer,
   val_buffer->alloc(field_length+1);
   char *to=(char*) val_buffer->ptr(),*end=to+field_length;
   val_buffer->length(field_length);
-  val_buffer->set_charset(val_ptr->charset());
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
