@@ -20825,7 +20825,7 @@ table with @code{myisamchk -dvv table_name}.
 @menu
 * Server-Side Overview::        Overview of the Server-Side Scripts and Utilities
 * safe_mysqld::                 @code{safe_mysqld}, The Wrapper Around @code{mysqld}
-* mysqld_multi::                @code{mysqld_multi}, Program for Managing Multiple MySQL Servers
+* mysqld_multi::                @code{mysqld_multi}, A Program for Managing Multiple MySQL Servers
 * myisampack::                  @code{myisampack}, The MySQL Compressed Read-only Table Generator
 * mysqld-max::                  @code{mysqld-max}, An Extended @code{mysqld} Server
 @end menu
@@ -21065,7 +21065,7 @@ edited version that you can reinstall.
 
 
 @node mysqld_multi, myisampack, safe_mysqld, Server-Side Scripts
-@subsection @code{mysqld_multi}, Program for Managing Multiple MySQL Servers
+@subsection @code{mysqld_multi}, A Program for Managing Multiple MySQL Servers
 
 @cindex tools, mysqld_multi
 @cindex scripts
@@ -21073,30 +21073,43 @@ edited version that you can reinstall.
 @cindex @code{mysqld_multi}
 
 @code{mysqld_multi} is meant for managing several @code{mysqld}
-processes running in different Unix sockets and TCP/IP ports.
+processes that listen for connections on different Unix sockets and
+TCP/IP ports.
 
-The program will search for group(s) named [mysqld#] from my.cnf (or the
-given --config-file=...), where # can be any positive number starting
-from 1. These groups should be the same as the usual @code{[mysqld]}
-group (e.g., options to @code{mysqld}, see the MySQL manual for detailed
-information about this group), but with those port, socket, etc. options
-that are wanted for each separate @code{mysqld} processes. The number in
-the group name has another function; it can be used for starting,
-stopping, or reporting some specific @code{mysqld} servers with this
-program. See the usage and options here for more information.
+The program will search for group(s) named @code{[mysqld#]} from
+@file{my.cnf} (or the file named by the @code{--config-file=...} option),
+where @code{#} can be any positive number starting from 1.  This number
+is referred to in the following discussion as the option group number,
+or GNR.  Group numbers distinquish option groups from one another and are
+used as arguments to @code{mysqld_multi} to specify which servers you want
+to start, stop, or obtain status for.  Options listed in these groups
+should be the same as you would use in the the usual @code{[mysqld]}
+group used for starting @code{mysqld}.  (See, for example, @ref{Automatic
+start}.)  However, for @code{mysqld_multi}, be sure that each group
+includes options for values such as the port, socket, etc., to be used
+for each individual @code{mysqld} process.
+
+@code{mysqld_multi} is invoked using the following syntax:
 
 @example
 Usage: mysqld_multi [OPTIONS] @{start|stop|report@} [GNR,GNR,GNR...]
 or     mysqld_multi [OPTIONS] @{start|stop|report@} [GNR-GNR,GNR,GNR-GNR,...]
 @end example
 
-The GNR above means the group number. You can start, stop or report
-any GNR, or several of them at the same time. (See --example) The GNRs
-list can be comma separated or combined with a dash, of which the latter
-means that all the GNRs between GNR1-GNR2 will be affected. Without
-GNR argument all the found groups will be either started, stopped, or
-reported. Note that you must not have any white spaces in the GNR
-list. Anything after a white space is ignored.
+Each
+GNR represents an option group number. You can start, stop or report
+any GNR, or several of them at the same time. For an example of how you
+might set up an option file, use this command:
+
+@example
+shell> mysqld_multi --example
+@end example
+
+The GNR values in the list can be comma-separated or combined with a dash;
+in the latter case, all the GNRs between GNR1-GNR2 will be affected. With
+no GNR argument, all groups listed in the option file will be either
+started, stopped, or reported. Note that you must not have any white
+spaces in the GNR list. Anything after a white space is ignored.
 
 @code{mysqld_multi} supports the following options:
 
@@ -21105,11 +21118,11 @@ list. Anything after a white space is ignored.
 @item --config-file=...
 Alternative config file. Note: This will not affect this program's own
 options (group @code{[mysqld_multi]}), but only groups
-[mysqld#]. Without this option everything will be searched from the
-ordinary my.cnf file.
+@code{[mysqld#]}. Without this option, everything will be searched from the
+ordinary @file{my.cnf} file.
 @cindex example option
 @item --example
-Give an example of a config file.
+Display an example option file.
 @cindex help option
 @item --help
 Print this help and exit.
@@ -21138,7 +21151,7 @@ Password for user for @code{mysqladmin}.
 Connect to the MySQL server(s) via the TCP/IP port instead of
 the Unix socket. This affects stopping and reporting.  If a socket file
 is missing, the server may still be running, but can be accessed only
-via the TCP/IP port.  By default connecting is done via the Unix socket.
+via the TCP/IP port.  By default, connections are made using the Unix socket.
 @cindex user option
 @item --user=...
 MySQL user for @code{mysqladmin}.
@@ -21152,41 +21165,43 @@ Some notes about @code{mysqld_multi}:
 @itemize @bullet
 @item
 Make sure that the MySQL user, who is stopping the
-@code{mysqld} services (e.g using the @code{mysqladmin}) have the same
+@code{mysqld} services (e.g using the @code{mysqladmin} program) have the same
 password and username for all the data directories accessed (to the
-'mysql' database) And make sure that the user has the 'Shutdown_priv'
-privilege! If you have many data- directories and many different 'mysql'
-databases with different passwords for the MySQL 'root' user,
-you may want to create a common 'multi_admin' user for each using the
+@code{mysql} database) And make sure that the user has the @code{SHUTDOWN}
+privilege! If you have many data directories and many different @code{mysql}
+databases with different passwords for the MySQL @code{root} user,
+you may want to create a common @code{multi_admin} user for each using the
 same password (see below). Example how to do it:
 @example
 shell> mysql -u root -S /tmp/mysql.sock -proot_password -e
 "GRANT SHUTDOWN ON *.* TO multi_admin@@localhost IDENTIFIED BY 'multipass'"
-@xref{Privileges}.
 @end example
+@xref{Privileges}.
 You will have to do the above for each @code{mysqld} running in each
-data directory, that you have (just change the socket, -S=...).
+data directory, that you have (just change the socket, @code{-S=...}).
 @item
 @code{pid-file} is very important, if you are using @code{safe_mysqld}
-to start @code{mysqld} (e.g., @code{--mysqld=safe_mysqld}) Every @code{mysqld}
-should have its own @code{pid-file}. The advantage using
-@code{safe_mysqld} instead of @code{mysqld} directly here is, that
-@code{safe_mysqld} 'guards' every @code{mysqld} process and will restart
-it, if a @code{mysqld} process fails due to signal kill -9, or
-similar. (Like segmentation fault, which MySQL should never do,
-of course ;) Please note that @code{safe_mysqld} script may require that
-you start it from a certain place. This means that you may have to @code{cd} to
-a certain directory, before you start the @code{mysqld_multi}. If
-you have problems starting, please see the @code{safe_mysqld}
-script. Check especially the lines:
+to start @code{mysqld} (e.g., @code{--mysqld=safe_mysqld}) Every
+@code{mysqld} should have its own @code{pid-file}. The advantage
+using @code{safe_mysqld} instead of @code{mysqld} directly here is,
+that @code{safe_mysqld} ``guards'' every @code{mysqld} process and will
+restart it, if a @code{mysqld} process terminates due to a signal
+sent using @code{kill -9}, or for other reasons such as a segmentation
+fault (which MySQL should never do, of course ;). Please note that the
+@code{safe_mysqld} script may require that you start it from a certain
+place. This means that you may have to @code{cd} to a certain directory,
+before you start the @code{mysqld_multi}. If you have problems starting,
+please see the @code{safe_mysqld} script. Check especially the lines:
+
 @example
 --------------------------------------------------------------------------
 MY_PWD=`pwd` Check if we are starting this relative (for the binary
 release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 -a -x ./bin/mysqld
 --------------------------------------------------------------------------
-@xref{safe_mysqld, , @code{safe_mysqld}}.
 @end example
+
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 The above test should be successful, or you may encounter problems.
 @item
 Beware of the dangers starting multiple @code{mysqld}s in the same data
@@ -21201,11 +21216,12 @@ more flexibility.  The order in which the @code{mysqlds} are started or
 stopped depends on the order in which they appear in the config file.
 @item
 When you want to refer to a certain group using GNR with this program,
-just use the number in the end of the group name ([mysqld# <== ).
+just use the number in the end of the group name.
+For example, the GNR for a group named @code{[mysqld17]} is 17.
 @item
-You may want to use option '--user' for @code{mysqld}, but in order to
-do this you need to be root when you start the @code{mysqld_multi}
-script. Having the option in the config file doesn't matter; you will
+You may want to use option @code{--user} for @code{mysqld}, but in order to
+do this you need to run the @code{mysqld_multi} script as the Unix @code{root}
+user. Having the option in the config file doesn't matter; you will
 just get a warning, if you are not the superuser and the @code{mysqlds}
 are started under @strong{your} Unix account. @strong{Important}: Make
 sure that the @code{pid-file} and the data directory are
