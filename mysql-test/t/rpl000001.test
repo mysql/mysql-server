@@ -27,20 +27,37 @@ sync_with_master;
 connection master;
 reset master;
 connection slave;
+slave stop;
 reset slave;
 
 connection master;
 drop table if exists t1,t2;
 create table t1(n int);
-let $1=10;
+#we want the log to exceed 16K to test deal with the log that is bigger than
+#IO_SIZE
+let $1=5000;
+disable_query_log;
 while ($1)
 {
- eval insert into t1 values($1);
+ eval insert into t1 values($1+get_lock("hold_slave",10)*0);
  dec $1;
 }
+enable_query_log;
+
+#try to cause a large relay log lag on the slave 
+connection slave;
+select get_lock("hold_slave",10);
+slave start;
+#hope this is long enough for I/O thread to fetch over 16K relay log data
+sleep 1;
+select release_lock("hold_slave");
+unlock tables;
+
+connection master;
 create table t2(id int);
 insert into t2 values(connection_id());
 save_master_pos;
+
 
 connection master1;
 #avoid generating result
@@ -60,7 +77,7 @@ reap;
 connection slave;
 sync_with_master ;
 #give the slave a chance to exit
-sleep 0.5;
+wait_for_slave_to_stop;
 
 # The following test can't be done because the result of Pos will differ
 # on different computers
