@@ -20515,8 +20515,6 @@ or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name
         SET col_name=expression, col_name=expression, ...
-or  INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name
-        SELECT ...
 
 @end example
 
@@ -21871,89 +21869,90 @@ The output resembles that shown below, though the format and numbers may
 differ somewhat:
 
 @example
-+-------------------------+---------------------------+
-| Variable_name           | Value                     |
-+-------------------------+---------------------------+
-| ansi_mode               | OFF                       |
-| back_log                | 50                        |
-| basedir                 | /my/monty/                |
-| bdb_cache_size          | 16777216                  |
-| bdb_log_buffer_size     | 32768                     |
-| bdb_home                | /my/monty/data/           |
-| bdb_max_lock            | 10000                     |
-| bdb_logdir              |                           |
-| bdb_shared_data         | OFF                       |
-| bdb_tmpdir              | /tmp/                     |
-| binlog_cache_size       | 32768                     |
-| concurrent_insert       | ON                        |
-| connect_timeout         | 5                         |
-| datadir                 | /my/monty/data/           |
-| delay_key_write         | ON                        |
-| delayed_insert_limit    | 100                       |
-| delayed_insert_timeout  | 300                       |
-| delayed_queue_size      | 1000                      |
-| flush                   | OFF                       |
-| flush_time              | 0                         |
-| ft_min_word_len         | 4                         |
-| ft_max_word_len         | 254                       |
-| ft_max_word_len_for_sort| 20                        |
-| have_bdb                | YES                       |
-| have_gemini             | NO                        |
-| have_innodb             | YES                       |
-| have_raid               | YES                       |
-| have_ssl                | NO                        |
-| init_file               |                           |
-| interactive_timeout     | 28800                     |
-| join_buffer_size        | 131072                    |
-| key_buffer_size         | 16776192                  |
-| language                | /my/monty/share/english/  |
-| large_files_support     | ON                        |
-| log                     | OFF                       |
-| log_update              | OFF                       |
-| log_bin                 | OFF                       |
-| log_slave_updates       | OFF                       |
-| long_query_time         | 10                        |
-| low_priority_updates    | OFF                       |
-| lower_case_table_names  | 0                         |
-| max_allowed_packet      | 1048576                   |
-| max_binlog_cache_size   | 4294967295                |
-| max_connections         | 100                       |
-| max_connect_errors      | 10                        |
-| max_delayed_threads     | 20                        |
-| max_heap_table_size     | 16777216                  |
-| max_join_size           | 4294967295                |
-| max_sort_length         | 1024                      |
-| max_tmp_tables          | 32                        |
-| max_write_lock_count    | 4294967295                |
-| myisam_recover_options  | DEFAULT                   |
-| myisam_sort_buffer_size | 8388608                   |
-| net_buffer_length       | 16384                     |
-| net_read_timeout        | 30                        |
-| net_retry_count         | 10                        |
-| net_write_timeout       | 60                        |
-| open_files_limit        | 0                         |
-| pid_file                | /my/monty/data/donna.pid  |
-| port                    | 3306                      |
-| protocol_version        | 10                        |
-| record_buffer           | 131072                    |
-| query_buffer_size       | 0                         |
-| safe_show_database      | OFF                       |
-| server_id               | 0                         |
-| skip_locking            | ON                        |
-| skip_networking         | OFF                       |
-| skip_show_database      | OFF                       |
-| slow_launch_time        | 2                         |
-| socket                  | /tmp/mysql.sock           |
-| sort_buffer             | 2097116                   |
-| table_cache             | 64                        |
-| table_type              | MYISAM                    |
-| thread_cache_size       | 4                         |
-| thread_stack            | 65536                     |
-| tmp_table_size          | 1048576                   |
-| tmpdir                  | /tmp/                     |
-| version                 | 3.23.29a-gamma-debug      |
-| wait_timeout            | 28800                     |
-+-------------------------+---------------------------+
++------------------------------+---------------------------+
+| Variable_name                | Value                     |
++------------------------------+---------------------------+
+| ansi_mode                    | OFF                       |
+| back_log                     | 50                        |
+| basedir                      | /my/monty/                |
+| bdb_cache_size               | 16777216                  |
+| bdb_log_buffer_size          | 32768                     |
+| bdb_home                     | /my/monty/data/           |
+| bdb_max_lock                 | 10000                     |
+| bdb_logdir                   |                           |
+| bdb_shared_data              | OFF                       |
+| bdb_tmpdir                   | /tmp/                     |
+| binlog_cache_size            | 32768                     |
+| concurrent_insert            | ON                        |
+| connect_timeout              | 5                         |
+| datadir                      | /my/monty/data/           |
+| delay_key_write              | ON                        |
+| delayed_insert_limit         | 100                       |
+| delayed_insert_timeout       | 300                       |
+| delayed_queue_size           | 1000                      |
+| flush                        | OFF                       |
+| flush_time                   | 0                         |
+| ft_min_word_len              | 4                         |
+| ft_max_word_len              | 254                       |
+| ft_max_word_len_for_sort     | 20                        |
+| have_bdb                     | YES                       |
+| have_gemini                  | NO                        |
+| have_innodb                  | YES                       |
+| have_raid                    | YES                       |
+| have_ssl                     | NO                        |
+| init_file                    |                           |
+| interactive_timeout          | 28800                     |
+| join_buffer_size             | 131072                    |
+| key_buffer_size              | 16776192                  |
+| language                     | /my/monty/share/english/  |
+| large_files_support          | ON                        |
+| log                          | OFF                       |
+| log_update                   | OFF                       |
+| log_bin                      | OFF                       |
+| log_slave_updates            | OFF                       |
+| long_query_time              | 10                        |
+| low_priority_updates         | OFF                       |
+| lower_case_table_names       | 0                         |
+| max_allowed_packet           | 1048576                   |
+| max_binlog_cache_size        | 4294967295                |
+| max_connections              | 100                       |
+| max_connect_errors           | 10                        |
+| max_delayed_threads          | 20                        |
+| max_heap_table_size          | 16777216                  |
+| max_join_size                | 4294967295                |
+| max_sort_length              | 1024                      |
+| max_tmp_tables               | 32                        |
+| max_write_lock_count         | 4294967295                |
+| myisam_bulk_insert_tree_size | 8388608                   |
+| myisam_recover_options       | DEFAULT                   |
+| myisam_sort_buffer_size      | 8388608                   |
+| net_buffer_length            | 16384                     |
+| net_read_timeout             | 30                        |
+| net_retry_count              | 10                        |
+| net_write_timeout            | 60                        |
+| open_files_limit             | 0                         |
+| pid_file                     | /my/monty/data/donna.pid  |
+| port                         | 3306                      |
+| protocol_version             | 10                        |
+| record_buffer                | 131072                    |
+| query_buffer_size            | 0                         |
+| safe_show_database           | OFF                       |
+| server_id                    | 0                         |
+| skip_locking                 | ON                        |
+| skip_networking              | OFF                       |
+| skip_show_database           | OFF                       |
+| slow_launch_time             | 2                         |
+| socket                       | /tmp/mysql.sock           |
+| sort_buffer                  | 2097116                   |
+| table_cache                  | 64                        |
+| table_type                   | MYISAM                    |
+| thread_cache_size            | 4                         |
+| thread_stack                 | 65536                     |
+| tmp_table_size               | 1048576                   |
+| tmpdir                       | /tmp/                     |
+| version                      | 3.23.29a-gamma-debug      |
+| wait_timeout                 | 28800                     |
++------------------------------+---------------------------+
 @end example
 
 Each option is described below. Values for buffer sizes, lengths, and stack
@@ -22261,6 +22260,14 @@ The value of the @code{--myisam-recover} option.
 The buffer that is allocated when sorting the index when doing a
 @code{REPAIR} or when creating indexes with @code{CREATE INDEX} or
 @code{ALTER TABLE}.
+
+@item @code{myisam_bulk_insert_tree_size}
+@strong{MySQL} uses special tree-like cache to make bulk inserts (that is,
+@code{INSERT ... SELECT},
+@code{INSERT ... VALUES (...), (...), ...}, and
+@code{LOAD DATA INFILE}) faster. This variable limits
+the size of the cache tree in bytes @strong{per thread, per index}.
+Default value is 8 MB.
 
 @item @code{myisam_max_extra_sort_file_size}.
 If the creating of the temporary file for fast index creation would be
@@ -23948,8 +23955,8 @@ The following options to @code{mysqld} can be used to change the behavior of
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help @strong{MySQL} to decide when to use the slow but safe key cache index create method. @strong{NOTE} that this parameter is given in megabytes!
-@item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.
-@strong{NOTE} that this paramter is given in megabytes!
+@item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this. @strong{NOTE} that this paramter is given in megabytes!
+@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimization. @strong{NOTE} that this is a limit @strong{per index}!
 @end multitable
 
 The automatic recovery is activated if you start @code{mysqld} with
@@ -32573,6 +32580,8 @@ Some ways to speed up inserts:
 If you are inserting many rows from the same client at the same time, use
 multiple value lists @code{INSERT} statements. This is much faster (many
 times in some cases) than using separate @code{INSERT} statements.
+Tune up @code{myisam_bulk_insert_tree_size} variable to make it even
+faster. @xref{SHOW VARIABLES}.
 @item
 If you are inserting a lot of rows from different clients, you can get
 higher speed by using the @code{INSERT DELAYED} statement. @xref{INSERT,
@@ -46426,6 +46435,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.0
 
 @itemize @bullet
+@item
+Tree-like cache to speed up bulk inserts and
+@code{myisam_bulk_insert_tree_size} variable.
 @item
 Added @code{ALTER TABLE table_name DISABLE KEYS} and
       @code{ALTER TABLE table_name ENABLE KEYS} commands.
