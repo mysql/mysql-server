@@ -1274,7 +1274,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
-	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
+	(!db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_PRINT("error",("!db_ok('%s')", local_db));

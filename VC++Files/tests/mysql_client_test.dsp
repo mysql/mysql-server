@@ -66,18 +66,18 @@ LINK32=link.exe
 # PROP Output_Dir ".\Release"
 # PROP Intermediate_Dir ".\Release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/client_test.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
-# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/client_test.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
-# ADD BASE MTL /nologo /tlb".\Release\client_test.tlb" /win32 
-# ADD MTL /nologo /tlb".\Release\client_test.tlb" /win32 
+# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_client_test.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
+# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_client_test.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
+# ADD BASE MTL /nologo /tlb".\Release\mysql_client_test.tlb" /win32 
+# ADD MTL /nologo /tlb".\Release\mysql_client_test.tlb" /win32 
 # ADD BASE RSC /l 1033 
 # ADD RSC /l 1033 
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\tests\client_test.exe" /incremental:no /pdb:".\Release\client_test.pdb" /pdbtype:sept /subsystem:console 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\tests\client_test.exe" /incremental:no /pdb:".\Release\client_test.pdb" /pdbtype:sept /subsystem:console 
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\tests\mysql_client_test.exe" /incremental:no /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\tests\mysql_client_test.exe" /incremental:no /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
 
 !ENDIF
 
