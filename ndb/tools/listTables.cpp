@@ -30,6 +30,7 @@
 
 static Ndb* ndb = 0;
 static NdbDictionary::Dictionary* dic = 0;
+static int _unqualified = 0;
 
 static void
 fatal(char const* fmt, ...)
@@ -59,7 +60,7 @@ list(const char * tabname,
 	if (dic->listIndexes(list, tabname) == -1)
 	    fatal("listIndexes");
     }
-   if (Ndb::usingFullyQualifiedNames())
+    if (ndb->usingFullyQualifiedNames())
        ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
      else
        ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
@@ -137,7 +138,7 @@ list(const char * tabname,
 		break;
 	    }
 	}
-	if (Ndb::usingFullyQualifiedNames())
+	if (ndb->usingFullyQualifiedNames())
 	  ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
        else
 	 ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
@@ -148,7 +149,6 @@ int main(int argc, const char** argv){
   int _loops = 1;
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
-  int _unqualified = 0;
   int _type = 0;
   int _help = 0;
   

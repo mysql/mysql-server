@@ -1362,9 +1362,9 @@ public:
    * index names as DATABASENAME/SCHEMANAME/TABLENAME/INDEXNAME
    * @param turnNamingOn bool true - turn naming on, false - turn naming off
    */
-  static void useFullyQualifiedNames(bool turnNamingOn = true);
+  void useFullyQualifiedNames(bool turnNamingOn = true);
 
-  static bool usingFullyQualifiedNames();
+  bool usingFullyQualifiedNames();
 
   /** @} *********************************************************************/
 
@@ -1543,10 +1543,12 @@ private:
   void    abortTransactionsAfterNodeFailure(Uint16 aNodeId);
 
   static
+  const char * externalizeTableName(const char * internalTableName, bool fullyQualifiedNames);
   const char * externalizeTableName(const char * internalTableName);
   const char * internalizeTableName(const char * externalTableName);
 
   static
+  const char * externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames);
   const char * externalizeIndexName(const char * internalIndexName);
   const char * internalizeIndexName(const NdbTableImpl * table,
 				    const char * externalIndexName);
@@ -1582,6 +1584,8 @@ private:
 
   NdbWaiter             theWaiter;
   
+  bool fullyQualifiedNames;
+
   // Ndb database name.
   char                  theDataBase[NDB_MAX_DATABASE_NAME_SIZE];
   // Ndb database schema name.  
