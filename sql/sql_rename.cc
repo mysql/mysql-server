@@ -31,8 +31,8 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
-  bool error=1;
-  TABLE_LIST *ren_table=0;
+  bool error= 1;
+  TABLE_LIST *ren_table= 0;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -49,8 +49,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   VOID(pthread_mutex_lock(&LOCK_open));
   if (lock_table_names(thd, table_list))
     goto err;
-
-  error= 0;
+  
+  error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
@@ -119,7 +119,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     if (!access(name,F_OK))
     {
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),name);
-      DBUG_RETURN(ren_table);			// This can't be skiped
+      DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
 	    ren_table->db,ren_table->real_name,
