@@ -415,7 +415,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_fla
   share->scheme= my_strdup(table->s->comment, MYF(0));
 
 
-  if (share->username= strstr(share->scheme, "://"))
+  if ((share->username= strstr(share->scheme, "://")))
   {
     share->scheme[share->username - share->scheme] = '\0';
     if (strcmp(share->scheme, "mysql") != 0)
@@ -429,18 +429,18 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_fla
     }
     share->username+= 3;
 
-    if (share->hostname= strchr(share->username, '@'))
+    if ((share->hostname= strchr(share->username, '@')))
     {
       share->username[share->hostname - share->username]= '\0';
       share->hostname++;
 
-      if (share->password= strchr(share->username, ':'))
+      if ((share->password= strchr(share->username, ':')))
       {
         share->username[share->password - share->username]= '\0';
         share->password++;
         share->username= share->username;
         // make sure there isn't an extra / or @
-        if (strchr(share->password, '/') || strchr(share->hostname, '@'))
+        if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
         {
           DBUG_PRINT("ha_federated::parse_url",
                      ("this connection string is not in the correct format!!!\n"));
@@ -453,14 +453,14 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_fla
 user:@hostname:port/database/table 
 Then password is a null string, so set to NULL 
       */
-        if (share->password[0] == '\0')
+        if ((share->password[0] == '\0'))
           share->password= NULL;
       }
       else
         share->username= share->username;
 
       // make sure there isn't an extra / or @
-      if (strchr(share->username, '/') || strchr(share->hostname, '@'))
+      if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
       {
         DBUG_PRINT("ha_federated::parse_url",
                    ("this connection string is not in the correct format!!!\n"));
@@ -469,12 +469,12 @@ Then password is a null string, so set to NULL
         DBUG_RETURN(-1);
       }
 
-      if (share->database= strchr(share->hostname, '/'))
+      if ((share->database= strchr(share->hostname, '/')))
       {
         share->hostname[share->database - share->hostname]= '\0';
         share->database++;
 
-        if (share->sport= strchr(share->hostname, ':'))
+        if ((share->sport= strchr(share->hostname, ':')))
         {
           share->hostname[share->sport - share->hostname]= '\0';
           share->sport++;
@@ -484,7 +484,7 @@ Then password is a null string, so set to NULL
             share->port= atoi(share->sport);
         }
 
-        if (share->table_base_name= strchr(share->database, '/'))
+        if ((share->table_base_name= strchr(share->database, '/')))
         {
           share->database[share->table_base_name - share->database]= '\0';
           share->table_base_name++;
@@ -507,7 +507,7 @@ Then password is a null string, so set to NULL
         DBUG_RETURN(-1);
       }
       // make sure there's not an extra /
-      if (strchr(share->table_base_name, '/'))
+      if ((strchr(share->table_base_name, '/')))
       {
         DBUG_PRINT("ha_federated::parse_url",
                    ("this connection string is not in the correct format!!!\n"));
@@ -696,6 +696,7 @@ bool ha_federated::create_where_from_key(
     key_length-= length;
     DBUG_RETURN(0);
   }
+  DBUG_RETURN(1);
 }
 
 int load_conn_info(FEDERATED_SHARE *share, TABLE *table)
@@ -965,7 +966,7 @@ int ha_federated::write_row(byte * buf)
   int x= 0, num_fields= 0;
   Field **field;
   ulong current_query_id= 1;
-  ulong tmp_query_id;
+  ulong tmp_query_id= 1;
   int all_fields_have_same_query_id= 1;
 
   char insert_buffer[IO_SIZE];
@@ -1129,8 +1130,8 @@ int ha_federated::update_row(
                              byte * new_data
                             )
 {
-  uint x= 0;
-  uint has_a_primary_key;
+  int x= 0;
+  uint has_a_primary_key= 0;
   int  primary_key_field_num; 
   char old_field_value_buffer[IO_SIZE], new_field_value_buffer[IO_SIZE];
   char update_buffer[IO_SIZE], where_buffer[IO_SIZE];
