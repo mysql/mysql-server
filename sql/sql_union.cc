@@ -326,8 +326,8 @@ int st_select_lex_unit::exec()
 	  We get this from the difference of between total number of possible
 	  rows and actual rows added to the temporary table.
 	*/
-	add_rows+= (ulonglong) (thd->limit_found_rows - (table->file->records -
-							 records_at_start));
+	add_rows+= (ha_rows) (thd->limit_found_rows - (ulonglong)
+			      ((table->file->records -  records_at_start)));
       }
     }
   }
