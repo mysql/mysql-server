@@ -3705,25 +3705,8 @@ list valid only if you are reading it from the MySQL web site
 @item
 Allow users to change startup options without taking down the server.
 @item
-Better command-line argument handling.
-@item
-New key cache, which will give better performance when using many threads.
-@item
-New table definition file format (@file{.frm} files). This will enable us
-to not run out of bits when adding more table options.  One will still
-be able to use the old @file{.frm} file format with 4.0.  All newly created
-tables will, however, use the new format.
-
-The new file format will enable us to add new column types, more options
-for keys, and possibly to store and retrieve @code{FOREIGN KEY} definitions.
-@item
-@code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
-expansions of column names) should not open the table, only the
-definition file. This will require less memory and be much faster.
-@item
 @code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
 @end itemize
-
 
 @node TODO MySQL 4.1, TODO future, TODO MySQL 4.0, TODO
 @subsection Things That Should be in 4.1
@@ -3740,6 +3723,18 @@ Subqueries.
 @example
 SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100);
 @end example
+@item
+New table definition file format (@file{.frm} files). This will enable us
+to not run out of bits when adding more table options.  One will still
+be able to use the old @file{.frm} file format with 4.0.  All newly created
+tables will, however, use the new format.
+
+The new file format will enable us to add new column types, more options
+for keys, and possibly to store and retrieve @code{FOREIGN KEY} definitions.
+@item
+@code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
+expansions of column names) should not open the table, only the
+definition file. This will require less memory and be much faster.
 @item
 Foreign keys for @code{MyISAM} tables, including cascading delete.
 @item
@@ -4055,8 +4050,6 @@ Implement function: @code{get_changed_tables(timeout,table1,table2,...)}.
 @item
 Change reading through tables to use memmap when possible. Now only
 compressed tables use memmap.
-@item
-Add a new @code{SHOW} privilege for @code{SHOW} commands.
 @item
 Make the automatic timestamp code nicer.  Add timestamps to the update
 log with @code{SET TIMESTAMP=#;}.
@@ -49457,6 +49450,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Fixed bug in @code{innodb_log_group_home_dir} in @code{SHOW VARIABLES}.
 @item
 Fixed a bug in optimiser with merge tables when non-uniques values are 
 used in summing up (causing crashes).
