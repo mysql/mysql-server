@@ -578,7 +578,7 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
-  {"character-sets-dir",      mysql_charsets_dir,                   SHOW_CHAR},
+  {"character_sets_dir",      mysql_charsets_dir,                   SHOW_CHAR},
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
