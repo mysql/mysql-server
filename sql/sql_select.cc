@@ -4533,6 +4533,20 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     new_table.no_rows=1;
   }
 
+#ifdef TO_BE_DONE_LATER_IN_4_1
+  /*
+    To use start_bulk_insert() (which is new in 4.1) we need to find
+    all places where a corresponding end_bulk_insert() should be put.
+  */
+  table->file->info(HA_STATUS_VARIABLE); /* update table->file->records */
+  new_table.file->start_bulk_insert(table->file->records);
+#else
+  /*
+    HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it explicitly.
+  */
+  new_table.file->extra(HA_EXTRA_WRITE_CACHE);
+#endif
+
   /* copy all old rows */
   while (!table->file->rnd_next(new_table.record[1]))
   {
