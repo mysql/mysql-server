@@ -1091,7 +1091,7 @@ longlong Field_tiny::val_int(void)
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1330,7 +1330,7 @@ longlong Field_short::val_int(void)
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1574,7 +1574,7 @@ longlong Field_medium::val_int(void)
 String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1810,7 +1810,7 @@ longlong Field_long::val_int(void)
 String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -2035,7 +2035,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -4432,14 +4432,14 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_blob::store(double nr)
 {
-  value.set(nr,2,current_thd->thd_charset);
+  value.set(nr,2,current_thd->variables.thd_charset);
   return Field_blob::store(value.ptr(),(uint) value.length(), value.charset());
 }
 
 
 int Field_blob::store(longlong nr)
 {
-  value.set(nr,current_thd->thd_charset);
+  value.set(nr,current_thd->variables.thd_charset);
   return Field_blob::store(value.ptr(), (uint) value.length(), value.charset());
 }
 

@@ -687,7 +687,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos++] == MYSQL_TYPE_FLOAT);
 #endif
-  buffer->set((double) from, decimals, thd->thd_charset);
+  buffer->set((double) from, decimals, thd->variables.thd_charset);
   return net_store_data(packet,(char*) buffer->ptr(), buffer->length());
 }
 
@@ -697,7 +697,7 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos++] == MYSQL_TYPE_DOUBLE);
 #endif
-  buffer->set(from, decimals, thd->thd_charset);
+  buffer->set(from, decimals, thd->variables.thd_charset);
   return net_store_data(packet,(char*) buffer->ptr(), buffer->length());
 }
 
