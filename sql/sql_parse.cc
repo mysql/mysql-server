@@ -3883,6 +3883,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
 void mysql_reset_thd_for_next_command(THD *thd)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
+  thd->free_list= 0;
   thd->select_number= 1;
   thd->total_warn_count= 0;                     // Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
