@@ -243,6 +243,7 @@ public:
   ULL	  *ull;
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
+  uint32 server_id;
   const char *where;
   char* last_nx_table; // last non-existent table, we need this for replication
   char* last_nx_db; // database of the last nx table
