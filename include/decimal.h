@@ -18,19 +18,17 @@
 #define _decimal_h
 
 #include <my_global.h>
-#include <m_ctype.h>
-#include <my_sys.h> /* for my_alloca */
 
 typedef enum {TRUNCATE=0, EVEN} dec_round_mode;
-typedef uint32 decimal_digit;
+typedef int32 decimal_digit;
 
 typedef struct st_decimal {
-  int     intg, frac, len;
+  int    intg, frac, len;
   my_bool sign;
   decimal_digit *buf;
 } decimal;
 
-int decimal2string(decimal *from, char *to, uint *to_len);
+int decimal2string(decimal *from, char *to, int *to_len);
 int string2decimal(char *from, decimal *to, char **end);
 int decimal2ulonglong(decimal *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal *to);
@@ -38,31 +36,42 @@ int decimal2longlong(decimal *from, longlong *to);
 int longlong2decimal(longlong from, decimal *to);
 int decimal2double(decimal *from, double *to);
 int double2decimal(double from, decimal *to);
+int decimal2bin(decimal *from, char *to, int precision, int scale);
+int bin2decimal(char *from, decimal *to, int precision, int scale);
+
+int decimal_size(int precision, int scale);
+int decimal_bin_size(int precision, int scale);
+int decimal_result_size(decimal *from1, decimal *from2, char op, int param);
 
 int decimal_add(decimal *from1, decimal *from2, decimal *to);
 int decimal_sub(decimal *from1, decimal *from2, decimal *to);
 int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
-int decimal_result_size(decimal *from1, decimal *from2, char op, int param);
 int decimal_round(decimal *dec, int new_scale, dec_round_mode mode);
+
+/*
+  the following works only on special "zero" decimal, not on any
+  decimal that happen to evaluate to zero
+*/
+#define decimal_is_zero(dec) ((dec)->intg1==1 && (dec)->frac1==0 && (dec)->buf[0]==0)
 
 /*
   conventions:
 
     decimal_smth() == 0     -- everything's ok
-    decimal_smth() <= 0     -- result is usable, precision loss is possible
-    decimal_smth() <= 1     -- result is unusable, but most significant digits
-                               can be lost
-    decimal_smth() >  1     -- no result was generated
+    decimal_smth() <= 1     -- result is usable, but precision loss is possible
+    decimal_smth() <= 2     -- result can be unusable, most significant digits
+                               could've been lost
+    decimal_smth() >  2     -- no result was generated
 */
 
-#define E_DEC_TRUNCATED        -1
 #define E_DEC_OK                0
-#define E_DEC_OVERFLOW          1
-#define E_DEC_DIV_ZERO          2
-#define E_DEC_BAD_NUM           3
-#define E_DEC_OOM               4
+#define E_DEC_TRUNCATED         1
+#define E_DEC_OVERFLOW          2
+#define E_DEC_DIV_ZERO          3
+#define E_DEC_BAD_NUM           4
+#define E_DEC_OOM               5
 
 #endif
 

@@ -99,6 +99,9 @@
 */
 
 #include <decimal.h>
+#include <m_ctype.h>
+#include <myisampack.h>
+#include <my_sys.h> /* for my_alloca */
 
 typedef decimal_digit dec1;
 typedef longlong      dec2;
@@ -110,6 +113,7 @@ typedef longlong      dec2;
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
+static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 3, 4, 4};
 
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \
@@ -186,7 +190,7 @@ static const dec1 powers10[DIG_PER_DEC1+1]={
                         } while(0)
 
 /*
-  Convert decimal to its string representation
+  Convert decimal to its printable string representation
 
   SYNOPSIS
     decimal2string()
@@ -199,7 +203,7 @@ static const dec1 powers10[DIG_PER_DEC1+1]={
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int decimal2string(decimal *from, char *to, uint *to_len)
+int decimal2string(decimal *from, char *to, int *to_len)
 {
   int len, intg=from->intg, frac=from->frac, i;
   int error=E_DEC_OK;
@@ -209,9 +213,11 @@ int decimal2string(decimal *from, char *to, uint *to_len)
   DBUG_ASSERT(*to_len > 2+from->sign);
 
   /* removing leading zeroes */
+  i=intg % DIG_PER_DEC1;
   while (intg > 0 && *buf0 == 0)
   {
-    intg-=DIG_PER_DEC1;
+    intg-=i;
+    i=DIG_PER_DEC1;
     buf0++;
   }
   if (intg > 0)
@@ -231,7 +237,7 @@ int decimal2string(decimal *from, char *to, uint *to_len)
   len= from->sign + intg + test(frac) + frac;
   if (unlikely(len > --*to_len)) /* reserve one byte for \0 */
   {
-    uint i=len-*to_len;
+    int i=len-*to_len;
     error= (frac && i <= frac + 1) ? E_DEC_TRUNCATED : E_DEC_OVERFLOW;
     if (frac && i >= frac + 1) i--;
     if (i > frac)
@@ -518,6 +524,244 @@ int decimal2longlong(decimal *from, longlong *to)
 }
 
 /*
+  Convert decimal to its binary fixed-length representation
+  two representations of the same length can be compared with memcmp
+  with the correct -1/0/+1 result
+
+  SYNOPSIS
+    decimal2bin()
+      from    - value to convert
+      to      - points to buffer where string representation should be stored
+      precision/scale - see decimal_bin_size() below
+
+  NOTE
+    the buffer is assumed to be of the size decimal_bin_size(precision, scale)
+
+  RETURN VALUE
+    E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
+*/
+int decimal2bin(decimal *from, char *to, int precision, int frac)
+{
+  dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
+  int error=E_DEC_OK, intg=precision-frac,
+      intg0=intg/DIG_PER_DEC1,
+      frac0=frac/DIG_PER_DEC1,
+      intg0x=intg-intg0*DIG_PER_DEC1,
+      frac0x=frac-frac0*DIG_PER_DEC1,
+      intg1=from->intg/DIG_PER_DEC1,
+      frac1=from->frac/DIG_PER_DEC1,
+      intg1x=from->intg-intg1*DIG_PER_DEC1,
+      frac1x=from->frac-frac1*DIG_PER_DEC1,
+      isize0=intg0*sizeof(dec1)+dig2bytes[intg0x],
+      fsize0=frac0*sizeof(dec1)+dig2bytes[frac0x],
+      isize1=intg1*sizeof(dec1)+dig2bytes[intg1x],
+      fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
+  if (isize0 < isize1)
+  {
+    buf1+=intg1-intg0+(intg1x>0)-(intg0x>0);
+    intg1=intg0; intg1x=intg0x;
+    error=E_DEC_OVERFLOW;
+  }
+  else if (isize0 > isize1)
+  {
+    while (isize0-- > isize1)
+      *to++= (char)mask;
+  }
+  if (fsize0 < fsize1)
+  {
+    frac1=frac0; frac1x=frac0x;
+    error=E_DEC_TRUNCATED;
+  }
+  else if (fsize0 > fsize1 && frac1x)
+  {
+    if (frac0 == frac1)
+      frac1x=frac0x;
+    else
+    {
+      frac1++;
+      frac1x=0;
+    }
+  }
+
+  /* intg1x part */
+  if (intg1x)
+  {
+    int i=dig2bytes[intg1x];
+    dec1 x=(*buf1++ % powers10[intg1x]) ^ mask;
+    switch (i)
+    {
+      case 1: mi_int1store(to, x); break;
+      case 2: mi_int2store(to, x); break;
+      case 3: mi_int3store(to, x); break;
+      case 4: mi_int4store(to, x); break;
+      default: DBUG_ASSERT(0);
+    }
+    to+=i;
+  }
+
+  /* intg1+frac1 part */
+  for (stop1=buf1+intg1+frac1; buf1 < stop1; to+=sizeof(dec1))
+  {
+    dec1 x=*buf1++ ^ mask;
+    DBUG_ASSERT(sizeof(dec1) == 4);
+    mi_int4store(to, x);
+  }
+
+  /* frac1x part */
+  if (frac1x)
+  {
+    int i=dig2bytes[frac1x];
+    dec1 x=(*buf1 / powers10[DIG_PER_DEC1 - frac1x]) ^ mask;
+    switch (i)
+    {
+      case 1: mi_int1store(to, x); break;
+      case 2: mi_int2store(to, x); break;
+      case 3: mi_int3store(to, x); break;
+      case 4: mi_int4store(to, x); break;
+      default: DBUG_ASSERT(0);
+    }
+    to+=i;
+  }
+  if (fsize0 > fsize1)
+  {
+    while (fsize0-- > fsize1)
+      *to++=(uchar)mask;
+  }
+  return error;
+}
+
+/*
+  Restores decimal from its binary fixed-length representation
+
+  SYNOPSIS
+    bin2decimal()
+      from    - value to convert
+      to      - result
+      precision/scale - see decimal_bin_size() below
+
+  NOTE
+    see decimal2bin()
+    the buffer is assumed to be of the size decimal_bin_size(precision, scale)
+
+  RETURN VALUE
+    E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
+*/
+
+int bin2decimal(char *from, decimal *to, int precision, int scale)
+{
+  int error=E_DEC_OK, intg=precision-scale,
+      intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
+      intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1,
+      intg1=intg0+(intg0x>0), frac1=frac0+(frac0x>0);
+  dec1 *buf=to->buf, mask=(*from <0) ? -1 : 0;
+  char *stop;
+
+  FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
+  if (unlikely(error))
+  {
+    if (intg1 < intg0+(intg0x>0))
+    {
+      from+=dig2bytes[intg0x]+sizeof(dec1)*(intg0-intg1);
+      frac0=frac0x=intg0x=0;
+      intg0=intg1;
+    }
+    else
+    {
+      frac0x=0;
+      frac0=frac1;
+    }
+  }
+
+  to->sign=(mask != 0);
+  to->intg=intg0*DIG_PER_DEC1+intg0x;
+  to->frac=frac0*DIG_PER_DEC1+frac0x;
+
+  if (intg0x)
+  {
+    int i=dig2bytes[intg0x];
+    dec1 x;
+    switch (i)
+    {
+      case 1: x=mi_sint1korr(from); break;
+      case 2: x=mi_sint2korr(from); break;
+      case 3: x=mi_sint3korr(from); break;
+      case 4: x=mi_sint4korr(from); break;
+      default: DBUG_ASSERT(0);
+    }
+    from+=i;
+    *buf=x ^ mask;
+    if (buf > to->buf || *buf != 0)
+      buf++;
+    else
+      to->intg-=intg0x;
+  }
+  for (stop=from+intg0*sizeof(dec1); from < stop; from+=sizeof(dec1))
+  {
+    DBUG_ASSERT(sizeof(dec1) == 4);
+    *buf=mi_sint4korr(from) ^ mask;
+    if (buf > to->buf || *buf != 0)
+      buf++;
+    else
+      to->intg-=DIG_PER_DEC1;
+  }
+  DBUG_ASSERT(to->intg >=0);
+  for (stop=from+frac0*sizeof(dec1); from < stop; from+=sizeof(dec1))
+  {
+    DBUG_ASSERT(sizeof(dec1) == 4);
+    *buf=mi_sint4korr(from) ^ mask;
+    buf++;
+  }
+  if (frac0x)
+  {
+    int i=dig2bytes[frac0x];
+    dec1 x;
+    switch (i)
+    {
+      case 1: x=mi_sint1korr(from); break;
+      case 2: x=mi_sint2korr(from); break;
+      case 3: x=mi_sint3korr(from); break;
+      case 4: x=mi_sint4korr(from); break;
+      default: DBUG_ASSERT(0);
+    }
+    *buf=(x ^ mask) * powers10[DIG_PER_DEC1 - frac0x];
+    buf++;
+  }
+  return error;
+}
+
+/*
+  Returns the size of array to hold a decimal with given precision and scale
+
+  RETURN VALUE
+    size in dec1
+    (multiply by sizeof(dec1) to get the size if bytes)
+*/
+
+int decimal_size(int precision, int scale)
+{
+  DBUG_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
+  return ROUND_UP(precision-scale)+ROUND_UP(scale);
+}
+
+/*
+  Returns the size of array to hold a binary representation of a decimal
+
+  RETURN VALUE
+    size in bytes
+*/
+
+int decimal_bin_size(int precision, int scale)
+{
+  int intg=precision-scale,
+      intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
+      intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1;
+
+  DBUG_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
+  return intg0*sizeof(dec1)+dig2bytes[intg0x]+
+         frac0*sizeof(dec1)+dig2bytes[frac0x];
+}
+
+/*
   Rounds the decimal to "scale" digits
 
   SYNOPSIS
@@ -538,7 +782,7 @@ int decimal2longlong(decimal *from, longlong *to)
 int decimal_round(decimal *dec, int scale, dec_round_mode mode)
 {
   int frac0=ROUND_UP(scale), frac1=ROUND_UP(dec->frac),
-      intg0=ROUND_UP(dec->intg), error=E_DEC_OK, pos, len=dec->len;
+      intg0=ROUND_UP(dec->intg), error=E_DEC_OK, len=dec->len;
   dec1 *buf=dec->buf, x, y, carry=0;
 
   DBUG_ASSERT(intg0+frac1 <= len);
@@ -659,18 +903,19 @@ int decimal_result_size(decimal *from1, decimal *from2, char op, int param)
     }
   case '*':
     return ROUND_UP(from1->intg+from2->intg)+
-           ROUND_UP(from1->frac+from2->frac);
+           ROUND_UP(from1->frac)+ROUND_UP(from2->frac);
   case '/':
     return ROUND_UP(from1->intg+from2->intg+1+from1->frac+from2->frac+param);
   default: DBUG_ASSERT(0);
   }
+  return -1; /* shut up the warning */
 }
 
 static int do_add(decimal *from1, decimal *from2, decimal *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
-      frac0=max(frac1, frac2), intg0=max(intg1, intg2), error, i;
+      frac0=max(frac1, frac2), intg0=max(intg1, intg2), error;
   dec1 *buf1, *buf2, *buf0, *stop, *stop2, x, carry;
 
   /* is there a need for extra word because of carry ? */
@@ -743,8 +988,8 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
-  int frac0=max(frac1, frac2), error, i;
-  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, x, carry=0;
+  int frac0=max(frac1, frac2), error;
+  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
 
   to->sign=from1->sign;
 
@@ -1333,6 +1578,27 @@ void test_d2f(char *s)
   printf("%-40s => res=%d    %.*g\n", s1, res, a.intg+a.frac, x);
 }
 
+void test_d2b2d(char *str, int p, int s)
+{
+  char s1[100], buf[100];
+  double x;
+  int res, i, size=decimal_bin_size(p, s);
+
+  sprintf(s1, "'%s'", str);
+  string2decimal(str, &a, 0);
+  res=decimal2bin(&a, buf, p, s);
+  printf("%-31s {%2d, %2d} => res=%d size=%-2d ", s1, p, s, res, size);
+  if (full)
+  {
+    printf("0x");
+    for (i=0; i < size; i++)
+      printf("%02x", ((uchar *)buf)[i]);
+  }
+  res=bin2decimal(buf, &a, p, s);
+  printf(" => res=%d ", res);
+  print_decimal(&a);
+  printf("\n");
+}
 void test_f2d(double from)
 {
   int res;
@@ -1621,6 +1887,17 @@ main()
   test_md("234.567","10.555");
   test_md("-234.567","10.555");
   test_md("234.567","-10.555");
+
+  printf("==== decimal2bin/bin2decimal ====\n");
+  test_d2b2d("12345", 5, 0);
+  test_d2b2d("12345", 10, 3);
+  test_d2b2d("123.45", 10, 3);
+  test_d2b2d("-123.45", 20, 10);
+  test_d2b2d(".00012345000098765", 15, 14);
+  test_d2b2d(".00012345000098765", 22, 20);
+  test_d2b2d(".12345000098765", 30, 20);
+  test_d2b2d("-.000000012345000098765", 30, 20);
+  test_d2b2d("1234500009876.5", 30, 5);
 
   return 0;
 }
