@@ -156,12 +156,12 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
 // tabptr.p       Table record pointer
 /* ---------------------------------------------------------------- */
 int Dbtup::readAttributes(Page* const pagePtr,
-                          Uint32  tupHeadOffset,
-                          const Uint32* inBuffer,
-                          Uint32  inBufLen,
-                          Uint32* outBuffer,
-                          Uint32  maxRead,
-                          bool    xfrmFlag)
+			  Uint32  tupHeadOffset,
+			  const Uint32* inBuffer,
+			  Uint32  inBufLen,
+			  Uint32* outBuffer,
+			  Uint32  maxRead,
+			  bool    xfrmFlag)
 {
   Tablerec* const regTabPtr =  tabptr.p;
   Uint32 numAttributes = regTabPtr->noOfAttr;
@@ -198,7 +198,7 @@ int Dbtup::readAttributes(Page* const pagePtr,
                      attributeOffset)) {
         continue;
       } else {
-        return (Uint32)-1;
+        return -1;
       }//if
     } else if(attributeId & AttributeHeader::PSUEDO){
       Uint32 sz = read_psuedo(attributeId, 
@@ -207,7 +207,7 @@ int Dbtup::readAttributes(Page* const pagePtr,
       tOutBufIndex = tmpAttrBufIndex + 1 + sz;
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   return tOutBufIndex;
@@ -256,11 +256,11 @@ int Dbtup::readAttributesWithoutHeader(Page* const pagePtr,
                      attributeOffset)) {
         continue;
       } else {
-        return (Uint32)-1;
+        return -1;
       }//if
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   ndbrequire(attrBufIndex == inBufLen);
@@ -678,12 +678,12 @@ int Dbtup::updateAttributes(Page* const pagePtr,
         continue;
       } else {
         ljam();
-        return (Uint32)-1;
+        return -1;
       }//if
     } else {
       ljam();
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   return 0;
