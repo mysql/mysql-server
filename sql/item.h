@@ -369,7 +369,7 @@ public:
     return this_item()->save_in_field(field, no_conversions);
   }
 
-  inline void print(String *str)
+  void print(String *str)
   {
     str->reserve(m_name.length+8);
     str->append(m_name.str, m_name.length);
@@ -430,6 +430,7 @@ public:
   void register_item_tree_changing(Item **ref)
     { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
+  void print(String *str);
 
   friend bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
