@@ -1021,7 +1021,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 {
   int error;
   uint i,j,recpos,minpos,fieldpos,temp_length,length;
-  bool found_auto_increment=0;
+  bool found_auto_increment=0, found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
   KEY *pos;
@@ -1091,11 +1091,11 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if (j == 0 && field->flags & AUTO_INCREMENT_FLAG &&
-	  !found_auto_increment)
+      if (field->flags & AUTO_INCREMENT_FLAG && !found_auto_increment)
       {
 	keydef[i].flag|=HA_AUTO_KEY;
 	found_auto_increment=1;
+        found_real_auto_increment=(j==0);
       }
       if (field->type() == FIELD_TYPE_BLOB)
       {
@@ -1177,6 +1177,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=table_arg->max_rows;
   create_info.reloc_rows=table_arg->min_rows;
+  create_info.with_auto_increment=found_real_auto_increment;
   create_info.auto_increment=(info->auto_increment_value ?
 			      info->auto_increment_value -1 :
 			      (ulonglong) 0);
