@@ -1246,27 +1246,45 @@ TransporterRegistry::start_clients_thread()
 	  if( !connected && t->get_s_port() <= 0) {	// Port is dynamic
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
-	    int res= -1;
 
 	    if(!ndb_mgm_is_connected(m_mgm_handle))
-	      if(ndb_mgm_connect(m_mgm_handle, 0, 0, 0)<0)
-		ndbout_c("Failed to reconnect to management server");
+	      ndb_mgm_connect(m_mgm_handle, 0, 0, 0);
+	    
+	    if(ndb_mgm_is_connected(m_mgm_handle))
+	    {
+	      int res=
+		ndb_mgm_get_connection_int_parameter(m_mgm_handle,
+						     t->getRemoteNodeId(),
+						     t->getLocalNodeId(),
+						     CFG_CONNECTION_SERVER_PORT,
+						     &server_port,
+						     &mgm_reply);
+	      DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
+				 server_port,t->getRemoteNodeId(),
+				 t->getLocalNodeId(),res));
+	      if( res >= 0 )
+	      {
+		/**
+		 * Server_port == 0 just means that that a mgmt server
+		 * has not received a new port yet. Keep the old.
+		 */
+		if (server_port)
+		  t->set_s_port(server_port);
+	      }
 	      else
-		res=
-		  ndb_mgm_get_connection_int_parameter(m_mgm_handle,
-						       t->getRemoteNodeId(),
-						       t->getLocalNodeId(),
-						       CFG_CONNECTION_SERVER_PORT,
-						       &server_port,
-						       &mgm_reply);
-	    DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
-			       server_port,t->getRemoteNodeId(),
-			       t->getLocalNodeId(),res));
-
-	    if(res>=0 && server_port)
-	      t->set_s_port(server_port);
-	    else
-	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
+	      {
+		ndbout_c("Failed to get dynamic port to connect to: %d", res);
+		ndb_mgm_disconnect(m_mgm_handle);
+	      }
+	    }
+	    /** else
+	     * We will not be able to get a new port unless
+	     * the m_mgm_handle is connected. Note that not
+	     * being connected is an ok state, just continue
+	     * until it is able to connect. Continue using the
+	     * old port until we can connect again and get a
+	     * new port.
+	     */
 	  }
 	}
 	break;
@@ -1304,7 +1322,7 @@ TransporterRegistry::stop_clients()
   if (m_start_clients_thread) {
     m_run_start_clients_thread= false;
     void* status;
-    int r= NdbThread_WaitFor(m_start_clients_thread, &status);
+    NdbThread_WaitFor(m_start_clients_thread, &status);
     NdbThread_Destroy(&m_start_clients_thread);
   }
   return true;
@@ -1347,10 +1365,11 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
+  DBUG_ENTER("TransporterRegistry::start_service");
   if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
     ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
-    return false;
+    DBUG_RETURN(false);
   }
 
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
@@ -1380,14 +1399,14 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 		 "(perhaps the node is already running)",
 		 t.m_interface ? t.m_interface : "*", t.m_s_service_port);
 	delete transporter_service;
-	return false;
+	DBUG_RETURN(false);
       }
     }
     t.m_s_service_port= (t.m_s_service_port<=0)?-port:port; // -`ve if dynamic
     DBUG_PRINT("info", ("t.m_s_service_port = %d",t.m_s_service_port));
     transporter_service->setTransporterRegistry(this);
   }
-  return true;
+  DBUG_RETURN(true);
 }
 
 #ifdef NDB_SHM_TRANSPORTER
@@ -1439,12 +1458,7 @@ TransporterRegistry::startReceiving()
       DBUG_PRINT("error",("Install failed"));
       g_eventLogger.error("Failed to install signal handler for"
 			  " SHM transporter errno: %d (%s)", errno, 
-#ifdef HAVE_STRERROR
-			  strerror(errno)
-#else
-                          ""
-#endif
-			  );
+			  strerror(errno));
     }
   }
 #endif // NDB_SHM_TRANSPORTER
@@ -1559,7 +1573,11 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
       ndb_mgm_destroy_handle(&h);
       return NDB_INVALID_SOCKET;
     }
-  return ndb_mgm_convert_to_transporter(h);
+
+  NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
+  if ( sockfd == NDB_INVALID_SOCKET)
+    ndb_mgm_destroy_handle(&h);
+  return sockfd;
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;
