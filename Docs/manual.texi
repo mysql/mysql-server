@@ -13744,7 +13744,7 @@ in ANSI mode. @xref{ANSI mode}.
 
 @multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
-@item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/}.
+@item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/} or @samp{.}.
 @item Table @tab 64 @tab Any character that is allowed in a file name, except @samp{/} or @samp{.}.
 @item Column @tab 64 @tab All characters.
 @item Alias @tab 255 @tab All characters.
