@@ -16,7 +16,6 @@
 
 #include "consumer_restore.hpp"
 #include <NdbSleep.h>
-#include <NdbDictionaryImpl.hpp>
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
