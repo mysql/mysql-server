@@ -86,11 +86,10 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   my_b_clear(&tempfile);
   buffpek= (BUFFPEK *) NULL; sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
+  bzero((char*) &param,sizeof(param));
   param.ref_length= table->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
-  param.examined_rows=0;
-  param.unique_buff=0;
 
   if (select && select->quick)
   {
@@ -686,9 +685,16 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   qsort2_cmp    cmp;
+  volatile bool *killed= &current_thd->killed;
+  bool not_killable;
   DBUG_ENTER("merge_buffers");
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
+  if (param->not_killable)
+  {
+    killed= &not_killable;
+    not_killable=0;
+  }
 
   error=0;
   offset=(sort_length=param->sort_length)-param->ref_length;
@@ -738,6 +744,10 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 
   while (queue.elements > 1)
   {
+    if (*killed)
+    {
+      error=1; goto err;                        /* purecov: inspected */
+    }
     for (;;)
     {
       buffpek=(BUFFPEK*) queue_top(&queue);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB & Sinisa
+/* Copyright (C) 2000 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,14 +316,14 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 #endif
 
   (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
-  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
   /* Don't use key read with MULTI-TABLE-DELETE */
+  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
   dt->table->used_keys=0;
   for (dt=dt->next ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=dt->table;
-  (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
-  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
+    (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
+    (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
 #ifdef SINISAS_STRIP
     tempfiles[counter]=(IO_CACHE *) sql_alloc(sizeof(IO_CACHE));
     if (open_cached_file(tempfiles[counter], mysql_tmpdir,TEMP_PREFIX,
@@ -366,50 +366,38 @@ multi_delete::prepare(List<Item> &values)
   DBUG_RETURN(0);
 }
 
-inline static void
-link_in_list(SQL_LIST *list,byte *element,byte **next)
-{
-  list->elements++;
-  (*list->next)=element;
-  list->next=next;
-  *next=0;
-}
 
 void
 multi_delete::initialize_tables(JOIN *join)
 {
-  SQL_LIST *new_list=(SQL_LIST *) sql_alloc(sizeof(SQL_LIST));
-  new_list->elements=0;  new_list->first=0;
-  new_list->next= (byte**) &(new_list->first);
+  TABLE_LIST *walk;
+  table_map tables_to_delete_from=0;
+  for (walk= delete_tables ; walk ; walk=walk->next)
+    tables_to_delete_from|= walk->table->map;
+  
+  walk= delete_tables;
   for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
        tab < end;
        tab++)
   {
-    TABLE_LIST *walk;
-    for (walk=(TABLE_LIST*) delete_tables ; walk ; walk=walk->next)
-      if (!strcmp(tab->table->path,walk->table->path))
-	break;
-    if (walk) // Table need not be the one to be deleted
+    if (tab->table->map & tables_to_delete_from)
     {
-      register TABLE_LIST *ptr = (TABLE_LIST *) sql_alloc(sizeof(TABLE_LIST));
-      memcpy(ptr,walk,sizeof(TABLE_LIST)); ptr->next=0;
-      link_in_list(new_list,(byte*) ptr,(byte**) &ptr->next);
+      /* We are going to delete from this table */
+      walk->table=tab->table;
+      walk=walk->next;
     }
   }
-  delete_tables=(TABLE_LIST *)new_list->first;
-  return;
 }
+
 
 multi_delete::~multi_delete()
 {
-
   /* Add back EXTRA_READCHECK;  In 4.0.1 we shouldn't need this anymore */
   for (table_being_deleted=delete_tables ;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next)
-  {
-    VOID(table_being_deleted->table->file->extra(HA_EXTRA_READCHECK));
-  }
+    (void) table_being_deleted->table->file->extra(HA_EXTRA_READCHECK);
+
   for (uint counter = 0; counter < num_of_tables-1; counter++)
   {
     if (tempfiles[counter])
