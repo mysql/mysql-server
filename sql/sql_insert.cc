@@ -1361,6 +1361,14 @@ bool select_insert::send_eof()
   if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
     error=table->file->activate_all_index(thd);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
+  /* Write to binlog before commiting transaction */
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+			  table->file->has_transactions());
+    mysql_bin_log.write(&qinfo);
+  }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
   if (info.copied || info.deleted)
@@ -1386,12 +1394,6 @@ bool select_insert::send_eof()
       thd->insert_id(last_insert_id);		// For update log
     ::send_ok(&thd->net,info.copied,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    table->file->has_transactions());
-      mysql_bin_log.write(&qinfo);
-    }
     return 0;
   }
 }
