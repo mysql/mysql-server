@@ -1100,7 +1100,7 @@ Dbtup::updateStartLab(Signal* signal,
                       Tablerec* const regTabPtr,
                       Page* const pagePtr)
 {
-  Uint32 retValue;
+  int retValue;
   if (regOperPtr->optype == ZINSERT) {
     jam();
     setNullBits(pagePtr, regTabPtr, regOperPtr->pageOffset);
