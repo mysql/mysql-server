@@ -25572,7 +25572,7 @@ By just using a better compiler and/or better compiler options you can
 get a 10-30 % speed increase in your application.  This is particularly
 important if you compile the SQL server yourself!
 
-We have tested the both Cygnus CodeFusion and the Fujitsu compiler but
+We have tested both the Cygnus CodeFusion and Fujitsu compilers but
 when we tested them, neither was sufficiently bug free to allow
 @strong{MySQL} to be compiled with optimizations on.
 
