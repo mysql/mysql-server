@@ -51,7 +51,7 @@ class ha_berkeley: public handler
   int pack_row(DBT *row,const  byte *record);
   void unpack_row(char *record, DBT *row);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *record);
-  DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key,
+  DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key_ptr,
 		uint key_length);
   int remove_key(DB_TXN *trans, uint keynr, const byte *record,
 		 DBT *packed_record, DBT *prim_key);
@@ -113,16 +113,16 @@ class ha_berkeley: public handler
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
-  void ha_berkeley::position(byte *record);
+  void position(byte *record);
   ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,
 			   enum ha_rkey_function start_search_flag,
 			   const byte *end_key,uint end_key_len,
 			   enum ha_rkey_function end_search_flag);
 
-  int ha_berkeley::create(const char *name, register TABLE *form,
+  int create(const char *name, register TABLE *form,
 			  HA_CREATE_INFO *create_info);
-  int ha_berkeley::delete_table(const char *name);
+  int delete_table(const char *name);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
 };
