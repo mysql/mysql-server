@@ -218,7 +218,7 @@ select * from t2;
 UPDATE t1 a ,t2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
 select * from t1;
 select * from t2;
-DELETE t1, t2  FROM t1 a,t2 b where a.n=b.n;
+DELETE a, b  FROM t1 a,t2 b where a.n=b.n;
 select * from t1;
 select * from t2;
 drop table t1,t2;
