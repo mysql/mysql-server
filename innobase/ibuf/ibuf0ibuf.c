@@ -3045,14 +3045,6 @@ loop:
 			goto reset_bit;
 		}
 
-		/* Do NOT merge to the 4.1 code base! */
-		if (trx_sys_downgrading_from_4_1_1) {
-			fprintf(stderr,
-"InnoDB: Fatal error: you are downgrading from >= 4.1.1 to 4.0, but\n"
-"InnoDB: the insert buffer was not empty.\n");
-			ut_a(0);
-		}
-
 		if (corruption_noticed) {
 			rec_sprintf(err_buf, 450, ibuf_rec);
 			fprintf(stderr,

@@ -9,9 +9,9 @@ d	mediumtext	YES		NULL
 e	longtext	YES		NULL	
 CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
 Warnings:
-Warning	1245	Converting column 'a' from CHAR to TEXT
-Warning	1245	Converting column 'b' from CHAR to BLOB
-Warning	1245	Converting column 'c' from CHAR to TEXT
+Warning	1246	Converting column 'a' from CHAR to TEXT
+Warning	1246	Converting column 'b' from CHAR to BLOB
+Warning	1246	Converting column 'c' from CHAR to TEXT
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
 a	text	YES		NULL	

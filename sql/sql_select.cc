@@ -2864,7 +2864,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  If quick_select was used on a part of this key, we know
 		  the maximum number of rows that the key can match.
 		*/
-		if (table->quick_keys & ((key_map) 1 << key) &&
+		if (table->quick_keys.is_set(key) &&
 		    table->quick_key_parts[key] <= max_key_part &&
 		    records > (double) table->quick_rows[key])
 		  tmp= records= (double) table->quick_rows[key];
@@ -6717,8 +6717,11 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	/*
 	  We can remove binary fields and numerical fields except float,
 	  as float comparison isn't 100 % secure
+	  We have to keep binary strings to be able to check for end spaces
 	*/
 	if (field->binary() &&
+	    field->real_type() != FIELD_TYPE_STRING &&
+	    field->real_type() != FIELD_TYPE_VAR_STRING &&
 	    (field->type() != FIELD_TYPE_FLOAT || field->decimals() == 0))
 	{
 	  return !store_val_in_field(field,right_item);
@@ -7930,6 +7933,29 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   return 0;
 }
 
+
+/*
+  Intitialize the GROUP BY list.
+
+  SYNOPSIS
+   setup_group()
+   thd			Thread handler
+   ref_pointer_array	We store references to all fields that was not in
+			'fields' here.   
+   fields		All fields in the select part. Any item in 'order'
+			that is part of these list is replaced by a pointer
+			to this fields.
+   all_fields		Total list of all unique fields used by the select.
+			All items in 'order' that was not part of fields will
+			be added first to this list.
+  order			The fields we should do GROUP BY on.
+  hidden_group_fields	Pointer to flag that is set to 1 if we added any fields
+			to all_fields.
+
+  RETURN
+   0  ok
+   1  error (probably out of memory)
+*/
 
 int
 setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,

@@ -423,6 +423,18 @@ select * from t1 where a='807780' and b='477' and c='165';
 drop table t1;
 
 #
+# Verify blob handling
+#
+create table t1 (a blob);
+insert into t1 values('a '),('a');
+select concat(a,'.') from t1 where a='a';
+select concat(a,'.') from t1 where a='a ';
+alter table t1 add key(a(2));
+select concat(a,'.') from t1 where a='a';
+select concat(a,'.') from t1 where a='a ';
+drop table t1;
+
+#
 # Test text and unique
 #
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));

@@ -1451,7 +1451,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_casedn_str(files_charset_info, table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
-    if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege))
+    if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
+		     0, 0))
       break;
     if (grant_option && check_grant(thd,SELECT_ACL,&table_list,2,0))
       break;
@@ -1771,7 +1772,7 @@ mysql_execute_command(THD *thd)
     */
     if (table_rules_on && tables && !tables_ok(thd,tables) &&
         ((lex->sql_command != SQLCOM_DELETE_MULTI) ||
-         !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)))
+         !tables_ok(thd,(TABLE_LIST *)thd->lex->auxilliary_table_list.first)))
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
@@ -2103,7 +2104,7 @@ mysql_execute_command(THD *thd)
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
 		      CREATE_TMP_ACL : CREATE_ACL);
-    lex->create_info.alias= tables->alias;
+    lex->create_info.alias= create_table->alias;
     if (check_access(thd, want_priv, create_table->db,
 		     &create_table->grant.privilege, 0, 0) ||
 	check_merge_table_access(thd, create_table->db,
@@ -2872,7 +2873,7 @@ mysql_execute_command(THD *thd)
       remove_escape(db);			// Fix escaped '_'
       remove_escape(tables->real_name);
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
-		       &tables->grant.privilege))
+		       &tables->grant.privilege, 0, 0))
 	goto error;				/* purecov: inspected */
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2,0))
 	goto error;
@@ -2977,7 +2978,7 @@ mysql_execute_command(THD *thd)
     if (check_access(thd,CREATE_ACL,lex->name,0,1,0))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
-			 lex->create_info.options,0);
+			 &lex->create_info, 0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -3393,7 +3394,7 @@ static int check_one_table_access(THD *thd, ulong privilege,
   if (subselects_tables)
   {
     tables->next= subselects_tables;
-    if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables,0)))
+    if ((check_table_access(thd, SELECT_ACL, subselects_tables,0)))
       return 1;
   }
   return 0;

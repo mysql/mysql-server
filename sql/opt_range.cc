@@ -1064,8 +1064,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 
     like_error= my_like_range(field->charset(),
 			      res->ptr(), res->length(),
-			      ((Item_func_like*)(param->cond))->escape
-			      wild_prefix, wild_one, wild_many,
+			      ((Item_func_like*)(param->cond))->escape,
+			      wild_one, wild_many,
 			      field_length, 
 			      min_str+offset, max_str+offset,
 			      &min_length, &max_length);

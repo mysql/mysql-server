@@ -1338,7 +1338,7 @@ CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 insert into t1 values (1),(2),(3);
 insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
 Warnings:
-Warning	1264	Data truncated for column 'stamp' at row 3
+Warning	1265	Data truncated for column 'stamp' at row 3
 SELECT col1 FROM t1 UNION SELECT col1 FROM t2 WHERE stamp <
 '20020204120000' GROUP BY col1;
 col1

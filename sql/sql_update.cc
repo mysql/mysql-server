@@ -439,7 +439,14 @@ int mysql_multi_update(THD *thd,
   for (tl= table_list ; tl ; tl=tl->next)
   {
     TABLE *table= tl->table;
-    table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+    /*
+      Update of derived tables is checked later
+      We don't check privileges here, becasue then we would get error
+      "UPDATE command denided .. for column N" instead of
+      "Target table ... is not updatable"
+    */
+    if (!tl->derived)
+      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
   }
 
   if (thd->lex->derived_tables)

@@ -1152,11 +1152,11 @@ mysql_rename_table(enum db_type base,
   {
     /* Table handler expects to get all file names as lower case */
     strmov(tmp_from, old_name);
-    casedn_str(tmp_from);
+    my_casedn_str(system_charset_info, tmp_from);
     old_name= tmp_from;
 
     strmov(tmp_to, new_name);
-    casedn_str(tmp_to);
+    my_casedn_str(system_charset_info, tmp_to);
     new_name= tmp_to;
   }
   (void) sprintf(from,"%s/%s/%s",mysql_data_home,old_db,old_name);

@@ -34,10 +34,10 @@ INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
 Warnings:
-Warning	1264	Data truncated for column 'transityes' at row 1
-Warning	1264	Data truncated for column 'shopsyes' at row 1
-Warning	1264	Data truncated for column 'schoolsyes' at row 1
-Warning	1264	Data truncated for column 'petsyes' at row 1
+Warning	1265	Data truncated for column 'transityes' at row 1
+Warning	1265	Data truncated for column 'shopsyes' at row 1
+Warning	1265	Data truncated for column 'schoolsyes' at row 1
+Warning	1265	Data truncated for column 'petsyes' at row 1
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
@@ -156,8 +156,8 @@ CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
 SELECT * FROM t1;
 c	i
 	1

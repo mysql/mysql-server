@@ -9,7 +9,7 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -184,12 +184,14 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       break;
     case HA_KEYTYPE_VARTEXT:
       {
-        int a_length,b_length,pack_length;
+        int a_length,full_a_length,b_length,full_b_length,pack_length;
         get_key_length(a_length,a);
         get_key_pack_length(b_length,pack_length,b);
+        full_a_length= a_length;
+        full_b_length= b_length;
         next_key_length=key_length-b_length-pack_length;
 
-	if (!(nextflag & (SEARCH_PREFIX | SEARCH_UPDATE)))
+	if ((nextflag & (SEARCH_FIND | SEARCH_UPDATE)) == SEARCH_FIND)
 	{
 	  while (a_length && a[a_length-1] == ' ')
 	    a_length--;
@@ -202,8 +204,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
                                    (my_bool) ((nextflag & SEARCH_PREFIX) &&
                                               next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
-        a+=a_length;
-        b+=b_length;
+        a+= full_a_length;
+        b+= full_b_length;
         break;
       }
       break;
@@ -308,7 +310,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap(uchar*,a,b);       
+        swap(uchar*,a,b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }

@@ -288,12 +288,12 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   TABLE **ptr;
 
   DBUG_ASSERT(db);
-  dblen= *db ? strlen(db)+1 : 0;
+  dblen= strlen(db);
   ptr= &(thd->handler_tables);
 
   for (TABLE *table= *ptr; table ; table= *ptr)
   {
-    if ((!dblen || !memcmp(table->table_cache_key, db, dblen)) &&
+    if ((db == any_db || !memcmp(table->table_cache_key, db, dblen)) &&
         !my_strcasecmp(system_charset_info,
 		       (is_alias ? table->table_name : table->real_name),
 		       table_name))

@@ -363,7 +363,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     /* Convert database to lower case */
     strmov(tmp_db, db);
-    casedn_str(tmp_db);
+    my_casedn_str(system_charset_info, tmp_db);
     db= tmp_db;
   }
 

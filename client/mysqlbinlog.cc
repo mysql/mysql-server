@@ -233,15 +233,16 @@ int Load_log_processor::process(Create_file_log_event *ce)
   int error= 0;
   char *fname, *ptr;
   File file;
+  DBUG_ENTER("Load_log_processor::process");
 
   if (set_dynamic(&file_names,(gptr)&ce,ce->file_id))
   {
     sql_print_error("Could not construct local filename %s%s",
 		    target_dir_name,bname);
-    return -1;
+    DBUG_RETURN(-1);
   }
   if (!(fname= my_malloc(full_len,MYF(MY_WME))))
-    return -1;
+    DBUG_RETURN(-1);
 
   memcpy(fname, target_dir_name, target_dir_name_len);
   ptr= fname + target_dir_name_len;
@@ -253,20 +254,21 @@ int Load_log_processor::process(Create_file_log_event *ce)
   {
     sql_print_error("Could not construct local filename %s%s",
 		    target_dir_name,bname);
-    return -1;
+    DBUG_RETURN(-1);
   }
   ce->set_fname_outside_temp_buf(fname,strlen(fname));
 
   if (my_write(file,(byte*) ce->block,ce->block_len,MYF(MY_WME|MY_NABP)))
     error= -1;
-  if (my_close(file,MYF(MY_WME)))
+  if (my_close(file, MYF(MY_WME)))
     error= -1;
-  return error;
+  DBUG_RETURN(error);
 }
 
 
 int Load_log_processor::process(Append_block_log_event *ae)
 {
+  DBUG_ENTER("Load_log_processor::process");
   Create_file_log_event* ce= ((ae->file_id < file_names.elements) ?
 			      *((Create_file_log_event**)file_names.buffer +
 				ae->file_id) :
@@ -278,12 +280,12 @@ int Load_log_processor::process(Append_block_log_event *ae)
     int error= 0;
     if (((file= my_open(ce->fname,
 			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
-      return -1;
+      DBUG_RETURN(-1);
     if (my_write(file,(byte*)ae->block,ae->block_len,MYF(MY_WME|MY_NABP)))
       error= -1;
     if (my_close(file,MYF(MY_WME)))
       error= -1;
-    return error;
+    DBUG_RETURN(error);
   }
 
   /*
@@ -293,7 +295,7 @@ int Load_log_processor::process(Append_block_log_event *ae)
   */
   fprintf(stderr,"Warning: ignoring Append_block as there is no \
 Create_file event for file_id: %u\n",ae->file_id);
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 
@@ -304,6 +306,8 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 		  my_off_t pos, int old_format)
 {
   char ll_buff[21];
+  DBUG_ENTER("process_event");
+
   if ((*rec_count) >= offset)
   {
     if (!short_form)
@@ -315,11 +319,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
       {
 	const char * log_dbname = ((Query_log_event*)ev)->db;
 	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-	{
-	  (*rec_count)++;
-	  delete ev;
-	  return 0; // Time for next event
-	}
+	  goto end;
       }
       ev->print(result_file, short_form, last_db);
       break;
@@ -336,11 +336,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 	*/
 	const char * log_dbname = ce->db;            
 	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-	{
-	  (*rec_count)++;
-	  delete ev;
-	  return 0; // next
-	}
+	  goto end;				// Next event
       }
       /*
 	We print the event, but with a leading '#': this is just to inform 
@@ -388,10 +384,12 @@ Create_file event for file_id: %u\n",exv->file_id);
       ev->print(result_file, short_form, last_db);
     }
   }
+
+end:
   (*rec_count)++;
   if (ev)
     delete ev;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -472,6 +470,7 @@ static void die(const char* fmt, ...)
   fprintf(stderr, "\n");
   va_end(args);
   cleanup();
+  my_end(0);
   exit(1);
 }
 
@@ -645,6 +644,8 @@ static int dump_remote_log_entries(const char* logname)
   uint len;
   NET* net = &mysql->net;
   int old_format;
+  DBUG_ENTER("dump_remote_log_entries");
+
   old_format = check_master_version(mysql);
 
   if (!position)
@@ -663,7 +664,7 @@ static int dump_remote_log_entries(const char* logname)
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
   {
     fprintf(stderr,"Got fatal error sending the log dump command\n");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   my_off_t old_off= 0;  
@@ -678,7 +679,7 @@ static int dump_remote_log_entries(const char* logname)
     {
       fprintf(stderr, "Got error reading packet from server: %s\n",
 	      mysql_error(mysql));
-      return 1;
+      DBUG_RETURN(1);
     }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
@@ -689,14 +690,14 @@ static int dump_remote_log_entries(const char* logname)
     if (!ev)
     {
       fprintf(stderr, "Could not construct log event object\n");
-      return 1;
+      DBUG_RETURN(1);
     }   
 
     Log_event_type type= ev->get_type_code();
     if (!old_format || ( type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
       if (process_event(&rec_count,last_db,ev,old_off,old_format))
-	return 1;
+	DBUG_RETURN(1);
     }
     else
     {
@@ -706,16 +707,17 @@ static int dump_remote_log_entries(const char* logname)
       File file;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
-	return 1;
+	DBUG_RETURN(1);
+
       if (process_event(&rec_count,last_db,ev,old_off,old_format))
       {
 	my_close(file,MYF(MY_WME));
-	return 1;
+	DBUG_RETURN(1);
       }
       if (load_processor.load_old_format_file(net,old_fname,old_len,file))
       {
 	my_close(file,MYF(MY_WME));
-	return 1;
+	DBUG_RETURN(1);
       }
       my_close(file,MYF(MY_WME));
     }
@@ -729,7 +731,7 @@ static int dump_remote_log_entries(const char* logname)
     else
       old_off= BIN_LOG_HEADER_SIZE;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -738,6 +740,7 @@ static int check_header(IO_CACHE* file)
   byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
   int old_format=0;
+  DBUG_ENTER("check_header");
 
   my_off_t pos = my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
@@ -755,7 +758,7 @@ static int check_header(IO_CACHE* file)
     }
   }
   my_b_seek(file, pos);
-  return old_format;
+  DBUG_RETURN(old_format);
 }
 
 
@@ -857,6 +860,8 @@ int main(int argc, char** argv)
   static char **defaults_argv;
   int exit_value;
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   parse_args(&argc, (char***)&argv);
   defaults_argv=argv;
@@ -905,7 +910,7 @@ int main(int argc, char** argv)
   free_defaults(defaults_argv);
   my_end(0);
   exit(exit_value);
-  return exit_value;				// Keep compilers happy
+  DBUG_RETURN(exit_value);			// Keep compilers happy
 }
 
 /*
