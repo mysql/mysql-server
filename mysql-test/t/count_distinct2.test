@@ -43,3 +43,32 @@ select count(distinct n1), count(distinct n2) from t1;
 
 select count(distinct n2), n1 from t1 group by n1;
 drop table t1;
+
+# test the converstion from tree to MyISAM
+create table t1 (n int);
+let $1=5000;
+while ($1)
+{
+ eval insert into t1 values($1);
+ dec $1;
+}
+
+flush status;
+select count(distinct n) from t1;
+show status like 'Created_tmp_disk_tables';
+drop table t1;
+
+#test conversion from heap to MyISAM
+create table t1 (s text);
+let $1=5000;
+while ($1)
+{
+ eval insert into t1 values('$1');
+ dec $1;
+}
+
+flush status;
+select count(distinct s) from t1;
+show status like 'Created_tmp_disk_tables';
+drop table t1;
+

@@ -830,7 +830,26 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
   return 0;
 }
 
+// helper function for walking the tree when we dump it to MyISAM -
+// tree_walk will call it for each
+// leaf
 
+int dump_leaf(byte* key, uint32 count __attribute__((unused)),
+		     Item_sum_count_distinct* item)
+{
+  char* buf = item->table->record[0];
+  int error;
+  memset(buf, 0xff, item->rec_offset); // make up for cheating in the tree
+  memcpy(buf + item->rec_offset, key, item->tree.size_of_element);
+  if ((error = item->table->file->write_row(buf)))
+  {
+        if (error != HA_ERR_FOUND_DUPP_KEY &&
+	    error != HA_ERR_FOUND_DUPP_UNIQUE)
+	  return 1;
+  }
+
+  return 0;
+}
 
 Item_sum_count_distinct::~Item_sum_count_distinct()
 {
@@ -916,11 +935,29 @@ bool Item_sum_count_distinct::setup(THD *thd)
 		key_len, compare_key, 0, 0);
       tree.cmp_arg = cmp_arg;
       use_tree = 1;
+
+      // the only time key_len could be 0 is if someone does
+      // count(distinct) on a char(0) field - stupid thing to do,
+      // but this has to be handled - otherwise someone can crash
+      // the server with a DoS attack
+      max_elements_in_tree = (key_len) ? max_heap_table_size/key_len :
+	max_heap_table_size;
     }
   
   return 0;
 }
 
+int Item_sum_count_distinct::tree_to_myisam()
+{
+  if(create_myisam_from_heap(table, tmp_table_param,
+			     HA_ERR_RECORD_FILE_FULL, 1) ||
+     tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
+	       left_root_right))
+    return 1;
+  delete_tree(&tree);
+  use_tree = 0;
+  return 0;
+}
 
 void Item_sum_count_distinct::reset()
 {
@@ -947,7 +984,11 @@ bool Item_sum_count_distinct::add()
 
   if(use_tree)
     {
-      if(!tree_insert(&tree, table->record[0] + rec_offset, 0))
+      // if the tree got too big, convert to MyISAM, otherwise
+      // insert into the tree
+      if((tree.elements_in_tree > max_elements_in_tree && tree_to_myisam())
+	 ||
+	 !tree_insert(&tree, table->record[0] + rec_offset, 0))
 	return 1;
     }
   else if ((error=table->file->write_row(table->record[0])))
