@@ -283,17 +283,18 @@ public:
   int stopSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
   int stopSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
   
-  int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData);
+  int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
-  NdbTableImpl * getTable(int tableId);
-  NdbTableImpl * getTable(const char * name);
+  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
+  NdbTableImpl * getTable(const char * name, bool fullyQualifiedNames);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
-			  Uint32 noOfSections);
+			  Uint32 noOfSections, bool fullyQualifiedNames);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
-			    const Uint32 * data, Uint32 len);
+			    const Uint32 * data, Uint32 len,
+			    bool fullyQualifiedNames);
   
   NdbError & m_error;
 private:
@@ -601,7 +602,7 @@ NdbDictionaryImpl::getTableImpl(const char * internalTableName)
   m_globalHash->unlock();
 
   if (ret == 0){
-    ret = m_receiver.getTable(internalTableName);
+    ret = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
     
     m_globalHash->lock();
     m_globalHash->put(internalTableName, ret);
@@ -624,7 +625,7 @@ NdbIndexImpl *
 NdbDictionaryImpl::getIndex(const char * indexName,
 			    const char * tableName)
 {
-  if (tableName || Ndb::usingFullyQualifiedNames()) {
+  if (tableName || m_ndb.usingFullyQualifiedNames()) {
     const char * internalIndexName = 0;
     if (tableName) {
       NdbTableImpl * t = getTable(tableName);

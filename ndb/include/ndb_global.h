@@ -49,6 +49,8 @@
 
 #endif
 
+static const char table_name_separator =  '/';
+
 #ifdef NDB_VC98
 #define STATIC_CONST(x) enum { x }
 #else
