@@ -14,7 +14,136 @@ DROP DATABASE IF EXISTS federated;
 --enable_warnings
 CREATE DATABASE federated;
 
+CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  DEFAULT CHARSET=latin1;
+
+connection master;
+--disable_warnings
+DROP DATABASE IF EXISTS federated;
+--enable_warnings
+CREATE DATABASE federated;
+
+# test too many items (malformed) in the comment string url
+--error 1005
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
+
+# test not enough items (malformed) in the comment string url
+--error 1005
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1';
+
+# test non-existant table
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--error 1219 
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t3';
+
+# test bad user/password 
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--error 1218
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://user:pass@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+DROP TABLE IF EXISTS federated.t1;
+# # correct connection, same named tables
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+
+SELECT * FROM federated.t1;
+DELETE FROM federated.t1;
+DROP TABLE federated.t1;
+
+# correct connection, differently named tables
+DROP TABLE IF EXISTS federated.t2;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t2 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
+
+SELECT * FROM federated.t2;
+DROP TABLE federated.t2;
+
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+
+DROP TABLE IF EXISTS federated.`t1%`;
+CREATE TABLE federated.`t1%` (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  DEFAULT CHARSET=latin1;
+
+connection master; 
+DROP TABLE IF EXISTS federated.t1;
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1%';
+
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+
+SELECT * FROM federated.t1;
+DELETE FROM federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+
+eval CREATE TABLE federated.`t1%` (
+    `id` int(20) NOT NULL,
+    `name` varchar(32) NOT NULL default ''
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1%';
+
+INSERT INTO federated.`t1%` (id, name) VALUES (1, 'foo');
+INSERT INTO federated.`t1%` (id, name) VALUES (2, 'fee');
+
+SELECT * FROM federated.`t1%`;
+DELETE FROM federated.`t1%`;
+DROP TABLE IF EXISTS federated.`t1%`;
+
+connection slave;
+DROP TABLE IF EXISTS federated.`t1%`;
+
 # I wanted to use timestamp, but results will fail if so!!!
+DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL auto_increment,
     `name` varchar(32) NOT NULL default '',
@@ -25,12 +154,8 @@ CREATE TABLE federated.t1 (
     KEY `other_key` (`other`))
   DEFAULT CHARSET=latin1;
 
-connection master;
---disable_warnings
-DROP DATABASE IF EXISTS federated;
---enable_warnings
-CREATE DATABASE federated;
 
+connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL auto_increment,
@@ -660,33 +785,36 @@ INSERT INTO federated.t1 VALUES (0x0001);
 INSERT INTO federated.t1 VALUES (0x0100);
 SELECT HEX(a) FROM federated.t1;
 
-
-# TODO
-# 
-# CREATE TABLE federated.t1 
-# (a char(20)) charset=cp1251
-# ENGINE="FEDERATED" COMMENT="mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1";
-# 
-# connection slave;
+# # simple tests for cyrillic, given to me by 
+# DROP TABLE IF EXISTS federated.t1;
+# --replace_result $SLAVE_MYPORT SLAVE_PORT
+# eval CREATE TABLE federated.t1
+#  (a char(20)) charset=cp1251
+#  ENGINE="FEDERATED" COMMENT="mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1";
+# # 
+#  connection slave;
 # DROP TABLE IF EXISTS federated.t1;
 # CREATE TABLE federated.t1 (a char(20)) charset=cp1251;
-# 
-# connection master;
+# # 
+#  connection master;
 # INSERT INTO federated.t1 values (_cp1251'À-ÁÂÃ-1');
 # INSERT INTO federated.t1 values (_cp1251'Á-ÂÃÄ-2');
+# SELECT * FROM federated.t1;
 # SET names cp1251;
 # INSERT INTO federated.t1 values ('Â-ÃÄÅ-3');
 # INSERT INTO federated.t1 values ('Ã-Å¨Æ-4');
 # SELECT * FROM federated.t1;
-# select hex(a) from federated.t1;
-# select hex(a) from federated.t1 ORDER BY a desc;
-# update federated.t1 SET a='À-ÁÂÃ-1íîâûé' WHERE a='À-ÁÂÃ-1';
+# SELECT hex(a) from federated.t1;
+# SELECT hex(a) from federated.t1 ORDER BY a desc;
+# UPDATE federated.t1 SET a='À-ÁÂÃ-1íîâûé' WHERE a='À-ÁÂÃ-1';
 # SELECT * FROM federated.t1;
 # DELETE FROM federated.t1 WHERE a='Ã-Å¨Æ-4';
 # SELECT * FROM federated.t1;
 # DELETE FROM federated.t1 WHERE a>'Â-';
 # SELECT * FROM federated.t1;
 # SET names default;
+# DROP TABLE IF EXISTS federated.t1;
+
 # 
 # DROP TABLE IF EXISTS federated.t1;
 # 

@@ -8,6 +8,120 @@ stop slave;
 DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
 CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+DEFAULT CHARSET=latin1;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
+ERROR HY000: Can't create table 'this connection string is not in the correct format!
+' (errno: 0)
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1';
+ERROR HY000: Can't create table 'this connection string is not in the correct format!
+' (errno: 0)
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
+ERROR HY000: Error running query on master: foreign table 't3' does not exist!
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
+ERROR 08S01: Error connecting to master: unable to connect to database 'federated' on host '127.0.0.1 as user 'user' !
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+SELECT * FROM federated.t1;
+id	name
+1	foo
+2	fee
+DELETE FROM federated.t1;
+DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE federated.t2 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
+SELECT * FROM federated.t2;
+id	name
+1	foo
+2	fee
+DROP TABLE federated.t2;
+DROP TABLE IF EXISTS federated.t1;
+DROP TABLE IF EXISTS federated.`t1%`;
+Warnings:
+Note	1051	Unknown table 't1%'
+CREATE TABLE federated.`t1%` (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+SELECT * FROM federated.t1;
+id	name
+1	foo
+2	fee
+DELETE FROM federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.`t1%` (
+`id` int(20) NOT NULL,
+`name` varchar(32) NOT NULL default ''
+    )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:9308/federated/t1%';
+INSERT INTO federated.`t1%` (id, name) VALUES (1, 'foo');
+INSERT INTO federated.`t1%` (id, name) VALUES (2, 'fee');
+SELECT * FROM federated.`t1%`;
+id	name
+1	foo
+2	fee
+DELETE FROM federated.`t1%`;
+DROP TABLE IF EXISTS federated.`t1%`;
+DROP TABLE IF EXISTS federated.`t1%`;
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
 `name` varchar(32) NOT NULL default '',
 `other` int(20) NOT NULL default '0',
@@ -16,8 +130,6 @@ PRIMARY KEY  (`id`),
 KEY `name` (`name`),
 KEY `other_key` (`other`))
 DEFAULT CHARSET=latin1;
-DROP DATABASE IF EXISTS federated;
-CREATE DATABASE federated;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
 `name` varchar(32) NOT NULL default '',
