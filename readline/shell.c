@@ -38,6 +38,10 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
+#if defined (HAVE_STDIO_H)
+#  include <stdio.h>
+#endif /* HAVE_STDIO_H */
+
 #if defined (HAVE_STRING_H)
 #  include <string.h>
 #else

@@ -89,6 +89,7 @@ THD::THD()
   open_tables=temporary_tables=0;
   tmp_table=0;
   lock=locked_tables=0;
+  used_tables=0;
   cuted_fields=0L;
   options=thd_startup_options;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;

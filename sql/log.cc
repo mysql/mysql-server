@@ -149,7 +149,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     fn_format(index_file_name, name, mysql_data_home, ".index", 6);
   
   db[0]=0;
-  file=my_fopen(log_file_name,O_APPEND | O_WRONLY,MYF(MY_WME | ME_WAITTANG));
+  file=my_fopen(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+		MYF(MY_WME | ME_WAITTANG));
   if (!file)
   {
     my_free(name,MYF(0));    
@@ -188,7 +189,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   {
     Start_log_event s;
     if(!index_file && 
-       !(index_file = my_fopen(index_file_name,O_APPEND | O_RDWR,
+       !(index_file = my_fopen(index_file_name,O_APPEND | O_BINARY | O_RDWR,
 			       MYF(MY_WME))))
     {
       my_fclose(file,MYF(MY_WME));
