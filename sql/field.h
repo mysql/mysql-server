@@ -133,7 +133,9 @@ public:
       tmp->unireg_check=Field::NONE;
       tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
 		    ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
+#ifdef PROBABLY_WRONG
       tmp->table_name= new_table->table_name;
+#endif
       tmp->reset_fields();
     }
     return tmp;
@@ -1093,8 +1095,10 @@ uint32 calc_pack_length(enum_field_types type,uint32 length);
 bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
 uint find_enum(TYPELIB *typelib,const char *x, uint length);
-ulonglong find_set(TYPELIB *typelib,const char *x, uint length);
-bool test_if_int(const char *str,int length,CHARSET_INFO *cs);
+ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
+		   char **err_pos, uint *err_len);
+bool test_if_int(const char *str, int length, const char *int_end,
+		 CHARSET_INFO *cs);
 
 /*
   The following are for the interface with the .frm file

@@ -96,13 +96,84 @@ cached for each user/database combination.
 Many use of @code{GROUP BY} or @code{DISTINCT} caches all found rows in 
 a @code{HEAP} table. (This is a very quick in-memory table with hash index.)
 
-@item Join Row Cache
+@item Join buffer Cache
 For every full join in a @code{SELECT} statement (a full join here means
 there were no keys that one could use to find the next table in a list), 
 the found rows are cached in a join cache.  One @code{SELECT} query can 
 use many join caches in the worst case.
 @end table
 
+@node join_buffer_size, flush tables, caching, Top
+@subchapter How MySQL uses the join_buffer cache
+
+Basic information about @code{join_buffer_size}:
+
+@itemize @bullet
+@item
+It's only used in the case when join type is of type @code{ALL} or
+@code{index}; In other words: no possible keys can be used.
+@item
+A join buffer is never allocated for the first not-const table,
+even it it would be of type @code{ALL}/@code{index}.
+@item
+The buffer is allocated when we need to do a each full join between two
+tables and freed after the query is done.
+@item
+Accepted row combinations of tables before the @code{ALL}/@code{index}
+able is stored in the cache and is used to compare against each read
+row in the @code{ALL} table.
+@item
+We only store the used fields in the join_buffer cache, not the
+whole rows.
+@end itemize
+
+Assume you have the following join:
+
+@example
+Table name	Type
+t1		range
+t2		ref
+t3		@code{ALL}
+@end example
+
+The join is then done as follows:
+
+@example
+- While rows in t1 matching range
+ - Read through all rows in t2 according to reference key
+  - Store used fields form t1,t2 in cache
+  - If cache is full
+    - Read through all rows in t3
+      - Compare t3 row against all t1,t2 combination in cache
+        - If rows satisfying join condition, send it to client
+    - Empty cache
+
+- Read through all rows in t3
+ - Compare t3 row against all stored t1,t2 combinations in cache
+   - If rows satisfying join condition, send it to client
+@end example
+
+The above means that table t3 is scanned
+
+@example
+(size-of-stored-row(t1,t2) * accepted-row-cominations(t1,t2))/
+join_buffer_size+1
+@end example
+times.
+
+Some conclusions:
+
+@itemize @bullet
+@item
+The larger the join_buff_size, the fewer scans of t3.
+If @code{join_buff_size} is already large enough to hold all previous row
+combinations then there is no speed to gain by making it bigger.
+@item
+If there is several tables of @code{ALL}/@code{index} then the we
+allocate one @code{join_buffer_size buffer} for each of them and use the
+same algorithm described above to handle it.  (In other words, we store
+the same row combination several times into different buffers)
+@end itemize
 
 @node flush tables, filesort, caching, Top
 @chapter How MySQL Handles @code{FLUSH TABLES}

@@ -2305,7 +2305,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-	    s->table->used_keys && best_key))
+	    s->table->used_keys && best_key) &&
+	  !(s->table->force_index && best_key))
       {						// Check full join
 	if (s->on_expr)
 	{
@@ -6946,7 +6947,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   if (!order)
     return 0;				/* Everything is ok */
 
-  if (thd->sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     Item *item;
     List_iterator<Item> li(fields);
@@ -6968,7 +6969,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
       return 1;
     }
   }
-  if (thd->sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     /* Don't allow one to use fields that is not used in GROUP BY */
     Item *item;

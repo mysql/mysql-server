@@ -19,3 +19,10 @@ set SQL_WARNINGS=0;
 # Test other warnings
 
 drop temporary table if exists not_exists;
+drop table if exists not_exists_table;
+show warnings limit 1;
+drop database if exists not_exists_db;
+show count(*) warnings;
+create table t1(id int);
+create table if not exists t1(id int);
+select @@warning_count;

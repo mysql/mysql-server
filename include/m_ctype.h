@@ -27,6 +27,13 @@ extern "C" {
 #endif
 
 
+#define MY_CS_NAME_SIZE			32
+#define MY_CS_CTYPE_TABLE_SIZE		257
+#define MY_CS_TO_LOWER_TABLE_SIZE	256
+#define MY_CS_TO_UPPER_TABLE_SIZE	256
+#define MY_CS_SORT_ORDER_TABLE_SIZE	256
+#define MY_CS_TO_UNI_TABLE_SIZE		256
+
 #define CHARSET_DIR	"charsets/"
 
 #define my_wc_t ulong
@@ -42,6 +49,9 @@ typedef struct unicase_info_st {
 #define MY_CS_TOOSMALL	-1
 #define MY_CS_TOOFEW(n)	(-1-(n))
 
+#define MY_SEQ_INTTAIL	1
+#define MY_SEQ_SPACES	2
+
         /* My charsets_list flags */
 #define MY_NO_SETS       0
 #define MY_CS_COMPILED  1      /* compiled-in sets               */
@@ -50,6 +60,7 @@ typedef struct unicase_info_st {
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
+#define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -126,15 +137,17 @@ typedef struct charset_info_st
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
-  int  (*l10tostr)(struct charset_info_st *, char *to, uint n, int radix, long int val);
-  int (*ll10tostr)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
+  int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix, long int val);
+  int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
   /* String-to-number convertion routines */
-  long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
-  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  double      (*strntod)(struct charset_info_st *, const char *s, uint l, char **e);
+  long        (*strntol)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e, int *err);
+  
+  ulong        (*scan)(struct charset_info_st *, const char *b, const char *e, int sq);
   
 } CHARSET_INFO;
 
@@ -145,7 +158,8 @@ extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern my_bool init_compiled_charsets(myf flags);
-
+extern my_bool my_parse_charset_xml(const char *bug, uint len,
+				    int (*add)(CHARSET_INFO *cs));
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
@@ -172,16 +186,18 @@ extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, ui
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
+ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
+
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
 
-long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-double      my_strntod_8bit(CHARSET_INFO *, const char *s, uint l,char **e);
+long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e, int *err);
 
-int  my_l10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
-int my_ll10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
+int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
+int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			const char *ptr, uint ptr_length,
@@ -245,7 +261,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
 #define my_isvar_start(s,c)           (my_isalpha(s,c) || (c) == '_')
 
-#define use_strnxfrm(s)               ((s)->strnxfrm  != NULL)
+#define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((s), (a), (b), (c), (d)))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
@@ -265,11 +281,11 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
-#define my_strntol(s, a, b, c, d)      ((s)->strntol((s),(a),(b),(c),(d)))
-#define my_strntoul(s, a, b, c, d)     ((s)->strntoul((s),(a),(b),(c),(d)))
-#define my_strntoll(s, a, b, c, d)     ((s)->strntoll((s),(a),(b),(c),(d)))
-#define my_strntoull(s, a, b, c,d)     ((s)->strntoull((s),(a),(b),(c),(d)))
-#define my_strntod(s, a, b, c )        ((s)->strntod((s),(a),(b),(c)))
+#define my_strntol(s, a, b, c, d, e)  ((s)->strntol((s),(a),(b),(c),(d),(e)))
+#define my_strntoul(s, a, b, c, d, e) ((s)->strntoul((s),(a),(b),(c),(d),(e)))
+#define my_strntoll(s, a, b, c, d, e) ((s)->strntoll((s),(a),(b),(c),(d),(e)))
+#define my_strntoull(s, a, b, c,d, e) ((s)->strntoull((s),(a),(b),(c),(d),(e)))
+#define my_strntod(s, a, b, c, d)     ((s)->strntod((s),(a),(b),(c),(d)))
 
 
 /* XXX: still need to take care of this one */
