@@ -33,11 +33,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     jam();
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
+      TupLoc tupLoc(sig->pageId, sig->pageOffset);
       debugOut << "opInfo=" << hex << sig->opInfo;
       debugOut << " tableId=" << dec << sig->tableId;
       debugOut << " indexId=" << dec << sig->indexId;
       debugOut << " fragId=" << dec << sig->fragId;
-      debugOut << " tupAddr=" << hex << sig->tupAddr;
+      debugOut << " tupLoc=" << tupLoc;
       debugOut << " tupVersion=" << dec << sig->tupVersion;
       debugOut << " -- ignored at ISP=" << dec << c_internalStartPhase;
       debugOut << " TOS=" << dec << c_typeOfStart;
@@ -74,7 +75,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   Frag& frag = *fragPtr.p;
   // set up index entry
   TreeEnt ent;
-  ent.m_tupAddr = req->tupAddr;
+  ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
   ent.m_tupVersion = req->tupVersion;
   ent.m_fragBit = fragBit;
   // read search key
@@ -199,10 +200,10 @@ Dbtux::tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
   req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
-  req->tupAddr = ent.m_tupAddr;
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = ent.m_tupVersion;
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // add count and list of attribute ids
   Data data = (Uint32*)req + TupReadAttrs::SignalLength;
@@ -246,10 +247,10 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
   req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
-  req->tupAddr = ent.m_tupAddr;
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = RNIL; // not used
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // execute
   EXECUTE_DIRECT(DBTUP, GSN_TUP_READ_ATTRS, signal, TupReadAttrs::SignalLength);
