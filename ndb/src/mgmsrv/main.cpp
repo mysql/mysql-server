@@ -188,7 +188,6 @@ int main(int argc, char** argv)
 #endif
 
   global_mgmt_server_check = 1;
-  glob.config_filename= "config.ini";
 
   const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
