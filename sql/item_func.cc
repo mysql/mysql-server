@@ -1118,17 +1118,63 @@ longlong Item_func_locate::val_int()
 
 longlong Item_func_field::val_int()
 {
-  String *field;
-  if (!(field=item->val_str(&value)))
-    return 0;					// -1 if null ?
-  for (uint i=0 ; i < arg_count ; i++)
+  if (cmp_type == STRING_RESULT)
   {
-    String *tmp_value=args[i]->val_str(&tmp);
-    if (tmp_value && field->length() == tmp_value->length() &&
-	!memcmp(field->ptr(),tmp_value->ptr(),tmp_value->length()))
-      return (longlong) (i+1);
+    String *field;
+    if (!(field=item->val_str(&value)))
+      return 0;					// -1 if null ?
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      String *tmp_value=args[i]->val_str(&tmp);
+      if (tmp_value && field->length() == tmp_value->length() &&
+	  !sortcmp(field,tmp_value,cmp_collation.collation))
+        return (longlong) (i+1);
+    }
+  }
+  else if (cmp_type == INT_RESULT)
+  {
+    longlong val= item->val_int();
+    for (uint i=0; i < arg_count ; i++)
+    {
+      if (val == args[i]->val_int())
+ 	return (longlong) (i+1);
+    }
+  }
+  else
+  {
+    double val= item->val();
+    for (uint i=0; i < arg_count ; i++)
+    {
+      if (val == args[i]->val())
+ 	return (longlong) (i+1);
+    }
   }
   return 0;
+}
+
+void Item_func_field::fix_length_and_dec()
+{
+  maybe_null=0; max_length=3;
+  used_tables_cache|= item->used_tables();
+  const_item_cache&=  item->const_item();
+  with_sum_func= with_sum_func || item->with_sum_func;
+  
+  cmp_type= item->result_type();
+  for (uint i=0; i < arg_count ; i++)
+    cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
+  
+  if (cmp_type == STRING_RESULT)
+  {
+    cmp_collation.set(item->collation);
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      if (cmp_collation.aggregate(args[i]->collation))
+      {
+	my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
+	return;
+      }
+    }
+  }
 }
 
 
