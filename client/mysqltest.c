@@ -1931,12 +1931,26 @@ static void init_var_hash()
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
 }
 
+static const char *embedded_server_args[] = {
+  "",	/* XXX: argv[0] is program name - we should fix the API */
+  "--datadir=.",
+  "--language=/home/tim/my/4/sql/share/english",
+  "--skip-innodb",
+  NullS
+};
+static const char *embedded_server_groups[] = {
+  "mysql-test-server",
+  NullS
+};
+
 int main(int argc, char** argv)
 {
   int error = 0;
   struct st_query* q;
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
+  mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
+		    embedded_server_args, embedded_server_groups);
   MY_INIT(argv[0]);
 
   save_file[0]=0;
@@ -2100,6 +2114,7 @@ int main(int argc, char** argv)
       printf("ok\n");
   }
 
+  mysql_server_end();
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */

@@ -248,6 +248,7 @@ static COMMANDS commands[] = {
 };
 
 static const char *load_default_groups[]= { "mysql","client",0 };
+static const char *server_default_groups[]= { "server", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 extern "C" void add_history(char *command); /* From readline directory */
@@ -275,6 +276,7 @@ int main(int argc,char *argv[])
 {
   char buff[80];
 
+  mysql_server_init(0, NULL, server_default_groups);
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
@@ -368,6 +370,7 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
+  mysql_server_end();
 #ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
 #endif
@@ -377,9 +380,11 @@ sig_handler mysql_end(int sig)
 {
   if (connected)
     mysql_close(&mysql);
+#ifdef HAVE_OPENSSL
   else
     mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
 				even if connection was not made */
+#endif
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
@@ -2217,9 +2222,11 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_close(&mysql);
     connected= 0;
   }
+#ifdef HAVE_OPENSSL
   else
     mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
 				even if connection was not made */
+#endif
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
@@ -2571,6 +2578,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
+#ifndef EMBEDDED_SERVER
 /* Keep sql_string library happy */
 
 gptr sql_alloc(unsigned int Size)
@@ -2582,3 +2590,4 @@ void sql_element_free(void *ptr)
 {
   my_free((gptr) ptr,MYF(0));
 }
+#endif /* EMBEDDED_SERVER */
