@@ -416,7 +416,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       {
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if ((length=column->length) > file->max_key_length())
+	  if ((length=column->length) > file->max_key_length() ||
+	      length > file->max_key_part_length())
 	  {
 	    my_error(ER_WRONG_SUB_KEY,MYF(0));
 	    DBUG_RETURN(-1);

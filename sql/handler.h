@@ -273,6 +273,7 @@ public:
   virtual uint max_keys() const =0;
   virtual uint max_key_parts() const =0;
   virtual uint max_key_length()const =0;
+  virtual uint max_key_part_length() { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
   virtual bool low_byte_first() const { return 1; }
   virtual bool is_crashed() const  { return 0; }
