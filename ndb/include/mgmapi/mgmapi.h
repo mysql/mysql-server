@@ -356,8 +356,6 @@ extern "C" {
   /** 
    * Create a handle to a management server
    *
-   * @param   connect_string Connect string to the management server, 
-   *
    * @return                 A management handle<br>
    *                         or NULL if no management handle could be created. 
    */
