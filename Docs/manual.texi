@@ -595,7 +595,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -895,6 +895,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.34a::               
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -5679,7 +5680,7 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 
 
 @cindex installing, source distribution
-@cindex source distribtuion, installing
+@cindex source distribution, installing
 @cindex installation overview
 @node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
@@ -23596,7 +23597,7 @@ The @code{GEMINI} table type is developed and supported by NuSphere Corporation
 (@uref{http://www.nusphere.com}).  It features row-level locking, transaction
 support (@code{COMMIT} and @code{ROLLBACK}), and automatic crash recovery.
 
-@code{GEMINI} tables will be included in the @strong{MySQL} 4.0 source
+@code{GEMINI} tables will be included in the @strong{MySQL} 3.23.35 source
 distribution.
 
 @node GEMINI start, GEMINI features, GEMINI overview, GEMINI
@@ -23674,10 +23675,10 @@ NuSphere is working on removing these limitations.
 @subsection INNOBASE Tables overview
 
 Innobase is included in the @strong{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+from 3.23.34a and will be activated in the @strong{MySQL}-max binary.
 
 If you have downloaded a binary version of @strong{MySQL} that includes
-support for Berkeley DB, simply follow the instructions for
+support for Innobase, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
 To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
@@ -23686,7 +23687,7 @@ To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
 
 @example
 cd /path/to/source/of/mysql-3.23.34
-./configure --with-berkeley-db
+./configure --with-innobase
 @end example
 
 Innobase provides MySQL with a transaction safe table handler with
@@ -26624,7 +26625,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -40254,6 +40255,12 @@ If a test fails totally, you should check the logs file in the
 @item
 If you have compiled @strong{MySQL} with debugging you can try to debug this
 with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
+@xref{Making trace files}.
+
+If you have not compiled @strong{MySQL} for debugging you should probably
+do that.  Just specify the @code{--with-debug} options to @code{configure}!
+@xref{Installing source}.
+
 @end itemize
 
 @page
@@ -42049,6 +42056,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.34a::               
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -42086,7 +42094,13 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
+@node News-3.23.34a, News-3.23.34, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.34a
+@itemize @bullet
+Add extra files to distribution to allow one to compile Innobase.
+@end itemize
+
+@node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
@@ -42132,6 +42146,8 @@ Fixed bug in bi-directonal replication.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
+@item
+Fixed @code{MAX()} optimization on sub-key for @code{BDB} tables.
 @item
 Fixed problem with 'garbage results' when using @code{BDB} tables and
 @code{BLOB} or @code{TEXT} fields when joining many tables.
@@ -47046,6 +47062,12 @@ in some cases the @code{PROCEDURE} will not transform the columns.
 @item
 Creation of a table of type @code{MERGE} doesn't check if the underlying
 tables are of compatible types.
+@item
+@strong{MySQL} can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
+values in double. Using these will cause problems when trying to export
+and import data. We should as a intermediate solution change @code{NaN} to
+@code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
+Minimum respective maximum possible @code{double} value.
 @end itemize
 
 The following are known bugs in earlier versions of @strong{MySQL}:
@@ -47186,6 +47208,11 @@ characters in database, table and column names.
 @item
 Add a portable interface over @code{gethostbyaddr_r()} so that we can change
 @code{ip_to_hostname()} to not block other threads while doing DNS lookups.
+@item
+Add @code{record_in_range()} method to @code{MERGE} tables to be
+able to choose the right index when there is many to choose from. We should
+also extend the info interface to get the key distribution for each index,
+of @code{analyze} is run on all sub tables.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
@@ -47677,7 +47704,7 @@ send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
 If you can cause the @code{mysqld} server to crash quickly, you can try to
 create a trace file of this:
 
-Start the @code{mysqld} server with a trace log in @file{/tmp/mysql.trace}.
+Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}.
 The log file will get very @emph{BIG}.
 
 @code{mysqld --debug --log}

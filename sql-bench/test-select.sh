@@ -130,6 +130,37 @@ if ($opt_lock_tables)
 
 select_test:
 
+if ($limits->{'group_functions'})
+{
+  my ($tmp); $tmp=1000;
+  print "Test if the database has a query cache\n";
+
+  # First ensure that the table is read into memory
+  fetch_all_rows($dbh,"select sum(idn+$tmp),sum(rev_idn+$tmp) from bench1");
+
+  $loop_time=new Benchmark;
+  for ($tests=0 ; $tests < $opt_loop_count ; $tests++)
+  {
+    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn+$tests) from bench1");
+  }
+  $end_time=new Benchmark;
+  print "Time for select_query_cache ($opt_loop_count): " .
+     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+
+  # If the database has a query cache, the following loop should be much
+  # slower than the previous loop
+
+  $loop_time=new Benchmark;
+  for ($tests=0 ; $tests < $opt_loop_count ; $tests++)
+  {
+    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn+$tests) from bench1");
+  }
+  $end_time=new Benchmark;
+  print "Time for select_query_cache2 ($opt_loop_count): " .
+     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
+
+
 print "Testing big selects on the table\n";
 $loop_time=new Benchmark;
 $rows=0;
@@ -288,8 +319,21 @@ if ($limits->{'group_distinct_functions'})
   $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
-    $count+=2;
+    $count++;
     $rows+=fetch_all_rows($dbh,"select count(distinct region) from bench1");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
+  }
+  print_time($estimated);
+  print " for count_distinct_key_prefix ($count:$rows): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+  $loop_time=new Benchmark;
+  $rows=$estimated=$count=0;
+  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+  {
+    $count++;
     $rows+=fetch_all_rows($dbh,"select count(distinct grp) from bench1");
     $end_time=new Benchmark;
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
@@ -297,6 +341,20 @@ if ($limits->{'group_distinct_functions'})
   }
   print_time($estimated);
   print " for count_distinct ($count:$rows): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+  $loop_time=new Benchmark;
+  $rows=$estimated=$count=0;
+  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+  {
+    $count++;
+    $rows+=fetch_all_rows($dbh,"select count(distinct grp),count(distinct rev_idn) from bench1");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
+  }
+  print_time($estimated);
+  print " for count_distinct_2 ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;

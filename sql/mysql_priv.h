@@ -595,7 +595,7 @@ void change_byte(byte *,uint,char,char);
 void unireg_abort(int exit_code);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
-		      bool use_record_cache, bool print_errors);
+		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special,ha_rows max_rows);
