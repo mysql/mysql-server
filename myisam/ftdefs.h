@@ -112,7 +112,8 @@ int is_stopword(char *word, uint len);
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
 byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *, FTB_PARAM *);
-byte ft_simple_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *);
+byte ft_simple_get_word(CHARSET_INFO *, byte **, const byte *,
+                        FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;
