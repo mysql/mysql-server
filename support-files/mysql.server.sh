@@ -46,7 +46,7 @@ do
          # but for now it looks like only the mysqld ones are needed for
          # server startup scripts
          eval `sed -n -e '/^$/d' -e '/^#/d' -e 's,[ 	],,g' -e '/=/p' $c |\
-         awk -F= -v v=$v '{if ($1 == v) printf ("thevar=\"%s\"\n", $2)}'`
+         # awk -F= -v v=$v '{if ($1 == v) printf ("thevar=\"%s\"\n", $2)}'`
 
          # it would be easier if the my.cnf and variable values were
          # all matched, but since they aren't we need to map them here.

@@ -35,7 +35,7 @@ noinst_HEADERS =	global.h config-win.h \
 SUPERCLEANFILES =	mysql_version.h
 
 # Some include files that may be moved and patched by configure
-DISTCLEANFILES =	$(distdir)/sched.h
+DISTCLEANFILES =	sched.h
 
 all-local:	my_config.h my_global.h
 

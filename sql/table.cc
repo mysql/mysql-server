@@ -69,7 +69,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_stat = db_stat;
   error=1;
 
-  init_sql_alloc(&outparam->mem_root,1024);
+  init_sql_alloc(&outparam->mem_root,1024,0);
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
 
@@ -550,7 +550,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
   outparam->file=0;				// For easyer errorchecking
-  free_root(&outparam->mem_root);
+  free_root(&outparam->mem_root,MYF(0));
   my_free(outparam->table_name,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
 } /* openfrm */
@@ -578,7 +578,7 @@ int closefrm(register TABLE *table)
   delete table->file;
   table->file=0;				/* For easyer errorchecking */
   hash_free(&table->name_hash);
-  free_root(&table->mem_root);
+  free_root(&table->mem_root,MYF(0));
   DBUG_RETURN(error);
 }
 

@@ -63,13 +63,26 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   {
     if ((int) fd >= MY_NFILE)
     {
+#if defined(THREAD) && !defined(HAVE_PREAD)
+      (void) my_close(fd,MyFlags);
+      my_errno=EMFILE;
+      if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
+	my_error(EE_OUT_OF_FILERESOURCES, MYF(ME_BELL+ME_WAITTANG),
+		 FileName, my_errno);
+      DBUG_RETURN(-1);
+#else
+      thread_safe_increment(my_file_opened,&THR_LOCK_open);
       DBUG_PRINT("exit",("fd: %d",fd));
       DBUG_RETURN(fd);				/* safeguard */
+#endif
     }
     if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
     {
       my_file_opened++;
       my_file_info[fd].type = FILE_BY_CREATE;
+#if defined(THREAD) && !defined(HAVE_PREAD)
+      pthread_mutex_init(&my_file_info[fd].mutex,NULL);
+#endif
       DBUG_PRINT("exit",("fd: %d",fd));
       DBUG_RETURN(fd);
     }

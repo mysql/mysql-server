@@ -156,7 +156,7 @@ int  acl_init(bool dont_read_acl_tables)
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  init_sql_alloc(&mem,1024);
+  init_sql_alloc(&mem,1024,0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
   VOID(init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -272,7 +272,7 @@ int  acl_init(bool dont_read_acl_tables)
 
 void acl_free(bool end)
 {
-  free_root(&mem);
+  free_root(&mem,MYF(0));
   delete_dynamic(&acl_hosts);
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
@@ -323,7 +323,7 @@ void acl_reload(void)
   }
   else
   {
-    free_root(&old_mem);
+    free_root(&old_mem,MYF(0));
     delete_dynamic(&old_acl_hosts);
     delete_dynamic(&old_acl_users);
     delete_dynamic(&old_acl_dbs);
@@ -1845,7 +1845,7 @@ void  grant_free(void)
   DBUG_ENTER("grant_free");
   grant_option = FALSE;
   hash_free(&hash_tables);
-  free_root(&memex);
+  free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -1863,7 +1863,7 @@ int  grant_init (void)
   grant_option = FALSE;
   (void) hash_init(&hash_tables,0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
-  init_sql_alloc(&memex,1024);
+  init_sql_alloc(&memex,1024,0);
 
   if (!initialized)
     DBUG_RETURN(0);				/* purecov: tested */
@@ -1965,7 +1965,7 @@ void grant_reload(void)
   else
   {
     hash_free(&old_hash_tables);
-    free_root(&old_mem);
+    free_root(&old_mem,MYF(0));
   }
   pthread_mutex_unlock(&LOCK_grant);
   DBUG_VOID_RETURN;

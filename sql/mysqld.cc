@@ -145,7 +145,7 @@ static pthread_t select_thread;
 static pthread_t flush_thread;			// Used when debugging
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-            opt_ansi_mode;
+            opt_ansi_mode,opt_myisam_log=0;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
 
 // if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync, and are
@@ -205,6 +205,9 @@ ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       aborted_connects,delayed_insert_timeout,delayed_insert_limit,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time;
+ulong filesort_rows, filesort_range_count, filesort_scan_count;
+ulong select_range_check_count, select_range_count, select_scan_count;
+ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
       created_tmp_disk_tables=0;
 ulong max_connections,max_insert_delayed_threads,max_used_connections,
@@ -579,7 +582,7 @@ void clean_up(void)
     udf_free();
 #endif
   end_key_cache();			/* This is usually freed automaticly */
-  (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables */
+  (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
 #ifdef USE_RAID
   end_raid();
 #endif
@@ -1481,6 +1484,8 @@ int main(int argc, char **argv)
     sql_print_error("Can't init databases");
     exit(1);
   }
+  if (opt_myisam_log)
+    (void) mi_log( 1 );
   ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
 
 #ifdef __WIN__
@@ -1509,7 +1514,9 @@ int main(int argc, char **argv)
   {
     select_thread_in_use=0;
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
+#ifndef __WIN__
     (void) my_delete(pidfile_name,MYF(MY_WME));		// Not neaded anymore
+#endif
     exit(1);
   }
   if (!opt_noacl)
@@ -1643,7 +1650,9 @@ int main(int argc, char **argv)
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+#ifndef __WIN__
   (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
+#endif
   my_thread_end();
   exit(0);
   return(0);					/* purecov: deadcode */
@@ -2203,7 +2212,7 @@ static struct option long_options[] = {
   {"log",                   optional_argument, 0, 'l'},
   {"language",              required_argument, 0, 'L'},
   {"log-bin",               optional_argument, 0, (int) OPT_BIN_LOG},
-  {"log-bin-index",         optional_argument, 0, (int) OPT_BIN_LOG_INDEX},
+  {"log-bin-index",         required_argument, 0, (int) OPT_BIN_LOG_INDEX},
   {"log-isam",              optional_argument, 0, (int) OPT_ISAM_LOG},
   {"log-update",            optional_argument, 0, (int) OPT_UPDATE_LOG},
   {"log-slow-queries",      optional_argument, 0, (int) OPT_SLOW_QUERY_LOG},
@@ -2440,9 +2449,17 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
+  {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
+  {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
+  {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
+  {"Select_range_check",       (char*) &select_range_check_count, SHOW_LONG},
+  {"Select_scan",	       (char*) &select_scan_count,	SHOW_LONG},
+  {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) &long_query_count,       SHOW_LONG},
-  {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
+  {"Sort_range",	       (char*) &filesort_range_count,   SHOW_LONG},
+  {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
+  {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
@@ -2508,7 +2525,7 @@ static void usage(void)
   --log-bin-index=file  File that holds the names for last binary log files\n\
   --log-update[=file]	Log updates to file.# where # is a unique number\n\
 			if not given.\n\
-  --log-isam[=file]	Log all isam changes to file\n\
+  --log-isam[=file]	Log all MyISAM changes to file\n\
   --log-long-format	Log some extra information to update log\n\
   --low-priority-updates INSERT/DELETE/UPDATE has lower priority than selects\n\
   --log-slow-queries=[file]\n\
@@ -2583,7 +2600,9 @@ The default values (after parsing the command line arguments) are:\n\n");
   printf("datadir:     %s\n",mysql_real_data_home);
   printf("tmpdir:      %s\n",mysql_tmpdir);
   printf("language:    %s\n",language);
+#ifndef __WIN__
   printf("pid file:    %s\n",pidfile_name);
+#endif
   if (opt_logname)
     printf("logfile:     %s\n",opt_logname);
   if (opt_update_logname)
@@ -2739,9 +2758,9 @@ static void get_options(int argc,char **argv)
       thd_startup_options|=OPTION_BIG_TABLES;
       break;
     case (int) OPT_ISAM_LOG:
+      opt_myisam_log=1;
       if (optarg)
-	nisam_log_filename=optarg;
-      (void) nisam_log(1);
+	myisam_log_filename=optarg;
       break;
     case (int) OPT_UPDATE_LOG:
       opt_update_log=1;
@@ -3168,8 +3187,8 @@ static int get_service_parameters()
     else if ( lstrcmp(szKeyValueName, TEXT("ISAMLogFile")) == 0 )
     {
       CHECK_KEY_TYPE( REG_SZ, szKeyValueName );
-      COPY_KEY_VALUE( nisam_log_filename );
-      (void) nisam_log( 1 );
+      COPY_KEY_VALUE( myisam_log_filename );
+      opt_myisam_log=1;
     }
     else if ( lstrcmp(szKeyValueName, TEXT("LongLogFormat")) == 0 )
     {

@@ -341,7 +341,7 @@ MySQL language reference
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{FLUSH} syntax (clearing caches)
+* FLUSH::                       @code{Flush} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -421,7 +421,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 * SHOW VARIABLES::              
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
-* SHOW CREATE TABLE::
+* SHOW CREATE TABLE::           
 
 MySQL table types
 
@@ -647,6 +647,7 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -656,6 +657,7 @@ Solving some common problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -767,8 +769,9 @@ MySQL change history
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 3.23.x  (Released as beta)
+Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
@@ -6017,6 +6020,16 @@ patch could do - use at your own risk. We have also been told by the
 Linux kernel developers that this problem is fixed in 2.4, although we
 have not yet done any testing.
 
+The current implementation of mutex in Linuxthreads is also very bad for
+programs with many threads that only holds the mutex for a short time.
+We have made a patch availlable for glibc 2.1,
+@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
+and for glibc 2.2,
+@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}.
+
+If you apply the patches, you are doing this at your own risk; We can
+only say that they appear to work excellent for us!.
+
 If you can't start @code{mysqld} or if @code{mysql_install_db} doesn't work,
 please continue reading!  This only happens on Linux system with problems in
 the LinuxThreads or @code{libc}/@code{glibc} libraries. There are a lot of
@@ -7523,11 +7536,10 @@ a new thread!  WinNT and Win98 don't suffer from this bug.
 
 @item Concurrent reads
 @strong{MySQL} depends on the @code{pread()} and @code{pwrite()} calls to be
-able to mix @code{INSERT} and @code{SELECT}. As windows doesn't support these
-calls, @strong{MySQL} can't currently handle concurrent reads on windows.
-We plan to fix this by adding an extra mutex to each open file and simulate
-@code{pread()}/@code{pwrite()}.
-
+able to mix @code{INSERT} and @code{SELECT}. Currently we use mutexes
+to emulate @code{pread()}/@code{pwrite()}.  We will in the long run
+replace the file level interface with a virtual interface so that we can
+use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
 @item Blocking read
 @strong{MySQL} uses a blocking read for each connection.
 This means that:
@@ -8811,11 +8823,16 @@ table to a @code{MyISAM} table with @code{ALTER TABLE} or the Perl script
 The following lists tell what you have to watch out for when upgrading to 3.23:
 
 @itemize @bullet
-@item @strong{MySQL} client 'mysql' now starts with option --no-named-commands
-(-g) by default. This option can be disabled with --enable-named-commands
-(-G). This may cause incompatibility problems in some cases, for example
-in SQL scripts that use named commands without a semicolon, etc. !
-Long format commands still work from the first line.
+@item
+@code{OPTIMIZE TABLE} now only works for @strong{MyISAM} tables.
+For other table types, you can use @code{ALTER TABLE} to optimize the table.
+During @code{OPTIMIZE TABLE} the table is now locked from other threads.
+@item
+The @strong{MySQL} client @code{mysql} is now by default started with the
+option @code{--no-named-commands (-g)}. This option can be disabled with
+@code{--enable-named-commands (-G)}. This may cause incompatibility problems in
+some cases, for example in SQL scripts that use named commands without a
+semicolon!  Long format commands still work from the first line.
 @item
 If you are using the @code{german} character sort order, you must repair
 all your tables with @code{isamchk -r}, as we have made some changes in
@@ -9211,8 +9228,8 @@ Use of @code{LOAD DATA INFILE}. In many cases, this syntax is compatible with
 Oracle's @code{LOAD DATA INFILE}. @xref{LOAD DATA, , @code{LOAD DATA}}.
 
 @item
-The @code{OPTIMIZE TABLE} statement.
-@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}.
+The @code{ANALYZE TABLE}, @code{CHECK TABLE}, @code{OPTIMIZE TABLE} and
+@code{REPAIR TABLE} statements.
 
 @item
 The @code{SHOW} statement.
@@ -11217,6 +11234,11 @@ Another way to set the password is by using the @code{mysqladmin} command:
 shell> mysqladmin -u root password new_password
 @end example
 
+Only user with write/update access to the mysql database can change the
+password for others user.  All normal users (not anonymous ones) can only
+change his own password with either of the above commands or with
+@code{SET PASSWORD PASSWORD('new password')}
+
 Note that if you update the password in the @code{user} table directly using
 the first method, you must tell the server to reread the grant tables (with
 @code{FLUSH PRIVILEGES}), because the change will go unnoticed otherwise.
@@ -12413,6 +12435,9 @@ operation because it is automatically set to the date and time of the most
 recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
+
+A @code{TIMESTAMP} is always stored in 4 bytes; The @code{M} argument only
+affects how the @code{TIMESTAMP} column is displayed.
 
 Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
 be numbers while other @code{TIMESTAMP(X)} columns are reported to be
@@ -17033,7 +17058,7 @@ prevent an error from occurring for tables that don't exist.
 @section @code{OPTIMIZE TABLE} syntax
 
 @example
-OPTIMIZE TABLE tbl_name
+OPTIMIZE TABLE tbl_name[,tbl_name]...
 @end example
 
 @code{OPTIMIZE TABLE} should be used if you have deleted a large part of a
@@ -17043,17 +17068,28 @@ Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space.
 
-@code{OPTIMIZE TABLE} works by making a temporary copy of the original
-table; The old table is copied to the new table (without the unused
-rows), then the original table is deleted and the new one is
-renamed. While @code{OPTIMIZE TABLE} is executing, the original table is
-readable by other clients. Updates and writes to the table are stalled
-until the new table is ready. This is done in such a way that all updates
-are automatically redirected to the new table without any failed updates.
+For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM}
+tables.  You can get optimize table to work on other table types by
+starting @code{mysqld} with @code{--skip-new} or @code{--safe-mode}, but in
+this case @code{OPTIMIZE TABLE} is just mapped to @code{ALTER TABLE}.
 
-Currently @code{OPTIMIZE TABLE} is done by doing an @code{ALTER TABLE},
-but we will soon change this to use the @code{REPAIR} code, which will make
-the repair much faster for @code{MyISAM} tables.
+@code{OPTIMIZE TABLE} works the following way:
+@itemize @bullet
+@item
+If the table has deleted or split rows, repair the table.
+@item
+If the index pages are not sorted, sort them.
+@item
+If the statistics is not up to date (and the repair couldn't be done
+by sorting the index), update it.
+@end itemize
+
+@code{OPTIMIZE TABLE} is equvialent of running
+@code{myisamchk --quick --check-changed-tables --sort-index --analyze}
+on the table.
+
+Note that the table is locked during the time @code{OPTIMIZE TABLE} is
+running!
 
 @findex CHECK TABLE
 @node CHECK TABLE, ANALYZE TABLE, OPTIMIZE TABLE, Reference
@@ -18405,11 +18441,11 @@ Flushing the host tables allows the host to attempt to connect
 again. @xref{Blocked host}.) You can start @code{mysqld} with
 @code{-O max_connection_errors=999999999} to avoid this error message.
 
-@item @code{LOGS} @tab Closes and reopens the standard and update log
-files.  If you have specified the update log file without an extension,
-the extension number of the new update log file will be incremented by
-one relative to the previous file.  If you have used an extension in the
-file name, @strong{MySQL} will close and reopen the update log file.
+@item @code{LOGS} @tab Closes and reopens all log files.
+If you have specified the update log file or a binary log file without
+an extension, the extension number of the log file will be incremented
+by one relative to the previous file.  If you have used an extension in
+the file name, @strong{MySQL} will close and reopen the update log file.
 @xref{Update log}.
 
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
@@ -18676,9 +18712,17 @@ have..
 @item @code{Open_files} @tab  Number of files that are open.
 @item @code{Open_streams} @tab Number of streams that are open (used mainly for logging)
 @item @code{Opened_tables} @tab Number of tables that have been opened.
+@item @code{Select_full_join} @tab Number of joins without keys (Should be 0).
+@item @code{Select_full_range_join} @tab Number of joins where we used a range search on reference table.
+@item @code{Select_range} @tab Number of joins where we used ranges on the first table (It's normally not critical even if this is big)
+@item @code{Select_scan} @tab Number of joins where we scanned the first table.
+@item @code{Select_range_check} @tab Number of joins without keys where we check for key usage after each row (Should be 0).
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}. @xref{Slow query log}.
+@item @code{Sort_range} @tab Number of sorts that where done with ranges.
+@item @code{Sort_rows}  @tab Number of sorted rows.
+@item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
 @item @code{Threads_running} @tab Number of threads that are not sleeping.
@@ -23324,6 +23368,7 @@ doesn't support indexes. We will add indexes to this in the near future.
 
 @node Replication Intro, Replication Implementation, Replication, Replication
 @section Introduction
+
 One way replication can be used both to increase robustness and
 speed. For robustness you have two systems and switch to the backup if
 you have problems with the master. The extra speed is achieved by
@@ -23340,32 +23385,41 @@ slave upon connecting informs the master where it left off sinse the
 last successfully propogated update, catches up on the updates, and then
 blocks and waits for the master to notify it of the new updates.
 
+Note that if you are replicating a database, all updates to this
+database should be done through the master!
+
+On older servers one can use the update log to do simple replication.
+@xref{Log Replication}.
+
 @node Replication Implementation, Replication HOWTO, Replication Intro, Replication
 @section Replication Implementation Overview
 
 @strong{MySQL} internal replication uses the master-slave approach. One
 server is designated as the master, while the other ( or others) as
-slave(s). The master keeps a binary log of updates. The slave connects
-to the master, catches up on the missed updates, and then starts
-receiving updates immediately as they come to the master. If the
-connection is lost, the slave will reconnect. If the master goes down,
-the slave will keep trying to connect every @code{master-connect-retry}
-seconds until the master comes back up and the connection can be
-established. The slave keeps track of where it left off in the
-replication process, so it can use the info in the case it goes down and
-gets restarted later.
+slave(s). The master keeps a binary log of updates. @xref{Binary log}.
+The slave connects to the master, catches up on the missed updates, and
+then starts receiving updates immediately as they come to the master. If
+the connection is lost, the slave will reconnect. If the master goes
+down, the slave will keep trying to connect every
+@code{master-connect-retry} seconds until the master comes back up and
+the connection can be established. The slave keeps track of where it
+left off in the replication process, so it can use the info in the case
+it goes down and gets restarted later.
 
 @node Replication HOWTO, Replication Features, Replication Implementation, Replication
 @section HOWTO
-Below is a quick HOWTO on how to set up replication on your current system:
+
+Below is a quick HOWTO on how to set up replication on your current
+system:
 
 @itemize @bullet
 @item
 Upgrade both slave and master to 3.23.15 or higher. We recommend that
-you always use the latest 3.23 version on both the slave and the master. While
-3.23 is in beta, the versions may be not backwards compatible. In
-addition, the newer version will fix some bugs and add new features. Please, do not report bugs until you have verified that the problem is present in
-the latest release.
+you always use the latest 3.23 version on both the slave and the
+master. While 3.23 is in beta, the versions may be not backwards
+compatible. In addition, the newer version will fix some bugs and add
+new features. Please, do not report bugs until you have verified that
+the problem is present in the latest release.
 @item
 Set up special replication user(s) on the master with the @code{FILE}
 privilege and permission to connect from all the slaves. If the user is
@@ -24064,7 +24118,7 @@ among all threads.
 
 You can check if your table cache is too small by checking the mysqld
 variable @code{opened_tables}.  If this is quite big, even if you
-haven't done alot of @code{flush tables}, you should increase your table
+haven't done alot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS}.
 
 @node Creating many tables, Open tables, Table cache, System
@@ -27592,10 +27646,11 @@ shell> myisamchk -r tbl_name
 @end example
 
 You can optimize a table in the same way using the SQL @code{OPTIMIZE TABLE}
-statement.  @code{OPTIMIZE TABLE} is easier, but @code{myisamchk} is faster.
+statement.  @code{OPTIMIZE TABLE} does a repair of the table, a key
+analyzes and also sorts the index tree to give faster key lookups.
 There is also no possibility of unwanted interaction between a utility
 and the server, because the server does all the work when you use
-@code{OPTIMIZE TABLE}.
+@code{OPTIMIZE TABLE}. @xref{OPTIMIZE TABLE}.
 
 @code{myisamchk} also has a number of other options you can use to improve
 the performance of a table:
@@ -29558,8 +29613,8 @@ really big tables.
 For some @code{SELECT} queries, @strong{MySQL} also creates temporary SQL
 tables. These are not hidden and have names of the form @file{SQL_*}.
 
-@code{ALTER TABLE} and @code{OPTIMIZE TABLE} create a temporary table in the
-same directory as the original table.
+@code{ALTER TABLE} creates a temporary table in the same directory as
+the original table.
 
 @node  Problems with mysql.sock, Error Access denied, Temporary files, Problems
 @section How to protect @file{/tmp/mysql.sock} from being deleted
@@ -30123,6 +30178,7 @@ Drop or rename @code{old_table}
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -30132,15 +30188,16 @@ Drop or rename @code{old_table}
 @node Log Replication, Backup, Common problems, Common problems
 @section Database replication with update log
 
+Now that master-slave internal replication is available starting in
+3.23.15, this is the recommended way. @xref{Replication}.
 
-Now that master-slave internal replication is available starting in 3.23.15,
-this is the recommended way. However, it is still possible to replicate a database by
-using the update
-log. @xref{Update log}. This requires one database that acts as a master
-(to which data changes are made) and one or more other databases that act
-as slaves. To update a slave, just run @code{mysql < update_log}.
-Supply host, user and password options that are appropriate for the slave
-database, and use the update log from the master database as input.
+However, it is still possible to replicate a database by using the
+update log. @xref{Update log}. This requires one database that acts as a
+master (to which data changes are made) and one or more other databases
+that act as slaves. To update a slave, just run @code{mysql <
+update_log}.  Supply host, user and password options that are
+appropriate for the slave database, and use the update log from the
+master database as input.
 
 If you never delete anything from a table, you can use a @code{TIMESTAMP}
 column to find out which rows have been inserted or changed in the table
@@ -30229,7 +30286,7 @@ to be replaced with new ones when a new record duplicates an old record on
 a unique key value.
 
 @cindex Update log
-@node Update log, Slow query log, Backup, Common problems
+@node Update log, Binary log, Backup, Common problems
 @section The update log
 
 When started with the @code{--log-update[=file_name]} option,
@@ -30283,8 +30340,58 @@ This can be useful if you have to revert to backup files after a crash
 and you want to redo the updates that occurred between the time of the backup
 and the crash.
 
+@cindex Binary log
+@node Binary log, Slow query log, Update log, Common problems
+@section The binary log 
+
+In the future we expect the binary log to replace the update log!
+
+The binary log contains all information that is available in the update
+log in a more efficient format. It also contains information of how long
+time every query that updated the database took.
+
+The binary log is also used when you are replication a slave from a master.
+@xref{Replication}.
+
+When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
+writes a log file containing all SQL commands that update data. If no
+file name is given, it defaults to the name of the host machine followed
+by @code{-bin}., If file name is given, but it doesn't contain a path the
+file is written in the data directory.
+
+To the binary log file name mysqld will append an extensions that is a
+number that is incremented each time you execute @code{mysqladmin
+refresh} or @code{mysqladmin flush-logs}, the @code{FLUSH LOGS}
+statement or restart the server.
+
+To be able to know which different binary log files that has been used
+@code{mysqld} will also create a binary log index file which will
+contain name of all used binary log files. By default this is has the
+same name as the binary log file, with the extension @code{'.index'}.
+You can change the name of the binary log index file with the
+@code{--log-bin-index=[filename]} option.
+
+If you are using replication, you should not delete old binary log
+files until you are sure that no slave will ever need to use them.
+One way to do this is to do @code{mysqladmin flush-logs} once a day and then
+remove any logs that are more than 3 days old.
+
+You can examine the binary log file with the @code{mysqlbinlib} command.
+For example, you can update a @strong{MySQL} server from the binary log
+as follows:
+
+@example
+mysqlbinlog log-file | mysql -h server_name
+@end example
+
+You can also use @file{mysqlbinlog} program to read the binary log
+direct from a remote mysql server!
+
+@code{mysqlbinlog --help} will give you more information of how to use
+this program!
+
 @cindex Slow query log
-@node Slow query log, Multiple servers, Update log, Common problems
+@node Slow query log, Multiple servers, Binary log, Common problems
 @section The slow query log
 
 When started with the @code{--log-slow-queries[=file_name]} option,
@@ -35102,7 +35209,7 @@ only on Linux.
 You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker091.zip,MySQL-Maker 091}.
+@item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker092.zip,MySQL-Maker 092}.
 Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
 you to create, change and delete databases and tables.
 You can change field - structure and add, change and delete data in
@@ -35281,16 +35388,15 @@ User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha 
 @appendixsec Authentication tools
 
 @itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/ascend-radius-mysql-0.7.1.patch.gz,
-ascend-radius-mysql-0.7.1.patch.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/ascend-radius-mysql-0.7.2.patch.gz,ascend-radius-mysql-0.7.2.patch.gz}
 This is authentication and logging patch using @strong{MySQL} for
 Ascend-Radius. By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/icradius-0.10.tar.gz, icradius 0.10}
 @uref{http://www.mysql.com/Downloads/Contrib/icradius.README, icradius readme file}
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/checkpassword-0.81-mysql-0.6.5.patch.gz,
-checkpassword-0.81-mysql-0.6.5.patch.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/checkpassword-0.81-mysql-0.6.6.patch.gz,
+checkpassword-0.81-mysql-0.6.6.patch.gz}
 @strong{MySQL} authentication patch for QMAIL and checkpassword. These are
 useful for management user(mail,pop account) by @strong{MySQL}.
 By @email{takeshi@@SoftAgency.co.jp}
@@ -35849,6 +35955,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
@@ -35876,7 +35983,36 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.24, News-3.23.23, News-3.23.x, News-3.23.x
+@node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.25
+@itemize @bullet
+@item
+Fixed bug in mysqldump from 3.23 which caused that some @code{CHAR} columns
+wheren't quoted.
+@item
+Merged @code{analyze}, @code{check}, @code{optimize} and repair code.
+@item
+@code{OPTIMIZE TABLE} is now mapped to @code{REPAIR} with statistics and
+sorting of the index tree.  This means that for the moment it only
+works on @code{MyISAM} tables.
+@item
+Added a pre-alloced block to root_malloc to get fewer mallocs.
+@item
+Added a lot of new statistics variables.
+@item
+Fixed @code{ORDER BY} bug with BDB tables.
+@item
+Removed warning that mysqld couldn't remove the .pid file under Windows.
+@item
+Changed @code{--log-isam} to log @strong{MyISAM} tables instead of isam
+tables.
+@item
+Fixed that @code{CHECK TABLE} works on windows.
+@item
+Added file mutexes to make @code{pwrite()} safe on Windows.
+@end itemize
+
+@node News-3.23.24, News-3.23.23, News-3.23.25, News-3.23.x
 @appendixsubsec Changes in release 3.23.24
 @itemize @bullet
 @item
@@ -35886,7 +36022,7 @@ To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, @strong{MySQL} now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
-Changed sort order for latin1 as it was before @strong{MySQL} 3.23.22.
+Changed sort order for latin1 as it was before @strong{MySQL} 3.23.23.
 Any table with @code{CHAR} columns that may have characters with ASCII
 values greater than 128 that was created or modified with 3.23.22 must
 be repaired!

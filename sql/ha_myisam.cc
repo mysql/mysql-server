@@ -30,10 +30,6 @@
 #include "../myisam/myisamdef.h"
 #endif
 
-#if !defined(HAVE_PREAD)
-pthread_mutex_t THR_LOCK_keycache;
-#endif
-
 ulong myisam_sort_buffer_size;
 
 /*****************************************************************************
@@ -228,7 +224,7 @@ int ha_myisam::write_row(byte * buf)
 
 int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  if (!file) return HA_CHECK_INTERNAL_ERROR;
+  if (!file) return HA_ADMIN_INTERNAL_ERROR;
   int error ;
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
@@ -249,7 +245,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 				 STATE_CRASHED_ON_REPAIR)) &&
 	share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && share->state.open_count == 0)))
-    return HA_CHECK_ALREADY_CHECKED;
+    return HA_ADMIN_ALREADY_DONE;
 
   error = chk_size(&param, file);
   if (!error)
@@ -277,17 +273,11 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
-#ifndef HAVE_PREAD
-      pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
-#endif
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 			       STATE_CRASHED_ON_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
 	error=update_state_info(&param,file,UPDATE_TIME | UPDATE_OPEN_COUNT |
 				UPDATE_STAT);
-#ifndef HAVE_PREAD
-      pthread_mutex_unlock(&THR_LOCK_keycache);// QQ; Has to be removed!
-#endif
       pthread_mutex_unlock(&share->intern_lock);
       info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	   HA_STATUS_CONST);
@@ -299,7 +289,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
 
-  return error ? HA_CHECK_CORRUPT : HA_CHECK_OK;
+  return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
 
@@ -309,7 +299,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   two threads may do an analyze at the same time!
 */
 
-int ha_myisam::analyze(THD *thd)
+int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 {
   int error=0;
   MI_CHECK param;
@@ -323,62 +313,104 @@ int ha_myisam::analyze(THD *thd)
 		  T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
 
-  if (share->state.changed & STATE_NOT_ANALYZED)
+  if (!(share->state.changed & STATE_NOT_ANALYZED))
+    return HA_ADMIN_ALREADY_DONE;
+
+  error = chk_key(&param, file);
+  if (!error)
   {
-    error = chk_key(&param, file);
-    if (!error)
-    {
-      pthread_mutex_lock(&share->intern_lock);
-#ifndef HAVE_PREAD
-      pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
-#endif
-      error=update_state_info(&param,file,UPDATE_STAT);
-#ifndef HAVE_PREAD
-      pthread_mutex_unlock(&THR_LOCK_keycache);// QQ; Has to be removed!
-#endif
-      pthread_mutex_unlock(&share->intern_lock);
-    }
-    else if (!mi_is_crashed(file))
-      mi_mark_crashed(file);
+    pthread_mutex_lock(&share->intern_lock);
+    error=update_state_info(&param,file,UPDATE_STAT);
+    pthread_mutex_unlock(&share->intern_lock);
   }
-  return error ? HA_CHECK_CORRUPT : HA_CHECK_OK;
+  else if (!mi_is_crashed(file))
+    mi_mark_crashed(file);
+  return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
 
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
-  if (!file) return HA_CHECK_INTERNAL_ERROR;
+  if (!file) return HA_ADMIN_INTERNAL_ERROR;
   MI_CHECK param;
 
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.testflag = (check_opt->flags | T_SILENT|T_FORCE_CREATE|T_REP_BY_SORT|
-		    T_STATISTICS);
+  param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
+		    T_REP_BY_SORT);
   if (check_opt->quick)
     param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
-  return repair(thd,param);
+  return repair(thd,param,0);
+}
+
+int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  if (!file) return HA_ADMIN_INTERNAL_ERROR;
+  MI_CHECK param;
+
+  myisamchk_init(&param);
+  param.thd = thd;
+  param.op_name = (char*) "optimize";
+  param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
+		    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
+  param.opt_rep_quick++;
+  param.sort_buffer_length=  check_opt->sort_buffer_size;
+  return repair(thd,param,1);
 }
 
 
-int ha_myisam::repair(THD *thd, MI_CHECK &param)
+int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 {
-  int error;
+  int error=0;
+  bool optimize_done= !optimize;
   char fixed_name[FN_REFLEN];
+  const char *old_proc_info=thd->proc_info;
   MYISAM_SHARE* share = file->s;
 
   param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd=thd;
-
+    
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
-  if (mi_test_if_sort_rep(file,file->state->records))
-    error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
-  else
-    error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
+
+  if (!optimize || file->state->del ||
+      share->state.split != file->state->records)
+  {
+    optimize_done=1;
+    if (mi_test_if_sort_rep(file,file->state->records))
+    {
+      param.testflag|= T_STATISTICS;		// We get this for free
+      thd->proc_info="Repairing by sorting";
+      error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
+    }
+    else
+    {
+      thd->proc_info="Repairing";
+      error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
+    }
+  }
+  if (!error)
+  {
+    if ((param.testflag & T_SORT_INDEX) &&
+	(share->state.changed & STATE_NOT_SORTED_PAGES))
+    {
+      optimize_done=1;
+      thd->proc_info="Sorting index";
+      error=mi_sort_index(&param,file,fixed_name);
+    }
+    if ((param.testflag & T_STATISTICS) &&
+	(share->state.changed & STATE_NOT_ANALYZED))
+    {
+      optimize_done=1;
+      thd->proc_info="Analyzing";
+      error = chk_key(&param, file);
+    }
+  }
+  thd->proc_info="saving state";
   if (!error)
   {
     if (share->state.changed & STATE_CHANGED)
@@ -390,7 +422,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
     file->save_state=file->s->state.state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
-    error = update_state_info(&param, file, UPDATE_TIME|UPDATE_STAT);
+    error = update_state_info(&param, file,
+			      UPDATE_TIME |
+			      (param.testflag & T_STATISTICS ?
+			       UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	 HA_STATUS_CONST);
   }
@@ -407,6 +442,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
 	We have to close all instances of this file to ensure that we can
 	do the rename safely and that all threads are using the new version.
       */
+      thd->proc_info="renaming file";
       VOID(pthread_mutex_lock(&LOCK_open));
       if (close_cached_table(thd,table))
 	error=1;
@@ -421,7 +457,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
   }
-  return error ? HA_REPAIR_FAILED : HA_REPAIR_OK;
+  thd->proc_info=old_proc_info;
+  return (error ? HA_ADMIN_FAILED :
+          !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }
 
 
@@ -451,7 +489,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
     param.opt_rep_quick++;
-    error=repair(thd,param) != HA_CHECK_OK;
+    error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
   }
   DBUG_RETURN(error);

@@ -387,7 +387,7 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
 {
   if (!no_alloc)
   {
-    init_sql_alloc(&alloc,1024);		// Allocates everything here
+    init_sql_alloc(&alloc,1024,0);		// Allocates everything here
     my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
   }
   else
@@ -400,7 +400,7 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
 QUICK_SELECT::~QUICK_SELECT()
 {
   file->index_end();
-  free_root(&alloc);
+  free_root(&alloc,MYF(0));
 }
 
 
@@ -622,13 +622,13 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     param.keys=0;
 
     current_thd->no_errors=1;			// Don't warn about NULL
-    init_sql_alloc(&alloc,2048);
+    init_sql_alloc(&alloc,2048,0);
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
 						   sizeof(KEY_PART)*
 						   head->key_parts)))
     {
       current_thd->no_errors=0;
-      free_root(&alloc);			// Return memory & allocator
+      free_root(&alloc,MYF(0));			// Return memory & allocator
       DBUG_RETURN(0);				// Can't use range
     }
     key_parts= param.key_parts;
@@ -720,7 +720,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	}
       }
     }
-    free_root(&alloc);				// Return memory & allocator
+    free_root(&alloc,MYF(0));			// Return memory & allocator
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
     current_thd->no_errors=0;
   }

@@ -39,7 +39,7 @@
 # "3-byte int" or "same as xxx".
 
 
-$version="1.48";
+$version="1.49";
 
 use DBI;
 use Getopt::Long;
