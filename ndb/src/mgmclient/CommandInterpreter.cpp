@@ -340,7 +340,6 @@ static const char* helpTextDebug =
 #ifdef ERROR_INSERT
 "<id> ERROR <errorNo>                  Inject error into NDB node\n"
 #endif
-"<id> TRACE <traceNo>                  Set trace number\n"
 "<id> LOG [BLOCK = {ALL|<block>+}]     Set logging on in & out signals\n"
 "<id> LOGIN [BLOCK = {ALL|<block>+}]   Set logging on in signals\n"
 "<id> LOGOUT [BLOCK = {ALL|<block>+}]  Set logging on out signals\n"
