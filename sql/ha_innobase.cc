@@ -981,7 +981,10 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
- 	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
+	ib_table = dict_table_get_and_increment_handle_count(
+				      		     norm_name, NULL);
+
+ 	if (NULL == ib_table) {
 
 	  fprintf(stderr,
 "InnoDB: Error: cannot find table %s from the internal data dictionary\n"

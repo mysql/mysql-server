@@ -27,13 +27,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0types.h"
 
 /************************************************************************
-Increments the count of open MySQL handles to a table. */
-
-void
-dict_table_increment_handle_count(
-/*==============================*/
-	dict_table_t*	table);	/* in: table */
-/************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
 void
@@ -194,6 +187,16 @@ dict_table_get(
 				/* out: table, NULL if does not exist */
 	char*	table_name,	/* in: table name */
 	trx_t*	trx);		/* in: transaction handle */
+/**************************************************************************
+Returns a table object and increments MySQL open handle count on the table.
+*/
+
+dict_table_t*
+dict_table_get_and_increment_handle_count(
+/*======================================*/
+				/* out: table, NULL if does not exist */
+	char*	table_name,	/* in: table name */
+	trx_t*	trx);		/* in: transaction handle or NULL */
 /**************************************************************************
 Returns a table object, based on table id, and memoryfixes it. */
 
