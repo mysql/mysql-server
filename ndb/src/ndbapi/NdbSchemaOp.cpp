@@ -29,6 +29,7 @@ Documentation: Handles createTable and createAttribute calls
 Adjust:  980125  UABMNST   First version.
          020826  EMIKRON   New version for new DICT
 *****************************************************************************/
+#include <assert.h>
 #include "NdbSchemaOp.hpp"
 #include "NdbSchemaCon.hpp"
 #include "API.hpp"
@@ -139,6 +140,8 @@ NdbSchemaOp::createAttribute( const char* anAttrName,
   case String:
     col.setType(NdbDictionary::Column::Char);
     break;
+  default:
+    assert(0);
   }
   col.setLength(anArraySize);
   col.setNullable(nullable);

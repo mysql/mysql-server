@@ -47,7 +47,7 @@
  *  Used by transporter and when communicating with
  *     managment server
  */
-//#define NDB_VERSION_ID 0
+/*#define NDB_VERSION_ID 0*/
 
 #endif
  

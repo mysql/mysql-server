@@ -42,7 +42,7 @@ NDB_TICKS NdbTick_CurrentMillisecond(void);
  */
 int NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros);
 
-//#define TIME_MEASUREMENT
+  /*#define TIME_MEASUREMENT*/
 #ifdef TIME_MEASUREMENT
 
 struct MicroSecondTimer {
