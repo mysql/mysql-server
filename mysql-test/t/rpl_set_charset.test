@@ -38,3 +38,5 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+connection master;
+drop database mysqltest1;
