@@ -1071,6 +1071,12 @@ bool MYSQL_LOG::write(Log_event* event_info)
       No check for auto events flag here - this write method should
       never be called if auto-events are enabled
     */
+
+    /*
+    1. Write first log events which describe the 'run environment'
+    of the SQL command
+    */
+
     if (thd)
     {
       if (thd->last_insert_id_used)
@@ -1109,11 +1115,50 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	if (e.write(file))
 	  goto err;
       }
+
+      /* If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
+      command in the binlog inside:
+      SET FOREIGN_KEY_CHECKS=0;
+      <command>;
+      SET FOREIGN_KEY_CHECKS=1; */
+
+      if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+      {
+	char buf[256], *p;
+	p= strmov(buf, "SET FOREIGN_KEY_CHECKS=0");
+	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
     }
+
+    /*
+    2. Write the SQL command
+    */
+
     event_info->set_log_pos(this);
     if (event_info->write(file) ||
-	file == &log_file && flush_io_cache(file))
+	  file == &log_file && flush_io_cache(file))
       goto err;
+
+    /*
+    3. Write log events to reset the 'run environment' of the SQL command 
+    */
+
+    if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+    {
+      char buf[256], *p;
+
+      p= strmov(buf, "SET FOREIGN_KEY_CHECKS=1");
+      Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+      e.set_log_pos(this);
+
+      if (e.write(file) ||
+	  file == &log_file && flush_io_cache(file))
+	goto err;
+    }
+ 
     error=0;
 
     /*
