@@ -19,7 +19,10 @@ connection master;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
-connect (con3,localhost,,,);
+# We want to connect as an unprivileged user. But if we use user="" then this
+# will pick the Unix login, which will cause problems if you're running the test
+# as root.
+connect (con3,localhost,zedjzlcsjhd,,);
 
 # We are going to use SET PSEUDO_THREAD_ID in this test;
 # check that it requires the SUPER privilege.
