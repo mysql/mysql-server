@@ -2572,7 +2572,7 @@ drop procedure bug7013|
 # BUG#7743: 'Lost connection to MySQL server during query' on Stored Procedure
 #
 --disable_warnings
-drop table if exists t4;
+drop table if exists t4|
 --enable_warnings
 create table t4 (
   a mediumint(8) unsigned not null auto_increment,
