@@ -1658,7 +1658,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   };
 
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-
+  if (handle_duplicates == DUP_IGNORE)
+    to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   next_field=to->next_number_field;
   while (!(error=info.read_record(&info)))
   {
@@ -1694,6 +1695,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->file->print_error(tmp_error,MYF(0));
     error=1;
   }
+  to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (to->file->activate_all_index(thd))
     error=1;
 

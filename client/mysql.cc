@@ -505,10 +505,12 @@ static void usage(int version)
 			log.\n");
 #ifndef __WIN__
   printf("\
-  --pager[=...]         Output type. Default is your ENV variable PAGER.\n\
+  --pager[=...]         Pager to use to display results. If you don't supply\n\
+                        an option the default pager is taken from your ENV\n\
+                        variable PAGER (%s).\n\
                         Valid pagers are less, more, cat [> filename], etc.\n\
                         See interactive help (\\h) also. This option does\n\
-                        not work in batch mode.\n");
+                        not work in batch mode.\n", getenv("PAGER") ? getenv("PAGER") : "");
 #endif
   printf("\
   -p[password], --password[=...]\n\

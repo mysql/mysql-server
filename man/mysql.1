@@ -116,6 +116,13 @@ executable shell script for starting mysqld safely
 .TP
 .I /site/var/mysql/data
 location of database files
+.SH EXAMPLE
+You can also read a backup dump file back into MySQL with: 
+.TP
+.BR mysql 
+\fP\fIdatabase\fP 
+.BR < 
+backup-file.sql
 .SH "SEE ALSO"
 isamchk (1),
 isamlog (1),

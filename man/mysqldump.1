@@ -1,0 +1,273 @@
+.TH MYSQLDUMP 1 "19 December 2000"
+.SH NAME
+mysqldump \- text-based client for dumping or backing up mysql databases , tables and or data.
+
+.SH  USAGE
+.BR "mysqldump [\fP\fIOPTIONS\fP] database [\fP\fItables\fP]"
+.TP
+OR
+.BR "mysqldump [\fP\fIOPTIONS\fP] \-\-databases [\fP\fIOPTIONS\fP] DB1 [\fP\fIDB2 DB3...\fP]"
+.TP
+OR
+.BR "mysqldump [\fP\fIOPTIONS\fP] \-\-all-databases [\fP\fIOPTIONS\fP]"
+
+.SH OPTION SYNOPSIS
+.B mysqldump
+.RB [  \-A | \-\-all-databases ]
+.RB [  \-a | \-\-all ]
+.RB [  \-# | \-\-debug=... ]
+.RB [  \-\-character-sets-dir=...]
+.RB [ \-? | \-\-help       ]
+.RB [  \-B | \-\-databases     ]
+.RB [  \-c | \-\-complete-insert ]
+.RB [  \-C | \-\-compress       ]
+.RB [  \-\-default-character-set=...]
+.RB [ \-e | \-\-extended-insert ]
+.RB [  \-\-add-drop-table      ]
+.RB [  \-\-add-locks          ] 
+.RB [  \-\-allow-keywords      ]
+.RB [  \-\-delayed-insert      ]
+.RB [  \-F | \-\-flush-logs    ]
+.RB [  \-f | \-\-force     ]     
+.RB [  \-h | \-\-host=...       ]
+.RB [  \-l | \-\-lock-tables    ]
+.RB [  \-n | \-\-no-create-db ]   
+.RB [  \-t | \-\-no-create-info  ]
+.RB [  \-d | \-\-no-data     ]    
+.RB [  \-O | \-\-set-variable var=\fP\fIoption\fP         ]               
+.RB [  \-\-opt       ]         
+.RB [  \-p | \-\-password\fP\fI[=...]\fP  ]
+.RB [  \-P | \-\-port=...       ]
+.RB [  \-q | \-\-quick      ]    
+.RB [  \-Q | \-\-quote-names ]   
+.RB [  \-S | \-\-socket=...  ] 
+.RB [  \-\-tables   ]       
+.RB [  \-T | \-\-tab=...  ]      
+.RB [  \-u | \-\-user=# ]
+.RB [  \-v | \-\-verbose  ]
+.RB [  \-V | \-\-version ]    
+.RB [  \-w | \-\-where= ]
+.RB [ \-\-delayed ]
+.RB [ \-e | \-\-extended-insert ]
+.RB [ \-\-fields\-terminated\-by=... ]
+.RB [ \-\-fields\-enclosed\-by=... ]
+.RB [ \-\-fields-optionally\-enclosed\-by=... ]
+.RB [ \-\-fields\-escaped\-by=... ]
+.RB [ \-\-lines\-terminated\-by=... ]
+.RB [ \-v | \-\-verbose ]
+.RB [ \-V | \-\-version ]
+.RB [ "\-O net_buffer_length=#, where # < 16M" ]
+.SH DESCRIPTION
+Dumping definition and data mysql database or table
+.IR mysqldump
+supports by executing 
+.TP 
+.BR  \-A | \-\-all\-databases 
+Dump all the databases. This will be same as
+.BR\-\-databases 
+with all databases selected.
+.TP                        
+.BR    \-a | \-\-all
+Include all MySQL specific create options.
+.TP  
+.BR   \-# | \-\-debug=...
+Output debug log. Often this is 'd:t:o,filename`.
+.TP  
+.BR    \-\-character\-sets\-dir=...
+Directory where character sets are
+.TP 
+.BR    \-? | \-\-help
+Display this help message and exit.
+.TP  
+.BR \-B | \-\-databases
+To dump several databases. Note the difference in
+usage; In this case no tables are given. All name
+arguments are regarded as databasenames.
+'USE db_name;' will be included in the output
+.TP  
+.BR    \-c | \-\-complete\-insert 
+Use complete insert statements.
+.TP  
+.BR    \-C | \-\-compress 
+Use compression in server/client protocol.
+.TP  
+.BR    \-\-default\-character\-set=...
+Set the default character set
+.TP  
+.BR    \-e | \-\-extended\-insert 
+Allows utilization of the new, much faster
+INSERT syntax.
+.TP  
+.BR    \-\-add\-drop\-table
+Add a 'drop table' before each create.
+.TP  
+.BR    \-\-add\-locks
+Add locks around insert statements.
+.TP  
+.BR    \-\-allow\-keywords 
+Allow creation of column names that are keywords.
+.TP  
+.BR    \-\-delayed\-insert
+Insert rows with INSERT DELAYED.
+.TP  
+.BR    \-F | \-\-flush\-logs
+Flush logs file in server before starting dump.
+.TP  
+.BR    \-f | \-\-force 
+Continue even if we get an sql\-error.
+.TP  
+.BR    \-h | \-\-host=...
+Connect to host.
+.TP  
+.BR    \-l | \-\-lock\-tables
+Lock all tables for read.
+.TP  
+.BR    \-n | \-\-no\-create\-db 
+'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'
+will not be put in the output. The above line will
+be added otherwise, if 
+.BR \-\-databases 
+or
+.BR \-\-all\-databases 
+option was given.
+.TP  
+.BR    \-t | \-\-no\-create\-info  
+Don't write table creation info.
+.TP  
+.BR    \-d | \-\-no\-data
+No row information.
+.TP  
+.BR    \-O | "\-\-set\-variable var=option"
+give a variable a value. 
+.BR \-\-help 
+lists variables
+.TP  
+.BR   \-\-opt
+Same as 
+.BR " \-\-add\-drop\-table \-\-add\-locks \-\-all \-\-extended\-insert \-\-quick \-\-lock\-tables "
+.TP  
+.BR    \-p | \-\-password[=...]  
+Password to use when connecting to server.
+If password is not given it's solicited on the tty.
+.TP  
+.BR    \-P | \-\-port=...
+Port number to use for connection.
+.TP  
+.BR    \-q | \-\-quick 
+Don't buffer query, dump directly to stdout.
+.TP  
+.BR    \-Q | \-\-quote\-names
+Quote table and column names with `
+.TP  
+.BR \-S | \-\-socket=...
+Socket file to use for connection.
+.TP  
+.BR    \-\-tables
+\fP\fIOverrides \fPoption 
+.BR \-\-databases (\-B).
+.TP  
+.BR    \-T | \-\-tab=...
+Creates tab separated textfile for each table to
+given path. (creates .sql and .txt files).
+NOTE: This only works if mysqldump is run on
+the same machine as the mysqld daemon.
+.TP  
+.BR    \-u | \-\-user=#  
+User for login if not current user.
+.TP  
+.BR    \-v | \-\-verbose 
+Print info about the various stages.
+.TP  
+.BR    \-V | \-\-version   
+Output version information and exit.
+.TP  
+.BR    \-w | \-\-where=    
+dump only selected records; QUOTES mandatory!
+.TP 
+.BR \-\-delayed 
+Insert rows with the INSERT DELAYED command. 
+.TP 
+.BR \-e | \-\-extended-insert 
+Use the new multiline INSERT syntax. (Gives more compact and faster inserts statements.) 
+.TP 
+.BR \-\-fields\-terminated\-by=... 
+.TP 
+.BR \-\-fields\-enclosed\-by=... 
+.TP 
+.TP 
+.BR \-\-fields-optionally\-enclosed\-by=... 
+.TP 
+.BR \-\-fields\-escaped\-by=... 
+.TP 
+.BR \-\-lines\-terminated\-by=... 
+These options are used with the 
+.BR -T 
+option and have the same meaning as the corresponding clauses for LOAD DATA INFILE. See Mysql manual section 7.23 LOAD DATA INFILE Syntax. 
+.TP 
+.BR \-v | \-\-verbose 
+Verbose mode. Print out more information on what the program does. 
+.TP 
+.BR \-V | \-\-version 
+Print version information and exit. 
+.TP 
+.BR "\-O net_buffer_length=#, where # < 16M "
+When creating multi-row-insert statements (as with option 
+.BR --extended-insert 
+or 
+.BR --opt
+), mysqldump will create rows up to net_buffer_length length. If you increase this variable, you should also ensure that the max_allowed_packet variable in the MySQL server is bigger than the net_buffer_length. 
+.SH EXAMPLES
+.TP
+The most normal use of mysqldump is probably for making a backup of whole databases. See Mysql Manual section 21.2 Database Backups. 
+.TP
+mysqldump  \-\-opt \fP\fIdatabase\fP > backup-file.sql
+.TP
+You can read this back into MySQL with: 
+.TP
+.BR mysql 
+\fP\fIdatabase\fP 
+.BR < 
+backup-file.sql
+.TP
+or 
+.TP
+.BR mysql 
+\-e 'source /patch\-to\-backup/backup\-file.sql' database
+.TP
+However, it's also very useful to populate another MySQL server with information from a database: 
+.TP
+mysqldump \-\-opt \fP\fIdatabase\fP | mysql \-\-host=\fP\fIremote\-host\fP \-C database
+.TP
+It is possible to dump several databases with one command: 
+.TP
+mysqldump \-\-databases database1 [ database2 database3... ]  > my_databases.sql
+.TP
+If all the databases are wanted, one can use: 
+.TP
+mysqldump \fP\fI\-\-all\-databases\fP > all_databases.sql
+
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

@@ -76,7 +76,8 @@
 
 const char *ha_berkeley_ext=".db";
 bool berkeley_skip=0,berkeley_shared_data=0;
-u_int32_t berkeley_init_flags= DB_PRIVATE, berkeley_lock_type=DB_LOCK_DEFAULT;
+u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
+          berkeley_lock_type=DB_LOCK_DEFAULT;
 ulong berkeley_cache_size;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
@@ -125,6 +126,7 @@ bool berkeley_init(void)
   db_env->set_noticecall(db_env, berkeley_noticecall);
   db_env->set_tmp_dir(db_env, berkeley_tmpdir);
   db_env->set_data_dir(db_env, mysql_data_home);
+  db_env->set_flags(db_env, berkeley_env_flags, 1);
   if (berkeley_logdir)
     db_env->set_lg_dir(db_env, berkeley_logdir);
 
@@ -790,6 +792,7 @@ int ha_berkeley::write_row(byte * record)
     error=file->put(file, transaction, create_key(&prim_key, primary_key,
 						  key_buff, record),
 		    &row, key_type[primary_key]);
+    last_dup_key=primary_key;
   }
   else
   {
@@ -818,6 +821,8 @@ int ha_berkeley::write_row(byte * record)
 	  }
 	}
       }
+      else
+	last_dup_key=primary_key;
       if (!error)
       {
 	DBUG_PRINT("trans",("committing subtransaction"));

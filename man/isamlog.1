@@ -1,0 +1,103 @@
+.TH ISAMLOG 1 "20 December 2000" 
+.SH NAME 
+isamlog - Write info about whats in a nisam log file. 
+.SH USAGE 
+isamlog [-?iruvIV] [-c #] [-f #] [-F filepath/] [-o #] [-R file recordpos] [-w write_file] [log-filename [table ...]] 
+.SH SYNOPSIS 
+.B isamlog 
+.RB [ -?  |  -I ] 
+.RB [ -V ] 
+.RB [ -c ] 
+.RB [ -f ] 
+.RB [ -F ] 
+.RB [ -i ] 
+.RB [ -o ] 
+.RB [ "-p #" ] 
+.RB [ -r ] 
+.RB [ -R ] 
+.RB [ -u ] 
+.RB [ -v ] 
+.RB [ -w ] 
+.SH DESCRIPTION 
+.TP
+.BR isamlog
+.TP
+.BR -?  |  -I
+info
+.TP
+.BR -V
+version
+.TP
+.BR -c
+do only # commands
+.TP
+.BR -f
+max open files
+.TP
+.BR -F
+file path
+.TP
+.BR -i
+extra info
+.TP
+.BR -o
+offset
+.TP
+.BR "-p #"
+remove # components from path
+.TP
+.BR -r
+recover
+.TP
+.BR -R
+file recordposition
+.TP
+.BR -u
+update
+.TP
+.BR -v
+verbose
+.TP
+.BR -w
+write file
+.SH NOTE 
+If no file name is given isam.log is used
+One can give a second and a third '-v' for more verbose.
+Normaly one does a update (-u).
+If a recover is done all writes and all possibly updates and deletes is done
+and errors are only counted.
+If one gives table names as arguments only these tables will be updated
+
+
+
+.SH "SEE ALSO" 
+
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+
+.SH AUTHOR 
+
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+
+.\" end of man page
+
+

@@ -92,7 +92,6 @@ extern "C" {
   int my_raid_close(File, myf MyFlags);
   int my_raid_fstat(int Filedes, struct stat *buf,  myf MyFlags);
 
-
 #ifdef __cplusplus
 }
 

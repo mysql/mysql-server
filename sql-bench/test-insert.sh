@@ -291,7 +291,7 @@ $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $small_loop_count ; $i++)
 {
-  $rows+=fetch_all_rows($dbh,"select id from bench1 order by id",1);
+  $rows+=fetch_all_rows($dbh,"select id,id2 from bench1 order by id,id2",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $small_loop_count));
@@ -302,6 +302,24 @@ else
 { print "Time"; }
 print " for order_by_big_key ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $rows+=fetch_all_rows($dbh,"select id,id2 from bench1 order by id desc, id2 desc",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_big_key_desc ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
 
 $loop_time=new Benchmark;
 $estimated=$rows=0;
@@ -316,8 +334,9 @@ if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by_big_key_desc ($small_loop_count:$rows): " .
+print " for order_by_big_key_prefix ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
+
 
 $loop_time=new Benchmark;
 $estimated=$rows=0;
@@ -407,7 +426,7 @@ if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by_key ($range_loop_count:$rows): " .
+print " for order_by_key_prefix ($range_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 $sel=$limits->{'order_by_unused'} ? "id2" : "id2,id3";
@@ -889,11 +908,21 @@ print "Testing update with key\n";
 $loop_time=new Benchmark;
 for ($i=0 ; $i < $opt_loop_count*3 ; $i++)
 {
-  $sth = $dbh->do("update bench1 set dummy1='updated' where id=$i") or die $DBI::errstr;
+  $sth = $dbh->do("update bench1 set dummy1='updated' where id=$i and id2=$i") or die $DBI::errstr;
 }
 
 $end_time=new Benchmark;
 print "Time for update_with_key (" . ($opt_loop_count*3) . "):  " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+for ($i=0 ; $i < $opt_loop_count*3 ; $i+=3)
+{
+  $sth = $dbh->do("update bench1 set dummy1='updated' where id=$i") or die $DBI::errstr;
+}
+
+$end_time=new Benchmark;
+print "Time for update_with_key_prefix (" . ($opt_loop_count) . "):  " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 print "\nTesting update of all rows\n";
@@ -1530,7 +1559,12 @@ sub check_or_range
   $estimated=0;
   $loop_time=new Benchmark;
   $found=0;
-  $loop_count=$range_loop_count*10;
+  # The number of tests must be divisible by the following
+  $tmp= $limits->{'func_extra_in_num'} ? 15 : 10; 
+  # We need to calculate the exact number of test to make 'Estimated' right
+  $loop_count=$range_loop_count*10+$tmp-1;
+  $loop_count=$loop_count- ($loop_count % $tmp);
+  
   for ($count=0 ; $count < $loop_count ; )
   {
     for ($rowcnt=0; $rowcnt <= $columns; $rowcnt+= $columns/4)

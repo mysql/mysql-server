@@ -1,0 +1,58 @@
+.TH PERROR 1 "19 December 2000"
+.SH NAME
+.BR perror
+can be used to display a description for a system error code, or an MyISAM/ISAM table handler error code. The error messages are mostly system dependent. 
+.SH USAGE
+perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
+.SH SYNOPSIS
+.B perror
+.RB [ \-? | \-\-help ]
+.RB [ \-I | \-\-info ]
+.RB [ \-s | \-\-silent ]
+.RB [ \-v | \-\-verbose ]
+.RB [ \-V | \-\-version ]
+.SH DESCRIPTION
+.TP 
+.BR  \-? | \-\-help    
+Displays this help and exits.
+.TP 
+.BR  \-I | \-\-info  
+Synonym for the above.
+.TP 
+.BR    \-s | \-\-silent 
+Only print the error message
+.TP 
+.BR    \-v | \-\-verbose
+Print error code and message (default).
+.TP 
+.BR \-V | \-\-version  
+Displays version information and exits.
+.SH EXAMPLE
+shell> perror 64 79
+Error code  64:  Machine is not on the network
+Error code  79:  Can not access a needed shared library
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

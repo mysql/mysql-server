@@ -1,0 +1,54 @@
+.TH WHICH 1 "20 December 2000" 
+.SH NAME 
+which - Jani please supply one. 
+.SH USAGE 
+which [options] [--] programname [...]
+.SH SYNOPSIS 
+.B which 
+.RB [ \-\-version | \-[vV] ] 
+.RB [ \-\-skip\-dot ] 
+.RB [ \-\-skip\-tilde ] 
+.RB [ \-\-show\-dot ] 
+.RB [ \-\-show\-tilde ] 
+.RB [ \-\-tty\-only ] 
+.RB [ \-\-all | \-a ] 
+.RB [ \-\-read\-alias | \-i ] 
+.RB [ \-\-skip\-alias ] 
+.SH DESCRIPTION 
+.TP
+.BR which
+supports by executing
+.TP
+.BR \-\-version | \-[vV]
+Print version and exit successfully.
+.TP
+.BR \-\-skip\-dot
+Skip directories in PATH that start with a dot.
+.TP
+.BR \-\-skip\-tilde
+Skip directories in PATH that start with a tilde.
+.TP
+.BR \-\-show\-dot
+Don\'t expand a dot to current directory in output.
+.TP
+.BR \-\-show\-tilde
+Output a tilde for HOME directory for non-root.
+.TP
+.BR \-\-tty\-only 
+Stop processing options on the right if not on tty.
+.TP
+.BR \-\-all | \-a 
+Print all matches in PATH, not just the first
+.TP
+.BR \-\-read\-alias | \-i
+Read list of aliases from stdin.
+.TP
+.BR \-\-skip\-alias
+Ignore option 
+.BR --read-alias; 
+don\'t read stdin.
+.SH "SEE ALSO" 
+isamchk (1), isamlog (1), mysqlaccess (1), mysqladmin (1), mysqlbug (1), mysqld (1), mysqldump (1), mysqlshow (1), msql2mysql (1), perror (1), replace (1), safe_mysqld (1), which1 (1), zap (1),
+.SH AUTHOR 
+Ver 1.0, distribution 3.23.29a Michael (Monty) Widenius (monty@tcx.se), TCX Datakonsult AB (http://www.tcx.se). This software comes with no warranty. Manual page by L. (Kill-9) Pedersen (kill-9@kill-9.dk), Mercurmedia Data Model Architect / system developer (http://www.mercurmedia.com) 
+.\" end of man page 
