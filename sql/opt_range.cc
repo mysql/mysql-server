@@ -1474,7 +1474,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
     }
     return 0;
   }
-  else if (!key2)
+  if (!key2)
   {
     key1->use_count--;
     key1->free_tree();
