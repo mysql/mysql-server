@@ -964,7 +964,7 @@ Changes in release 3.19.x
 MySQL and the future (The TODO)
 
 * TODO MySQL 4.0::              Things that should be in 4.0
-* TODO future::                 Things that must done in the very near future
+* TODO future::                 Things that must be done in the near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
 
@@ -38340,7 +38340,7 @@ interested in.
 @node Credits, News, Contrib, Top
 @appendix Credits
 
-The following persons have helped us make MySQL what it's today
+The following persons have helped us make MySQL what it is today
 
 @cindex developers, list of
 @menu
@@ -43306,7 +43306,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 
 @menu
 * TODO MySQL 4.0::              Things that should be in Version 4.0
-* TODO future::                 Things that must done in the very near future
+* TODO future::                 Things that must be done in the near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
 @end menu
