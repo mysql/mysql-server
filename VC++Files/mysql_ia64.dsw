@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "MySqlManager"=".\mysqlmanager\MySqlManager_ia64.dsp" - Package Owner=<4>
+Project: "mysys"=".\mysys\mysys_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -11,14 +11,48 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name mysqlclient_ia64
-    End Project Dependency
+}}}
+
+
+###############################################################################
+
+Project: "strings"=".\strings\strings_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
 
-Project: "bdb"=".\bdb\bdb_ia64.dsp" - Package Owner=<4>
+Project: "vio"=".\vio\vio_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "regex"=".\regex\regex_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "zlib"=".\zlib\zlib_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -56,6 +90,75 @@ Package=<5>
 
 Package=<4>
 {{{
+}}}
+
+###############################################################################
+
+Project: "mysqlclient"=".\client\mysqlclient_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "myisam"=".\myisam\myisam_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "myisammrg"=".\myisammrg\myisammrg_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "myisampack"=".\myisampack\myisampack_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -222,21 +325,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "myisam"=".\myisam\myisam_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name dbug
-    End Project Dependency
-}}}
-
-###############################################################################
-
 Project: "myisam_ftdump"=".\myisam_ftdump\myisam_ftdump_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -289,45 +377,6 @@ Package=<4>
 ###############################################################################
 
 Project: "myisamlog"=".\myisamlog\myisamlog_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name dbug
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name myisam
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysys
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name strings
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name zlib
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "myisammrg"=".\myisammrg\myisammrg_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "myisampack"=".\myisampack\myisampack_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -417,21 +466,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "mysqlclient"=".\client\mysqlclient_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name zlib
-    End Project Dependency
-}}}
-
-###############################################################################
-
 Project: "mysqld"=".\sql\mysqld_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -441,22 +475,22 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name heap_ia64
+    Project_Dep_Name heap
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name isam_ia64
+    Project_Dep_Name isam
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name merge_ia64
+    Project_Dep_Name merge
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name mysys_ia64
+    Project_Dep_Name mysys
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name regex_ia64
+    Project_Dep_Name regex
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name strings_ia64
+    Project_Dep_Name strings
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name dbug_ia64
@@ -496,9 +530,6 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name myisammrg
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name bdb
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name vio
@@ -636,18 +667,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "mysys"=".\mysys\mysys_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "pack_isam"=".\pack_isam\pack_isam_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -693,18 +712,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "regex"=".\regex\regex_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "replace"=".\replace\replace_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -726,18 +733,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "strings"=".\strings\strings_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "test1"=".\test1\test1_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -748,24 +743,6 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name libmysql
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "test_libmysqld"=".\libmysqld\examples\test_libmysqld_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name libmysqld
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name zlib
     End Project Dependency
 }}}
 
@@ -787,84 +764,6 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name strings
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "vio"=".\vio\vio_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "zlib"=".\zlib\zlib_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "mysqltest"=.\client\mysqltest_ia64.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-
-Package=<4>
-{{{    Begin Project Dependency
-    Project_Dep_Name libmysql
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysys
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name regex
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "mysql_client_test"=.\tests\mysql_client_test_ia64.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-
-Project: "mysql_test_run_new"=".\mysql-test\mysql_test_run_new_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{    Begin Project Dependency
-    Project_Dep_Name mysqltest
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysqladmin
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysql_client_test
     End Project Dependency
 }}}
 

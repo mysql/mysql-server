@@ -53,8 +53,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 /nologo /subsystem:windows /machine:IX86 /machine:IA64
-# ADD LINK32  /nologo /subsystem:windows /machine:IX86 /out:"../client_release/MySqlManager.exe" /machine:IA64
+# ADD BASE LINK32 /nologo /subsystem:windows  /machine:IA64
+# ADD LINK32  /nologo /subsystem:windows  /out:"../client_release/MySqlManager.exe" /machine:IA64
 # SUBTRACT LINK32 /nodefaultlib
 
 !ELSEIF  "$(CFG)" == "MySqlManager - WinIA64 Debug"
@@ -82,8 +82,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 /nologo /subsystem:windows /debug /machine:IX86 /machine:IA64
-# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:windows /incremental:no /debug /machine:IX86 /out:"../client_debug/MySqlManager.exe" /libpath:"..\lib_debug\\" /machine:IA64
+# ADD BASE LINK32 /nologo /subsystem:windows /debug  /machine:IA64
+# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:windows /incremental:no /debug  /out:"../client_debug/MySqlManager.exe" /libpath:"..\lib_debug\\" /machine:IA64
 
 !ENDIF 
 
