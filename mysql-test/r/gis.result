@@ -458,3 +458,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select high_priority issimple(multipoint(point(3,6),point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,issimple(point(3,6)) AS `issimple(Point(3, 6))`
+create table t1 (a geometry not null);
+insert into t1 values (GeomFromText('Point(1 2)'));
+insert into t1 values ('Garbage');
+ERROR HY000: Unknown error
+insert IGNORE into t1 values ('Garbage');
+ERROR HY000: Unknown error
+alter table t1 add spatial index(a);
+drop table t1;

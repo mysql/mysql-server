@@ -639,7 +639,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
     return 0;
   }
   String *result=val_str(&str_value);
-  return (field->store(result->ptr(),result->length(),field->charset())) ? -1 : 0;
+  return field->store(result->ptr(),result->length(),field->charset());
 }
 
 bool Item_param::get_time(TIME *res)
@@ -1244,7 +1244,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr);
   }
-  return (error) ? -1 : 0;
+  return error;
 }
 
 
@@ -1255,8 +1255,7 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(result->ptr(),result->length(),collation.collation)) ? 
-	  -1 : 0;
+  return field->store(result->ptr(),result->length(),collation.collation);
 }
 
 int Item_uint::save_in_field(Field *field, bool no_conversions)
@@ -1275,7 +1274,7 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(nr)) ? -1 : 0;
+  return field->store(nr);
 }
 
 
@@ -1285,7 +1284,7 @@ int Item_real::save_in_field(Field *field, bool no_conversions)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(nr)) ? -1 : 0;
+  return field->store(nr);
 }
 
 /****************************************************************************
@@ -1347,7 +1346,7 @@ int Item_varbinary::save_in_field(Field *field, bool no_conversions)
     longlong nr=val_int();
     error=field->store(nr);
   }
-  return (error) ? -1 :  0;
+  return error;
 }
 
 
