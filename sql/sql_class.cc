@@ -841,7 +841,8 @@ bool select_send::send_eof()
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
   {
-    mysql_unlock_tables(thd, thd->lock); thd->lock=0;
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
   }
   if (!thd->net.report_error)
   {

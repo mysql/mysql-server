@@ -1680,7 +1680,12 @@ bool select_create::send_eof()
       We should be able to just keep the table in the table cache.
     */
     if (!table->tmp_table)
+    {
       hash_delete(&open_cache,(byte*) table);
+      /* Tell threads waiting for refresh that something has happened */
+      if (table->version != refresh_version)
+        VOID(pthread_cond_broadcast(&COND_refresh));
+    }
     lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1705,6 +1710,9 @@ void select_create::abort()
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, db, name);
+      /* Tell threads waiting for refresh that something has happened */
+      if (table->version != refresh_version)
+        VOID(pthread_cond_broadcast(&COND_refresh));
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, db, name);

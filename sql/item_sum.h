@@ -674,7 +674,6 @@ class Item_func_group_concat : public Item_sum
   TMP_TABLE_PARAM *tmp_table_param;
   uint max_elements_in_tree;
   MYSQL_ERROR *warning;
-  bool warning_available;
   uint key_length;
   bool tree_mode;
   bool distinct;

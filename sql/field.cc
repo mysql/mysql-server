@@ -3508,8 +3508,8 @@ bool Field_time::send_binary(Protocol *protocol)
 {
   TIME tm;
   Field_time::get_time(&tm);
-  tm.day= tm.hour/3600;				// Move hours to days
-  tm.hour-= tm.day*3600;
+  tm.day= tm.hour/24;				// Move hours to days
+  tm.hour-= tm.day*24;
   return protocol->store_time(&tm);
 }
 
