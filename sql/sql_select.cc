@@ -61,6 +61,7 @@ static store_key *get_store_key(THD *thd,
 				KEY_PART_INFO *key_part, char *key_buff,
 				uint maybe_null);
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
+static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join,uint options);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
@@ -73,7 +74,10 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc,
 			    SELECT_LEX_UNIT *unit);
+static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
+                            COND *conds, bool top);
 static COND *optimize_cond(COND *conds,Item::cond_result *cond_value);
+static bool resolve_nested_join (TABLE_LIST *table);
 static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
@@ -128,6 +132,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
 				   ulong offset,Item *having);
 static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 				      uint field_count, Field **first_field,
+
 				      ulong key_length,Item *having);
 static int join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count);
 static ulong used_blob_length(CACHE_FIELD **ptr);
@@ -299,6 +304,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   tables_list= tables_init;
   select_lex= select_lex_arg;
   select_lex->join= this;
+  join_list= &select_lex->top_join_list;
   union_part= (unit_arg->first_select()->next_select() != 0);
 
   /* Check that all tables, fields, conds and order are ok */
@@ -486,7 +492,6 @@ bool JOIN::test_in_subselect(Item **where)
   return 0;
 }
 
-
 /*
   global select optimisation.
   return 0 - success
@@ -523,6 +528,9 @@ JOIN::optimize()
     }
   }
 #endif
+
+  /* Convert all outer joins to inner joins if possible */
+  conds= simplify_joins(this, join_list, conds, TRUE);
 
   conds= optimize_cond(conds,&cond_value);
   if (thd->net.report_error)
@@ -637,6 +645,9 @@ JOIN::optimize()
     DBUG_PRINT("error",("Error: make_select() failed"));
     DBUG_RETURN(1);
   }
+
+  make_outerjoin_info(this);
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -1456,7 +1467,7 @@ JOIN::exec()
 	    at least one row generated from the table.
 	  */
 	  if (curr_table->select_cond ||
-	      (curr_table->keyuse && !curr_table->on_expr))
+	      (curr_table->keyuse && !curr_table->first_inner))
 	  {
 	    /* We have to sort all rows */
 	    curr_join->select_limit= HA_POS_ERROR;
@@ -1676,6 +1687,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
+  TABLE *table;
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
   key_map const_ref, eq_part;
@@ -1701,13 +1713,15 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
   for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
   {
-    TABLE *table;
+    table_map dep_tables;
+    TABLE_LIST *embedding= tables->embedding;
     stat_vector[i]=s;
     s->keys.init();
     s->const_keys.init();
     s->checked_keys.init();
     s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
+    table->pos_in_table_list= tables;
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);// record count
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
@@ -1716,29 +1730,36 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     all_table_map|= table->map;
     s->join=join;
     s->info=0;					// For describe
+
+    s->dependent= tables->dep_tables;
+    s->key_dependent= 0;
+
     if ((s->on_expr=tables->on_expr))
     {
-      /* Left join */
+      /* s is the only inner table of an outer join */
       if (!table->file->records)
       {						// Empty table
-	s->key_dependent=s->dependent=0;	// Ignore LEFT JOIN depend.
+        s->dependent= 0;                        // Ignore LEFT JOIN depend.
 	set_position(join,const_count++,s,(KEYUSE*) 0);
 	continue;
       }
-      s->key_dependent=s->dependent=
-	s->on_expr->used_tables() & ~(table->map);
-      if (table->outer_join & JOIN_TYPE_LEFT)
-	s->dependent|=stat_vector[i-1]->dependent | table_vector[i-1]->map;
-      if (tables->outer_join & JOIN_TYPE_RIGHT)
-	s->dependent|=tables->next->table->map;
-      outer_join|=table->map;
+      outer_join|= table->map;
       continue;
     }
-    if (tables->straight)			// We don't have to move this
-      s->dependent= table_vector[i-1]->map | stat_vector[i-1]->dependent;
-    else
-      s->dependent=(table_map) 0;
-    s->key_dependent=(table_map) 0;
+    if (embedding)
+    {
+      /* s belongs to a nested join, maybe to several embedded joins */
+      do
+      {
+        NESTED_JOIN *nested_join= embedding->nested_join;
+        s->dependent|= embedding->dep_tables;
+        embedding= embedding->embedding;
+        outer_join|= nested_join->used_tables;
+      }
+      while (embedding);
+      continue;
+    }
+
     if ((table->system || table->file->records <= 1) && ! s->dependent &&
 	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
         !table->fulltext_searched)
@@ -1749,39 +1770,35 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   stat_vector[i]=0;
   join->outer_join=outer_join;
 
-  /*
-    If outer join: Re-arrange tables in stat_vector so that outer join
-    tables are after all tables it is dependent of.
-    For example: SELECT * from A LEFT JOIN B ON B.c=C.c, C WHERE A.C=C.C
-    Will shift table B after table C.
-  */
-  if (outer_join)
+  if (join->outer_join)
   {
-    table_map used_tables=0L;
-    for (i=0 ; i < join->tables-1 ; i++)
+    /* 
+       Build transitive closure for relation 'to be dependent on'.
+       This will speed up the plan search for many cases with outer joins,
+       as well as allow us to catch illegal cross references/
+       Warshall's algorithm is used to build the transitive closure.
+       As we use bitmaps to represent the relation the complexity
+       of the algorithm is O(number of tables). 
+    */
+    for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
-      if (stat_vector[i]->dependent & ~used_tables)
+      for (uint j= 0 ; j < table_count ; j++)
       {
-	JOIN_TAB *save= stat_vector[i];
-	uint j;
-	for (j=i+1;
-	     j < join->tables && stat_vector[j]->dependent & ~used_tables;
-	     j++)
-	{
-	  JOIN_TAB *tmp=stat_vector[j];		// Move element up
-	  stat_vector[j]=save;
-	  save=tmp;
-	}
-	if (j == join->tables)
-	{
-	  join->tables=0;			// Don't use join->table
-	  my_error(ER_WRONG_OUTER_JOIN,MYF(0));
-	  DBUG_RETURN(1);
-	}
-	stat_vector[i]=stat_vector[j];
-	stat_vector[j]=save;
+        table= stat[j].table;
+        if (s->dependent & table->map)
+          s->dependent |= table->reginfo.join_tab->dependent;
       }
-      used_tables|= stat_vector[i]->table->map;
+    }
+    /* Catch illegal cross references for outer joins */
+    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    {
+      if (s->dependent & s->table->map)
+      {
+        join->tables=0;			// Don't use join->table
+        my_error(ER_WRONG_OUTER_JOIN,MYF(0));
+        DBUG_RETURN(1);
+      }
+      s->key_dependent= s->dependent;
     }
   }
 
@@ -1824,7 +1841,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
-      TABLE *table=s->table;
+      table=s->table;
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
@@ -2481,10 +2498,31 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
   for (i=0 ; i < tables ; i++)
   {
+    /*
+      Block the creation of keys for inner tables of outer joins.
+      Here only the outer joins that can not be converted to
+      inner joins are left and all nests that can be eliminated
+      are flattened.
+      In the future when we introduce conditional accesses
+      for inner tables in outer joins these keys will be taken
+      into account as well.
+    */ 
     if (join_tab[i].on_expr)
     {
       add_key_fields(join_tab,&end,&and_level,join_tab[i].on_expr,
 		     join_tab[i].table->map);
+    }
+    else 
+    {
+      TABLE_LIST *tab= join_tab[i].table->pos_in_table_list;
+      TABLE_LIST *embedding= tab->embedding;
+      if (embedding)
+      {
+        NESTED_JOIN *nested_join= embedding->nested_join;
+        if (nested_join->join_list.head() == tab)
+          add_key_fields(join_tab, &end, &and_level, embedding->on_expr,
+                         nested_join->used_tables);
+      }
     }
   }
   /* fill keyuse with found key parts */
@@ -2923,7 +2961,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
         {
           /* Estimate cost of reading table. */
           tmp= s->table->file->scan_time();
-          if (s->on_expr)                         // Can't use join cache
+          if (s->table->map  & join->outer_join)      // Can't use join cache
           {
             /*
               For each record we have to:
@@ -3357,6 +3395,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->keys.init(~0);                      /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr=0;
+  join_tab->last_inner= 0;
+  join_tab->first_unmatched= 0;
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
@@ -3365,6 +3405,134 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   tmp_table->status=0;
   tmp_table->null_row=0;
   return FALSE;
+}
+
+
+/*
+  Build a predicate guarded by match variables for embedding outer joins
+
+  SYNOPSIS
+    add_found_match_trig_cond()
+    tab       the first inner table for most nested outer join
+    cond      the predicate to be guarded
+    root_tab  the first inner table to stop
+
+  DESCRIPTION
+    The function recursively adds guards for predicate cond
+    assending from tab to the first inner table  next embedding
+    nested outer join and so on until it reaches root_tab
+    (root_tab can be 0).
+
+  RETURN VALUE
+    pointer to the guarded predicate, if success
+    0, otherwise
+*/ 
+
+static COND*
+add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
+{
+  COND *tmp;
+  if (tab == root_tab || !cond)
+    return cond;
+  if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
+  {
+    tmp= new Item_func_trig_cond(tmp, &tab->found);
+  }
+  return tmp;
+}
+
+
+/*
+   Fill in outer join related info for the execution plan structure
+
+  SYNOPSIS
+    make_outerjoin_info()
+    join - reference to the info fully describing the query
+
+  DESCRIPTION
+    For each outer join operation left after simplification of the
+    original query the function set up the following pointers in the linear
+    structure join->join_tab representing the selected execution plan.
+    The first inner table t0 for the operation is set to refer to the last
+    inner table tk through the field t0->last_inner.
+    Any inner table ti for the operation are set to refer to the first
+    inner table ti->first_inner.
+    The first inner table t0 for the operation is set to refer to the
+    first inner table of the embedding outer join operation, if there is any,
+    through the field t0->first_upper.
+    The on expression for the outer join operation is attached to the
+    corresponding first inner table through the field t0->on_expr.
+    Here ti are structures of the JOIN_TAB type.
+
+  EXAMPLE
+    For rhe query: 
+      SELECT * FROM t1
+                    LEFT JOIN
+                    (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+                    ON (t1.a=t2.a AND t1.b=t3.b)
+        WHERE t1.c > 5,
+    given the execution plan with the table order t1,t2,t3,t4
+    is selected, the following references will be set;
+    t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
+    t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
+    on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to t2->on_expr,
+    while t3.a=t4.a will be attached to t4->on_expr.
+            
+  NOTES
+    The function assumes that the simplification procedure has been
+    already applied to the join query (see simplify_joins).
+    This function can be called only after the execution plan
+    has been chosen.
+   
+  RETURN VALUE
+    None.
+*/
+ 
+static void
+make_outerjoin_info(JOIN *join)
+{
+  for (uint i=join->const_tables ; i < join->tables ; i++)
+  {
+    JOIN_TAB *tab=join->join_tab+i;
+    TABLE *table=tab->table;
+    TABLE_LIST *tbl= table->pos_in_table_list;
+    TABLE_LIST *embedding= tbl->embedding;
+
+    if (tbl->outer_join)
+    {
+      /* 
+        Table tab is the only one inner table for outer join.
+        (Like table t4 for the table reference t3 LEFT JOIN t4 ON t3.a=t4.a
+        is in the query above.)
+      */
+      tab->last_inner= tab->first_inner= tab;
+      tab->on_expr= tbl->on_expr;
+      if (embedding)
+        tab->first_upper= embedding->nested_join->first_nested;
+    }    
+    while (embedding)
+    {
+      NESTED_JOIN *nested_join= embedding->nested_join;
+      if (!nested_join->counter)
+      {
+        /* 
+          Table tab is the first inner table for nested_join.
+          Save reference to it in the nested join structure.
+        */ 
+        nested_join->first_nested= tab;
+        tab->on_expr= embedding->on_expr;
+        if (embedding->embedding)
+          tab->first_upper= embedding->embedding->nested_join->first_nested;
+      }
+      if (!tab->first_inner)  
+        tab->first_inner= nested_join->first_nested;
+      if (++nested_join->counter < nested_join->join_list.elements)
+        break;
+      /* Table tab is the last inner table for nested join. */
+      nested_join->first_nested->last_inner= tab;
+      embedding= embedding->embedding;
+    }
+  }
 }
 
 
@@ -3394,6 +3562,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
       JOIN_TAB *tab=join->join_tab+i;
+      JOIN_TAB *first_inner_tab= tab->first_inner; 
       table_map current_map= tab->table->map;
       /*
 	Following force including random expression in last table condition.
@@ -3432,7 +3601,16 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  join->thd->memdup((gptr) select, sizeof(SQL_SELECT));
 	if (!sel)
 	  DBUG_RETURN(1);			// End of memory
+        /*
+          If tab is an inner table of an outer join operation,
+          add a match guard to the pushed down predicate.
+          The guard will turn the predicate on only after
+          the first match for outer tables is encountered.
+	*/        
+        if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
+          DBUG_RETURN(1);
 	tab->select_cond=sel->cond=tmp;
+
 	sel->head=tab->table;
 	if (tab->quick)
 	{
@@ -3540,12 +3718,61 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    }
 	  }
 	}
+      } 
+      
+      /* 
+        Push down all predicates from on expressions.
+        Each of these predicated are guarded by a variable
+        that turns if off just before null complemented row for
+        outer joins is formed. Thus, the predicates from an
+        'on expression' are guaranteed not to be checked for
+        the null complemented row.
+      */ 
+      JOIN_TAB *last_tab= tab;
+      while (first_inner_tab && first_inner_tab->last_inner == last_tab)
+      {  
+        /* 
+          Table tab is the last inner table of an outer join.
+          An on expression is always attached to it.
+	*/     
+        COND *on_expr= first_inner_tab->on_expr;
+
+        table_map used_tables= join->const_table_map |
+		               OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
+	for (tab= join->join_tab+join->const_tables; tab <= last_tab ; tab++)
+        {
+          current_map= tab->table->map;
+          used_tables|= current_map;
+          COND *tmp= make_cond_for_table(on_expr, used_tables, current_map);
+          if (tmp)
+          {
+            JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
+            /*
+              First add the guards for match variables of
+              all embedding outer join operations.
+	    */
+            if (!(tmp= add_found_match_trig_cond(cond_tab->first_inner,
+                                                 tmp, first_inner_tab)))
+              DBUG_RETURN(1);
+            /* 
+              Now add the guard turning the predicate off for 
+              the null complemented row.
+	    */ 
+            tmp= new Item_func_trig_cond(tmp, 
+                                         &first_inner_tab->not_null_compl);
+	    /* Add the predicate to other pushed down predicates */
+            cond_tab->select_cond= !cond_tab->select_cond ? tmp :
+	                          new Item_cond_and(cond_tab->select_cond,tmp);
+            if (!cond_tab->select_cond)
+	      DBUG_RETURN(1);
+          }              
+        }
+        first_inner_tab= first_inner_tab->first_upper;       
       }
     }
   }
   DBUG_RETURN(0);
 }
-
 
 static void
 make_join_readinfo(JOIN *join, uint options)
@@ -3631,7 +3858,7 @@ make_join_readinfo(JOIN *join, uint options)
       */
       table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
-	  tab->use_quick != 2 && !tab->on_expr)
+          tab->use_quick != 2 && !tab->first_inner)
       {
 	if ((options & SELECT_DESCRIBE) ||
 	    !join_init_cache(join->thd,join->join_tab+join->const_tables,
@@ -4334,6 +4561,231 @@ COND *eliminate_not_funcs(COND *cond)
 }
 
 
+/*
+  Simplify joins replacing outer joins by inner joins whenever it's possible
+
+  SYNOPSIS
+    simplify_joins()
+    join        reference to the query info
+    join_list   list representation of the join to be converted
+    conds       conditions to add on expressions for converted joins
+    top         true <=> conds is the where condition  
+
+  DESCRIPTION
+    The function, during a retrieval of join_list,  eliminates those
+    outer joins that can be converted into inner join, possibly nested.
+    It also moves the on expressions for the converted outer joins
+    and from inner joins to conds.
+    The function also calculates some attributes for nested joins:
+    - used_tables    
+    - not_null_tables
+    - dep_tables.
+    - on_expr_dep_tables
+    The first two attributes are used to test whether an outer join can
+    be substituted for an inner join. The third attribute represents the
+    relation 'to be dependent on' for tables. If table t2 is dependent
+    on table t1, then in any evaluated execution plan table access to
+    table t2 must precede access to table t2. This relation is used also
+    to check whether the query contains  invalid cross-references.
+    The forth attribute is an auxiliary one and is used to calculate
+    dep_tables.
+    As the attribute dep_tables qualifies possibles orders of tables in the
+    execution plan, the dependencies required by the straight join
+    modifiers are reflected in this attribute as well.
+    The function also removes all braces that can be removed from the join
+    expression without changing its meaning.
+
+  NOTES
+    An outer join can be replaced by an inner join if the where condition
+    or the on expression for an embedding nested join contains a conjunctive
+    predicate rejecting null values for some attribute of the inner tables.
+
+    E.g. in the query:    
+      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t1.a WHERE t2.b < 5
+    the predicate t2.b < 5 rejects nulls.
+    The query is converted first to:
+      SELECT * FROM t1 INNER JOIN t2 ON t2.a=t1.a WHERE t2.b < 5
+    then to the equivalent form:
+      SELECT * FROM t1, t2 ON t2.a=t1.a WHERE t2.b < 5 AND t2.a=t1.a.
+
+    Similarly the following query:
+      SELECT * from t1 LEFT JOIN (t2, t3) ON t2.a=t1.a t3.b=t1.b
+        WHERE t2.c < 5  
+    is converted to:
+      SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b 
+
+    One conversion might trigger another:
+      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t1.a
+                       LEFT JOIN t3 ON t3.b=t2.b
+        WHERE t3 IS NOT NULL =>
+      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t1.a, t3
+        WHERE t3 IS NOT NULL AND t3.b=t2.b => 
+      SELECT * FROM t1, t2, t3
+        WHERE t3 IS NOT NULL AND t3.b=t2.b AND t2.a=t1.a
+   
+    The function removes all unnecessary braces from the expression
+    produced by the conversions.
+    E.g. SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b
+    finally is converted to: 
+      SELECT * FROM t1, t2, t3 WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b
+
+    It also will remove braces from the following queries:
+      SELECT * from (t1 LEFT JOIN t2 ON t2.a=t1.a) LEFT JOIN t3 ON t3.b=t2.b
+      SELECT * from (t1, (t2,t3)) WHERE t1.a=t2.a AND t2.b=t3.b.
+
+    The benefit of this simplification procedure is that it might return 
+    a query for which the optimizer can evaluate execution plan with more
+    join orders. With a left join operation the optimizer does not
+    consider any plan where one of the inner tables is before some of outer
+    tables.
+
+  IMPLEMENTATION.
+    The function is implemented by a recursive procedure.  On the recursive
+    ascent all attributes are calculated, all outer joins that can be
+    converted are replaced and then all unnecessary braces are removed.
+    As join list contains join tables in the reverse order sequential
+    elimination of outer joins does not requite extra recursive calls.
+
+  EXAMPLES
+    Here is an example of a join query with invalid cross references:
+      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t3.a LEFT JOIN ON  t3.b=t1.b 
+     
+  RETURN VALUE
+    The new condition, if success
+    0, otherwise  
+*/
+
+static COND *
+simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
+{
+  TABLE_LIST *table;
+  NESTED_JOIN *nested_join;
+  TABLE_LIST *prev_table= 0;
+  List_iterator<TABLE_LIST> li(*join_list);
+
+  /* 
+    Try to simplify join operations from join_list.
+    The most outer join operation is checked for conversion first. 
+  */
+  while ((table= li++))
+  {
+    table_map used_tables;
+    table_map not_null_tables= (table_map) 0;
+
+    if ((nested_join= table->nested_join))
+    {
+      /* 
+         If the element of join_list is a nested join apply
+         the procedure to its nested join list first.
+      */
+      if (table->on_expr)
+      {
+        /* 
+           If an on expression E is attached to the table, 
+           check all null rejected predicates in this expression.
+           If such a predicate over an attribute belonging to
+           an inner table of an embedded outer join is found,
+           the outer join is converted to an inner join and
+           the corresponding on expression is added to E. 
+	*/ 
+        table->on_expr= simplify_joins(join, &nested_join->join_list,
+                                       table->on_expr, top && FALSE);
+      }
+      nested_join->used_tables= (table_map) 0;
+      nested_join->not_null_tables=(table_map) 0;
+      conds= simplify_joins(join, &nested_join->join_list, conds, top);
+      used_tables= nested_join->used_tables;
+      not_null_tables= nested_join->not_null_tables;  
+    }
+    else
+    {
+      used_tables= table->table->map;
+      if (conds)
+        not_null_tables= conds->not_null_tables();
+    }
+      
+    if (table->embedding)
+    {
+      table->embedding->nested_join->used_tables|= used_tables;
+      table->embedding->nested_join->not_null_tables|= not_null_tables;
+    }
+
+    if (!table->outer_join || (used_tables & not_null_tables))
+    {
+      /* 
+        For some of the inner tables there are conjunctive predicates
+        that reject nulls => the outer join can be replaced by an inner join.
+      */
+      table->outer_join= 0;
+      if (table->on_expr)
+      {
+        /* Add on expression to the where condition. */
+        if (conds)
+        {
+          conds= and_conds(conds, table->on_expr);
+          conds->fix_fields(join->thd, 0, &conds);
+        }
+        else
+          conds= table->on_expr; 
+        table->on_expr= 0;
+      }
+    }
+    
+    if (!top)
+      continue;
+
+    /* 
+      Only inner tables of non-convertible outer joins
+      remain with on_expr.
+    */ 
+    if (table->on_expr)
+    {
+      table->dep_tables|= table->on_expr->used_tables(); 
+      if (table->embedding)
+      {
+        table->dep_tables&= ~table->embedding->nested_join->used_tables;   
+        /*
+           Embedding table depends on tables used
+           in embedded on expressions. 
+        */
+        table->embedding->on_expr_dep_tables|= table->on_expr->used_tables();
+      }
+      else
+        table->dep_tables&= ~table->table->map;
+    }
+
+    if (prev_table)
+    {
+      /* The order of tables is reverse: prev_table follows table */
+      if (prev_table->straight)
+        prev_table->dep_tables|= used_tables;
+      if (prev_table->on_expr)
+        prev_table->dep_tables|= table->on_expr_dep_tables;
+    }
+    prev_table= table;
+  }
+    
+  /* Flatten nested joins that can be flattened. */
+  li.rewind();
+  while((table= li++))
+  {
+    nested_join= table->nested_join;
+    if (nested_join && !table->on_expr)
+    {
+      TABLE_LIST *tbl;
+      List_iterator<TABLE_LIST> it(nested_join->join_list);
+      while ((tbl= it++))
+      {
+        tbl->embedding= table->embedding;
+        tbl->join_list= table->join_list;
+      }      
+      li.replace(nested_join->join_list);
+    }
+  }
+  return conds;         
+}
+      
+
 static COND *
 optimize_cond(COND *conds,Item::cond_result *cond_value)
 {
@@ -4566,7 +5018,6 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
   }
   return 0;
 }
-
 
 /****************************************************************************
   Create internal temporary table
@@ -5587,7 +6038,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (join->tables == join->const_tables)
   {
     /*
-      HAVING will be chcked after processing aggregate functions,
+      HAVING will be checked after processing aggregate functions,
       But WHERE should checkd here (we alredy have read tables)
     */
     if (!join->conds || join->conds->val_int())
@@ -5675,20 +6126,143 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   return sub_select(join,join_tab,end_of_records); /* Use ordinary select */
 }
 
+/*
+  Retrieve records ends with a given beginning from the result of a join  
+
+  SYNPOSIS
+    sub_select()
+    join      pointer to the structure providing all context info for the query
+    join_tab  the first next table of the execution plan to be retrieved
+    end_records  true when we need to perform final steps of retrival   
+
+  DESCRIPTION
+    For a given partial join record consisting of records from the tables 
+    preceding the table join_tab in the execution plan, the function
+    retrieves all matching full records from the result set and
+    send them to the result set stream. 
+
+  NOTES
+    The function effectively implements the  final (n-k) nested loops
+    of nested loops join algorithm, where k is the ordinal number of
+    the join_tab table and n is the total number of tables in the join query.
+    It performs nested loops joins with all conjunctive predicates from
+    the where condition pushed as low to the tables as possible.
+    E.g. for the query
+      SELECT * FROM t1,t2,t3 
+        WHERE t1.a=t2.a AND t2.b=t3.b AND t1.a BETWEEN 5 AND 9
+    the predicate (t1.a BETWEEN 5 AND 9) will be pushed to table t1,
+    given the selected plan prescribes to nest retrievals of the
+    joined tables in the following order: t1,t2,t3.
+    A pushed down predicate are attached to the table which it pushed to,
+    at the field select_cond.
+    When executing a nested loop of level k the function runs through
+    the rows of 'join_tab' and for each row checks the pushed condition
+    attached to the table.
+    If it is false the function moves to the next row of the
+    table. If the condition is true the function recursively executes (n-k-1)
+    remaining embedded nested loops.
+    The situation becomes more complicated if outer joins are involved in
+    the execution plan. In this case the pushed down predicates can be
+    checked only at certain conditions.
+    Suppose for the query
+      SELECT * FROM t1 LEFT JOIN (t2,t3) ON t3.a=t1.a 
+        WHERE t1>2 AND (t2.b>5 OR t2.b IS NULL)
+    the optimizer has chosen a plan with the table order t1,t2,t3.  
+    The predicate P1=t1>2 will be pushed down to the table t1, while the
+    predicate P2=(t2.b>5 OR t2.b IS NULL) will be attached to the table
+    t2. But the second predicate can not be unconditionally tested right
+    after a row from t2 has been read. This can be done only after the
+    first row with t3.a=t1.a has been encountered.
+    Thus, the second predicate P2 is supplied with a guarded value that are
+    stored in the field 'found' of the first inner table for the outer join
+    (table t2). When the first row with t3.a=t1.a for the  current row 
+    of table t1  appears, the value becomes true. For now on the predicate
+    is evaluated immediately after the row of table t2 has been read.
+    When the first row with t3.a=t1.a has been encountered all
+    conditions attached to the inner tables t2,t3 must be evaluated.
+    Only when all of them are true the row is sent to the output stream.
+    If not, the function returns to the lowest nest level that has a false
+    attached condition.
+    The predicates from on expressions are also pushed down. If in the 
+    the above example the on expression were (t3.a=t1.a AND t2.a=t1.a),
+    then t1.a=t2.a would be pushed down to table t2, and without any
+    guard.
+    If after the run through all rows of table t2, the first inner table
+    for the outer join operation, it turns out that no matches are
+    found for the current row of t1, then current row from table t1
+    is complemented by nulls  for t2 and t3. Then the pushed down predicates
+    are checked for the composed row almost in the same way as it had
+    been done for the first row with a match. The only difference is
+    the predicates  from on expressions are not checked. 
+
+  IMPLEMENTATION
+    The function forms output rows for a current partial join of k
+    tables tables recursively.
+    For each partial join record ending with a certain row from
+    join_tab it calls sub_select that builds all possible matching
+    tails from the result set.
+    To be able  check predicates conditionally items of the class
+    Item_func_trig_cond  are employed.
+    An object of  this class is constructed from an item of class COND
+    and a pointer to a guarding boolean variable.
+    When the value of the guard variable is true the value of the object
+    is the same as the value of the predicate, otherwise it's just returns
+    true. 
+    To carry out a return to a nested loop level of join table t the pointer 
+    to t is remembered in the field 'return_tab' of the join structure.
+    Consider the following query:
+      SELECT * FROM t1,
+                    LEFT JOIN
+                    (t2, t3 LEFT JOIN (t4,t5) ON t5.a=t3.a)
+                    ON t4.a=t2.a
+         WHERE (t2.b=5 OR t2.b IS NULL) AND (t4.b=2 OR t4.b IS NULL)
+    Suppose the chosen execution plan dictates the order t1,t2,t3,t4,t5
+    and suppose for a given joined rows from tables t1,t2,t3 there are
+    no rows in the result set yet.
+    When first row from t5 that satisfies the on condition
+    t5.a=t3.a is found, the pushed down predicate t4.b=2 OR t4.b IS NULL
+    becomes 'activated', as well the predicate t4.a=t2.a. But
+    the predicate (t2.b=5 OR t2.b IS NULL) can not be checked until
+    t4.a=t2.a becomes true. 
+    In order not to re-evaluate the predicates that were already evaluated
+    as attached pushed down predicates, a pointer to the the first
+    most inner unmatched table is maintained in join_tab->first_unmatched.
+    Thus, when the first row from t5 with t5.a=t3.a is found
+    this pointer for t5 is changed from t4 to t2.             
+
+  RETURN
+    0, if success
+    # of the error, otherwise
+    
+*/
 
 static int
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
-
   join_tab->table->null_row=0;
   if (end_of_records)
     return (*join_tab->next_select)(join,join_tab+1,end_of_records);
 
-  /* Cache variables for faster loop */
   int error;
-  bool found=0;
-  COND *on_expr=join_tab->on_expr, *select_cond=join_tab->select_cond;
+  JOIN_TAB *first_unmatched;
+  JOIN_TAB *tab;
+  bool found= 0;
+  /* Cache variables for faster loop */
+  COND *select_cond= join_tab->select_cond;
+  JOIN_TAB *first_inner_tab= join_tab->first_inner;
+   
   my_bool *report_error= &(join->thd->net.report_error);
+
+  if (join_tab->last_inner)
+  { /* join_tab is the first inner table for an outer join operation. */
+
+    /* Set initial state of guard variables for this table.*/
+    join_tab->found=0;
+    join_tab->not_null_compl= 1;
+
+    /* Set first_unmatched for the last inner table of this group */
+    join_tab->last_inner->first_unmatched= join_tab; 
+  }
 
   if (!(error=(*join_tab->read_first_record)(join_tab)))
   {
@@ -5705,17 +6279,83 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	join->thd->send_kill_message();
 	return -2;				/* purecov: inspected */
       }
-      join->examined_rows++;
-      join->thd->row_count++;
-      if (!on_expr || on_expr->val_int())
+      if (!select_cond || select_cond->val_int())
       {
-	found=1;
-	if (not_exists_optimize)
-	  break;			// Searching after not null columns
-	if (!select_cond || select_cond->val_int())
-	{
-	  if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
+        /* 
+          There is no select condition or the attached pushed down
+          condition is true => a match is found.
+	*/
+        bool found= 1;
+	while (join_tab->first_unmatched && found)
+        {
+          /*
+             The while condition is always false if join_tab is not
+             the last inner join table of an outer join operation. 
+	  */ 
+          first_unmatched= join_tab->first_unmatched;
+          /*
+             Mark that a match for current outer table is found.
+             This activates push down conditional predicates attached
+             to the all inner tables of the outer join.
+	  */  
+          first_unmatched->found= 1;
+          for (tab= first_unmatched; tab <= join_tab; tab++)
+          { 
+            /* Check all predicates that has just been activated. */
+            /*
+              Actually all predicates non-guarded by first_unmatched->found
+              will be re-evaluated again. It could be fixed, but, probably,
+              it's not worth doing now.
+	    */ 
+            if (tab->select_cond && !tab->select_cond->val_int())
+            {
+              /* The condition attached to table tab is false */
+              if (tab == join_tab)
+                found= 0;
+              else
+              {
+                /*
+                  Set a return point if rejected predicate is attached 
+                  not to the last table of the current nest level.
+		*/
+                join->return_tab= tab;
+                return 0;
+              }
+            }
+          }
+          /* 
+             Check whether join_tab is not the last inner table
+             for another embedding outer join.
+          */
+          if ((first_unmatched= first_unmatched->first_upper) &&
+              first_unmatched->last_inner != join_tab)
+            first_unmatched= 0;
+          join_tab->first_unmatched= first_unmatched;
+        }
+        
+        /*
+           It was not just a return to lower loop level when one
+           of the newly activated predicates is evaluated as false 
+           (See above join->return_tab= tab).
+	*/             
+        join->examined_rows++;
+        join->thd->row_count++;
+              
+        if (found)
+        {
+          if (not_exists_optimize)
+            break;
+          /* A match from join_tab is found for the current partial join. */
+	  if ((error=(*join_tab->next_select)(join, join_tab+1, 0)) < 0)
 	    return error;
+          if (join->return_tab)
+          {
+            /* We are just returning to the nest level of join->return_tab. */
+            if (join->return_tab != join_tab)
+              return 0;
+            /* The return point is reached */
+	    join->return_tab= 0;
+          }
 	  /*
 	    Test if this was a SELECT DISTINCT query on a table that
 	    was not in the field list;  In this case we can abort if
@@ -5725,22 +6365,78 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	    return 0;
 	}
 	else
-	  info->file->unlock_row();
+	  info->file->unlock_row();    
       }
+      else
+      {
+        /* 
+           The condition pushed down to the table join_tab rejects all rows 
+           with the beginning coinciding with the current partial join.
+	*/ 
+        join->examined_rows++;
+        join->thd->row_count++;
+      }
+ 
     } while (!(error=info->read_record(info)) && !(*report_error));
   }
   if (error > 0 || (*report_error))				// Fatal error
     return -1;
 
-  if (!found && on_expr)
-  {						// OUTER JOIN
-    restore_record(join_tab->table,default_values);		// Make empty record
-    mark_as_null_row(join_tab->table);		// For group by without error
-    if (!select_cond || select_cond->val_int())
+  if (join_tab->last_inner && !join_tab->found)
+  {        
+    /* 
+      The table join_tab is the first inner table of a outer join operation
+      and no matches has been found for the current outer row.
+    */
+    JOIN_TAB *last_inner_tab= join_tab->last_inner;
+    for ( ; join_tab <= last_inner_tab ; join_tab++)
+    { 
+      /* Change the the values of guard predicate variables. */
+      join_tab->found= 1;
+      join_tab->not_null_compl= 0;
+      /* The outer row is complemented by nulls for each inner tables */
+      restore_record(join_tab->table,default_values);  // Make empty record
+      mark_as_null_row(join_tab->table);       // For group by without error
+      select_cond= join_tab->select_cond;
+      /* Check all attached conditions for inner table rows. */
+      if (select_cond && !select_cond->val_int())
+        return 0;
+    }    
+    join_tab--;
+    /* 
+       The row complemented by nulls might be the first row
+       of embedding outer joins. 
+       If so, perform the same actions as in the code 
+       for the first regular outer join row above.
+    */
+    for ( ; ; )
     {
-      if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
-	return error;				/* purecov: inspected */
+      first_unmatched= join_tab->first_unmatched;
+      if ((first_unmatched= first_unmatched->first_upper) &&
+          first_unmatched->last_inner != join_tab)
+        first_unmatched= 0;
+      join_tab->first_unmatched= first_unmatched;
+      if (!first_unmatched)
+        break;
+      first_unmatched->found= 1;
+      for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
+      {  
+        if (tab->select_cond && !tab->select_cond->val_int())
+        {
+          if (tab != join_tab)
+            join->return_tab= tab;
+          return 0;
+        }
+      }
     }
+    /*
+      The row complemented by nulls satisfies all conditions
+      attached to inner tables.
+      Send the row complemented by nulls to be joined with the 
+      remaining tables.
+    */     
+    if ((error=(*join_tab->next_select)(join, join_tab+1 ,0)) < 0)
+      return error;
   }
   return 0;
 }
@@ -7217,6 +7913,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   delete select;				// filesort did select
   tab->select=0;
   tab->select_cond=0;
+  tab->last_inner= 0;
+  tab->first_unmatched= 0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
   tab->join->examined_rows+=examined_rows;
@@ -9296,11 +9994,35 @@ void st_select_lex::print(THD *thd, String *str)
   if (table_list.elements)
   {
     str->append(" from ", 6);
-    Item *next_on= 0;
     for (TABLE_LIST *table= (TABLE_LIST *) table_list.first;
 	 table;
 	 table= table->next)
     {
+      TABLE_LIST *embedded=table;
+      TABLE_LIST *embedding= table->embedding;
+      while (embedding)
+      {
+        TABLE_LIST *next;
+        NESTED_JOIN *nested_join= table->embedding->nested_join;
+        List_iterator_fast<TABLE_LIST> it(nested_join->join_list);
+        TABLE_LIST *tab= it++;
+        while ((next= it++))
+          tab= next;
+        if (tab != embedded)
+          break;
+        str->append('(');
+	if (embedded->outer_join & JOIN_TYPE_RIGHT)
+	  str->append(" right join ", 12);
+	else if (embedded->outer_join & JOIN_TYPE_LEFT)
+	  str->append(" left join ", 11);
+	else if (embedded->straight)
+	  str->append(" straight_join ", 15);
+	else
+	  str->append(" join ", 6);
+        embedded= embedding;
+        embedding= embedding->embedding;
+      }
+
       if (table->derived)
       {
 	str->append('(');
@@ -9320,34 +10042,42 @@ void st_select_lex::print(THD *thd, String *str)
 	}
       }
 
-      if (table->on_expr && ((table->outer_join & JOIN_TYPE_LEFT) ||
-			     !(table->outer_join & JOIN_TYPE_RIGHT)))
-	next_on= table->on_expr;
-
-      if (next_on)
+      if (table->on_expr)
       {
 	str->append(" on(", 4);
-	next_on->print(str);
+	table->on_expr->print(str);
 	str->append(')');
-	next_on= 0;
       }
 
       TABLE_LIST *next_table;
       if ((next_table= table->next))
       {
-	if (table->outer_join & JOIN_TYPE_RIGHT)
-	{
+	if (next_table->outer_join & JOIN_TYPE_RIGHT)
 	  str->append(" right join ", 12);
-	  if (!(table->outer_join & JOIN_TYPE_LEFT) &&
-	      table->on_expr)
-	    next_on= table->on_expr;	    
-	}
-	else if (next_table->straight)
-	  str->append(" straight_join ", 15);
 	else if (next_table->outer_join & JOIN_TYPE_LEFT)
 	  str->append(" left join ", 11);
+	else if (next_table->straight)
+	  str->append(" straight_join ", 15);
 	else
 	  str->append(" join ", 6);
+      }
+
+      embedded=table;
+      embedding= table->embedding;
+      while (embedding)
+      {
+        NESTED_JOIN *nested_join= table->embedding->nested_join;
+        if (nested_join->join_list.head() != embedded)
+          break;
+        str->append(')');
+        if (embedding->on_expr)
+        {
+	  str->append(" on(", 4);
+	  embedding->on_expr->print(str);
+	  str->append(')');
+        }
+        embedded= embedding;
+        embedding= embedding->embedding;
       }
     }
   }

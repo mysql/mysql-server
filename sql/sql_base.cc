@@ -2204,80 +2204,110 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     thd->where="where clause";
     if ((*conds)->fix_fields(thd, tables, conds) || (*conds)->check_cols(1))
       DBUG_RETURN(1);
-    not_null_tables= (*conds)->not_null_tables();
   }
 
   /* Check if we are using outer joins */
   for (TABLE_LIST *table=tables ; table ; table=table->next)
   {
-    if (table->on_expr)
-    {
-      /* Make a join an a expression */
-      thd->where="on clause";
-      if (table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
-	  table->on_expr->check_cols(1))
-	DBUG_RETURN(1);
-      thd->lex->current_select->cond_count++;
-
-      /*
-	If it's a normal join or a LEFT JOIN which can be optimized away
-	add the ON/USING expression to the WHERE
-      */
-      if (!table->outer_join ||
-	  ((table->table->map & not_null_tables) &&
-	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
+    TABLE_LIST *embedded;
+    TABLE_LIST *embedding= table;
+    do
+    { 
+      embedded= embedding;
+      if (embedded->on_expr)
       {
-	table->outer_join= 0;
-	if (!(*conds=and_conds(*conds, table->on_expr)))
+        /* Make a join an a expression */
+        thd->where="on clause";
+        if (embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr) ||
+	    embedded->on_expr->check_cols(1))
 	  DBUG_RETURN(1);
-	table->on_expr=0;
+        thd->lex->current_select->cond_count++;
       }
-    }
-    if (table->natural_join)
-    {
-      /* Make a join of all fields with have the same name */
-      TABLE *t1=table->table;
-      TABLE *t2=table->natural_join->table;
-      Item_cond_and *cond_and=new Item_cond_and();
-      if (!cond_and)				// If not out of memory
-	DBUG_RETURN(1);
-      cond_and->top_level_item();
-
-      uint i,j;
-      for (i=0 ; i < t1->fields ; i++)
+      if (embedded->natural_join)
       {
-	// TODO: This could be optimized to use hashed names if t2 had a hash
-	for (j=0 ; j < t2->fields ; j++)
-	{
-	  if (!my_strcasecmp(system_charset_info,
-			     t1->field[i]->field_name,
-			     t2->field[j]->field_name))
+        /* Make a join of all fields with have the same name */
+        TABLE_LIST *tab1= embedded;
+        TABLE_LIST *tab2= embedded->natural_join;
+        if (!(embedded->outer_join & JOIN_TYPE_RIGHT))
+        {
+          while (tab1->nested_join)
+          {
+            TABLE_LIST *next;
+            List_iterator_fast<TABLE_LIST> it(tab1->nested_join->join_list);
+            tab1= it++;
+            while ((next= it++))
+              tab1= next;
+          }
+        }
+        else
+        {
+          while (tab1->nested_join)
+            tab1= tab1->nested_join->join_list.head();
+        }
+        if (embedded->outer_join & JOIN_TYPE_RIGHT)
+        {
+          while (tab2->nested_join)
+          {
+            TABLE_LIST *next;
+            List_iterator_fast<TABLE_LIST> it(tab2->nested_join->join_list);
+            tab2= it++;
+            while ((next= it++))
+              tab2= next;
+          }
+        }
+        else
+        {
+          while (tab2->nested_join)
+            tab2= tab2->nested_join->join_list.head();
+        }
+        TABLE *t1=tab1->table;
+        TABLE *t2=tab2->table;
+        Item_cond_and *cond_and=new Item_cond_and();
+        if (!cond_and)				// If not out of memory
+	  DBUG_RETURN(1);
+        cond_and->top_level_item();
+
+        uint i,j;
+        for (i=0 ; i < t1->fields ; i++)
+        {
+	  // TODO: This could be optimized to use hashed names if t2 had a hash
+	  for (j=0 ; j < t2->fields ; j++)
 	  {
-	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),
-					       new Item_field(t2->field[j]));
-	    if (!tmp)
-	      DBUG_RETURN(1);
-	    tmp->fix_length_and_dec();	// Update cmp_type
-	    tmp->const_item_cache=0;
-	    /* Mark field used for table cache */
-	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
-	    cond_and->list.push_back(tmp);
-	    t1->used_keys.intersect(t1->field[i]->part_of_key);
-	    t2->used_keys.intersect(t2->field[j]->part_of_key);
-	    break;
+	    if (!my_strcasecmp(system_charset_info,
+			       t1->field[i]->field_name,
+			       t2->field[j]->field_name))
+	    {
+	      Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),
+					         new Item_field(t2->field[j]));
+	      if (!tmp)
+	        DBUG_RETURN(1);
+	      tmp->fix_length_and_dec();	// Update cmp_type
+	      tmp->const_item_cache=0;
+	      /* Mark field used for table cache */
+	      t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
+	      cond_and->list.push_back(tmp);
+	      t1->used_keys.intersect(t1->field[i]->part_of_key);
+	      t2->used_keys.intersect(t2->field[j]->part_of_key);
+	      break;
+	    }
 	  }
-	}
+        }
+        cond_and->used_tables_cache= t1->map | t2->map;
+        thd->lex->current_select->cond_count+= cond_and->list.elements;
+        COND *on_expr= cond_and;
+        on_expr->fix_fields(thd, 0, &on_expr);
+        if (!embedded->outer_join)			// Not left join
+        {
+	  if (!(*conds=and_conds(*conds, on_expr)))
+	    DBUG_RETURN(1);
+        }
+        else
+	  embedded->on_expr=and_conds(embedded->on_expr,on_expr);
       }
-      cond_and->used_tables_cache= t1->map | t2->map;
-      thd->lex->current_select->cond_count+= cond_and->list.elements;
-      if (!table->outer_join)			// Not left join
-      {
-	if (!(*conds=and_conds(*conds, cond_and)))
-	  DBUG_RETURN(1);
-      }
-      else
-	table->on_expr=and_conds(table->on_expr,cond_and);
+      embedding= embedded->embedding;
     }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
   }
   DBUG_RETURN(test(thd->net.report_error));
 }

@@ -73,7 +73,6 @@ typedef struct st_join_cache {
 /*
 ** The structs which holds the join connections and join states
 */
-
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
 		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE};
@@ -86,7 +85,13 @@ typedef struct st_join_table {
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
-  Item		*on_expr;
+  Item		*on_expr;       /* associated on expression                  */
+  st_join_table *first_inner;   /* first inner table for including outerjoin */
+  bool           found;         /* true after all matches or null complement */
+  bool           not_null_compl;/* true before null complement is added      */
+  st_join_table *last_inner;    /* last table table for embedding outer join */
+  st_join_table *first_upper;  /* first inner table for embedding outer join */
+  st_join_table *first_unmatched; /* used for optimization purposes only     */
   const char	*info;
   byte		*null_ref_key;
   int		(*read_first_record)(struct st_join_table *tab);
@@ -196,8 +201,10 @@ class JOIN :public Sql_alloc
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
-  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
+  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_select
+  List<TABLE_LIST> *join_list;       // list of joined tables in reverse order
   SQL_SELECT *select;                //created in optimisation phase
+  JOIN_TAB *return_tab;              //used only for outer joins
   Item **ref_pointer_array; //used pointer reference for this select
   // Copy of above to be used with different lists
   Item **items0, **items1, **items2, **items3, **current_ref_pointer_array;
@@ -221,6 +228,7 @@ class JOIN :public Sql_alloc
     table= 0;
     tables= 0;
     const_tables= 0;
+    join_list= 0;
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
@@ -251,6 +259,7 @@ class JOIN :public Sql_alloc
     fields_list= fields_arg;
     error= 0;
     select= 0;
+    return_tab= 0;
     ref_pointer_array= items0= items1= items2= items3= 0;
     ref_pointer_array_size= 0;
     zero_result_cause= 0;

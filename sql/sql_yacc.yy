@@ -698,6 +698,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <table_list>
 	join_table_list  join_table
+        table_factor table_ref
 
 %type <udf>
 	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
@@ -4192,59 +4193,80 @@ when_list2:
 	    sel->when_list.head()->push_back($5);
 	  };
 
+table_ref:
+        table_factor            { $$=$1; }
+        | join_table            { $$=$1; }
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->nest_last_join(lex->thd)))
+              YYABORT;
+          }     	        
+        ;
+
 join_table_list:
-	'(' join_table_list ')'	{ $$=$2; }
-	| join_table		{ $$=$1; }
-	| join_table_list ',' join_table_list { $$=$3; }
-	| join_table_list normal_join join_table_list { $$=$3; }
-	| join_table_list STRAIGHT_JOIN join_table_list
-	  { $$=$3 ; $1->next->straight=1; }
-	| join_table_list normal_join join_table_list ON expr
+        table_ref { $$=$1; }
+        | join_table_list ',' table_ref { $$=$3; }
+        ;
+
+join_table:
+        table_ref normal_join table_ref { $$=$3; }
+	| table_ref STRAIGHT_JOIN table_factor
+	  { $3->straight=1; $$=$3 ; }
+	| table_ref normal_join table_ref ON expr
 	  { add_join_on($3,$5); $$=$3; }
-	| join_table_list normal_join join_table_list
+	| table_ref normal_join table_ref
 	  USING
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$3->db; sel->table2=$3->alias;
+            sel->save_names_for_using_list($1, $3);
 	  }
 	  '(' using_list ')'
 	  { add_join_on($3,$7); $$=$3; }
 
-	| join_table_list LEFT opt_outer JOIN_SYM join_table_list ON expr
+	| table_ref LEFT opt_outer JOIN_SYM table_ref ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
-	| join_table_list LEFT opt_outer JOIN_SYM join_table_list
+	| table_ref LEFT opt_outer JOIN_SYM table_ref
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$5->db; sel->table2=$5->alias;
+            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
-	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table_list
+	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
-	    add_join_natural($1,$1->next);
-	    $1->next->outer_join|=JOIN_TYPE_LEFT;
+	    add_join_natural($1,$6);
+	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
-	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list ON expr
-	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
-	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
+	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
+            add_join_on($$, $7);
+          }
+	| table_ref RIGHT opt_outer JOIN_SYM table_ref
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$5->db; sel->table2=$5->alias;
+            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
-	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
-	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table_list
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
+            add_join_on($$, $9);
+          }
+	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
-	    add_join_natural($1->next,$1);
-	    $1->outer_join|=JOIN_TYPE_RIGHT;
-	    $$=$6;
+	    add_join_natural($6,$1);
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
 	  }
-	| join_table_list NATURAL JOIN_SYM join_table_list
-	  { add_join_natural($1,$1->next); $$=$4; };
+	| table_ref NATURAL JOIN_SYM table_factor
+	  { add_join_natural($1,$4); $$=$4; };
+        
 
 normal_join:
 	JOIN_SYM		{}
@@ -4252,7 +4274,7 @@ normal_join:
 	| CROSS JOIN_SYM	{}
 	;
 
-join_table:
+table_factor:
 	{
 	  SELECT_LEX *sel= Select;
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
@@ -4268,8 +4290,21 @@ join_table:
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
+          sel->add_joined_table($$); 
 	}
-	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
+        | '('
+          { 
+            LEX *lex= Lex;
+            if (lex->current_select->init_nested_join(lex->thd))
+              YYABORT;
+          }            
+          join_table_list ')'
+          {
+            LEX *lex= Lex;
+            if (!($$= lex->current_select->end_nested_join(lex->thd)))
+              YYABORT;
+          }	
+	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
@@ -4289,6 +4324,7 @@ join_table:
 	                          (List<String> *)0)))
 
 	    YYABORT;
+          lex->current_select->add_joined_table($$);           
 	};
 
 select_derived:
