@@ -4977,7 +4977,7 @@ the SQL statement in case of an error. */
 int
 ha_innobase::external_lock(
 /*=======================*/
-			        /* out: 0 */
+			        /* out: 0 or HA_ERR_CRASHED */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
@@ -4988,19 +4988,6 @@ ha_innobase::external_lock(
 	DBUG_PRINT("enter",("lock_type: %d", lock_type));
 
 	update_thd(thd);
-
- 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
 
 	trx = prebuilt->trx;
 
