@@ -2516,7 +2516,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   rw_rdlock(&LOCK_grant);
   for (table=tables; table ;table=table->next)
   {
-    if (!(~table->grant.privilege & want_access))
+    if (!(~table->grant.privilege & want_access) || table->derived)
     {
       table->grant.want_privilege=0;
       continue;					// Already checked

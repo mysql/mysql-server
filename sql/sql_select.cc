@@ -3436,7 +3436,8 @@ static void update_depend_map(JOIN *join)
     uint i;
     for (i=0 ; i < ref->key_parts ; i++,item++)
       depend_map|=(*item)->used_tables();
-    ref->depend_map=depend_map;
+    ref->depend_map=depend_map & OUTER_REF_TABLE_BIT;
+    depend_map&= ~OUTER_REF_TABLE_BIT;
     for (JOIN_TAB **tab=join->map2table;
 	 depend_map ;
 	 tab++,depend_map>>=1 )

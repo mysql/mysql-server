@@ -314,7 +314,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -3431,7 +3431,7 @@ enum options
   OPT_INNODB_FLUSH_METHOD,
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -3891,6 +3891,10 @@ Disable with --skip-bdb (will save memory)",
   {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
 Disable with --skip-innodb (will save memory)",
    (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"isam", OPT_ISAM, "Enable isam (if this version of MySQL supports it). \
+Disable with --skip-isam",
+   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead",
@@ -5042,6 +5046,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
+    }
+#endif
+    break;
+  case OPT_ISAM:
+#ifdef HAVE_ISAM
+    if (opt_isam)
+    {
+      isam_skip=0;
+      isam_innodb=SHOW_OPTION_YES;
+    }
+    else
+    {
+      isam_skip=1;
+      isam_innodb=SHOW_OPTION_DISABLED;
     }
 #endif
     break;

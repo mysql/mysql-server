@@ -2217,7 +2217,9 @@ mysql_execute_command(THD *thd)
       goto error;
     for (table=tables ; table ; table=table->next)
     {
-      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+      if (table->derived)
+	table->grant.privilege= SELECT_ACL;
+      else if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
 	goto error;
     }
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))

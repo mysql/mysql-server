@@ -382,6 +382,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   int		auto_increment=0;
   handler	*file;
   int           field_no,dup_no;
+  enum db_type	new_db_type;
   DBUG_ENTER("mysql_create_table");
 
   /*
@@ -396,6 +397,16 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   List_iterator<create_field> it(fields),it2(fields);
   int select_field_pos=fields.elements - select_field_count;
   null_fields=blob_columns=0;
+  if ((new_db_type= ha_checktype(create_info->db_type)) !=
+      create_info->db_type)
+  {
+    create_info->db_type= new_db_type;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_USING_OTHER_HANDLER,
+			ER(ER_WARN_USING_OTHER_HANDLER),
+			ha_table_typelib.type_names[new_db_type],
+			table_name);
+  }
   db_options=create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
@@ -488,8 +499,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     case FIELD_TYPE_GEOMETRY:
       if (!(file->table_flags() & HA_HAS_GEOMETRY))
       {
-	my_printf_error(ER_WRONG_USAGE,ER(ER_WRONG_USAGE),MYF(0),
-			"GEOMETRY FIELD TYPE","not supported by this storage engine  ");
+	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
+			MYF(0), "GEOMETRY");
 	DBUG_RETURN(-1);
       }
       sql_field->pack_flag=FIELDFLAG_GEOM |
@@ -1702,7 +1713,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type=old_db_type;
-  new_db_type=create_info->db_type= ha_checktype(create_info->db_type);
+  if ((new_db_type= ha_checktype(create_info->db_type)) !=
+      create_info->db_type)
+  {
+    create_info->db_type= new_db_type;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_USING_OTHER_HANDLER,
+			ER(ER_WARN_USING_OTHER_HANDLER),
+			ha_table_typelib.type_names[new_db_type],
+			new_name);
+  }
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type=table->row_type;
 

@@ -1906,9 +1906,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       }
     }
     else if (!table_name && (item->eq(find,0) ||
-		     find->name &&
-		     !my_strcasecmp(system_charset_info, 
-                                    item->name,find->name)))
+			     find->name &&
+			     !my_strcasecmp(system_charset_info, 
+					    item->name,find->name)))
     {
       found= li.ref();
       *counter= i;
