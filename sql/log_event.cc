@@ -277,7 +277,11 @@ void Log_event::print_timestamp(FILE* file, time_t* ts)
   {
     ts = &when;
   }
+#ifdef MYSQL_SERVER
   localtime_r(ts,&tm_tmp);
+#else
+  localtime(ts);
+#endif
 
   fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  tm_tmp.tm_year % 100,

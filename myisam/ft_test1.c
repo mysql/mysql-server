@@ -30,7 +30,6 @@ static int create_flag=0,error=0;
 #define MAX_REC_LENGTH 300
 static char record[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
 
-void get_options(int argc,char *argv[]);
 static int run_test(const char *filename);
 static void get_options(int argc, char *argv[]);
 static void create_record(char *, int);
@@ -235,7 +234,7 @@ void create_record(char *pos, int n)
 
 /* Read options */
 
-void get_options(int argc,char *argv[])
+static void get_options(int argc,char *argv[])
 {
   int c;
   const char *options="hVvsNSKFU#:";

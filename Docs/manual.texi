@@ -46712,6 +46712,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Fixed problem with @code{myisampack} and @code{BLOB}.
+@item
 Fixes problem when one edited @code{.MRG} tables by hand.
 (Patch from Benjamin Pflugmann).
 @item
