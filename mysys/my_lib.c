@@ -462,8 +462,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       finfo.mystat= NULL;
 
     /*
-      Do not show hidden or system files which Windows sometimes creates. We
-      would need to see how this can be achieved with a Borland compiler.
+      If the directory is the root directory of the drive, Windows sometimes
+      creates hidden or system files there (like RECYCLER); do not show
+      them. We would need to see how this can be achieved with a Borland
+      compiler.
     */
 #ifndef __BORLANDC__
     if (attrib & (_A_HIDDEN | _A_SYSTEM))
