@@ -452,7 +452,6 @@ public:
   LEX     main_lex;
   LEX	  *lex;				// parse tree descriptor
   MEM_ROOT mem_root;			// 1 command-life memory pool
-  MEM_ROOT con_root;                    // connection-life memory
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_simple protocol_simple;	// Normal protocol
