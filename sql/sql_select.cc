@@ -199,16 +199,10 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     res= 1;
   if (res)
   {
-    if (result)
-    {
-      result->send_error(0, NullS);
-      result->abort();
-    }
-    else
-      send_error(thd, 0, NullS);
+    result->send_error(0, NullS);
+    result->abort();
     res= 1;					// Error sent to client
   }
-  delete result;
   DBUG_RETURN(res);
 }
 

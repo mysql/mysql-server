@@ -1,4 +1,4 @@
-/*	$NetBSD: hist.h,v 1.6 2001/01/10 07:45:41 jdolecek Exp $	*/
+/*	$NetBSD: hist.h,v 1.9 2003/01/21 18:40:23 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -66,7 +66,7 @@ typedef struct el_history_t {
 #define	HIST_FIRST(el)		HIST_FUN(el, H_FIRST, NULL)
 #define	HIST_LAST(el)		HIST_FUN(el, H_LAST, NULL)
 #define	HIST_PREV(el)		HIST_FUN(el, H_PREV, NULL)
-#define	HIST_EVENT(el, num)	HIST_FUN(el, H_EVENT, num)
+#define	HIST_SET(el, num)	HIST_FUN(el, H_SET, num)
 #define	HIST_LOAD(el, fname)	HIST_FUN(el, H_LOAD fname)
 #define	HIST_SAVE(el, fname)	HIST_FUN(el, H_SAVE fname)
 
@@ -74,7 +74,7 @@ protected int		hist_init(EditLine *);
 protected void		hist_end(EditLine *);
 protected el_action_t	hist_get(EditLine *);
 protected int		hist_set(EditLine *, hist_fun_t, ptr_t);
-protected int		hist_list(EditLine *, int, const char **);
+protected int		hist_command(EditLine *, int, const char **);
 protected int		hist_enlargebuf(EditLine *, size_t, size_t);
 
 #endif /* _h_el_hist */
