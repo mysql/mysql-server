@@ -487,7 +487,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       else if (refer != (Item **)not_found_item)
       {
 	Item_ref *r;
-	*ref= r= new Item_ref((char *)db_name, (char *)table_name,
+	*ref= r= new Item_ref(refer, (char *)table_name,
 			   (char *)field_name);
 	if (!r)
 	  return 1;

@@ -27,6 +27,9 @@ SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
 1
 SELECT (SELECT 1), a;
 Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
+a
+1
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -307,4 +310,10 @@ EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MA
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	
 2	SUBSELECT								Select tables optimized away
+drop table t1;
+CREATE TABLE t1 (a int(1));
+INSERT INTO t1 VALUES (1);
+SELECT 1 FROM (SELECT a FROM t1) HAVING (SELECT a)=1;
+1
+1
 drop table t1;
