@@ -75,8 +75,16 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   if (table->timestamp_field &&			// Don't set timestamp if used
       table->timestamp_field->query_id == thd->query_id)
     table->time_stamp=0;
+
+  /* Reset the query_id string so that ->used_keys is based on the WHERE */
+
   table->used_keys=table->keys_in_use;
   table->quick_keys=0;
+  reg2 Item *item;
+  List_iterator<Item> it(fields);  
+  ulong query_id=thd->query_id-1;
+  while ((item=it++))
+    ((Item_field*) item)->field->query_id=query_id;
   if (setup_fields(thd,table_list,values,0,0) ||
       setup_conds(thd,table_list,&conds))
   {
@@ -84,7 +92,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
   old_used_keys=table->used_keys;
-  table->used_keys=0;				// Can't use 'only index'
+  // Don't count on usage of 'only index' when calculating which key to use
+  table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
   if (error ||
       (select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),

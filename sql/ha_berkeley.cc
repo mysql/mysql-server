@@ -1660,7 +1660,8 @@ longlong ha_berkeley::get_auto_increment()
   }
   else
   {
-    DBT row;
+    DBT row,old_key;
+    DBC *auto_cursor;
     bzero((char*) &row,sizeof(row));
     uint key_len;
     KEY *key_info= &table->key_info[active_index];
@@ -1670,27 +1671,37 @@ longlong ha_berkeley::get_auto_increment()
 			    key_buff, table->record[0],
 			    table->next_number_key_offset);
     /* Store for compare */
-    memcpy(key_buff2, key_buff, (key_len=last_key.size));
-    /* Modify the compare so that we will find the next key */
-    key_info->handler.bdb_return_if_eq= 1;
-    /* We lock the next key as the new key will probl. be on the same page */
-    error=cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE | DB_RMW),
-    key_info->handler.bdb_return_if_eq= 0;
-    
-    if (!error || error == DB_NOTFOUND)
+    memcpy(old_key.data=key_buff2, key_buff, (old_key.size=last_key.size));
+    error=1;
+    if (!(file->cursor(key_file[active_index], transaction, &auto_cursor, 0)))
     {
-      /*
-	Now search go one step back and then we should have found the
-	biggest key with the given prefix
-      */
-      if (read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV | DB_RMW),
-		   table->record[1], active_index, &row, (DBT*) 0, 0) ||
-	  berkeley_key_cmp(table, key_info, key_buff2, key_len))
-	error=1;			// Something went wrong or no such key
+      /* Modify the compare so that we will find the next key */
+      key_info->handler.bdb_return_if_eq= 1;
+      /* We lock the next key as the new key will probl. be on the same page */
+      error=auto_cursor->c_get(auto_cursor, &last_key, &row,
+			       DB_SET_RANGE | DB_RMW);
+      key_info->handler.bdb_return_if_eq= 0;
+      if (!error || error == DB_NOTFOUND)
+      {
+	/*
+	  Now search go one step back and then we should have found the
+	  biggest key with the given prefix
+	  */
+	error=1;
+	if (!auto_cursor->c_get(auto_cursor, &last_key, &row, DB_PREV | DB_RMW)
+	    && !berkeley_cmp_packed_key(key_file[active_index], &old_key,
+					&last_key))
+	{
+	  error=0;				// Found value
+	  unpack_key(table->record[1], &last_key, active_index);
+	}
+      }
+      auto_cursor->c_close(auto_cursor);
     }
   }
-  nr=(longlong)
-    table->next_number_field->val_int_offset(table->rec_buff_length)+1;
+  if (!error)
+    nr=(longlong)
+      table->next_number_field->val_int_offset(table->rec_buff_length)+1;
   ha_berkeley::index_end();
   (void) ha_berkeley::extra(HA_EXTRA_NO_KEYREAD);
   return nr;

@@ -17897,6 +17897,11 @@ tables as one. This only works with MERGE tables. @xref{MERGE}.
 For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 All mapped tables must be in the same database as the @code{MERGE} table.
+@item
+In the created table the @code{PRIMARY} key will be placed first, followed
+by all @code{UNIQUE} keys and then the normal keys.  This helps the
+@strong{MySQL} optimizer to prioritize which key to use and also more quickly
+detect duplicated @code{UNIQUE} keys.
 @end itemize
 
 @cindex silent column changes
@@ -22598,7 +22603,7 @@ You may also want to change @code{binlog_cache_size} and
 @itemize @bullet
 @item
 @strong{MySQL} requires a @code{PRIMARY KEY} in each BDB table to be
-able to refer to previously read rows. If you don't create on,
+able to refer to previously read rows. If you don't create one,
 @strong{MySQL} will create an maintain a hidden @code{PRIMARY KEY} for
 you.  The hidden key has a length of 5 bytes and is incremented for each
 insert attempt.
@@ -22618,8 +22623,6 @@ you don't use @code{LOCK TABLE}, @strong{MYSQL} will issue an internal
 multiple-write lock on the table to ensure that the table will be
 properly locked if another thread issues a table lock.
 @item
-@code{ALTER TABLE} doesn't yet work on @code{BDB} tables.
-@item
 Internal locking in @code{BDB} tables is done on page level.
 @item
 @code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
@@ -22637,8 +22640,8 @@ tables. In other words, the key information will take a little more
 space in @code{BDB} tables compared to MyISAM tables which don't use
 @code{PACK_KEYS=0}.
 @item
-There is often holes in the BDB table to allow you to insert new rows
-between different keys.  This makes BDB tables somewhat larger than
+There is often holes in the BDB table to allow you to insert new rows in
+the middle of the key tree.  This makes BDB tables somewhat larger than
 MyISAM tables.
 @item
 @strong{MySQL} performs a checkpoint each time a new Berkeley DB log
@@ -39761,6 +39764,14 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+When creating a table, put @code{PRIMARY} keys first, followed by
+@code{UNIQUE} keys.
+@item
+Fixed a bug in @code{UPDATE} involving multi-part keys where one
+specified all key parts both in the update and the @code{WHERE} part. In
+this case @strong{MySQL} could try to update a record that didn't match
+the whole @code{WHERE} part.
 @item
 Changed drop table to first drop the tables and then the @code{.frm} file.
 @item
