@@ -2713,7 +2713,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
         update it inside mysql_load().
       */
       if (mysql_load(thd, &ex, &tables, field_list, set_fields, set_fields,
-                     handle_dup, ignore, net != 0, TL_WRITE))
+                     handle_dup, ignore, net != 0))
         thd->query_error= 1;
       if (thd->cuted_fields)
       {

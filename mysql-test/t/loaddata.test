@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (a date, b date, c date not null, d date);
@@ -64,4 +64,13 @@ select * from t1;
 # and this should bark
 --error 1409 
 load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
-drop table t1;
+
+# Now let us test LOAD DATA with subselect
+create table t2 (num int primary key, str varchar(10));
+insert into t2 values (10,'Ten'), (15,'Fifteen');
+truncate table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+select * from t1;
+
+# cleanup
+drop table t1, t2;
