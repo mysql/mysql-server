@@ -118,6 +118,7 @@ typedef struct charset_info_st
 
 
 extern CHARSET_INFO *my_charset_bin;
+extern CHARSET_INFO *my_charset_latin1;
 extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];

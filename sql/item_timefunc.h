@@ -243,7 +243,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg, my_thd_charset);
   }  
 };
 
@@ -261,7 +261,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							 t_arg);
+							 t_arg, my_thd_charset);
   }
 };
 
@@ -287,7 +287,8 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : 
+    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
   }  
 };
 
@@ -379,7 +380,8 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : 
+    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
   }
 };
 
@@ -443,7 +445,8 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : 
+    		      new Field_date(maybe_null, name, t_arg, my_thd_charset);
   }  
 };
 
@@ -458,7 +461,8 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : 
+    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
   }
 };
 
@@ -474,6 +478,6 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							t_arg);
+							t_arg, my_thd_charset);
   }
 };
