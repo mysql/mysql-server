@@ -370,8 +370,10 @@ struct st_myisam_info {
 
 #define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
 #define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/myisam_block_size+1)*myisam_block_size)
-#define MI_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
-#define MI_MIN_KEYBLOCK_LENGTH	50	/* When to split delete blocks */
+#define MI_MAX_KEYPTR_SIZE	5        /* For calculating block lengths */
+#define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
+
+#define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
 
 /* The UNIQUE check is done with a hashed long key */
 
@@ -656,7 +658,7 @@ int _mi_init_bulk_insert(MI_INFO *info);
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
-int flush_pending_blocks(MI_CHECK *param);
+int flush_pending_blocks(MI_SORT_PARAM *param);
 
 #ifdef __cplusplus
 }

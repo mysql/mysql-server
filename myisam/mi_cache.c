@@ -14,14 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Functions for read record cacheing with myisam */
-/* Used instead of my_b_read() to allow for no-cacheed seeks */
+/*
+  Functions for read record cacheing with myisam
+  Used for reading dynamic/compressed records from datafile.
+
+  Can fetch data directly from file (outside cache),
+  if reading a small chunk straight before the cached part (with possible
+  overlap).
+
+  Can be explicitly asked not to use cache (by not setting READING_NEXT in
+  flag) - useful for occasional out-of-cache reads, when the next read is
+  expected to hit the cache again.
+
+  Allows "partial read" errors in the record header (when READING_HEADER flag
+  is set) - unread part is bzero'ed
+
+  Note: out-of-cache reads are disabled for shared IO_CACHE's
+*/
+
 
 #include "myisamdef.h"
-
-	/* Copy block from cache if it`s in it. If re_read_if_possibly is */
-	/* set read to cache (if after current file-position) else read to */
-	/* buff								  */
 
 int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
 		   int flag)
@@ -31,7 +43,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   char *in_buff_pos;
   DBUG_ENTER("_mi_read_cache");
 
-  if (pos < info->pos_in_file)
+  if (pos < info->pos_in_file && ! info->share)
   {
     read_length=length;
     if ((my_off_t) read_length > (my_off_t) (info->pos_in_file-pos))
@@ -44,7 +56,8 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
     pos+=read_length;
     buff+=read_length;
   }
-  if ((offset= (my_off_t) (pos - info->pos_in_file)) <
+  if (pos >= info->pos_in_file &&
+      (offset= (my_off_t) (pos - info->pos_in_file)) <
       (my_off_t) (info->read_end - info->request_pos))
   {
     in_buff_pos=info->request_pos+(uint) offset;
@@ -57,10 +70,10 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   }
   else
     in_buff_length=0;
-  if (flag & READING_NEXT)
+  if (flag & READING_NEXT || info->share)
   {
-    if (pos != ((info)->pos_in_file +
-		(uint) ((info)->read_end - (info)->request_pos)))
+    if (pos !=
+        (info->pos_in_file + (uint) (info->read_end - info->request_pos)))
     {
       info->pos_in_file=pos;				/* Force start here */
       info->read_pos=info->read_end=info->request_pos;	/* Everything used */
@@ -70,34 +83,25 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
       info->read_pos=info->read_end;			/* All block used */
     if (!(*info->read_function)(info,buff,length))
       DBUG_RETURN(0);
-    if (!(flag & READING_HEADER) || info->error == -1 ||
-	(uint) info->error+in_buff_length < 3)
-    {
-      DBUG_PRINT("error",
-		 ("Error %d reading next-multi-part block (Got %d bytes)",
-		  my_errno, info->error));
-      if (!my_errno || my_errno == -1)
-	my_errno=HA_ERR_WRONG_IN_RECORD;
-      DBUG_RETURN(1);
-    }
-    bzero(buff+info->error,MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length -
-	  (uint) info->error);
-    DBUG_RETURN(0);
+    read_length=info->error;
   }
-  info->seek_not_done=1;
-  if ((read_length=my_pread(info->file,buff,length,pos,MYF(0))) == length)
-    DBUG_RETURN(0);
+  else
+  {
+    info->seek_not_done=1;
+    if ((read_length=my_pread(info->file,buff,length,pos,MYF(0))) == length)
+      DBUG_RETURN(0);
+  }
   if (!(flag & READING_HEADER) || (int) read_length == -1 ||
       read_length+in_buff_length < 3)
   {
     DBUG_PRINT("error",
-	       ("Error %d reading new block (Got %d bytes)",
-		my_errno, (int) read_length));
+               ("Error %d reading next-multi-part block (Got %d bytes)",
+                my_errno, (int) read_length));
     if (!my_errno || my_errno == -1)
       my_errno=HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }
   bzero(buff+read_length,MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length -
-	read_length);
+        read_length);
   DBUG_RETURN(0);
 } /* _mi_read_cache */
