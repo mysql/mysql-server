@@ -99,3 +99,24 @@ select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
 select charset(@a),collation(@a),coercibility(@a);
 --error 1267
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
+
+# Check that user variables are binlogged correctly (BUG#3875)
+create table t1 (a varchar(50));
+reset master;
+SET TIMESTAMP=10000;
+SET @`a b`='hello';
+INSERT INTO t1 VALUES(@`a b`);
+set @var1= "';aaa";
+insert into t1 values (@var1);
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+insert into t2 values (@v);
+show binlog events from 79;
+# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
+# absolutely need variables names to be quoted and strings to be
+# escaped).
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+drop table t1, t2;
+
+
