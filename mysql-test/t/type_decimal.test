@@ -183,7 +183,8 @@ drop  table t1;
 
 
 create table t1 (a decimal(10,2));
-insert into t1 values (0.0),(-0.0),(+0.0),(01.0),(+01.0),(-01.0);
+# The -0.0 needs to be typed as not all platforms supports this
+insert into t1 values (0.0),("-0.0"),(+0.0),(01.0),(+01.0),(-01.0);
 insert into t1 values (-.1),(+.1),(.1);
 insert into t1 values (00000000000001),(+0000000000001),(-0000000000001);
 insert into t1 values (+111111111.11),(111111111.11),(-11111111.11);
