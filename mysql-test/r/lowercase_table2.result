@@ -68,7 +68,7 @@ SHOW CREATE TABLE T1;
 Table	Create Table
 T1	CREATE TABLE `T1` (
   `a` int(11) default NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 RENAME TABLE T1 TO T2;
 SHOW TABLES LIKE "T2";
 Tables_in_test (T2)
