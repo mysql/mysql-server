@@ -8140,7 +8140,7 @@ void Dblqh::continueScanAfterBlockedLab(Signal* signal)
   } else if (scanptr.p->scanFlag == NextScanReq::ZSCAN_NEXT_COMMIT) {
     jam();
     accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
-                        scanptr.p->scanCompletedOperations,
+                        scanptr.p->scanCompletedOperations - 1,
                         false);
   } else {
     jam();
