@@ -3561,6 +3561,7 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
+    // TODO: assign resolve_mode for fake subquery after merging with new tree
   }
   else
     select_lex->include_neighbour(lex->current_select);
@@ -3568,6 +3569,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->master_unit()->global_parameters= select_lex;
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
+  select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
   return 0;
 }
 

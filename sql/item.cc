@@ -49,15 +49,19 @@ Item::Item():
   THD *thd= current_thd;
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
-  loop_id= 0;
   /*
     Item constructor can be called during execution other tnen SQL_COM
     command => we should check thd->lex.current_select on zero (thd->lex
     can be uninitialised)
   */
-  if (thd->lex.current_select &&
-      thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
-    thd->lex.current_select->select_items++;
+  if (thd->lex.current_select)
+  {
+    SELECT_LEX_NODE::enum_parsing_place place= 
+      thd->lex.current_select->parsing_place;
+    if (place == SELECT_LEX_NODE::SELECT_LIST ||
+	place == SELECT_LEX_NODE::IN_HAVING)
+      thd->lex.current_select->select_n_having_items++;
+  }
 }
 
 /*
@@ -66,7 +70,6 @@ Item::Item():
   tables
 */
 Item::Item(THD *thd, Item &item):
-  loop_id(0),
   str_value(item.str_value),
   name(item.name),
   max_length(item.max_length),
@@ -867,7 +870,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     sl= sl->outer_select())
 	{
 	  table_list= (last= sl)->get_table_list();
-	  if (sl->insert_select && table_list)
+	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
 	    // it is primary INSERT st_select_lex => skip first table resolving
 	    table_list= table_list->next;
@@ -876,7 +879,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, &where,
 					 0)) != not_found_field)
 	    break;
-	  if ((refer= find_item_in_list(this, sl->item_list, &counter, 
+	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	      (refer= find_item_in_list(this, sl->item_list, &counter, 
 					 REPORT_EXCEPT_NOT_FOUND)) != 
 	       (Item **) not_found_item)
 	    break;
@@ -1353,13 +1357,15 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       SELECT_LEX *last=0;
       for ( ; sl ; sl= sl->outer_select())
       {
-	if ((ref= find_item_in_list(this, (last= sl)->item_list,
+	last= sl;
+	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	    (ref= find_item_in_list(this, sl->item_list,
 				    &counter,
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
 	table_list= sl->get_table_list();
-	if (sl->insert_select && table_list)
+	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
