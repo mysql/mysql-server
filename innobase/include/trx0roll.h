@@ -105,11 +105,19 @@ trx_rollback(
 Rollback or clean up transactions which have no user session. If the
 transaction already was committed, then we clean up a possible insert
 undo log. If the transaction was not yet committed, then we roll it back. 
-Note: this is done in a background thread */
+Note: this is done in a background thread. */
 
-void *
-trx_rollback_or_clean_all_without_sess(void *);
-/*============================================*/
+#ifndef __WIN__
+void*
+#else
+ulint
+#endif
+trx_rollback_or_clean_all_without_sess(
+/*===================================*/
+                        /* out: a dummy parameter */
+        void*   arg __attribute__((unused)));
+                        /* in: a dummy parameter required by
+                        os_thread_create */
 /********************************************************************
 Finishes a transaction rollback. */
 

@@ -1403,15 +1403,13 @@ NetWare. */
 		fsp_header_inc_size(0, sum_of_new_sizes, &mtr);		
 
 		mtr_commit(&mtr);
-	}
 
-	if (recv_needed_recovery) {
-	    	ut_print_timestamp(stderr);
-		fprintf(stderr,
-	        "  InnoDB: Flushing modified pages from the buffer pool...\n");
-	}
+		/* Immediately write the log record about increased tablespace
+		size to disk, so that it is durable even if mysqld would crash
+		quickly */
 
-	log_make_checkpoint_at(ut_dulint_max, TRUE);
+		log_buffer_flush_to_disk();
+	}
 
 #ifdef UNIV_LOG_ARCHIVE
 	/* Archiving is always off under MySQL */
