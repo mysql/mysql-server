@@ -1784,6 +1784,20 @@ btr_cur_pessimistic_update(
 								trx->id);
 	}
 
+	if (flags & BTR_NO_UNDO_LOG_FLAG) {
+		/* We are in a transaction rollback undoing a row
+		update: we must free possible externally stored fields
+		which got new values in the update, if they are not
+		inherited values. They can be inherited if we have
+		updated the primary key to another value, and then
+		update it back again. */
+
+		ut_a(big_rec_vec == NULL);
+		
+		btr_rec_free_updated_extern_fields(index, rec, update,
+						 		TRUE, mtr);
+	}
+
 	/* We have to set appropriate extern storage bits in the new
 	record to be inserted: we have to remember which fields were such */
 
@@ -1820,20 +1834,6 @@ btr_cur_pessimistic_update(
 	lock_rec_store_on_page_infimum(rec);
 
 	btr_search_update_hash_on_delete(cursor);
-
-	if (flags & BTR_NO_UNDO_LOG_FLAG) {
-		/* We are in a transaction rollback undoing a row
-		update: we must free possible externally stored fields
-		which got new values in the update, if they are not
-		inherited values. They can be inherited if we have
-		updated the primary key to another value, and then
-		update it back again. */
-
-		ut_a(big_rec_vec == NULL);
-		
-		btr_rec_free_updated_extern_fields(index, rec, update,
-						 		TRUE, mtr);
-	}
 
 	page_cur_delete_rec(page_cursor, mtr);
 
