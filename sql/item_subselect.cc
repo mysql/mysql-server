@@ -34,7 +34,7 @@ SUBSELECT TODO:
 
 Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
 			       select_subselect *result):
-  engine_owner(1), value_assigned(0)
+  Item(), engine_owner(1), value_assigned(0)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
