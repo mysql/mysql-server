@@ -19,13 +19,18 @@ insert into t1 values (105);
 insert into t1 values (106);
 insert into t1 values (107);
 
-insert into t2 values (107);
-insert into t2 values (75);
+insert into t2 values (107),(75),(1000);
 
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 
+#
+# Test problems with impossible ON or WHERE
+#
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
 drop table t1,t2;
 
 #
