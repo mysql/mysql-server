@@ -1771,8 +1771,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We changed a temporary table */
     if (error)
     {
+      /* 
+       * The following function call will also free a 
+       * new_table pointer.
+       * Therefore, here new_table pointer is not free'd as it is 
+       * free'd in close_temporary() which is called by by the 
+       * close_temporary_table() function.
+      */
       close_temporary_table(thd,new_db,tmp_name);
-      my_free((gptr) new_table,MYF(0));
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -2092,7 +2098,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
-  tmp_error = ha_recovery_logging(thd,TRUE);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
