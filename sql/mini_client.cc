@@ -810,9 +810,12 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   {
     if (passwd[0])
     {
-      /* Use something for not empty password not to match it against empty one */
-      end=scramble(strend(buff+5)+1, mysql->scramble_buff,"~MySQL#!",
-                 (my_bool) (mysql->protocol_version == 9));
+      /* Prepare false scramble */
+      end=strend(buff+5)+1;
+      bfill(end, SCRAMBLE_LENGTH, 'x');
+      end+=SCRAMBLE_LENGTH;
+      *end=0;
+      end++;
     }
     else  /* For empty password*/
     {
@@ -820,8 +823,11 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       *end=0; /* Store zero length scramble */
     }
   }
-  /* Real scramble is sent only for old servers. This is to be blocked by option */
   else
+    /*
+     Real scramble is only sent to old servers. This can be blocked  
+     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+    */
     end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
 
@@ -847,11 +853,12 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 
   if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    /* This should basically always happen with new server unless empty password */
-    if (pkt_length==24) /* We have new hash back */
+    /* This should always happen with new server unless empty password */
+    if (pkt_length==24 && net->read_pos[0]) 
+    /* OK/Error message has zero as the first character */
     {
       /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0])
+      if (net->read_pos[0] != '*')
       {
         /* Build full password hash as it is required to decode scramble */
         password_hash_stage1(buff, passwd);

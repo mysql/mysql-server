@@ -2228,9 +2228,12 @@ Try also with PIPE or TCP/IP
   {
     if (passwd[0])
     {
-      /* Use something for not empty password not to match against empty one */
-      end=scramble(strend(buff+5)+1, mysql->scramble_buff,"\1~MySQL#!\2",
-                 (my_bool) (mysql->protocol_version == 9));
+      /* Prepare false scramble  */
+      end=strend(buff+5)+1;
+      bfill(end, SCRAMBLE_LENGTH, 'x');
+      end+=SCRAMBLE_LENGTH;
+      *end=0;
+      end++;
     }
     else  /* For empty password*/
     {
@@ -2238,8 +2241,11 @@ Try also with PIPE or TCP/IP
       *end=0; /* Store zero length scramble */
     }
   }
-  /* Real scramble is sent only for servers. This is to be blocked by option */
   else
+    /*
+     Real scramble is only sent to old servers. This can be blocked 
+     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+    */
     end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
 
@@ -2265,11 +2271,12 @@ Try also with PIPE or TCP/IP
 
   if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    /* This should basically always happen with new server unless empty password */
-    if (pkt_length==24) /* We have new hash back */
+    /* This should always happen with new server unless empty password */
+    if (pkt_length==24 && net->read_pos[0]) 
+    /* OK/Error packets have zero as the first char */
     {
-      /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0])
+      /* Old passwords will have '*' at the first byte of hash */
+      if (net->read_pos[0] != '*')
       {
         /* Build full password hash as it is required to decode scramble */
         password_hash_stage1(buff, passwd);
@@ -2433,15 +2440,20 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   {
     if (passwd[0])
     {
-      /* Use something for not empty password not to match it against empty one */
-      end=scramble(end, mysql->scramble_buff,"\1~MySQL#!\2",
-                 (my_bool) (mysql->protocol_version == 9));
+      /* Prepare false scramble  */
+      bfill(end, SCRAMBLE_LENGTH, 'x');
+      end+=SCRAMBLE_LENGTH;
+      *end=0;
+
     }
     else  /* For empty password*/
       *end=0; /* Store zero length scramble */
   }
-  /* Real scramble is sent only for servers. This is to be blocked by option */
   else
+   /*
+    Real scramble is only sent to old servers. This can be blocked 
+    by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+   */
     end=scramble(end, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
 
@@ -2458,11 +2470,12 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 
   if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    /* This should basically always happen with new server unless empty password */
-    if (pkt_length==24) /* We have new hash back */
+    /* This should always happen with new server unless empty password */
+    if (pkt_length==24 && net->read_pos[0])
+    /* Err/OK messages has first character=0 */
     {
       /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0])
+      if (net->read_pos[0] != '*')
       {
         /* Build full password hash as it is required to decode scramble */
         password_hash_stage1(buff, passwd);

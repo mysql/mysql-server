@@ -138,7 +138,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *scramble,char **priv_user,
 		  bool old_ver, USER_RESOURCES *max,char* prepared_scramble,
-                  int stage, uint *cur_priv_version, ACL_USER **cached_user);
+                  uint *cur_priv_version, ACL_USER **cached_user);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
