@@ -376,13 +376,13 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     }
     else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
              derivation < dt.derivation &&
-             dt.derivation == DERIVATION_COERCIBLE)
+             dt.derivation >= DERIVATION_COERCIBLE)
     {
       // Do nothing;
     }
     else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
              dt.derivation < derivation &&
-             derivation == DERIVATION_COERCIBLE)
+             derivation >= DERIVATION_COERCIBLE)
     {
       set(dt);
       strong= nagg;

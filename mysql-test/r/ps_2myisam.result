@@ -1790,7 +1790,7 @@ t5	CREATE TABLE `t5` (
   `param10` bigint(20) default NULL,
   `const11` int(4) default NULL,
   `param11` bigint(20) default NULL,
-  `const12` char(0) default NULL,
+  `const12` binary(0) default NULL,
   `param12` bigint(20) default NULL,
   `param13` double default NULL,
   `param14` longtext,
@@ -1820,7 +1820,7 @@ def	test	t5	t5	const10	const10	3	10	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
-def	test	t5	t5	const12	const12	254	0	0	Y	0	0	8
+def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	5	20	0	Y	32768	31	63
 def	test	t5	t5	param14	param14	252	16777215	0	Y	16	0	8
