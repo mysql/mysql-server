@@ -66,8 +66,12 @@ os_event_create(
 	event = ut_malloc(sizeof(struct os_event_struct));
 
 	os_fast_mutex_init(&(event->os_mutex));
-	pthread_cond_init(&(event->cond_var), NULL);
 
+#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
+	pthread_cond_init(&(event->cond_var), pthread_condattr_default);
+#else
+	pthread_cond_init(&(event->cond_var), NULL);
+#endif
 	event->is_set = FALSE;
 
 	return(event);
@@ -441,7 +445,11 @@ os_fast_mutex_init(
 	
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
+#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
+	pthread_mutex_init(fast_mutex, pthread_mutexattr_default);
+#else
 	pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST);
+#endif
 #endif
 }
 

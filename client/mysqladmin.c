@@ -23,6 +23,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 #include <sys/stat.h>
+#include <mysql.h>
 
 #define ADMIN_VERSION "8.38"
 #define MAX_MYSQL_VAR 128
@@ -41,6 +42,11 @@ static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
             opt_count_iterations= 0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
+
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
 
 /*
   When using extended-status relatively, ex_val_max_len is the estimated
@@ -135,6 +141,8 @@ static struct my_option my_long_options[] =
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
    (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
    "Show difference between current and previous values when used with -i. Currently works only with extended-status.",
    (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -142,6 +150,11 @@ static struct my_option my_long_options[] =
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"silent", 's', "Silently exit if one can't connect to server",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
@@ -205,7 +218,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
-    unix_port=MYSQL_NAMEDPIPE;
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
   case '#':
@@ -234,6 +247,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     charsets_dir = argument;
 #endif
     break;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+    break;
+  }
   }
   if (error)
   {
@@ -284,6 +306,12 @@ int main(int argc,char *argv[])
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
+  if (opt_protocol)
+    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif    
   if (sql_connect(&mysql, option_wait))
     error = 1;
   else
@@ -326,6 +354,9 @@ int main(int argc,char *argv[])
   }
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   free_defaults(save_argv);
   my_end(0);
   exit(error ? 1 : 0);

@@ -78,7 +78,13 @@ bool select_union::send_data(List<Item> &values)
   fill_record(table->field,values);
   if ((write_record(table,&info)))
   {
-    if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
+    if (thd->net.last_errno == ER_RECORD_FILE_FULL)
+    {
+      thd->clear_error(); // do not report user about table overflow
+      if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
+	return 1;
+    }
+    else
       return 1;
   }
   return 0;

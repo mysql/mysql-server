@@ -889,7 +889,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Column_name",NAME_LEN));
   field_list.push_back(item=new Item_empty_string("Collation",1));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_int("Cardinality",0,11));
+  field_list.push_back(item=new Item_int("Cardinality",0,21));
   item->maybe_null=1;
   field_list.push_back(item=new Item_int("Sub_part",0,3));
   item->maybe_null=1;
@@ -930,8 +930,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       KEY *key=table->key_info+i;
       if (key->rec_per_key[j])
       {
-        ulong records=(table->file->records / key->rec_per_key[j]);
-        end=int10_to_str((long) records, buff, 10);
+        ha_rows records=(table->file->records / key->rec_per_key[j]);
+        end=longlong10_to_str((longlong) records, buff, 10);
         net_store_data(packet,convert,buff,(uint) (end-buff));
       }
       else
@@ -1139,6 +1139,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
     if (!found_primary)
      append_identifier(thd,packet,key_info->name);
+
+    if (table->db_type == DB_TYPE_HEAP &&
+	key_info->algorithm == HA_KEY_ALG_BTREE)
+      packet->append(" USING BTREE", 12);
 
     // +BAR: send USING only in non-default case: non-spatial rtree
     if((key_info->algorithm == HA_KEY_ALG_RTREE) &&
@@ -1424,7 +1428,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,convert,cs[0]->name);
       net_store_data(&packet2,(uint32) cs[0]->number);
       net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen ? cs[0]->mbmaxlen : 1));
+      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen));
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
          goto err;

@@ -335,7 +335,7 @@ dict_load_fields(
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
 		if (rec_get_deleted_flag(rec)) {
 			fprintf(stderr,
-"InnoDB: Error: data dictionary entry for table %s is corrupt!\n",
+"InnoDB: Error: data dictionary entry for table %s is corrupt!\n"
 "InnoDB: An index field is delete marked.\n",
 			table->name);
 		}

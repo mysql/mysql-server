@@ -27,7 +27,8 @@
 
 typedef struct st_berkeley_share {
   ulonglong auto_ident;
-  ha_rows rows, org_rows, *rec_per_key;
+  ha_rows rows, org_rows;
+  ulong *rec_per_key;
   THR_LOCK lock;
   pthread_mutex_t mutex;
   char *table_name;

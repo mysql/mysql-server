@@ -121,16 +121,19 @@ btr_cur_latch_leaves(
 {
 	ulint	left_page_no;
 	ulint	right_page_no;
-
+	page_t*	get_page;
+	
 	ut_ad(tree && page && mtr);
 
 	if (latch_mode == BTR_SEARCH_LEAF) {
 	
-		btr_page_get(space, page_no, RW_S_LATCH, mtr);
+		get_page = btr_page_get(space, page_no, RW_S_LATCH, mtr);
+		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
 
 	} else if (latch_mode == BTR_MODIFY_LEAF) {
 
-		btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
 
 	} else if (latch_mode == BTR_MODIFY_TREE) {
 
@@ -138,15 +141,22 @@ btr_cur_latch_leaves(
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
-			btr_page_get(space, left_page_no, RW_X_LATCH, mtr);
+			get_page = btr_page_get(space, left_page_no,
+							RW_X_LATCH, mtr);
+			buf_block_align(get_page)->check_index_page_at_flush =
+									TRUE;
 		}
 				
-		btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
 
 		right_page_no = btr_page_get_next(page, mtr);
 
 		if (right_page_no != FIL_NULL) {
-			btr_page_get(space, right_page_no, RW_X_LATCH, mtr);
+			get_page = btr_page_get(space, right_page_no,
+							RW_X_LATCH, mtr);
+			buf_block_align(get_page)->check_index_page_at_flush =
+									TRUE;
 		}
 
 	} else if (latch_mode == BTR_SEARCH_PREV) {
@@ -157,9 +167,12 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			cursor->left_page = btr_page_get(space, left_page_no,
 							RW_S_LATCH, mtr);
+			buf_block_align(
+			cursor->left_page)->check_index_page_at_flush = TRUE;
 		}
 
-		btr_page_get(space, page_no, RW_S_LATCH, mtr);
+		get_page = btr_page_get(space, page_no, RW_S_LATCH, mtr);
+		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
 
 	} else if (latch_mode == BTR_MODIFY_PREV) {
 
@@ -169,9 +182,12 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			cursor->left_page = btr_page_get(space, left_page_no,
 							RW_X_LATCH, mtr);
+			buf_block_align(
+			cursor->left_page)->check_index_page_at_flush = TRUE;
 		}
 
-		btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
+		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
 	} else {
 		ut_error;
 	}
@@ -274,6 +290,7 @@ btr_cur_search_to_nth_level(
 	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
 		&& latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 		&& !estimate
+		&& mode != PAGE_CUR_LE_OR_EXTENDS
 	        && btr_search_guess_on_hash(index, info, tuple, mode,
 						latch_mode, cursor,
 						has_search_latch, mtr)) {
@@ -334,12 +351,18 @@ btr_cur_search_to_nth_level(
 	rw_latch = RW_NO_LATCH;
 	buf_mode = BUF_GET;
 
+	/* We use these modified search modes on non-leaf levels of the
+	B-tree. These let us end up in the right B-tree leaf. In that leaf
+	we use the original search mode. */
+
 	if (mode == PAGE_CUR_GE) {
 		page_mode = PAGE_CUR_L;
 	} else if (mode == PAGE_CUR_G) {
 		page_mode = PAGE_CUR_LE;
 	} else if (mode == PAGE_CUR_LE) {
 		page_mode = PAGE_CUR_LE;
+	} else if (mode == PAGE_CUR_LE_OR_EXTENDS) {
+		page_mode = PAGE_CUR_LE_OR_EXTENDS;
 	} else {
 		ut_ad(mode == PAGE_CUR_L);
 		page_mode = PAGE_CUR_L;
@@ -390,6 +413,8 @@ retry_page_get:
 
 			goto retry_page_get;
 		}
+
+		buf_block_align(page)->check_index_page_at_flush = TRUE;
 			
 #ifdef UNIV_SYNC_DEBUG					
 		if (rw_latch != RW_NO_LATCH) {
@@ -542,6 +567,8 @@ btr_cur_open_at_index_side(
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
 						btr_page_get_index_id(page)));
+
+		buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */

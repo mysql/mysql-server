@@ -223,7 +223,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (error)
     my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
   else
-    statistic_add(filesort_rows, records, &LOCK_status);
+    statistic_add(filesort_rows, (ulong) records, &LOCK_status);
   *examined_rows= param.examined_rows;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
@@ -724,7 +724,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   org_max_rows=max_rows=param->max_rows;
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
-		 (int (*) (void *, byte *,byte*))
+		 (queue_compare)
 		 (cmp=get_ptr_compare(sort_length)),(void*) &sort_length))
     DBUG_RETURN(1);				/* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)

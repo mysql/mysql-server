@@ -341,13 +341,14 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
+  ulonglong select_limit;
+  ulonglong max_join_size;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_heap_table_size;
-  ulong max_join_size;
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
@@ -361,7 +362,6 @@ struct system_variables
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
-  ulong select_limit;
   ulong sortbuff_size;
   ulong table_type;
   ulong tmp_table_size;
@@ -482,11 +482,13 @@ public:
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
   CHARSET_INFO *thd_charset;
+  List<Item> *possible_loops; // Items that may cause loops in subselects
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
-  ulong	     query_id, version, options, thread_id, col_access;
+  ulong	     query_id, warn_id, version, options, thread_id, col_access;
   ulong      current_stmt_id;
+  ulong	     rand_saved_seed1, rand_saved_seed2;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count;
@@ -494,6 +496,7 @@ public:
   uint32     query_length;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
+  uint       check_loops_counter;       //last id used to check loops
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   char	     scramble[21];            // extend scramble to handle new auth
@@ -502,7 +505,6 @@ public:
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  ulonglong  rand_saved_seed1, rand_saved_seed2;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
@@ -532,6 +534,8 @@ public:
 
   THD();
   ~THD();
+  void init(void);
+  void change_user(void);
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -631,6 +635,7 @@ public:
     net.last_errno= 0;
     net.report_error= 0;
   }
+  void add_possible_loop(Item *);
 };
 
 /*
@@ -929,11 +934,9 @@ public:
    ha_rows deleted;
    uint num_of_tables;
    int error;
-   thr_lock_type lock_option;
-   bool do_delete, not_trans_safe;
+   bool do_delete, transactional_tables, log_delayed, normal_tables;
  public:
-   multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
-		uint num_of_tables);
+   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
    ~multi_delete();
    int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
    bool send_fields(List<Item> &list,
@@ -953,7 +956,6 @@ public:
    ha_rows updated, found;
    List<Item> fields;
    List <Item> **fields_by_tables;
-   thr_lock_type lock_option;
    enum enum_duplicates dupl;
    uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
    int error;
@@ -961,7 +963,7 @@ public:
  public:
    multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
 		enum enum_duplicates handle_duplicates,  
-		thr_lock_type lock_option_arg, uint num);
+		uint num);
    ~multi_update();
    int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
    bool send_fields(List<Item> &list,

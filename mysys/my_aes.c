@@ -60,19 +60,19 @@ static int my_aes_create_key(KEYINSTANCE *aes_key,
 			     enum encrypt_dir direction, const char *key,
 			     int key_length)
 {
-  char rkey[AES_KEY_LENGTH/8];	 /* The real key to be used for encryption */
-  char *rkey_end=rkey+AES_KEY_LENGTH/8; /* Real key boundary */
-  char *ptr;			/* Start of the real key*/
+  uint8 rkey[AES_KEY_LENGTH/8];	 /* The real key to be used for encryption */
+  uint8 *rkey_end=rkey+AES_KEY_LENGTH/8; /* Real key boundary */
+  uint8 *ptr;			/* Start of the real key*/
   const char *sptr;			/* Start of the working key */
   const char *key_end=key+key_length;	/* Working key boundary*/
 
-  bzero(rkey,AES_KEY_LENGTH/8);      /* Set initial key  */
+  bzero((char*) rkey,AES_KEY_LENGTH/8);      /* Set initial key  */
 
   for (ptr= rkey, sptr= key; sptr < key_end; ptr++,sptr++)
   {
     if (ptr == rkey_end)
       ptr= rkey;  /*  Just loop over tmp_key until we used all key */
-    *ptr^= *sptr;
+    *ptr^= (uint8) *sptr;
   }
 #ifdef AES_USE_KEY_BITS
   /*
@@ -128,7 +128,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
 		   const char* key, int key_length)
 {
   KEYINSTANCE aes_key;
-  char block[AES_BLOCK_SIZE];	/* 128 bit block used for padding */
+  uint8 block[AES_BLOCK_SIZE];	/* 128 bit block used for padding */
   int rc;			/* result codes */
   int num_blocks;		/* number of complete blocks */
   char pad_len;			/* pad size for the last block */
@@ -141,7 +141,8 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
 
   for (i = num_blocks; i > 0; i--)   /* Encode complete blocks */
   {
-    rijndaelEncrypt(aes_key.rk, aes_key.nr, source, dest);
+    rijndaelEncrypt(aes_key.rk, aes_key.nr, (const uint8*) source,
+		    (uint8*) dest);
     source+= AES_BLOCK_SIZE;
     dest+= AES_BLOCK_SIZE;
   }
@@ -150,7 +151,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   pad_len = AES_BLOCK_SIZE - (source_length - AES_BLOCK_SIZE*num_blocks);
   memcpy(block, source, 16 - pad_len);
   bfill(block + AES_BLOCK_SIZE - pad_len, pad_len, pad_len);
-  rijndaelEncrypt(aes_key.rk, aes_key.nr, block, dest);
+  rijndaelEncrypt(aes_key.rk, aes_key.nr, block, (uint8*) dest);
   return AES_BLOCK_SIZE*(num_blocks + 1);
 }
 
@@ -175,7 +176,7 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
 		   const char *key, int key_length)
 {
   KEYINSTANCE aes_key;
-  char block[AES_BLOCK_SIZE];	/* 128 bit block used for padding */
+  uint8 block[AES_BLOCK_SIZE];	/* 128 bit block used for padding */
   int rc;			/* Result codes */
   int num_blocks;		/* Number of complete blocks */
   uint pad_len;			/* Pad size for the last block */
@@ -191,12 +192,13 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
 
   for (i = num_blocks-1; i > 0; i--)   /* Decode all but last blocks */
   {
-    rijndaelDecrypt(aes_key.rk, aes_key.nr, source, dest);
+    rijndaelDecrypt(aes_key.rk, aes_key.nr, (const uint8*) source,
+		    (uint8*) dest);
     source+= AES_BLOCK_SIZE;
     dest+= AES_BLOCK_SIZE;
   }
 
-  rijndaelDecrypt(aes_key.rk, aes_key.nr, source, block);
+  rijndaelDecrypt(aes_key.rk, aes_key.nr, (const uint8*) source, block);
   /* Use last char in the block as size */
   pad_len = (uint) (uchar) block[AES_BLOCK_SIZE-1];
 

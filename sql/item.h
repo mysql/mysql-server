@@ -20,10 +20,11 @@
 #endif
 
 struct st_table_list;
-void item_init(void);				/* Init item functions */
+void item_init(void);			/* Init item functions */
 
 class Item {
-  Item(const Item &);				/* Prevent use of these */
+  uint loop_id;                         /* Used to find selfrefering loops */
+  Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
@@ -88,6 +89,8 @@ public:
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
   virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  virtual bool check_loop(uint id);
+  virtual void top_level_item() {}
 };
 
 
@@ -434,6 +437,7 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
+  bool check_loop(uint id);
 };
 
 

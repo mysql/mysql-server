@@ -186,6 +186,7 @@ public:
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
   void update_used_tables();
+  bool check_loop(uint id);
 };
 
 
@@ -212,6 +213,11 @@ public:
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
+  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
+  {
+    args[0]->top_level_item();
+    return Item_func::fix_fields(thd, tlist, ref);
+  }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
 };
@@ -262,6 +268,7 @@ public:
   void print(String *str);
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
+  bool check_loop(uint id);
 };
 
 
@@ -284,9 +291,9 @@ public:
   virtual void set(uint pos,Item *item)=0;
   virtual byte *get_value(Item *item)=0;
   void sort()
-    {
-      qsort(base,used_count,size,compare);
-    }
+  {
+    qsort(base,used_count,size,compare);
+  }
   int find(Item *item);
 };
 
@@ -424,6 +431,13 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_in::check_loop");
+    if (Item_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -548,10 +562,12 @@ class Item_cond :public Item_bool_func
 {
 protected:
   List<Item> list;
+  bool abort_on_null;
 public:
-  Item_cond() : Item_bool_func() { const_item_cache=0; }
-  Item_cond(Item *i1,Item *i2) :Item_bool_func()
-    { list.push_back(i1); list.push_back(i2); }
+  /* Item_cond() is only used to create top level items */
+  Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
+  Item_cond(Item *i1,Item *i2) :Item_bool_func(), abort_on_null(0)
+  { list.push_back(i1); list.push_back(i2); }
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
@@ -563,6 +579,8 @@ public:
   void print(String *str);
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
+  bool check_loop(uint id);
+  void top_level_item() { abort_on_null=1; }
 };
 
 
@@ -610,6 +628,7 @@ inline Item *and_conds(Item *a,Item *b)
   return cond;
 }
 
+Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 /**************************************************************
   Spatial relations

@@ -97,7 +97,8 @@ extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key);
 extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
 extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
-extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old);
+extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, 
+			   uint k_len);
 #ifdef THREAD
 extern pthread_mutex_t THR_LOCK_heap;
 #else

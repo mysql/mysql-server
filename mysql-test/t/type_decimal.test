@@ -220,3 +220,13 @@ create table t1 (a decimal unsigned zerofill);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 select * from t1;
 drop  table t1;
+
+#  Exponent overflow bug
+create table t1(a decimal(10,0));
+insert into t1 values ("1e4294967295");
+select * from t1;
+delete from t1;
+insert into t1 values("1e4294967297");
+select * from t1;
+drop table t1;
+

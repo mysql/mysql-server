@@ -111,9 +111,6 @@ struct trx_purge_struct{
 					of the trx system and it never ends */
 	que_t*		query;		/* The query graph which will do the
 					parallelized purge operation */
-	rw_lock_t	purge_is_running;/* Purge operation set an x-latch here
-					while it is accessing a table: this
-					prevents dropping of the table */
 	rw_lock_t	latch;		/* The latch protecting the purge view.
 					A purge operation must acquire an
 					x-latch here for the instant at which

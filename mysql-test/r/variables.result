@@ -48,9 +48,6 @@ set max_join_size=100;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	100
-show global variables like 'max_join_size';
-Variable_name	Value
-max_join_size	4294967295
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value
@@ -62,7 +59,7 @@ max_join_size	2000
 set GLOBAL max_join_size=DEFAULT;
 show global variables like 'max_join_size';
 Variable_name	Value
-max_join_size	4294967295
+max_join_size	18446744073709551615
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 @@session.max_join_size	@@global.max_join_size
@@ -108,7 +105,6 @@ show global variables like 'table_type';
 Variable_name	Value
 table_type	INNODB
 set GLOBAL query_cache_size=100000;
-set GLOBAL safe_show_database=0;
 set myisam_max_sort_file_size=10000, GLOBAL myisam_max_sort_file_size=20000;
 show variables like 'myisam_max_sort_file_size';
 Variable_name	Value
@@ -171,6 +167,10 @@ convert_character_set	cp1251_koi8
 select @@timestamp>0;
 @@timestamp>0
 1
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
+select ROUND(RAND(),5);
+ROUND(RAND(),5)
+0.02887
 set big_tables=OFFF;
 Variable 'big_tables' can't be set to the value of 'OFFF'
 set big_tables="OFFF";
@@ -276,7 +276,6 @@ set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
-set global safe_show_database=1;
 set global server_id=100;
 set global slave_net_timeout=100;
 set global slow_launch_time=100;

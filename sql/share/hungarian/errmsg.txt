@@ -181,7 +181,7 @@
 "On a biztonsagos update modot hasznalja, es        WHERE that uses a KEY column",
 "A '%-.64s' kulcs nem letezik a '%-.64s' tablaban",
 "Nem tudom megnyitni a tablat",
-"A tabla kezeloje (handler) nem tamogatja az ellenorzest/helyreallitast",
+"A tabla kezeloje (handler) nem tamogatja az %s",
 "Az On szamara nem engedelyezett a parancs vegrehajtasa a tranzakcioban",
 "%d hiba a COMMIT vegrehajtasa soran",
 "%d hiba a ROLLBACK vegrehajtasa soran",
@@ -246,3 +246,5 @@
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Cyclic reference on subqueries",
+"Converting column '%s' from %s to %s"

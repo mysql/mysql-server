@@ -86,6 +86,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 */
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
+#define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
 /*
   The following is used to decide if MySQL should use table scanning
@@ -202,6 +203,11 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_SERIALIZABLE		16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
+#define MODE_POSTGRESQL			128
+#define MODE_ORACLE			256
+#define MODE_MSSQL			512
+#define MODE_DB2			1024
+#define MODE_SAPDB			2048
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -322,9 +328,8 @@ void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
-pthread_handler_decl(handle_one_connection,arg);
-pthread_handler_decl(handle_bootstrap,arg);
-sig_handler end_thread_signal(int sig);
+extern "C" pthread_handler_decl(handle_one_connection,arg);
+extern "C" pthread_handler_decl(handle_bootstrap,arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 void mysql_execute_command(THD *thd);
@@ -400,8 +405,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex,select_result *result);
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t,
-		  bool tables_is_opened);
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -438,14 +442,12 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds, 
                  ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates,
-		 thr_lock_type lock_type);
+		 enum enum_duplicates handle_duplicates);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
-		 List<List_item> &values, enum_duplicates flag,
-		 thr_lock_type lock_type);
+		 List<List_item> &values, enum_duplicates flag);
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
-                 ha_rows rows, thr_lock_type lock_type, ulong options);
+                 ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
@@ -606,7 +608,7 @@ int write_record(TABLE *table,COPY_INFO *info);
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
-pthread_handler_decl(handle_manager, arg);
+extern "C" pthread_handler_decl(handle_manager, arg);
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
@@ -634,6 +636,8 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *index_file_name,
 	      enum_log_type type, bool read_append = 0,
 	      bool no_auto_events = 0);
+/* mysqld.cc */
+void clear_error_message(THD *thd);
 
 /*
   External variables
@@ -759,7 +763,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 /* old unireg functions */
 
 void unireg_init(ulong options);
-void unireg_end(int signal);
+void unireg_end(void);
 int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);
@@ -788,7 +792,7 @@ timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
-void unireg_abort(int exit_code);
+extern "C" void unireg_abort(int exit_code);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
@@ -819,10 +823,6 @@ bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
-int wild_compare(const char *str,const char *str_end,
-		 const char *wildstr,const char *wildend,char escape);
-int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
-		      const char *wildstr,const char *wildend,char escape);
 
 /* from hostname.cc */
 struct in_addr;

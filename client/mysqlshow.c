@@ -31,6 +31,11 @@ static my_string host=0,opt_password=0,user=0;
 static my_bool opt_show_keys=0,opt_compress=0,opt_status=0, tty_password=0;
 static uint opt_verbose=0;
 
+#ifdef HAVE_SMEM 
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
+
 static void get_options(int *argc,char ***argv);
 static uint opt_mysql_port=0;
 static int list_dbs(MYSQL *mysql,const char *wild);
@@ -51,6 +56,7 @@ static my_string opt_mysql_unix_port=0;
 int main(int argc, char **argv)
 {
   int error;
+  my_bool first_argument_uses_wildcards=0;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -58,21 +64,37 @@ int main(int argc, char **argv)
   get_options(&argc,&argv);
 
   wild=0;
-  if (argc && strcont(argv[argc-1],"*?%_"))
+  if (argc)
   {
-    char *pos;
-
-    wild=argv[--argc];
-    for (pos=wild ; *pos ; pos++)
-    {					/* Unix wildcards to sql  */
-      if (*pos == '*')
-	*pos='%';
-      else if (*pos == '?')
-	*pos='_';
-    }
+    char *pos= argv[argc-1], *to;
+    for (to= pos ; *pos ; pos++, to++)
+    {
+      switch (*pos)
+      {
+      case '*':
+	*pos= '%';
+	first_argument_uses_wildcards= 1;
+	break;
+      case '?':
+	*pos= '_';
+	first_argument_uses_wildcards= 1;
+	break;
+      case '%':
+      case '_':
+	first_argument_uses_wildcards= 1;
+	break;
+      case '\\':
+	pos++;
+      default: break;
+      }
+      *to= *pos;
+    }    
+    *to= *pos; // just to copy a '\0'  if '\\' was used
   }
+  if (first_argument_uses_wildcards)
+    wild= argv[--argc];
   else if (argc == 3)			/* We only want one field */
-    wild=argv[--argc];
+    wild= argv[--argc];
 
   if (argc > 2)
   {
@@ -87,8 +109,14 @@ int main(int argc, char **argv)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
+  if (opt_protocol)
+    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
-			   argv[0],opt_mysql_port,opt_mysql_unix_port,
+			   (first_argument_uses_wildcards) ? "" : argv[0],opt_mysql_port,opt_mysql_unix_port,
 			   0)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
@@ -114,6 +142,9 @@ int main(int argc, char **argv)
   mysql_close(&mysql);			/* Close & free connection */
   if (opt_password)
     my_free(opt_password,MYF(0));
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   my_end(0);
   exit(error ? 1 : 0);
   return 0;				/* No compiler warnings */
@@ -147,6 +178,13 @@ static struct my_option my_long_options[] =
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"protocol", OPT_MYSQL_PROTOCOL,"The protocol of connection (tcp,socket,pipe,memory)",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
@@ -213,9 +251,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
-    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+    break;
+  }
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;

@@ -4,3 +4,4 @@
 
 select database(),user() like "%@%";
 select version()>="3.23.29";
+select TRUE,FALSE,NULL;

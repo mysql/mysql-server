@@ -72,7 +72,7 @@ show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 slave-bin.000001	4	Start	2	4	Server ver: VERSION, Binlog ver: 3
 slave-bin.000001	79	Query	1	79	use `test`; create table t1(n int not null auto_increment primary key)
-slave-bin.000001	172	Intvar	1	200	INSERT_ID=1
+slave-bin.000001	172	Intvar	1	172	INSERT_ID=1
 slave-bin.000001	200	Query	1	200	use `test`; insert into t1 values (NULL)
 slave-bin.000001	263	Query	1	263	use `test`; drop table t1
 slave-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)

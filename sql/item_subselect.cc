@@ -33,7 +33,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item(), engine_owner(1), value_assigned(0)
+  Item_result_field(), engine_owner(1), value_assigned(0)
 {
   assign_null();
   /*
@@ -93,6 +93,15 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     fix_length_and_dec();
   }
   return res;
+}
+
+bool Item_subselect::check_loop(uint id)
+{
+  DBUG_ENTER("Item_subselect::check_loop");
+  if (Item_result_field::check_loop(id))
+    DBUG_RETURN(1);
+  
+  DBUG_RETURN(engine->check_loop(id));
 }
 
 void Item_subselect::fix_length_and_dec()
@@ -228,6 +237,7 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
     thd->fatal_error= 1;
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
   } 
+  unit->item= item;
   this->select_lex= select_lex;
 }
 
@@ -352,4 +362,19 @@ bool subselect_single_select_engine::depended()
 bool subselect_union_engine::depended()
 {
   return unit->dependent;
+}
+
+bool subselect_single_select_engine::check_loop(uint id)
+{
+  DBUG_ENTER("subselect_single_select_engine::check_loop");
+  DBUG_RETURN(join->check_loop(id));
+}
+
+bool subselect_union_engine::check_loop(uint id)
+{
+  DBUG_ENTER("subselect_union_engine::check_loop");
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+    if (sl->join && sl->join->check_loop(id))
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
 }
