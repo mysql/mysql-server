@@ -32040,6 +32040,10 @@ a single backslash to be matched).
 @item expr NOT LIKE pat [ESCAPE 'escape-char']
 Same as @code{NOT (expr LIKE pat [ESCAPE 'escape-char'])}.
 
+@findex SOUNDS LIKE
+@item expr SOUNDS LIKE expr
+Same as @code{SOUNDEX(expr)=SOUNDEX(expr)}.
+
 @cindex mSQL compatibility
 @cindex compatibility, with mSQL
 @findex REGEXP

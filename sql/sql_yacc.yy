@@ -100,6 +100,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DIV_SYM
 %token	EQ
 %token	EQUAL_SYM
+%token	SOUNDS_SYM
 %token	GE
 %token	GT_SYM
 %token	LE
@@ -1833,6 +1834,7 @@ expr_expr:
 	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
 	| expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5));}
 	| expr REGEXP expr { $$= new Item_func_regex($1,$3); }
@@ -1879,6 +1881,7 @@ no_in_expr:
 	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| no_in_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
 	| no_in_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| no_in_expr NOT LIKE simple_expr opt_escape { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_in_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
@@ -1933,6 +1936,7 @@ no_and_expr:
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
+	| no_and_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
 	| no_and_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| no_and_expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_and_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
@@ -3870,6 +3874,7 @@ keyword:
 	| VALUE_SYM		{}
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
+	| SOUNDS_SYM            {}
 	;
 
 /* Option functions */
