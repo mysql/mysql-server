@@ -135,10 +135,12 @@ void
 os_thread_yield(void)
 /*=================*/
 {
-#ifdef __WIN__	
+#if defined(__WIN__)
 	Sleep(0);
-#else
+#elif defined(HAVE_PTHREAD_YIELD)
 	pthread_yield();
+#else
+        os_thread_sleep(0);
 #endif
 }
 
