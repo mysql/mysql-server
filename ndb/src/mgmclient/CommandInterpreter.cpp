@@ -389,7 +389,7 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
   }
   m_mgmsrv2 = ndb_mgm_create_handle();
   if(m_mgmsrv2 == NULL) {
-    ndbout_c("Cannot create handle to management server.");
+    ndbout_c("Cannot create 2:nd handle to management server.");
     exit(-1);
   }
   if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
@@ -459,6 +459,8 @@ event_thread_run(void* m)
 
   my_thread_init();
 
+  DBUG_ENTER("event_thread_run");
+
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
   int fd = ndb_mgm_listen_event(handle, filter);
   if (fd > 0)
@@ -486,17 +488,20 @@ event_thread_run(void* m)
 bool
 CommandInterpreter::connect() 
 {
+  DBUG_ENTER("CommandInterpreter::connect");
   if(!m_connected)
   {
     if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
     {
       const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
       unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
-      if(!ndb_mgm_set_connectstring(m_mgmsrv2,
-				    BaseString(host).appfmt(":%d",port).c_str())
-	 &&
+      BaseString constr;
+      constr.assfmt("%s:%d",host,port);
+      if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
 	 !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
       {
+	DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
+			   host, port));
 	assert(m_event_thread == 0);
 	assert(do_event_thread == 0);
 	do_event_thread= 0;
@@ -507,6 +512,7 @@ CommandInterpreter::connect()
 					  NDB_THREAD_PRIO_LOW);
 	if (m_event_thread != 0)
 	{
+	  DBUG_PRINT("info",("Thread created ok, waiting for started..."));
 	  int iter= 1000; // try for 30 seconds
 	  while(do_event_thread == 0 &&
 		iter-- > 0)
@@ -516,15 +522,25 @@ CommandInterpreter::connect()
 	    do_event_thread == 0 ||
 	    do_event_thread == -1)
 	{
+	  DBUG_PRINT("warning",("thread not started"));
 	  printf("Warning, event thread startup failed, degraded printouts as result\n");
 	  do_event_thread= 0;
 	}
       }
       else
       {
+	DBUG_PRINT("warning",
+		   ("Could not do 2:nd connect to mgmtserver for event listening"));
+	DBUG_PRINT("info", ("code: %d, msg: %s",
+		    ndb_mgm_get_latest_error(m_mgmsrv2),
+		    ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
 	printf("Warning, event connect failed, degraded printouts as result\n");
+	printf("code: %d, msg: %s\n",
+	       ndb_mgm_get_latest_error(m_mgmsrv2),
+	       ndb_mgm_get_latest_error_msg(m_mgmsrv2));
       }
       m_connected= true;
+      DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
       if (m_verbose)
       {
 	printf("Connected to Management Server at: %s:%d\n",
@@ -532,7 +548,7 @@ CommandInterpreter::connect()
       }
     }
   }
-  return m_connected;
+  DBUG_RETURN(m_connected);
 }
 
 bool 

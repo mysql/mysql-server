@@ -47,6 +47,7 @@ Revision history:
 
  * *************************************************** */
 
+#include <ndb_global.h>
 #include <NdbApi.hpp>
 
 #include <NdbMain.h>

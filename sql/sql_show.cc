@@ -1512,7 +1512,7 @@ static bool show_status_array(THD *thd, const char *wild,
 #endif /* HAVE_OPENSSL */
         case SHOW_KEY_CACHE_LONG:
         case SHOW_KEY_CACHE_CONST_LONG:
-          value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
+          value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_UNDEF:				// Show never happen
@@ -2607,7 +2607,8 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
              key_part->length != 
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
-          table->field[10]->store((longlong) key_part->length);
+          table->field[10]->store((longlong) key_part->length / 
+                                  key_part->field->charset()->mbmaxlen);
           table->field[10]->set_notnull();
         }
         uint flags= key_part->field ? key_part->field->flags : 0;
