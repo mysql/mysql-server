@@ -15,7 +15,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.001	417	slave-relay-bin.001	458	master-bin.001	Yes	Yes			0		0	417	458
+127.0.0.1	root	MASTER_PORT	60	master-bin.000001	417	slave-relay-bin.000001	461	master-bin.000001	Yes	Yes			0		0	417	461
 select * from t1;
 s
 Could not break slave
@@ -27,9 +27,9 @@ insert into t2 values (34),(67),(123);
 flush logs;
 show binary logs;
 Log_name
-master-bin.001
-master-bin.002
-master-bin.003
+master-bin.000001
+master-bin.000002
+master-bin.000003
 create table t3 select * from temp_table;
 select * from t3;
 a
@@ -40,14 +40,14 @@ set insert_id=1234;
 insert into t2 values(NULL);
 set global sql_slave_skip_counter=1;
 start slave;
-purge master logs to 'master-bin.003';
+purge master logs to 'master-bin.000003';
 show binary logs;
 Log_name
-master-bin.003
+master-bin.000003
 insert into t2 values (65);
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.003	290	slave-relay-bin.001	1073	master-bin.003	Yes	Yes			0		0	290	1073
+127.0.0.1	root	MASTER_PORT	60	master-bin.000003	290	slave-relay-bin.000001	1088	master-bin.000003	Yes	Yes			0		0	290	1088
 select * from t2;
 m
 34
@@ -62,19 +62,19 @@ create table t3 (n int);
 create table t4 select * from temp_table;
 show binary logs;
 Log_name
-master-bin.003
-master-bin.004
-master-bin.005
-master-bin.006
+master-bin.000003
+master-bin.000004
+master-bin.000005
+master-bin.000006
 show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.006	838		
+master-bin.000006	838		
 select * from t4;
 a
 testing temporary tables part 2
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.006	838	slave-relay-bin.001	8034	master-bin.006	Yes	Yes			0		0	838	8034
+127.0.0.1	root	MASTER_PORT	60	master-bin.000006	838	slave-relay-bin.000001	8067	master-bin.000006	Yes	Yes			0		0	838	8067
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)

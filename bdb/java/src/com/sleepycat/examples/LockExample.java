@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: LockExample.java,v 11.5 2001/01/04 14:23:30 dda Exp $
+ * $Id: LockExample.java,v 11.8 2002/01/11 15:52:43 bostic Exp $
  */
 
 package com.sleepycat.examples;
@@ -150,7 +150,7 @@ class LockExample extends DbEnv
                     }
                     did_get = false;
                     DbLock lock = (DbLock)locks.elementAt(lockid);
-                    lock.put(this);
+                    lock_put(lock);
                 }
                 System.out.println("Lock #" + lockid + " " +
                                    (did_get ? "granted" : "released"));

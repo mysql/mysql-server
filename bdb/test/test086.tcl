@@ -1,16 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test086.tcl,v 11.2 2000/08/25 14:21:58 sue Exp $
-
-# Test086: Cursor stability across btree splits w/ subtransaction abort [#2373].
+# $Id: test086.tcl,v 11.9 2002/08/06 17:58:00 sandstro Exp $
+#
+# TEST	test086
+# TEST	Test of cursor stability across btree splits/rsplits with
+# TEST	subtransaction aborts (a variant of test048).  [#2373]
 proc test086 { method args } {
 	global errorCode
 	source ./include.tcl
 
 	set tstn 086
+	set args [convert_args $method $args]
+	set encargs ""
+	set args [split_encargs $args encargs]
 
 	if { [is_btree $method] != 1 } {
 		puts "Test$tstn skipping for method $method."
@@ -40,11 +45,11 @@ proc test086 { method args } {
 	set t1 $testdir/t1
 	env_cleanup $testdir
 
-	set env [berkdb env -create -home $testdir -txn]
+	set env [eval {berkdb_env -create -home $testdir -txn} $encargs]
 	error_check_good berkdb_env [is_valid_env $env] TRUE
 
 	puts "\tTest$tstn.a: Create $method database."
-	set oflags "-create -env $env -mode 0644 $args $method"
+	set oflags "-auto_commit -create -env $env -mode 0644 $args $method"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -97,7 +102,6 @@ proc test086 { method args } {
 	puts "\tTest$tstn.e: Abort."
 	error_check_good ctxn_abort [$ctxn abort] 0
 
-
 	puts "\tTest$tstn.f: Check and see that cursors maintained reference."
 	for {set i 0} { $i < $nkeys } {incr i} {
 		set ret [$dbc_set($i) get -current]
@@ -107,7 +111,7 @@ proc test086 { method args } {
 		error_check_good dbc$i:get(match) $ret $ret2
 	}
 
-	# Put (and this time keep) the keys that caused the split.  
+	# Put (and this time keep) the keys that caused the split.
 	# We'll delete them to test reverse splits.
 	puts "\tTest$tstn.g: Put back added keys."
 	for {set i $nkeys} { $i < $mkeys } { incr i } {

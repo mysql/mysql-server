@@ -1,0 +1,6764 @@
+Document file - DO NOT EDIT
+
+<BEGIN> CORE_INFO_TYPE
+::prj_component
+<END>
+
+<BEGIN> CORE_INFO_VERSION
+AE1.0
+<END>
+
+<BEGIN> BUILD__CURRENT
+PENTIUM2gnu.debug
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_CURRENT_TARGET
+default
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_DEFAULTFORCPU
+0
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_objects
+bt_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_objects
+bt_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_objects
+bt_curadj.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_objects
+bt_cursor.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_objects
+bt_delete.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_objects
+bt_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_objects
+bt_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_objects
+bt_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_objects
+bt_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_objects
+bt_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_objects
+bt_recno.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_objects
+bt_rsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_objects
+bt_search.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_objects
+bt_split.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_objects
+bt_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_objects
+bt_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_objects
+bt_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_objects
+btree_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_objects
+getopt.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_objects
+snprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_objects
+strcasecmp.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_objects
+strdup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_objects
+vsnprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_objects
+db_byteorder.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_objects
+db_err.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_objects
+db_getlong.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_objects
+db_idspace.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_objects
+db_log2.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_objects
+util_arg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_objects
+util_cache.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_objects
+util_log.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_objects
+util_sig.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_objects
+crdel_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_objects
+crdel_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_objects
+db.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_objects
+db_am.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_objects
+db_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_objects
+db_cam.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_objects
+db_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_objects
+db_dispatch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_objects
+db_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_objects
+db_iface.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_objects
+db_join.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_objects
+db_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_objects
+db_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_objects
+db_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_objects
+db_overflow.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_objects
+db_pr.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_objects
+db_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_objects
+db_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_objects
+db_remove.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_objects
+db_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_objects
+db_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_objects
+db_truncate.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_objects
+db_upg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_objects
+db_upg_opd.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_objects
+db_vrfy.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_objects
+db_vrfyutil.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_objects
+dbreg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_objects
+dbreg_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_objects
+dbreg_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_objects
+dbreg_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_objects
+db_salloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_objects
+db_shash.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_objects
+env_file.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_objects
+env_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_objects
+env_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_objects
+env_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_objects
+env_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_objects
+fileops_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_objects
+fop_basic.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_objects
+fop_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_objects
+fop_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_objects
+hash.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_objects
+hash_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_objects
+hash_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_objects
+hash_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_objects
+hash_func.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_objects
+hash_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_objects
+hash_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_objects
+hash_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_objects
+hash_page.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_objects
+hash_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_objects
+hash_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_objects
+hash_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_objects
+hash_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_objects
+hash_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_objects
+hmac.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_objects
+sha1.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_objects
+hsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_objects
+lock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_objects
+lock_deadlock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_objects
+lock_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_objects
+lock_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_objects
+lock_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_objects
+lock_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_objects
+log.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_objects
+log_archive.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_objects
+log_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_objects
+log_get.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_objects
+log_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_objects
+log_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_objects
+mp_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_objects
+mp_bh.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_objects
+mp_fget.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_objects
+mp_fopen.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_objects
+mp_fput.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_objects
+mp_fset.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_objects
+mp_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_objects
+mp_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_objects
+mp_register.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_objects
+mp_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_objects
+mp_sync.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_objects
+mp_trickle.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_objects
+mut_tas.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_objects
+mutex.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_objects
+os_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_objects
+os_clock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_objects
+os_dir.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_objects
+os_errno.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_objects
+os_fid.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_objects
+os_fsync.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_objects
+os_handle.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_objects
+os_id.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_objects
+os_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_objects
+os_oflags.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_objects
+os_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_objects
+os_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_objects
+os_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_objects
+os_root.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_objects
+os_rpath.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_objects
+os_rw.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_objects
+os_seek.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_objects
+os_sleep.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_objects
+os_spin.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_objects
+os_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_objects
+os_tmpdir.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_objects
+os_unlink.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_objects
+os_vx_abs.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_objects
+os_vx_config.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_objects
+os_vx_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_objects
+qam.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_objects
+qam_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_objects
+qam_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_objects
+qam_files.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_objects
+qam_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_objects
+qam_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_objects
+qam_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_objects
+qam_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_objects
+qam_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_objects
+qam_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_objects
+rep_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_objects
+rep_record.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_objects
+rep_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_objects
+rep_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_objects
+client.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_objects
+db_server_clnt.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_objects
+gen_client.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_objects
+gen_client_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_objects
+db_server_xdr.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_objects
+txn.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_objects
+txn_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_objects
+txn_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_objects
+txn_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_objects
+txn_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_objects
+txn_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_objects
+txn_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_objects
+txn_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_objects
+xa.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_objects
+xa_db.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_objects
+xa_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/compConfig.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/compConfig.c_objects
+compConfig.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_$(PRJ_DIR)/compConfig.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_AR
+arpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_AS
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_CC
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_CFLAGS
+-mcpu=pentiumpro \
+	-march=pentiumpro \
+	-ansi \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-g \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-MD \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM2 \
+	-I$(PRJ_DIR)/.. \
+	-I$(PRJ_DIR)/../.. \
+	-DDEBUG \
+	-DDIAGNOSTIC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_CFLAGS_AS
+-mcpu=pentiumpro \
+	-march=pentiumpro \
+	-ansi \
+	-g \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM2
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_CPP
+ccpentium -E -P
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_CPPFILT
+c++filtpentium --strip-underscores
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_LD
+ldpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_LDFLAGS
+-X
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_LDPARTIAL
+ccpentium \
+	-B$(WIND_BASE)/host/$(WIND_HOST_TYPE)/lib/gcc-lib/ \
+	-nostdlib \
+	-r \
+	-Wl,-X
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_NM
+nmpentium -g
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_OPTION_GENERATE_DEPENDENCY_FILE
+-MD
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_RELEASE
+0
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_MACRO_SIZE
+sizepentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_RELEASE
+0
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_RO_DEPEND_PATH
+$(WIND_BASE)/target/h/
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.debug_TC
+::tc_PENTIUM2gnu.debug
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_DEFAULTFORCPU
+0
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_objects
+bt_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_objects
+bt_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_objects
+bt_curadj.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_objects
+bt_cursor.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_objects
+bt_delete.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_method.c_objects
+bt_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_open.c_objects
+bt_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_put.c_objects
+bt_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_objects
+bt_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_objects
+bt_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_objects
+bt_recno.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_objects
+bt_rsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_search.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_search.c_objects
+bt_search.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_search.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_split.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_split.c_objects
+bt_split.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_split.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_objects
+bt_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_objects
+bt_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_objects
+bt_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_objects
+btree_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/getopt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/getopt.c_objects
+getopt.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/getopt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/snprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/snprintf.c_objects
+snprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/snprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_objects
+strcasecmp.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strdup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strdup.c_objects
+strdup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/strdup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_objects
+vsnprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_objects
+db_byteorder.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_err.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_err.c_objects
+db_err.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_err.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_getlong.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_getlong.c_objects
+db_getlong.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_getlong.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_idspace.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_idspace.c_objects
+db_idspace.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_idspace.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_log2.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_log2.c_objects
+db_log2.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/db_log2.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_arg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_arg.c_objects
+util_arg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_arg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_cache.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_cache.c_objects
+util_cache.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_cache.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_log.c_objects
+util_log.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_sig.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_sig.c_objects
+util_sig.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../common/util_sig.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_objects
+crdel_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_objects
+crdel_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db.c_objects
+db.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_am.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_am.c_objects
+db_am.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_am.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_auto.c_objects
+db_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_cam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_cam.c_objects
+db_cam.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_cam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_conv.c_objects
+db_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_objects
+db_dispatch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dup.c_objects
+db_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_iface.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_iface.c_objects
+db_iface.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_iface.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_join.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_join.c_objects
+db_join.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_join.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_meta.c_objects
+db_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_method.c_objects
+db_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_open.c_objects
+db_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_overflow.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_overflow.c_objects
+db_overflow.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_overflow.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_pr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_pr.c_objects
+db_pr.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_pr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rec.c_objects
+db_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_objects
+db_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_remove.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_remove.c_objects
+db_remove.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_remove.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rename.c_objects
+db_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_ret.c_objects
+db_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_truncate.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_truncate.c_objects
+db_truncate.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_truncate.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg.c_objects
+db_upg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_objects
+db_upg_opd.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_objects
+db_vrfy.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_objects
+db_vrfyutil.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_objects
+dbreg.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_objects
+dbreg_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_objects
+dbreg_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_objects
+dbreg_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_salloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_salloc.c_objects
+db_salloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_salloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_shash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_shash.c_objects
+db_shash.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/db_shash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_file.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_file.c_objects
+env_file.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_file.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_method.c_objects
+env_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_open.c_objects
+env_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_recover.c_objects
+env_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_region.c_objects
+env_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../env/env_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_objects
+fileops_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_objects
+fop_basic.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_objects
+fop_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_objects
+fop_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash.c_objects
+hash.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_objects
+hash_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_objects
+hash_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_objects
+hash_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_func.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_func.c_objects
+hash_func.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_func.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_objects
+hash_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_method.c_objects
+hash_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_open.c_objects
+hash_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_page.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_page.c_objects
+hash_page.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_page.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_objects
+hash_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_objects
+hash_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_objects
+hash_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_objects
+hash_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_objects
+hash_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/hmac.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/hmac.c_objects
+hmac.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/hmac.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/sha1.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/sha1.c_objects
+sha1.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hmac/sha1.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_objects
+hsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock.c_objects
+lock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_objects
+lock_deadlock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_method.c_objects
+lock_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_region.c_objects
+lock_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_objects
+lock_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_util.c_objects
+lock_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../lock/lock_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log.c_objects
+log.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_archive.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_archive.c_objects
+log_archive.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_archive.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_compare.c_objects
+log_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_get.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_get.c_objects
+log_get.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_get.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_method.c_objects
+log_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_put.c_objects
+log_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../log/log_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_objects
+mp_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_objects
+mp_bh.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_objects
+mp_fget.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_objects
+mp_fopen.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_objects
+mp_fput.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_objects
+mp_fset.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_method.c_objects
+mp_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_region.c_objects
+mp_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_register.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_register.c_objects
+mp_register.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_register.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_objects
+mp_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_objects
+mp_sync.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_objects
+mp_trickle.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_objects
+mut_tas.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mutex.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mutex.c_objects
+mutex.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../mutex/mutex.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_alloc.c_objects
+os_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_clock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_clock.c_objects
+os_clock.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_clock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_dir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_dir.c_objects
+os_dir.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_dir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_errno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_errno.c_objects
+os_errno.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_errno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fid.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fid.c_objects
+os_fid.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fid.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fsync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fsync.c_objects
+os_fsync.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_fsync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_handle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_handle.c_objects
+os_handle.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_handle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_id.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_id.c_objects
+os_id.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_id.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_method.c_objects
+os_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_oflags.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_oflags.c_objects
+os_oflags.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_oflags.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_open.c_objects
+os_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_region.c_objects
+os_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rename.c_objects
+os_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_root.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_root.c_objects
+os_root.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_root.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rpath.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rpath.c_objects
+os_rpath.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rpath.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rw.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rw.c_objects
+os_rw.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_rw.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_seek.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_seek.c_objects
+os_seek.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_seek.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_sleep.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_sleep.c_objects
+os_sleep.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_sleep.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_spin.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_spin.c_objects
+os_spin.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_spin.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_stat.c_objects
+os_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_objects
+os_tmpdir.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_unlink.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_unlink.c_objects
+os_unlink.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os/os_unlink.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_objects
+os_vx_abs.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_objects
+os_vx_config.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_objects
+os_vx_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam.c_objects
+qam.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_objects
+qam_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_objects
+qam_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_files.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_files.c_objects
+qam_files.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_files.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_method.c_objects
+qam_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_open.c_objects
+qam_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_objects
+qam_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_objects
+qam_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_objects
+qam_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_objects
+qam_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_method.c_objects
+rep_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_record.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_record.c_objects
+rep_record.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_record.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_region.c_objects
+rep_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_util.c_objects
+rep_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rep/rep_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/client.c_objects
+client.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_objects
+db_server_clnt.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_objects
+gen_client.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_objects
+gen_client_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_objects
+db_server_xdr.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn.c_objects
+txn.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_objects
+txn_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_method.c_objects
+txn_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_objects
+txn_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_objects
+txn_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_region.c_objects
+txn_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_objects
+txn_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_util.c_objects
+txn_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../txn/txn_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa.c_objects
+xa.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_db.c_objects
+xa_db.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_map.c_objects
+xa_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/../../xa/xa_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/compConfig.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/compConfig.c_objects
+compConfig.o
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_FILE_$(PRJ_DIR)/compConfig.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_AR
+arpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_AS
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_CC
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_CFLAGS
+-mcpu=pentiumpro \
+	-march=pentiumpro \
+	-ansi \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-O2 \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-MD \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM2 \
+	-I$(PRJ_DIR)/.. \
+	-I$(PRJ_DIR)/../..
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_CFLAGS_AS
+-mcpu=pentiumpro \
+	-march=pentiumpro \
+	-ansi \
+	-O2 \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM2
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_CPP
+ccpentium -E -P
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_CPPFILT
+c++filtpentium --strip-underscores
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_LD
+ldpentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_LDFLAGS
+-X
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_LDPARTIAL
+ccpentium \
+	-B$(WIND_BASE)/host/$(WIND_HOST_TYPE)/lib/gcc-lib/ \
+	-nostdlib \
+	-r \
+	-Wl,-X
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_NM
+nmpentium -g
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_OPTION_GENERATE_DEPENDENCY_FILE
+-MD
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_RELEASE
+1
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_MACRO_SIZE
+sizepentium
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_RELEASE
+1
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_RO_DEPEND_PATH
+$(WIND_BASE)/target/h/
+<END>
+
+<BEGIN> BUILD_PENTIUM2gnu.release_TC
+::tc_PENTIUM2gnu.release
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_DEFAULTFORCPU
+1
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_objects
+bt_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_objects
+bt_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_objects
+bt_curadj.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_curadj.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_objects
+bt_cursor.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_cursor.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_objects
+bt_delete.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_delete.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_objects
+bt_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_objects
+bt_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_objects
+bt_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_objects
+bt_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_objects
+bt_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_objects
+bt_recno.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_recno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_objects
+bt_rsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_rsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_objects
+bt_search.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_search.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_objects
+bt_split.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_split.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_objects
+bt_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_objects
+bt_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_objects
+bt_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/bt_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_objects
+btree_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../btree/btree_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_objects
+getopt.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/getopt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_objects
+snprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/snprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_objects
+strcasecmp.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strcasecmp.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_objects
+strdup.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/strdup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_objects
+vsnprintf.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../clib/vsnprintf.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_objects
+db_byteorder.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_byteorder.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_objects
+db_err.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_err.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_objects
+db_getlong.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_getlong.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_objects
+db_idspace.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_idspace.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_objects
+db_log2.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/db_log2.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_objects
+util_arg.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_arg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_objects
+util_cache.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_cache.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_objects
+util_log.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_objects
+util_sig.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../common/util_sig.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_objects
+crdel_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_objects
+crdel_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/crdel_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_objects
+db.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_objects
+db_am.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_am.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_objects
+db_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_objects
+db_cam.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_cam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_objects
+db_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_objects
+db_dispatch.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dispatch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_objects
+db_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_objects
+db_iface.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_iface.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_objects
+db_join.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_join.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_objects
+db_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_objects
+db_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_objects
+db_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_objects
+db_overflow.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_overflow.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_objects
+db_pr.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_pr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_objects
+db_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_objects
+db_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_objects
+db_remove.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_remove.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_objects
+db_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_objects
+db_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_objects
+db_truncate.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_truncate.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_objects
+db_upg.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_objects
+db_upg_opd.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_upg_opd.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_objects
+db_vrfy.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfy.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_objects
+db_vrfyutil.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../db/db_vrfyutil.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_objects
+dbreg.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_objects
+dbreg_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_objects
+dbreg_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_objects
+dbreg_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../dbreg/dbreg_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_objects
+db_salloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_salloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_objects
+db_shash.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/db_shash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_objects
+env_file.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_file.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_objects
+env_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_objects
+env_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_objects
+env_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_objects
+env_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../env/env_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_objects
+fileops_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fileops_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_objects
+fop_basic.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_basic.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_objects
+fop_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_objects
+fop_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../fileops/fop_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_objects
+hash.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_objects
+hash_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_objects
+hash_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_objects
+hash_dup.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_dup.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_objects
+hash_func.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_func.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_objects
+hash_meta.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_meta.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_objects
+hash_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_objects
+hash_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_objects
+hash_page.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_page.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_objects
+hash_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_objects
+hash_reclaim.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_reclaim.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_objects
+hash_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_objects
+hash_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_objects
+hash_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hash/hash_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_objects
+hmac.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/hmac.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_objects
+sha1.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hmac/sha1.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_objects
+hsearch.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../hsearch/hsearch.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_objects
+lock.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_objects
+lock_deadlock.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_deadlock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_objects
+lock_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_objects
+lock_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_objects
+lock_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_objects
+lock_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../lock/lock_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_objects
+log.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_objects
+log_archive.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_archive.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_objects
+log_compare.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_compare.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_objects
+log_get.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_get.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_objects
+log_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_objects
+log_put.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../log/log_put.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_objects
+mp_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_objects
+mp_bh.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_bh.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_objects
+mp_fget.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fget.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_objects
+mp_fopen.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fopen.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_objects
+mp_fput.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fput.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_objects
+mp_fset.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_fset.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_objects
+mp_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_objects
+mp_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_objects
+mp_register.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_register.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_objects
+mp_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_objects
+mp_sync.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_sync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_objects
+mp_trickle.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mp/mp_trickle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_objects
+mut_tas.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mut_tas.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_objects
+mutex.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../mutex/mutex.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_objects
+os_alloc.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_alloc.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_objects
+os_clock.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_clock.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_objects
+os_dir.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_dir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_objects
+os_errno.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_errno.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_objects
+os_fid.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fid.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_objects
+os_fsync.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_fsync.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_objects
+os_handle.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_handle.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_objects
+os_id.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_id.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_objects
+os_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_objects
+os_oflags.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_oflags.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_objects
+os_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_objects
+os_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_objects
+os_rename.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rename.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_objects
+os_root.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_root.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_objects
+os_rpath.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rpath.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_objects
+os_rw.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_rw.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_objects
+os_seek.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_seek.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_objects
+os_sleep.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_sleep.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_objects
+os_spin.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_spin.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_objects
+os_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_objects
+os_tmpdir.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_tmpdir.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_objects
+os_unlink.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os/os_unlink.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_objects
+os_vx_abs.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_objects
+os_vx_config.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_config.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_objects
+os_vx_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../os_vxworks/os_vx_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_objects
+qam.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_objects
+qam_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_objects
+qam_conv.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_conv.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_objects
+qam_files.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_files.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_objects
+qam_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_objects
+qam_open.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_open.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_objects
+qam_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_objects
+qam_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_objects
+qam_upgrade.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_upgrade.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_objects
+qam_verify.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../qam/qam_verify.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_objects
+rep_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_objects
+rep_record.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_record.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_objects
+rep_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_objects
+rep_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rep/rep_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_objects
+client.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_objects
+db_server_clnt.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/db_server_clnt.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_objects
+gen_client.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_objects
+gen_client_ret.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_client/gen_client_ret.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_objects
+db_server_xdr.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_objects
+txn.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_objects
+txn_auto.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_auto.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_objects
+txn_method.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_method.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_objects
+txn_rec.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_rec.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_objects
+txn_recover.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_recover.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_objects
+txn_region.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_region.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_objects
+txn_stat.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_stat.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_objects
+txn_util.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../txn/txn_util.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_objects
+xa.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_objects
+xa_db.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_db.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_infoTags
+toolMacro objects
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_objects
+xa_map.o
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/../../xa/xa_map.c_toolMacro
+CC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/compConfig.c_infoTags
+toolMacro objects
+<END>   
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/compConfig.c_objects
+compConfig.o
+<END>   
+
+<BEGIN> BUILD_PENTIUMgnu.debug_FILE_$(PRJ_DIR)/compConfig.c_toolMacro
+CC   
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_AR
+arpentium
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_AS
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_CC
+ccpentium
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_CFLAGS
+-mcpu=pentium \
+	-march=pentium \
+	-ansi \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-g \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-MD \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM \
+	-I$(PRJ_DIR)/.. \
+	-I$(PRJ_DIR)/../.. \
+	-DDEBUG \
+	-DDIAGNOSTIC
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_CFLAGS_AS
+-mcpu=pentium \
+	-march=pentium \
+	-ansi \
+	-g \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-Wall \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_CPP
+ccpentium -E -P
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_CPPFILT
+c++filtpentium --strip-underscores
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_LD
+ldpentium
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_LDFLAGS
+-X
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_LDPARTIAL
+ccpentium \
+	-B$(WIND_BASE)/host/$(WIND_HOST_TYPE)/lib/gcc-lib/ \
+	-nostdlib \
+	-r \
+	-Wl,-X
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_NM
+nmpentium -g
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_OPTION_GENERATE_DEPENDENCY_FILE
+-MD
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_RELEASE
+0
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_MACRO_SIZE
+sizepentium
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_RELEASE
+0
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_RO_DEPEND_PATH
+$(WIND_BASE)/target/h/
+<END>
+
+<BEGIN> BUILD_PENTIUMgnu.debug_TC
+::tc_PENTIUMgnu.debug
+<END>
+
+<BEGIN> BUILD__LIST
+PENTIUMgnu.debug PENTIUM2gnu.debug PENTIUM2gnu.release
+<END>
+
+<BEGIN> COMPONENT_COM_TYPE
+
+<END>
+
+<BEGIN> PROJECT_FILES
+$(PRJ_DIR)/../../btree/bt_compare.c \
+	$(PRJ_DIR)/../../btree/bt_conv.c \
+	$(PRJ_DIR)/../../btree/bt_curadj.c \
+	$(PRJ_DIR)/../../btree/bt_cursor.c \
+	$(PRJ_DIR)/../../btree/bt_delete.c \
+	$(PRJ_DIR)/../../btree/bt_method.c \
+	$(PRJ_DIR)/../../btree/bt_open.c \
+	$(PRJ_DIR)/../../btree/bt_put.c \
+	$(PRJ_DIR)/../../btree/bt_rec.c \
+	$(PRJ_DIR)/../../btree/bt_reclaim.c \
+	$(PRJ_DIR)/../../btree/bt_recno.c \
+	$(PRJ_DIR)/../../btree/bt_rsearch.c \
+	$(PRJ_DIR)/../../btree/bt_search.c \
+	$(PRJ_DIR)/../../btree/bt_split.c \
+	$(PRJ_DIR)/../../btree/bt_stat.c \
+	$(PRJ_DIR)/../../btree/bt_upgrade.c \
+	$(PRJ_DIR)/../../btree/bt_verify.c \
+	$(PRJ_DIR)/../../btree/btree_auto.c \
+	$(PRJ_DIR)/../../clib/getopt.c \
+	$(PRJ_DIR)/../../clib/snprintf.c \
+	$(PRJ_DIR)/../../clib/strcasecmp.c \
+	$(PRJ_DIR)/../../clib/strdup.c \
+	$(PRJ_DIR)/../../clib/vsnprintf.c \
+	$(PRJ_DIR)/../../common/db_byteorder.c \
+	$(PRJ_DIR)/../../common/db_err.c \
+	$(PRJ_DIR)/../../common/db_getlong.c \
+	$(PRJ_DIR)/../../common/db_idspace.c \
+	$(PRJ_DIR)/../../common/db_log2.c \
+	$(PRJ_DIR)/../../common/util_arg.c \
+	$(PRJ_DIR)/../../common/util_cache.c \
+	$(PRJ_DIR)/../../common/util_log.c \
+	$(PRJ_DIR)/../../common/util_sig.c \
+	$(PRJ_DIR)/../../db/crdel_auto.c \
+	$(PRJ_DIR)/../../db/crdel_rec.c \
+	$(PRJ_DIR)/../../db/db.c \
+	$(PRJ_DIR)/../../db/db_am.c \
+	$(PRJ_DIR)/../../db/db_auto.c \
+	$(PRJ_DIR)/../../db/db_cam.c \
+	$(PRJ_DIR)/../../db/db_conv.c \
+	$(PRJ_DIR)/../../db/db_dispatch.c \
+	$(PRJ_DIR)/../../db/db_dup.c \
+	$(PRJ_DIR)/../../db/db_iface.c \
+	$(PRJ_DIR)/../../db/db_join.c \
+	$(PRJ_DIR)/../../db/db_meta.c \
+	$(PRJ_DIR)/../../db/db_method.c \
+	$(PRJ_DIR)/../../db/db_open.c \
+	$(PRJ_DIR)/../../db/db_overflow.c \
+	$(PRJ_DIR)/../../db/db_pr.c \
+	$(PRJ_DIR)/../../db/db_rec.c \
+	$(PRJ_DIR)/../../db/db_reclaim.c \
+	$(PRJ_DIR)/../../db/db_remove.c \
+	$(PRJ_DIR)/../../db/db_rename.c \
+	$(PRJ_DIR)/../../db/db_ret.c \
+	$(PRJ_DIR)/../../db/db_truncate.c \
+	$(PRJ_DIR)/../../db/db_upg.c \
+	$(PRJ_DIR)/../../db/db_upg_opd.c \
+	$(PRJ_DIR)/../../db/db_vrfy.c \
+	$(PRJ_DIR)/../../db/db_vrfyutil.c \
+	$(PRJ_DIR)/../../dbreg/dbreg.c \
+	$(PRJ_DIR)/../../dbreg/dbreg_auto.c \
+	$(PRJ_DIR)/../../dbreg/dbreg_rec.c \
+	$(PRJ_DIR)/../../dbreg/dbreg_util.c \
+	$(PRJ_DIR)/../../env/db_salloc.c \
+	$(PRJ_DIR)/../../env/db_shash.c \
+	$(PRJ_DIR)/../../env/env_file.c \
+	$(PRJ_DIR)/../../env/env_method.c \
+	$(PRJ_DIR)/../../env/env_open.c \
+	$(PRJ_DIR)/../../env/env_recover.c \
+	$(PRJ_DIR)/../../env/env_region.c \
+	$(PRJ_DIR)/../../fileops/fileops_auto.c \
+	$(PRJ_DIR)/../../fileops/fop_basic.c \
+	$(PRJ_DIR)/../../fileops/fop_rec.c \
+	$(PRJ_DIR)/../../fileops/fop_util.c \
+	$(PRJ_DIR)/../../hash/hash.c \
+	$(PRJ_DIR)/../../hash/hash_auto.c \
+	$(PRJ_DIR)/../../hash/hash_conv.c \
+	$(PRJ_DIR)/../../hash/hash_dup.c \
+	$(PRJ_DIR)/../../hash/hash_func.c \
+	$(PRJ_DIR)/../../hash/hash_meta.c \
+	$(PRJ_DIR)/../../hash/hash_method.c \
+	$(PRJ_DIR)/../../hash/hash_open.c \
+	$(PRJ_DIR)/../../hash/hash_page.c \
+	$(PRJ_DIR)/../../hash/hash_rec.c \
+	$(PRJ_DIR)/../../hash/hash_reclaim.c \
+	$(PRJ_DIR)/../../hash/hash_stat.c \
+	$(PRJ_DIR)/../../hash/hash_upgrade.c \
+	$(PRJ_DIR)/../../hash/hash_verify.c \
+	$(PRJ_DIR)/../../hmac/hmac.c \
+	$(PRJ_DIR)/../../hmac/sha1.c \
+	$(PRJ_DIR)/../../hsearch/hsearch.c \
+	$(PRJ_DIR)/../../lock/lock.c \
+	$(PRJ_DIR)/../../lock/lock_deadlock.c \
+	$(PRJ_DIR)/../../lock/lock_method.c \
+	$(PRJ_DIR)/../../lock/lock_region.c \
+	$(PRJ_DIR)/../../lock/lock_stat.c \
+	$(PRJ_DIR)/../../lock/lock_util.c \
+	$(PRJ_DIR)/../../log/log.c \
+	$(PRJ_DIR)/../../log/log_archive.c \
+	$(PRJ_DIR)/../../log/log_compare.c \
+	$(PRJ_DIR)/../../log/log_get.c \
+	$(PRJ_DIR)/../../log/log_method.c \
+	$(PRJ_DIR)/../../log/log_put.c \
+	$(PRJ_DIR)/../../mp/mp_alloc.c \
+	$(PRJ_DIR)/../../mp/mp_bh.c \
+	$(PRJ_DIR)/../../mp/mp_fget.c \
+	$(PRJ_DIR)/../../mp/mp_fopen.c \
+	$(PRJ_DIR)/../../mp/mp_fput.c \
+	$(PRJ_DIR)/../../mp/mp_fset.c \
+	$(PRJ_DIR)/../../mp/mp_method.c \
+	$(PRJ_DIR)/../../mp/mp_region.c \
+	$(PRJ_DIR)/../../mp/mp_register.c \
+	$(PRJ_DIR)/../../mp/mp_stat.c \
+	$(PRJ_DIR)/../../mp/mp_sync.c \
+	$(PRJ_DIR)/../../mp/mp_trickle.c \
+	$(PRJ_DIR)/../../mutex/mut_tas.c \
+	$(PRJ_DIR)/../../mutex/mutex.c \
+	$(PRJ_DIR)/../../os/os_alloc.c \
+	$(PRJ_DIR)/../../os/os_clock.c \
+	$(PRJ_DIR)/../../os/os_dir.c \
+	$(PRJ_DIR)/../../os/os_errno.c \
+	$(PRJ_DIR)/../../os/os_fid.c \
+	$(PRJ_DIR)/../../os/os_fsync.c \
+	$(PRJ_DIR)/../../os/os_handle.c \
+	$(PRJ_DIR)/../../os/os_id.c \
+	$(PRJ_DIR)/../../os/os_method.c \
+	$(PRJ_DIR)/../../os/os_oflags.c \
+	$(PRJ_DIR)/../../os/os_open.c \
+	$(PRJ_DIR)/../../os/os_region.c \
+	$(PRJ_DIR)/../../os/os_rename.c \
+	$(PRJ_DIR)/../../os/os_root.c \
+	$(PRJ_DIR)/../../os/os_rpath.c \
+	$(PRJ_DIR)/../../os/os_rw.c \
+	$(PRJ_DIR)/../../os/os_seek.c \
+	$(PRJ_DIR)/../../os/os_sleep.c \
+	$(PRJ_DIR)/../../os/os_spin.c \
+	$(PRJ_DIR)/../../os/os_stat.c \
+	$(PRJ_DIR)/../../os/os_tmpdir.c \
+	$(PRJ_DIR)/../../os/os_unlink.c \
+	$(PRJ_DIR)/../../os_vxworks/os_vx_abs.c \
+	$(PRJ_DIR)/../../os_vxworks/os_vx_config.c \
+	$(PRJ_DIR)/../../os_vxworks/os_vx_map.c \
+	$(PRJ_DIR)/../../qam/qam.c \
+	$(PRJ_DIR)/../../qam/qam_auto.c \
+	$(PRJ_DIR)/../../qam/qam_conv.c \
+	$(PRJ_DIR)/../../qam/qam_files.c \
+	$(PRJ_DIR)/../../qam/qam_method.c \
+	$(PRJ_DIR)/../../qam/qam_open.c \
+	$(PRJ_DIR)/../../qam/qam_rec.c \
+	$(PRJ_DIR)/../../qam/qam_stat.c \
+	$(PRJ_DIR)/../../qam/qam_upgrade.c \
+	$(PRJ_DIR)/../../qam/qam_verify.c \
+	$(PRJ_DIR)/../../rep/rep_method.c \
+	$(PRJ_DIR)/../../rep/rep_record.c \
+	$(PRJ_DIR)/../../rep/rep_region.c \
+	$(PRJ_DIR)/../../rep/rep_util.c \
+	$(PRJ_DIR)/../../rpc_client/client.c \
+	$(PRJ_DIR)/../../rpc_client/db_server_clnt.c \
+	$(PRJ_DIR)/../../rpc_client/gen_client.c \
+	$(PRJ_DIR)/../../rpc_client/gen_client_ret.c \
+	$(PRJ_DIR)/../../rpc_server/c/db_server_xdr.c \
+	$(PRJ_DIR)/../../txn/txn.c \
+	$(PRJ_DIR)/../../txn/txn_auto.c \
+	$(PRJ_DIR)/../../txn/txn_method.c \
+	$(PRJ_DIR)/../../txn/txn_rec.c \
+	$(PRJ_DIR)/../../txn/txn_recover.c \
+	$(PRJ_DIR)/../../txn/txn_region.c \
+	$(PRJ_DIR)/../../txn/txn_stat.c \
+	$(PRJ_DIR)/../../txn/txn_util.c \
+	$(PRJ_DIR)/../../xa/xa.c \
+	$(PRJ_DIR)/../../xa/xa_db.c \
+	$(PRJ_DIR)/../../xa/xa_map.c
+<END>
+
+<BEGIN> WCC__CDF_PATH
+$(PRJ_DIR)
+<END>
+
+<BEGIN> WCC__CURRENT
+PENTIUMgnu.debug
+<END>
+
+<BEGIN> WCC__LIST
+PENTIUMgnu.debug
+<END>
+
+<BEGIN> WCC__MXR_LIBS
+lib$(CPU)$(TOOL)vx.a
+<END>
+
+<BEGIN> WCC__OBJS_PATH
+$(WIND_BASE)/target/lib/obj$CPU$TOOLvx
+<END>
+

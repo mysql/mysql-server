@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000
+ * Copyright (c) 2000-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: util_sig.c,v 1.3 2000/04/28 19:32:00 bostic Exp $";
+static const char revid[] = "$Id: util_sig.c,v 1.7 2002/02/02 17:04:42 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,7 +18,6 @@ static const char revid[] = "$Id: util_sig.c,v 1.3 2000/04/28 19:32:00 bostic Ex
 #endif
 
 #include "db_int.h"
-#include "common_ext.h"
 
 static int	interrupt;
 static void	onint __P((int));
@@ -79,7 +78,7 @@ void
 __db_util_sigresend()
 {
 	/* Resend any caught signal. */
-	if (__db_util_interrupted != 0) {
+	if (interrupt != 0) {
 		(void)signal(interrupt, SIG_DFL);
 		(void)raise(interrupt);
 		/* NOTREACHED */

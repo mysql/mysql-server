@@ -1,8 +1,8 @@
-#	$Id: srcfiles.in,v 1.7 2000/11/30 18:42:21 dda Exp $
+#	$Id: srcfiles.in,v 1.59 2002/08/29 14:22:21 margo Exp $
 #
-# This is an input file for the s_win32_dsp script.  It describes every
-# source files used by Windows, and lists those that aren't as well,
-# as a completeness sanity check.
+# This is an input file for the s_win32_dsp and s_vxworks scripts.  It lists
+# the source files in the Berkeley DB tree and notes which are used to build
+# the Win/32 and VxWorks libraries.
 #
 # Please keep this list sorted alphabetically!
 #
@@ -11,259 +11,322 @@
 #
 # The possible modules, including the name of the project (.dsp) file:
 #
-#   app=NAME		this is linked into application NAME.exe (db_NAME.dsp)
-#   dynamic		file appears in the DLL (db_dll.dsp)
-#   java		file appears in the java DLL (db_java.dsp)
-#   skip		this file is not used by Windows
-#   static		file appears in the static library (db_static.dsp)
-#   tcl			file appears in the tcl DLL (db_tcl.dsp)
+#   app=NAME		Linked into application NAME.exe (db_NAME.dsp)
+#   dynamic		File is in the Windows DLL (db_dll.dsp)
+#   java		File is in the Windows Java DLL (db_java.dsp)
+#   static		File is in the Windows static library (db_static.dsp)
+#   tcl			File is in the Windows tcl DLL (db_tcl.dsp)
+#   testutil		File is used for Windows testing (db_test.dsp)
+#   vx			File is in the VxWorks library.
 
-btree/bt_compare.c			dynamic static
-btree/bt_conv.c				dynamic static
-btree/bt_curadj.c			dynamic static
-btree/bt_cursor.c			dynamic static
-btree/bt_delete.c			dynamic static
-btree/bt_method.c			dynamic static
-btree/bt_open.c				dynamic static
-btree/bt_put.c				dynamic static
-btree/bt_rec.c				dynamic static
-btree/bt_reclaim.c			dynamic static
-btree/bt_recno.c			dynamic static
-btree/bt_rsearch.c			dynamic static
-btree/bt_search.c			dynamic static
-btree/bt_split.c			dynamic static
-btree/bt_stat.c				dynamic static
-btree/bt_upgrade.c			dynamic static
-btree/bt_verify.c			dynamic static
-btree/btree_auto.c			dynamic static
-build_win32/dbkill.cpp			skip
-build_win32/dllmain.c			dynamic
-build_win32/libdb.def			dynamic
-build_win32/libdb.rc			dynamic
-build_win32/libdb_tcl.def		tcl
-clib/getcwd.c				skip
-clib/getopt.c				skip    # must be linked into each app
-clib/memcmp.c				skip
-clib/memmove.c				skip
-clib/raise.c				skip
-clib/snprintf.c				skip
-clib/strcasecmp.c			dynamic static
-clib/strerror.c				skip
-clib/vsnprintf.c			skip
-common/db_byteorder.c			dynamic static
-common/db_err.c				dynamic static
-common/db_getlong.c			dynamic static
-common/db_log2.c			dynamic static
-common/util_log.c			dynamic static
-common/util_sig.c			dynamic static
-cxx/cxx_app.cpp				dynamic static
-cxx/cxx_except.cpp			dynamic static
-cxx/cxx_lock.cpp			dynamic static
-cxx/cxx_log.cpp				dynamic static
-cxx/cxx_mpool.cpp			dynamic static
-cxx/cxx_table.cpp			dynamic static
-cxx/cxx_txn.cpp				dynamic static
-db/crdel_auto.c				dynamic static
-db/crdel_rec.c				dynamic static
-db/db.c					dynamic static
-db/db_am.c				dynamic static
-db/db_auto.c				dynamic static
-db/db_cam.c				dynamic static
-db/db_conv.c				dynamic static
-db/db_dispatch.c			dynamic static
-db/db_dup.c				dynamic static
-db/db_iface.c				dynamic static
-db/db_join.c				dynamic static
-db/db_meta.c				dynamic static
-db/db_method.c				dynamic static
-db/db_overflow.c			dynamic static
-db/db_pr.c				dynamic static
-db/db_rec.c				dynamic static
-db/db_reclaim.c				dynamic static
-db/db_ret.c				dynamic static
-db/db_upg.c				dynamic static
-db/db_upg_opd.c				dynamic static
-db/db_vrfy.c				dynamic static
-db/db_vrfyutil.c			dynamic static
-db185/db185.c				skip
-db_archive/db_archive.c			app=db_archive
-db_checkpoint/db_checkpoint.c		app=db_checkpoint
-db_deadlock/db_deadlock.c		app=db_deadlock
-db_dump/db_dump.c			app=db_dump
-db_dump185/db_dump185.c			skip
-db_load/db_load.c			app=db_load
-db_printlog/db_printlog.c		app=db_printlog
-db_recover/db_recover.c			app=db_recover
-db_stat/db_stat.c			app=db_stat
-db_upgrade/db_upgrade.c			app=db_upgrade
-db_verify/db_verify.c			app=db_verify
-dbm/dbm.c				dynamic static
-env/db_salloc.c				dynamic static
-env/db_shash.c				dynamic static
-env/env_method.c			dynamic static
-env/env_open.c				dynamic static
-env/env_recover.c			dynamic static
-env/env_region.c			dynamic static
-examples_c/ex_access.c			app=ex_access
-examples_c/ex_btrec.c			app=ex_btrec
-examples_c/ex_dbclient.c		skip
-examples_c/ex_env.c			app=ex_env
-examples_c/ex_lock.c			app=ex_lock
-examples_c/ex_mpool.c			app=ex_mpool
-examples_c/ex_thread.c			skip
-examples_c/ex_tpcb.c			app=ex_tpcb
-examples_cxx/AccessExample.cpp		app=excxx_access
-examples_cxx/BtRecExample.cpp		app=excxx_btrec
-examples_cxx/EnvExample.cpp		app=excxx_env
-examples_cxx/LockExample.cpp		app=excxx_lock
-examples_cxx/MpoolExample.cpp		app=excxx_mpool
-examples_cxx/TpcbExample.cpp		app=excxx_tpcb
-hash/hash.c				dynamic static
-hash/hash_auto.c			dynamic static
-hash/hash_conv.c			dynamic static
-hash/hash_dup.c				dynamic static
-hash/hash_func.c			dynamic static
-hash/hash_meta.c			dynamic static
-hash/hash_method.c			dynamic static
-hash/hash_page.c			dynamic static
-hash/hash_rec.c				dynamic static
-hash/hash_reclaim.c			dynamic static
-hash/hash_stat.c			dynamic static
-hash/hash_upgrade.c			dynamic static
-hash/hash_verify.c			dynamic static
-hsearch/hsearch.c			dynamic static
-libdb_java/java_Db.c			java
-libdb_java/java_DbEnv.c			java
-libdb_java/java_DbLock.c		java
-libdb_java/java_DbLsn.c			java
-libdb_java/java_DbTxn.c			java
-libdb_java/java_Dbc.c			java
-libdb_java/java_Dbt.c			java
-libdb_java/java_info.c			java
-libdb_java/java_locked.c		java
-libdb_java/java_util.c			java
-lock/lock.c				dynamic static
-lock/lock_conflict.c			dynamic static
-lock/lock_deadlock.c			dynamic static
-lock/lock_method.c			dynamic static
-lock/lock_region.c			dynamic static
-lock/lock_stat.c			dynamic static
-lock/lock_util.c			dynamic static
-log/log.c				dynamic static
-log/log_archive.c			dynamic static
-log/log_auto.c				dynamic static
-log/log_compare.c			dynamic static
-log/log_findckp.c			dynamic static
-log/log_get.c				dynamic static
-log/log_method.c			dynamic static
-log/log_put.c				dynamic static
-log/log_rec.c				dynamic static
-log/log_register.c			dynamic static
-mp/mp_alloc.c				dynamic static
-mp/mp_bh.c				dynamic static
-mp/mp_fget.c				dynamic static
-mp/mp_fopen.c				dynamic static
-mp/mp_fput.c				dynamic static
-mp/mp_fset.c				dynamic static
-mp/mp_method.c				dynamic static
-mp/mp_region.c				dynamic static
-mp/mp_register.c			dynamic static
-mp/mp_stat.c				dynamic static
-mp/mp_sync.c				dynamic static
-mp/mp_trickle.c				dynamic static
-mutex/mut_fcntl.c			skip
-mutex/mut_pthread.c			skip
-mutex/mut_tas.c				dynamic static
-mutex/mutex.c				dynamic static
-os/os_abs.c				skip
-os/os_alloc.c				dynamic static
-os/os_dir.c				skip
-os/os_errno.c				skip
-os/os_fid.c				skip
-os/os_finit.c				skip
-os/os_fsync.c				dynamic static
-os/os_handle.c				dynamic static
-os/os_map.c				skip
-os/os_method.c				dynamic static
-os/os_oflags.c				dynamic static
-os/os_open.c				skip
-os/os_region.c				dynamic static
-os/os_rename.c				skip
-os/os_root.c				dynamic static
-os/os_rpath.c				dynamic static
-os/os_rw.c				dynamic static
-os/os_seek.c				skip
-os/os_sleep.c				skip
-os/os_spin.c				skip
-os/os_stat.c				dynamic static
-os/os_tmpdir.c				dynamic static
-os/os_unlink.c				dynamic static
-os_vxworks/os_abs.c			skip
-os_vxworks/os_finit.c			skip
-os_vxworks/os_map.c			skip
-os_win32/os_abs.c			dynamic static
-os_win32/os_dir.c			dynamic static
-os_win32/os_errno.c			dynamic static
-os_win32/os_fid.c			dynamic static
-os_win32/os_finit.c			dynamic static
-os_win32/os_map.c			dynamic static
-os_win32/os_open.c			dynamic static
-os_win32/os_rename.c			dynamic static
-os_win32/os_seek.c			dynamic static
-os_win32/os_sleep.c			dynamic static
-os_win32/os_spin.c			dynamic static
-os_win32/os_type.c			dynamic static
-qam/qam.c				dynamic static
-qam/qam_auto.c				dynamic static
-qam/qam_conv.c				dynamic static
-qam/qam_files.c				dynamic static
-qam/qam_method.c			dynamic static
-qam/qam_open.c				dynamic static
-qam/qam_rec.c				dynamic static
-qam/qam_stat.c				dynamic static
-qam/qam_upgrade.c			dynamic static
-qam/qam_verify.c			dynamic static
-rpc_client/client.c			skip
-rpc_client/db_server_clnt.c		skip
-rpc_client/gen_client.c			skip
-rpc_client/gen_client_ret.c		skip
-rpc_server/db_server_proc.c		skip
-rpc_server/db_server_svc.c		skip
-rpc_server/db_server_util.c		skip
-rpc_server/db_server_xdr.c		skip
-rpc_server/gen_db_server.c		skip
-tcl/tcl_compat.c			tcl
-tcl/tcl_db.c				tcl
-tcl/tcl_db_pkg.c			tcl
-tcl/tcl_dbcursor.c			tcl
-tcl/tcl_env.c				tcl
-tcl/tcl_internal.c			tcl
-tcl/tcl_lock.c				tcl
-tcl/tcl_log.c				tcl
-tcl/tcl_mp.c				tcl
-tcl/tcl_txn.c				tcl
-test_server/dbs.c			skip
-test_server/dbs_am.c			skip
-test_server/dbs_checkpoint.c		skip
-test_server/dbs_debug.c			skip
-test_server/dbs_handles.c		skip
-test_server/dbs_log.c			skip
-test_server/dbs_qam.c			skip
-test_server/dbs_spawn.c			skip
-test_server/dbs_trickle.c		skip
-test_server/dbs_util.c			skip
-test_server/dbs_yield.c			skip
-test_thread/lock.c			skip
-test_thread/log.c			skip
-test_thread/mpool.c			skip
-test_thread/mutex.c			skip
-test_vxworks/vx_mutex.c			skip
-test_vxworks/vxtpcb_files.c		skip
-test_vxworks/vxtpcb_onefile.c		skip
-txn/txn.c				dynamic static
-txn/txn_auto.c				dynamic static
-txn/txn_rec.c				dynamic static
-txn/txn_region.c			dynamic static
-xa/xa.c					dynamic static
-xa/xa_db.c				dynamic static
-xa/xa_map.c				dynamic static
+btree/bt_compare.c				dynamic static vx
+btree/bt_conv.c					dynamic static vx
+btree/bt_curadj.c				dynamic static vx
+btree/bt_cursor.c				dynamic static vx
+btree/bt_delete.c				dynamic static vx
+btree/bt_method.c				dynamic static vx
+btree/bt_open.c					dynamic static vx
+btree/bt_put.c					dynamic static vx
+btree/bt_rec.c					dynamic static vx
+btree/bt_reclaim.c				dynamic static vx
+btree/bt_recno.c				dynamic static vx
+btree/bt_rsearch.c				dynamic static vx
+btree/bt_search.c				dynamic static vx
+btree/bt_split.c				dynamic static vx
+btree/bt_stat.c					dynamic static vx
+btree/bt_upgrade.c				dynamic static vx
+btree/bt_verify.c				dynamic static vx
+btree/btree_auto.c				dynamic static vx
+build_vxworks/db_archive/db_archive.c
+build_vxworks/db_checkpoint/db_checkpoint.c
+build_vxworks/db_deadlock/db_deadlock.c
+build_vxworks/db_dump/db_dump.c
+build_vxworks/db_load/db_load.c
+build_vxworks/db_printlog/db_printlog.c
+build_vxworks/db_recover/db_recover.c
+build_vxworks/db_stat/db_stat.c
+build_vxworks/db_upgrade/db_upgrade.c
+build_vxworks/db_verify/db_verify.c
+build_vxworks/dbdemo/dbdemo.c
+build_win32/dbkill.cpp				testutil
+build_win32/dllmain.c				dynamic
+build_win32/libdb.def				dynamic
+build_win32/libdb.rc				dynamic
+build_win32/libdb_tcl.def			tcl
+clib/getcwd.c
+clib/getopt.c					vx
+clib/memcmp.c
+clib/memmove.c
+clib/raise.c
+clib/snprintf.c					vx
+clib/strcasecmp.c				dynamic static vx
+clib/strdup.c					vx
+clib/strerror.c
+clib/vsnprintf.c				vx
+common/db_byteorder.c				dynamic static vx
+common/db_err.c					dynamic static vx
+common/db_getlong.c				dynamic static vx
+common/db_idspace.c				dynamic static vx
+common/db_log2.c				dynamic static vx
+common/util_arg.c				vx
+common/util_cache.c				dynamic static vx
+common/util_log.c				dynamic static vx
+common/util_sig.c				dynamic static vx
+cxx/cxx_db.cpp					dynamic static
+cxx/cxx_dbc.cpp					dynamic static
+cxx/cxx_dbt.cpp					dynamic static
+cxx/cxx_env.cpp					dynamic static
+cxx/cxx_except.cpp				dynamic static
+cxx/cxx_lock.cpp				dynamic static
+cxx/cxx_logc.cpp				dynamic static
+cxx/cxx_mpool.cpp				dynamic static
+cxx/cxx_txn.cpp					dynamic static
+db/crdel_auto.c					dynamic static vx
+db/crdel_rec.c					dynamic static vx
+db/db.c						dynamic static vx
+db/db_am.c					dynamic static vx
+db/db_auto.c					dynamic static vx
+db/db_cam.c					dynamic static vx
+db/db_conv.c					dynamic static vx
+db/db_dispatch.c				dynamic static vx
+db/db_dup.c					dynamic static vx
+db/db_iface.c					dynamic static vx
+db/db_join.c					dynamic static vx
+db/db_meta.c					dynamic static vx
+db/db_method.c					dynamic static vx
+db/db_open.c					dynamic static vx
+db/db_overflow.c				dynamic static vx
+db/db_pr.c					dynamic static vx
+db/db_rec.c					dynamic static vx
+db/db_reclaim.c					dynamic static vx
+db/db_remove.c					dynamic static vx
+db/db_rename.c					dynamic static vx
+db/db_ret.c					dynamic static vx
+db/db_truncate.c				dynamic static vx
+db/db_upg.c					dynamic static vx
+db/db_upg_opd.c					dynamic static vx
+db/db_vrfy.c					dynamic static vx
+db/db_vrfyutil.c				dynamic static vx
+db185/db185.c
+db_archive/db_archive.c				app=db_archive
+db_checkpoint/db_checkpoint.c			app=db_checkpoint
+db_deadlock/db_deadlock.c			app=db_deadlock
+db_dump/db_dump.c				app=db_dump
+db_dump185/db_dump185.c
+db_load/db_load.c				app=db_load
+db_printlog/db_printlog.c			app=db_printlog
+db_recover/db_recover.c				app=db_recover
+db_stat/db_stat.c				app=db_stat
+db_upgrade/db_upgrade.c				app=db_upgrade
+db_verify/db_verify.c				app=db_verify
+dbm/dbm.c					dynamic static
+dbreg/dbreg.c					dynamic static vx
+dbreg/dbreg_auto.c				dynamic static vx
+dbreg/dbreg_rec.c				dynamic static vx
+dbreg/dbreg_util.c				dynamic static vx
+env/db_salloc.c					dynamic static vx
+env/db_shash.c					dynamic static vx
+env/env_file.c					dynamic static vx
+env/env_method.c				dynamic static vx
+env/env_open.c					dynamic static vx
+env/env_recover.c				dynamic static vx
+env/env_region.c				dynamic static vx
+examples_c/bench_001.c
+examples_c/ex_access.c				app=ex_access
+examples_c/ex_apprec/ex_apprec.c
+examples_c/ex_apprec/ex_apprec_auto.c
+examples_c/ex_apprec/ex_apprec_rec.c
+examples_c/ex_btrec.c				app=ex_btrec
+examples_c/ex_dbclient.c
+examples_c/ex_env.c				app=ex_env
+examples_c/ex_lock.c				app=ex_lock
+examples_c/ex_mpool.c				app=ex_mpool
+examples_c/ex_repquote/ex_rq_client.c
+examples_c/ex_repquote/ex_rq_main.c
+examples_c/ex_repquote/ex_rq_master.c
+examples_c/ex_repquote/ex_rq_net.c
+examples_c/ex_repquote/ex_rq_util.c
+examples_c/ex_thread.c
+examples_c/ex_tpcb.c				app=ex_tpcb
+examples_cxx/AccessExample.cpp			app=excxx_access
+examples_cxx/BtRecExample.cpp			app=excxx_btrec
+examples_cxx/EnvExample.cpp			app=excxx_env
+examples_cxx/LockExample.cpp			app=excxx_lock
+examples_cxx/MpoolExample.cpp			app=excxx_mpool
+examples_cxx/TpcbExample.cpp			app=excxx_tpcb
+fileops/fileops_auto.c				dynamic static vx
+fileops/fop_basic.c				dynamic static vx
+fileops/fop_rec.c				dynamic static vx
+fileops/fop_util.c				dynamic static vx
+hash/hash.c					dynamic static vx
+hash/hash_auto.c				dynamic static vx
+hash/hash_conv.c				dynamic static vx
+hash/hash_dup.c					dynamic static vx
+hash/hash_func.c				dynamic static vx
+hash/hash_meta.c				dynamic static vx
+hash/hash_method.c				dynamic static vx
+hash/hash_open.c				dynamic static vx
+hash/hash_page.c				dynamic static vx
+hash/hash_rec.c					dynamic static vx
+hash/hash_reclaim.c				dynamic static vx
+hash/hash_stat.c				dynamic static vx
+hash/hash_upgrade.c				dynamic static vx
+hash/hash_verify.c				dynamic static vx
+hmac/hmac.c					dynamic static vx
+hmac/sha1.c					dynamic static vx
+hsearch/hsearch.c				dynamic static vx
+libdb_java/java_Db.c				java
+libdb_java/java_DbEnv.c				java
+libdb_java/java_DbLock.c			java
+libdb_java/java_DbLogc.c			java
+libdb_java/java_DbLsn.c				java
+libdb_java/java_DbTxn.c				java
+libdb_java/java_DbUtil.c			java
+libdb_java/java_Dbc.c				java
+libdb_java/java_Dbt.c				java
+libdb_java/java_info.c				java
+libdb_java/java_locked.c			java
+libdb_java/java_stat_auto.c			java
+libdb_java/java_util.c				java
+lock/lock.c					dynamic static vx
+lock/lock_deadlock.c				dynamic static vx
+lock/lock_method.c				dynamic static vx
+lock/lock_region.c				dynamic static vx
+lock/lock_stat.c				dynamic static vx
+lock/lock_util.c				dynamic static vx
+log/log.c					dynamic static vx
+log/log_archive.c				dynamic static vx
+log/log_compare.c				dynamic static vx
+log/log_get.c					dynamic static vx
+log/log_method.c				dynamic static vx
+log/log_put.c					dynamic static vx
+mp/mp_alloc.c					dynamic static vx
+mp/mp_bh.c					dynamic static vx
+mp/mp_fget.c					dynamic static vx
+mp/mp_fopen.c					dynamic static vx
+mp/mp_fput.c					dynamic static vx
+mp/mp_fset.c					dynamic static vx
+mp/mp_method.c					dynamic static vx
+mp/mp_region.c					dynamic static vx
+mp/mp_register.c				dynamic static vx
+mp/mp_stat.c					dynamic static vx
+mp/mp_sync.c					dynamic static vx
+mp/mp_trickle.c					dynamic static vx
+mutex/mut_fcntl.c
+mutex/mut_pthread.c
+mutex/mut_tas.c					vx
+mutex/mut_win32.c				dynamic static
+mutex/mutex.c					dynamic static vx
+mutex/tm.c
+os/os_abs.c
+os/os_alloc.c					dynamic static vx
+os/os_clock.c					vx
+os/os_config.c
+os/os_dir.c					vx
+os/os_errno.c					vx
+os/os_fid.c					vx
+os/os_fsync.c					vx
+os/os_handle.c					vx
+os/os_id.c					dynamic static vx
+os/os_map.c
+os/os_method.c					dynamic static vx
+os/os_oflags.c					dynamic static vx
+os/os_open.c					vx
+os/os_region.c					dynamic static vx
+os/os_rename.c					vx
+os/os_root.c					dynamic static vx
+os/os_rpath.c					dynamic static vx
+os/os_rw.c					vx
+os/os_seek.c					vx
+os/os_sleep.c					vx
+os/os_spin.c					vx
+os/os_stat.c					vx
+os/os_tmpdir.c					dynamic static vx
+os/os_unlink.c					dynamic static vx
+os_vxworks/os_vx_abs.c				vx
+os_vxworks/os_vx_config.c			vx
+os_vxworks/os_vx_map.c				vx
+os_win32/os_abs.c				dynamic static
+os_win32/os_clock.c				dynamic static
+os_win32/os_config.c				dynamic static
+os_win32/os_dir.c				dynamic static
+os_win32/os_errno.c				dynamic static
+os_win32/os_fid.c				dynamic static
+os_win32/os_fsync.c				dynamic static
+os_win32/os_handle.c				dynamic static
+os_win32/os_map.c				dynamic static
+os_win32/os_open.c				dynamic static
+os_win32/os_rename.c				dynamic static
+os_win32/os_rw.c				dynamic static
+os_win32/os_seek.c				dynamic static
+os_win32/os_sleep.c				dynamic static
+os_win32/os_spin.c				dynamic static
+os_win32/os_stat.c				dynamic static
+os_win32/os_type.c				dynamic static
+qam/qam.c					dynamic static vx
+qam/qam_auto.c					dynamic static vx
+qam/qam_conv.c					dynamic static vx
+qam/qam_files.c					dynamic static vx
+qam/qam_method.c				dynamic static vx
+qam/qam_open.c					dynamic static vx
+qam/qam_rec.c					dynamic static vx
+qam/qam_stat.c					dynamic static vx
+qam/qam_upgrade.c				dynamic static vx
+qam/qam_verify.c				dynamic static vx
+rep/rep_method.c				dynamic static vx
+rep/rep_record.c				dynamic static vx
+rep/rep_region.c				dynamic static vx
+rep/rep_util.c					dynamic static vx
+rpc_client/client.c				vx
+rpc_client/db_server_clnt.c			vx
+rpc_client/gen_client.c				vx
+rpc_client/gen_client_ret.c			vx
+rpc_server/c/db_server_proc.c
+rpc_server/c/db_server_svc.c
+rpc_server/c/db_server_util.c
+rpc_server/c/db_server_xdr.c			vx
+rpc_server/c/gen_db_server.c
+rpc_server/cxx/db_server_cxxproc.cpp
+rpc_server/cxx/db_server_cxxutil.cpp
+tcl/tcl_compat.c				tcl
+tcl/tcl_db.c					tcl
+tcl/tcl_db_pkg.c				tcl
+tcl/tcl_dbcursor.c				tcl
+tcl/tcl_env.c					tcl
+tcl/tcl_internal.c				tcl
+tcl/tcl_lock.c					tcl
+tcl/tcl_log.c					tcl
+tcl/tcl_mp.c					tcl
+tcl/tcl_rep.c					tcl
+tcl/tcl_txn.c					tcl
+tcl/tcl_util.c					tcl
+test_perf/db_perf.c				app=db_perf
+test_perf/perf_cache_check.c			app=db_perf
+test_perf/perf_checkpoint.c			app=db_perf
+test_perf/perf_config.c				app=db_perf
+test_perf/perf_dbs.c				app=db_perf
+test_perf/perf_debug.c				app=db_perf
+test_perf/perf_file.c				app=db_perf
+test_perf/perf_key.c				app=db_perf
+test_perf/perf_log.c				app=db_perf
+test_perf/perf_misc.c				app=db_perf
+test_perf/perf_op.c				app=db_perf
+test_perf/perf_parse.c				app=db_perf
+test_perf/perf_rand.c				app=db_perf
+test_perf/perf_spawn.c				app=db_perf
+test_perf/perf_thread.c				app=db_perf
+test_perf/perf_trickle.c			app=db_perf
+test_perf/perf_txn.c				app=db_perf
+test_perf/perf_util.c				app=db_perf
+test_perf/perf_vx.c
+txn/txn.c					dynamic static vx
+txn/txn_auto.c					dynamic static vx
+txn/txn_method.c				dynamic static vx
+txn/txn_rec.c					dynamic static vx
+txn/txn_recover.c				dynamic static vx
+txn/txn_region.c				dynamic static vx
+txn/txn_stat.c					dynamic static vx
+txn/txn_util.c					dynamic static vx
+xa/xa.c						dynamic static vx
+xa/xa_db.c					dynamic static vx
+xa/xa_map.c					dynamic static vx

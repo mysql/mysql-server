@@ -1,14 +1,17 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd003.tcl,v 11.22 2000/12/07 19:13:46 sue Exp $
+# $Id: recd003.tcl,v 11.30 2002/02/25 16:44:24 sandstro Exp $
 #
-# Recovery Test 3.
-# Test all the duplicate log messages and recovery operations.  We make
-# sure that we exercise all possible recovery actions: redo, undo, undo
-# but no fix necessary and redo but no fix necessary.
+# TEST	recd003
+# TEST	Duplicate recovery tests.  For every known duplicate log message,
+# TEST	makes sure that we exercise redo, undo, and do-nothing condition.
+# TEST
+# TEST	Test all the duplicate log messages and recovery operations.  We make
+# TEST	sure that we exercise all possible recovery actions: redo, undo, undo
+# TEST	but no fix necessary and redo but no fix necessary.
 proc recd003 { method {select 0} args } {
 	source ./include.tcl
 	global rand_init
@@ -31,7 +34,7 @@ proc recd003 { method {select 0} args } {
 	set eflags "-create -txn -home $testdir"
 
 	puts "\tRecd003.a: creating environment"
-	set env_cmd "berkdb env $eflags"
+	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
 	error_check_bad dbenv $dbenv NULL
 
@@ -95,8 +98,13 @@ proc recd003 { method {select 0} args } {
 		}
 		op_recover abort $testdir $env_cmd $testfile $cmd $msg
 		op_recover commit $testdir $env_cmd $testfile $cmd $msg
-		op_recover prepare $testdir $env_cmd $testfile2 $cmd $msg
+		#
+		# Note that since prepare-discard ultimately aborts
+		# the txn, it must come before prepare-commit.
+		#
 		op_recover prepare-abort $testdir $env_cmd $testfile2 \
+			$cmd $msg
+		op_recover prepare-discard $testdir $env_cmd $testfile2 \
 			$cmd $msg
 		op_recover prepare-commit $testdir $env_cmd $testfile2 \
 			$cmd $msg

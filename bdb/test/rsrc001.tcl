@@ -1,13 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: rsrc001.tcl,v 11.18 2001/01/18 06:41:03 krinsky Exp $
+# $Id: rsrc001.tcl,v 11.23 2002/01/11 15:53:33 bostic Exp $
 #
-# Recno backing file test.
-# Try different patterns of adding records and making sure that the
-# corresponding file matches
+# TEST	rsrc001
+# TEST	Recno backing file test.  Try different patterns of adding
+# TEST	records and making sure that the corresponding file matches.
 proc rsrc001 { } {
 	source ./include.tcl
 
@@ -47,7 +47,7 @@ proc rsrc001 { } {
 		# Now fill out the backing file and create the check file.
 		set oid1 [open $testdir/rsrc.txt a]
 		set oid2 [open $testdir/check.txt w]
-    
+
 		# This one was already put into rsrc.txt.
 		puts $oid2 $rec1
 
@@ -154,15 +154,15 @@ proc rsrc001 { } {
 		set rec "Last record with reopen"
 		puts $oid $rec
 
-		incr key 
+		incr key
 		set ret [eval {$db put} $txn {$key $rec}]
 		error_check_good put_byno_with_reopen $ret 0
 
 		puts "\tRsrc001.g:\
-		    Put several beyond end of file, after reopen."
+		    Put several beyond end of file, after reopen with snapshot."
 		error_check_good db_close [$db close] 0
 		set db [eval {berkdb_open -create -mode 0644\
-		    -recno -source $testdir/rsrc.txt} $testfile]
+		    -snapshot -recno -source $testdir/rsrc.txt} $testfile]
 		error_check_good dbopen [is_valid_db $db] TRUE
 
 		set rec "Really really last record with reopen"
@@ -171,15 +171,13 @@ proc rsrc001 { } {
 		puts $oid ""
 		puts $oid $rec
 
-		incr key 
+		incr key
 		incr key
 		incr key
 		incr key
 
 		set ret [eval {$db put} $txn {$key $rec}]
 		error_check_good put_byno_with_reopen $ret 0
-
-
 
 		error_check_good db_sync [$db sync] 0
 		error_check_good db_sync [$db sync] 0

@@ -1,0 +1,2 @@
+got expected Db Exception: com.sleepycat.db.DbException: Dbt is already in use
+Test succeeded.

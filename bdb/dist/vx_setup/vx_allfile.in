@@ -1,0 +1,5 @@
+windlink/sleepycat/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@DB_VERSION_PATCH@/build_vxworks/BerkeleyDB.wpj
+windlink/sleepycat/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@DB_VERSION_PATCH@/build_vxworks/BerkeleyDB.wsp
+windlink/sleepycat/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@DB_VERSION_PATCH@/build_vxworks/db.h
+windlink/sleepycat/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@DB_VERSION_PATCH@/build_vxworks/db_config.h
+windlink/sleepycat/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@DB_VERSION_PATCH@/build_vxworks/db_int.h

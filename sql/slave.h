@@ -7,22 +7,28 @@
 #define MAX_SLAVE_ERRMSG   1024
 #define MAX_SLAVE_ERROR    2000
 
-/*
-  The replication is accomplished by starting two threads - I/O
-  thread, and SQL thread. I/O thread is associated with its
-  MASTER_INFO struct, so MASTER_INFO can be viewed as I/O thread
-  descriptor. SQL thread is associated with RELAY_LOG_INFO struct.
+/*****************************************************************************
 
-  I/O thread reads maintains a connection to the master, and reads log
-  events from the master as they arrive, queueing them by writing them
-  out into the temporary slave binary log (relay log). The SQL thread,
-  in turn, reads the slave binary log executing each event.
+  MySQL Replication
 
-  Relay log is needed to be able to handle situations when there is a large
-  backlog of unprocessed events from the master (eg. one particular update
-  takes a day to finish), and to be able to restart the slave server without
-  having to re-read the master updates.
- */
+  Replication is implemented via two types of threads:
+
+    I/O Thread - One of these threads is started for each master server.
+                 They maintain a connection to their master server, read log
+                 events from the master as they arrive, and queues them into
+                 a single, shared relay log file.  A MASTER_INFO struct
+                 represents each of these threads.
+
+    SQL Thread - One of these threads is started and reads from the relay log
+                 file, executing each event.  A RELAY_LOG_INFO struct
+                 represents this thread.
+
+  Buffering in the relay log file makes it unnecessary to reread events from
+  a master server across a slave restart.  It also decouples the slave from
+  the master where long-running updates and event logging are concerned--ie
+  it can continue to log new events while a slow query executes on the slave.
+
+*****************************************************************************/
 
 extern ulong slave_net_timeout, master_retry_count;
 extern MY_BITMAP slave_error_mask;
@@ -48,11 +54,16 @@ struct st_master_info;
  --active_mi_in_use; \
  pthread_mutex_unlock(&LOCK_active_mi); }
 
-/*
-  st_relay_log_info contains information on the current relay log and
-  relay log offset, and master log name and log sequence corresponding to the
-  last update. Additionally, misc information specific to the SQL thread is
-  included.
+/*****************************************************************************
+
+  Replication SQL Thread
+
+  st_relay_log_info contains:
+    - the current relay log
+    - the current relay log offset
+    - master log name
+    - master log sequence corresponding to the last update
+    - misc information specific to the SQL thread
 
   st_relay_log_info is initialized from the slave.info file if such exists.
   Otherwise, data members are intialized with defaults. The initialization is
@@ -66,7 +77,8 @@ struct st_master_info;
   master_log_pos
 
   To clean up, call end_relay_log_info()
- */
+
+*****************************************************************************/
 
 typedef struct st_relay_log_info
 {
@@ -128,13 +140,18 @@ typedef struct st_relay_log_info
   uint32 cur_log_old_open_count;
   
   /*
-    Current offset in the relay log.
-    pending - in some cases we do not increment offset immediately after
-    processing an event, because the following event needs to be processed
-    atomically together with this one ( so far, there is only one type of
-    such event - Intvar_event that sets auto_increment value). However, once
-    both events have been processed, we need to increment by the cumulative
-    offset. pending stored the extra offset to be added to the position.
+    relay_log_pos - Current offset in the relay log.
+    pending       - In some cases we do not increment offset immediately
+                    after processing an event, because the following event
+                    needs to be processed atomically together with this one
+                    such as:
+
+                    Intvar_event - sets auto_increment value
+                    Rand_event   - sets the random seed
+
+                    However, once both events have been processed, we need to
+                    increment by the cumulative offset.  'pending' stores the
+                    extra offset to be added to the position.
   */
   ulonglong relay_log_pos, pending;
   ulonglong log_space_limit,log_space_total;
@@ -230,10 +247,15 @@ typedef struct st_relay_log_info
 
 Log_event* next_event(RELAY_LOG_INFO* rli);
 
-/*
-  st_master_info contains information about how to connect to a master,
-  current master log name, and current log offset, as well as misc
-  control variables
+/*****************************************************************************
+
+  Replication IO Thread
+
+  st_master_info contains:
+    - information about how to connect to a master
+    - current master log name
+    - current master log offset
+    - misc control variables
 
   st_master_info is initialized once from the master.info file if such
   exists. Otherwise, data members corresponding to master.info fields
@@ -255,9 +277,9 @@ Log_event* next_event(RELAY_LOG_INFO* rli);
   flush_master_info() is required.
 
   To clean up, call end_master_info()
-*/
 
-   
+*****************************************************************************/
+
 typedef struct st_master_info
 {
   char master_log_name[FN_REFLEN];

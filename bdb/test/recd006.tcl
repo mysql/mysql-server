@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd006.tcl,v 11.21 2000/12/07 19:13:46 sue Exp $
+# $Id: recd006.tcl,v 11.26 2002/03/15 16:30:53 sue Exp $
 #
-# Recovery Test 6.
-# Test nested transactions.
+# TEST	recd006
+# TEST	Nested transactions.
 proc recd006 { method {select 0} args} {
 	global kvals
 	source ./include.tcl
@@ -83,7 +83,7 @@ proc recd006 { method {select 0} args} {
 	set eflags "-create -txn -home $testdir"
 
 	puts "\tRecd006.b: creating environment"
-	set env_cmd "berkdb env $eflags"
+	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
 	error_check_bad dbenv $dbenv NULL
 
@@ -176,7 +176,7 @@ proc nesttest { db parent env do p1 p2 child1 child2} {
 
 	# OK, do child 1
 	set kid1 [$env txn -parent $parent]
-	error_check_good kid1 [is_valid_widget $kid1 $env.txn] TRUE
+	error_check_good kid1 [is_valid_txn $kid1 $env] TRUE
 
 	# Reading write-locked parent object should be OK
 	#puts "\tRead write-locked parent object for kid1."
@@ -193,7 +193,7 @@ proc nesttest { db parent env do p1 p2 child1 child2} {
 	# Now start child2
 	#puts "\tBegin txn for kid2."
 	set kid2 [$env txn -parent $parent]
-	error_check_good kid2 [is_valid_widget $kid2 $env.txn] TRUE
+	error_check_good kid2 [is_valid_txn $kid2 $env] TRUE
 
 	# Getting anything in the p1 set should deadlock, so let's
 	# work on the p2 set.

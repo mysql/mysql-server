@@ -69,6 +69,12 @@ TODO:
 #include "mysql_priv.h"
 #include <hash.h>
 #include <assert.h>
+#include <ha_myisammrg.h>
+#ifndef MASTER
+#include "../srclib/myisammrg/myrg_def.h"
+#else
+#include "../myisammrg/myrg_def.h"
+#endif
 
 extern HASH open_cache;
 
@@ -154,6 +160,7 @@ retry:
       sql_lock=0;
     }
   }
+
   thd->lock_time();
   DBUG_RETURN (sql_lock);
 }
@@ -410,8 +417,12 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	return 0;
       }
     }
+    THR_LOCK_DATA **org_locks = locks;
     locks=table->file->store_lock(thd, locks, get_old_locks ? TL_IGNORE :
 				  lock_type);
+    if (locks)
+      for ( ; org_locks != locks ; org_locks++)
+	(*org_locks)->debug_print_param= (void *) table;
   }
   return sql_lock;
 }

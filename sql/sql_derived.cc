@@ -70,7 +70,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
     
   if (tables_is_opened || !(res=open_and_lock_tables(thd,tables)))
   {
-    if (tables && setup_fields(thd,tables,item_list,0,0,1))
+    if (setup_fields(thd,tables,item_list,0,0,1))
     {
       res=-1;
       goto exit;
@@ -113,6 +113,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
 	  t->table=table;
 	  table->derived_select_number= sl->select_number;
 	  sl->exclude();
+	  t->db= (tables && tables->db && tables->db[0]) ? t->db : thd->db;
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	}
       }

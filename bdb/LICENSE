@@ -1,5 +1,5 @@
 /*-
- * $Id: LICENSE,v 11.7 2000/11/01 20:35:49 bostic Exp $
+ * $Id: LICENSE,v 11.9 2002/01/11 15:51:10 bostic Exp $
  */
 
 The following is the license that applies to this copy of the Berkeley DB
@@ -10,7 +10,7 @@ Web at http://www.sleepycat.com.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 /*
- * Copyright (c) 1990-2000
+ * Copyright (c) 1990-2002
  *	Sleepycat Software.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

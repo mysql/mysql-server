@@ -125,10 +125,9 @@ public:
     }
     str_charset=cs;
   }
-  bool set(longlong num);
-  /* bool set(long num); */
-  bool set(ulonglong num);
-  bool set(double num,uint decimals=2);
+  bool set(longlong num, CHARSET_INFO *cs);
+  bool set(ulonglong num, CHARSET_INFO *cs);
+  bool set(double num,uint decimals, CHARSET_INFO *cs);
   inline void free()
   {
     if (alloced)

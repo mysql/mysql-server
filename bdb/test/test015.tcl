@@ -1,14 +1,15 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test015.tcl,v 11.20 2000/08/25 14:21:54 sue Exp $
+# $Id: test015.tcl,v 11.27 2002/05/31 16:57:25 sue Exp $
 #
-# DB Test 15 {access method}
-# Partial put test when item does not exist.
+# TEST	test015
+# TEST	Partial put test
+# TEST		Partial put test where the key does not initially exist.
 proc test015 { method {nentries 7500} { start 0 } args } {
-	global fixed_len
+	global fixed_len testdir
 
 	set low_range 50
 	set mid_range 100
@@ -43,6 +44,15 @@ proc test015 { method {nentries 7500} { start 0 } args } {
 		puts -nonewline "$this: "
 		eval [concat test015_body $method [lindex $entry 1] \
 		    $nentries $args]
+		set eindex [lsearch -exact $args "-env"]
+		if { $eindex != -1 } {
+			incr eindex
+			set env [lindex $args $eindex]
+			set testdir [get_home $env]
+		}
+puts "Verifying testdir $testdir"
+
+		error_check_good verify [verify_dir $testdir "\tTest015.e: "] 0
 	}
 }
 
@@ -55,6 +65,7 @@ proc test015_init { } {
 proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 	global dvals
 	global fixed_len
+	global testdir
 	source ./include.tcl
 
 	set args [convert_args $method $args]
@@ -71,6 +82,7 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 	puts "Put $rcount strings random offsets between $off_low and $off_hi"
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -82,14 +94,27 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 		set testfile test015.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries > 5000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
 	}
+	set retdir $testdir
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod $testfile}]
+	     -create -mode 0644} $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set pflags ""
@@ -97,7 +122,7 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 	set txn ""
 	set count 0
 
-	puts "\tTest015.a: put/get loop"
+	puts "\tTest015.a: put/get loop for $nentries entries"
 
 	# Here is the loop where we put and get each key/data pair
 	# Each put is a partial put of a record that does not exist.
@@ -148,9 +173,17 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 		    set slen [expr $fixed_len - $off]
 		    set data [eval "binary format a$slen" {$data}]
 		}
-		set ret [eval {$db put} \
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn \
 		    {-partial [list $off [string length $data]] $key $data}]
 		error_check_good put $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		incr count
 	}
@@ -158,7 +191,15 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 
 	# Now make sure that everything looks OK
 	puts "\tTest015.b: check entire file contents"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	dump_file $db $txn $t1 $checkfunc
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	# Now compare the keys to see if they match the dictionary (or ints)
@@ -183,7 +224,7 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 
 	puts "\tTest015.c: close, open, and dump file"
 	# Now, reopen the file and run the last test again.
-	open_and_dump_file $testfile $env $txn $t1 \
+	open_and_dump_file $testfile $env $t1 \
 	    $checkfunc dump_file_direction "-first" "-next"
 
 	if { [string compare $omethod "-recno"] != 0 } {
@@ -196,7 +237,7 @@ proc test015_body { method off_low off_hi rcount {nentries 10000} args } {
 	# Now, reopen the file and run the last test again in the
 	# reverse direction.
 	puts "\tTest015.d: close, open, and dump file in reverse direction"
-	open_and_dump_file $testfile $env $txn $t1 \
+	open_and_dump_file $testfile $env $t1 \
 	    $checkfunc dump_file_direction "-last" "-prev"
 
 	if { [string compare $omethod "-recno"] != 0 } {

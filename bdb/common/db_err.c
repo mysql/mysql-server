@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_err.c,v 11.38 2001/01/22 21:50:25 sue Exp $";
+static const char revid[] = "$Id: db_err.c,v 11.80 2002/07/30 01:21:53 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -20,21 +20,12 @@ static const char revid[] = "$Id: db_err.c,v 11.38 2001/01/22 21:50:25 sue Exp $
 #endif
 
 #include "db_int.h"
-#include "db_shash.h"
-#include "lock.h"
-#include "lock_ext.h"
-#include "log.h"
-#include "log_ext.h"
-#include "mp.h"
-#include "mp_ext.h"
-#include "txn.h"
-#include "txn_ext.h"
-#include "clib_ext.h"
-#include "common_ext.h"
-#include "db_auto.h"
-
-static void __db_errcall __P((const DB_ENV *, int, int, const char *, va_list));
-static void __db_errfile __P((const DB_ENV *, int, int, const char *, va_list));
+#include "dbinc/db_page.h"
+#include "dbinc/db_am.h"
+#include "dbinc/db_shash.h"
+#include "dbinc/lock.h"
+#include "dbinc/log.h"
+#include "dbinc/txn.h"
 
 /*
  * __db_fchk --
@@ -89,12 +80,13 @@ __db_ferr(dbenv, name, iscombo)
  * __db_pgerr --
  *	Error when unable to retrieve a specified page.
  *
- * PUBLIC: int __db_pgerr __P((DB *, db_pgno_t));
+ * PUBLIC: void __db_pgerr __P((DB *, db_pgno_t, int));
  */
-int
-__db_pgerr(dbp, pgno)
+void
+__db_pgerr(dbp, pgno, errval)
 	DB *dbp;
 	db_pgno_t pgno;
+	int errval;
 {
 	/*
 	 * Three things are certain:
@@ -103,23 +95,22 @@ __db_pgerr(dbp, pgno)
 	 */
 	__db_err(dbp->dbenv,
 	    "unable to create/retrieve page %lu", (u_long)pgno);
-	return (__db_panic(dbp->dbenv, EIO));
+	(void)__db_panic(dbp->dbenv, errval);
 }
 
 /*
  * __db_pgfmt --
  *	Error when a page has the wrong format.
  *
- * PUBLIC: int __db_pgfmt __P((DB *, db_pgno_t));
+ * PUBLIC: int __db_pgfmt __P((DB_ENV *, db_pgno_t));
  */
 int
-__db_pgfmt(dbp, pgno)
-	DB *dbp;
+__db_pgfmt(dbenv, pgno)
+	DB_ENV *dbenv;
 	db_pgno_t pgno;
 {
-	__db_err(dbp->dbenv,
-	    "page %lu: illegal page type or format", (u_long)pgno);
-	return (__db_panic(dbp->dbenv, EINVAL));
+	__db_err(dbenv, "page %lu: illegal page type or format", (u_long)pgno);
+	return (__db_panic(dbenv, EINVAL));
 }
 
 /*
@@ -157,7 +148,7 @@ __db_assert(failedexpr, file, line)
 	(void)fprintf(stderr,
 	    "__db_assert: \"%s\" failed: file \"%s\", line %d\n",
 	    failedexpr, file, line);
-	fflush(stderr);
+	(void)fflush(stderr);
 
 	/* We want a stack trace of how this could possibly happen. */
 	abort();
@@ -176,7 +167,7 @@ int
 __db_panic_msg(dbenv)
 	DB_ENV *dbenv;
 {
-	__db_err(dbenv, "region error detected; run recovery.");
+	__db_err(dbenv, "fatal region error detected; run recovery");
 	return (DB_RUNRECOVERY);
 }
 
@@ -191,17 +182,27 @@ __db_panic(dbenv, errval)
 	DB_ENV *dbenv;
 	int errval;
 {
-
 	if (dbenv != NULL) {
-		((REGENV *)((REGINFO *)dbenv->reginfo)->primary)->panic = 1;
+		PANIC_SET(dbenv, 1);
 
-		dbenv->db_panic = errval;
+		dbenv->panic_errval = errval;
 
 		__db_err(dbenv, "PANIC: %s", db_strerror(errval));
 
 		if (dbenv->db_paniccall != NULL)
 			dbenv->db_paniccall(dbenv, errval);
 	}
+
+#if defined(DIAGNOSTIC) && !defined(CONFIG_TEST)
+	/*
+	 * We want a stack trace of how this could possibly happen.
+	 *
+	 * Don't drop core if it's the test suite -- it's reasonable for the
+	 * test suite to check to make sure that DB_RUNRECOVERY is returned
+	 * under certain conditions.
+	 */
+	abort();
+#endif
 
 	/*
 	 * Chaos reigns within.
@@ -214,6 +215,8 @@ __db_panic(dbenv, errval)
 /*
  * db_strerror --
  *	ANSI C strerror(3) for DB.
+ *
+ * EXTERN: char *db_strerror __P((int));
  */
 char *
 db_strerror(error)
@@ -232,8 +235,8 @@ db_strerror(error)
 	 * altered.
 	 */
 	switch (error) {
-	case DB_INCOMPLETE:
-		return ("DB_INCOMPLETE: Cache flush was unable to complete");
+	case DB_DONOTINDEX:
+		return ("DB_DONOTINDEX: Secondary index callback returns null");
 	case DB_KEYEMPTY:
 		return ("DB_KEYEMPTY: Non-existent key/data pair");
 	case DB_KEYEXIST:
@@ -253,8 +256,26 @@ db_strerror(error)
 		return ("DB_NOTFOUND: No matching key/data pair found");
 	case DB_OLD_VERSION:
 		return ("DB_OLDVERSION: Database requires a version upgrade");
+	case DB_PAGE_NOTFOUND:
+		return ("DB_PAGE_NOTFOUND: Requested page not found");
+	case DB_REP_DUPMASTER:
+		return ("DB_REP_DUPMASTER: A second master site appeared");
+	case DB_REP_HOLDELECTION:
+		return ("DB_REP_HOLDELECTION: Need to hold an election");
+	case DB_REP_NEWMASTER:
+		return ("DB_REP_NEWMASTER: A new master has declared itself");
+	case DB_REP_NEWSITE:
+		return ("DB_REP_NEWSITE: A new site has entered the system");
+	case DB_REP_OUTDATED:
+		return
+		    ("DB_REP_OUTDATED: Insufficient logs on master to recover");
+	case DB_REP_UNAVAIL:
+		return ("DB_REP_UNAVAIL: Unable to elect a master");
 	case DB_RUNRECOVERY:
 		return ("DB_RUNRECOVERY: Fatal error, run database recovery");
+	case DB_SECONDARY_BAD:
+		return
+	    ("DB_SECONDARY_BAD: Secondary index item missing from primary");
 	case DB_VERIFY_BAD:
 		return ("DB_VERIFY_BAD: Database verification failed");
 	default: {
@@ -274,8 +295,8 @@ db_strerror(error)
 
 /*
  * __db_err --
- *	Standard DB error routine.  The same as db_errx, except that we
- *	don't write to stderr if no output mechanism was specified.
+ *	Standard DB error routine.  The same as errx, except we don't write
+ *	to stderr if no output mechanism was specified.
  *
  * PUBLIC: void __db_err __P((const DB_ENV *, const char *, ...));
  */
@@ -289,81 +310,17 @@ __db_err(dbenv, fmt, va_alist)
 	va_dcl
 #endif
 {
-	va_list ap;
-
-/*
-	XXX
-	Log the message.
-
-	It would be nice to automatically log the error into the log files
-	if the application is configured for logging.  The problem is that
-	if we currently hold the log region mutex, we will self-deadlock.
-	Leave all the structure in place, but turned off.  I'd like to fix
-	this in the future by detecting if we have the log region already
-	locked (e.g., a flag in the environment handle), or perhaps even
-	have a finer granularity so that the only calls to __db_err we
-	can't log are those made while we have the current log buffer
-	locked, or perhaps have a separate buffer into which we log error
-	messages.
-
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	__db_real_log(dbenv, NULL, "db_err", 0, fmt, ap);
-
-	va_end(ap);
-#endif
-*/
-
-	/* Tell the application. */
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	__db_real_err(dbenv, 0, 0, 0, fmt, ap);
-
-	va_end(ap);
-}
-
-/*
- * __db_real_err --
- *	All the DB error routines end up here.
- *
- * PUBLIC: void __db_real_err
- * PUBLIC:     __P((const DB_ENV *, int, int, int, const char *, va_list));
- */
-void
-__db_real_err(dbenv, error, error_set, stderr_default, fmt, ap)
-	const DB_ENV *dbenv;
-	int error, error_set, stderr_default;
-	const char *fmt;
-	va_list ap;
-{
-	/* Call the user's callback function, if specified. */
-	if (dbenv != NULL && dbenv->db_errcall != NULL)
-		__db_errcall(dbenv, error, error_set, fmt, ap);
-
-	/* Write to the user's file descriptor, if specified. */
-	if (dbenv != NULL && dbenv->db_errfile != NULL)
-		__db_errfile(dbenv, error, error_set, fmt, ap);
-
-	/*
-	 * If we have a default and we didn't do either of the above, write
-	 * to the default.
-	 */
-	if (stderr_default && (dbenv == NULL ||
-	    (dbenv->db_errcall == NULL && dbenv->db_errfile == NULL)))
-		__db_errfile(dbenv, error, error_set, fmt, ap);
+	DB_REAL_ERR(dbenv, 0, 0, 0, fmt);
 }
 
 /*
  * __db_errcall --
  *	Do the error message work for callback functions.
+ *
+ * PUBLIC: void __db_errcall
+ * PUBLIC:          __P((const DB_ENV *, int, int, const char *, va_list));
  */
-static void
+void
 __db_errcall(dbenv, error, error_set, fmt, ap)
 	const DB_ENV *dbenv;
 	int error, error_set;
@@ -371,27 +328,44 @@ __db_errcall(dbenv, error, error_set, fmt, ap)
 	va_list ap;
 {
 	char *p;
-	char __errbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
+	char errbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
 
-	p = __errbuf;
-	if (fmt != NULL) {
-		p += vsnprintf(__errbuf, sizeof(__errbuf), fmt, ap);
-		if (error_set) {
-			*p++ = ':';
-			*p++ = ' ';
-		}
-	}
+	p = errbuf;
+	if (fmt != NULL)
+		p += vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
 	if (error_set)
-		(void)strcpy(p, db_strerror(error));
+		p += snprintf(p,
+		    sizeof(errbuf) - (p - errbuf), ": %s", db_strerror(error));
+	/*
+	 * !!!
+	 * We're potentially manipulating strings handed us by the application,
+	 * and on systems without a real snprintf() the sprintf() calls could
+	 * have overflowed the buffer.  We can't do anything about it now, but
+	 * we don't want to return control to the application, we might have
+	 * overwritten the stack with a Trojan horse.  We're not trying to do
+	 * anything recoverable here because systems without snprintf support
+	 * are pretty rare anymore.
+	 */
+	if ((size_t)(p - errbuf) > sizeof(errbuf)) {
+		(void)fprintf(stderr,
+		    "Berkeley DB: error callback interface buffer overflow\n");
+		(void)fflush(stderr);
 
-	dbenv->db_errcall(dbenv->db_errpfx, __errbuf);
+		abort();
+		/* NOTREACHED */
+	}
+
+	dbenv->db_errcall(dbenv->db_errpfx, errbuf);
 }
 
 /*
  * __db_errfile --
  *	Do the error message work for FILE *s.
+ *
+ * PUBLIC: void __db_errfile
+ * PUBLIC:          __P((const DB_ENV *, int, int, const char *, va_list));
  */
-static void
+void
 __db_errfile(dbenv, error, error_set, fmt, ap)
 	const DB_ENV *dbenv;
 	int error, error_set;
@@ -436,48 +410,22 @@ __db_logmsg(dbenv, txnid, opname, flags, fmt, va_alist)
 	va_dcl
 #endif
 {
+	DBT opdbt, msgdbt;
+	DB_LSN lsn;
 	va_list ap;
+	char __logbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
+
+	if (!LOGGING_ON(dbenv))
+		return;
 
 #ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif
-	__db_real_log(dbenv, txnid, opname, flags, fmt, ap);
-
-	va_end(ap);
-}
-
-/*
- * __db_real_log --
- *	Write information into the DB log.
- *
- * PUBLIC: void __db_real_log __P((const DB_ENV *,
- * PUBLIC:     DB_TXN *, const char *, u_int32_t, const char *, va_list ap));
- */
-void
-#ifdef __STDC__
-__db_real_log(const DB_ENV *dbenv, DB_TXN *txnid,
-    const char *opname, u_int32_t flags, const char *fmt, va_list ap)
-#else
-__db_real_log(dbenv, txnid, opname, flags, fmt, ap)
-	const DB_ENV *dbenv;
-	DB_TXN *txnid;
-	const char *opname, *fmt;
-	u_int32_t flags;
-	va_list ap;
-#endif
-{
-	DBT opdbt, msgdbt;
-	DB_LSN lsn;
-	char __logbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
-
-	if (!LOGGING_ON(dbenv))
-		return;
-
 	memset(&opdbt, 0, sizeof(opdbt));
 	opdbt.data = (void *)opname;
-	opdbt.size = strlen(opname) + 1;
+	opdbt.size = (u_int32_t)(strlen(opname) + 1);
 
 	memset(&msgdbt, 0, sizeof(msgdbt));
 	msgdbt.data = __logbuf;
@@ -490,6 +438,8 @@ __db_real_log(dbenv, txnid, opname, flags, fmt, ap)
 	 */
 	__db_debug_log(
 	    (DB_ENV *)dbenv, txnid, &lsn, flags, &opdbt, -1, &msgdbt, NULL, 0);
+
+	va_end(ap);
 }
 
 /*
@@ -511,34 +461,119 @@ __db_unknown_flag(dbenv, routine, flag)
 /*
  * __db_unknown_type -- report internal error
  *
- * PUBLIC: int __db_unknown_type __P((DB_ENV *, char *, u_int32_t));
+ * PUBLIC: int __db_unknown_type __P((DB_ENV *, char *, DBTYPE));
  */
 int
 __db_unknown_type(dbenv, routine, type)
 	DB_ENV *dbenv;
 	char *routine;
-	u_int32_t type;
+	DBTYPE type;
 {
 	__db_err(dbenv, "%s: Unknown db type: 0x%x", routine, type);
 	DB_ASSERT(0);
 	return (EINVAL);
 }
 
-#ifdef DIAGNOSTIC
 /*
- * __db_missing_txn_err --
- *	Cannot combine operations with and without transactions.
+ * __db_check_txn --
+ *	Check for common transaction errors.
  *
- * PUBLIC: #ifdef DIAGNOSTIC
- * PUBLIC: int __db_missing_txn_err __P((DB_ENV *));
- * PUBLIC: #endif
+ * PUBLIC: int __db_check_txn __P((DB *, DB_TXN *, u_int32_t, int));
  */
 int
-__db_missing_txn_err(dbenv)
-	DB_ENV *dbenv;
+__db_check_txn(dbp, txn, assoc_lid, read_op)
+	DB *dbp;
+	DB_TXN *txn;
+	u_int32_t assoc_lid;
+	int read_op;
 {
+	DB_ENV *dbenv;
+
+	dbenv = dbp->dbenv;
+
+	/*
+	 * If we are in recovery or aborting a transaction, then we
+	 * don't need to enforce the rules about dbp's not allowing
+	 * transactional operations in non-transactional dbps and
+	 * vica-versa.  This happens all the time as the dbp during
+	 * an abort may be transactional, but we undo operations
+	 * outside a transaction since we're aborting.
+	 */
+	if (IS_RECOVERING(dbenv) || F_ISSET(dbp, DB_AM_RECOVER))
+		return (0);
+
+	/*
+	 * Check for common transaction errors:
+	 *	Failure to pass a transaction handle to a DB operation
+	 *	Failure to configure the DB handle in a proper environment
+	 *	Operation on a handle whose open commit hasn't completed.
+	 *
+	 * Read operations don't require a txn even if we've used one before
+	 * with this handle, although if they do have a txn, we'd better be
+	 * prepared for it.
+	 */
+	if (txn == NULL) {
+		if (!read_op && F_ISSET(dbp, DB_AM_TXN)) {
+			__db_err(dbenv,
+    "DB handle previously used in transaction, missing transaction handle");
+			return (EINVAL);
+		}
+
+		if (dbp->cur_lid >= TXN_MINIMUM)
+			goto open_err;
+	} else {
+		if (dbp->cur_lid >= TXN_MINIMUM && dbp->cur_lid != txn->txnid)
+			goto open_err;
+
+		if (!TXN_ON(dbenv))
+			 return (__db_not_txn_env(dbenv));
+
+		if (!F_ISSET(dbp, DB_AM_TXN)) {
+			__db_err(dbenv,
+    "Transaction specified for a DB handle opened outside a transaction");
+			return (EINVAL);
+		}
+	}
+
+	/*
+	 * If dbp->associate_lid is not DB_LOCK_INVALIDID, that means we're in
+	 * the middle of a DB->associate with DB_CREATE (i.e., a secondary index
+	 * creation).
+	 *
+	 * In addition to the usual transaction rules, we need to lock out
+	 * non-transactional updates that aren't part of the associate (and
+	 * thus are using some other locker ID).
+	 *
+	 * Transactional updates should simply block;  from the time we
+	 * decide to build the secondary until commit, we'll hold a write
+	 * lock on all of its pages, so it should be safe to attempt to update
+	 * the secondary in another transaction (presumably by updating the
+	 * primary).
+	 */
+	if (!read_op && dbp->associate_lid != DB_LOCK_INVALIDID &&
+	    txn != NULL && dbp->associate_lid != assoc_lid) {
+		__db_err(dbenv,
+	    "Operation forbidden while secondary index is being created");
+		return (EINVAL);
+	}
+
+	return (0);
+open_err:
 	__db_err(dbenv,
-    "DB handle previously used in transaction, missing transaction handle.");
+	    "Transaction that opened the DB handle is still active");
 	return (EINVAL);
 }
-#endif
+
+/*
+ * __db_not_txn_env --
+ *	DB handle must be in an environment that supports transactions.
+ *
+ * PUBLIC: int __db_not_txn_env __P((DB_ENV *));
+ */
+int
+__db_not_txn_env(dbenv)
+	DB_ENV *dbenv;
+{
+	__db_err(dbenv, "DB environment not configured for transactions");
+	return (EINVAL);
+}

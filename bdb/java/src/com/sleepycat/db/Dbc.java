@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
- *	Sleepycat Software.  All rights reserved.
+ * Copyright (c) 1997-2002
+ *      Sleepycat Software.  All rights reserved.
  *
- *	$Id: Dbc.java,v 11.5 2000/05/25 04:18:13 dda Exp $
+ * $Id: Dbc.java,v 11.9 2002/01/11 15:52:41 bostic Exp $
  */
 
 package com.sleepycat.db;
@@ -32,6 +32,10 @@ public class Dbc
 
     // returns: 0, DB_NOTFOUND, or throws error
     public native int get(Dbt key, Dbt data, int flags)
+         throws DbException;
+
+    // returns: 0, DB_NOTFOUND, or throws error
+    public native int pget(Dbt key, Dbt pkey, Dbt data, int flags)
          throws DbException;
 
     // returns: 0, DB_KEYEXIST, or throws error

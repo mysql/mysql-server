@@ -1,26 +1,32 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test067.tcl,v 11.12 2000/08/25 14:21:58 sue Exp $
+# $Id: test067.tcl,v 11.19 2002/06/11 15:19:16 sue Exp $
 #
-# DB Test 67: Test of DB_CURRENT partial puts on almost-empty duplicate pages.
-# This test was written to address the following issue, #2 in the list of
-# issues relating to bug #0820:
-#   2. DBcursor->put, DB_CURRENT flag, off-page duplicates, hash and btree:
-#	In Btree, the DB_CURRENT overwrite of off-page duplicate records
-#	first deletes the record and then puts the new one -- this could
-#	be a problem if the removal of the record causes a reverse split.
-#	Suggested solution is to acquire a cursor to lock down the current
-#	record, put a new record after that record, and then delete using
-#	the held cursor.
-# It also tests the following, #5 in the same list of issues:
-#  5. DBcursor->put, DB_AFTER/DB_BEFORE/DB_CURRENT flags, DB_DBT_PARTIAL set,
-#     duplicate comparison routine specified.
-#	The partial change does not change how data items sort, but the
-#	record to be put isn't built yet, and that record supplied is the
-#	one that's checked for ordering compatibility.
+# TEST	test067
+# TEST	Test of DB_CURRENT partial puts onto almost empty duplicate
+# TEST	pages, with and without DB_DUP_SORT.
+# TEST
+# TEST	Test of DB_CURRENT partial puts on almost-empty duplicate pages.
+# TEST	This test was written to address the following issue, #2 in the
+# TEST	list of issues relating to bug #0820:
+# TEST
+# TEST	2. DBcursor->put, DB_CURRENT flag, off-page duplicates, hash and btree:
+# TEST	In Btree, the DB_CURRENT overwrite of off-page duplicate records
+# TEST	first deletes the record and then puts the new one -- this could
+# TEST	be a problem if the removal of the record causes a reverse split.
+# TEST	Suggested solution is to acquire a cursor to lock down the current
+# TEST	record, put a new record after that record, and then delete using
+# TEST	the held cursor.
+# TEST
+# TEST	It also tests the following, #5 in the same list of issues:
+# TEST	5. DBcursor->put, DB_AFTER/DB_BEFORE/DB_CURRENT flags, DB_DBT_PARTIAL
+# TEST	set, duplicate comparison routine specified.
+# TEST	The partial change does not change how data items sort, but the
+# TEST	record to be put isn't built yet, and that record supplied is the
+# TEST	one that's checked for ordering compatibility.
 proc test067 { method {ndups 1000} {tnum 67} args } {
 	source ./include.tcl
 	global alphabet
@@ -29,6 +35,12 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
+	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
+	    puts "\tTest0$tnum: skipping for method $method."
+	    return
+	}
+	set txn ""
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 
 	# If we are using an env, then testfile should just be the db name.
@@ -40,18 +52,31 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		set testfile test0$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			if { $ndups == 1000 } {
+				set ndups 100
+			}
+		}
+		set testdir [get_home $env]
 	}
 
 	puts "Test0$tnum:\
 	    $method ($args) Partial puts on near-empty duplicate pages."
-	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
-	    puts "\tTest0$tnum: skipping for method $method."
-	    return
-	}
 
 	foreach dupopt { "-dup" "-dup -dupsort" } {
+		#
+		# Testdir might get reset from the env's home dir back
+		# to the default if this calls something that sources
+		# include.tcl, since testdir is a global.  Set it correctly
+		# here each time through the loop.
+		#
+		if { $env != "NULL" } {
+			set testdir [get_home $env]
+		}
 		cleanup $testdir $env
-		set db [eval {berkdb_open -create -truncate -mode 0644 \
+		set db [eval {berkdb_open -create -mode 0644 \
 		    $omethod} $args $dupopt {$testfile}]
 		error_check_good db_open [is_valid_db $db] TRUE
 
@@ -62,9 +87,17 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		for { set ndx 0 } { $ndx < $ndups } { incr ndx } {
 			set data $alphabet$ndx
 
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
 			# No need for pad_data since we're skipping recno.
-			set ret [eval {$db put} $key $data]
+			set ret [eval {$db put} $txn {$key $data}]
 			error_check_good put($key,$data) $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 		}
 
 		# Sync so we can inspect database if the next section bombs.
@@ -72,7 +105,12 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		puts "\tTest0$tnum.b ($dupopt):\
 		    Deleting dups (last first), overwriting each."
 
-		set dbc [$db cursor]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set dbc [eval {$db cursor} $txn]
 		error_check_good cursor_create [is_valid_cursor $dbc $db] TRUE
 
 		set count 0
@@ -109,6 +147,9 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		}
 
 		error_check_good dbc_close [$dbc close] 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		error_check_good db_close [$db close] 0
 	}
 }
