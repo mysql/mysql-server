@@ -246,3 +246,10 @@ SET TIMESTAMP=1000000000;
 SET @@session.character_set_client=7,@@session.collation_connection=51,@@session.collation_server=30;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
 drop table t1;
+create table `t1` (
+`pk` varchar(10) not null default '', 
+primary key (`pk`)
+) engine=myisam default charset=latin1;
+set @p=_latin1 'test';
+update t1 set pk='test' where pk=@p;
+drop table t1;
