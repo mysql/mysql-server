@@ -809,7 +809,8 @@ int  multi_delete::do_deletes (bool from_send_error)
 #ifdef SINISAS_STRIP
       delete select;
 #endif
-      if (error = -1) error = 0;
+      if (error == -1)
+	error = 0;
 #if 0
     }
 #endif
