@@ -354,6 +354,7 @@ btr_pcur_move_to_next_page(
 	ut_ad(next_page_no != FIL_NULL);	
 
 	next_page = btr_page_get(space, next_page_no, cursor->latch_mode, mtr);
+	buf_block_align(next_page)->check_index_page_at_flush = TRUE;
 
 	btr_leaf_page_release(page, cursor->latch_mode, mtr);
 	

@@ -59,14 +59,14 @@ template class List_iterator<Alter_column>;
 ** User variables
 ****************************************************************************/
 
-static byte* get_var_key(user_var_entry *entry, uint *length,
-			 my_bool not_used __attribute__((unused)))
+extern "C" byte *get_var_key(user_var_entry *entry, uint *length,
+			     my_bool not_used __attribute__((unused)))
 {
   *length=(uint) entry->name.length;
   return (byte*) entry->name.str;
 }
 
-static void free_var(user_var_entry *entry)
+extern "C" void free_user_var(user_var_entry *entry)
 {
   char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
   if (entry->value && entry->value != pos)
@@ -88,9 +88,6 @@ THD::THD():user_time(0), fatal_error(0),
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=safe_to_cache_query=prepare_command=0;
-  pthread_mutex_lock(&LOCK_global_system_variables);
-  variables= global_system_variables;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   db_length=query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
@@ -133,19 +130,12 @@ THD::THD():user_time(0), fatal_error(0),
   server_id = ::server_id;
   slave_net = 0;
   log_pos = 0;
-  server_status= SERVER_STATUS_AUTOCOMMIT;
-  update_lock_default= (variables.low_priority_updates ?
-			TL_WRITE_LOW_PRIORITY :
-			TL_WRITE);
-  options= thd_startup_options;
-  sql_mode=(uint) opt_sql_mode;
-  open_options=ha_open_options;
-  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   command=COM_CONNECT;
   set_query_id=1;
   db_access=NO_ACCESS;
   version=refresh_version;			// For boot
 
+  init();
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
@@ -157,7 +147,7 @@ THD::THD():user_time(0), fatal_error(0),
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
-	    (void (*)(void*)) free_var,0);
+	    (hash_free_key) free_user_var,0);
 
   /* Prepared statements */
   last_prepared_stmt= 0;
@@ -190,6 +180,48 @@ THD::THD():user_time(0), fatal_error(0),
   }
 }
 
+
+/*
+  Init common variables that has to be reset on start and on change_user
+*/
+
+void THD::init(void)
+{
+  server_status= SERVER_STATUS_AUTOCOMMIT;
+  update_lock_default= (variables.low_priority_updates ?
+			TL_WRITE_LOW_PRIORITY :
+			TL_WRITE);
+  options= thd_startup_options;
+  sql_mode=(uint) opt_sql_mode;
+  open_options=ha_open_options;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  variables= global_system_variables;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+}
+
+/*
+  Do what's needed when one invokes change user
+
+  SYNOPSIS
+    change_user()
+
+  IMPLEMENTATION
+    Reset all resources that are connection specific
+*/
+
+
+void THD::change_user(void)
+{
+  cleanup();
+  cleanup_done=0;
+  init();
+  hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
+	    (hash_get_key) get_var_key,
+	    (hash_free_key) free_user_var,0);
+}
+
+
 /* Do operations that may take a long time */
 
 void THD::cleanup(void)
@@ -207,16 +239,20 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   close_temporary_tables(this);
-#ifdef USING_TRANSACTIONS
-  if (opt_using_transactions)
+  hash_free(&user_vars);
+  if (global_read_lock)
+    unlock_global_read_lock(this);
+  if (ull)
   {
-    close_cached_file(&transaction.trans_log);
-    ha_close_connection(this);
+    pthread_mutex_lock(&LOCK_user_locks);
+    item_user_lock_release(ull);
+    pthread_mutex_unlock(&LOCK_user_locks);
+    ull= 0;
   }
-#endif
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
+
 
 THD::~THD()
 {
@@ -234,15 +270,13 @@ THD::~THD()
   }
   if (!cleanup_done)
     cleanup();
-  if (global_read_lock)
-    unlock_global_read_lock(this);
-  if (ull)
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
   {
-    pthread_mutex_lock(&LOCK_user_locks);
-    item_user_lock_release(ull);
-    pthread_mutex_unlock(&LOCK_user_locks);
+    close_cached_file(&transaction.trans_log);
+    ha_close_connection(this);
   }
-  hash_free(&user_vars);
+#endif
 
   DBUG_PRINT("info", ("freeing host"));
   if (host != localhost)			// If not pointer to constant
@@ -338,20 +372,21 @@ void THD::add_changed_table(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 void THD::add_changed_table(const char *key, long key_length)
 {
   DBUG_ENTER("THD::add_changed_table(key)");
-  CHANGED_TABLE_LIST** prev = &transaction.changed_tables;
-  CHANGED_TABLE_LIST* curr = transaction.changed_tables;
+  CHANGED_TABLE_LIST **prev_changed = &transaction.changed_tables;
+  CHANGED_TABLE_LIST *curr = transaction.changed_tables;
 
-  for (; curr; prev = &(curr->next), curr = curr->next)
+  for (; curr; prev_changed = &(curr->next), curr = curr->next)
   {
     int cmp =  (long)curr->key_length - (long)key_length;
     if (cmp < 0)
     {
-      list_include(prev, curr, changed_table_dup(key, key_length));
+      list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %u %u", key_length, (*prev)->key_length));
+		 ("key_length %u %u", key_length, (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -359,10 +394,10 @@ void THD::add_changed_table(const char *key, long key_length)
       cmp = memcmp(curr->key, key, curr->key_length);
       if (cmp < 0)
       {
-	list_include(prev, curr, changed_table_dup(key, key_length));
+	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
 		   ("key_length %u %u", key_length,
-		    (*prev)->key_length));
+		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
       else if (cmp == 0)
@@ -372,9 +407,9 @@ void THD::add_changed_table(const char *key, long key_length)
       }
     }
   }
-  *prev = changed_table_dup(key, key_length);
+  *prev_changed = changed_table_dup(key, key_length);
   DBUG_PRINT("info", ("key_length %u %u", key_length,
-		      (*prev)->key_length));
+		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
 

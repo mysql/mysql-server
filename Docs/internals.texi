@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@c Copyright 2002 MySQL AB, TcX AB, Detron HB and Monty Program KB
+@c Copyright 2002 MySQL AB
 @c
 @c %**start of header
 @setfilename internals.info
@@ -545,6 +545,8 @@ Print query.
 * basic packets::               
 * communication::               
 * fieldtype codes::             
+* protocol functions::          
+* protocol version 2::          
 @end menu
 
 @node raw packet without compression, raw packet with compression, protocol, protocol
@@ -755,7 +757,7 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 		n data
 		
  
-@node fieldtype codes,  , communication, protocol
+@node fieldtype codes, protocol functions, communication, protocol
 @section Fieldtype Codes
 
 @example
@@ -779,12 +781,1073 @@ Time            03 08 00 00     |01 0B                  |03 00 00 00
 Date            03 0A 00 00     |01 0A                  |03 00 00 00
 @end example
 
+@node protocol functions, protocol version 2, fieldtype codes, protocol
+@section Functions used to implement the protocol
+
+This should be merged with the above one and changed to texi format
+
+Raw packets
+-----------
+
+- The my_net_xxxx() functions handles the packaging of a stream of data
+  into a raw packet that contains a packet number, length and data.
+
+- This is implemented for the server in sql/net_serv.cc.
+  The client file, libmysql/net.c, is symlinked to this file
+
+The important functions are:
+
+my_net_write()		Store a packet (= # number of bytes) to be sent
+net_flush()		Send the packets stored in the buffer
+net_write_command()	Send a command (1 byte) + packet to the server.
+my_net_read()		Read a packet
+
+
+Include files
+-------------
+
+- include/mysql.h is included by all MySQL clients.  It includes the
+  MYSQL and MYSQL_RES structures.
+- include/mysql_com.h is include by mysql.h and mysql_priv.h (the
+  server) and includes a lot of common functions and structures to
+  handle the client/server protocol.
+
+
+Packets from server to client:
+-----------------------------
+
+sql/net_pkg.cc:
+
+ - Sending of error packets
+ - Sending of OK packets (= end of data)
+ - Storing of values in a packet
+
+
+sql/sql_base.cc:
+
+ - Function send_fields() sends the field description to the client.
+
+sql/sql_show.cc:
+
+ - Sends results for a lot of SHOW commands, including:
+   SHOW DATABASES [like 'wildcard']
+   SHOW TABLES    [like 'wildcard']
+
+
+Packets from client to server:
+------------------------------
+
+This is done in libmysql/libmysql.c
+
+The important ones are:
+
+- mysql_real_connect()		Connects to a mysqld server
+- mysql_real_query()		Sends a query to the server and
+				reads the ok packet or columns header.
+- mysql_store_result()		Read a result set from the server to memory
+- mysql_use_result()		Read a result set row by row from the server.
+
+- net_safe_read()		Read a packet from the server with
+				error handling.
+- net_field_length()		Reads the length of a packet string.
+- simple_command()		Sends a command/query to the server.
+
+
+
+Connecting to mysqld (the MySQL server)
+---------------------------------------
+
+- On the client side: libmysql/libmysql.c::mysql_real_connect().
+- On the server side: sql/sql_parse.cc::check_connections()
+
+The packets sent during a connection are as follows
+
+Server:  Send greeting package (includes server capabilites, server
+	 version and a random string of bytes to be used to scramble
+	 the password.
+Client:  Sends package with client capabilites, user name, scrambled
+	 password, database name
+
+Server:  Sends ok package or error package.
+
+Client:  If init command specified, send it t the server and read
+	 ok/error package.
+
+
+Password functions
+------------------
+
+The passwords are scrambled to a random number and are stored in hex
+format on the server.
+
+The password handling is done in sql/password.c. The important
+function is 'scramble()', which takes the a password in clear text
+and uses this to 'encrypt' the random string sent by the server
+to a new message.
+
+The encrypted message is sent to the server which uses the stored
+random number password to encrypt the random string sent to the
+client. If this is equal to the new message the client sends to the
+server then the password is accepted.
+
+@node protocol version 2,  , protocol functions, protocol
+@section Another description of the protocol
+
+This should be merged with the above one and changed to texi format.
+
+*****************************
+*
+* PROTOCOL OVERVIEW
+*
+*****************************
+
+The MySQL protocol is relatively simple, and is designed for high performance 
+through minimisation of overhead, and extensibility through versioning and 
+options flags. It is a request-response protocol, and does not allow 
+multitasking or multiplexing over a single connection. There are two packet
+formats, 'raw' and 'compressed' (which is used when both client and
+server support zlib compression, and the client requests that data be
+compressed):
+
+* RAW PACKET, shorter than 16 M *
+
++-----------------------------------------------+
+| Packet Length | Packet no     | Data          |
+| 3 Bytes       | 1 Byte        | n Bytes       |
++-----------------------------------------------+
+^                               ^
+|          'HEADER'             |
++-------------------------------+
+
+
+ * Packet Length: Calculated with int3store. See include/global.h for 
+                  details. The basic computation is length = byte1 + 
+                  (256 * byte2) + (256 * 256 * byte3). The max packetsize 
+                  can be 16 MB.
+
+ * Packet no:     The packet number is incremented for each sent packet.
+                  The first packet for each query from the client
+		  starts with 0.
+
+ * Data:          Specific to the operation being performed. Most often
+                  used to send string data, such as a SQL query.
+
+* COMPRESSED PACKET *
+
++---------------------------------------------------+-----------------+
+| Packet Length | Packet no | Uncomp. Packet Length | Compressed Data |
+| 3 Bytes       | 1 Byte    | 3 Bytes               | n bytes         |
++---------------------------------------------------+-----------------+
+^                                                   ^
+|                   'HEADER'                        |
++---------------------------------------------------+
+ 
+ * Packet Length: Calculated with int3store. See include/my_global.h for 
+                  details. The basic computation is length = byte1 + 
+                  (256 * byte2) + (256 * 256 * byte3). The max packetsize 
+                  can be 16 MB.
+
+ * Packet no:     The packet number is incremented for each sent packet.
+                  The first packet starts with 0.
+
+ * Uncomp. Packet Length: The length of the original, uncompressed packet
+   If this is zero then the data is not compressed.
+   
+ * Compressed Data: The original packet, compressed with zlib compression
+
+
+When using the compressed protocol, the client/server will only compress
+send packets where the new packet is smaller than the not compressed one.
+In other words, some packets may be compressed while others will not.
+
+The 'compressed data' is one or more packets in *RAW PACKET* format.
+
+*****************************
+*
+* FLOW OF EVENTS
+*
+*****************************
+
+To understand how a client communicates with a MySQL server, it is easiest 
+to start with a high-level flow of events. Each event section will then be 
+followed by details of the exact contents of each type of packet involved
+in the event flow.
+
+*                          *
+* CONNECTION ESTABLISHMENT *
+*                          *
+
+Clients connect to the server via a TCP/IP socket (port 3306 by default), a 
+Unix Domain Socket, or named pipes (on Windows). Once connected, the 
+following connection establishment sequence is followed:
+
++--------+                                                           +--------+
+| Client |                                                           | Server |
++--------+                                                           +--------+
+    |                                                                     |
+    |    Handshake initialisation, including MySQL server version,        |
+    |    protocol version and options supported, as well as the seed      |
+    |    for the password hash                                            |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+    |    Client options supported, max packet size for client             |
+    |    username, password crypted with seed from server, database       |
+    |    name.                                                            |
+    |                                                                     |
+    |   -------------------------------------------------------------->   |
+    |                                                                     |
+    |    'OK' packet if authentication succeeds, 'ERROR' packet if        |
+    |    authentication fails.                                            |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+
+
+
+* HANDSHAKE INITIALISATION PACKET *
+
+
++--------------------------------------------------------------------+
+| Header        | Prot. Version | Server Version String | 0x00       |  
+|               | 1 Byte        | n bytes		| 1 byte     |
+|--------------------------------------------------------------------|
+| Thread Number | Crypt Seed | 0x00    | CLIENT_xxx options          |
+|               |            |         | supported by server         |
+| 4 Bytes       | 8 Bytes    | 1 Byte  | 2 Bytes                     |
+|--------------------------------------------------------------------|
+| Server charset no.  | Server status variables | 0x00 padding       |
+| 1 Byte              | 2 Bytes                 | 13 bytes           |
++--------------------------------------------------------------------+
+
+ * Protocol version (currently '10')
+ * Server Version String (e.g. '4.0.5-beta-log').  Can be any length as
+   it's followed by a 0 byte.
+ * Thread Number - ID of server thread handling this connection
+ * Crypt seed - seed used to crypt password in auth packet from client
+ * CLIENT_xxx options - see include/mysql_com.h
+ * Server charset no. - Index of charset in use by server
+ * Server status variables - see include/mysql_com.h
+ * The padding bytes are reserverd for future extensions to the protocol
+
+* CLIENT AUTH PACKET *
+
+
++--------------------------------------------------------------------+
+| Header        | CLIENT_xxx options supported | max_allowed_packet  |
+|               | by client                    | for client          |
+|               | 2 Bytes                      | 3 bytes             |
+|--------------------------------------------------------------------|
+| User Name | 0x00   | Crypted Password | 0x00   | Database Name     |
+| n Bytes   | 1 Byte | 8 Bytes          | 1 Byte | n Bytes           |
+|--------------------------------------------------------------------|
+| 0x00                                                               |
+| 1 Byte                                                             |
++--------------------------------------------------------------------+
+
+ * CLIENT_xxx options that this client supports:
+
+#define CLIENT_LONG_PASSWORD    1       /* new more secure passwords */
+#define CLIENT_FOUND_ROWS       2       /* Found instead of affected rows */
+#define CLIENT_LONG_FLAG        4       /* Get all column flags */
+#define CLIENT_CONNECT_WITH_DB  8       /* One can specify db on connect */
+#define CLIENT_NO_SCHEMA        16      /* Don't allow database.table.column */
+#define CLIENT_COMPRESS         32      /* Can use compression protocol */
+#define CLIENT_ODBC             64      /* Odbc client */
+#define CLIENT_LOCAL_FILES      128     /* Can use LOAD DATA LOCAL */
+#define CLIENT_IGNORE_SPACE     256     /* Ignore spaces before '(' */
+#define CLIENT_INTERACTIVE      1024    /* This is an interactive client */
+#define CLIENT_SSL              2048     /* Switch to SSL after handshake */
+#define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
+#define CLIENT_TRANSACTIONS     8192    /* Client knows about transactions */
+
+ * max_allowed_packet for the client (in 'int3store' form)
+ * User Name - user to authenticate as.  Is followed by a null byte.
+ * Crypted Password - password crypted with seed given in packet from
+                      server, see scramble() in sql/password.c
+ * Database name (optional) - initial database to use once connected
+   Is followed by a null byte
+
+At the end of every client/server exchange there is either an 'OK' packet
+or an 'ERROR' packet sent from the server. To determine whether a packet is
+an 'OK' packet, or an 'ERROR' packet, check if the first byte (after the 
+header) is 0xFF. If it has the value of 0xFF, the packet is an 'ERROR'
+packet.
+
+
+* OK PACKET *
+
+For details, see sql/net_pkg.cc::send_ok()
+
++-----------------------------------------------+
+| Header        | No of Rows    | Affected Rows |
+|               | 1 Byte        | 1-9 Byte      |
+|-----------------------------------------------|
+| ID (last_insert_id)   | Status | Length       |
+| 1-9 Byte              | 2 Byte | 1-9 Byte     |
+|-----------------------------------------------|
+| Messagetext                                   |
+| n Byte                                        |
++-----------------------------------------------+
+
+ * Number of rows, always 0 
+ * Affected rows
+ * ID (last_insert_id) - value for auto_increment column (if any) 
+ * Status (usually 0)
+
+In general, in the MySQL protocol, fields in a packet that that 
+represent numeric data, such as lengths, that are labeled as '1-9' 
+bytes can be decoded by the following logic:
+
+	If the first byte is '251', the
+        corresponding column value is NULL (only appropriate in 
+        'ROW DATA' packets).
+
+	If the first byte is '252', the value stored can be read
+        from the following 2 bytes as a 16-bit integer.
+                
+
+        If the first byte is '253' the value stored can be read
+        from the following 4 bytes as a 32-bit long integer
+
+          
+        If the first byte is '254', the value stored can be read
+        from the following 8 bytes as a 64-byte long
+                
+	Otherwise (values 0-250), the value stored is the value of the
+	first byte itself.
+
+
+If the OK-packet includes a message:
+
+ * Length of message
+ * Message Text
+
+
+* ERROR PACKET *
+
++-----------------------------------------------+
+| Header        | Status code   | Error no      |
+|               | 1 Byte        | 2 Byte        |
+|-----------------------------------------------|
+| Messagetext                          |        |
+| n Byte                               |        |
++-----------------------------------------------+
+
+ * Status code (0xFF = ERROR)
+ * Error number (is only sent to 3.23 and newer clients)
+ * Error message text (ends at end of packet)
+
+Note that the error message is not null terminated.
+The client code can however assume that the packet ends with a null
+as my_net_read() will always add an end-null to all read packets to
+make things easier for the client.
+
+Example:
+
+Packet dump of client connecting to server:
+
++------------------------- Protocol Version (10)
+|
+|  +---------------------- Server Version String (0x00 terminated)
+|  |
+|  |
+0a 34 2e 30 2e 35 2d 62     . 4 . 0 . 5 - b 
+65 74 61 2d 6c 6f 67 00     e t a - l o g . 
+15 00 00 00 2b 5a 65 6c     . . . . + Z e l 
+ |           |
+ |           +------------ First 4 bytes of crypt seed
+ | 
+ +------------------------ Thread Number
+
++------------------------- Last 4 bytes of crypt seed
+|
+|                +-------- CLIENT_XXX Options supported by server
+|                |
+|              +-+--+ +--- Server charset index
+|              |    | |
+6f 69 41 46 00 2c 28 08     o i A F . , ( . 
+02 00 00 00 00 00 00 00     . . . . . . . . 
+|  |
+|  +---------------------- 0x00 padding begins
+|
++------------------------- Server status (0x02 = 
+                           SERVER_STATUS_AUTOCOMMIT)
+
+00 00 00 00 00 00 00 00     . . . . . . . . 
+
+* Client Authentication Response (Username 'test', no database
+  selected) *
+
+    +--------------------- Packet Length (0x13 = 19 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     |
+    |     |   +----------- CLIENT_XXX Options supported by client 
+          |   |
++---+---+ | +-+-+
+|       | | |   |
+13 00 00 01 03 00 1e 00     . . . . . . . . 
+00 74 65 73 74 00 48 5e     . t e s t . H ^
+   |          |   |
+   +----+-----+   +------- Scrambled password, 0x00 terminated
+        |
+        +----------------- Username, 0x00 terminated
+  
+57 4a 4e 41 4a 4e 00 00     W J N A J N . . 
+00                          . 
+
+
+>From this point on, the server waits for 'commands' from the client
+which include queries, database shutdown, quit, change user, etc (see
+the COM_xxxx values in include/mysql_com.h for the latest 
+command codes). 
+
+*                    *
+* COMMAND PROCESSING *
+*                    *
+
++--------+                                                           +--------+
+| Client |                                                           | Server |
++--------+                                                           +--------+
+    |                                                                     |
+    |    A command packet, with a command code, and string data           |
+    |    when appropriate (e.g. a query), (see the COM_xxxx values        |
+    |    in include/mysql_com.h for the command codes)                    |
+    |                                                                     |
+    |   -------------------------------------------------------------->   |
+    |                                                                     |
+    |    A 'RESULT' packet if the command completed successfully,         |
+    |    an 'ERROR' packet if the command failed. 'RESULT' packets        |
+    |    take different forms (see the details following this chart)      |
+    |    depending on whether or not the command returns rows.            |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+    |    n 'FIELD PACKET's (if rows are returned)                         |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+    |    'LAST DATA' packet                                               |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+    |    n 'ROW PACKET's (if rows are returned)                           |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+    |    'LAST DATA' packet                                               |
+    |                                                                     |
+    |   <--------------------------------------------------------------   |
+    |                                                                     |
+
+
+* Command Packet *
+
++------------------------------------------------------+
+| Header        | Command type | Query (if applicable) |
+|               | 1 Byte       | n Bytes               |
++------------------------------------------------------+
+
+ * Command type:  (e.g.0x03 = query, see the COM_xxxx values in 
+                   include/mysql_com.h)
+ * Query (if applicable)
+
+Note that my_net_read() null-terminates all packets on the
+receiving side of the channel to make it easier for the code
+examining the packets.
+
+The current command codes are:
+
+   0x00   COM_SLEEP
+   0x01   COM_QUIT
+   0x02   COM_INIT_DB
+   0x03   COM_QUERY
+   0x04   COM_FIELD_LIST
+   0x05   COM_CREATE_DB
+   0x06   COM_DROP_DB
+   0x07   COM_REFRESH
+   0x08   COM_SHUTDOWN
+   0x09   COM_STATISTICS
+   0x0a   COM_PROCESS_INFO
+   0x0b   COM_CONNECT
+   0x0c   COM_PROCESS_KILL
+   0x0d   COM_DEBUG
+   0x0e   COM_PING
+   0x0f   COM_TIME
+   0x10   COM_DELAYED_INSERT
+   0x11   COM_CHANGE_USER
+   0x12   COM_BINLOG_DUMP
+   0x13   COM_TABLE_DUMP 
+   0x14   COM_CONNECT_OUT
+   0x15   COM_REGISTER_SLAVE
+
+* Result Packet *
+
+Result packet for a command returning _no_ rows:
+
++-----------------------------------------------+
+| Header        | Field Count   | Affected Rows |
+|               | 1-9 Bytes     | 1-9 Bytes     |
+|-----------------------------------------------|
+| ID (last_insert_id)   | Server Status         |
+| 1-9 Bytes             | 2 Bytes               |
++-----------------------------------------------+
+
+ * Field Count: Has value of '0' for commands returning _no_ rows
+ * Affected rows: Count of rows affected by INSERT/UPDATE/DELETE, etc.
+ * ID: value of auto_increment column in row (if any).  0 if 
+ * Server Status: Usually 0
+
+Result packet for a command returning rows:
+
++-------------------------------+
+| Header        | Field Count   |
+|               | 1-9 Bytes     |
++-------------------------------+
+
+ * Field Count: number of columns/fields in result set,
+                 (packed with net_store_length() in sql/net_pkg.cc)
+
+This is followed by as many packets as the number of fields ('Field Count')
+that contain the metadata for each column/field (see unpack_fields() in 
+libmysql/libmysql.c):
+
+
+* FIELD PACKET *
+
++-----------------------------------------------+
+| Header        | Table Name		        |
+|               | length-coded-string           |
+|-----------------------------------------------|
+| Field Name					|
+| length-code-string				|
+|-----------------------------------------------|
+| Display length of field
+| length-coded-binary (4 bytes)			|
+|-----------------------------------------------|
+| Field Type (enum_field_types in mysql_com.h)  |
+| length-coded-binary (2 bytes)			|
+|-----------------------------------------------|
+| Field Flags	                | Decimal Places|
+| length-coded-binary (3 bytes) | 1 Byte        |
++--------------+-------------+------------------+
+
+ * A length coded string is a string where we first have a packet
+   length (1-9 bytes, packed_with net_store_length()) followed
+   by a string.
+ * A length coded binary is a length (1 byte) followed by an integer
+   value in low-byte-first order.  For the moment this type is always
+   fixed length in this packet.
+
+ * Table Name - the name of the table the column comes from
+ * Field Name - the name of the column/field
+ * Display length of field - length of field
+ * Field Type - Type of field, see enum_field_types in 
+                include/mysql_com.h
+
+   Current field types are:
+
+      0x00   FIELD_TYPE_DECIMAL 
+      0x01   FIELD_TYPE_TINY
+      0x02   FIELD_TYPE_SHORT  
+      0x03   FIELD_TYPE_LONG
+      0x04   FIELD_TYPE_FLOAT  
+      0x05   FIELD_TYPE_DOUBLE
+      0x06   FIELD_TYPE_NULL
+      0x07   FIELD_TYPE_TIMESTAMP
+      0x08   FIELD_TYPE_LONGLONG
+      0x09   FIELD_TYPE_INT24
+      0x0a   FIELD_TYPE_DATE   
+      0x0b   FIELD_TYPE_TIME
+      0x0c   FIELD_TYPE_DATETIME
+      0x0d   FIELD_TYPE_YEAR
+      0x0e   FIELD_TYPE_NEWDATE
+      0xf7   FIELD_TYPE_ENUM
+      0xf8   FIELD_TYPE_SET
+      0xf9   FIELD_TYPE_TINY_BLOB
+      0xfa   FIELD_TYPE_MEDIUM_BLOB
+      0xfb   FIELD_TYPE_LONG_BLOB
+      0xfc   FIELD_TYPE_BLOB
+      0xfd   FIELD_TYPE_VAR_STRING
+      0xfe   FIELD_TYPE_STRING
+      0xff   FIELD_TYPE_GEOMETRY
+
+ * Field Flags - NOT_NULL_FLAG, PRI_KEY_FLAG, xxx_FLAG in 
+                 include/mysql_com.h
+
+
+Note that the packet format in 4.1 has slightly changed to allow more values.
+
+
+* ROW PACKET *
+
++-----------------------------------------------+
+| Header        | Data Length   | Column Data   | ....for each column
+|               | 1-9 Bytes     | n Bytes       |
++-----------------------------------------------+
+
+ * Data Length: (packed with net_store_length() in sql/net_pkg.cc)
+                
+		If 'Data Length' == 0, this is an 'ERROR PACKET'.
+		
+ * Column Data: String representation of data. MySQL always sends result set
+                data as strings.
+
+* LAST DATA PACKET *
+
+Packet length is < 9 bytes, and first byte is 0xFE
+
++--------+
+| 0xFE   |
+| 1 Byte |
++--------+
+
+Examples:
+
+***********
+*
+* INITDB Command
+*
+***********
+
+A client issuing an 'INITDB' (select the database to use) command,
+followed by an 'OK' packet with no rows and no affected rows from
+the server:
+
+* INITDB (select database to use) 'COMMAND' Packet *
+
+    +--------------------- Packet Length (5 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     |
+    |     |  +------------ Command # (INITDB = 0x02)
+          |  |
++---+---+ |  | +---------- Beginning of query data
+|       | |  | |
+05 00 00 00 02 74 65 73     . . . . . t e s 
+74                          t 
+
+* 'OK' Packet with no rows, and no rows affected *
+
+    +--------------------- Packet Length (3 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     | 
++---+---+ |
+|       | |
+03 00 00 01 00 00 00        . . . . . . .
+
+
+***********
+*
+* SELECT query example
+*
+***********
+
+Client issuing a 'SELECT *' query on the following table:
+
+    CREATE TABLE number_test (minBigInt bigint, 
+                              maxBigInt bigint, 
+                              testBigInt bigint)
+
+* 'COMMAND' Packet with QUERY (select ...) *
+
+    +--------------------- Packet Length (26)
+    |
+    |     +--------------- Packet Sequence #
+    |     |
+    |     |  +------------ Command # (QUERY = 0x03)
+          |  |
++---+---+ |  | +---------- Beginning of query data
+|       | |  | |
+1a 00 00 00 03 53 45 4c     . . . . . S E L 
+45 43 54 20 2a 20 66 72     E C T . * . f r 
+6f 6d 20 6e 75 6d 62 65     o m . n u m b e 
+72 5f 74 65 73 74           r _ t e s t 
+
+
+and receiving an 'OK' packet with a 'FIELD COUNT' of 3
+
+
+* 'OK' Packet with 3 fields *
+
+    +--------------------- Packet Length (3 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     | 
++---+---+ |
+|       | |
+01 00 00 01 03              . . . . . 
+
+Followed immediately by 3 'FIELD' Packets. Note, the individual packets 
+are delimitted by =======, so that all fields can be annotated in the first
+'FIELD' packet example:
+
+=============================================================
+
+    +--------------------- Packet Length (0x1f = 31 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     | 
+    |     |  +------------ Block Length (0x0b = 11 bytes)
+    |     |  |   
++---+---+ |  |  +--------- Table Name (11 bytes long)
+|       | |  |  |
+1f 00 00 02 0b 6e 75 6d     . . . . . n u m  
+62 65 72 5f 74 65 73 74     b e r _ t e s t 
+
+ +------------------------ Block Length (9 bytes)
+ |
+ |  +--------------------- Column Name (9 bytes long)
+ |  |
+09 6d 69 6e 42 69 67 49     . m i n B i g I     
+6e 74 03 14 00 00 01 08     n t . . . . . .
+       | |       | |  |
+       | +---+---+ |  +--- Field Type (0x08 = FIELD_TYPE_LONGLONG)
+       |     |     |
+       |     |     +------ Block Length (1)
+       |     |
+       |     +--------------- Display Length (0x14 = 20 chars)
+       |
+       +------------------ Block Length (3)
+
+ +------------------------ Block Length (2)
+ |
+ |   +-------------------- Field Flags (0 - no flags set)
+ |   | 
+ | +---+  +--------------- Decimal Places (0)
+ | |   |  |
+02 00 00 00                 . . . .                                  
+
+=============================================================
+
+'FIELD' packet for the 'number_Test.maxBigInt' column
+
+1f 00 00 03 0b 6e 75 6d     . . . . . n u m
+62 65 72 5f 74 65 73 74     b e r _ t e s t
+09 6d 61 78 42 69 67 49     . m a x B i g I
+6e 74 03 14 00 00 01 08     n t . . . . . .
+02 00 00 00                 . . . .
+        
+=============================================================                    
+
+'FIELD' packet for the 'number_test.testBigInt' column
+
+20 00 00 04 0b 6e 75 6d     . . . . . n u m
+62 65 72 5f 74 65 73 74     b e r _ t e s t 
+0a 74 65 73 74 42 69 67     . t e st B i g
+49 6e 74 03 14 00 00 01     I n t . . . . .
+08 02 00 00 00              . . . . .
+============================================================= 
+
+Followed immediately by one 'LAST DATA' packet:
+
+fe 00                       . .
+
+Followed immediately by 'n' row packets (in this case, only
+one packet is sent from the server, for simplicity's sake):
+
+
+    +--------------------- Packet Length (0x52 = 82 bytes)
+    |
+    |     +--------------- Packet Sequence #
+    |     | 
+    |     |  +------------ Data Length (0x14 = 20 bytes)
+    |     |  |   
++---+---+ |  |  +--------- String Data '-9223372036854775808'
+|       | |  |  |          (repeat Data Length/Data sequence)
+
+52 00 00 06 14 2d 39 32     . . . . . - 9 2
+32 33 33 37 32 30 33 36     2 3 3 7 2 0 3 6
+38 35 34 37 37 35 38 30     8 5 4 7 7 5 8 0
+38 13 39 32 32 33 33 37     8 . 9 2 2 3 3 7
+32 30 33 36 38 35 34 37     2 0 3 6 8 5 4 7
+37 35 38 30 37 0a 36 31     7 5 8 0 7 . 6 1
+34 37 34 38 33 36 34 37     4 7 4 8 3 6 4 7
+
+Followed immediately by one 'LAST DATA' packet:
+
+fe 00                       . .
+
+
+
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
 
 @c @node Index
 @c @unnumbered Index
 
 @c @printindex fn
+
+@node 4.1 protocol,,,
+@subchapter MySQL 4.1 protocol
+
+@node 4.1 protocol changes,,,
+@section Changes to 4.0 protocol in 4.1
+
+All basic package handling is identical to 4.0. When communication
+with an old 4.0 or 3.x client we will use the old protocol.
+
+The new things that we support with 4.1 are:
+
+@itemize @bullet
+@item
+Warnings
+@item
+Prepared statements
+@item
+Binary protocol (will be much faster than the current protocol that
+converts everything to strings)
+@end itemize
+
+
+What has changed in 4.1 are:
+
+@itemize @bullet
+@item
+A lot of new field information (database, real table name etc)
+@item
+The 'ok' packet has more status fields
+@item
+The 'end' packet (send last for each result set) now contains some
+extra information
+@item
+New protocol for prepared statements.  In this case all parameters and
+results will sent as binary (low-byte-first).
+@end itemize
+
+
+@node 4.1 field package,,,
+@section 4.1 field description package
+
+The field description package is sent as a response to a query that
+contains a result set.  It can be distinguished from a ok package by
+the fact that the first byte can't be 0 for a field package.
+@xref {4.1 ok package}.
+
+The header package has the following structure:
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 1-9  @tab Number of columns in result set (never 0)
+@item 1-9  @tab Extra information sent be some command (SHOW COLUMNS
+uses this to send the number of rows in the table)
+@end multitable
+
+This package is always followed by a field description set.
+@xref{4.1 field desc}.
+
+@node 4.1 field desc,,,
+@section 4.1 field description result set
+
+The field description result set contains the meta info for a result set.
+
+@multitable @columnfractions .20 .80
+@item Type   @tab Comment
+@item string @tab Database name
+@item string @tab Table name alias (or table name if no alias)
+@item string @tab Real table name
+@item string @tab Alias for column name (or column name if not used)
+@item 3 byte int @tab Length of column definition
+@item 1 byte int @tab Enum value for field type
+@item 3 byte int @tab 2 byte column flags (NOT_NULL_FLAG etc..) + 1 byte number of decimals.
+@item string int @tab Default value, only set when using mysql_list_fields().
+@end multitable
+
+
+@node 4.1 ok package,,,
+@section 4.1 ok package
+
+The ok package is the first that is sent as an response for a query
+that didn't return a result set.
+
+The ok package has the following structure:
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 1	  @tab  0 ; Marker for ok package
+@item 1-9 @tab	Affected rows
+@item 1-9 @tab  Last insert id (0 if one wasn't used)
+@item 2   @tab  Server status; Can be used by client to check if we are inside an transaction
+@item 2	  @tab  Warning count
+@item 1-9 @tab  Message length (optional)
+@item xxx @tab  Message (optional)
+@end multitable
+
+Size 1-9 means that the parameter is packed in to 1-9 bytes depending on
+the value.  (See function sql/net_pkg.cc::net_store_length).
+
+The message is optional.  For example for multi line INSERT it
+contains a string for how many rows was inserted / deleted.
+
+
+@node 4.1 end package,,,
+@section 4.1 end package
+
+The end package is sent as the last package for
+
+@itemize @bullet
+@item
+End of field information
+@item
+End of parameter type information
+@item
+End of result set
+@end itemize
+
+The end package has the following structure:
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 1	   @tab 254  ; Marker for EOF package
+@item 2	   @tab Warning count
+@item 2	   @tab Status flags (For flags like SERVER_STATUS_MORE_RESULTS)
+@end multitable
+
+Note that a normal package may start with byte 254, which means
+'length stored in 9 bytes'.  One can different between these cases
+by checking the packet length < 9 bytes (in which case it's and end
+packet).
+
+
+@node 4.1 error package
+@section 4.1 error package.
+
+The error package is sent when something goes wrong.
+The error package has the following structure:
+
+@multitable @columnfractions .10 .90
+@item Size  @tab Comment
+@item 1	    @tab 255  Error package marker
+@item 1-255 @tab Null terminated error message
+@end multitable
+
+The client/server protocol is designed in such a way that a package
+can only start with 255 if it's an error package.
+
+
+@node 4.1 prep init,,,
+@section 4.1 prepared statement init package
+
+This is the return package when one sends a query with the COM_PREPARE
+command.
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 4	   @tab Statement handler id
+@item 2	   @tab Number of columns in result set
+@item 2	   @tab Number of parameters in query
+@end multitable
+
+After this, there is a packet that contains the following for each
+parameter in the query:
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 2	@tab Enum value for field type. (MYSQL_TYPE_UNKNOWN if not known)
+@item 2 @tab 2 byte column flags (NOT_NULL_FLAG etc)
+@item 1 @tab Number of decimals
+@item 4 @tab Max column length.
+@end itemize
+
+Note that the above is not yet in 4.1 but will be added this month.
+
+As MySQL can have a parameter 'anywhere' it will in many cases not be
+able to provide the optimal information for all parameters.
+
+If number of columns, in the header package, is not 0 then the
+prepared statement will contain a result set. In this case the package
+is followed by a field description result set. @xref{4.1 field descr}.
+
+
+@node 4.1 long data,,,
+@section 4.1 long data handling
+
+This is used by mysql_send_long_data() to set any parameter to a string
+value.  One can call mysql_send_long_data() multiple times for the
+same parameter; The server will concatenate the results to a one big
+string.
+
+The server will not require an end package for the string.
+mysql_send_long_data() is responsible updating a flag that all data
+has been sent. (Ie;  That the last call to mysql_send_long_data() has
+the 'last_data' flag set).
+
+This package is sent from client -> server:
+
+@multitable @columnfractions .10 .90
+@item Size @tab Comment
+@item 4	@tab Statement handler
+@item 2 @tab Parameter number
+@item 2 @tab Type of parameter  (not used at this point)
+@item # @tab data (Rest of package)
+@end itemize
+
+The server will NOT send an @code{ok} or @code{error} package in
+responce for this.  If there is any errors (like to big string), one
+will get the error when calling execute.
+
+@node 4.1 execute,,,
+@section 4.1 execute
+
+On execute we send all parameters to the server in a COM_EXECUTE
+package.
+
+The package contains the following information:
+
+@multitable @columnfractions .30 .70
+@item Size @tab Comment
+@item (param_count+7)/8 @tab Null bit map
+@item 1	   @tab new_parameter_bound flag.  Is set to 1 for first
+execute or if one has rebound the parameters.
+@item 2*param_count     @tab Type of parameters (only given if new_parameter_bound flag is 1)
+@item #    @tab Parameter data, repeated for each parameter that are
+NOT NULL and not used with mysql_send_long_data().
+@end itemize
+
+The null-bit-map is for all parameters (including parameters sent with
+'mysql_send_long_data). If parameter 0 is NULL, then bit 0 in the
+null-bit-map should be 1 (ie:  first byte should be 1)
+
+The parameters are stored the following ways:
+
+@multitable @columnfractions .20 .10 .70
+@item Type    @tab Size @tab Comment
+@item tynyint @tab 1	@tab One byte integer
+@item short   @tab 2	@tab
+@item int     @tab 4	@tab
+@item longlong @tab 8	@tab
+@item float   @tab 4	@tab
+@item double  @tab 8	@tab
+@item string  @tab 1-9 + # @tab Packed string length + string
+@end multitable
+
+The result for this will be either an ok package or a binary result
+set.
+
+@node 4.1 binary result,,,
+@section 4.1 binary result set
+
+A binary result are sent the following way.
+
+For each result row:
+
+@itemize
+@item
+null bit map with first two bits set to 01 (bit 0,1 value 1)
+@item
+parameter data, repeated for each not null parameter.
+@end itemize
+
+The idea with the reserving two bits in the null map is that we can
+use standard error (first byte 255) and ok packages (first byte 0)
+to end a result sets.
+
+Except that the null-bit-map is shifted two steps, the server is
+sending the data to the client the same way that the server is sending
+bound parameters to the client.  The server is always sending the data
+as type given for 'column type' for respective column.  It's up to the
+client to convert the parameter to the requested type.
 
 @node Fulltext Search,  , protocol, Top
 @chapter Fulltext Search in MySQL
@@ -794,10 +1857,10 @@ fulltext search algorithms.
 Now it's just unsorted notes.
 
 @menu
-* Weighting in boolean mode::  
+* Weighting in boolean mode::   
 @end menu
 
-@node Weighting in boolean mode, , , Fulltext Search
+@node Weighting in boolean mode,  , Fulltext Search, Fulltext Search
 @section Weighting in boolean mode
 
 The basic idea is as follows: in expression

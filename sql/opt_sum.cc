@@ -37,6 +37,19 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   bool recalc_const_item=0;
   table_map removed_tables=0;
   Item *item;
+  COND *org_conds= conds;
+  
+  /* Add all ON conditions to WHERE condition */
+  for (TABLE_LIST *tl=tables; tl ; tl= tl->next)
+  {
+    if (tl->on_expr)
+      conds= and_expressions(conds, tl->on_expr, &org_conds);
+  }
+
+  /*
+    Iterate through item is select part and replace COUNT(), MIN() and MAX()
+    with constants (if possible)
+  */
 
   while ((item= it++))
   {

@@ -79,7 +79,7 @@ ibool
 row_upd_index_is_referenced(
 /*========================*/
 				/* out: TRUE if referenced; NOTE that since
-				we do not hold dict_foreign_key_check_lock
+				we do not hold dict_operation_lock
 				when leaving the function, it may be that
 				the referencing table has been dropped when
 				we leave this function: this function is only
@@ -89,14 +89,16 @@ row_upd_index_is_referenced(
 {
 	dict_table_t*	table		= index->table;
 	dict_foreign_t*	foreign;
+	ibool		froze_data_dict	= FALSE;
 
 	if (!UT_LIST_GET_FIRST(table->referenced_list)) {
 
 		return(FALSE);
 	}
 
-	if (!trx->has_dict_foreign_key_check_lock) {
-		rw_lock_s_lock(&dict_foreign_key_check_lock);
+	if (trx->dict_operation_lock_mode == 0) {
+		row_mysql_freeze_data_dictionary(trx);
+		froze_data_dict = TRUE;
 	}
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
@@ -104,8 +106,8 @@ row_upd_index_is_referenced(
 	while (foreign) {
 		if (foreign->referenced_index == index) {
 
-			if (!trx->has_dict_foreign_key_check_lock) {
-				rw_lock_s_unlock(&dict_foreign_key_check_lock);
+			if (froze_data_dict) {
+				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
 			return(TRUE);
@@ -114,8 +116,8 @@ row_upd_index_is_referenced(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 	
-	if (!trx->has_dict_foreign_key_check_lock) {
-		rw_lock_s_unlock(&dict_foreign_key_check_lock);
+	if (froze_data_dict) {
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	return(FALSE);
@@ -162,12 +164,10 @@ row_upd_check_references_constraints(
 
 	mtr_start(mtr);	
 	
-	if (!trx->has_dict_foreign_key_check_lock) {
+	if (trx->dict_operation_lock_mode == 0) {
 		got_s_lock = TRUE;
 
-		rw_lock_s_lock(&dict_foreign_key_check_lock);
-
-		trx->has_dict_foreign_key_check_lock = TRUE;
+		row_mysql_freeze_data_dictionary(trx);
 	}
 		
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
@@ -189,7 +189,7 @@ row_upd_check_references_constraints(
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
-			we will release dict_foreign_key_check_lock
+			we will release dict_operation_lock
 			temporarily! But the counter on the table
 			protects 'foreign' from being dropped while the check
 			is running. */
@@ -211,10 +211,7 @@ row_upd_check_references_constraints(
 
 			if (err != DB_SUCCESS) {
 				if (got_s_lock) {
-					rw_lock_s_unlock(
-						&dict_foreign_key_check_lock);	
-					trx->has_dict_foreign_key_check_lock
-								= FALSE;
+					row_mysql_unfreeze_data_dictionary(trx);
 				}
 
 				mem_heap_free(heap);
@@ -227,8 +224,7 @@ row_upd_check_references_constraints(
 	}
 
 	if (got_s_lock) {
-		rw_lock_s_unlock(&dict_foreign_key_check_lock);	
-		trx->has_dict_foreign_key_check_lock = FALSE;
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	mem_heap_free(heap);

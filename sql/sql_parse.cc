@@ -98,7 +98,17 @@ static void init_signals(void)
 }
 #endif
 
-inline bool end_active_trans(THD *thd)
+static void unlock_locked_tables(THD *thd)
+{
+  if (thd->locked_tables)
+  {
+    thd->lock=thd->locked_tables;
+    thd->locked_tables=0;			// Will be automaticly closed
+    close_thread_tables(thd);			// Free tables
+  }
+}
+
+static bool end_active_trans(THD *thd)
 {
   int error=0;
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
@@ -257,14 +267,14 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   started with corresponding variable that is greater then 0.
 */
 
-static byte* get_key_conn(user_conn *buff, uint *length,
-			  my_bool not_used __attribute__((unused)))
+extern "C" byte *get_key_conn(user_conn *buff, uint *length,
+			      my_bool not_used __attribute__((unused)))
 {
   *length=buff->len;
   return (byte*) buff->user;
 }
 
-static void free_user(struct user_conn *uc)
+extern "C" void free_user(struct user_conn *uc)
 {
   my_free((char*) uc,MYF(0));
 }
@@ -273,7 +283,7 @@ void init_max_user_conn(void)
 {
   (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
 		   0,0,
-		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
+		   (hash_get_key) get_key_conn, (hash_free_key) free_user,
 		   0);
 }
 
@@ -552,7 +562,13 @@ check_connections(THD *thd)
   {
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout);
+    if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
+    {
+      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
+			   pkt_len));
+      inc_host_errors(&thd->remote.sin_addr);
+      return(ER_HANDSHAKE_ERROR);    
+    }
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
@@ -690,7 +706,7 @@ pthread_handler_decl(handle_one_connection,arg)
 			(net->last_errno ? ER(net->last_errno) :
 			 ER(ER_UNKNOWN_ERROR)));
       send_error(thd,net->last_errno,NullS);
-      thread_safe_increment(aborted_threads,&LOCK_status);
+      statistic_increment(aborted_threads,&LOCK_status);
     }
     
 end_thread:
@@ -711,7 +727,7 @@ end_thread:
   Used when creating the initial grant tables
 */
 
-pthread_handler_decl(handle_bootstrap,arg)
+extern "C" pthread_handler_decl(handle_bootstrap,arg)
 {
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
@@ -903,7 +919,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
-    thread_safe_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
     if (!mysql_change_db(thd,packet))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
@@ -915,7 +931,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_TABLE_DUMP:
     {
-      thread_safe_increment(com_other, &LOCK_status);
+      statistic_increment(com_other, &LOCK_status);
       slow_command = TRUE;
       uint db_len = *(uchar*)packet;
       uint tbl_len = *(uchar*)(packet + db_len + 1);
@@ -932,7 +948,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_CHANGE_USER:
   {
-    thread_safe_increment(com_other,&LOCK_status);
+    thd->change_user();
+    clear_error_message(thd);			// If errors from rollback
+
+    statistic_increment(com_other,&LOCK_status);
     char *user=   (char*) packet;
     char *passwd= strend(user)+1;
     char *db=     strend(passwd)+1;
@@ -1005,7 +1024,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *fields;
     TABLE_LIST table_list;
-    thread_safe_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
+    statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
     {
@@ -1040,7 +1059,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   case COM_CREATE_DB:				// QQ: To be removed
     {
-      thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
+      statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
       char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
@@ -1058,7 +1077,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
+      statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
       char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
@@ -1079,7 +1098,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_BINLOG_DUMP:
     {
-      thread_safe_increment(com_other,&LOCK_status);
+      statistic_increment(com_other,&LOCK_status);
       slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1103,7 +1122,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_REFRESH:
     {
-      thread_safe_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
+      statistic_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
       ulong options= (ulong) (uchar) packet[0];
       if (check_global_access(thd,RELOAD_ACL))
 	break;
@@ -1115,7 +1134,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
   case COM_SHUTDOWN:
-    thread_safe_increment(com_other,&LOCK_status);
+    statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     DBUG_PRINT("quit",("Got shutdown command"));
@@ -1138,7 +1157,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
-    thread_safe_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
+    statistic_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
     char buff[200];
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
@@ -1157,11 +1176,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    thread_safe_increment(com_other,&LOCK_status);
+    statistic_increment(com_other,&LOCK_status);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    thread_safe_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
+    statistic_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
@@ -1170,13 +1189,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    thread_safe_increment(com_stat[SQLCOM_KILL],&LOCK_status);
+    statistic_increment(com_stat[SQLCOM_KILL],&LOCK_status);
     ulong id=(ulong) uint4korr(packet);
     kill_one_thread(thd,id);
     break;
   }
   case COM_DEBUG:
-    thread_safe_increment(com_other,&LOCK_status);
+    statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
@@ -1355,7 +1374,7 @@ mysql_execute_command(THD *thd)
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
 
-  thread_safe_increment(com_stat[lex->sql_command],&LOCK_status);
+  statistic_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -1413,6 +1432,8 @@ mysql_execute_command(THD *thd)
 	      Normal select:
 	      Change lock if we are using SELECT HIGH PRIORITY,
 	      FOR UPDATE or IN SHARE MODE
+
+	      TODO: Delete the following loop when locks is set by sql_yacc
 	    */
 	    TABLE_LIST *table;
 	    for (table = tables ; table ; table=table->next)
@@ -1642,6 +1663,7 @@ mysql_execute_command(THD *thd)
 	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
+	/* TODO: Delete the following loop when locks is set by sql_yacc */
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
@@ -1711,7 +1733,7 @@ mysql_execute_command(THD *thd)
 #else
     {
       ulong priv=0;
-      if (lex->name && strlen(lex->name) > NAME_LEN)
+      if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(thd,ER_WRONG_TABLE_NAME,lex->name);
 	res=0;
@@ -1885,18 +1907,13 @@ mysql_execute_command(THD *thd)
     }
     if (select_lex->table_list.elements == 1)
     {
-      res = mysql_update(thd,tables,
-			 select_lex->item_list,
-			 lex->value_list,
-			 select_lex->where,
-			 (ORDER *) select_lex->order_list.first,
-			 select_lex->select_limit,
-			 lex->duplicates,
-			 lex->lock_option);
-
-#ifdef DELETE_ITEMS
-      delete select_lex->where;
-#endif
+      res= mysql_update(thd,tables,
+			select_lex->item_list,
+			lex->value_list,
+			select_lex->where,
+			(ORDER *) select_lex->order_list.first,
+			select_lex->select_limit,
+			lex->duplicates);
     }
     else 
     {
@@ -1906,11 +1923,8 @@ mysql_execute_command(THD *thd)
       const char *msg=0;
 
       lex->sql_command=SQLCOM_MULTI_UPDATE;
-      for (auxi=(TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
-      {
+      for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
 	table_count++;
-	auxi->lock_type=TL_WRITE;
-      }
 
       if (select_lex->order_list.elements)
 	msg="ORDER BY";
@@ -1932,8 +1946,7 @@ mysql_execute_command(THD *thd)
 	  !setup_fields(thd,tables,lex->value_list,0,0,0) && 
 	  !thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,
-				   lex->duplicates, lex->lock_option,
-				   table_count)))
+				   lex->duplicates, table_count)))
       {
 	List <Item> total_list;
 	List_iterator <Item> field_list(select_lex->item_list);
@@ -1964,8 +1977,7 @@ mysql_execute_command(THD *thd)
     if (grant_option && check_grant(thd,INSERT_ACL,tables))
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-		       lex->duplicates,
-		       lex->lock_option);
+		       lex->duplicates);
     break;
   case SQLCOM_REPLACE:
     if (check_access(thd,INSERT_ACL | DELETE_ACL,
@@ -1976,8 +1988,7 @@ mysql_execute_command(THD *thd)
 
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-		       DUP_REPLACE,
-		       lex->lock_option);
+		       DUP_REPLACE);
     break;
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
@@ -2012,8 +2023,8 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
     }
-    tables->lock_type=TL_WRITE;		// update first table
     {
+      /* TODO: Delete the following loop when locks is set by sql_yacc */
       TABLE_LIST *table;
       for (table = tables->next ; table ; table=table->next)
 	table->lock_type= lex->lock_option;
@@ -2056,8 +2067,7 @@ mysql_execute_command(THD *thd)
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     res = mysql_delete(thd,tables, select_lex->where,
                        (ORDER*) select_lex->order_list.first,
-                       select_lex->select_limit, lex->lock_option,
-                       select_lex->options);
+                       select_lex->select_limit, select_lex->options);
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -2093,7 +2103,7 @@ mysql_execute_command(THD *thd)
 	net_printf(thd,ER_NONUNIQ_TABLE,auxi->real_name);
 	goto error;
       }
-      auxi->lock_type=walk->lock_type=TL_WRITE;
+      walk->lock_type= auxi->lock_type;
       auxi->table_list=  walk;		// Remember corresponding table
     }
     if (add_item_to_list(new Item_null()))
@@ -2108,7 +2118,6 @@ mysql_execute_command(THD *thd)
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
-						       lex->lock_option,
 						       table_count)))
     {
       res= mysql_select(thd,tables,select_lex->item_list,
@@ -2314,11 +2323,7 @@ mysql_execute_command(THD *thd)
       send_ok(thd);
     break;
   case SQLCOM_UNLOCK_TABLES:
-    if (thd->locked_tables)
-    {
-      thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automaticly closed
-    }
+    unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)
     {
       end_active_trans(thd);
@@ -2329,12 +2334,7 @@ mysql_execute_command(THD *thd)
     send_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
-    if (thd->locked_tables)
-    {
-      thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automaticly closed
-      close_thread_tables(thd);
-    }
+    unlock_locked_tables(thd);
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, tables))
@@ -2484,7 +2484,7 @@ mysql_execute_command(THD *thd)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query, thd->query_length);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
       }
@@ -2504,7 +2504,7 @@ mysql_execute_command(THD *thd)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query, thd->query_length);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -2874,7 +2874,7 @@ mysql_init_query(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
-  thd->fatal_error= thd->rand_used=0;
+  thd->fatal_error= thd->rand_used= 0;
   thd->safe_to_cache_query= 1;
   thd->possible_loops= 0;
   DBUG_VOID_RETURN;
@@ -3476,14 +3476,50 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
 }
 
 
+/*
+  Set lock for all tables in current select level
+
+  SYNOPSIS:
+    set_lock_for_tables()
+    lock_type			Lock to set for tables
+
+  NOTE:
+    If lock is a write lock, then tables->updating is set 1
+    This is to get tables_ok to know that the table is updated by the
+    query
+*/
+
+void set_lock_for_tables(thr_lock_type lock_type)
+{
+  THD	*thd=current_thd;
+  bool for_update= lock_type >= TL_READ_NO_INSERT;
+  DBUG_ENTER("set_lock_for_tables");
+  DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
+		       for_update));
+
+  for (TABLE_LIST *tables= (TABLE_LIST*) thd->lex.select->table_list.first ;
+       tables ;
+       tables=tables->next)
+  {
+    tables->lock_type= lock_type;
+    tables->updating=  for_update;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void add_join_on(TABLE_LIST *b,Item *expr)
 {
-  if (!b->on_expr)
-    b->on_expr=expr;
-  else
+  if (expr)
   {
-    // This only happens if you have both a right and left join
-    b->on_expr=new Item_cond_and(b->on_expr,expr);
+    if (!b->on_expr)
+      b->on_expr=expr;
+    else
+    {
+      // This only happens if you have both a right and left join
+      b->on_expr=new Item_cond_and(b->on_expr,expr);
+    }
+    b->on_expr->top_level_item();
   }
 }
 
@@ -3511,7 +3547,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   if (options & REFRESH_GRANT)
   {
     acl_reload(thd);
-    grant_reload();
+    grant_reload(thd);
     if (mqh_used)
       reset_mqh(thd,(LEX_USER *) NULL,true);
   }

@@ -901,8 +901,7 @@ sync_thread_levels_empty_gen(
 
 		if (slot->latch != NULL && (!dict_mutex_allowed ||
 				(slot->level != SYNC_DICT
-				&& slot->level != SYNC_FOREIGN_KEY_CHECK
-				&& slot->level != SYNC_PURGE_IS_RUNNING))) {
+				&& slot->level != SYNC_DICT_OPERATION))) {
 
 			lock = slot->latch;
 			mutex = slot->latch;
@@ -1087,12 +1086,10 @@ sync_thread_add_level(
 						SYNC_IBUF_PESS_INSERT_MUTEX));
 	} else if (level == SYNC_DICT_AUTOINC_MUTEX) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_AUTOINC_MUTEX));
-	} else if (level == SYNC_FOREIGN_KEY_CHECK) {
-		ut_a(sync_thread_levels_g(array, SYNC_FOREIGN_KEY_CHECK));
+	} else if (level == SYNC_DICT_OPERATION) {
+		ut_a(sync_thread_levels_g(array, SYNC_DICT_OPERATION));
 	} else if (level == SYNC_DICT_HEADER) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
-	} else if (level == SYNC_PURGE_IS_RUNNING) {
-		ut_a(sync_thread_levels_g(array, SYNC_PURGE_IS_RUNNING));
 	} else if (level == SYNC_DICT) {
 		ut_a(buf_debug_prints
 		     || sync_thread_levels_g(array, SYNC_DICT));

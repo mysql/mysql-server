@@ -21,7 +21,8 @@
 #ifndef _my_alloc_h
 #define _my_alloc_h
 
-#define MAX_BLOCK_USAGE_BEFORE_DROP 10
+#define ALLOC_MAX_BLOCK_TO_DROP			4096
+#define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */

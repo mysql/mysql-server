@@ -204,7 +204,7 @@ else
 fi
 
 USER_OPTION=""
-if test -w /
+if test -w / -o "$USER" = "root"
 then
   if test "$user" != "root" -o $SET_USER = 1
   then
@@ -215,6 +215,7 @@ then
   if test -n "$open_files"
   then
     ulimit -n $open_files
+    args="open-files-limit=$open_files $args"
   fi
   if test -n "$core_file_size"
   then

@@ -89,8 +89,8 @@ public:
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
   virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
-  
   virtual bool check_loop(uint id);
+  virtual void top_level_item() {}
 };
 
 

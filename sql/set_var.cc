@@ -202,8 +202,6 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
 #endif /* HAVE_QUERY_CACHE */
-sys_var_bool_ptr	sys_safe_show_db("safe_show_database",
-					 &opt_safe_show_db);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
@@ -299,6 +297,8 @@ static sys_var_readonly		sys_warning_count("warning_count",
 
 /* alias for last_insert_id() to be compatible with Sybase */
 static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter");
+static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
+static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
 
 /*
@@ -370,10 +370,11 @@ sys_var *sys_variables[]=
   &sys_query_cache_type,
 #endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
+  &sys_rand_seed1,
+  &sys_rand_seed2,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
   &sys_rpl_recovery_rank,
-  &sys_safe_show_db,
   &sys_safe_updates,
   &sys_select_limit,
   &sys_server_id,
@@ -448,7 +449,7 @@ struct show_var_st init_vars[]= {
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
-  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_LONG},
+  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -519,7 +520,6 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
-  {sys_safe_show_db.name,     (char*) &sys_safe_show_db,            SHOW_SYS},
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
   {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
@@ -530,7 +530,9 @@ struct show_var_st init_vars[]= {
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
+#ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
+#endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {"sql_mode",                (char*) &opt_sql_mode,                SHOW_LONG},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
@@ -1069,6 +1071,19 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
   UNLOCK_ACTIVE_MI;
+  return 0;
+}
+
+
+bool sys_var_rand_seed1::update(THD *thd, set_var *var)
+{
+  thd->rand.seed1= (ulong) var->value->val_int();
+  return 0;
+}
+
+bool sys_var_rand_seed2::update(THD *thd, set_var *var)
+{
+  thd->rand.seed2= (ulong) var->value->val_int();
   return 0;
 }
 
