@@ -13,6 +13,8 @@ INCLUDES =	@MT_INCLUDES@ -I$(top_srcdir)/include -I$(srcdir) \
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@
 LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @bdb_libs_with_path@ @LIBDL@ $(CXXLDFLAGS)
 
+mysqltest_LINK = $(CXXLINK)
+
 mysqltest_SOURCES =	mysqltest.c
 
 mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
