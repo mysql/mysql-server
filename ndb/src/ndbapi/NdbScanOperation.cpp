@@ -475,11 +475,11 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   /**
    * We have advanced atleast one bucket
    */
-  if(!fetchAllowed){
+  if(!fetchAllowed || !retVal){
     m_current_api_receiver = idx;
     return retVal;
   }
-    
+  
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade* tp = TransporterFacade::instance();
   Guard guard(tp->theMutexPtr);
