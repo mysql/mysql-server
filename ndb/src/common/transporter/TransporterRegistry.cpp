@@ -200,8 +200,7 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
   
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
-    
-
+   
   TCP_Transporter * t = new TCP_Transporter(*this,
 					    config->sendBufferSize,
 					    config->maxReceiveSize,
