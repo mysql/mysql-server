@@ -1,0 +1,22 @@
+Testing server 'IBM DB2 5' at 1999-02-02  3:47:34
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 8.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 97 secs (97.40 usr  0.00 sys = 97.40 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207):  4 secs ( 3.28 usr  0.00 sys =  3.28 cpu)
+Time for select_range (400:61130): 24 secs (23.86 usr  0.00 sys = 23.86 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+39872 queries in 5696 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 1055 secs (1055.01 usr  0.00 sys = 1055.01 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+39885 queries in 7977 loops of 10000 loops took 601 seconds
+Estimated time for count_key (50000): 753 secs (753.46 usr  0.00 sys = 753.46 cpu)
+
+Estimated total time: 1934 secs (1934.67 usr  0.00 sys = 1934.67 cpu)

@@ -1,0 +1,194 @@
+Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@tcx.se)
+
+93.04.01
+- socket() didn't return NOTOK (-1) on error.
+- bind() didn't set error code on failure
+
+93.03.27
+- Added patch by D. Richard Hipp <drh@vnet.net> to make strtod and
+  printf (of floats/doubles) thread safe. Patch provided by mevans@cti-ltd.com
+- Added patch I got from lucid@secret.org to fix lock in fork().
+
+93.03.26
+- Fixed some include files for BSD 2.0.
+- Changed the prototype of ioctl() for BSD.
+- Fixed new bug in fd_kernel.c; _fd_kern_read returned sometimes wrong errno.
+
+93.03.22
+- Change sys/cdefs.h to get it through Sun cc.
+- Added patches by Mark Evans
+  1. Crashes and hangs.
+  2. Missing functionality (namely flock())
+  3. Use of POSIX reentrant safe routines.
+
+93.03.21
+- Add patches by Larry V. Streepy to fix pthread_cancel.
+  Fixed bug in Streepy's patch that checked return values of read,write..
+  in fd.c (Already done in fd_sys.c)
+
+1. Added a declaration of &#34;signal&#34; to include/signal.h
+2. Modified PANIC macro to operate like assert and call a new function
+   panic_kernel.  Added new file pthreads/panic.c.
+3. Added support for fstatfs syscall for linux (mod to
+   syscall-i386-linux-1.0.S).
+4. Added missing function declarations to machdep/linux-1.0/socket.h:
+   getsockopt
+   setsockopt
+   getsockname
+   getpeername
+   send
+   recv
+   sendto
+   recvfrom
+   sendmsg
+   recvmsg
+   shutdown
+5. Added ifdef to avoid type conflict in machdep/linux-1.0/timers.h
+6. Fix bug in getprotoent (bogus semi-colon after if stmt).
+7. Change function name in proto_internal.c from _proto_init to 
+   _proto_buf.
+8. Fix bug in res_internal.c where buffer pointer was improperly 
+   maintained.
+9. Fix return value handling for POSIX function implementations.
+10. Fix bug in select handling where a thread could be incorrectly 
+    resumed with no sockets ready.  Also added proper handling of
+    selecting for exceptions (this was not implemented at all).
+11. Added deadlock detection to pthread_join (it can now return an
+    EDEADLK error).
+12. Added support for pthread_cancel, changes to lots of files for this.
+13. Add new function __pthread_is_valid that searches the pthread list
+    for a specified pthread_t value.
+
+93.03.22
+- Fixed some if the tests according to the below changes.
+
+93.03.21 by "Mati Sauks" <mati@psti.com>
+- Fixed bug if priority queue was empty or (*current)->next is empty.
+
+96.03.20 by Josip Gracin
+- Fixed gethostbyname to handle alias
+
+97.02.07
+- Removed CVS directories.
+- Commented make install in GNUmakefile.in.
+
+97.01.26 by David (david@detron.se)
+- Fixed a dist target in the GNUmakefile 
+- Added #undef PTHREAD_STACK_MIN to avoid warning on solaris 2.5
+
+97.01.21 by Monty (monty@tcx.se)
+
+- Added file mysql-TODO and the patches directory.
+- Added patch p153 and p155 by Tim Hinderliter and Chris Colohan
+  check the patches directory for more info.
+- Changed pthread_cond_timedwait to return ETIME instead of ETIMEDOUT
+  (Required by Posix)
+- Changed the include file pthread.h to add prototypes for the following
+  functions:  pthread_sigmask, sigwait and sigsetwait 
+- Added shutdown() and getpeername() prototypes to 'machdep/sunos-5.3/socket.h'
+- Changed __FD_NONBLOCK to    (O_NONBLOCK | O_NDELAY) in
+  ./machdep/engine-sparc-sunos-5.3.h
+- Added rint() prototype to math.h
+- Added new slot sighandled to 'struct pthread' for easy check if somebody
+  interrupts a system call.
+- pthread_kill can now interrupt the following system calls:
+  select(), read(), write(), send(), sendto(), sendmsg(), recv_timedwait(),
+  recvfrom_timedwait(), readev(), writeev() and some socket functions.
+- Fixed bug in pthread_kill() which count up 'sigcount' wrongly.
+  Two pthread_kill() in a row bugged the thread.
+- Merged fd_kern_wait and fd_kern_poll to 1 function and removed a
+  a bug when polling select.
+- Implemented getpeername().
+- Some small optimizations.
+- Some re-indentation to make the code readable by me (Sorry about that).
+
+97.08.15 by Monty (monty@tcx.se)
+
+- Added patch by "Chris G. Demetriou" <cgd@pa.dec.com> for NetBSD/alpha.
+
+97.08.18 by Monty (monty@tcx.se)
+
+- Added new machdep definitions for HPUX-10.20,
+  by JOERG_HENNE@Non-HP-Germany-om88.om.hp.com
+
+97.09.25 by Monty (monty@tcx.se)
+
+- Added some definitions for i386-SCO from the site:
+  http://www.sco.com/skunkware/osr5/libraries/
+
+97.10.12 by Monty (monty@tcx.se)
+
+- Changed prototype macro __P to __P_ to avoid warnings on Solaris.
+- Fixed interruption of select() with pthread_kill() when signal handler
+  used read or write.
+
+97.10.16 by Monty (monty@tcx.se)
+
+- Fixed that blocked signals doesn't interrupt threads.
+
+97.10.20 by Monty (monty@tcx.se)
+
+- Fixed broken ftruncate system call for FreeBSD 2.0
+  The old one destroyed the orignal file by truncation too much.
+- Fixed prototypes for des_setkey,encrypt and setkey (according to Solaris 2.5)
+
+97.11.26 by Monty (monty@tcx.se)
+
+- Small patch to avoid compile errors on alpha-OSF1 3.2
+
+97.12.18 by Monty (monty@tcx.se)
+
+- Added fix for Irix 5.3 in __unistd.h
+
+98.01.13 by Monty (monty@tcx.se)
+- Added fd_check_entry to dup2 and table sizecheck to fd_check_entry()
+  patch by Martin Fuchs <Martin@igdv.fh-darmstadt.de>
+
+98.01.18 by Monty (monty@tcx.se)
+- Added prototype for gettimeofday() for Solars 2.3
+- Added some small fixes for configure and Solaris 2.6
+
+98.01.23 by Monty (monty@tcx.se)
+- Ported to openbsd.
+- Renamed nanosleep() to pthread_nanosleep() to avoid name conflict on
+  openbsd.
+- Fixed link problem with variable __sglue for Irix 5.3
+  by Vladislav Malyshkin <malyshki@cs.wmich.edu>.
+
+98.03.02 by Monty (monty@tcx.se)
+- Applied patches from Curt Sampson <cjs@portal.ca>; NetBSD 1.3/i386 port.
+
+98.03.09 by Monty (monty@tcx.se)
+- Applied patches from Curt Sampson <cjs@portal.ca>; NetBSD 1.3/Alpha port.
+
+98.05.12
+- Added unixware to config.guess
+
+98.06.07
+- Added patch by Scott Dybiec <sdybiec@humanfactor.com>:
+  Fixed select() returning incorrect number of active file descriptors.
+
+99.06.07 by Monty (monty@mysql.com)
+- Added patches from the NETBSD site. Should fix the following platforms:
+  alpha-netbsd-1.3, sparc-netbsd-1.3, i386-netbsd, arm32-netbsd
+
+99.09.09 by Monty (monty@mysql.com)
+- Added patches from Christoph Badura <bad@oreilly.de> for NetBSD
+
+99.09.13 by Monty (monty@mysql.com)
+- Added patches from Dirk Froemberg <dirk@FreeBSD.org> for FreeBSD
+
+99.10.18 by Monty (monty@mysql.com)
+- Added patch for machdep_sys_lseek() for netbsd.
+
+99.12.30 by Monty (monty@mysql.com)
+- Added patch by Christoph Badura <bad@oreilly.de> to update mit-pthreads
+  to the same version as in the NetBSD pkgsrc.
+
+00.02.24 by Monty (monty@mysql.com)
+- Added configure files to make mit-pthreads to compile and link during
+  newer linux systems (needed because of the MySQL configure system).
+  The resulting library has however not been verified under Linux.
+
+00.03.30 by Monty (monty@mysql.com)
+- Added chroot() and gethostname().

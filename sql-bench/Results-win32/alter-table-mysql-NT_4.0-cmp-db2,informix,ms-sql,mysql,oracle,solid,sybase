@@ -1,0 +1,14 @@
+Testing server 'MySQL 3.22.16 gamma' at 1999-02-20 19:54:12
+
+Testing of ALTER TABLE
+Testing with 16 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 1 wallclock secs ( 0.18 usr +  0.17 sys =  0.35 CPU)
+
+Time for alter_table_add (8):  1 wallclock secs ( 0.01 usr +  0.00 sys =  0.01 CPU)
+
+Time for create_index (8):  2 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+
+Time for drop_index (8):  1 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+
+Total time:  5 wallclock secs ( 0.19 usr +  0.17 sys =  0.36 CPU)

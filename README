@@ -1,0 +1,54 @@
+This is a release of MySQL, a basically free SQL database server (more
+licence information in the PUBLIC file and in the reference manual).
+
+Please read the Upgrading section in the manual if emigration from
+3.20.# to 3.21.#. Otherwise it wont work!!
+
+The latest information about MySQL can be found at:
+http://www.mysql.com
+
+To see what it can do take a look at the features section in the
+manual.
+
+For installation instructions see the Installation chapter in the
+manual.
+
+For future plans see the TODO appendix in the manual.
+
+New features/bug fixes history is in the news appendix in the manual.
+
+For the currently known bugs/misfeatures (known errors) see the bugs
+appendix in the manual.
+
+For examples of SQL and benchmarking information see the bench
+directory.
+
+The manual mentioned above can be found in the Docs directory. The
+manual is available in the following formats: as text in
+Docs/manual.txt, as HTML in Docs/manual_toc.html, as GNU Info in
+Docs/mysql.info and as PostScript in Docs/manual.ps.
+
+For a contributed user manual see http://www.turbolift.com/mysql.
+
+MySQL is brought to you by: Michael (Monty) Widenius at TcX
+DataKonsult AB.
+
+For the other contributors see the Credits appendix in the manual.
+
+************************************************************
+
+IMPORTANT:
+
+Send bug (error) reports, questions and comments to the mailing list
+at mysql@lists.mysql.com
+
+Please use the 'mysqlbug' script when posting bug reports or questions
+about MySQL. mysqlbug will gather some information about your system
+and start your editor with a form in which you can describe your
+problem. Bug reports might be silently ignored by the MySQL
+maintainers if there is not a good reason included in the report as to
+why mysqlbug has not been used. A report that says 'MySQL does not
+work for me. Why?' is not consider a valid bug report.
+
+The mysqlbug script can be found in the 'scripts' directory in the
+distribution, that is 'there-you-installed-mysql/scripts'.

@@ -1,0 +1,37 @@
+#!/bin/sh
+
+tmp=/tmp/temp-pic.pnm
+
+all="austria czech-republic germany great-britain hungary israel italy
+russia portugal sweden canada usa south-korea japan taiwan australia
+romania denmark france estonia poland singapore bulgaria south-africa
+netherlands chile ukraine greece finland switzerland croatia china
+brazil spain iceland ireland denmark"
+
+new=""
+
+set -x
+cd  Img
+
+# for c in $all; do cp empty.png $c.pdf; done; exit
+
+for c in $new
+do
+  # For HTML version
+  giftopnm Raw-Flags/$c.gif | \
+   pnmscale -xsize 30 > $tmp
+  pnmpaste $tmp 1 1 flag-background.pnm > $c.pnm
+  rm -f $tmp
+  # For web version
+  ppmtogif $c.pnm > $c.gif
+  # or cjpeg -optimize -quality 70 -outfile $c.jpg
+  # For PDF version (this coredumps. use empty file until fixed)
+  # pnmtopng -verbose $c.pnm > $c.png
+  cp empty.png $c.pdf
+  # For TeX version
+  giftopnm /my/local/pictures/flags/$c.gif | \
+   pnmscale -xsize 30 | \
+   pnmtops -noturn > $c.eps
+  # For text version
+  echo -n "" > $c.txt
+done

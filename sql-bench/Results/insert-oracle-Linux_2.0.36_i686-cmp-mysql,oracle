@@ -1,0 +1,69 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-25  0:49:44
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 1017 wallclock secs (228.54 usr 28.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 2000 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 844 wallclock secs (366.38 usr 91.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+8 queries in 8 loops of 10 loops took 677 seconds
+Estimated time for order_by_key (10:2400000): 846 wallclock secs (362.64 usr 93.30 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+8 queries in 8 loops of 10 loops took 651 seconds
+Estimated time for order_by (10:2400000): 813 wallclock secs (362.89 usr 88.91 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_range_prefix (5010:42084): 46 wallclock secs (18.80 usr  3.50 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+225 queries in 225 loops of 5000 loops took 638 seconds
+Estimated time for select_range (5000:1890): 14177 wallclock secs (17.56 usr  3.56 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+187460 queries in 93730 loops of 100000 loops took 601 seconds
+Estimated time for select_key_prefix (200000): 641 wallclock secs (235.18 usr 40.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1316 queries in 658 loops of 100000 loops took 601 seconds
+Estimated time for select_key (200000): 91337 wallclock secs (252.28 usr 48.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 37 wallclock secs (17.82 usr  2.98 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1480 queries in 37 loops of 500 loops took 608 seconds
+Estimated time for select_range (20000:3219): 608 wallclock secs ( 1.26 usr  0.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_group (91): 50 wallclock secs ( 0.08 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max_on_key (3000):  9 wallclock secs ( 3.29 usr  0.62 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max (60): 25 wallclock secs ( 0.04 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count_on_key (100): 31 wallclock secs ( 0.08 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count (100): 50 wallclock secs ( 0.08 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update with functions
+Time for update_key (500):  221 wallclock secs ( 0.26 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for update_key_big (501): 299 wallclock secs ( 0.40 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing delete
+Time for delete_key (500): 265 wallclock secs ( 0.34 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for delete_big (12): 495 wallclock secs ( 0.04 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Insert into table with 16 keys and with a primary key with 16 parts
+Time for insert_key (100000): 647 wallclock secs (78.18 usr  9.80 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update of keys
+Time for update_of_key (256): 445 wallclock secs ( 0.19 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Deleting everything from table
+Time for delete_big (2): 544 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 123077 wallclock secs (1962.20 usr 413.70 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

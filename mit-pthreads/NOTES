@@ -1,0 +1,59 @@
+
+Here are some notes on the internals of the implementation.
+
+LIBC routines.
+
+	Unfortuanately many of the libc routine return a pointer to static data.
+There are two methods to deal with this. One write a new routine where the
+arguments are different, and have one argument be a pointer to some space
+to store the data, or two use thread specific data and warn the user that
+data isn't valid if the calling thread is terminated.
+
+INTERNAL LOCKING
+To prevent deadlocks the following rules were used for locks.
+
+1.	Local locks for mutex queues and other like things are only locked
+	by running threads, at NO time will a local lock be held by
+	a thread in a non running state.
+2.  Only threads that are in a run state can attempt to lock another thread,
+	this way, we can assume that the lock will be released shortly, and don't
+	have to unlock the local lock.
+3.	The only time a thread will have a pthread->lock and is not in a run
+	state is when it is in the reschedule routine.
+4.	The reschedule routine assumes all local locks have been released,
+	there is a lock on the currently running thread (pthread_run),
+	and that this thread is being rescheduled to a non running state.
+	It is safe to unlock the currently running threads lock after it
+	has been rescheduled.
+5.	The reschedule routine locks the kernel, sets the state of the currently
+	running thread, unlocks the currently running thread, calls the
+	context switch routines.
+6	the kernel lock is used only ...
+
+
+7.	The order of locking is ...
+
+1 local locks
+2 pthread->lock			/* Assumes it will get it soon */
+3 pthread_run->lock		/* Assumes it will get it soon, but must release 2 */
+4 kernel lock			/* Currently assumes it will ALWAYS get it. */
+
+8.	The kernel lock will be changed to a spin lock for systems that
+already support kernel threads, this way we can mutiplex threads onto
+kernel threads.
+9.	There are points where the kernel is locked and it needs to get
+either a local lock or a pthread lock, if at these points the code
+fails to get the lock the kernel gives up and sets a flag which will
+be checked at a later point.
+10.	Interrupts are dissabled while the kernel is locked, the interrupt
+mask must be checked afterwards or cleared in some way, after interrputs
+have been reenabled, this allows back to back interrupts, but should always
+avoid missing one.
+
+------------------------------------------------------------------------------
+Copyright (c) 1994 Chris Provenzano. All rights reserved.
+This product includes software developed by the Univeristy of California,
+Berkeley and its contributors.
+
+For further licencing and distribution restrictions see the file COPYRIGHT
+included in this directory.

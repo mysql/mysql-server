@@ -1,0 +1,3 @@
+ccc -DHAVE_CONFIG_H -I. -I. -I.. -I./../include -I../include    -O -DDBUG_OFF -fast -O3 -c regerror.c regcomp.c regexec.c regfree.c reginit.c
+rm libregex.a
+ar -cr libregex.a regerror.o

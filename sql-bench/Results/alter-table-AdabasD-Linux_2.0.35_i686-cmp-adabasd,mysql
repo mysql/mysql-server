@@ -1,0 +1,16 @@
+Testing server 'Adabas 10.01.00' at 1998-08-20 19:19:50
+
+Testing of ALTER TABLE
+Testing with 254 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000)18 secs ( 0.26 usr  0.08 sys =  0.34 cpu)
+
+Time for alter_table_add (246): 10 secs ( 0.02 usr  0.02 sys =  0.04 cpu)
+
+Time for create_index (8):  1 secs ( 0.00 usr  0.00 sys =  0.00 cpu)
+
+Time for drop_index (8):  1 secs ( 0.00 usr  0.01 sys =  0.01 cpu)
+
+Time for alter_table_drop (123): 10 secs ( 0.00 usr  0.07 sys =  0.07 cpu)
+
+Total time: 40 secs ( 0.29 usr  0.18 sys =  0.47 cpu)

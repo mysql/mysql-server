@@ -1,0 +1,25 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-25  3:50:08
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 254 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 35 wallclock secs ( 7.91 usr  0.90 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing big selects on the table
+Time for select_big (70:17207):  7 wallclock secs ( 2.04 usr  0.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+369 queries in 9 loops of 10 loops took 648 seconds
+Estimated time for select_range (410:714201): 720 wallclock secs (115.93 usr 25.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+34853 queries in 4979 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 1207 wallclock secs (78.23 usr 16.69 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+37555 queries in 7511 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 800 wallclock secs (53.87 usr 11.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 2769 wallclock secs (257.98 usr 54.82 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

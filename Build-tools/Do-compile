@@ -1,0 +1,421 @@
+#!/usr/bin/perl
+
+use Getopt::Long;
+$opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
+$opt_dbd_options=$opt_perl_options="";
+$opt_tmp="";
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=0;
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s") || usage();
+
+usage() if ($opt_help || $opt_Information);
+usage() if (!$opt_distribution);
+
+chomp($host=`hostname`);
+print "$host: Compiling MySQL at $host, stage: $opt_stage\n"  if ($opt_debug);
+$host =~ /^([^.-]*)/;
+$host=$1;
+$email="$opt_user\@mysql.com";
+$pwd = `pwd`; chomp($pwd);
+$log="$pwd/Logs/$host.log";
+$opt_distribution =~ /(mysql-[^\/]*)\.tar/;
+$ver=$1;
+$gcc_version=which("gcc");
+if (defined($gcc_version) && ! $opt_config_env)
+{
+  $tmp=`$gcc_version -v 2>&1`;
+  if ($tmp =~ /version 2\.7\./)
+  {
+    $opt_config_env= 'CC=gcc CFLAGS="-O2 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fomit-frame-pointer"';
+  }
+  else
+  {
+    $opt_config_env= 'CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
+  }
+}
+if ($opt_tmp)
+{
+  $ENV{'TMPDIR'}=$opt_tmp;
+}
+else
+{
+  $opt_tmp="/tmp";
+}
+$ENV{'PATH'}= "$pwd/$host/bin:" . $ENV{'PATH'}; 
+$rsh=which("rcmd","rsh");
+$make=which("gmake","make");
+$tar=which("gtar","tar");
+$sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
+$sur= $opt_sur ? "/my/local/bin/sur" : "";
+delete $ENV{'MYSQL_PWD'};	# Reset possibly password
+delete $ENV{'MY_BASEDIR_VERSION'};
+$ENV{'MYSQL_TCP_PORT'}="3334";
+$ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql.build";
+$ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
+
+if ($opt_stage == 0)
+{
+  print "$host: Removing old distribution\n" if ($opt_debug);
+  if (-x "$host/bin/mysqladmin")
+  {
+    log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
+  }
+  system("touch $host/mysql-fix-for-glob");
+  rm_all(<$host/mysql-*>);
+  rm_all("$host/test");
+  system("mkdir $host") if (! -d $host);
+  system("mkdir $host/test") if (! -d "$host/test");
+  system("mkdir $host/bin") if (! -d "$host/bin");
+  system("mkdir Logs") if (! -d "Logs");
+  unlink($log);
+}
+
+open(LOG,">>$log") || abort("Can't open log file, error $?");
+select LOG;
+$|=1;
+select STDOUT;
+$|=1;
+
+safe_cd("$host");
+if ($opt_stage == 0)
+{
+  safe_system("gunzip < $opt_distribution | $tar xf -");
+}
+safe_cd($ver);
+if ($opt_stage <= 1)
+{ 
+  $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
+  unlink("config.cache");
+  if ($opt_static_server)
+  {
+    $opt_config_options.=" --with-mysqld-ldflags=-all-static";
+  }
+  if ($opt_static_client)
+  {
+    $opt_config_options.=" --with-client-ldflags=-all-static";
+  }
+  $opt_config_options.= " --disable-shared"; # Default for binary versions
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL binary\" --with-extra-charsets=complex $opt_config_options","Thank you for choosing MySQL");
+  if (-d "$pwd/$host/include-mysql")
+  {
+    safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
+  }
+}
+
+if ($opt_stage <= 2)
+{
+  unlink($opt_distribution) if (!$opt_no_delete);
+  safe_system("$make");
+}
+
+#
+# Create a binary distrubtion
+#
+if ($opt_stage <= 3)
+{
+  log_system("rm -fr mysql-* $pwd/$host/*.tar.gz");
+  log_system("strip sql/mysqld extra/comp_err client/mysql sql/mysqld client/mysqlshow extra/replace isam/isamchk client/mysqladmin client/mysqldump extra/perror");
+  check_system("scripts/make_binary_distribution $opt_tmp",".tar.gz created");
+  safe_system("mv mysql*.tar.gz $pwd/$host");
+  safe_system("cp client/mysqladmin $pwd/$host/bin");
+  safe_system("make clean") if ($opt_with_small_disk);
+}
+
+#
+# Unpack and test the binary distrubtion
+#
+
+if ($opt_stage <= 4 && !$opt_no_test)
+{
+  rm_all(<$pwd/$host/test/*>);
+  safe_cd("$pwd/$host/test");
+  $tar_file=<$pwd/$host/*.tar.gz>;
+  if (!defined($tar_file))
+  {
+    $tar_file=<$pwd/$host/*.tgz>;
+  }
+  safe_system("gunzip < $tar_file | $tar xf -");
+}
+
+$test_dir=<$pwd/$host/test/$ver-*>;
+if ($opt_stage <= 5 && !$opt_no_test)
+{
+  safe_cd($test_dir);
+  log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
+  sleep(2);
+  log_system("rm -f  ./data/mysql/*");
+  check_system("scripts/mysql_install_db --skip-locking","com/license");
+  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking >> $log 2>&1 &");
+  sleep(2);
+}
+
+if ($opt_stage <= 6 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
+{
+  safe_cd($test_dir);
+  rm_all("perl");
+  safe_system("mkdir perl");
+  $ENV{'IN_MYSQL_DISTRIBUTION'}=1;
+  $ENV{'MYSQL_BUILD'}=$test_dir;
+
+  foreach $module (split(/,/,$opt_perl_files))
+  {
+    my $options;
+    safe_cd("$test_dir/perl");
+    if ($opt_debug)
+    {
+      safe_system("gunzip < $pwd/$module | tar xvf -");
+    }
+    else
+    {
+      safe_system("gunzip < $pwd/$module | tar xf -");
+    }
+    $module =~ m|([^/]+)\.tar\.gz|;
+    $module = $1;
+    safe_cd($module);
+    $options="";
+    $options= "--mysql-install --noprompt --mysql-incdir=$test_dir/include --mysql-libdir=$test_dir/lib -nomsql-install -nomsql1-install --mysql-test-db=test $opt_dbd_options" if ($module =~ /Msql-Mysql/);
+    $options.= " PREFIX=$pwd/$host INSTALLPRIVLIB=$pwd/$host/perl5 INSTALLSCRIPT=$pwd/$host/bin INSTALLSITELIB=$pwd/$host/perl5/site_perl INSTALLBIN=$pwd/$host/bin INSTALLMAN1DIR=$pwd/$host/man INSTALLMAN3DIR=$pwd/$host/man/man3" if ($opt_local_perl);
+    $options.= " $opt_perl_options" if (defined($opt_perl_options));
+    safe_system($opt_static_perl ? "perl Makefile.PL -static $options" : "perl Makefile.PL $options");
+    safe_system("$make ; $sur $make install");
+  }
+}
+
+
+if ($opt_stage <= 7 && !$opt_no_test)
+{
+  safe_cd("$test_dir/sql-bench");
+  log_system("rm -f limits/mysql.cfg");
+  safe_system("perl ./crash-me --force --batch-mode");
+}
+
+if ($opt_stage <= 8 && !$opt_no_test)
+{
+  safe_cd("$test_dir/sql-bench");
+  log_system("rm -f output/*");
+  $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
+  check_system("perl ./run-all-tests --log --die-on-errors $tmp","RUN-mysql");
+}
+
+if ($opt_stage <= 9 && $opt_result)
+{
+  safe_system("rcp $pwd/$host/*.tar.gz $opt_result");
+}
+
+log_system("$pwd/$host/$ver/client/mysqladmin --no-defaults -S $mysql_unix_port -u root shutdown");
+print LOG "ok\n";
+close LOG;
+print "$host: ok\n";
+
+exit 0;
+
+
+sub usage
+{
+print <<EOF;
+$0  version 1.1
+
+$0 takes the following options:
+
+--help or --Information
+Show this help
+
+--user 'user_name'
+Mail 'user_name'\@analytikerna.se if something went wrong.
+If user is empty then no mail is sent. 
+
+--distribution 'distribution_file'
+Name of the MySQL distribution file.
+
+--result 'result_dir'
+Send binary distribution to result_dir
+
+--no-delete
+Do not delete the distribution file.
+
+--perl-files=list of files
+Compile and install the given perl modules.
+
+--no-test
+Don not run crash-me or the benchmarks.
+
+--config-options 'some extra configure options'
+To add some extra options, like '--with-perl=yes'
+
+--config-env 'environment for configure'
+To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
+
+--dbd-options 'options'
+Options for Makefile.PL when configuring msql-mysql-modules.
+
+--with-low-memory
+Use less memory when compiling.
+
+-- stage (1-6)
+Start script from some specific point.
+
+-- debug
+Print all shell commands on stdout.
+EOF
+exit 1;
+} 
+
+sub abort
+{
+  my($message)=@_;
+  my($command,$mail_header_file);
+  print LOG "\n$message\n";
+  print "$host: $message\n" if ($opt_debug);
+  close LOG;
+
+  if ($opt_user)
+  {
+    $mail_header_file="$opt_tmp/do-command.$$";
+    open(TMP,">$mail_header_file");
+    print TMP "From: mysql\@$host.se\n";
+    print TMP "To: $email\n";
+    print TMP "Subject: MySQL compilation failed again\n\n";
+    close TMP;
+    $command=($opt_rsh_mail) ? "$rsh analytik" : "";
+    system("tail -30 $log > $log.mail");
+    system("cat $mail_header_file $log.mail | $command $sendmail -t -f $email");
+    unlink($mail_header_file);
+    unlink("$log.mail");
+  }
+  print LOG "Aborting\n";
+  exit 1;
+}
+
+sub info
+{
+  my($message)=@_;
+  print LOG "$message\n";
+  print "$host: $message\n";
+}
+
+sub log_system
+{
+  my($com)=@_;
+  print "$host: $com\n" if ($opt_debug);
+  if (defined($log))
+  {
+    print LOG "$com\n";
+    system("$com >> $log 2>&1") &&
+      print LOG ("Info: couldn't execute command, error: " . ($? / 256) ."\n");
+  }
+  else
+  {
+    system($com) && print "$host: Couldn't execute command, error: " . ($? / 256) ."\n";
+  }
+}
+
+
+sub safe_system
+{
+  my($com,$res)=@_;
+  print LOG "$com\n";
+  print "$host: $com\n" if ($opt_debug);
+  system("$com >> $log 2>&1") && abort("error: Couldn't execute command, error: " . ($? / 256));
+}
+
+sub check_system
+{
+  my($com,$res)=@_;
+  my ($error,$found);
+  print LOG "$com\n";
+  print "$host: $com\n" if ($opt_debug);
+  open (COM, "$com 2>&1 < /dev/null|") || abort("Got error " . ($?/256) ." opening pipe");
+  $found=0;
+  while (<COM>)
+  {
+    print LOG $_;
+    if (index($_,$res) >= 0)
+    {
+      $found=1;
+      last;
+    }
+  }
+  close COM;
+  abort("Couldn't find '$res' in the command result") if (!$found);
+  print "$host: Command ok\n" if ($opt_debug);
+}
+
+sub safe_cd
+{
+  my($dir)=@_;
+  print LOG "cd $dir\n";
+  print "$host: cd $dir\n" if ($opt_debug);
+  chdir($dir) || abort("Can't cd to $dir");
+}
+
+sub which
+{
+  my(@progs)=@_;
+  foreach $prog (@progs)
+  {
+    chomp($found=`which $prog | head -1`);
+    if ($? == 0 && $found ne "" && index($found," ") == -1)
+    {
+      $found =~ s|/+|/|g;	# Make nicer output
+      return $found;
+    }
+  }
+  return undef();
+}
+
+sub find
+{
+  my (@progs)=@_;
+  foreach $prog (@progs)
+  {
+    return $prog if (-x $prog);
+  }
+  return undef();  
+}
+
+#
+# Remove recursively all from a directory
+# This is needed because problems with NFS and open files
+#
+
+sub rm_all
+{
+  my(@rm_files)=@_;
+  my($dir,$current_dir,@files,@dirs);
+  $current_dir = `pwd`; chomp($current_dir);
+
+  foreach $dir (@rm_files)
+  {
+    if (-d $dir)
+    {
+      chdir($dir) || abort("Can't cd to $dir");
+      print "$host: Removing from $dir\n" if ($opt_debug);
+      while (<* .*>)
+      {
+	next if ($_ eq "." x (length($_)));
+	if (-d $_)
+	{
+#	  die "Can't remove directory that starts with ." if ($_ =~ /^\./ && $_ ne ".libs"); # Safety
+	  push (@dirs,$_);
+	}
+	else
+	{
+	  push (@files,$_);
+	}
+      }
+      if ($#files >= 0)
+      {
+	system("rm -f " . join(" ",@files)) && abort("Can't remove files from $dir");
+      }
+      foreach $dir (@dirs)
+      {
+	rm_all($dir);
+      }
+      chdir($current_dir) || abort("Can't cd to $current_dir");
+      log_system("rmdir $dir");
+    }
+    else
+    {
+      system("rm -f $dir") && abort("Can't remove file $dir");
+    }
+  }
+}

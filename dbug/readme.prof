@@ -1,0 +1,70 @@
+Hi,
+
+I'm sending you the modifications I made to your Dbug routines to
+allow profiling in a (relatively) machine independent fashion.
+I use your Dbug routines fairly extensively.  Unfortunately, it's
+a royal pain to have to keep profiled versions of various libraries
+around.  The modifications allow profiling without the need for this.
+
+How it works.
+------------
+
+Basically, I just added code in the dbug routines to write out a file
+called dbugmon.out (by default).  This is an ascii file containing lines
+of the form:
+
+<function-name> E <time-entered>
+<function-name> X <time-exited>
+
+A second program (analyze) reads this file, and produces a report on
+standard output.
+
+Profiling is enabled through the `g' flag.  It can take a list of
+procedure names for which profiling is enabled.  By default, it
+profiles all procedures.
+
+The code in ``dbug.c'' opens the profile file for appending.  This
+is in order that one can run a program several times, and get the
+sum total of all the times, etc.
+
+The only system dependent part that I'm aware of is the routine
+Clock() at the end of dbug.c.  This returns the elapsed user time
+in milliseconds.  The version which I have is for 4.3 BSD.  As I
+don't have access to other systems, I'm not certain how this would
+change.
+
+An example of the report generated follows:
+
+		Profile of Execution
+		Execution times are in milliseconds
+
+		    Calls			    Time
+		    -----			    ----
+		Times	Percentage	Time Spent	Percentage
+Function	Called	of total	in Function	of total    Importance
+========	======	==========	===========	==========  ==========
+factorial      	     5	     83.33	         30	    100.00        8333
+main           	     1	     16.67	          0	      0.00           0
+========	======	==========	===========	==========
+Totals         	     6	    100.00	         30	    100.00
+
+
+As you can see, it's quite self-evident.  The ``Importance'' column is a
+metric obtained by multiplying the percentage of the calls and the percentage
+of the time.  Functions with higher 'importance' benefit the most from
+being sped up.
+
+I'm really not certain how to add support for setjmp/longjmp, or for
+child processes, so I've ignored that for the time being.  In most of
+the code that I write, it isn't necessary.  If you have any good ideas,
+feel free to add them.
+
+This has been very useful to me.  If you can use it as part of your
+dbug distribution, please feel free to do so.
+
+Regards,
+
+				Binayak Banerjee
+		{allegra | astrovax | bpa | burdvax}!sjuvax!bbanerje
+			bbanerje%sjuvax.sju.edu@relay.cs.net
+				July 9, 1987

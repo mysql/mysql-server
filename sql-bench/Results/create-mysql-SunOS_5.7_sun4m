@@ -1,0 +1,18 @@
+Testing server 'MySQL 3.22.20' at 1999-03-19 13:53:23
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Testing create of tables
+Time for create_table (1000): 95 secs ( 2.15 usr  1.01 sys +  0.00 cusr  0.00 csys =  3.16 cpu)
+
+Accessing tables
+Time to select_group (1000):  9 secs ( 0.92 usr  0.99 sys +  0.00 cusr  0.00 csys =  1.91 cpu)
+
+Testing drop
+Time for drop_table (1000): 47 secs ( 0.59 usr  0.75 sys +  0.00 cusr  0.00 csys =  1.34 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 110 secs ( 2.56 usr  2.18 sys +  0.00 cusr  0.00 csys =  4.74 cpu)
+Time for create_key+drop (1000): 116 secs ( 5.71 usr  1.29 sys +  0.00 cusr  0.00 csys =  7.00 cpu)
+Total time: 377 secs (11.94 usr  6.22 sys +  0.00 cusr  0.00 csys = 18.16 cpu)

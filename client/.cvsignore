@@ -1,0 +1,14 @@
+.deps
+.libs
+Makefile
+Makefile.in
+insert_test
+mysql
+mysql-test
+mysql_test
+mysqladmin
+mysqldump
+mysqlimport
+mysqlshow
+select_test
+thread_test

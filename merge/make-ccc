@@ -1,0 +1,3 @@
+ccc -I./../include -I../include -DDBUG_OFF -fast -O3 -c _locking.c close.c create.c delete.c extra.c info.c open.c panic.c rrnd.c rsame.c static.c update.c
+rm libmerge.a
+ar -cr libmerge.a _locking.o

@@ -1,0 +1,22 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-09 18:59:52
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  1 wallclock secs ( 0.03 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting data
+Time to insert (9768): 23 wallclock secs ( 5.25 usr  0.67 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Retrieving data
+Time for select_simple_join (500):  6 wallclock secs ( 1.02 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+96 queries in 48 loops of 100 loops took 606 seconds
+Estimated time for select_join (200): 1262 wallclock secs ( 5.94 usr  0.52 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_distinct (800): 139 wallclock secs ( 2.82 usr  0.22 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_group (2000): 89 wallclock secs ( 1.53 usr  0.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Removing tables
+Time to drop_table (28):  0 wallclock secs ( 0.03 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Estimated total time: 1520 wallclock secs (16.64 usr  1.66 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

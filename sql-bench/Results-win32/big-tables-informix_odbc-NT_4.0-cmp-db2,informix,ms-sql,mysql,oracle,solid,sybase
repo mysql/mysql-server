@@ -1,0 +1,19 @@
+Testing server 'Informix 7.30C1  ' at 1998-09-01  2:06:11
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 83 secs (83.28 usr  0.00 sys = 83.28 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 91 secs (91.36 usr  0.00 sys = 91.36 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 54 secs (53.26 usr  0.00 sys = 53.26 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 57 secs (57.68 usr  0.00 sys = 57.68 cpu)
+
+Total time: 285 secs (285.73 usr  0.00 sys = 285.73 cpu)

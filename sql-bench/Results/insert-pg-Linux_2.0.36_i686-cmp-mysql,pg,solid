@@ -1,0 +1,72 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-09 19:30:50
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 1011 wallclock secs (169.92 usr 19.49 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 164 wallclock secs (46.42 usr  5.41 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 113 wallclock secs (26.65 usr  1.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for order_by_key (10:3000000): 265 wallclock secs (26.66 usr  1.20 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for order_by (10:3000000): 269 wallclock secs (26.89 usr  1.27 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+90 queries in 90 loops of 5000 loops took 609 seconds
+Estimated time for select_range_prefix (5000:756): 33833 wallclock secs ( 6.11 usr  0.56 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+90 queries in 90 loops of 5000 loops took 609 seconds
+Estimated time for select_range (5000:756): 33833 wallclock secs ( 2.78 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+187952 queries in 93976 loops of 100000 loops took 601 seconds
+Estimated time for select_key_prefix (200000): 639 wallclock secs (123.46 usr 13.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+189328 queries in 94664 loops of 100000 loops took 601 seconds
+Estimated time for select_key (200000): 634 wallclock secs (122.95 usr 13.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Test of compares with simple ranges
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+520 queries in 13 loops of 500 loops took 629 seconds
+Estimated time for select_range_prefix (20000:1131): 629 wallclock secs ( 0.13 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+520 queries in 13 loops of 500 loops took 626 seconds
+Estimated time for select_range (20000:1131): 626 wallclock secs ( 0.23 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_group (101): 5594 wallclock secs ( 0.07 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1080 queries in 180 loops of 500 loops took 603 seconds
+Estimated time for min_max_on_key (3000): 1675 wallclock secs ( 1.28 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max (60): 49 wallclock secs ( 0.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count_on_key (100): 148 wallclock secs ( 0.06 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count (100): 156 wallclock secs ( 0.04 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update with functions
+Time for update_key (500):  443 wallclock secs ( 0.23 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for update_key_big (501): 978 wallclock secs ( 0.34 usr  0.06 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing delete
+Time for delete_key (500): 634 wallclock secs ( 0.32 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for delete_big (12): 43 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Insert into table with 7 keys and with a primary key with 7 parts
+Time for insert_key (100000): 944 wallclock secs (57.30 usr  6.79 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update of keys
+Time for update_of_key (256): 3569 wallclock secs ( 0.14 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Deleting everything from table
+Time for delete_big (2): 33 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 133319 wallclock secs (625.54 usr 64.54 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

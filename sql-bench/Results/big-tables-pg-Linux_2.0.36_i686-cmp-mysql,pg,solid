@@ -1,0 +1,19 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-09 19:14:20
+
+Testing of some unusual tables
+All tests are done 1000 times with 300 fields
+
+Testing table with 300 fields
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 170 wallclock secs ( 3.13 usr  0.25 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 177 wallclock secs ( 3.12 usr  0.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 53 wallclock secs ( 0.61 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 70 wallclock secs ( 0.76 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 470 wallclock secs ( 7.63 usr  0.60 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

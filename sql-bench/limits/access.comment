@@ -1,0 +1,40 @@
+Access 97 tested through ODBC 1998.04.19, by monty@mysql.com
+
+Access 97 has a bug when on executes a SELECT follwed very fast with a
+DROP TABLE or a DROP INDEX command:
+
+[Microsoft][ODBC Microsoft Access 97 Driver] The database engine couldn't lock table 'crash_q' because it's already in use by another person or process. (SQL-S1
+000)(DBD: st_execute/SQLExecute err=-1)
+
+Debugging SQL queries in Access 97 is terrible because most error messages
+are of type:
+
+Error: [Microsoft][ODBC Microsoft Access 97 Driver] Syntax error in CREATE TABLE statement. (SQL-37000)(DBD: st_prepare/SQLPrepare err=-1)
+
+Which doesn't tell a thing!
+
+--------------
+
+Access 2000 tested through ODBC 2000.01.02, by monty@mysql.com
+
+crash-me takes a LONG time to run under Access 2000.
+
+The '1+NULL' and the 'OR and AND in WHERE' tests kills
+Activestate Perl, build 521, DBI-DBC with an OUT OF MEMORY error.  
+The later test also kills perl/access with some internal errors.
+To go around this one must run crash-me repeatedly with the --restart option.
+
+Testing of the 'constant string size' (< 500K) takes a LOT of memory
+in Access (at least 250M on My computer).
+
+Testing of number of 'simple expressions' takes REALLY a lot of time
+and memory;  At some point I was up to 350M of used memory!
+
+To fix the above, I modified crash-me to have lower max limits in the
+above tests.
+
+Benchmarks (under Win98):
+
+Running the connect-test will take up all available memory and this
+will not be freed even after quitting perl!  There is probably some
+bug in the Access connect code that eats memory!

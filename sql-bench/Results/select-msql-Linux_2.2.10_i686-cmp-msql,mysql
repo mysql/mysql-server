@@ -1,0 +1,13 @@
+Testing server 'mSQL server version 2.0.10' at 1999-09-24  2:37:52
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 34 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000):  4 wallclock secs ( 1.66 usr  0.25 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing big selects on the table
+Time for select_big (70:17207):  2 wallclock secs ( 0.45 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (400:81810): 70 wallclock secs ( 3.03 usr  0.55 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 76 wallclock secs ( 5.15 usr  0.88 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

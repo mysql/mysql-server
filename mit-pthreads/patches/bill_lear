@@ -1,0 +1,70 @@
+From rael@dejanews.com Wed Jan 29 06:06:14 1997
+X-VM-v5-Data: ([nil nil nil t nil nil nil nil nil]
+	["1497" "Tue" "28" "January" "1997" "21:52:57" "-0600" "William S. Lear" "rael@dejanews.com" "<199701290352.VAA08678@homer.dejanews.com>" "53" "Patches for linux2.0" "^From:" nil nil "1" "1997012903:52:57" "Patches for linux2.0" nil nil]
+	nil)
+Received: from MIT.EDU (PACIFIC-CARRIER-ANNEX.MIT.EDU [18.69.0.28])
+          by analytik.analytikerna.se (8.8.4/8.8.4) with SMTP
+	  id GAA23245 for <monty@analytikerna.se>; Wed, 29 Jan 1997 06:06:12 +0100 (MET)
+Received: from host-205-238-143-2.dejanews.com by MIT.EDU with SMTP
+	id AA25254; Tue, 28 Jan 97 22:53:08 EST
+Received: (from rael@localhost) by homer.dejanews.com (8.7.6/8.6.12) id VAA08678 for pthreads@mit.edu; Tue, 28 Jan 1997 21:52:57 -0600 (CST)
+Message-Id: <199701290352.VAA08678@homer.dejanews.com>
+Content-Length: 1496
+From: "William S. Lear" <rael@dejanews.com>
+To: pthreads@MIT.EDU
+Subject: Patches for linux2.0
+Date: Tue, 28 Jan 1997 21:52:57 -0600 (CST)
+
+
+The following are some patches I found necessary to run smoothly
+under linux2.0.  The PTEST directory below refers to the original
+pthreads 1.60 beta 6 release.  Of course, the '-O2' "fix" is not strictly
+needed.
+
+#============================================================
+# < pthreads-1_60beta6/config/configure
+# > PTEST/pthreads-1_60beta6/config/configure
+#------------------------------------------------------------
+642c642
+<       CFLAGS="-g -O2"
+---
+>       CFLAGS="-g -O"
+1104,1106d1103
+<       cat >> confdefs.h <<EOF
+< #define BSD_TM 1
+< EOF
+ 
+# Diff for:
+#============================================================
+# < pthreads-1_60beta6/config/config.h.in
+# > PTEST/pthreads-1_60beta6/config/config.h.in
+#------------------------------------------------------------
+3,8d2
+< /* Does the OS have tm needing bsd'ish initialization? */
+< #undef BSD_TM
+< 
+< /* Does the OS already support struct timespec */
+< #undef _OS_HAS_TIMESPEC
+< 
+ 
+# Diff for:
+#============================================================
+# < pthreads-1_60beta6/gen/ctime.c
+# > PTEST/pthreads-1_60beta6/gen/ctime.c
+#------------------------------------------------------------
+49c49
+< #include "config.h"
+---
+> 
+ 
+# Diff for:
+#============================================================
+# < pthreads-1_60beta6/include/math.h
+# > PTEST/pthreads-1_60beta6/include/math.h
+#------------------------------------------------------------
+54d53
+< double hypot  __P((double, double));
+
+
+Bill Lear (rael@dejanews.com)
+

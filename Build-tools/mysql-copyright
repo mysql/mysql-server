@@ -1,0 +1,212 @@
+#!/usr/bin/perl -i
+
+# Untar a MySQL distribution, change the copyright texts,
+# pack it up again to a given directory
+
+$VER="1.1";
+
+use Getopt::Long;
+
+$opt_help= 0;
+$opt_target=  "mysql-copyright-target-";
+$opt_target.= `date +%d%m%y-%H%M%S`;
+chop $opt_target;
+
+GetOptions("help","target=s") || usage();
+
+# fix the directory prefix for target dir
+
+$WD= `pwd`;
+chop $WD;
+$opt_target= $WD . '/' . $opt_target;
+
+&main();
+
+####
+#### main
+####
+
+sub main
+{
+  my $REG_BASENAME = '[a-z0-9A-Z\-\_\+]+';
+  my $REG_VERSION = '[0-9\.\-]+[a-z]?[0-9\.\-]+?(.alpha|.beta|.gamma|pre\d|[0-9\.\-a-z])?';
+  my $target;
+
+  usage() if (!$ARGV[0] || $opt_help);
+
+  `mkdir -p $opt_target`;
+  $pec= $? >> 8;
+  die "Couldn't make the target directory!\n" if ($pec);
+
+  for ($i=0; $ARGV[$i]; $i++)
+  {
+    my $distfile= $ARGV[$i];
+    my $dir;
+
+    $dir= "mysql-copyright-";    
+    $dir.= `date +%d%m%y-%H%M%S`;
+    chop $dir;
+
+    if (!(mkdir "$dir", 0700))
+    {
+      die "Couldn't make directory $dir!";
+    }
+    if (!(chdir "$dir"))
+    {
+      abort($dir, "Couldn't cd to $dir!");
+    }
+    # if the distfile is mysql-3.22.22-alpha.tar.gz, then
+    # distname is 'mysql-3.22.22-alpha' and suffix '.tar.gz'
+    if ($distfile =~ m/^($REG_BASENAME)([\-\_])
+	($REG_VERSION){1}([\.\-\+])
+	(.*)?$/xo) 
+    {
+      $distname= $1.$2.$3;
+      $suffix= $5.$6;
+      $newdistname= $1."com".$2.$3;
+    }
+    # find out the extract path (should be same as distname!)
+    $destdir= `tar tvzf ../$distfile | head -1`;
+    # remove leading crab
+    $destdir =~ s/.*\d+:\d+:\d+[ ]//;
+    # remove newline and slash from the end
+    $destdir= substr($destdir, 0, -2);
+    
+    if ("$destdir" ne "$distname")
+    {
+      print "Destination directory (the directory that will be extracted\n";
+      print "from the original distribution file) differs from the\n";
+      print "distribution name! Are you sure you want to continue? (Y/N) [N]:";
+      $ans= my_read(1);
+      abort($dir, "Aborted!") if ("$ans" ne "Y" && "$ans" ne "y");
+    }
+    
+    # everything should be ok, continue with extracting..
+    `gtar xfz ../$distfile`;
+    $pec= $? >> 8;
+    abort($dir, "Extracting from tar failed!\n") if ($pec);
+
+    # remove the 'PUBLIC' file from distribution and copy LICENSE
+    # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
+    # exist in the new mysql distributions, but let's be sure..
+    `rm -f $destdir/PUBLIC`;
+    `cp -a $WD/Docs/LICENSE $destdir/`;
+    
+    # fix file copyrights
+    &fix_usage_copyright();
+    &add_copyright();
+    
+    # rename the directory with new distribution name
+    `mv -f $destdir $newdistname`;
+    
+    # tar the new distribution
+    `gtar cz -f $opt_target/$newdistname.tar.gz *`;
+    $pec= $? >> 8;
+    abort($dir, "Making new tar archive failed!\n") if ($pec);
+  
+    # remove temporary directory
+    chdir "..";
+    `rm -rf $dir/`;
+  }
+  exit(0);
+}  
+
+####
+#### mysqld and MySQL client programs have a usage printed with --help.
+#### This usage includes a copyright, which needs to be modified
+####
+
+sub fix_usage_copyright
+{
+  my @Cfiles = `find . -type f -name \"*.c*\"`;
+  foreach my $Cfile (@Cfiles)
+  {
+    chop $Cfile;
+    `replace \"This is free software,\\\\\\nand you are welcome to modify and redistribute it under the GPL license\" \"This is commercial software,\\\\nplease see the file LICENSE for details\" -- $Cfile`;
+  }
+}
+
+####
+#### change the copyright text in the beginning of the files
+####
+
+sub add_copyright
+{
+  my @files = `find . -type f -name "*"`;
+  foreach my $file (@files)
+  {
+    chop $file;
+    `$WD/Build-tools/mysql-copyright-2 $file`;
+  }
+}
+
+####
+#### read stdin
+####
+
+sub my_read
+{
+  ($length)= @_;                # Max allowed length for the string.
+
+  $input= getc(STDIN);
+  if($input eq "\n")
+  {
+    return "\n";
+  }
+  for($new_input= getc(STDIN); $new_input ne "\n" ;)
+  {
+    if(length($input) < $length)
+    {
+      $input.= $new_input;
+    }
+    $new_input= getc(STDIN);
+  }
+  return $input;
+}
+
+####
+#### abort
+####
+
+sub abort
+{
+  my ($dir, $errstr)= @_;
+  # remove newly made directory and it's contents
+  print "$errstr\n";
+  chdir "..";
+  print "Removing directory $dir...\n";
+  `rm -rf $dir`;
+  exit(0);
+}
+
+####
+#### usage
+####
+
+sub usage
+{
+  print <<EOF;
+$0 version $VER by Jani Tolonen
+
+Description: The program takes one or more MySQL distributions as an
+argument(s), extracts them, changes the copyright text in the
+distribution files and makes a new distribution with suffix "com" in
+the basename to directory mysql-copyright-target-DATE, where the
+command was issued. For example: mysql-3.23.18-beta.tar.gz ->
+mysqlcom-3.23.18-beta.tar.gz. DATE is of form DDMMYY-HHMMSS. The
+target directory can be changed with option
+--target=... mysql-copyright consists of two perl programs, this one
+and another, mysql-copyright-2.  Make sure the second part of the
+script is available to the main script.
+
+Usage: 
+$0 [options] file1 [file2 file3...]
+
+Options:
+--help            Show this help and exit.
+--target          Target directory for new distribution files.
+                  '.' can be used for the current directory.
+                  (Default: $opt_target)
+EOF
+  exit(0);
+}

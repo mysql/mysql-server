@@ -1,0 +1,20 @@
+Testing server 'Informix 7.30C1  ' at 1998-09-01  3:21:25
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000): 56 secs (55.74 usr  0.00 sys = 55.74 cpu)
+
+Accessing tables
+Time to select_group (1000):  8 secs ( 8.49 usr  0.00 sys =  8.49 cpu)
+
+Testing drop
+Time for drop_table (1000): 33 secs (32.69 usr  0.00 sys = 32.69 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 35 secs (35.34 usr  0.00 sys = 35.34 cpu)
+Time for create_key+drop (1000): 90 secs (89.37 usr  0.00 sys = 89.37 cpu)
+Total time: 222 secs (221.64 usr  0.00 sys = 221.64 cpu)

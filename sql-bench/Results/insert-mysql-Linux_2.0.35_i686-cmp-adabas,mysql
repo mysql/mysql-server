@@ -1,0 +1,51 @@
+Testing server 'MySQL 3.22.9 beta' at 1998-10-20  6:58:58
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 10000 rows.
+
+Generating random keys
+Creating tables
+Inserting 10000 rows in order
+Inserting 10000 rows in reverse order
+Inserting 10000 rows in random order
+Time for insert (30000): 17 secs ( 2.03 usr  2.84 sys =  4.87 cpu)
+
+Testing insert of duplicates
+Time for insert_duplicates (30000):  4 secs ( 0.00 usr  1.39 sys =  1.39 cpu)
+
+Retrieving data from the table
+Time for select_big (10:300000):  6 secs ( 2.08 usr  4.11 sys =  6.19 cpu)
+Time for order_by_key (10:300000):  6 secs ( 1.44 usr  4.75 sys =  6.19 cpu)
+Time for order_by (10:300000): 10 secs ( 2.24 usr  6.64 sys =  8.88 cpu)
+Time for select_range_prefix (5010:42084): 24 secs ( 1.10 usr  5.05 sys =  6.15 cpu)
+Time for select_range (5010:42084): 17 secs ( 1.39 usr  4.77 sys =  6.16 cpu)
+Time for select_key_prefix (20000): 27 secs ( 6.22 usr 11.03 sys = 17.25 cpu)
+Time for select_key (20000): 25 secs ( 5.64 usr 11.36 sys = 17.00 cpu)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 16 secs ( 3.30 usr  6.08 sys =  9.38 cpu)
+Time for select_range (20000:43500): 15 secs ( 3.32 usr  6.80 sys = 10.12 cpu)
+Time for select_group (101):  5 secs ( 0.01 usr  0.08 sys =  0.09 cpu)
+Time for min_max_on_key (3000):  3 secs ( 0.79 usr  1.31 sys =  2.10 cpu)
+Time for min_max (60):  4 secs ( 0.00 usr  0.08 sys =  0.08 cpu)
+Time for count_on_key (100):  6 secs ( 0.00 usr  0.06 sys =  0.06 cpu)
+Time for count (100):  7 secs ( 0.01 usr  0.06 sys =  0.07 cpu)
+
+Testing update with functions
+Time for update_key (500):   1 secs ( 0.05 usr  0.07 sys =  0.12 cpu)
+Time for update_key_big (480):  4 secs ( 0.03 usr  0.04 sys =  0.07 cpu)
+
+Testing delete
+Time for delete_key (500):  0 secs ( 0.00 usr  0.04 sys =  0.04 cpu)
+Time for delete_big (12):  2 secs ( 0.01 usr  0.01 sys =  0.02 cpu)
+
+Insert into table with 16 keys and with a primary key with 16 parts
+Time for insert_key (10000): 15 secs ( 0.72 usr  1.30 sys =  2.02 cpu)
+
+Testing update of keys
+Time for update_of_key (256):  7 secs ( 0.02 usr  0.04 sys =  0.06 cpu)
+
+Deleting everything from table
+Time for delete_big (2):  8 secs ( 0.00 usr  0.00 sys =  0.00 cpu)
+
+Total time: 229 secs (30.40 usr 67.93 sys = 98.33 cpu)

@@ -1,0 +1,12 @@
+.deps
+.libs
+Makefile
+Makefile.in
+deadlock_test.c
+gen_lex_hash
+lex_hash.h
+mysqlbinlog
+mysqlbinlog
+mysqld
+sql_yacc.cc
+sql_yacc.h

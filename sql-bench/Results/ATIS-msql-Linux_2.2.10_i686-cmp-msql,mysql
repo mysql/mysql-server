@@ -1,0 +1,18 @@
+Testing server 'mSQL server version 2.0.10' at 1999-09-22  8:39:03
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  0 wallclock secs ( 0.02 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Inserting data
+Time to insert (9768):  4 wallclock secs ( 1.16 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data
+Time for select_simple_join (500):  5 wallclock secs ( 1.88 usr  0.33 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_join (200): 219 wallclock secs (14.80 usr  3.71 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_distinct (700): 22 wallclock secs ( 5.65 usr  1.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Removing tables
+Time to drop_table (28):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 250 wallclock secs (23.58 usr  5.24 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

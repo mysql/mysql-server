@@ -1,0 +1,1839 @@
+dnl -*- ksh -*-
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(sql/mysqld.cc)
+AC_CANONICAL_SYSTEM
+# The Docs Makefile.am parses this line!
+AM_INIT_AUTOMAKE(mysql, 3.23.22-beta)
+AM_CONFIG_HEADER(config.h)
+
+PROTOCOL_VERSION=10
+DOT_FRM_VERSION=6
+# See the libtool docs for information on how to do shared lib versions.
+SHARED_LIB_VERSION=9:0:0
+
+# Set all version vars based on $VERSION. How do we do this more elegant ?
+# Remember that regexps needs to quote [ and ] since this is run through m4
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
+F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[[a-zA-Z]]\+||"`
+L_PART=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|^[[0-9]]\.[[0-9]]*\.||" | sed -e "s|^\(.\)$|0\\1|" | sed -e "s|[[a-z]]||"`
+MYSQL_VERSION_ID=${F_PART}${L_PART}
+
+# The port should be constant for a LONG time
+MYSQL_TCP_PORT_DEFAULT=3306
+MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
+
+# Remember to add a directory sql/share/LANGUAGE
+AVAILABLE_LANGUAGES="\
+czech danish dutch english estonia french german greek hungarian \
+italian japanese korean norwegian norwegian-ny polish portuguese \
+romania russian slovak spanish swedish"
+
+#####
+#####
+
+AC_SUBST(MYSQL_NO_DASH_VERSION)
+AC_SUBST(MYSQL_BASE_VERSION)
+AC_SUBST(MYSQL_VERSION_ID)
+AC_SUBST(PROTOCOL_VERSION)
+AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, $PROTOCOL_VERSION)
+AC_SUBST(DOT_FRM_VERSION)
+AC_DEFINE_UNQUOTED(DOT_FRM_VERSION, $DOT_FRM_VERSION)
+AC_SUBST(SHARED_LIB_VERSION)
+AC_SUBST(AVAILABLE_LANGUAGES)
+
+# Canonicalize the configuration name.
+SYSTEM_TYPE="$host_vendor-$host_os"
+MACHINE_TYPE="$host_cpu"
+AC_SUBST(SYSTEM_TYPE)
+AC_DEFINE_UNQUOTED(SYSTEM_TYPE, "$SYSTEM_TYPE")
+AC_SUBST(MACHINE_TYPE)
+AC_DEFINE_UNQUOTED(MACHINE_TYPE, "$MACHINE_TYPE")
+
+# Save some variables and the command line options for mysqlbug
+SAVE_CFLAGS="$CFLAGS"
+SAVE_CXXFLAGS="$CXXFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+SAVE_CXXLDFLAGS="$CXXLDFLAGS"
+CONF_COMMAND="$0 $ac_configure_args"
+AC_SUBST(CONF_COMMAND)
+AC_SUBST(SAVE_CFLAGS)
+AC_SUBST(SAVE_CXXFLAGS)
+AC_SUBST(SAVE_LDFLAGS)
+AC_SUBST(SAVE_CXXLDFLAGS)
+AC_SUBST(CXXLDFLAGS)
+
+AC_PREREQ(2.12)dnl		Minimum Autoconf version required.
+
+AM_MAINTAINER_MODE
+AC_ARG_PROGRAM
+AM_SANITY_CHECK
+# This is needed is SUBDIRS is set
+AC_PROG_MAKE_SET
+# This generates rules for webpage generation for the MySQL homepage.
+AM_CONDITIONAL(LOCAL, test -d ../web/SitePages)
+
+# This is need before AC_PROG_CC
+#
+
+if test "x${CFLAGS-}" = x ; then
+  cflags_is_set=no
+else
+  cflags_is_set=yes
+fi
+
+if test "x${CPPFLAGS-}" = x ; then
+  cppflags_is_set=no
+else
+  cppflags_is_set=yes
+fi
+
+if test "x${LDFLAGS-}" = x ; then
+  ldflags_is_set=no
+else
+  ldflags_is_set=yes
+fi
+
+# The following hack should ensure that configure doesn't add optimizing
+# or debugging flags to CFLAGS or CXXFLAGS
+CFLAGS="$CFLAGS "
+CXXFLAGS="$CXXFLAGS "
+
+dnl Checks for programs.
+AC_PROG_AWK
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_CPP
+if test "$ac_cv_prog_gcc" = "yes"
+then
+  AS="$CC -c"
+  AC_SUBST(AS)
+else
+  AC_PATH_PROG(AS, as, as)
+fi
+# Still need ranlib for readline; local static use only so no libtool.
+AC_PROG_RANLIB
+# We use libtool
+AM_PROG_LIBTOOL
+
+#AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
+
+# AC_PROG_INSTALL We should only need a AM_PROG_INSTALL
+AC_PROG_INSTALL
+# Not critical since the generated file is distributed
+AC_PROG_YACC
+
+AC_MSG_CHECKING("return type of sprintf")
+
+#check the return type of sprintf
+AC_TRY_RUN([
+  int main()
+    {
+      char* s = "hello";
+      char buf[6];
+      if((int)sprintf(buf, s) == strlen(s))
+	return 0;
+      
+      return -1;
+     }
+   ],
+AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
+ AC_TRY_RUN([
+ int main()
+   {
+     char* s = "hello";
+     char buf[6];
+     if((char*)sprintf(buf,s) == buf + strlen(s))
+       return 0;
+     return -1;  
+   }
+], AC_DEFINE(SPRINTF_RETURNS_PTR) AC_MSG_RESULT("ptr"),
+ AC_DEFINE(SPRINTF_RETURNS_GARBAGE) AC_MSG_RESULT("garbage")))
+   	
+
+# option, cache_name, variable
+AC_DEFUN(AC_SYS_COMPILER_FLAG,
+[
+  AC_MSG_CHECKING($1)
+  OLD_CFLAGS="[$]CFLAGS"
+  AC_CACHE_VAL(mysql_cv_option_$2,
+  [
+    CFLAGS="[$]OLD_CFLAGS $1"
+    AC_TRY_RUN([int main(){exit(0);}],mysql_cv_option_$2=yes,mysql_cv_option_$2=no,mysql_cv_option_$2=no)
+  ])
+
+  CFLAGS="[$]OLD_CFLAGS"
+  
+  if test x"[$]mysql_cv_option_$2" = "xyes" ; then
+    $3="[$]$3 $1"
+    AC_MSG_RESULT(yes)
+    $5
+  else
+    AC_MSG_RESULT(no)
+    $4
+  fi
+])
+
+# arch, option, cache_name, variable
+AC_DEFUN(AC_SYS_CPU_COMPILER_FLAG,
+[
+ if test "`uname -m 2>/dev/null`" = "$1" ; then
+    AC_SYS_COMPILER_FLAG($2,$3,$4)
+ fi
+])
+
+# os, option, cache_name, variable
+AC_DEFUN(AC_SYS_OS_COMPILER_FLAG,
+[
+ if test "x$mysql_cv_sys_os" = "x$1" ; then
+    AC_SYS_COMPILER_FLAG($2,$3,$4)
+ fi
+])
+
+# We need some special hacks when running slowaris
+AC_PATH_PROG(uname_prog, uname, no)
+
+# We should go through this and put all the explictly system dependent
+# stuff in one place
+AC_MSG_CHECKING(operating system)
+AC_CACHE_VAL(mysql_cv_sys_os,
+[
+if test "$uname_prog" != "no"; then
+  mysql_cv_sys_os="`uname`"
+else
+  mysql_cv_sys_os="Not Solaris"
+fi
+])
+AC_MSG_RESULT($mysql_cv_sys_os)
+
+# This should be rewritten to use $target_os
+case "$target_os" in
+  sco3.2v5*) 
+     CFLAGS="$CFLAGS -DSCO"
+     LD='$(CC) $(CFLAGS)'
+     case "$CFLAGS" in
+       *-belf*) 
+         AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+         case "$LDFLAGS" in
+           *-belf*) ;;
+           *) echo "Adding -belf option to ldflags."
+              LDFLAGS="$LDFLAGS -belf"
+           ;;
+         esac
+         ])
+       ;;
+       *)
+         AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+         case "$LDFLAGS" in
+           *-belf*) ;;
+           *)
+	     echo "Adding -belf option to ldflags."
+             LDFLAGS="$LDFLAGS -belf"
+           ;;
+         esac
+         ])
+       ;;
+     esac
+  ;;
+  sysv5uw7*) LIBS="-lsocket -lnsl $LIBS"
+    if test "$GCC" != "yes"; then
+      # We are using built-in inline function
+      CFLAGS="$CFLAGS -Kalloca"
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+    else
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+    fi
+  ;;
+esac
+
+AC_SUBST(CC)
+AC_SUBST(CFLAGS)
+AC_SUBST(CXX)
+AC_SUBST(CXXFLAGS)
+AC_SUBST(LD)
+
+export CC CFLAGS LD LDFLAGS
+
+if test "$GXX" = "yes"
+then
+  # mysqld requires this when compiled with gcc
+  CXXFLAGS="$CXXFLAGS -fno-implicit-templates"
+fi
+
+# Avoid bug in fcntl on some versions of linux
+AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
+# Any wariation of Linux
+if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
+then
+  MYSQLD_DEFAULT_SWITCHES="--skip-locking"
+  IS_LINUX="true"
+  AC_MSG_RESULT("yes");
+else
+  MYSQLD_DEFAULT_SWITCHES=""
+  IS_LINUX="false"
+  AC_MSG_RESULT("no");
+fi
+AC_SUBST(MYSQLD_DEFAULT_SWITCHES)
+AC_SUBST(IS_LINUX)
+
+dnl Find paths to some shell programs
+AC_PATH_PROG(LN, ln, ln)
+# This must be able to take a -f flag like normal unix ln.
+AC_PATH_PROG(LN_CP_F, ln, ln)
+# If ln -f does not exists use -s (AFS systems)
+if test -n "$LN_CP_F"; then
+  LN_CP_F="$LN_CP_F -s"
+fi
+
+AC_PATH_PROG(MV, mv, mv)
+AC_PATH_PROG(RM, rm, rm)
+AC_PATH_PROG(CP, cp, cp)
+AC_PATH_PROG(SED, sed, sed)
+AC_PATH_PROG(CMP, cmp, cmp)
+AC_PATH_PROG(CHMOD, chmod, chmod)
+AC_PATH_PROG(HOSTNAME, hostname, hostname)
+dnl We use a path for perl so the script startup works
+AC_PATH_PROG(PERL5, perl5, no)
+AC_PATH_PROG(PERL, perl, no)
+if test "$PERL5" != no
+then
+  PERL=$PERL5
+  ac_cv_path_PERL=$ac_cv_path_PERL5
+fi
+AC_SUBST(HOSTNAME)
+AC_SUBST(PERL)
+AC_SUBST(PERL5)
+
+# Lock for PS
+AC_PATH_PROG(PS, ps, ps)
+AC_MSG_CHECKING("how to check if pid exists")
+PS=$ac_cv_path_PS
+# Linux style
+if $PS p $$ 2> /dev/null | grep $0 > /dev/null
+then
+  FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+# Solaris
+elif $PS -p $$ 2> /dev/null | grep $0 > /dev/null
+then
+  FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
+# BSD style
+elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
+then
+  FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+# SysV style
+elif $PS -ef 2> /dev/null | grep $0 > /dev/null
+then
+  FIND_PROC="$PS -ef | grep mysqld | grep \" \$\$PID \" > /dev/null"
+# Do anybody use this?
+elif $PS $$ 2> /dev/null | grep $0 > /dev/null
+then
+  FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
+else
+  AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+fi
+AC_SUBST(FIND_PROC)
+AC_MSG_RESULT("$FIND_PROC")
+
+# Check if a pid is valid
+AC_PATH_PROG(KILL, kill, kill)
+AC_MSG_CHECKING("for kill switches")
+if $ac_cv_path_KILL -0 $$
+then
+  CHECK_PID="$ac_cv_path_KILL -0 \$\$PID"
+elif kill -s 0 $$
+then
+  CHECK_PID="$ac_cv_path_KILL -s 0 \$\$PID"
+else
+  AC_MSG_WARN([kill -0 to check for pid seems to fail])
+    CHECK_PID="$ac_cv_path_KILL -s SIGCONT \$\$PID"
+fi
+AC_SUBST(CHECK_PID)
+AC_MSG_RESULT("$CHECK_PID")
+
+# We need a ANSI C compiler
+AM_PROG_CC_STDC
+
+if test "$am_cv_prog_cc_stdc" = "no"
+then
+  AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
+fi
+
+# Set flags if we wants to have MIT threads.
+AC_ARG_WITH(mit-threads,
+    [  --with-mit-threads        Always use included thread lib.],
+    [ with_mit_threads=$withval ],
+    [ with_mit_threads=no ]
+    )
+
+if test "$with_mit_threads" = "yes"
+then
+  enable_largefile="no"		# Will not work on Linux.
+fi
+
+# Set flags if we want to force to use pthreads
+AC_ARG_WITH(pthread,
+    [  --with-pthread        Force use of pthread library.],
+    [ with_pthread=$withval ],
+    [ with_pthread=no ]
+    )
+
+# Force use of thread libs LIBS
+AC_ARG_WITH(named-thread-libs,
+    [  --with-named-thread-libs='-lib1 -lib2'    Use libs instead of automatically-found thread libs.],
+    [ with_named_thread=$withval ],
+    [ with_named_thread=no ]
+    )
+
+# Force use of a curses libs
+AC_ARG_WITH(named-curses-libs,
+    [  --with-named-curses-libs='-lib1 -lib2'    Use libs instead of automatically-found curses libs.],
+    [ with_named_curses=$withval ],
+    [ with_named_curses=no ]
+    )
+
+# Force use of a zlib (compress)
+AC_ARG_WITH(named-z-libs,
+    [  --with-named-z-libs='z'              Use libs instead of automatically-found zlib libs.],
+    [ with_named_zlib=$withval ],
+    [ with_named_zlib=z ]
+    )
+
+AC_MSG_CHECKING(whether to use libwrap)
+AC_ARG_WITH(libwrap,
+[  --with-libwrap[=PATH]   Compile in libwrap (tcp_wrappers) support.],
+[ case "$withval" in
+  no)
+    AC_MSG_RESULT(no)
+    ;;
+  yes)
+    AC_MSG_RESULT(yes)
+    AC_CHECK_LIB(wrap, request_init, [
+	AC_DEFINE(LIBWRAP)
+        WRAPLIBS="-lwrap"
+        AC_DEFINE(HAVE_LIBWRAP) ])
+    ;;
+  *)
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(LIBWRAP)
+    if test -d "$withval"; then
+    	WRAPLIBS="-L$withval -lwrap"
+    else
+	WRAPLIBS="$withval"
+    fi
+    AC_DEFINE(HAVE_LIBWRAP)
+    OLDLIBS="$LIBS"
+    LIBS="$WRAPLIBS $LIBS"
+    AC_TRY_LINK([ int allow_severity; int deny_severity; ],
+                [ hosts_access(); ],
+		[],
+		[ AC_MSG_ERROR(Could not find the $withval library.  You must first install tcp_wrappers.) ])
+    LIBS="$OLDLIBS"
+    ;;
+  esac ],
+  AC_MSG_RESULT(no)
+)
+
+AC_SUBST(WRAPLIBS)
+
+# Make thread safe client
+AC_ARG_ENABLE(thread-safe-client,
+    [  --enable-thread-safe-client     Compile the client with threads.],
+    [ THREAD_SAFE_CLIENT=$enableval ],
+    [ THREAD_SAFE_CLIENT=no ]
+    )
+
+# Make thread safe client
+AC_ARG_ENABLE(assembler,
+    [  --enable-assembler     Use assembler versions of some string functions if available.],
+    [ ENABLE_ASSEMBLER=$enableval ],
+    [ ENABLE_ASSEMBLER=no ]
+    )
+# For now we only support assembler on i386 and sparc systems
+AM_CONDITIONAL(ASSEMBLER_x86, test "$ENABLE_ASSEMBLER" = "yes" -a "$MACHINE_TYPE" = "i386")
+AM_CONDITIONAL(ASSEMBLER_sparc, test "$ENABLE_ASSEMBLER" = "yes" -a "$MACHINE_TYPE" = "sparc")
+AM_CONDITIONAL(ASSEMBLER, test ASSEMBLER_x86 = "" -o ASSEMBLER_x86 = "")
+
+AC_MSG_CHECKING(whether to use RAID)
+AC_ARG_WITH(raid,
+    [  --with-raid   Compile in RAID (striping, mirroring, ...) support.],
+    [   AC_DEFINE(USE_RAID)
+        AC_MSG_RESULT(yes) ],
+    [   AC_MSG_RESULT(no) ]
+    )
+
+# Use this to set the place used for unix socket used to local communication.
+AC_ARG_WITH(unix-socket-path,
+    [  --with-unix-socket-path=absolute-file-name     Where to put the unix-domain socket.],
+    [ MYSQL_UNIX_ADDR=$withval ],
+    [ MYSQL_UNIX_ADDR=$MYSQL_UNIX_ADDR_DEFAULT ]
+    )
+AC_SUBST(MYSQL_UNIX_ADDR)
+
+AC_ARG_WITH(tcp-port,
+    [  --with-tcp-port=port-number     Which port to use for MySQL services (default $MYSQL_TCP_PORT_DEFAULT)],
+    [ MYSQL_TCP_PORT=$withval ],
+    [ MYSQL_TCP_PORT=$MYSQL_TCP_PORT_DEFAULT ]
+    )
+AC_SUBST(MYSQL_TCP_PORT)
+# We might want to document the assigned port in the manual.
+AC_SUBST(MYSQL_TCP_PORT_DEFAULT)
+
+# Use this to set the place used for unix socket used to local communication.
+AC_ARG_WITH(mysqld-user,
+    [  --with-mysqld-user=username     What user mysqld daemon shall be run as.],
+    [ MYSQLD_USER=$withval ],
+    [ MYSQLD_USER=root ]
+    )
+AC_SUBST(MYSQLD_USER)
+
+# Use Paul Eggerts macros from GNU tar to check for large file
+# support.
+AC_SYS_LARGEFILE
+
+# Types that must be checked AFTER large file support is checked
+AC_TYPE_SIZE_T
+
+#--------------------------------------------------------------------
+# Check for system header files
+#--------------------------------------------------------------------
+
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
+ memory.h pwd.h select.h \
+ stdlib.h stddef.h \
+ strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
+ sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
+ unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h)
+
+#--------------------------------------------------------------------
+# Check for system libraries. Adds the library to $LIBS
+# and defines HAVE_LIBM etc
+#--------------------------------------------------------------------
+
+AC_CHECK_LIB(m, floor)
+if test "$ac_cv_lib_m_floor" = "no"
+then
+  AC_CHECK_LIB(m, __infinity)
+fi
+AC_CHECK_LIB(nsl_r, gethostbyname_r)
+if test "$ac_cv_lib_nsl_r_gethostbyname_r" = "no"
+then
+  AC_CHECK_LIB(nsl, gethostbyname_r)
+fi
+LIBS_BEFORE_SOCKET=$LIBS
+LIBS=
+AC_CHECK_LIB(socket, socket)
+LIBS_SOCKET=$LIBS
+LIBS=
+AC_CHECK_LIB(gen, p2open)
+# This may get things to compile even if bind-8 is installed
+AC_CHECK_LIB(bind, bind)
+# For crypt() on Linux
+AC_CHECK_LIB(crypt,crypt)
+# For compress in zlib
+AC_CHECK_LIB($with_named_zlib,compress)
+
+if test "$IS_LINUX" = "true"; then
+  AC_MSG_CHECKING([for atomic operations])
+
+  atom_ops=
+  AC_TRY_RUN([
+#include <asm/atomic.h>
+int main()
+{
+  atomic_t v;
+
+  atomic_set(&v, 23);
+  atomic_add(5, &v);
+  return atomic_read(&v) == 28 ? 0 : -1;
+}
+  ], AC_DEFINE(HAVE_ATOMIC_ADD) atom_ops="${atom_ops}atomic_add ",
+  )
+  AC_TRY_RUN([
+#include <asm/atomic.h>
+int main()
+{
+  atomic_t v;
+
+  atomic_set(&v, 23);
+  atomic_sub(5, &v);
+  return atomic_read(&v) == 18 ? 0 : -1;
+}
+  ], AC_DEFINE(HAVE_ATOMIC_SUB) atom_ops="${atom_ops}atomic_sub ",
+  )
+
+  if test -z "$atom_ops"; then atom_ops="no"; fi
+  AC_MSG_RESULT($atom_ops)
+fi
+
+# Check for gtty if termio.h doesn't exists
+if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
+then
+  AC_CHECK_LIB(compat, gtty)
+fi
+# We make a special variable for client library's to avoid including
+# thread libs in the client.
+LIBS_AFTER_SOCKET=$LIBS
+LIBS="$LIBS_BEFORE_SOCKET $LIBS_SOCKET $LIBS_AFTER_SOCKET"
+NON_THREADED_CLIENT_LIBS="$LIBS"
+
+#
+# Some system specific hacks
+#
+
+case $SYSTEM_TYPE in
+  *solaris2.7*)
+    # Solaris 2.7 has a broken /usr/include/widec.h
+    # Make a fixed copy in ./include
+    echo "Fixing broken include files for $SYSTEM_TYPE"
+    echo "  - Creating local copy of widec.h"
+    if test ! -d include
+    then
+      mkdir ./include
+    fi
+    builddir=`pwd`
+    sed -e "s|^#if[ 	]*!defined(lint) && !defined(__lint)|#if !defined\(lint\) \&\& !defined\(__lint\) \&\& !defined\(getwc\)|" < /usr/include/widec.h > include/widec.h
+    CFLAGS="$CFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    ;;
+  *solaris2.5.1*)
+    echo "Enabling getpass() workaround for Solaris 2.5.1"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS -DHAVE_RWLOCK_T";
+    CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T -DSOLARIS"
+    ;;
+  *solaris*)
+    CFLAGS="$CFLAGS -DHAVE_RWLOCK_T"
+    CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T"
+    ;;
+  *SunOS*)
+    echo "Enabling getpass() workaround for SunOS"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS";
+    ;;
+  *hpux10.20*)
+    echo "Enabling snprintf workaround for hpux 10.20"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG"
+    ;;
+  *hpux11.*)
+    echo "Enabling pread/pwrite workaround for hpux 11"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG"
+    if test "$with_named_thread" = "no"
+    then 
+      echo "Using --with-named-thread=-lpthread"
+      with_named_thread="-lpthread"
+    fi
+    ;;
+  *rhapsody*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      CPPFLAGS="$CPPFLAGS -traditional-cpp "
+      CFLAGS="-DHAVE_CTHREADS_WRAPPER -DDO_NOT_REMOVE_THREAD_WRAPPERS"
+      CXXFLAGS="-DHAVE_CTHREADS_WRAPPER"
+      if test $with_named_curses = "no"
+      then
+	with_named_curses=""
+      fi
+    fi
+    ;;
+  *freebsd*)
+    echo "Adding fix for interrupted reads"
+    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    ;;
+  *bsdi*)
+    echo "Adding fix for BSDI"
+    CFLAGS="$CFLAGS -D__BSD__"
+    ;;
+   *sgi-irix6*)
+    if test "$with_named_thread" = "no"
+    then 
+      echo "Using --with-named-thread=-lpthread"
+      with_named_thread="-lpthread"
+    fi
+    CXXFLAGS="-D_BOOL"
+    ;;
+    *dec-osf4*)
+      echo "Adding fix to not use gethostbyname_r"
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+    ;;
+    *aix4.3*)
+      echo "Adding defines for AIX"
+      CFLAGS="$CFLAGS -DHAVE_INT_8_16_32 -DUNDEF_HAVE_INITGROUPS"
+      CXXFLAGS="$CXXFLAGS -DHAVE_INT_8_16_32 -DUNDEF_HAVE_INITGROUPS"
+    ;;
+esac
+
+
+#---START: Used in for client configure
+# Check if we threads are in libc or if we should use
+# -lpthread, -lpthreads or mit-pthreads
+# We have to check libc last because else it fails on Solaris 2.6
+
+with_posix_threads="no"
+# Hack for DEC-UNIX (OSF1)
+if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+then
+  # Look for LinuxThreads.
+  AC_MSG_CHECKING("LinuxThreads")
+    res=`grep Linuxthreads /usr/include/pthread.h 2>/dev/null | wc -l`
+    if test "$res" -gt 0
+    then
+      AC_MSG_RESULT("Found")
+      AC_DEFINE(HAVE_LINUXTHREADS)
+      # Linux 2.0 sanity check
+      AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
+      AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
+      # RedHat 5.0 does not work with dynamic linking of this. -static also
+      # gives a spped increase in linux so it does not hurt on other systems.
+      with_named_thread="-lpthread"
+    else
+      AC_MSG_RESULT("Not found")
+      # If this is a linux machine we should barf
+      if test "$IS_LINUX" = "true"
+      then
+	AC_MSG_ERROR([This is a linux system and Linuxthreads was not
+found. On linux Linuxthreads should be used. So install Linuxthreads
+(or a new glibc) and try again. See the Installation chapter in the
+Reference Manual.])
+      else
+	AC_MSG_CHECKING("DEC threads")
+        if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
+	then
+	  with_named_thread="-lpthread -lmach -lexc"
+	  #with_named_thread="-lpthread -lmach -lexc -lc"
+	  AC_DEFINE(HAVE_DEC_THREADS)
+	  AC_MSG_RESULT("yes")
+	else
+	  AC_MSG_RESULT("no")
+	  AC_MSG_CHECKING("DEC 3.2 threads")
+          if test -f /usr/shlib/libpthreads.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
+	  then
+	    with_named_thread="-lpthreads -lmach -lc_r"
+	    AC_DEFINE(HAVE_DEC_THREADS)
+	    AC_DEFINE(HAVE_DEC_3_2_THREADS)
+            with_osf32_threads="yes"
+            MYSQLD_DEFAULT_SWITCHES="--skip-thread-priority"
+	    AC_MSG_RESULT("yes")
+	  else
+	    AC_MSG_RESULT("no")
+          fi
+	fi
+     fi
+   fi
+fi
+# Hack for SCO UNIX
+if test "$with_named_thread" = "no"
+then
+  AC_MSG_CHECKING("SCO threads")
+  if expr "$SYSTEM_TYPE" : ".*sco.*" > /dev/null
+  then
+    if test -f /usr/lib/libgthreads.a -o -f /usr/lib/libgthreads.so
+    then
+      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+      with_named_thread="-lgthreads -lsocket -lgthreads"
+      # sched.h conflicts with fsu-threads
+      touch ./include/sched.h
+
+      # We must have gcc
+      if expr "$CC" : ".*gcc.*"
+      then
+	AC_MSG_RESULT("yes")
+      else
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+      fi
+      AC_MSG_RESULT("yes")
+    elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
+    then
+      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+      with_named_thread="-lpthread -lsocket"
+      # sched.h conflicts with fsu-threads
+      # touch ./include/sched.h
+
+      AC_MSG_CHECKING("for gcc")
+      # We must have gcc
+      if expr "$CC" : ".*gcc.*"
+      then
+	AC_MSG_RESULT("yes")
+      else
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+      fi
+      AC_MSG_RESULT("yes")
+    # Hack for SCO UnixWare 7.1
+    #
+    elif test "$with_named_thread" = "no"
+    then
+      AC_MSG_CHECKING("SCO UnixWare 7.1 native threads")
+      if expr "$SYSTEM_TYPE" : ".*sco.*" > /dev/null
+      then
+        if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
+        then
+          LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+          if expr "$CC" : ".*gcc.*"
+          then
+            with_named_thread="-pthread -lsocket -lnsl"
+          else
+            with_named_thread="-Kthread -lsocket -lnsl"
+          fi
+          if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
+          then
+            AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+          else
+            AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+          fi
+          # We must have cc
+          AC_MSG_CHECKING("for gcc")
+          if expr "$CC" : ".*gcc.*"
+          then
+	    CC="$CC -pthread -DUNIXWARE_7";
+	    CXX="$CXX -pthread -DUNIXWARE_7";
+          else
+	    CC="$CC -Kthread -DUNIXWARE_7";
+	    CXX="$CXX -Kthread -DUNIXWARE_7";
+          fi
+          AC_MSG_RESULT("yes")
+        else
+          { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+        fi
+      else
+        AC_MSG_RESULT("no")
+      fi
+    else
+      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.]);
+    fi
+  else
+    AC_MSG_RESULT("no")
+  fi
+fi
+# Hack for SCO UnixWare7
+#
+if test "$with_named_thread" = "no"
+then
+  AC_MSG_CHECKING("SCO UnixWare7 native threads")
+  if expr "$SYSTEM_TYPE" : ".*unixware7*" > /dev/null
+  then
+    if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
+    then
+      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+      with_named_thread="-Kthread -lsocket -lnsl"
+      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
+      then
+        AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+      else
+        AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+      fi
+      # We must have cc
+      AC_MSG_CHECKING("for gcc")
+      if expr "$CC" : ".*gcc.*"
+      then
+	{ echo "configure: error: On SCO UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+      else
+	CC="$CC -Kthread -DUNIXWARE_7";
+	CXX="$CXX -Kthread -DUNIXWARE_7";
+      fi
+      AC_MSG_RESULT("yes")
+    else
+      { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+    fi
+  else
+    AC_MSG_RESULT("no")
+  fi
+fi
+
+# Hack for Siemens UNIX
+if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+then
+  AC_MSG_CHECKING("Siemens threads")
+  if test -f /usr/lib/libxnet.so -a "$SYSTEM_TYPE" = "sni-sysv4"
+  then
+    LIBS="$LIBS_BEFORE_SOCKET -lxnet $LIBS_AFTER_SOCKET"
+    NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS -lxnet"
+    with_named_thread="-Kthread $LDFLAGS -lxnet"
+    LD_FLAGS=""
+    CFLAGS="-Kthread $CFLAGS"
+    CXXFLAGS="-Kthread $CXXFLAGS"
+    AC_MSG_RESULT("yes")
+  else
+    AC_MSG_RESULT("no")
+  fi
+fi
+
+# Use library named -lpthread
+if test "$with_named_thread" = "no" -a "$with_pthread" = "yes"
+then
+    with_named_thread="-lpthread"
+fi
+
+#---END:
+
+# Hack for Solaris >= 2.5
+# We want both the new and the old interface
+ 
+if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+then
+  AC_MSG_CHECKING("Solaris threads")
+  if test -f /usr/lib/libpthread.so -a -f /usr/lib/libthread.so
+  then
+    with_named_thread="-lpthread -lthread"
+    AC_MSG_RESULT("yes")
+  else
+    AC_MSG_RESULT("no")
+  fi
+fi
+
+# Should we use named pthread library ?
+AC_MSG_CHECKING("named thread libs:")
+if test "$with_named_thread" != "no"
+then
+  LIBS="$LIBS $with_named_thread"
+  with_posix_threads="yes"
+  with_mit_threads="no"
+  AC_MSG_RESULT("$with_named_thread")
+else
+  AC_MSG_RESULT("no")
+  if test "$with_mit_threads" = "no"
+  then
+    # pthread_create is in standard libraries (As in BSDI 3.0)
+    AC_MSG_CHECKING("for pthread_create in -libc");
+    AC_TRY_LINK(
+    [#include <pthread.h>],
+    [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+    with_posix_threads=yes, with_posix_threads=no)
+    AC_MSG_RESULT("$with_posix_threads")
+    if test "$with_posix_threads" = "no"
+    then
+      AC_MSG_CHECKING("for pthread_create in -lpthread");
+      ac_save_LIBS="$LIBS"
+      LIBS="$LIBS -lpthread"
+      AC_TRY_LINK(
+      [#include <pthread.h>],
+      [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+      with_posix_threads=yes, with_posix_threads=no)
+      AC_MSG_RESULT("$with_posix_threads")
+      if test "$with_posix_threads" = "no"
+      then
+        LIBS=" $ac_save_LIBS -lpthreads"
+        AC_MSG_CHECKING("for pthread_create in -lpthreads");
+        AC_TRY_LINK(
+        [#include <pthread.h>],
+        [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+        with_posix_threads=yes, with_posix_threads=no)
+        AC_MSG_RESULT("$with_posix_threads")
+        if test "$with_posix_threads" = "no"
+        then
+	  # This is for FreeBSD
+	  LIBS="$ac_save_LIBS -pthread"
+	  AC_MSG_CHECKING("for pthread_create in -pthread");
+	  AC_TRY_LINK(
+	  [#include <pthread.h>],
+	  [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+	  with_posix_threads=yes, with_posix_threads=no)
+          AC_MSG_RESULT("$with_posix_threads")
+          if test "$with_posix_threads" = "no"
+	  then
+	    with_mit_threads="yes"
+	    LIBS="$ac_save_LIBS"
+	  fi
+	fi
+      fi
+    fi
+  fi
+fi
+
+#---START: Used in for client configure
+# Must be checked after, because strtok_r may be in -lpthread
+# On AIX strtok_r is in libc_r
+
+my_save_LIBS="$LIBS"
+AC_CHECK_LIB(pthread,strtok_r)
+LIBS="$my_save_LIBS"
+if test "$ac_cv_lib_pthread_strtok_r" = "no"
+then
+  my_save_LIBS="$LIBS"
+  AC_CHECK_LIB(c_r,strtok_r)
+  if test "$with_osf32_threads" = "yes" -o "$target_os" = "FreeBSD" -o "$target_os" = "freebsd" 
+  then
+    LIBS="$my_save_LIBS"
+  fi
+  AC_CHECK_FUNCS(strtok_r pthread_init)
+else
+  AC_CHECK_FUNCS(strtok_r)
+fi
+#---END:
+
+if test "$THREAD_SAFE_CLIENT" = "no"
+then
+  CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
+else
+  CLIENT_LIBS=$LIBS
+  AC_DEFINE(THREAD_SAFE_CLIENT)
+fi
+AC_SUBST(CLIENT_LIBS)
+
+# for user definable functions (must be checked after threads on AIX)
+AC_CHECK_LIB(dl,dlopen)
+
+# System characteristics
+AC_SYS_RESTARTABLE_SYSCALLS
+
+# Build optimized or debug version ?
+# First check for gcc and g++
+if test "$ac_cv_prog_gcc" = "yes"
+then
+  DEBUG_CFLAGS="-g"
+  DEBUG_OPTIMIZE_CC="-O"
+  OPTIMIZE_CFLAGS="-O6"
+else
+  DEBUG_CFLAGS="-g"
+  DEBUG_OPTIMIZE_CC=""
+  OPTIMIZE_CFLAGS="-O"
+fi
+if test "$ac_cv_prog_cxx_g" = "yes"
+then
+  DEBUG_CXXFLAGS="-g"
+  DEBUG_OPTIMIZE_CXX="-O"
+  OPTIMIZE_CXXFLAGS="-O3"
+else
+  DEBUG_CXXFLAGS="-g"
+  DEBUG_OPTIMIZE_CXX=""
+  OPTIMIZE_CXXFLAGS="-O"
+fi
+AC_ARG_WITH(debug,
+    [  --without-debug          Build a production version without debugging code],
+    [with_debug=$withval],
+    [with_debug=no])
+if test "$with_debug" = "yes"
+then
+  # Medium debug.
+  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+elif test "$with_debug" = "full"
+then
+  # Full debug. Very slow in some cases
+  CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+else
+  # Optimized version. No debug
+  CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
+  CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
+fi
+
+# Force static compilation to avoid linking probles/get more speed
+AC_ARG_WITH(mysqld-ldflags,
+    [  --with-mysqld-ldflags          Extra linking arguments for mysqld],
+    [MYSQLD_EXTRA_LDFLAGS=$withval],
+    [MYSQLD_EXTRA_LDFLAGS=])
+AC_SUBST(MYSQLD_EXTRA_LDFLAGS)
+
+AC_ARG_WITH(client-ldflags,
+    [  --with-client-ldflags          Extra linking arguments for clients],
+    [CLIENT_EXTRA_LDFLAGS=$withval],
+    [CLIENT_EXTRA_LDFLAGS=])
+AC_SUBST(CLIENT_EXTRA_LDFLAGS)
+
+# Avoid stupid bug on some OS 
+AC_ARG_WITH(low-memory,
+    [  --with-low-memory          Try to use less memory to compile to avoid memory limits],
+    [with_lowmem=$withval],
+    [with_lowmem=no])
+if test "$with_lowmem" = "yes"
+then
+  if test "$ac_cv_prog_gcc" = "yes" 
+  then 
+    LM_CFLAGS="-fno-inline"
+  else
+    LM_CFLAGS="-O0"
+  fi
+else
+  LM_CFLAGS=""
+fi
+AC_SUBST(LM_CFLAGS)
+
+AC_ARG_WITH(comment,
+    [  --with-comment          Document compilation envrionment],
+    [with_comment=$withval],
+    [with_comment=no])
+if test "$with_comment" != "no"
+then
+  COMPILATION_COMMENT=$with_comment
+else
+  COMPILATION_COMMENT="Source distribution"
+fi
+AC_SUBST(COMPILATION_COMMENT)
+
+AC_MSG_CHECKING("need of special linking flags")
+if test "$IS_LINUX" = "true"
+then
+  LDFLAGS="$LDFLAGS -rdynamic"
+  AC_MSG_RESULT("-rdynamic")
+else
+  AC_MSG_RESULT("none")
+fi
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_OFF_T
+AC_STRUCT_ST_RDEV
+AC_HEADER_TIME
+AC_STRUCT_TM
+# AC_CHECK_SIZEOF return 0 when it does not find the size of a
+# type. We want a error instead.
+AC_CHECK_SIZEOF(char, 1)
+if test "$ac_cv_sizeof_char" -eq 0
+then
+  AC_MSG_ERROR([No size for char type.
+A likely cause for this could be that there isn't any
+static libraries installed. You can verify this by checking if you have libm.a
+in /lib, /usr/lib or some other standard place.  If this is the problem,
+install the static libraries and try again.  If this isn't the problem,
+examine config.log for possible errors.  If you want to report this, use
+'scripts/mysqlbug' and include at least the last 20 rows from config.log!])
+fi
+AC_CHECK_SIZEOF(int, 4)
+if test "$ac_cv_sizeof_int" -eq 0
+then
+  AC_MSG_ERROR("No size for int type.")
+fi
+AC_CHECK_SIZEOF(long, 4)
+if test "$ac_cv_sizeof_long" -eq 0
+then
+  AC_MSG_ERROR("No size for long type.")
+fi
+AC_CHECK_SIZEOF(long long, 8)
+if test "$ac_cv_sizeof_long_long" -eq 0
+then
+  AC_MSG_ERROR("MySQL needs a long long type.")
+fi
+# off_t is not a builtin type
+MYSQL_CHECK_SIZEOF(off_t, 4)
+if test "$ac_cv_sizeof_off_t" -eq 0
+then
+  AC_MSG_ERROR("MySQL needs a off_t type.")
+fi
+# This always gives a warning. Ignore it unless you are cross compiling
+AC_C_BIGENDIAN
+#---START: Used in for client configure
+# Check base type of last arg to accept
+MYSQL_TYPE_ACCEPT
+#---END:
+# Find where the stack goes
+MYSQL_STACK_DIRECTION
+# We want to skip alloca on irix unconditionally. It may work on some version..
+MYSQL_FUNC_ALLOCA
+# Do struct timespec have members tv_sec or ts_sec
+MYSQL_TIMESPEC_TS
+# Do we have the tzname variable
+MYSQL_TZNAME
+# Do the system files define ulong
+MYSQL_CHECK_ULONG
+# Do the system files define uchar
+MYSQL_CHECK_UCHAR
+# Do the system files define uint
+MYSQL_CHECK_UINT
+#Check for fp_except in ieeefp.h
+MYSQL_CHECK_FP_EXCEPT
+# Do the c++ compiler have a bool type
+MYSQL_CXX_BOOL
+# Check some common bugs with gcc 2.8.# on sparc
+MYSQL_CHECK_LONGLONG_TO_FLOAT
+if test "$ac_cv_conv_longlong_to_float" != "yes"
+then
+  AC_MSG_ERROR([Your compiler can't convert a longlong value to a float!
+If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
+again]);
+fi
+
+######################################################################
+# For readline-4.0 (We simply move the mimimum amount of stuff from
+# the readline configure.in here)
+
+MAKE_SHELL=/bin/sh
+AC_SUBST(MAKE_SHELL)
+
+# Already-done: stdlib.h string.h unistd.h termios.h
+AC_CHECK_HEADERS(varargs.h stdarg.h dirent.h locale.h ndir.h sys/dir.h \
+ sys/file.h sys/ndir.h sys/ptem.h sys/pte.h sys/select.h sys/stream.h \
+ curses.h termcap.h termio.h termbits.h asm/termbits.h grp.h)
+
+# Already-done: strcasecmp
+AC_CHECK_FUNCS(lstat putenv select setenv setlocale strcoll tcgetattr)
+
+AC_STAT_MACROS_BROKEN
+MYSQL_SIGNAL_CHECK
+MYSQL_CHECK_GETPW_FUNCS
+MYSQL_HAVE_TIOCGWINSZ
+MYSQL_HAVE_FIONREAD
+MYSQL_HAVE_TIOCSTAT
+MYSQL_STRUCT_DIRENT_D_INO
+MYSQL_TYPE_SIGHANDLER
+if test $with_named_curses = "no"
+then
+  MYSQL_CHECK_LIB_TERMCAP
+else
+  TERMCAP_LIB="$with_named_curses"
+fi
+AC_SUBST(TERMCAP_LIB)
+
+# End of readline stuff
+#########################################################################
+
+dnl Checks for library functions.
+AC_FUNC_MMAP
+AC_TYPE_SIGNAL
+MYSQL_TYPE_QSORT
+AC_FUNC_UTIME_NULL
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(alarm bmove \
+ chsize ftruncate rint finite fpsetmask fpresetsticky\
+ cuserid fcntl fconvert  \
+ getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
+ perror pread realpath rename \
+ socket strnlen madvise \
+ strtoul strtoull snprintf tempnam thr_setconcurrency \
+ gethostbyaddr_r gethostbyname_r getpwnam \
+ bfill bzero bcmp strstr strpbrk strerror\
+ tell atod memcpy memmove \
+ setupterm strcasecmp sighold \
+ vidattr setupterm lrand48 localtime_r \
+ sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
+ pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
+ pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
+ pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
+ crypt compress dlopen dlerror fchmod getpass getpassphrase initgroups)
+
+# Sanity check: We chould not have any fseeko symbol unless
+# large_file_support=yes
+AC_CHECK_FUNCS(fseeko,
+[if test "$large_file_support" = no -a "$IS_LINUX" = "true";
+then
+  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
+fi]
+)
+
+# Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
+ac_save_CXXFLAGS="$CXXFLAGS"
+AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+if test "$ac_cv_prog_gxx" = "yes"
+then
+  CXXFLAGS="$CXXFLAGS -Werror"
+fi
+AC_TRY_COMPILE(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>],
+[int skr;
+ struct hostent *foo = gethostbyaddr_r((const char *) 0,
+  0, 0, (struct hostent *) 0, (char *) NULL,  0, &skr); return (foo == 0);],
+mysql_cv_gethost_style=solaris, mysql_cv_gethost_style=other))
+AC_LANG_RESTORE
+CXXFLAGS="$ac_save_CXXFLAGS"
+if test "$mysql_cv_gethost_style" = "solaris"
+then
+  AC_DEFINE(HAVE_SOLARIS_STYLE_GETHOST)
+fi
+
+#---START: Used in for client configure
+
+# Check definition of gethostbyname_r (glibc2.0.100 is different from Solaris)
+ac_save_CXXFLAGS="$CXXFLAGS"
+AC_CACHE_CHECK([style of gethostname_r routines], mysql_cv_gethostname_style,
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+if test "$ac_cv_prog_gxx" = "yes"
+then
+  CXXFLAGS="$CXXFLAGS -Werror"
+fi
+AC_TRY_COMPILE(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>],
+[int skr;
+
+ skr = gethostbyname_r((const char *) 0,
+  (struct hostent*) 0, (char*) 0, 0, (struct hostent **) 0, &skr);],
+mysql_cv_gethostname_style=glibc2, mysql_cv_gethostname_style=other))
+AC_LANG_RESTORE
+CXXFLAGS="$ac_save_CXXFLAGS"
+if test "$mysql_cv_gethostname_style" = "glibc2"
+then
+  AC_DEFINE(HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R)
+fi
+
+# Check 3rd argument of getthostbyname_r
+ac_save_CXXFLAGS="$CXXFLAGS"
+AC_CACHE_CHECK([3 argument to gethostname_r routines], mysql_cv_gethostname_arg,
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+if test "$ac_cv_prog_gxx" = "yes"
+then
+  CXXFLAGS="$CXXFLAGS -Werror"
+fi
+AC_TRY_COMPILE(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>],
+[int skr;
+
+ skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (hostent_data*) 0);],
+mysql_cv_gethostname_arg=hostent_data, mysql_cv_gethostname_arg=char))
+AC_LANG_RESTORE
+CXXFLAGS="$ac_save_CXXFLAGS"
+if test "$mysql_cv_gethostname_arg" = "hostent_data"
+then
+  AC_DEFINE(HAVE_GETHOSTBYNAME_R_WITH_HOSTENT_DATA)
+fi
+
+
+if test "$with_mit_threads" = "no"
+then
+  # Check definition of pthread_getspecific
+  AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
+  AC_TRY_COMPILE(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h> ],
+[ void *pthread_getspecific(pthread_key_t key);
+pthread_getspecific((pthread_key_t) NULL); ],
+mysql_cv_getspecific_args=POSIX, mysql_cv_getspecific_args=other))
+  if test "$mysql_cv_getspecific_args" = "other"
+  then
+    AC_DEFINE(HAVE_NONPOSIX_PTHREAD_GETSPECIFIC)
+  fi
+
+  # Check definition of pthread_mutex_init
+  AC_CACHE_CHECK("args to pthread_mutex_init", mysql_cv_mutex_init_args,
+  AC_TRY_COMPILE(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h> ],
+[ 
+  pthread_mutexattr_t attr;
+  pthread_mutex_t mp;
+  pthread_mutex_init(&mp,&attr); ],
+mysql_cv_mutex_init_args=POSIX, mysql_cv_mutex_init_args=other))
+  if test "$mysql_cv_mutex_init_args" = "other"
+  then
+    AC_DEFINE(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT)
+  fi
+fi
+#---END:
+
+#---START: Used in for client configure
+# Check definition of readdir_r
+AC_CACHE_CHECK("args to readdir_r", mysql_cv_readdir_r,
+AC_TRY_LINK(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h>
+#include <dirent.h>],
+[ int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+readdir_r((DIR *) NULL, (struct dirent *) NULL, (struct dirent **) NULL); ],
+mysql_cv_readdir_r=POSIX, mysql_cv_readdir_r=other))
+if test "$mysql_cv_readdir_r" = "POSIX"
+then
+  AC_DEFINE(HAVE_READDIR_R)
+fi
+
+# Check definition av posix sigwait()
+AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
+AC_TRY_LINK(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h>
+#include <signal.h>],
+[#ifndef _AIX
+sigset_t set;
+int sig;
+sigwait(&set,&sig);
+#endif],
+mysql_cv_sigwait=POSIX, mysql_cv_sigwait=other))
+if test "$mysql_cv_sigwait" = "POSIX"
+then
+  AC_DEFINE(HAVE_SIGWAIT)
+fi
+
+if test "$mysql_cv_sigwait" != "POSIX"
+then
+unset mysql_cv_sigwait
+# Check definition av posix sigwait()
+AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
+AC_TRY_LINK(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h>
+#include <signal.h>],
+[sigset_t set;
+int sig;
+sigwait(&set);],
+mysql_cv_sigwait=NONPOSIX, mysql_cv_sigwait=other))
+if test "$mysql_cv_sigwait" = "NONPOSIX"
+then
+  AC_DEFINE(HAVE_NONPOSIX_SIGWAIT)
+fi
+fi
+#---END:
+
+# Check if pthread_attr_setscope() exists
+AC_CACHE_CHECK("for pthread_attr_setscope", mysql_cv_pthread_attr_setscope,
+AC_TRY_LINK(
+[#ifndef SCO
+#define _REENTRANT
+#endif
+#define _POSIX_PTHREAD_SEMANTICS 
+#include <pthread.h>],
+[pthread_attr_t thr_attr;
+pthread_attr_setscope(&thr_attr,0);],
+mysql_cv_pthread_attr_setscope=yes, mysql_cv_pthread_attr_setscope=no))
+if test "$mysql_cv_pthread_attr_setscope" = "yes"
+then
+  AC_DEFINE(HAVE_PTHREAD_ATTR_SETSCOPE)
+fi
+
+# Check for bad includes
+AC_MSG_CHECKING("can netinet files be included")
+AC_TRY_COMPILE(
+[#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>],
+[ printf("1\n"); ],
+netinet_inc=yes, netinet_inc=no)
+if test "$netinet_inc" = "no"
+then
+  AC_DEFINE(HAVE_BROKEN_NETINET_INCLUDES)
+fi
+AC_MSG_RESULT("$netinet_inc")
+
+# Only build client code?
+AC_ARG_WITH(server,
+    [  --without-server         Only build the client],
+    [with_server=$withval],
+    [with_server=yes]
+)
+
+# Shall we build the docs?
+AC_ARG_WITH(docs,
+    [  --without-docs         Skip building of the documents],
+    [with_docs=$withval],
+    [with_docs=yes]
+)
+
+if test "$with_docs" = "yes"
+then
+  docs_dirs="Docs"
+else
+  docs_dirs=""
+fi
+AC_SUBST(docs_dirs)
+
+# Shall we build the bench code?
+AC_ARG_WITH(bench,
+    [  --without-bench         Skip building of the benchmark],
+    [with_bench=$withval],
+    [with_bench=yes]
+)
+
+if test "$with_bench" = "yes"
+then
+  bench_dirs="sql-bench"
+else
+  bench_dirs=""
+fi
+AC_SUBST(bench_dirs)
+
+# Don't build readline, i have it already
+AC_ARG_WITH(readline,
+    [  --without-readline	Use system readline instead of private copy],
+    [ with_readline=$withval ],
+    [ with_readline=yes ]
+    )
+if test "$with_readline" = "yes"
+then
+  readline_dir="readline"
+  readline_link="../readline/libreadline.a"
+else
+  # This requires readline to be in a standard place. Mosty for linux
+  # there readline may be a shared library.
+  readline_dir=""
+  readline_link="-lreadline"
+fi
+AC_SUBST(readline_dir)
+AC_SUBST(readline_link)
+
+# Choose a character set
+dnl in order to add new charset, you must add charset name to
+dnl CHARSETS_AVAILABLE list and add the charset name to
+dnl sql/share/charsets/Index.  If the character set uses strcoll
+dnl or other special handling, you must also create
+dnl strings/ctype-$charset_name.c
+
+CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
+DEFAULT_CHARSET=latin1
+
+AC_ARG_WITH(charset,
+  [  --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
+                          croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                          german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
+                          ujis sjis tis620; default is latin1)],
+  [default_charset="$withval"],
+  [default_charset="$DEFAULT_CHARSET"])
+
+AC_ARG_WITH(extra-charsets,
+  [  --with-extra-charsets=cs1,cs2
+                          use charsets in addition to default (none, complex,
+                          all, or a list selected from the above sets)],
+  [extra_charsets="$withval"],
+  [extra_charsets="none"])
+
+AC_MSG_CHECKING("character sets")
+
+if test "$extra_charsets" = none; then
+  CHARSETS=""
+elif test "$extra_charsets" = complex; then
+  CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
+                  sed -e 's;^.*/ctype-;;' -e 's;.c$;;'`
+  CHARSETS=`echo $CHARSETS`     # get rid of line breaks
+else
+  if test "$extra_charsets" = all; then
+    CHARSETS="$CHARSETS_AVAILABLE"
+  else
+    CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
+  fi
+fi
+
+# Ensure that the default_charset is first in CHARSETS
+TMP_CHARSETS="$default_charset "
+for i in $CHARSETS
+do
+  if test $i != $default_charset
+  then
+    TMP_CHARSETS="$TMP_CHARSETS $i"
+  fi
+done
+CHARSETS=$TMP_CHARSETS
+
+# Check if charsets are all good
+for cs in $CHARSETS
+do
+  charset_okay=0
+  for charset in $CHARSETS_AVAILABLE
+  do
+    if test $cs = $charset; then charset_okay=1; fi
+  done
+  if test $charset_okay = 0;
+  then
+    AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
+    See the Installation chapter in the Reference Manual.]);
+  fi
+done
+
+default_charset_has_source=0
+for cs in $COMPILED_CHARSETS
+do
+  if test $cs = $default_charset
+  then
+    default_charset_has_source=1
+  fi
+done
+  
+CHARSET_SRCS=""
+CHARSETS_NEED_SOURCE=""
+CHARSET_DECLARATIONS=""
+CHARSET_COMP_CS_INIT="CHARSET_INFO compiled_charsets[[]] = {"
+
+want_use_strcoll=0
+want_use_mb=0
+
+index_file="$srcdir/sql/share/charsets/Index"
+
+for c in $CHARSETS
+do
+  # get the charset number from $index_file
+  subpat='^'"${c}"'[[\t ]]*#'
+  number=`$AWK 'sub("'"$subpat"'", "") { print }' $index_file`
+  # some sanity checking....
+  if test X"$number" = X
+  then
+    AC_MSG_ERROR([No number was found in $index_file for the $c character set.  This is a bug in the MySQL distribution.  Please report this message to bugs@lists.mysql.com.])
+  fi
+
+  cs_file="$srcdir/strings/ctype-$c.c"
+  if test -f $cs_file
+  then
+    CHARSET_SRCS="${CHARSET_SRCS}ctype-$c.c "
+    # get the strxfrm multiplier and max mb len from files
+    subpat='^.*\\.configure\\. strxfrm_multiply_'"${c}"'='
+    strx=`$AWK 'sub("'"$subpat"'", "") { print }' $cs_file`
+    subpat='^.*\\.configure\\. mbmaxlen_'"${c}"'='
+    maxl=`$AWK 'sub("'"$subpat"'", "") { print }' $cs_file`
+
+    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
+
+/* declarations for the ${c} character set, filled in by configure */
+extern uchar ctype_${c}[[]], to_lower_${c}[[]], to_upper_${c}[[]], sort_order_${c}[[]];"
+  else
+    CHARSETS_NEED_SOURCE="$CHARSETS_NEED_SOURCE $c"
+    strx=''
+    maxl=''
+  fi
+
+  CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+
+  /* this information is filled in by configure */
+  {
+    $number,    /* number */
+    \"$c\",     /* name */
+    ctype_${c},
+    to_lower_${c},
+    to_upper_${c},
+    sort_order_${c},"
+
+  if test -n "$strx"
+  then
+    want_use_strcoll=1
+
+    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
+extern int     my_strcoll_${c}(const uchar *, const uchar *);
+extern int     my_strxfrm_${c}(uchar *, const uchar *, int);
+extern int     my_strnncoll_${c}(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_${c}(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_${c}(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);"
+
+    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+    $strx,      /* strxfrm_multiply */
+    my_strcoll_${c},
+    my_strxfrm_${c},
+    my_strnncoll_${c},
+    my_strnxfrm_${c},
+    my_like_range_${c},"
+  else
+    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+    0,          /* strxfrm_multiply */
+    NULL,       /* strcoll    */
+    NULL,       /* strxfrm    */
+    NULL,       /* strnncoll  */
+    NULL,       /* strnxfrm   */
+    NULL,       /* like_range */"
+  fi
+
+  if test -n "$maxl"
+  then
+    want_use_mb=1
+
+    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
+extern int     ismbchar_${c}(const char *, const char *);
+extern my_bool ismbhead_${c}(uint);
+extern int     mbcharlen_${c}(uint);"
+
+
+    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+    $maxl,      /* mbmaxlen */
+    ismbchar_${c},
+    ismbhead_${c},
+    mbcharlen_${c}"
+  else
+    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+    0,          /* mbmaxlen  */
+    NULL,       /* ismbchar  */
+    NULL,       /* ismbhead  */
+    NULL        /* mbcharlen */"
+  fi
+  CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+  },"
+done
+
+CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
+
+  /* this information is filled in by configure */
+  {
+    0,          /* end-of-list marker */
+    NullS,
+    \"\",
+    \"\",
+    \"\",
+    \"\",
+    0,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    0,
+    NULL,
+    NULL,
+    NULL
+  }
+};"
+
+
+if test $want_use_strcoll = 1
+then
+  AC_DEFINE(USE_STRCOLL)
+fi
+
+if test $want_use_mb = 1
+then
+  AC_DEFINE(USE_MB)
+  AC_DEFINE(USE_MB_IDENT)
+fi
+
+AC_SUBST(default_charset)
+AC_SUBST(CHARSET_SRCS)
+CHARSET_OBJS="`echo "$CHARSET_SRCS" | sed -e 's/\.c /.o /g'`"
+AC_SUBST(CHARSET_OBJS)
+AC_SUBST(CHARSETS_NEED_SOURCE)
+
+dnl We can't use AC_SUBST because these substitutions are too long.
+dnl I don't want to use sed, either, because there's a reason why
+dnl autoconf breaks up the substitution commands.  So we'll just
+dnl write to a file and #include it.
+dnl AC_SUBST(CHARSET_DECLARATIONS)
+dnl AC_SUBST(CHARSET_COMP_CS_INIT)
+dnl sed -e "s%@CHARSET_DECLARATIONS@%$CHARSET_DECLARATIONS%g" \
+dnl     -e "s%@CHARSET_COMP_CS_INIT@%$CHARSET_COMP_CS_INIT%g" \
+dnl     $srcdir/strings/ctype.c.in > $srcdir/strings/ctype.c
+
+cat <<EOF > $srcdir/strings/ctype_autoconf.c
+/* This file is generated automatically by configure. */$CHARSET_DECLARATIONS
+
+$CHARSET_COMP_CS_INIT
+EOF
+
+AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
+
+
+MYSQL_CHECK_BDB
+
+
+# If we have threads generate some library functions and test programs
+sql_server_dirs=
+server_scripts=
+if test "$with_server" = "yes"
+then
+  AC_DEFINE(THREAD)
+  # Avoid _PROGRAMS names
+  THREAD_LPROGRAMS="test_thr_alarm test_thr_lock"
+  AC_SUBST(THREAD_LPROGRAMS)
+  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
+  AC_SUBST(THREAD_LOBJECTS)
+  sql_server_dirs="strings dbug mysys extra regex isam merge myisam myisammrg heap sql"
+  server_scripts="safe_mysqld mysql_install_db"
+  if test X"$have_berkeley_db" != Xno; then
+    if test X"$have_berkeley_db" != Xyes; then
+      # we must build berkeley db from source
+      sql_server_dirs="$have_berkeley_db/build_unix $sql_server_dirs"
+
+      echo "CONFIGURING FOR BERKELEY DB" 
+      (cd $bdb && cd build_unix && sh ../dist/configure) \
+      || AC_MSG_ERROR([could not configure Berkeley DB])
+
+      echo "Modifying Berkeley DB install target"
+      sed -e '/^install:/ c\
+install: all		# modified by MySQL configure' \
+        "$bdb/build_unix/Makefile" > ac_BDB_Makefile
+
+      rm "$bdb/build_unix/Makefile" \
+      && cp ac_BDB_Makefile "$bdb/build_unix/Makefile" \
+      && rm ac_BDB_Makefile \
+      || AC_MSG_ERROR([could not modify Berkeley DB Makefile])
+
+      echo "END OF BERKELEY DB CONFIGURATION"
+    fi
+
+    AC_DEFINE(HAVE_BERKELEY_DB)
+  fi
+
+  if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
+  then
+    # MIT user level threads
+    sql_server_dirs="mit-pthreads $sql_server_dirs"
+    AC_DEFINE(HAVE_mit_thread)
+    MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
+    AC_SUBST(MT_INCLUDES)
+    MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
+    AC_SUBST(MT_LD_ADD)
+    LIBS="$MT_LD_ADD $LIBS"
+    echo ""
+    echo "Configuring MIT Pthreads"
+    # We will never install so installation paths are not needed.
+    (cd mit-pthreads; sh ./configure)
+    echo "End of MIT Pthreads configuration"
+    echo ""
+  fi
+fi
+AC_SUBST(sql_server_dirs)
+AC_SUBST(server_scripts)
+
+if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
+then
+  # MIT pthreads does not support connecting with unix sockets
+  AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
+fi
+
+# Some usefull subst
+AC_SUBST(CC)
+AC_SUBST(GXX)
+
+# Output results
+AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
+ strings/Makefile regex/Makefile heap/Makefile \
+ myisam/Makefile myisammrg/Makefile \
+ man/Makefile \
+ readline/Makefile libmysql/Makefile client/Makefile \
+ sql/Makefile sql/share/Makefile \
+ merge/Makefile dbug/Makefile scripts/Makefile \
+ include/Makefile sql-bench/Makefile \
+ tests/Makefile Docs/Makefile support-files/Makefile \
+ include/mysql_version.h
+ , , [test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h])
+
+echo
+echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
+echo "latest release, upcoming features, and other information to make your"
+echo "work or play with MySQL more productive. There you can also find"
+echo "information about mailing lists for MySQL discussion."
+echo
+echo "Remember to check the platform specific part in the reference manual for"
+echo "hints about installing on your platfrom. See the Docs directory."
+echo
+# This text is checked in ./Do-compile to se that the configure finished.
+echo "Thank you for choosing MySQL!"
+echo

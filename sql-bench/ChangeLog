@@ -1,0 +1,16 @@
+2000-05-19  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added a lot of COUNT(DISTINCT ...) tests.
+
+1998-08-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* The insert test generates now a table with 300,000 rows.
+  The insert test table is now 3 columns instead of one to make it
+  'a bit more realistic'.
+* New option --small to run a small version of some tests.
+* Added a lot of min(), max() and count() tests.
+* Changed some tests to make them harder on MySQL 3.22.5
+  (The new key optimization made the old test not completely fair against
+  other databases that doesn't do this)
+* Added new test categories  (order_by_on_key, min_max, min_max_on_key)
+* Added 

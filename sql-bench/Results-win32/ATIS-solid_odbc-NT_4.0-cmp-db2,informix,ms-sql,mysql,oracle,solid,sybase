@@ -1,0 +1,22 @@
+Testing server 'Solid version ???' at 1998-10-06 17:43:41
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  2 secs ( 1.80 usr  0.00 sys =  1.80 cpu)
+
+Inserting data
+Time to insert (9768): 45 secs (45.27 usr  0.00 sys = 45.27 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 69 secs (69.48 usr  0.00 sys = 69.48 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+172 queries in 86 loops of 100 loops took 601 seconds
+Estimated time for select_join (200): 698 secs (698.11 usr  0.00 sys = 698.11 cpu)
+Time for select_distinct (800): 327 secs (327.14 usr  0.00 sys = 327.14 cpu)
+Time for select_group (2100): 105 secs (105.28 usr  0.00 sys = 105.28 cpu)
+
+Removing tables
+Time to drop_table (28):  2 secs ( 1.68 usr  0.00 sys =  1.68 cpu)
+Estimated total time: 1248 secs (1248.81 usr  0.00 sys = 1248.81 cpu)

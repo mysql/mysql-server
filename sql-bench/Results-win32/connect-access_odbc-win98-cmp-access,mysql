@@ -1,0 +1,33 @@
+Testing server 'Access 2000' at 2000-01-04  1:49:15
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 1267 wallclock secs (1267.63 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test connect/simple select/disconnect
+Time for connect+select_simple (10000): 1766 wallclock secs (1765.08 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test simple select
+Time for select_simple (10000): 38 wallclock secs (38.12 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing connect/select 1 row from table/disconnect
+DBI->connect failed: [Microsoft][Drivrutin för ODBC Microsoft Access] Fel på disk eller nätverk. (SQL-S1000)(DBD: db_login/SQLConnect err=-1) at test-connect line 140
+Warning: 1 connections didn't work without a time delay
+Time to connect+select_1_row (10000): 1780 wallclock secs (1779.92 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (10000): 55 wallclock secs (55.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (10000): 56 wallclock secs (55.81 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing retrieval of big records (255 bytes)
+Time to select_big (10000): 50 wallclock secs (49.92 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+[Microsoft][Drivrutin för ODBC Microsoft Access] Databasmotorn kunde inte låsa tabellen 'bench1'. Den används redan av en annan användare eller process. (SQL-S1000)(DBD: st_execute/SQLExecute err=-1) at test-connect line 240.
+
+# The following row is calculated by hand from the above:
+
+Total time: 5012 wallclock secs (5011.52 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

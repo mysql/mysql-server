@@ -1,0 +1,21 @@
+Testing server 'MySQL 3.22.16 gamma' at 1999-02-07 11:45:41
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 189 secs (188.69 usr  0.00 sys = 188.69 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 211 secs (211.59 usr  0.00 sys = 211.59 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 19 secs (18.79 usr  0.00 sys = 18.79 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 20 secs (19.97 usr  0.00 sys = 19.97 cpu)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 20 secs (19.71 usr  0.00 sys = 19.71 cpu)
+
+Total time: 459 secs (458.81 usr  0.00 sys = 458.81 cpu)

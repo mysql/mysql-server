@@ -1,0 +1,19 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07 14:22:16
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 8.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 93 secs (93.21 usr  0.00 sys = 93.21 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207):  2 secs ( 2.32 usr  0.00 sys =  2.32 cpu)
+Time for select_range (400:61130): 19 secs (18.64 usr  0.00 sys = 18.64 cpu)
+Time for min_max_on_key (70000): 308 secs (308.18 usr  0.00 sys = 308.18 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+39370 queries in 7874 loops of 10000 loops took 601 seconds
+Estimated time for count_key (50000): 763 secs (762.84 usr  0.00 sys = 762.84 cpu)
+
+Estimated total time: 1186 secs (1185.72 usr  0.00 sys = 1185.72 cpu)

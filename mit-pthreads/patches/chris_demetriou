@@ -1,0 +1,149 @@
+From cgd@pa.dec.com Fri Aug 15 04:22:21 1997
+X-VM-v5-Data: ([nil nil nil nil nil nil nil nil nil]
+	["3982" "Thu" "14" "August" "1997" "18:57:55" "-0700" "Chris G. Demetriou" "cgd@pa.dec.com" "<15218.871610275@dnaunix.pa.dec.com>" "126" "patches to get 1.60 beta6 to build on ELF NetBSD/alpha systems" "^From:" nil nil "8" "1997081501:57:55" "patches to get 1.60 beta6 to build on ELF NetBSD/alpha systems" nil nil]
+	nil)
+Received: from MIT.EDU (PACIFIC-CARRIER-ANNEX.MIT.EDU [18.69.0.28])
+          by analytik.analytikerna.se (8.8.4/8.8.4) with SMTP
+	  id EAA10207 for <monty@analytikerna.se>; Fri, 15 Aug 1997 04:22:19 +0200 (MET DST)
+Received: from mail2.digital.com by MIT.EDU with SMTP
+	id AA13470; Thu, 14 Aug 97 22:01:37 EDT
+Received: from dnaunix.pa.dec.com (dnaunix.pa.dec.com [16.4.208.21])
+	by mail2.digital.com (8.7.5/UNX 1.5/1.0/WV) with SMTP id SAA15366; 
+	Thu, 14 Aug 1997 18:58:16 -0700 (PDT)
+Received: by dnaunix.pa.dec.com; id AA15044; Thu, 14 Aug 1997 18:57:56 -0700
+Message-Id: <15218.871610275@dnaunix.pa.dec.com>
+X-Mts: smtp
+Content-Length: 3981
+From: "Chris G. Demetriou" <cgd@pa.dec.com>
+Sender: cgd@pa.dec.com
+To: pthreads-bugs@MIT.EDU
+Cc: "Chris G. Demetriou" <cgd@pa.dec.com>, pthreads@MIT.EDU
+Subject: patches to get 1.60 beta6 to build on ELF NetBSD/alpha systems
+Date: Thu, 14 Aug 97 18:57:55 -0700
+
+Enclosed below are patches to pthreads 1.60 beta6 to build on
+current NetBSD/alpha systems (which use ELF).  With these patches,
+pthreads passes 'make check.'
+
+As an aside, the test_switch test generates _340k_ of output ("a"
+for a while, then "ab" for a while) when run one the machine I was
+testing on.  In my opinion, that's a ... bit excessive, especially
+since 'make check' has to be run interactively!
+
+
+
+chris
+============================================================================
+diff -rc pthreads-1_60_beta6.orig/config/Makefile.in pthreads-1_60_beta6/config/Makefile.in
+*** pthreads-1_60_beta6.orig/config/Makefile.in	Thu Mar 21 20:29:54 1996
+--- pthreads-1_60_beta6/config/Makefile.in	Thu Aug 14 17:56:55 1997
+***************
+*** 29,35 ****
+  # pathname for srcdir here, and live with it.
+  srcdir = $(srctop)
+  
+! beforeinstall:: install-dirs
+  
+  .include "${srcdir}/pthreads/Makefile.inc"
+  .include "${srcdir}/stdlib/Makefile.inc"
+--- 29,35 ----
+  # pathname for srcdir here, and live with it.
+  srcdir = $(srctop)
+  
+! beforeinstall: install-dirs
+  
+  .include "${srcdir}/pthreads/Makefile.inc"
+  .include "${srcdir}/stdlib/Makefile.inc"
+diff -rc pthreads-1_60_beta6.orig/machdep/syscall-alpha-netbsd-1.1.S pthreads-1_60_beta6/machdep/syscall-alpha-netbsd-1.1.S
+*** pthreads-1_60_beta6.orig/machdep/syscall-alpha-netbsd-1.1.S	Wed Nov 13 13:03:28 1996
+--- pthreads-1_60_beta6/machdep/syscall-alpha-netbsd-1.1.S	Thu Aug 14 18:03:27 1997
+***************
+*** 35,54 ****
+  	.frame	sp,0,ra					;\
+  	ldiq	v0, CONCAT(SYS_,x)			;\
+  	CHMK()						;\
+! 	beq	a3, 2f					;\
+! 	br	gp, 1f					;\
+! 1:							;\
+  	/* Load gp so we can find cerror to jump to.  */;\
+  	ldgp	gp, 0(gp)				;\
+! 	jmp	zero, machdep_cerror				;\
+! 2:
+  
+  #define XSYSCALL(x)	SYSCALL(x) ; RET ; .end CONCAT(machdep_sys_,x)
+  
+  	.globl	machdep_cerror 
+  machdep_cerror:
+! 	br	t0, 1f
+! 1:
+  	ldgp	gp, 0(t0)
+  	stl	v0, errno
+  #if 0
+--- 35,54 ----
+  	.frame	sp,0,ra					;\
+  	ldiq	v0, CONCAT(SYS_,x)			;\
+  	CHMK()						;\
+! 	beq	a3, CONCAT(Lsys_noerr_,x)		;\
+! 	br	gp, CONCAT(Lsys_err_,x)			;\
+! CONCAT(Lsys_err_,x):					;\
+  	/* Load gp so we can find cerror to jump to.  */;\
+  	ldgp	gp, 0(gp)				;\
+! 	jmp	zero, machdep_cerror			;\
+! CONCAT(Lsys_noerr_,x):
+  
+  #define XSYSCALL(x)	SYSCALL(x) ; RET ; .end CONCAT(machdep_sys_,x)
+  
+  	.globl	machdep_cerror 
+  machdep_cerror:
+! 	br	t0, Lmachdep_cerror_setgp
+! Lmachdep_cerror_setgp:
+  	ldgp	gp, 0(t0)
+  	stl	v0, errno
+  #if 0
+diff -rc pthreads-1_60_beta6.orig/machdep/syscall-template-alpha-netbsd-1.1.S pthreads-1_60_beta6/machdep/syscall-template-alpha-netbsd-1.1.S
+*** pthreads-1_60_beta6.orig/machdep/syscall-template-alpha-netbsd-1.1.S	Mon Apr 22 23:15:42 1996
+--- pthreads-1_60_beta6/machdep/syscall-template-alpha-netbsd-1.1.S	Thu Aug 14 17:58:14 1997
+***************
+*** 31,43 ****
+  	.frame	sp,0,ra					;\
+  	ldiq	v0, SYS_##x				;\
+  	CHMK()						;\
+! 	beq	a3, 2f					;\
+! 	br	gp, 1f					;\
+! 1:							;\
+  	/* Load gp so we can find cerror to jump to.  */;\
+  	ldgp	gp, 0(gp)				;\
+! 	jmp	zero, machdep_cerror				;\
+! 2:
+  
+  #define SIMPLE_SYSCALL(x)	SYSCALL(x) ; ret ; .end machdep_sys_##x
+  
+--- 31,43 ----
+  	.frame	sp,0,ra					;\
+  	ldiq	v0, SYS_##x				;\
+  	CHMK()						;\
+! 	beq	a3, Lsys_noerr_##x			;\
+! 	br	gp, Lsys_err_##x			;\
+! Lsys_err_##x:						;\
+  	/* Load gp so we can find cerror to jump to.  */;\
+  	ldgp	gp, 0(gp)				;\
+! 	jmp	zero, machdep_cerror			;\
+! Lsys_noerr_##x:
+  
+  #define SIMPLE_SYSCALL(x)	SYSCALL(x) ; ret ; .end machdep_sys_##x
+  
+diff -rc pthreads-1_60_beta6.orig/pthreads/process.c pthreads-1_60_beta6/pthreads/process.c
+*** pthreads-1_60_beta6.orig/pthreads/process.c	Tue Nov 12 05:45:16 1996
+--- pthreads-1_60_beta6/pthreads/process.c	Thu Aug 14 18:12:49 1997
+***************
+*** 40,45 ****
+--- 40,47 ----
+  #include <stdarg.h>
+  #include <unistd.h>
+  
++ extern void *alloca();
++ 
+  #ifndef lint
+  static const char rcsid[] = "$Id$";
+  #endif
+

@@ -1,0 +1,38 @@
+Thu May 20 13:45:15 1993  Michael Widenius  (monty at bitch)
+
+	* changed itoa() and ltoa() to use the same interface as microsoft:s
+	  and zortech:s libraryes.
+
+Sun Mar 24 00:30:34 1991  Michael Widenius  (monty at LYNX)
+
+	* Changed int2str to return BIG converted chars.
+
+Sun Feb 24 00:22:54 1991  Michael Widenius  (monty at LYNX)
+
+	* Added new function strcend(string,char). Its eqvialent to
+	  if (!(a=strchr(string,char)))
+	    a=strend(string); 
+
+Tue Oct 16 18:53:19 1990  Michael Widenius  (monty at LYNX)
+
+	* Added define BAD_STRING_COMPILER to set define strmov() 
+	  if compiler is very bad at stringoperations.
+	* Changed to use cc on sun-systems instead of gcc.
+
+Sat Sep 29 18:42:31 1990  Michael Widenius  (monty at LYNX)
+
+	* Added my_atof for sparc system to get some speed.
+
+Sun Mar 11 16:35:59 1990  Monty  (monty at monty)
+
+	* strnmov() was changed to not fill to-string with null.
+	* strmake() changed to point at closing null.
+
+Wed Feb  7 20:15:34 1990  David Axmark  (davida at isil)
+
+	* Made functon strinrstr that is reverse search.
+
+Fri Dec  2 03:37:59 1988  Monty  (monty at monty)
+
+	* Fixed bug in strcont; It didn't return first found character in
+	  set.

@@ -1,0 +1,9 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-15  7:47:56
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 597 wallclock secs (123.36 usr 77.92 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing connect/select 1 row from table/disconnect

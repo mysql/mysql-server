@@ -1,0 +1,69 @@
+Testing server 'Oracle 8.0.4.0.0' at 1999-04-04  3:50:22
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 2511 wallclock secs (425.27 usr 50.44 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 353 wallclock secs (195.15 usr 26.95 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 1130 wallclock secs (575.36 usr 100.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+6 queries in 6 loops of 10 loops took 675 seconds
+Estimated time for order_by_key (10:1800000): 1125 wallclock secs (580.64 usr 95.55 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+6 queries in 6 loops of 10 loops took 659 seconds
+Estimated time for order_by (10:1800000): 1098 wallclock secs (570.85 usr 95.67 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range_prefix (5000:20000): 31 wallclock secs (18.04 usr  3.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+410 queries in 410 loops of 5000 loops took 608 seconds
+Estimated time for select_range (5000:1640): 7414 wallclock secs (19.17 usr  3.06 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+115830 queries in 57915 loops of 100000 loops took 601 seconds
+Estimated time for select_key_prefix (200000): 1037 wallclock secs (576.33 usr 93.13 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1384 queries in 692 loops of 100000 loops took 601 seconds
+Estimated time for select_key (200000): 86849 wallclock secs (639.74 usr 105.64 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 64 wallclock secs (40.72 usr  5.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1400 queries in 35 loops of 500 loops took 605 seconds
+Estimated time for select_range (20000:3045): 605 wallclock secs ( 3.09 usr  0.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (91): 45 wallclock secs ( 0.15 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max_on_key (3000): 15 wallclock secs ( 9.59 usr  1.60 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max (60): 25 wallclock secs ( 0.22 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (100): 37 wallclock secs ( 0.33 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count (100): 51 wallclock secs ( 0.30 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update with functions
+Time for update_key (500):  220 wallclock secs ( 0.76 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for update_key_big (501): 429 wallclock secs ( 0.83 usr  0.20 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing delete
+Time for delete_key (500): 628 wallclock secs ( 0.70 usr  0.16 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for delete_big (12): 399 wallclock secs ( 0.09 usr  0.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Insert into table with 16 keys and with a primary key with 15 parts
+Time for insert_key (100000): 1293 wallclock secs (151.81 usr 16.58 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of keys
+Time for update_of_key (256): 568 wallclock secs ( 0.30 usr  0.06 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Deleting everything from table
+Time for delete_big (2): 378 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Estimated total time: 114468 wallclock secs (3850.94 usr 602.34 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

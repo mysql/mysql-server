@@ -1,0 +1,25 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-11 13:25:07
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 1.5 ranges.
+
+Creating table
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting 10000 rows
+Time to insert (10000): 33 wallclock secs ( 6.05 usr  0.57 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing big selects on the table
+Time for select_big (70:17207):  1 wallclock secs ( 0.20 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_range (410:24731): 11 wallclock secs ( 0.50 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max_on_key (70000): 461 wallclock secs (17.09 usr  1.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+18630 queries in 3726 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 1612 wallclock secs (28.56 usr  3.19 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 2120 wallclock secs (52.41 usr  5.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

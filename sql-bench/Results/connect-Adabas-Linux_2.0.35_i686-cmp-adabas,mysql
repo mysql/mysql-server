@@ -1,0 +1,21 @@
+Testing server 'Adabas 10.01.00' at 1998-08-18 21:11:15
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 164 secs (29.40 usr 100.88 sys = 130.28 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 295 secs (22.17 usr 121.92 sys = 144.09 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 32 secs ( 3.68 usr  7.99 sys = 11.67 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 31 secs ( 4.15 usr  8.03 sys = 12.18 cpu)
+
+Testing retrieval of big records (2000 bytes)
+Time to select_big (10000): 44 secs ( 6.41 usr 11.98 sys = 18.39 cpu)
+
+Total time: 570 secs (65.81 usr 250.86 sys = 316.67 cpu)

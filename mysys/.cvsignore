@@ -1,0 +1,10 @@
+.deps
+.libs
+Makefile
+Makefile.in
+st35l1t6
+test_charset
+test_thr_alarm
+test_thr_lock
+test_vsnprintf
+testhash

@@ -1,0 +1,20 @@
+Testing server 'SOLID Server - v.02.30.0026 (Linux ix86)' at 1999-03-06 13:03:51
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000):  9 wallclock secs ( 1.30 usr  0.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Accessing tables
+Time to select_group (1000):  4 wallclock secs ( 0.90 usr  0.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing drop
+Time for drop_table (1000):  8 wallclock secs ( 0.68 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing create+drop
+Time for create+drop (1000): 18 wallclock secs ( 2.08 usr  0.19 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for create_key+drop (1000): 20 wallclock secs ( 2.03 usr  0.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Total time: 59 wallclock secs ( 7.00 usr  0.60 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

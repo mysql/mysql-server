@@ -1,0 +1,12 @@
+.deps
+.libs
+Makefile
+Makefile.in
+ft_eval
+ft_test1
+mi_test1
+mi_test2
+mi_test3
+myisamchk
+myisamlog
+myisampack

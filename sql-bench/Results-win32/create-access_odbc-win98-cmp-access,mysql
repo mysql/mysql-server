@@ -1,0 +1,18 @@
+Testing server 'Access 2000' at 2000-01-06  1:49:25
+
+Testing the speed of creating and droping tables
+All tests are done 7000 times
+
+Testing create of tables
+Time for create_many_tables (7000): 142 wallclock secs (141.43 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Accessing tables
+Time to select_group (7000): 52 wallclock secs (52.84 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing drop
+Time for drop_table (7000): 109 wallclock secs (109.63 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing create+drop
+Time for create+drop (7000): 187 wallclock secs (186.36 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_key+drop (7000): 207 wallclock secs (207.73 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 699 wallclock secs (698.76 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

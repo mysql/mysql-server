@@ -1,0 +1,10 @@
+.deps
+.libs
+Makefile
+Makefile.in
+comp_err
+my_print_defaults
+perror
+print_defaults
+replace
+resolveip

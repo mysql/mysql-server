@@ -1,0 +1,20 @@
+Testing server 'IBM DB2 5' at 1999-02-02  7:10:24
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000): 389 secs (389.60 usr  0.00 sys = 389.60 cpu)
+
+Accessing tables
+Time to select_group (1000):  7 secs ( 7.37 usr  0.00 sys =  7.37 cpu)
+
+Testing drop
+Time for drop_table (1000): 106 secs (106.19 usr  0.00 sys = 106.19 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 408 secs (408.21 usr  0.00 sys = 408.21 cpu)
+Time for create_key+drop (1000): 193 secs (192.75 usr  0.00 sys = 192.75 cpu)
+Total time: 1106 secs (1106.62 usr  0.00 sys = 1106.62 cpu)

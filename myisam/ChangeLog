@@ -1,0 +1,137 @@
+2000-07-02  Michael Widenius  <monty@mysql.com>
+
+* Added safety margin to guard against full index file.
+
+2000-05-22  Michael Widenius  <monty@mysql.com>
+
+* Fixed that --join works with myisampack.
+
+2000-05-14  Michael Widenius  <monty@mysql.com>
+
+* Don't lock datafile during myisamchk (only indexfile is locked;  This is good
+  enough for all MyISAM functions); This made it possible to close datafile
+  in rep_by_sort().
+
+2000-05-04  Michael Widenius  <monty@mysql.com>
+
+* Fixed bug in code that scanned after rows in a crashed table.
+  This could cause an infinite loop when repairing tables.
+	
+2000-04-26  Michael Widenius  <monty@mysql.com>
+
+* Fixed bug when doing read_next after a delete/insert which balanced key
+  pages (In this case one internal buffer was wrongly reused)
+
+2000-04-21  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Changed mi_find_halfpos() to return key, key_length and pos after key.
+* Don't join or split key buffers in the middle when inserting a key
+  that is bigger than all other keys;  This will improve inserts when
+  doing these in sorted order.
+	
+2000-04-04  Michael Widenius  <monty@mysql.com>
+
+* Added support for different languages on key part level.
+
+2000-02-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed that myisamchk works properly with RAID.
+
+2000-02-07  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added delete and rename of tables (works with RAID tables)
+
+2000-01-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed the sorting of index works with prefix-packed keys.
+
+1999-11-24  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed that DECIMAL() keys are sorted correct for negative numbers.
+
+1999-11-22  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* removed 'NO_LOCKING' macros.
+* Added function mi_rnext_same
+* Added support for concurrent reads.
+	
+1999-11-05  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added function mi_scan().
+* Changed all functions to return error number in case of errors.
+
+1999-08-17  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added option DELAY_KEY_WRITE to tables and mi_open()
+
+1999-08-10  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added support of HA_READ_PREFIX_LAST to mi_rkey().  This finds the last
+  row with the given prefix.
+
+Mon Aug  2 13:54:35 1999  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added data- and key-file-length to myisamchk.
+* Fixed some problems with null and space packed keys.
+
+1999-07-15  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* The following options are for COUNT(DISTINCT ..)
+* Added option HA_EXTRA_NO_ROWS;  In this case only the index tree is updated
+* Added mi_delete_all_rows()
+	
+1999-07-13  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added special handling of tempoary tables
+
+1999-06-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added optional checksum for file and for each dynamic-length row
+* Added unique constraint checking
+	
+1999-05-06  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* All index blocks of the same size now share the same key block delete link
+
+1999-03-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Different key packing code depending on if the first key part
+  is a variable length column (space packed, BLOB or VARCHAR)
+* The create interface allows one to specify a key segment to start and
+  end one a specific bit.  (The bit handling isn't yet implemented)
+* Added more tests to 'test1'
+	
+1999-03-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added option -m to myisamchk as an alternative to -e (-m is faster but
+  not as quite as safe as -e).
+* Added option --fast to not check not changed tables.
+* The first update will set a bit that the table has been changed.
+* The first update to a table increments a 'open_count' field. This will
+  be reset on close.  This will allow myisamchk to find tables that hasn't
+  been properly closed!	
+* Support for true VARCHAR columns
+	
+1999-03-01  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Dynamic length blocks are double linked to allow easy reallocation
+  of block lengths.  This will help that the dynamic length data will not be
+  as fragmented as with ISAM.
+* Extended mypack_isam to compress BLOB/TEXT columns.	
+* Allow keys on BLOB.
+	
+1999-02-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Keys, key pointers and all varibles in the index file are stored in
+  high-endian-order to get better compression.
+* Allow NULL on keys
+	
+1998-10-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* All data is stored in low-endian order
+  (This means that the files will be architecture and OS independent)	
+* All record numbers are now of type 'ha_rows' and file pointer are now of type
+  my_off_t.  One can use files with 32-64 bit pointers with a 32bit or 64bit
+  record handling.
+  Currently the code is limited to 5 bytes pointers, but this is real easy
+  to change.

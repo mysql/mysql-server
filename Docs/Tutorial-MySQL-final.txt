@@ -1,0 +1,1643 @@
+8 Tutorial MySQL
+=======================
+
+Este capítulo ofrece un tutorial de introducción a MySQL, mostrando cómo usar el programa cliente
+mysql para crear y usar una simple base de datos. mysql (al que algunas veces nos referimos como
+"monitor terminal" o simplemente "monitor") es un programa interactivo que te permite conectarte a
+un servidor MySQL, ejecutar consultas y observar los resultados. mysql puede ser usado también en
+modo batch: escribes tus consultas en un fichero de texto, para después pedirle a mysql que
+ejecute el contenido del fichero. Se cubren aquí esas dos formas de usar de usar mysql.
+
+Para ver una lista de opciones proporcionadas por mysql, lánzalo con las opción --help :
+
+    shell>  mysql --help
+
+Este capítulo asume que mysql está instalado en tu máquina, y que hay disponible un servidor al que
+te puedes conectar. Si esto no es así, contacta con tu administrador MySQL. (Si el administrador
+eres tú, necesitarás consultar otra sección de este manual).
+
+El capítulo describe el proceso completo de configurar y usar una base de datos. Si estás interesado
+sólo en acceder una base de datos ya existente, querrás saltar las secciones que describen cómo
+crear la base de datos y las tablas que la contienen.
+
+Dado que este capítulo es un tutorial básico, se dejarán en el tintero muchos
+detalles. Consulta las secciones relevantes del manual para más información sobre los temas
+aquí cubiertos.
+
+
+8.1 Conectando y desconectando del servidor
+=============================================
+
+
+Para conectarse al servidor, generalmente necesitarás facilitar un nombre de usuario MySQL cuando
+lances el cliente mysql y, lo más probable, también un password. Si el servidor se está ejecutando
+en una máquina distinta a la que estás conectado, necesitarás especificar también un nombre de
+host. Contacta con tu administrador para averiguar qué parámetros de conexión necesitas usar para
+conectar (es decir, qué host, nombre de usuario y password usar). Una vez que conozcas los
+parámetros adecuados, deberás ser capaz de conectar de la siguiente forma:
+
+shell> mysql -h host -u user -p
+Enter password: *******
+Welcome to the MySQL monitor. Commands end with ; or \g.
+Your MySQL connection id is 459 to server version: 3.22.20a-log
+
+Type 'help' for help.
+
+mysql> 
+
+El prompt te indica que mysql ya está listo para la introducción de comandos.
+
+Algunas instalaciones MySQL permiten a los usuarios conectarse como usuarios "anonymous" (sin
+nombre) al servidor ejecutándose en el host local. Si este es el caso en tu máquina, deberías ser
+capaz de conectar a ese servidor invocando mysql sin ninguna opción:
+
+shell> mysql
+
+Una vez que hayas conectado con éxito, puedes desconectarte en cualquier momento tecleando QUIT en
+el prompt mysql>  :
+
+mysql> QUIT
+Bye
+
+También puedes desconectar tecleando control-D.
+
+La mayor parte de los ejemplos en las siguientes secciones asumen que estás conectado al
+servidor. Lo indicarán por el prompt mysql>
+
+
+8.2 Haciendo consultas
+========================
+
+Asegúrate de que estás conectado al servidor, como se ha discutido en secciones anteriores. El
+hacerlo no implica que tengas seleccionada ninguna base de datos con la que trabajar, pero está
+bien. En este punto, es más importante averiguar un poco sobre cómo lanzar consultas que lanzarse
+directamente a la creación de tablas, cargar datos en ellas y recuperar los datos de las
+mismas. Esta sección describe los principios básicos de la entrada de comandos, usando varias
+consultas que puedes probar para familiarizarte con la forma de trabajo de mysql.
+
+Aquí presentamos un comando simple que pide al servidor que nos diga su número de versión y fecha
+actual. Tecléalo como se muestra a continuación siguiendo el prompt mysql> y pulsa la tecla RETURN:
+
+
+mysql> SELECT VERSION(), CURRENT_DATE;
++-----------+--------------+
+| version() | CURRENT_DATE |
++-----------+--------------+
+| 3.22.23b  | 2000-01-05   |
++-----------+--------------+
+1 row in set (0.06 sec)
+
+mysql> 
+
+Esta consulta ilustra muchas cosas sobre mysql:
+
+* Un comando consiste normalmente de una sentencia SQL seguida por un punto y coma. (Existen algunas
+  excepciones donde no es necesario el punto y coma. QUIT, mencionado más adelante, es una de
+  ellas. Conoceremos otras más adelante.)
+
+* Cuando lanzas un comando, mysql lo envía al servidor para su ejecución y muestra los resultados,
+  después imprime otro mysql> para indicar que está listo para otro comando.
+
+* mysql muestra la salida de una consulta como una tabla (filas y columnas). La primera fila
+  contiene etiquetas para las columnas. Las siguientes filas son el resultado de la
+  consulta. Normalmente, las etiquetas de las columnas son los nombres de las columnas que has
+  obtenido de la base de datos. Si pides el valor de una expresión en vez de una columna de una
+  tabla (como en el ejemplo anterior), mysql etiqueta la columna usando la propia expresión.
+
+* mysql muestra el número de filas que se han dado como resultado, y cuánto tiempo llevó la
+  ejecución de la consulta, lo que te da una idea aproximada del rendimiento del servidor. Estos
+  valores son imprecisos porque representan tiempo real (no tiempo de CPU o máquina), y porque están
+  afectados por factores como la carga del servidor y la latencia de la red. (Por cuestiones de
+  brevedad, la línea "rows in set" no se mostrará en los ejemplos posteriores de este capítulo.)
+
+Las palabras clave pueden ser tecleadas en cualquier combinación mayúscula/minúscula. Las siguientes
+consultas son equivalentes:
+
+mysql> SELECT VERSION(), CURRENT_DATE;
+mysql> select version(), current_date;
+mysql> SeLeCt vErSiOn(), current_DATE;
+
+He aquí otra consulta. Demuestra que puedes usar mysql como una calculadora sencilla:
+
+mysql> SELECT SIN(PI()/4), (4+1)*5;
++-------------+---------+
+| SIN(PI()/4) | (4+1)*5 |
++-------------+---------+
+|    0.707107 |      25 |
++-------------+---------+
+
+Los comandos vistos hasta aquí han sido relativamente cortos, sentencias de una sola línea. También puedes
+insertar múltiples sentencias en una sola línea. Simplemente, termina cada una con un punto y coma:
+
+mysql> SELECT VERSION(); SELECT NOW();
+
++-----------+
+| version() |
++-----------+
+| 3.22.23b  |
++-----------+
+
++---------------------+
+| NOW()               |
++---------------------+
+| 2000-01-05 17:33:16 |
++---------------------+
+
+Un comando no necesita ser dado todo en una sóla línea, así pues, los comandos largos que requieran
+varias lineas no son un problema. mysql determina cuando termina tu sentencia buscando el punto y
+coma final, no buscando el final de la línea de entrada. (En otras palabras, mysql acepta entrada de
+libre formato: recoleta las líneas de entrada pero no las ejecutahasta que vea el punto y coma.)
+
+Aquí tenemos un simple ejemplo de múltiples líneas:
+
+mysql> SELECT
+    -> USER()
+    -> ,
+    -> CURRENT_DATE;
++----------------+--------------+
+| USER()         | CURRENT_DATE |
++----------------+--------------+
+| root@localhost | 2000-01-05   |
++----------------+--------------+
+
+En este ejemplo, observa como cambia el prompt de mysql> a -> una vez que has insertado la primera
+línea de una consulta multi-línea. Esta es la forma en que mysql indica que no ha encontrado una
+sentencia completa y que está esperando por el resto. El prompt es tu amigo, dado que ofrece una
+retroalimentación (feedback) significativa. Si usas ese feedback, siempre sabrás a qué está
+esperando mysql.
+
+Si decides que no quieres ejecutar un comando que está en proceso de introducción, puedes cancelarlo
+tecleando \c :
+
+mysql> SELECT
+    -> USER
+    -> \c
+mysql> 
+
+Observa aquí también el prompt. Ha vuelto a mysql> tras haber tecleado \c, ofreciendo un feedback
+que indica que mysql está listo para un nuevo comando.
+
+La siguiente tabla muestra cada uno de los prompts que puedes ver y resume qué es lo que significan
+y el estado en el que se encontrará mysql:
+
+Prompt	       Significado
+mysql>	       Listo para un nuevo comando
+    ->	       Esperando una nueva línea de una consulta multi-línea
+    '>	       Esperando la siguiente línea, se ha insertado una línea que comienza con (')
+    ">	       Esperando la siguiente línea, se ha insertado una línea que comienza con (")
+
+Las sentencias multi-línea ocurren comúnmente "por accidente" cuando intentas lanzar un comando en
+una única línea, pero olvidas el punto y coma del final. En este caso, mysql espera más entrada:
+
+mysql> SELECT USER()
+    ->
+
+Si esto es lo que te ocurre (crees que has introducido una sentencia pero la única respuesta es un
+prompt como ->), lo más probable es que mysql esté esperando por el punto y coma. Si no observas qué
+es lo que te dice el prompt, podrías quedarte esperando un buen rato antes de enterarte de qué es lo
+que sucede. Introduce un punto y coma para completar la sentencia, y mysql la ejecutará:
+
+mysql> SELECT USER()
+    -> ;
++----------------+
+| USER()         |
++----------------+
+| root@localhost |
++----------------+
+
+Los prompts '> y "> ocurren durante la recogida de strings. En MySQL, puedes escribir strings
+encerrados por comillas simples (') o dobles (") (por ejemplo, 'hola' o "adios"), y mysql te permite
+introducir también strings que se cortan en múltiples líneas. Cuando veas un prompt como '> ó ">,
+significa que has introducido una línea que contenía un string que comenzaba por (') o ("), pero que
+no has introducido aún la comilla (simple o doble) de cierre. Esto está bien si realmente estabas
+introduciendo un string multi-línea, pero no es lo más normal. Lo que sí es más normal, es que los
+prompts '> ó "> indiquen que te has olvidado del caracter de cierre " ó '. Por ejemplo:
+
+mysql> SELECT * FROM mi_tabla WHERE nombre ="García AND edad < 30;
+    ">  
+
+Si tecleas esta sentencia SELECT, después pulsas ENTER y esperas por el resultado, no sucederá
+nada. En lugar de preocuparte, "¿por qué tarda tanto esta consulta?", observa la pista que te ofrece
+el prompt "> . Esto te indica que mysql espera ver el resto de un string que aún no ha
+terminado. (¿Ves el error en la sentencia? La cadena "García ha perdido las comillas de cierre.)
+
+Llegados a este punto, ¿qué puedes hacer?. Lo más fácil es cancelar el comando. Sin embargo, no
+puedes teclear simplemente \c en este ejemplo,  dado que mysql ¡lo interpretará como parte del string
+que está leyendo! En vez de eso, introduce las comillas de cierre (para que mysql sepa que ya has
+terminado de introducir el string), y después teclea \c :
+
+mysql> SELECT * FROM mi_tabla WHERE nombre ="García AND edad < 30;
+    "> "\c
+mysql> 
+
+El prompt vuelve a cambiar a mysql>, indicando que mysql está listo para un nuevo comando.
+
+Es importante saber qué significan los prompts '> y ">, dado que si introduces por error un string
+sin cerrar, cualquier otra línea que introduzcas serán ignoradas por mysql - ¡incluyendo una línea
+que contenga QUIT! Esto puede ser bastante confuso, especialmente si no sabes que debes introducir
+la comilla de cierre antes de poder cancelar el comando actual.
+
+8.3 Creando y usando una base de datos
+==========================================
+
+Ahora que sabes como introducir comandos, es hora de acceder a la base de datos.
+
+Supon que tienes varias mascotas en tu casa (tu pequeño "zoo") y que te gustaría llevar un control
+de varios tipos de información sobre estos animales. Puedes hacerlo creando tablas que guarden tus
+datos y cargandolas con la información deseada. Después puedes responder a diferentes series de
+preguntas sobre tus animales extrayendo los datos de las tablas. Esta sección explica cómo hacer
+todo esto:
+
+* Cómo crear una base de datos
+* Cómo crear una tabla
+* Cómo cargar los datos en la tabla
+* Cómo extraer información de la tabla de varias maneras
+* Cómo usar múltiples tablas
+
+La base de datos del zoo será simple (deliberadamente), pero no es difícil pensar en situaciones del
+mundo real en las que se pudiera utilizar una base de datos similar. Por ejemplo, se podría usar una base
+de datos como ésta en una granja para llevar un control del ganado, o por un veterinario para
+controlar el historial de sus pacientes.
+
+Usa la sentencia SHOW para averiguar qué bases de datos existen actualmente en el servidor:
+
+mysql> SHOW DATABASES;
++----------+
+| Database |
++----------+
+| mysql    |
+| test     |
++----------+
+
+Probablemente, la lista de las bases de datos será diferente en tu máquina, pero las bases de datos
+mysql y test es probable que se encuentren en esa lista. Se requiere la base de datos mysql pues
+describe los privilegios de acceso de los usuarios. La base de datos test se ofrece como campo de
+pruebas para que los usuarios prueben ahí sus teorías.
+
+Si la base de datos test existe, intenta acceder a ella:
+
+mysql> USE test
+Database changed
+
+Observa que USE, como QUIT, no requiere un punto y coma. (Puedes terminar este tipo de sentencias
+con un punto y coma si quieres, pero no es necesario.) La sentencia USE es especial en otro sentido,
+también: debe ser tecleada en una sola línea.
+
+Puedes usar la base de datos test (si tienes acceso a ella) para los ejemplos que siguen, pero
+cualquier cosa que crees en dicha base de datos puede ser eliminada por cualquiera que tenga acceso
+a ella. Por esta razón, deberías pedir a tu administrador MySQL permisos para usar una base de datos
+propia. Suponte que le quieres llamar zoo. El administrador necesitará ejecutar entonces la
+siguiente orden:
+
+mysql> GRANT ALL ON zoo.* TO tu_nombre;
+
+donde tu_nombre es el nombre de usuario MySQL que tengas asignado.
+
+ejemplo:
+
+mysql> GRANT ALL ON zoo.* TO chessy@localhost;
+Query OK, 0 rows affected (0.08 sec)
+
+
+8.3.1 Creando y seleccionando una base de datos
+==================================================
+
+Si el administrador creó la base de datos para tí cuando te configuró los permisos, puedes comenzar
+a usarla. En otro caso, deberás crearla tú mismo:
+
+[chessy@bishito chessy]$ mysql -u chessy
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 6 to server version: 3.22.23b
+
+Type 'help' for help.
+
+mysql> CREATE DATABASE zoo;
+Query OK, 1 row affected (0.02 sec)
+
+
+Bajo Unix, los nombres de bases de datos son sensibles a las mayúsculas/minúsculas (a diferencia de
+los comandos SQL), así que deberás referirte siempre a tu base de datos con el nombre zoo, no como
+Zoo, ZOO o cualquier otra variante. Es es así también para las tablas. (Bajo Windows, esta
+restricción desaparece, aunque deberías referirte a las bases de datos y a las tablas usando la
+misma sintaxis en tus consultas.)
+
+Crear una base de datos no la selecciona para su uso, debes hacerlo explícitamente. Para hacer que
+la base de datos zoo sea tu base de datos de trabajo, usa el comando:
+
+mysql> USE zoo;
+Database changed
+
+Tu base de datos sólo necesita ser creada una vez, pero debes seleccionarla para usarla cada vez que
+comiences una sesión mysql. Puedes hacerlo lanzando un comando USE como se ha visto en el
+ejemplo. Alternativamente, puedes seleccionar la base de datos desde la línea de comandos cuando
+lanzas mysql. Simplemente especifica su nombre tras los parámetros de conexión que hayas
+escrito. Por ejemplo:
+
+shell> mysql -h host -u user -p zoo
+Enter password: ********
+
+Observa que en la línea de comandos del ejemplo, zoo no es tu password. Si quieres introducir tu
+password como parámetro en la línea de comandos tras la opción -p, debes hacerlo sin teclear un
+espacio en blanco intermedio (es decir, como -pmi_password, no como -p mi_password). Sin embargo, no
+es recomendable poner tu password en la línea de comandos, pues hacerlo lo expone a posibles
+miradas de otros usuarios conectados a tu máquina.
+
+8.3.2 Creando una tabla
+============================
+
+Crear una tabla es la parte fácil, pero hasta este momento está vacía, como te dice la orden SHOW
+TABLES:
+
+mysql> SHOW TABLES;
+Empty set (0.00 sec)
+
+La parte más dura consiste en decidir cual va a ser la estructura de tu base de datos: qué tablas
+necesitarás, y qué columnas tendrá cada una de ellas.
+
+Querrás seguramente una tabla que contenga un registro por cada una de tus mascotas. Esta tabla
+puede llamarse mascotas, y debería contener, como mínimo, el nombre de cada animal. Dado que el
+nombre por sí solo no es muy interesante, la tabla debería contener otra información. Por ejemplo,
+si más de una persona de tu familia tiene mascotas, probablemente quieras listar el propietario de
+cada animal. También querrás guardar información descriptiva básica como puede ser la especie y el
+sexo de cada mascota.
+
+¿Qué pasa con la edad? Podría ser de interés, pero no es una buena cosa a guardar en una base de
+datos. La edad cambia a medida que pasa el tiempo, lo que significa que tendrás que actualizar tus
+registros a menudo. En vez de eso, es mejor almacenar un valor fijo como la edad de
+nacimiento. Después, cada vez que necesites saber la edad, puedes calcularla como la diferencia
+entre la fecha actual y la fecha de nacimiento. MySQL ofrece funciones para realizar cálculos
+aritméticos entre fechas, por lo que esto no es difícil. Almacenar la fecha de nacimiento en lugar
+de la edad tiene también otras ventajas:
+
+* Puedes usar la base de datos para generar recordatorios de cumpleaños de mascotas. (Si crees que
+  este tipo de consulta es algo tonta, observa que es la misma pregunta que necesitarás hacer en el
+  contexto de una base de datos de un negocio para identificar clientes a los que pronto necesitarás
+  mandar un saludo por su cumpleaños, para ese toque personal asistido por ordenador :-)
+
+* Puedes calcular la edad en relación a fechas distintas a la fecha actual. Por ejemplo, si
+  almacenas la fecha de muerte en la base de datos, puedes calcular fácilmente lo vieja que era una
+  mascota cuando murió.
+
+Seguramente puedas pensar en otros tipos de información que sería útil en la tabla mascota, pero los
+identificados hasta ahora son suficientes por el momento: nombre, propietarios, especie, sexo, fecha
+de nacimiento y muerte.
+
+Usa una sentencia CREATE TABLE para especificar la estructura de tu tabla:
+
+mysql> CREATE TABLE mascota (nombre VARCHAR(20), propietario VARCHAR(20),
+    -> especie VARCHAR(20), sexo CHAR(1), nacimiento DATE, muerte DATE);
+
+VARCHAR es una buena elección para las columnas nombre, propietario y especie dado que los valores
+de estas columnas variarán su longitud. Las longitudes de estas columnas no necesitan ser iguales, y
+no necesitan ser 20. Puedes elegir cualquier longitud entre 1 y 255, cualquiera que te parezca
+razonable. (Si realizar una elección pobre y resulta que más adelante necesitas un campo mayor,
+MySQL ofrece una sentencia ALTER TABLE.)
+
+El sexo del animal puede ser representado en una variedad de formas, por ejemplo, "m" y "f", o
+quizás "masculino" y "femenino". Es más simple usar un único caracter, "m" ó "f".
+
+El uso del tipo de datos DATE para las columnas de nacimiento y muerte es una opción bastante
+obvia. 
+
+Ahora que ya has creado una tabla, SHOW TABLES debería producir alguna salida:
+
+mysql> SHOW TABLES;
++---------------+
+| Tables in zoo |
++---------------+
+| mascota       |
++---------------+
+
+Para verificar que tu tabla fue creada de la forma que esperabas, usa una sentencia DESCRIBE:
+
+mysql> DESCRIBE mascota;
++-------------+-------------+------+-----+---------+-------+
+| Field       | Type        | Null | Key | Default | Extra |
++-------------+-------------+------+-----+---------+-------+
+| nombre      | varchar(20) | YES  |     | NULL    |       |
+| propietario | varchar(20) | YES  |     | NULL    |       |
+| especie     | varchar(20) | YES  |     | NULL    |       |
+| sexo        | char(1)     | YES  |     | NULL    |       |
+| nacimiento  | date        | YES  |     | NULL    |       |
+| muerte      | date        | YES  |     | NULL    |       |
++-------------+-------------+------+-----+---------+-------+
+
+Puedes usar DESCRIBE en cualquier momento, por ejemplo, si olvidas los nombres de las columnas de tu
+tabla o a qué tipo de datos pertenecen.
+
+8.3.3 Cargando datos en una tabla
+=====================================
+
+Una vez creada tu tabla, necesitas poblarla. Las sentencias LOAD DATA e INSERT son útiles para esto.
+
+Suponte que tus registros de mascotas pueden ser descritos como se muestra más abajo. (Observa que
+MySQL espera que las fechas se introduzcan en formato AAAA-MM-DD; esto podría ser diferente a lo que
+estás acostumbrado.)
+
+nombre	 propietario	especie		sexo	nacimiento	muerte
+Fluffy	 Harold		gato		f	1993-02-04		
+Claws	 Gwen		gato		m	1994-03-17
+Buffy	 Harold		perro		f	1989-05-13
+Fang	 Benny		perro		m	1990-08-27
+Bowser	 Diane		perro		m	1998-08-31	1995-07-29
+Chirpy	 Gwen		pájaro		f	1998-09-11
+Whistler Gwen		pájaro			1997-12-09
+Slim	 Benny		serpiente	m	1996-04-29
+
+Dado que estás comenzando con una tabla vacía, una forma sencilla de poblarla consiste en crear un
+fichero de texto conteniendo una fila para cada uno de tus animales, y después cargar el contenido del
+fichero en la tabla con una sola sentencia.
+
+Puedes crear un fichero de texto "mascota.txt" conteniendo un registro por línea, con valores separados
+por tabuladores, y dados en el orden en el que las columnas fueron listadas en la sentencia CREATE
+TABLE. Para valores perdidos (como sexos desconocidos, o fechas de muerte de animales que aún están
+vivos), puedes usar valores NULL. Para representar estos en tu fichero de texto, use \N. Por
+ejemplo, el registro para Whistler el pájaro sería algo como esto (donde el espacio en blanco entre
+valores es un simple caracter de tabulación):
+
+Whistler   Gwen	     pájaro     \N	1997-12-09	\N
+
+Para cargar el fichero de texto "mascota.txt" en la tabla mascota, usa este comando:
+
+mysql> LOAD DATA LOCAL INFILE "mascota.txt" INTO TABLE mascota;
+
+Puedes especificar el valor de separación de columna y el marcador de final de línea explícitamente
+en la sentencia LOAD DATA si lo deseas, pero por defecto equivalen a TAB y LF (intro). Estos valores
+por defecto son suficientes para que la sentencia que lee el fichero "mascota.txt" funcione
+correctamente.
+
+Cuando quieras añadir nuevos registros uno a uno, la sentencia INSERT es muy útil. En su forma más
+simple, ofreces valores para cada columna, en el orden en el que las columnas fueron listadas en la
+sentencia CREATE TABLE. Supón que Diane consige un nuevo hamster llamado Puffball. Podrías añadir un
+nuevo registro usando una sentencia INSERT como esta:
+
+mysql> INSERT INTO mascota
+    -> VALUES ('Puffball','Diane','hamster','f','1999-03-30',NULL);
+
+Observa que los valores string y fecha se espefican encerrados entre comillas. Observa también que,
+con INSERT, puedes insertar NULL directamente para representar un valor perdido. No usamos \N como
+hacíamos con LOAD DATA.
+
+De este ejemplo, deberías ser capaz de ver que hubiera dido mucho más costoso teclear todos los
+datos necesarios en la tabla mascota con sentencias INSERT que hacerlo como lo hemos hecho con una
+única sentencia LOAD DATA.
+
+
+8.3.4 Extrayendo información de una tabla
+===============================================
+
+
+La sentencia SELECT se usa para recabar información de una tabla. La forma
+general de la sentencia es:
+
+SELECT qué_seleccionar
+FROM de_qué_tabla
+WHERE condiciones_a_satisfacer
+
+qué_seleccionar indica qué es lo que quieres seleccionar. Puede ser una lista de
+columnas, o * para indicar "todas las columnas". de_qué_tabla indica la tabla de
+la que quieres extraer datos. La claúsula WHERE es opcional. Si está presente,
+condiciones_a_satisfacer especifica las codiciones que las filas deben cumplir
+para estar presentes en el resultado de la selección.
+
+8.3.4.1 Seleccionando todos los datos
+=======================================
+
+La forma más simplede SELECT recoge toda la información de una tabla:
+
+mysql> SELECT * FROM mascota;
++----------+-------------+-----------+------+------------+------------+
+| nombre   | propietario | especie   | sexo | nacimiento | muerte     |
++----------+-------------+-----------+------+------------+------------+
+| Bluffy   |  Harold     | gato      | f    | 1993-02-04 | NULL       |
+| Claws    |  Gwen       | gato      | m    | 1994-03-17 | NULL       |
+| Buffy    |  Harold     | perro     | f    | 1989-05-13 | NULL       |
+| Fang     |  Benny      | perro     | m    | 1990-08-27 | NULL       |
+| Bowser   |  Diane      | perro     | m    | 1998-08-31 | 1995-07-29 |
+| Chirpy   |  Gwen       | pájaro    | f    | 1998-09-11 | NULL       |
+| Whistler |  Gwen       | pájaro    | NULL | 1997-12-09 | NULL       |
+| Slim     |  Benny      | serpiente | m    | 1996-04-29 | NULL       |
+| Puffball |  Diane      | hamster   | f    | 1999-03-30 | NULL       |
++----------+-------------+-----------+------+------------+------------+
+
+Esta forma de SELECT es útil si quieres revisar tu tabla al completo, por
+ejemplo, tras haberla cargado con tu conjunto inicial de datos. Como suele
+suceder, la salida ya muestra un error en tu fichero de datos: Bowser ¡parece
+haber nacido tras su muerte! Consultando tus papeles originales sobre el
+pedigree del perro, descubres que la fecha correcta de nacimiento es 1989, no
+1998.
+
+Existen al menos un par de maneras de arreglar esto:
+
+* Edita el fichero "mascota.txt" para corregir el error, después vacía la tabla
+  y vuelve a cargarla usando DELETE y LOAD DATA:
+
+mysql> DELETE from mascota;
+mysql> LOAD DATA LOCAL INFILE "mascota.txt" INTO TABLE mascota;
+
+Sin embargo, si haces esto, debes re-escribir el registro para Puffball.
+
+* Arreglar sólo el registro erróneo con la sentencia UPDATE:
+
+mysql> UPDATE mascota SET nacimiento="1989-08-31" WHERE nombre="Bowser";
+
+Como se muestra más arriba, es fácil recuperar el cuerpo de una data. Pero
+típicamente no querrás hacer eso, en particular cuando la tabla sea muy
+larga. Generalmente, estarás más interesado en responder a una pregunta en
+particular, en cuyo caso deberás especificar algunas restricciones en la
+información que deseas. Veamos algunas consultas de selección en términos de
+preguntas sobre tus mascotas que se deben responder.
+
+8.3.4.2 Seleccionando filas en particular
+=============================================
+
+Puedes seleccionar sólo filas en particular de tu tabla. Por ejemplo, si quieres
+verificar el cambio que has realizado a la fecha de nacimiento de Bowser,
+selecciona el registro de Bowser de la siguiente forma:
+
+mysql> SELECT * FROM mascota WHERE nombre="Bowser";
++--------+-------------+---------+------+------------+------------+
+| nombre | propietario | especie | sexo | nacimiento | muerte     |
++--------+-------------+---------+------+------------+------------+
+| Bowser |  Diane      | perro   | m    | 1989-08-31 | 1995-07-29 |
++--------+-------------+---------+------+------------+------------+
+
+La salida confirma que el año está correctamente registrado como 1989, no 1998.
+
+Las comparaciones de cadenas de texto son normalmente insensibles a las
+mayúsculas/minúsculas, por lo que puedes especificar el nombre como "bowser",
+"BOWSER", etc. El resultado de la consulta será el mismo.
+
+Puedes especificar condiciones en cualquier columna, no sólo el nombre. Por
+ejemplo, si quisieras saber qué animales nacieron a partir de 1998, examina la
+columna nacimiento:
+
+mysql> SELECT * FROM mascota WHERE nacimiento >= "1998-1-1";
++----------+-------------+---------+------+------------+--------+
+| nombre   | propietario | especie | sexo | nacimiento | muerte |
++----------+-------------+---------+------+------------+--------+
+| Chirpy   |  Gwen       | pájaro  | f    | 1998-09-11 | NULL   |
+| Puffball | Diane       | hamster | f    | 1999-03-30 | NULL   |
++----------+-------------+---------+------+------------+--------+
+
+Puedes combinar condiciones, por ejemplo, para localizar los perros hembra:
+
+mysql> SELECT * FROM mascota WHERE especie="perro" AND sexo="f";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+La consulta anterior usa el operador lógico AND. Existe también un operador OR:
+
+mysql> SELECT * FROM mascota WHERE especie="serpiente" OR especie="pájaro";
++----------+-------------+-----------+------+------------+--------+
+| nombre   | propietario | especie   | sexo | nacimiento | muerte |
++----------+-------------+-----------+------+------------+--------+
+| Chirpy   |  Gwen       | pájaro    | f    | 1998-09-11 | NULL   |
+| Whistler |  Gwen       | pájaro    | NULL | 1997-12-09 | NULL   |
+| Slim     |  Benny      | serpiente | m    | 1996-04-29 | NULL   |
++----------+-------------+-----------+------+------------+--------+
+
+AND y OR pueden entremezclarse. Si lo haces, es una buena idea el utilizar
+paréntesis para indicar cómo deberían agruparse las condiciones:
+
+mysql> SELECT * FROM mascota WHERE (especie="gato" AND sexo="m") 
+    -> OR (especie="perro" AND sexo="f");
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Claws  |  Gwen       | gato    | m    | 1994-03-17 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+8.3.4.3 Seleccionando columnas en particular
+===================================================
+
+Si no quieres ver filas completas de tu tabla, simplemente nombra las columnas
+en las cuales estás interesado, separadas por comas. Por ejemplo, si quieres
+saber cuándo nacieron tus animales, selecciona las columnas nombre y nacimiento:
+
+mysql> SELECT nombre, nacimiento FROM mascota;
++----------+------------+
+| nombre   | nacimiento |
++----------+------------+
+| Bluffy   | 1993-02-04 |
+| Claws    | 1994-03-17 |
+| Buffy    | 1989-05-13 |
+| Fang     | 1990-08-27 |
+| Bowser   | 1989-08-31 |
+| Chirpy   | 1998-09-11 |
+| Whistler | 1997-12-09 |
+| Slim     | 1996-04-29 |
+| Puffball | 1999-03-30 |
++----------+------------+
+
+Para averiguar quién posee mascotas, usa esta consulta:
+
+mysql> SELECT propietario FROM mascota;                         
++-------------+
+| propietario |
++-------------+
+|  Harold     |
+|  Gwen       |
+|  Harold     |
+|  Benny      |
+|  Diane      |
+|  Gwen       |
+|  Gwen       |
+|  Benny      |
+|  Diane      |
++-------------+
+
+Sin embargo, observa que la consulta simplemente obtiene el campo propietario de
+cada registro, y algunos de ellos aparecen más de una vez. Para minimizar la
+salida, obtén cada registro de salida único una sola vez añadiendo la palabra
+reservada DISTINCT:
+
+mysql> SELECT DISTINCT propietario FROM mascota;
++-------------+
+| propietario |
++-------------+
+|  Benny      |
+|  Diane      |
+|  Gwen       |
+|  Harold     |
++-------------+
+
+Puedes usar una claúsula WHERE para combinar la selección de filas con la
+selección de columnas. Por ejemplo, para conseguir sólo las fechas de nacimiento
+de perros y gatos, usa esta consulta:
+
+mysql> SELECT nombre, especie, nacimiento FROM mascota
+    -> WHERE especie = "perro" OR especie = "gato";
++--------+---------+------------+
+| nombre | especie | nacimiento |
++--------+---------+------------+
+| Bluffy | gato    | 1993-02-04 |
+| Claws  | gato    | 1994-03-17 |
+| Buffy  | perro   | 1989-05-13 |
+| Fang   | perro   | 1990-08-27 |
+| Bowser | perro   | 1989-08-31 |
++--------+---------+------------+
+
+8.3.4.4 Ordenando filas
+===========================
+
+Tal vez hayas observado que en los ejemplos anteriores las filas del resultado
+se muestran sin ningún tipo de orden en particular. Sin embargo, a menudo es más
+fácil de examinar la salida de una consulta cuando las filas están ordenadas de
+alguna manera en particular. Para ordenar un resultado, usa la claúsula ORDER
+BY.
+
+Aquí mostramos las fechas de nacimiento de los animales, ordenadas por fecha:
+
+mysql> SELECT nombre, nacimiento FROM mascota ORDER BY nacimiento;
++----------+------------+
+| nombre   | nacimiento |
++----------+------------+
+| Buffy    | 1989-05-13 |
+| Bowser   | 1989-08-31 |
+| Fang     | 1990-08-27 |
+| Bluffy   | 1993-02-04 |
+| Claws    | 1994-03-17 |
+| Slim     | 1996-04-29 |
+| Whistler | 1997-12-09 |
+| Chirpy   | 1998-09-11 |
+| Puffball | 1999-03-30 |
++----------+------------+
+
+Para ordenar de forma inversa, añade la palabra reservada DESC (descendente) al
+nombre de la columna por la que estás ordenando:
+
+mysql> SELECT nombre, nacimiento FROM mascota ORDER BY nacimiento DESC;
++----------+------------+
+| nombre   | nacimiento |
++----------+------------+
+| Puffball | 1999-03-30 |
+| Chirpy   | 1998-09-11 |
+| Whistler | 1997-12-09 |
+| Slim     | 1996-04-29 |
+| Claws    | 1994-03-17 |
+| Bluffy   | 1993-02-04 |
+| Fang     | 1990-08-27 |
+| Bowser   | 1989-08-31 |
+| Buffy    | 1989-05-13 |
++----------+------------+
+
+Puedes ordenar por múltiples columnas. Por ejemplo, para ordenar por tipo de
+animal, después por fecha de nacimiento dentro del mismo tipo de animal estando
+los animales más jóvenes primero, usa la siguiente consulta:
+
+mysql> SELECT nombre, especie, nacimiento FROM mascota ORDER BY especie, nacimiento DESC;
++----------+-----------+------------+
+| nombre   | especie   | nacimiento |
++----------+-----------+------------+
+| Claws    | gato      | 1994-03-17 |
+| Bluffy   | gato      | 1993-02-04 |
+| Puffball | hamster   | 1999-03-30 |
+| Chirpy   | pájaro    | 1998-09-11 |
+| Whistler | pájaro    | 1997-12-09 |
+| Fang     | perro     | 1990-08-27 |
+| Bowser   | perro     | 1989-08-31 |
+| Buffy    | perro     | 1989-05-13 |
+| Slim     | serpiente | 1996-04-29 |
++----------+-----------+------------+
+
+Observa que la palabra reservada DESC se aplica sólo al nombre de columna que
+preceda a la palabra reservada (nacimiento); los valores especie siguen siendo
+ordenados en forma ascendente.
+
+8.3.4.5 Cálculos de fecha
+============================
+
+MySQL ofrece muchas funciones que puedes usar para realizar cálculos con fechas,
+por ejemplo, para calcular edades o extraer partes de fechas.
+
+Para determinar cuantos años tiene cada una de tus mascotas, puedes calcular la
+edad como la diferencia entre la fecha de nacimiento y la fecha actual. Puedes
+hacerlo convirtiendo las dos fechas a dias, coge la diferencia, y divídela por
+365 (el número de dias en un año):
+
+mysql> select nombre, (TO_DAYS(NOW())-TO_DAYS(nacimiento))/365 FROM mascota;
++----------+------------------------------------------+
+| nombre   | (TO_DAYS(NOW())-TO_DAYS(nacimiento))/365 |
++----------+------------------------------------------+
+| Bluffy   |                                     6.94 |
+| Claws    |                                     5.83 |
+| Buffy    |                                    10.68 |
+| Fang     |                                     9.39 |
+| Bowser   |                                    10.38 |
+| Chirpy   |                                     1.34 |
+| Whistler |                                     2.10 |
+| Slim     |                                     3.71 |
+| Puffball |                                     0.79 |
++----------+------------------------------------------+
+
+Aunque la consulta funcione, existen algunos puntos que podrían ser
+mejorados. Primero, el resultado podría ser revisado más fácilmente si las filas
+se presentaran ordenadas de alguna manera. Segundo, la cabecera de la columna
+edad no es muy significativa.
+
+El primer problema puede ser solucionado añadiendo una cláusula ORDER BY nombre
+para ordenar la salida por nombre. Para arreglar el tema del encabezamiento de
+columna, puedes darle un nombre a dicha columna de tal forma que aparezca una
+etiqueta diferente en la salida (esto es lo que se llama un alias de columna):
+
+mysql> select nombre, (TO_DAYS(NOW())-TO_DAYS(nacimiento))/365 AS edad         
+    -> FROM mascota ORDER BY nombre;
++----------+-------+
+| nombre   | edad  |
++----------+-------+
+| Bluffy   |  6.94 |
+| Bowser   | 10.38 |
+| Buffy    | 10.68 |
+| Chirpy   |  1.34 |
+| Claws    |  5.83 |
+| Fang     |  9.39 |
+| Puffball |  0.79 |
+| Slim     |  3.71 |
+| Whistler |  2.10 |
++----------+-------+
+
+Para ordenar la salida por edad en lugar de por nombre, puedes hacerlo usando
+símplemente una cláusula ORDER BY diferente:
+
+mysql> select nombre, (TO_DAYS(NOW())-TO_DAYS(nacimiento))/365 AS edad
+    -> FROM mascota ORDER BY edad;
++----------+-------+
+| nombre   | edad  |
++----------+-------+
+| Puffball |  0.79 |
+| Chirpy   |  1.34 |
+| Whistler |  2.10 |
+| Slim     |  3.71 |
+| Claws    |  5.83 |
+| Bluffy   |  6.94 |
+| Fang     |  9.39 |
+| Bowser   | 10.38 |
+| Buffy    | 10.68 |
++----------+-------+
+
+Puede usarse una consulta similar para determinar la edad de la muerte para los
+animales que hayan muerto. Puedes determinar qué animales son estos comprobando
+si el valor muerte es NULL o no. Después, para aquellos que no tengan un valor
+NULL, calcular la diferencia entre los valores muerte y nacimiento:
+
+mysql> select nombre, nacimiento, muerte,
+    -> (TO_DAYS(NOW())-TO_DAYS(nacimiento))/365 AS edad
+    -> FROM mascota WHERE muerte IS NOT NULL ORDER BY edad;
++--------+------------+------------+-------+
+| nombre | nacimiento | muerte     | edad  |
++--------+------------+------------+-------+
+| Bowser | 1989-08-31 | 1995-07-29 | 10.38 |
++--------+------------+------------+-------+
+
+La consulta usa muerte IS NOT NULL en lugar de muerte != NULL dado que NULL es
+un valor especial. Esto se explica más adelante. [Puedes consultar la sección
+[Working with NULL] del manual de MySQL.
+
+¿Qué harías si quisieras saber qué animales cumplen años el mes que viene? Para
+este tipo de cálculos, año y día son irrelevantes, simplemente querrás extraer
+la parte mes de la columna nacimiento. MySQL ofrece muchas funciones de
+extracción de parte-de-fecha, como YEAR(),MONTH() y DAY(). La función apropiada
+para nuestro problema es MONTH(). Para ver cómo funciona, ejecuta una consulta
+rápida que muestre el valor de la fecha de nacimiento y el mes de nacimiento
+(MONTH(nacimiento)):
+
+mysql> SELECT nombre, nacimiento, MONTH(nacimiento) FROM mascota;
++----------+------------+-------------------+
+| nombre   | nacimiento | MONTH(nacimiento) |
++----------+------------+-------------------+
+| Bluffy   | 1993-02-04 |                 2 |
+| Claws    | 1994-03-17 |                 3 |
+| Buffy    | 1989-05-13 |                 5 |
+| Fang     | 1990-08-27 |                 8 |
+| Bowser   | 1989-08-31 |                 8 |
+| Chirpy   | 1998-09-11 |                 9 |
+| Whistler | 1997-12-09 |                12 |
+| Slim     | 1996-04-29 |                 4 |
+| Puffball | 1999-03-30 |                 3 |
++----------+------------+-------------------+
+
+Buscar animales que hayan nacido en el mes próximo es también sencillo de
+realizar. Suponte que Abril es el mes actual. Entonces el valor del mes es 4 y
+lo que buscas son animales nacidos en Mayo (mes 5):
+
+mysql> SELECT nombre, nacimiento FROM mascota WHERE MONTH(nacimiento) = 5;
++--------+------------+
+| nombre | nacimiento |
++--------+------------+
+| Buffy  | 1989-05-13 |
++--------+------------+
+
+Existe una pequeña complicación si el mes actual es Diciembre, por supuesto. No
+puedes añadir simplemente uno al número de mes (12) y buscar animales nacidos en
+el mes 13, dado que no existe tal mes. En lugar de eso, debes buscar animales
+nacidos en Enero (mes 1).
+
+Puedes escribir la consulta de tal forma que funcione independientemente del mes
+en el que estemos. De esa forma no tendrás que usar un número de mes en
+particular en la consulta. DATE_ADD() te permite añadir un intervalo de tiempo a
+una fecha dada. Si añades un mes al valor de NOW(), y después extraes la parte
+del mes con MONTH(), el resultado produce el mes del cumpleaños que buscamos:
+
+
+mysql> select NOW();
++---------------------+
+| NOW()               |
++---------------------+
+| 2000-01-13 18:13:09 |
++---------------------+
+
+mysql> SELECT nombre, nacimiento FROM mascota
+    -> WHERE MONTH(nacimiento) = MONTH(DATE_ADD(NOW(),INTERVAL 1 MONTH));
++--------+------------+
+| nombre | nacimiento |
++--------+------------+
+| Bluffy | 1993-02-04 |
++--------+------------+
+
+Una manera difente de conseguir los mismos resultados es añadir 1 al mes actual
+para conseguir el mes siguiente (tras usar la función módulo (MOD) para
+convertir el valor de mes actual en 0 si estamos en Diciembre (mes 12)):
+
+mysql> SELECT nombre, nacimiento FROM mascota
+    -> WHERE MONTH(nacimiento) = MOD(MONTH(NOW()),12) +1;
++--------+------------+
+| nombre | nacimiento |
++--------+------------+
+| Bluffy | 1993-02-04 |
++--------+------------+
+
+
+8.3.4.6 Trabajando con valores NULL
+=======================================
+
+Los valores NULL pueden ser sorprenderte hasta que te acostumbras a
+usarlos. Conceptualmente, NULL significa "valor perdido" o "valor desconocido" y
+se trata de forma diferente que otros valores. Para realizar comparaciones
+respecto a NULL, no puedes utilizar los operadores de comparación aritméticos
+como =, < o != . Puedes realizar una demostración de esto, prueba la siguiente consulta:
+
+mysql> SELECT 1 = NULL, 1 != NULL, 1 < NULL, 1 > NULL;
++----------+-----------+----------+----------+
+| 1 = NULL | 1 != NULL | 1 < NULL | 1 > NULL |
++----------+-----------+----------+----------+
+|     NULL |      NULL |     NULL |     NULL |
++----------+-----------+----------+----------+
+
+Ciertamente, de estas comparaciones no se pueden extraer resultados
+significativos. Para conseguirlo, usa los operadores IS NULL y IS NOT NULL:
+
+mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
++-----------+---------------+
+| 1 IS NULL | 1 IS NOT NULL |
++-----------+---------------+
+|         0 |             1 |
++-----------+---------------+
+
+En MySQL, 0 significa falso y 1 significa VERDADERO.
+
+Este tratamiento especial de NULL fue la causa de que en la sección anterior
+fuera necesario determinar qué animales ya no vivían usando "muerte IS NOT NULL"
+en lugar de "muerte != NULL".
+
+8.3.4.7 Asociación/Coincidencia de patrones (PATTERN MATCHING)
+================================================================
+
+MySQL ofrece las características de asociación de patrones estándar así como
+una forma de coincidencia de patrones basadas en expresiones regulares
+extendidas similares a las usadas por utilidades UNIX como vi, grep y sed.
+
+La asociación de patrones SQL te permite usar '_' para asociar cualquier
+caracter simple, y '%' para asociar un número arbitrario de caracteres
+(incluyendo cero caracteres). Los patrones SQL no toman en cuenta las
+diferencias entre mayúsculas y minúsculas. Se muestran debajo algunos
+ejemplos. Observa que no se utiliza = o != en el trabajo con patrones SQL; 
+utiliza en su lugar los operadores de comparación LIKE o NOT LIKE.
+
+Para buscar nombres que comienzan por "b":
+
+mysql> SELECT * FROM mascota WHERE nombre LIKE "b%";
++--------+-------------+---------+------+------------+------------+
+| nombre | propietario | especie | sexo | nacimiento | muerte     |
++--------+-------------+---------+------+------------+------------+
+| Bluffy |  Harold     | gato    | f    | 1993-02-04 | NULL       |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL       |
+| Bowser |  Diane      | perro   | m    | 1989-08-31 | 1995-07-29 |
++--------+-------------+---------+------+------------+------------+
+
+Para buscar nombres que terminen por "fy":
+
+mysql> SELECT * FROM mascota WHERE nombre LIKE "%fy";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Bluffy |  Harold     | gato    | f    | 1993-02-04 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+Para buscar nombres que contengan una "w":
+
+mysql> SELECT * FROM mascota WHERE nombre LIKE "%w%";
++----------+-------------+---------+------+------------+------------+
+| nombre   | propietario | especie | sexo | nacimiento | muerte     |
++----------+-------------+---------+------+------------+------------+
+| Claws    |  Gwen       | gato    | m    | 1994-03-17 | NULL       |
+| Bowser   |  Diane      | perro   | m    | 1989-08-31 | 1995-07-29 |
+| Whistler |  Gwen       | pájaro  | NULL | 1997-12-09 | NULL       |
++----------+-------------+---------+------+------------+------------+
+
+Para buscar nombres de longitud cinco caracteres, usa el patrón "_" :
+
+mysql> SELECT * FROM mascota WHERE nombre LIKE "_____";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Claws  |  Gwen       | gato    | m    | 1994-03-17 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+El otro tipo de asociación de patrones ofrecido por MySQL utiliza expresiones
+regulares extendidas. Cuando se realiza una comprobación buscando una coincidencia
+para este tipo de patrón, se deben usar los operadores REGEXP y NOT REGEXP (o
+RLIKE y NOT RLIKE, dado que son sinónimos).
+
+Algunas características de las expresiones regulares extendidas son:
+
+* `.' se asocia con cualquier caracter (pero sólo uno)
+
+* Una clase de caracteres `[...]' se asocia con culquier caracter contenido
+  dentro de los corchetes. Por ejemplo, `[abc]' se asocia con 'a', 'b' ó
+
+* 'c'. Para nombrar un rango de caracteres, usa un guión. `[a-z]' se asocia con
+cualquier letra en minúscula, donde '[0-9]' se asocia con cualquier dígito.
+
+* '*' se asocia con 0 o más instancias de lo que preceda al asterisco. Por
+  ejemplo,'a*' coincide con cualquier número de a's,'[0-9]*' se asocia con
+  cualquier número de dígitos, y '.*' se asocia con cualquier cosa.
+
+* Las expresiones regulares son sensibles a las mayúsculas/minúsculas, pero
+  puedes utilizar una clase caracter para asociar ambos casos si los deseas. Por
+  ejemplo, '[aA]' coincide tanto con la letra a minúscula como con la letra A
+  mayúscula y '[a-zA-Z]' coincide con cualquier letra en cualquier modo
+  mayúscula/minúscula.
+
+* El patrón se asocia si ocurre en cualquier lugar dentro del valor a ser
+  probado (los patrones SQL coinciden sólo si se asocian con el valor
+  completo). 
+
+* Para anclar un patrón de manera que se busque la coincidencia bien al comienzo
+  o bien al final del valor a ser comprobado, usa '^' al comienzo del patrón o
+  '$' al final del patrón, respectivamente.
+
+Para demostrar cómo funcionan las expresiones regulares, las consultas LIKE
+mostradas antes son reescritas debajo para usar REGEXP:
+
+Para buscar nombres que comiencen por "b", usa '^' para buscar la coincidencia
+al comienzo del nombre y '[bB]' para buscar la asociación tanto con la b
+minúscula como con la b mayúscula:
+
+mysql> SELECT * FROM mascota WHERE nombre REGEXP "^[bB]";
++--------+-------------+---------+------+------------+------------+
+| nombre | propietario | especie | sexo | nacimiento | muerte     |
++--------+-------------+---------+------+------------+------------+
+| Bluffy |  Harold     | gato    | f    | 1993-02-04 | NULL       |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL       |
+| Bowser |  Diane      | perro   | m    | 1989-08-31 | 1995-07-29 |
++--------+-------------+---------+------+------------+------------+
+
+Para buscar nombres que terminen por "fy", usa "$" para buscar la coincidencia
+al final del nombre:
+
+mysql> SELECT * FROM mascota WHERE nombre REGEXP "fy$";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Bluffy |  Harold     | gato    | f    | 1993-02-04 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+Para buscar nombres que contengan una "w", utiliza "[wW]" para buscar la
+asociación tanto en mayúsculas como minúsculas:
+
+ mysql> SELECT * FROM mascota WHERE nombre REGEXP "[wW]";
++----------+-------------+---------+------+------------+------------+
+| nombre   | propietario | especie | sexo | nacimiento | muerte     |
++----------+-------------+---------+------+------------+------------+
+| Claws    |  Gwen       | gato    | m    | 1994-03-17 | NULL       |
+| Bowser   |  Diane      | perro   | m    | 1989-08-31 | 1995-07-29 |
+| Whistler |  Gwen       | pájaro  | NULL | 1997-12-09 | NULL       |
++----------+-------------+---------+------+------------+------------+
+
+Dado que un patrón de una expresión regular se asocia si ocurre en cualquier
+lugar del valor, no es necesario poner un caracter comodín en ningún lado del
+patrón para conseguir que se asocie con el valor completo como harías si usaras
+un patrón SQL.
+
+Para buscar nombres conteniendo exactamente cinco caracteres, usa "^" y "$" para
+asociar el comienzo y el final de un nombre, y cinco instancias de "." entre
+ellos:
+
+mysql> SELECT * FROM mascota WHERE nombre REGEXP "^.....$";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Claws  |  Gwen       | gato    | m    | 1994-03-17 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+También podrías haber escrito la consulta anterior usando el operador '{n}'
+"repetir n veces":
+
+mysql> SELECT * FROM mascota WHERE nombre REGEXP "^.{5}$";
++--------+-------------+---------+------+------------+--------+
+| nombre | propietario | especie | sexo | nacimiento | muerte |
++--------+-------------+---------+------+------------+--------+
+| Claws  |  Gwen       | gato    | m    | 1994-03-17 | NULL   |
+| Buffy  |  Harold     | perro   | f    | 1989-05-13 | NULL   |
++--------+-------------+---------+------+------------+--------+
+
+
+8.3.4.8 Contando filas
+=======================
+
+Las bases de datos son usadas a menudo para responder a la pregunta, "¿cuantas
+veces aparece un determinado tipo de datos en una tabla?". Por ejemplo, podrías
+querer saber cuántas mascotas tienes, o cuántas mascotas tiene cada propietario,
+o podrías querer realizar varios tipos de censos respecto a tus animales.
+
+Contar el número total de animales que tienes es lo mismo que preguntar
+"¿cuántas filas hay en la tabla mascota?", dado que hay sólo una fila por
+mascota. La función COUNT() cuenta el número de resultados no-NULL , así pues, 
+la consulta a realizar para contar el número de animales tiene la siguiente forma:
+
+mysql> SELECT COUNT(*) FROM mascota;
++----------+
+| COUNT(*) |
++----------+
+|        9 |
++----------+
+
+Antes, conseguiste los nombres de las personas que poseen una mascota. Puedes
+usar COUNT() para averiguar cuántas mascotas tiene cada propietario:
+
+mysql> SELECT propietario, COUNT(*) FROM mascota GROUP BY propietario;
++-------------+----------+
+| propietario | COUNT(*) |
++-------------+----------+
+|  Benny      |        2 |
+|  Diane      |        2 |
+|  Gwen       |        3 |
+|  Harold     |        2 |
++-------------+----------+
+
+Observa el uso de GROUP BY para agrupar todos los registros de cada
+propietario. Si no lo hubiéramos puesto, todo lo que conseguirias sería un
+mensaje de error:
+
+mysql> SELECT propietario, COUNT(propietario) FROM mascota;
+ERROR 1140: Mixing of GROUP columns (MIN(),MAX(),COUNT()...) with no GROUP
+columns is illegal if there is no GROUP BY clause
+
+COUNT() y GROUP BY son útiles para la caracterización de tus datos de varias
+formas. Los siguientes ejemplos muestran difentes maneras para realizar
+operaciones de censo animal.
+
+Número de animales por especies:
+
+mysql> SELECT especie, COUNT(*) FROM mascota GROUP BY especie;
++-----------+----------+
+| especie   | COUNT(*) |
++-----------+----------+
+| gato      |        2 |
+| hamster   |        1 |
+| pájaro    |        2 |
+| perro     |        3 |
+| serpiente |        1 |
++-----------+----------+
+
+Número de animales por sexo:
+
+mysql> SELECT sexo , COUNT(*) FROM mascota GROUP BY sexo;
++------+----------+
+| sexo | COUNT(*) |
++------+----------+
+| NULL |        1 |
+| f    |        4 |
+| m    |        4 |
++------+----------+
+
+(En este resultado, NULL indica "sexo desconocido")
+
+El número de animales por combinación de especies y sexo:
+
+mysql> SELECT especie , sexo, COUNT(*) FROM mascota GROUP BY especie, sexo;
++-----------+------+----------+
+| especie   | sexo | COUNT(*) |
++-----------+------+----------+
+| gato      | f    |        1 |
+| gato      | m    |        1 |
+| hamster   | f    |        1 |
+| pájaro    | NULL |        1 |
+| pájaro    | f    |        1 |
+| perro     | f    |        1 |
+| perro     | m    |        2 |
+| serpiente | m    |        1 |
++-----------+------+----------+
+
+No necesitas recuperar una tabla completa cuando uses COUNT(). Por ejemplo, la
+consulta anterior, cuando se realiza sólo sobre perros y gatos, se escribe así:
+
+mysql> SELECT especie , sexo, COUNT(*) FROM mascota                        
+    -> WHERE especie = "perro" OR especie = "gato"
+    -> GROUP BY especie, sexo;
++---------+------+----------+
+| especie | sexo | COUNT(*) |
++---------+------+----------+
+| gato    | f    |        1 |
+| gato    | m    |        1 |
+| perro   | f    |        1 |
+| perro   | m    |        2 |
++---------+------+----------+
+
+O, si quieres conocer el número de animales por sexo sólo para animales de sexo
+conocido:
+
+mysql> SELECT especie , sexo, COUNT(*) FROM mascota
+    -> WHERE sexo IS NOT NULL                     
+    -> GROUP BY especie, sexo;
++-----------+------+----------+
+| especie   | sexo | COUNT(*) |
++-----------+------+----------+
+| gato      | f    |        1 |
+| gato      | m    |        1 |
+| hamster   | f    |        1 |
+| pájaro    | f    |        1 |
+| perro     | f    |        1 |
+| perro     | m    |        2 |
+| serpiente | m    |        1 |
++-----------+------+----------+
+
+
+8.3.5 Usando más de una tabla
+===============================
+
+La tabla mascota guarda datos sobre las mascotas que posees. Si quieres guardar
+otra información sobre ellos, como eventos en sus vidas, visitas al veterinario
+o cuándo han tenido hermanos, necesitas otra tabla. ¿Cómo debería ser esta otra
+tabla?
+
+* Deberá contener el nombre de la mascota de tal forma que pudieras saber a qué
+  animal corresponde cada evento almacenado en la misma.
+
+* Necesitará una fecha para conocer cuándo ocurrió el evento.
+
+* Necesitará un campo para describir el evento
+
+* Si quieres ser capaz de categorizar los eventos, sería útil tener un campo de
+  tipo evento.
+
+Dadas estas consideraciones, la sentencia CREATE TABLE para la tabla "evento" se
+parecería a esto:
+
+mysql> CREATE TABLE evento (nombre VARCHAR(20), fecha DATE,
+    -> tipo VARCHAR(15), anotación VARCHAR(255));
+
+Como ocurría con la tabla mascota, es más fácil cargar los registros iniciales
+creando un fichero de texto delimitado por tabuladores conteniendo la
+información:
+
+Fluffy		1995-05-15	parto		4 cachorros, 3 hembras, 1 macho
+Buffy		1993-06-23	parto		5 cachorros, 2 hembras, 3 machos
+Buffy		1994-06-19	parto		3 cachorros, 3 hembras
+Chirpy		1999-03-21	veterinario	necesitó enderezamiento de pico
+Slim		1997-08-03	veterinario	costilla rota
+Bowser		1991-10-12	perrera
+Fang		1991-10-12	perrera	
+Fang		1998-08-28	cumpleaños	Se le regala un nuevo juguete de goma
+Claws		1998-03-17	cumpleaños	Se le regala un nuevo collar de pulgas
+Whistler	1998-12-09	cumpleaños	Primer cumpleaños
+
+
+Carga los registros así:
+
+mysql> LOAD DATA LOCAL INFILE "evento.txt" INTO TABLE evento;
+
+Basándote en lo que has aprendido de las consultas que has ejecutado em la tabla
+mascota, deberías ser capaz de realizar recuperaciones de datos en los registros
+de la tabla "evento"; los principios son los mismos. ¿Pero qué hacer cuando la
+tabla evento no sea suficiente por sí sola de responder a cuestiones que
+podrías llegar a realizar?
+
+Supón que quisieras averiguar las edades de cada mascota al tener cachorros. La
+tabla evento indica cuándo ha ocurrido esto, pero para calcular la edad de la
+madre, necesitas su fecha de nacimiento. Dado que eso está almacenado en la
+tabla mascota, necesitas ambas tablas para la consulta:
+
+mysql> SELECT mascota.nombre , (TO_DAYS(fecha) - TO_DAYS(nacimiento))/365 AS edad, anotación
+    -> FROM mascota, evento
+    -> WHERE mascota.nombre = evento.nombre AND tipo = "parto";
++--------+------+----------------------------------+
+| nombre | edad | anotación                        |
++--------+------+----------------------------------+
+| Fluffy | 2.27 | 4 cachorros, 3 hembras, 1 macho  |
+| Buffy  | 4.12 | 5 cachorros, 2 hembras, 3 machos |
+| Buffy  | 5.10 | 3 cachorros, 3 hembras           |
++--------+------+----------------------------------+
+
+Existen varios puntos que anotar sobre esta consulta:
+
+* La cláusula FROM lista dos tablas dado que la consulta necesita extraer
+  información de las dos.
+
+* Cuando se combina la información de múltiples tablas, necesitas especificar
+  cómo pueden ser asociados los registros de una tabla con los registros de la
+  otra. Esto es fácil dado que ambas tienen una columna nombre (N.T.: nombre es
+  una clave extranjera). La consulta usa la cláusula WHERE para combinar los
+  registros de las dos tablas basándose en los valores de nombre.
+
+* Dado que la columna nombre aparece en ambas tablas, debes ser específico sobre
+  a qué tabla te refieres cuando estés hablando de esa columna. Esto se realiza
+  poniendo el nombre de la tabla como prefijo de la columna.
+
+No necesitas tener dos tablas diferentes para realizar un join. En algunas 
+ocasiones es útil realizar un join de una tabla consigo misma, si quieres comparar 
+registros de una tabla con otros registros en la misma tabla. Por ejemplo, para buscar
+parejas de sexos entre tus mascotas, puedes enlazar la tabla mascota consigo
+mismo para emaparejar machos y hembras de las mismas especies:
+
+mysql> SELECT p1.nombre, p1.sexo, p2.nombre, p2.sexo, p1.especie
+    -> FROM mascota AS p1, mascota AS p2
+    -> WHERE p1.especie = p2.especie AND p1.sexo = "f" AND p2.sexo = "m";
++--------+------+--------+------+---------+
+| nombre | sexo | nombre | sexo | especie |
++--------+------+--------+------+---------+
+| Fluffy | f    | Claws  | m    | gato    |
+| Buffy  | f    | Fang   | m    | perro   |
+| Buffy  | f    | Bowser | m    | perro   |
++--------+------+--------+------+---------+
+
+
+En esta consulta, especificamos un par de alias para el nombre de las tablas
+y ser capaces así de referirnos a las columnas y saber en todo momento a qué
+instancia de qué tabla se asocia cada referencia de columna.
+
+8.4 Obtener información sobre bases de datos y tablas
+================================================================
+
+¿Qué ocurre si olvidas el nombre de una base de datos o de una tabla, o cuál es
+la estructura de una tabla dada (ejm. : ¿cómo se llaman sus columnas?) MySQL
+soluciona este problema a través de numerosas sentencias que ofrecen información
+sobre las bases de datos y las tablas que soporta.
+
+Ya hemos visto SHOW DATABASES, que lista las bases de datos gestionadas por el
+servidor. Para averiguar qué base de datos está actualmente seleccionada, usa la
+función DATABASE():
+
+mysql> SELECT DATABASE();
++------------+
+| DATABASE() |
++------------+
+| zoo        |
++------------+
+
+Si aún no has seleccionado ninguna base de datos, el resultado estará en blanco.
+
+Para averiguar qué tablas contiene la base de datos actual (por ejemplo, cuando
+no estás seguro sobre el nombre de una tabla), usa este comando:
+
+mysql> SHOW TABLES;
++---------------+
+| Tables in zoo |
++---------------+
+| evento        |
+| mascota       |
++---------------+
+
+Si quieres averiguar la estructura de una tabla, el comando DESCRIBE te será
+útil; muestra información sobre cada columna de una tabla:
+
+mysql> DESCRIBE mascota;
++-------------+-------------+------+-----+---------+-------+
+| Field       | Type        | Null | Key | Default | Extra |
++-------------+-------------+------+-----+---------+-------+
+| nombre      | varchar(20) | YES  |     | NULL    |       |
+| propietario | varchar(20) | YES  |     | NULL    |       |
+| especie     | varchar(20) | YES  |     | NULL    |       |
+| sexo        | char(1)     | YES  |     | NULL    |       |
+| nacimiento  | date        | YES  |     | NULL    |       |
+| muerte      | date        | YES  |     | NULL    |       |
++-------------+-------------+------+-----+---------+-------+
+
+Field indica el nombre de la columna, Type es el tipo de datos para la columna,
+Null indica si la columna puede contener o no valores NULL, Key indica si la
+columna está indexada o no, y Default especifica el valor por defecto para la
+columna.
+
+Si tienes índices en una tabla, SHOW INDEX FROM nombre_tabla te mostrará
+información sobre ellos.
+
+8.5 Usando mysql en modo batch 
+=================================
+
+En las secciones previas, hemos usado mysql interactivamente para introducir
+consultas y observar los resultados. También puedes ejecutar mysql en modo
+batch. Para realizarlo, escribe los comandos que quieras ejecutar en un fichero,
+después pídele a mysql que lea su entrada desde el fichero:
+
+shell> mysql < fichero-batch
+
+(N.T.: en ocasiones se traduce como fichero por lotes)
+
+Si necesitas especificar parámetros de conexión en la línea de comandos, el
+comando podría parecerse a esto:
+
+shell> mysql -h host -u user -p < fichero-batch
+Enter password: ********
+
+Cuando usas MySQL de esta manera, estás creando un fichero script (de guión), y
+después ejecutando el script.
+
+¿Por qué usar un script? He aquí algunas razones:
+
+* Si ejecutas una consulta repetidamente (digamos, cada día o cada semana), el
+  construir un script con esta consulta te permite evitar volver a teclearla
+  cada vez que la ejecutes.
+
+* Puedes generar nuevas consultas a partir de consultas ya existentes similares
+  simplemente copiando y editando los ficheros script.
+
+* El modo batch puede ser también muy útil cuando estés desarrollando una
+  consulta, particularmente para comandos multi-línea o múltiples secuencias de
+  comandos de múltiples sentencias. Si cometes un error, no necesitas reescribir
+  todo. Símplemente edita el script para corregir el error, y después pídele a
+  mysql que lo vuelva a ejecutar.
+
+* Si tienes una consulta que produce resultados muy largos, puedes usar un
+  paginador para filtrar esta salida en lugar de ver cómo se desplaza fuera del
+  alcance de tu pantalla:
+
+
+shell> mysql < fichero_batch | more
+
+* Puedes redirigir la salida a un fichero para un procesamiento posterior:
+
+shell> mysql < fichero_batch > mysql.out
+
+* Puedes distribuir tu script a otras personas para que puedan ejecutar también
+  tus comandos.
+
+* Algunas situaciones no permiten un uso interactivo, por ejemplo, cuando
+  ejecutas una consulta como una tarea de cron. (N.T.: cron es un comando UNIX
+  que sirve para planificar y ejecutar comandos UNIX en el tiempo). En este
+  caso, debes usar el procesamiento por lotes.
+
+El formato de salida por defecto es diferente (más conciso) cuando ejecutas
+mysql en modo batch que cuando lo usas de manera interactiva. Por ejemplo, la
+salida de SELECT DISTINCT especie FROM mascota   es la siguiente cuando se
+ejecuta de manera interactiva:
+
+mysql> SELECT DISTINCT especie FROM mascota;
++-----------+
+| especie   |
++-----------+
+| gato      |
+| hamster   |
+| pájaro    |
+| perro     |
+| serpiente |
++-----------+
+
+Y la siguiente si se ejecuta en modo batch:
+
+especie
+gato
+hamster
+pájaro
+perro
+serpiente
+
+Si quieres obtener el formato de salida del modo interactivo también en modo
+batch, usa mysql -t. Para redirigir a salida estándar los comandos que se están
+ejecutando, usa mysql -vvv.
+
+
+
+8.6 Consultas del proyecto gemelos
+
+En Analytikerna y Lentus, hemos estado realizando el trabajo de campo y sistemas para
+un gran proyecto de investigación. Este proyecto es una colaboración entre el Instituto de
+Medicina Medioambiental en el Karolinska Institutet Stockholm y la Sección en Investigación
+Clínica en Envejecimiento y Psicología en la Universidad del Sur de California.
+
+El proyecto consistió en una parte de selección donde todos los gemelos en Suecia mayores de
+65 años eran entrevistados por teléfono. Los gemelos que reunían ciertos criterios pasaban a la
+siguiente fase. En esta fase posterior, los gemelos que querían participar eran visitados por
+un equipo doctor/enfermera. Algunos de los exámenes incluían exámenes físicos y neuropsicológicos,
+pruebas de laboratorio, neuroimágenes, valoración del estado psicológico, y recopilación de la
+historia familiar. Además, se recogieron datos sobre los factores de riesgo médicos y
+medioambientales.
+
+Puede encontrarse más información sobre los estudios de gemelos en :
+
+      http://www.imm.ki.se/TWIN/TWINUKW.HTM
+
+La última parte del proyecto se administra con un interfaz web escrito usando Perl y MySQL.
+Cada noche, todos los datos de las entrevistas son movidos a una base de datos MySQL.
+
+8.6.1 Buscar todos los gemelos no-distribuidos
+
+La siguiente consulta se usa para determinar quién pasa a la segunda parte del proyecto:
+
+ select
+             concat(p1.id, p1.tvab) + 0 as tvid,
+             concat(p1.christian_name, " ", p1.surname) as Name,
+             p1.postal_code as Code,
+             p1.city as City,
+             pg.abrev as Area,
+             if(td.participation = "Aborted", "A", " ") as A,
+             p1.dead as dead1,
+             l.event as event1,
+             td.suspect as tsuspect1,
+             id.suspect as isuspect1,
+             td.severe as tsevere1,
+             id.severe as isevere1,
+             p2.dead as dead2,
+             l2.event as event2,
+             h2.nurse as nurse2,
+             h2.doctor as doctor2,
+             td2.suspect as tsuspect2,
+             id2.suspect as isuspect2,
+             td2.severe as tsevere2,
+             id2.severe as isevere2,
+             l.finish_date
+     from
+             twin_project as tp
+             /* For Twin 1 */
+             left join twin_data as td on tp.id = td.id and tp.tvab = td.tvab
+             left join informant_data as id on tp.id = id.id and tp.tvab = id.tvab
+             left join harmony as h on tp.id = h.id and tp.tvab = h.tvab
+             left join lentus as l on tp.id = l.id and tp.tvab = l.tvab
+             /* For Twin 2 */
+             left join twin_data as td2 on p2.id = td2.id and p2.tvab = td2.tvab             left join informant_data as id2 on p2.id = id2.id and p2.tvab = id2.tvab
+             left join harmony as h2 on p2.id = h2.id and p2.tvab = h2.tvab
+             left join lentus as l2 on p2.id = l2.id and p2.tvab = l2.tvab,
+             person_data as p1,
+             person_data as p2,
+             postal_groups as pg
+     where
+             /* p1 gets main twin and p2 gets his/her twin. */
+             /* ptvab is a field inverted from tvab */
+             p1.id = tp.id and p1.tvab = tp.tvab and
+             p2.id = p1.id and p2.ptvab = p1.tvab and
+             /* Just the sceening survey */
+             tp.survey_no = 5 and
+             /* Skip if partner died before 65 but allow emigration (dead=9) */
+             (p2.dead = 0 or p2.dead = 9 or
+              (p2.dead = 1 and
+               (p2.death_date = 0 or
+                (((to_days(p2.death_date) - to_days(p2.birthday)) / 365)
+                 >= 65))))
+             and
+             (
+             /* Twin is suspect */
+             (td.future_contact = 'Yes' and td.suspect = 2) or
+             /* Twin is suspect - Informant is Blessed */
+             (td.future_contact = 'Yes' and td.suspect = 1 and id.suspect = 1) o
+             /* No twin - Informant is Blessed */
+             (ISNULL(td.suspect) and id.suspect = 1 and id.future_contact = 'Yes') or
+             /* Twin broken off - Informant is Blessed */
+             (td.participation = 'Aborted'
+              and id.suspect = 1 and id.future_contact = 'Yes') or
+             /* Twin broken off - No inform - Have partner */
+             (td.participation = 'Aborted' and ISNULL(id.suspect) and p2.dead = 0))
+             and
+             l.event = 'Finished'
+             /* Get at area code */
+             and substring(p1.postal_code, 1, 2) = pg.code
+             /* Not already distributed */
+             and (h.nurse is NULL or h.nurse=00 or h.doctor=00)
+             /* Has not refused or been aborted */
+             and not (h.status = 'Refused' or h.status = 'Aborted'
+             or h.status = 'Died' or h.status = 'Other')
+     order by
+             tvid;
+
+Algunas explicaciones:
+
+`concat(p1.id, p1.tvab) + 0 as tvid'
+     Queremos ordenar por la concatenación de `id' y `tvab' en orden numérico.
+     Añadiendo `0' al resultado provocamos que *MySQL* trate el resultado como 
+     un número.
+
+column `id'
+     Esto identifica un par de gemelos. Es una clave en todas las tablas.
+
+column `tvab'
+     Esto identifica un gemelo de una pareja. Tiene un valor de `1' ó `2'
+
+column `ptvab'
+     Esto es la inversa de `tvab'. Cuando `tvab' es `1' esto es `2', y
+     vice versa. Esto existe para ahorrarnos teclear y para hacer más fácil
+     la optimización de la consulta a MySQL. 
+
+
+Esta consulta demuestra, entre otras cosas, cómo realizar búsquedas en una tabla
+enlazada con la misma tabla a través de un join (p1 y p2). En el ejemplo, ésto
+se usa para comprobar cuándo un gemelo de una pareja murió antes de cumplir 65. 
+En caso afirmativo, la fila no es devuelta.
+
+Todo lo anterior existe en todas las tablas con información relacionada con los gemelos.
+Tenemos una clave tanto en id, tvab (todas las tablas) como en id,ptvab (person_data) para
+construir consultas más rápidas.
+
+En nuestra máquina de producción (una UltraSPARC 200MHz), esta consulta devuelve alrededor
+de 150-200 filas y tarda menos de un segundo.
+
+El número actual de registros en las tablas usadas arriba:
+
+Tabla		    Filas
+
+person_data          71074                                
+lentus               5291                                 
+twin_project         5286                                 
+twin_data            2012                                 
+informant_data       663                                  
+harmony              381                                  
+postal_groups        100     
+
+
+
+
+8.6.2 Mostrar una tabla con el estado de la pareja de gemelos.
+
+Cada entrevista finaliza con un código de estado llamado event. La consulta mostrada
+debajo se usa para imprimir una tabla sobre todas las parejas de gemelos combinadas por evento.
+Esto indica en cuántas parejas ambos gemelos han finalizado, en cuántas parejas
+ha finalizado un gemelo y el otro se rechazó, etc.
+
+  select
+             t1.event,
+             t2.event,
+             count(*)
+     from
+             lentus as t1,
+             lentus as t2,
+             twin_project as tp
+     where
+             /* We are looking at one pair at a time */
+             t1.id = tp.id
+             and t1.tvab=tp.tvab
+             and t1.id = t2.id
+             /* Just the sceening survey */
+             and tp.survey_no = 5
+             /* This makes each pair only appear once */
+             and t1.tvab='1' and t2.tvab='2'
+     group by
+             t1.event, t2.event;
+
+
+

@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# We built on one of two machines
+bmachine=work
+smachine=work
+owner=my
+
+# Hard path!!
+bpath=`/bin/pwd`
+rpmdir="/usr/src/redhat"
+
+###### Perl STUFF #####
+
+# Perl version numbers. Should be autodetected from the files in the
+# Perl-mysql-modules/ directory.
+DBI_VERSION="1.11"
+DATA_SHOWTABLE_VERSION="3.3"
+DBD_MYSQL_VERSION="1.2209"
+MAKERPM="$rpmdir/SOURCES/makerpm.pl"
+
+#######################
+
+VER=`grep "AM_INIT_AUTOMAKE(mysql, " $bpath/configure.in | \
+ sed -e 's;AM_INIT_AUTOMAKE(mysql, ;;' -e 's;);;'`
+VER_NO_DASH=`echo $VER | sed -e "s|-.*$||"`
+
+echo "Building RPM for MySQL version $VER on $bmachine"
+
+log=$bpath/Logs/Log-RPM-`date +%y%m%d-%H%M`
+
+(
+set -x
+# Copy MySQL source and spec files
+scp $bpath/mysql-$VER.tar.gz $owner@$bmachine:$rpmdir/SOURCES
+scp $bpath/Docs/Images/mysql-logo.gif $owner@$bmachine:$rpmdir/SOURCES/mysql.gif
+scp $bpath/support-files/mysql-$VER.spec $owner@$bmachine:$rpmdir/SPECS
+
+# Copy perl things. Has to be uncompressed since Compress.pm is not
+# installed yet. Set CEXT to .gz when we support compression.
+CEXT=
+#scp $bpath/Perl-mysql-modules/To-SOURCES/* $owner@$bmachine:$rpmdir/SOURCES
+
+# This had to be installed on the target machince!
+# http://www.perl.com/CPAN/modules/by-module/Archive/Archive-Tar-0.21.tar.gz
+# cd /usr/lib/perl5/site_perl/5.005; ln -s ../* .; rm -f 5.005
+
+TMP_SCRIPT_MYSQL=00-temp-for-do-rpm.$$
+cat > $bpath/Logs/$TMP_SCRIPT_MYSQL <<END
+set -x
+
+# Check environment
+export MYSQL_BUILD_PATH="/usr/cygnus/redhat-980810/H-i386-pc-linux-gnu/bin/:/usr/bin:/bin"
+export MYSQL_BUILD_CFLAGS="-O6 -fomit-frame-pointer -mpentium"
+export MYSQL_BUILD_CXXFLAGS="-O6 -fomit-frame-pointer \
+	          -felide-constructors -fno-exceptions -fno-rtti -mpentium"
+gcc -v
+
+# Make RPM
+rpm -ba $rpmdir/SPECS/mysql-$VER.spec
+rm -f /tmp/$TMP_SCRIPT_MYSQL
+END
+
+TMP_SCRIPT_PERL=00-temp-for-perl-rpm.$$
+cat > $bpath/Logs/$TMP_SCRIPT_PERL <<END
+set -x
+
+# First clean up so we do not get old versions when wildcard matching
+rm -f $rpmdir/SOURCES/DBI-*.spec
+rm -f $rpmdir/RPMS/i386/Perl-*.rpm
+rm -f $rpmdir/SRPMS/Perl-*.rpm
+rm -f $rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm
+rm -f $rpmdir/SRPMS/MySQL*-$VER_NO_DASH*.rpm
+
+chmod a+x ${MAKERPM}
+rm 
+
+${MAKERPM} --verbose --package-name=DBI --package-version ${DBI_VERSION} \
+ --specs --source=DBI-${DBI_VERSION}.tar$CEXT
+
+rpm -ba $rpmdir/SPECS/DBI-${DBI_VERSION}.spec
+
+${MAKERPM} --verbose --package-name=Data-ShowTable \
+ --package-version ${DATA_SHOWTABLE_VERSION} \
+ --specs --source=Data-ShowTable-${DATA_SHOWTABLE_VERSION}.tar$CEXT
+
+rpm -ba $rpmdir/SPECS/Data-ShowTable-${DATA_SHOWTABLE_VERSION}.spec
+
+for v in ${DBD_MYSQL_VERSION}; do
+    ${MAKERPM} 
+        --specs \
+        --source=Msql-Mysql-modules-$v.tar$CEXT \
+	--setup-dir=Msql-Mysql-modules-$v \
+        --package-name=DBD-mysql \
+        --package-version=$v \
+	--makemakeropts='--noprompt --mysql-install --mysql-install-nodbd \
+		         --nomsql-install --nomsql1-install' \
+	--require=perl-Data-ShowTable --require=perl-DBI
+    rpm -ba $rpmdir/SPECS/DBD-mysql-$v.spec
+done
+
+for srcrpm in $rpmdir/SRPMS/perl-*.src.rpm
+do
+  rpm --rebuild $srcrpm
+done
+
+rm -f /tmp/$TMP_SCRIPT_PERL
+END
+
+# scp $bpath/Logs/$TMP_SCRIPT_MYSQL $owner@$bmachine:/tmp/$TMP_SCRIPT_MYSQL
+
+ssh $bmachine -l $owner bash $bpath/Logs/$TMP_SCRIPT_MYSQL
+
+# Build perl RPM (we currently need to be root to do this and that is
+# not possible)
+
+#scp $bpath/Logs/$TMP_SCRIPT_PERL $owner@$bmachine:/tmp/$TMP_SCRIPT_PERL
+#ssh $bmachine -l root bash /tmp/$TMP_SCRIPT_PERL
+
+# Copy RPMs back to the source dir. We must do this here since the
+# $bmachine may not have permission to access $smachine.
+scp $owner@$bmachine:$rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm $bpath/NEW-RPMS
+scp $owner@$bmachine:$rpmdir/SRPMS/MySQL*-$VER_NO_DASH*.rpm $bpath/NEW-RPMS
+
+# And the perl ones
+#scp $owner@$bmachine:$rpmdir/RPMS/i386/Perl*-*.rpm $bpath/NEW-RPMS
+#scp $owner@$bmachine:$rpmdir/SRPMS/Perl*-*.rpm $bpath/NEW-RPMS
+)  > $log 2>&1

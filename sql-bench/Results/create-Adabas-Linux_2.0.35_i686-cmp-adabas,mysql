@@ -1,0 +1,18 @@
+Testing server 'Adabas 10.01.00' at 1998-08-18 21:20:47
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Testing create of tables
+Time for create_table (1000): 46 secs ( 1.43 usr  0.59 sys =  2.02 cpu)
+
+Accessing tables
+Time to select_group (1000):  3 secs ( 0.28 usr  0.81 sys =  1.09 cpu)
+
+Testing drop
+Time for drop_table (1000): 76 secs ( 0.12 usr  0.63 sys =  0.75 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 126 secs ( 0.25 usr  2.57 sys =  2.82 cpu)
+Time for create_key+drop (1000): 97 secs ( 0.27 usr  2.86 sys =  3.13 cpu)
+Total time: 348 secs ( 2.35 usr  7.46 sys =  9.81 cpu)

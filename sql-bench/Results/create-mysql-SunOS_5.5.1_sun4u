@@ -1,0 +1,18 @@
+Testing server 'MySQL 3.22.19' at 1999-03-02  3:44:40
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Testing create of tables
+Time for create_table (1000): 22 wallclock secs ( 0.56 usr  0.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Accessing tables
+Time to select_group (1000):  1 wallclock secs ( 0.18 usr  0.18 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing drop
+Time for drop_table (1000): 10 wallclock secs ( 0.11 usr  0.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing create+drop
+Time for create+drop (1000): 22 wallclock secs ( 0.78 usr  0.32 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_key+drop (1000): 20 wallclock secs ( 1.12 usr  0.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 75 wallclock secs ( 2.76 usr  1.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -1,0 +1,3 @@
+ccc -DHAVE_CONFIG_H -I. -I. -I.. -I./../include -I../include -O -DDBUG_OFF -fast -O3 -fomit-frame-pointer -c atof.c bchange.c bcmp.c bfill.c bmove.c bmove512.c bmove_upp.c ct_init.c ctype-latin1.c int2str.c is_prefix.c llstr.c longlong2str.c r_strinstr.c str2int.c strappend.c strcend.c strcont.c strend.c strfill.c strinstr.c strmake.c strmov.c strnmov.c strstr.c strtol.c strtoll.c strtoul.c strtoull.c strxmov.c strxnmov.c
+rm libmystrings.a
+ar -cr libmystrings.a atof.o

@@ -1,0 +1,43 @@
+This directory holds configuration files which allow MySQL to work with
+different character sets.  It contains:
+
+*.conf
+    Each conf file contains four tables which describe character types,
+    lower- and upper-case equivalencies and sorting orders for the
+    character values in the set.
+
+Index
+    The Index file lists all of the available charset configurations.
+
+    THE ORDER OF THE CHARACTER SETS IN THIS FILE IS SIGNIFICANT.
+    The first character set is number 1, the second is number 2, etc.  The
+    number is stored IN THE DATABASE TABLE FILES and must not be changed.
+    Always add new character sets to the end of the list, so that the
+    numbers of the other character sets will not be changed.
+
+Compiled in or configuration file?
+    When should a character set be compiled in to MySQL's string library
+    (libmystrings), and when should it be placed in a configuration
+    file?
+
+    If the character set requires the strcoll functions or is a
+    multi-byte character set, it MUST be compiled in to the string
+    library.  If it does not require these functions, it should be
+    placed in a configuration file.
+
+    If the character set uses any one of the strcoll functions, it
+    must define all of them.  Likewise, if the set uses one of the
+    multi-byte functions, it must define them all.  See the manual for
+    more information on how to add a complex character set to MySQL.
+
+Syntax of configuration files
+    The syntax is very simple.  Comments start with a '#' character and
+    proceed to the end of the line.  Words are separated by arbitrary
+    amounts of whitespace.
+
+    For the character set configuration files, every word must be a
+    number in hexadecimal format.  The ctype array takes up the first
+    257 words; the to_lower, to_upper and sort_order arrays take up 256
+    words each after that.
+
+    The Index file is simply a list of the available character sets.

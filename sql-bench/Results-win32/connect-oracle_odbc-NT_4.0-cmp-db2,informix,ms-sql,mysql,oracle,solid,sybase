@@ -1,0 +1,21 @@
+Testing server 'Oracle 8.0.4.0.0' at 1999-04-03 22:42:21
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 8713 wallclock secs (195.47 usr 436.40 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 8722 wallclock secs (257.48 usr 362.71 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 1 row from table
+Time to select (10000): 24 wallclock secs (14.99 usr  1.74 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 2 rows from table
+Time to select (10000): 23 wallclock secs (15.59 usr  1.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 35 wallclock secs (21.24 usr  4.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 17520 wallclock secs (504.84 usr 806.71 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

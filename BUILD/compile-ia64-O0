@@ -1,0 +1,12 @@
+make -k clean
+/bin/rm -f */.deps/*.P config.cache
+
+aclocal; autoheader; aclocal; automake; autoconf
+
+CFLAGS="-O0 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O0 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex
+make
+strip sql/mysqld
+
+
+
+

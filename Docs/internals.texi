@@ -1,0 +1,134 @@
+\input texinfo  @c -*-texinfo-*-
+@c Copyright 1998 TcX AB, Detron HB and Monty Program KB
+@c
+@c %**start of header
+@setfilename internals.info
+@c We want the types in the same index
+@c @synindex tp fn cp
+@synindex cp fn
+@iftex
+@c Well this is normal in Europe. Maybe this shold go into the include.texi?
+@afourpaper
+@end iftex
+@c Get version and other info
+@include include.texi
+@ifclear tex-debug
+@c This removes the black squares in the right margin
+@finalout
+@end ifclear
+@c Set background for HTML
+@set _body_tags BGCOLOR=#FFFFFF TEXT=#000000 LINK=#101090 VLINK=#7030B0
+@settitle @strong{MySQL} internals Manual for version @value{mysql_version}.
+@setchapternewpage off
+@c %**end of header
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* mysql-internals: (mysql-internals).               @strong{MySQL} internals.
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@titlepage
+@sp 10
+@center @titlefont{@strong{MySQL} Internals Manual.}
+@sp 10
+@center Copyright @copyright{} 1998 TcX AB, Detron HB and Monty Program KB
+@end titlepage
+
+@node Top, Introduction, (dir), (dir)
+
+@ifinfo
+This is a manual about @strong{MySQL} internals.
+@end ifinfo
+
+@menu
+@end menu
+
+@node caching
+@chapter How do MySQL handle caching
+
+MySQL has the following caches:
+(Note that the some of the filename has wrong spelling of cache :)
+
+@itemize @bullet
+@item Key cache
+A shared cache for all B-tree index blocks in the different NISAM
+files. Uses hashing and reverse linked lists for quick caching of the
+last used blocks and quick flushing of changed entries for a specific
+table. mysys/mf_keycash.c
+
+@item Record cache
+This is used for quick scanning of all records in a table.
+mysys/mf_iocash.c and isam/_cash.c
+
+@item Table cache
+This holds the last used tables. sql/sql_base.cc
+
+@item Hostname cache
+For quick lookup (with reverse name resolving). Is a must when one has a
+slow DNS. sql/hostname.cc
+
+@item Privilege cache
+To allow quick change between databases the last used privileges are
+cached for each user/database combination. sql/sql_acl.cc
+
+@item Heap table cache
+Many use of GROUP BY or DISTINCT caches all found
+rows in a HEAP table (this is a very quick, in memory table with hash index)
+
+@item Join row cache.
+For every full join in a SELECT statement (a full join here means there
+was no keys that one could use to find the next table in a list), the
+found rows are cached in a join cache.  One SELECT query can use many
+join caches in the worst case.
+@end itemize
+
+@node flush tables
+@chapter How do MySQL handle flush tables
+
+@itemize @bullet
+@item
+Flush tables is handled in sql/sql_base.cc::close_cached_tables().
+@Item
+The idea of flush tables is to force all tables to be closed. This
+is mainly to ensure that if someone adds a new table outside of
+MySQL (for example with 'cp') all threads will start using the new table.
+This will also ensure that all table changes are flushed to disk
+(but of course not as optimally as simple calling a sync on all tables)!
+@item
+When one does a 'flush tables', the variable 'refresh_version' will
+be incremented. Every time a thread releases a table it checks if
+the refresh version of the table (updated at open) is the same as
+the current refresh_version.  If not it will close it and broadcast
+a signal on COND_refresh (to wait any thread that is waiting for
+all instanses of a table to be closed).
+@item
+The current refresh_version is also compared to the open refresh_version
+after a thread gets a lock on a table.  If the refresh version is
+different the thread will free all locks, reopen the table and try
+to get the locks again;  This is just to quickly get all tables to
+use the newest version.  This is handled by
+sql/lock.cc::mysql_lock_tables() and sql/sql_base.cc::wait_for_tables().
+@item
+When all tables has been closed flush-tables will return an ok to client.
+@item
+If the thread that is doing flush-table has a lock on some tables,
+it will first closes the locked tables, wait until all other threads
+have also closed these and then reopen these and get the locks.
+After this it will give other threads a possibility to open the
+same tables.
+@end itemize
+
+@node Index
+@unnumbered Index
+
+@printindex fn
+
+@summarycontents
+@contents
+
+@bye
+
+Do text here do something ??

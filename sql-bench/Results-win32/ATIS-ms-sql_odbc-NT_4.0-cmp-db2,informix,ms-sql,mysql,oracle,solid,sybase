@@ -1,0 +1,19 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07  2:15:22
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  1 secs ( 1.21 usr  0.00 sys =  1.21 cpu)
+
+Inserting data
+Time to insert (9768): 65 secs (64.59 usr  0.00 sys = 64.59 cpu)
+
+Retrieving data
+Time for select_simple_join (500):  8 secs ( 8.30 usr  0.00 sys =  8.30 cpu)
+Time for select_join (200): 66 secs (65.25 usr  0.00 sys = 65.25 cpu)
+Time for select_distinct (800): 59 secs (59.65 usr  0.00 sys = 59.65 cpu)
+Time for select_group (2100): 31 secs (30.33 usr  0.00 sys = 30.33 cpu)
+
+Removing tables
+Time to drop_table (28):  1 secs ( 1.07 usr  0.00 sys =  1.07 cpu)
+Total time: 231 secs (230.45 usr  0.00 sys = 230.45 cpu)

@@ -1,0 +1,25 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-23  8:12:38
+
+Testing of some unusual tables
+All tests are done 1000 times with 254 fields
+
+Testing table with 254 fields
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 20 wallclock secs ( 0.57 usr  0.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 20 wallclock secs ( 9.98 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000):  3 wallclock secs ( 0.85 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000):  4 wallclock secs ( 1.19 usr  0.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 49 wallclock secs (12.68 usr  0.78 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

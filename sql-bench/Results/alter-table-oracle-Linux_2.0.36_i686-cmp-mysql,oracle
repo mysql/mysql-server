@@ -1,0 +1,14 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-25  0:39:16
+
+Testing of ALTER TABLE
+Testing with 254 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 3 wallclock secs ( 0.64 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for alter_table_add (246):  8 wallclock secs ( 0.20 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for create_index (8):  0 wallclock secs ( 0.02 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for drop_index (8):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 12 wallclock secs ( 0.87 usr  0.13 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

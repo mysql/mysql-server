@@ -1,0 +1,901 @@
+#.# mi_changed()
+
+int mi_is_changed(MI_INFO *mip)
+
+#.#.1 Description
+
+Reports whether any changes have occurred to the MyISAM table associated with mip. 
+
+For information only, I notice that mi_changed() is a wrapper around this: (_mi_readinfo(info,F_RDLCK,1)).
+
+#.#.2 Return values
+
+Zero if the table has not changed. Non-zero (-1) if the table has changed.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+if( mi_changed( mip )) printf( "file has changed" );
+====================
+#.# mi_close()
+
+int mi_close( MI_INFO *mip )
+
+#.#.1 Description
+
+Closes the MyISAM table associated with mip, a structure created by mi_open().
+Any locks on that file pointer are released.
+The MI_INFO structure mip is released.
+See also mi_panic() which can be used to close all open MyISAM files.
+mip is a pointer to the MI_INFO returned by mi_open().
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+result = mi_close(mip);
+====================
+#.# mi_create()
+
+int mi_create( const char *name, uint keys, MI_KEYDEF *keydefs,
+          uint columns, MI_COLUMNDEF *recinfo, 
+          uint uniques, MI_UNIQUEDEF *uniquedefs, 
+          MI_CREATE_INFO *ci, uint flags ) 
+
+#.#.1 Description
+
+Creates a new MyISAM table.
+Documentation for this function is not complete because I am not using mi_create directly.
+Because all our tables are used with MySQL, I create new tables using SQL "CREATE TABLE" via the C API. 
+See MySQL Appendix B "Choosing a table type".
+MyISAM allows about 32 indexes. However the official MySQL limit is 16 until MySQL 4.0.
+
+The parameters are specified as follows:
+name		The file pathname, excluding the suffixes.
+keys		Number of indexes.
+keydefs	A MI_KEYDEF structure containing key definitions. 
+HA_KEYTYPE_END=0 
+HA_KEYTYPE_TEXT=1,                    /* Key is sorted as letters */    
+HA_KEYTYPE_BINARY=2,                  /* Key is sorted as unsigned chars
+HA_KEYTYPE_SHORT_INT=3,                                                 
+HA_KEYTYPE_LONG_INT=4,                                                  
+HA_KEYTYPE_FLOAT=5,                                                     
+HA_KEYTYPE_DOUBLE=6,                                                    
+HA_KEYTYPE_NUM=7,                     /* Not packed num with pre-space *
+HA_KEYTYPE_USHORT_INT=8,                                                
+HA_KEYTYPE_ULONG_INT=9,                                                 
+HA_KEYTYPE_LONGLONG=10,                                                 
+HA_KEYTYPE_ULONGLONG=11,                                                
+HA_KEYTYPE_INT24=12,                                                    
+HA_KEYTYPE_UINT24=13,                                                   
+HA_KEYTYPE_INT8=14,                                                     
+HA_KEYTYPE_VARTEXT=15,                /* Key is sorted as letters */    
+HA_KEYTYPE_VARBINARY=16               /* Key is sorted as unsigned chars
+columns	The number of columns.
+recinfo		A MI_COLUMNDEF structure containing column definitions. 
+uniques	The number of unique indexes.
+uniquedefs	A MI_UNIQUEDEF structure containing unique index definitions. 
+ci	A MI_CREATE_INFO structure containing column definitions.
+flags	a pointer to the record buffer that will contain the row.
+
+#.#.2 Return values
+
+Zero if the create is successful. Non-zero if an error occurs.
+
+#.#.3 Errors
+
+HA_WRONG_CREATE_OPTION
+ means that some of the arguments was wrong.
+appart from the above one can get any unix error that one can get from open(), write() or close().
+
+#.#.4 Examples
+
+if (mi_create(fn_format(name,filename,"",MI_NAME_IEXT, 4+ (opt_follow_links ? 16 : 0)),
+              share.base.keys - share.state.header.uniques, keyinfo, share.base.fields, recdef, 
+              share.state.header.uniques, uniquedef, &create_info, HA_DONT_TOUCH_DATA))
+====================
+#.# mi_delete()
+
+int mi_delete(MI_INFO *mip, const byte *buf)
+
+#.#.1 Description
+
+Removes a row from a MyISAM table.
+
+mip is an MI_INFO pointer to the open handle.
+buf is the buffer containing the row that is to be deleted.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+EACCES
+File was opened read-only.
+HA_ERR_KEY_NOT_FOUND
+No database read
+HA_ERR_RECORD_CHANGED
+The buffer contents were different to the actual row contents.
+HA_ERR_CRASHED
+The indexing has crashed.
+
+#.#.4 Examples
+
+if (mi_delete(file,read_record))
+====================
+#.# mi_delete_all()
+
+int mi_delete_all_rows(MI_INFO *mip)
+#.#.1 Description
+
+Removes ALL rows from a MyISAM table.
+This only clears the status information. The files are not truncated.
+
+mip is an MI_INFO pointer to the open handle.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+EACCES
+File was opened read-only.
+
+#.#.4 Examples
+
+error = mi_delete_all( mip );
+====================
+#.# mi_extra()
+
+int mi_extra(MI_INFO *info, enum ha_extra_function function)
+
+#.#.1 Description
+
+Controls some special MyISAM modes.
+
+The function parameter can be:
+	HA_EXTRA_NORMAL=0			Optimize for space (def) 
+HA_EXTRA_QUICK=1			Optimize for speed 
+HA_EXTRA_RESET=2			Reset database to after open 
+HA_EXTRA_CACHE=3			Cash record in HA_rrnd() 
+HA_EXTRA_NO_CACHE=4			End cacheing of records (def) 
+HA_EXTRA_NO_READCHECK=5		No readcheck on update 
+HA_EXTRA_READCHECK=6			Use readcheck (def) 
+HA_EXTRA_KEYREAD=7			Read only key to database 
+HA_EXTRA_NO_KEYREAD=8		Normal read of records (def) 
+HA_EXTRA_NO_USER_CHANGE=9	No user is allowed to write 
+HA_EXTRA_KEY_CACHE=10 
+HA_EXTRA_NO_KEY_CACHE=11 
+HA_EXTRA_WAIT_LOCK=12		Wait until file is avalably (def) 
+HA_EXTRA_NO_WAIT_LOCK=13		If file is locked, return quickly 
+HA_EXTRA_WRITE_CACHE=14		Use write cache in ha_write() 
+HA_EXTRA_FLUSH_CACHE=15		flush write_record_cache 
+HA_EXTRA_NO_KEYS=16			Remove all update of keys 
+HA_EXTRA_KEYREAD_CHANGE_POS=17 Keyread, but change pos 
+xxxxchk -r must be used 
+HA_EXTRA_REMEMBER_POS=18		Remember pos for next/prev 
+HA_EXTRA_RESTORE_POS=19
+HA_EXTRA_REINIT_CACHE=20		init cache from current record 
+HA_EXTRA_FORCE_REOPEN=21		Datafile have changed on disk 
+HA_EXTRA_FLUSH				Flush tables to disk 
+HA_EXTRA_NO_ROWS			Don't write rows 
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+====================
+#.# mi_make_application_key()
+
+void mi_make_application_key(register MI_INFO *mip, uint keynr, uchar *key, const byte *record)
+
+#.#.1 Description
+
+Construct a key string for the given index, from the provided record buffer.
+Monty wrote this function to: "to create an external key for an application from your record. It should work for all keys except BLOB and true VARCHAR (not supported by MySQL yet), but I don't think you have either of these!" He just wrote it, so I expect it to included in releases from about 3.23.15. ??
+
+The parameters are:
+A MI_INFO pointer mip.
+The index number keynr.
+The buffer to contain the formatted key string key.
+The record buffer record.
+
+#.#.2 Return values
+
+The byte length of the created key string.
+ 
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+uint new_length=_mi_make_application_key(info,i,new_key,newrec);
+====================
+#.# mi_open()
+
+MI_INFO *mi_open( const char *name, int mode, uint handle_locking )
+
+#.#.1 Description
+
+Opens a MyISAM file for processing.
+mi_open() returns a MI_INFO structure pointer that you must use in subsequent operations on the MyISAM file. MI_INFO structures are defined in "myisam/myisamdef.h", which is included in your program via your include myisam.h - used by both MyISAM and MySQL.
+The name parameter must contain a null-terminated string without an extension, which is the filename of the MyISAM file to be processed.
+There is no automatic positioning nor key selection.
+Caution! It is extremely important to close MyISAM files after processing has finished, especially on operating systems without file-locking system calls. Failure to close MyISAM files using mi_close() or mi_panic() leaves the files locked on systems without these system calls.
+
+name			Is the name of the file.
+mode			Is the access mode parameter. Use one of the following access mode parameters:
+O_RDONLY	to open for input only.
+O_RDWR	opens the file for output.
+O_SHARE	opens the file for both input and output. When used, O_SHARE should be added to O_RDONLY and O_RDWR.
+handle_locking	is the locking mode parameter. Select from the following:
+HA_OPEN_ABORT_IF_LOCKED	(0) exit with error if database is locked
+HA_OPEN_WAIT_IF_LOCKED	(1) wait if database is locked
+HA_OPEN_IGNORE_IF_LOCKED	(2) continue, but count-vars in st_i_info may be wrong. count-vars are automatically fixed after next isam request.
+
+#.#.2 Return values
+
+A pointer to MI_INFO for successfully open file. NULL if unsuccessful, when my_errno will contain the error code.
+
+#.#.3 Errors
+
+HA_ERR_OLD_FILE
+wrong options
+HA_ERR_CRASHED
+wrong header
+HA_ERR_UNSUPPORTED
+too many keys or keys too long
+HA_ERR_END_OF_FILE
+empty file?
+MY_FILE_ERROR
+?
+EACCES
+cannot open in write mode
+ENOMEM
+not enough memory
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+pfm = mi_open("/D1/adir/perform",O_SHARE | O_RDONLY, HA_OPEN_ABORT_IF_LOCKED); 
+====================
+#.# mi_panic()
+
+int mi_panic( enum ha_panic_function flag )
+
+#.#.1 Description
+
+mi_panic() is used to close any MyISAM files before exiting, or to safeguard file updates when using a shell.
+The flag parameter specifies the function and can be:
+HA_PANIC_CLOSE	Close all databases (MyISAM files).
+HA_PANIC_WRITE	Unlock and write status, flushing all buffers to disk.
+HA_PANIC_READ	Lock and read key info per HA_PANIC_WRITE.
+
+The CLOSE function also writes buffers before it closes and turns logging off by closing the log file..
+See also my_end(), a debugging function.
+One use is to do a WRITE, use a shell to run myisamchk, then do a READ.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+result = mi_panic(HA_PANIC_CLOSE);
+====================
+#.# mi_position()
+
+my_off_t mi_position(MI_INFO *mip)
+
+#.#.1 Description
+
+Gets the byte position in the file of the last record read.
+
+mip is an MI_INFO pointer to the open handle.
+
+#.#.2 Return values
+
+Byte position if successful. Zero if an error occurred. ??
+
+#.#.3 Errors
+
+HA_OFFSET_ERROR
+if there wasn't any active row.
+
+#.#.4 Examples
+
+currentpos = mi_position( mip );
+====================
+#.# mi_rfirst()
+
+int mi_rfirst(MI_INFO *mip , byte *buf, int inx)
+
+#.#.1 Description
+
+Reads the first row in the MyISAM file according to the specified index.
+If one want's to read rows in physical sequences, then one should instead use mi_scan() or mi_rrnd().
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+Inx is the index (key) number, which must be the same as currently selected.
+
+mi_rfirst() works by setting the current position mip->lastpos to HA_OFFSET_ERROR (undefined) then calling mi_rnext().
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_rfirst( mip, buffer, keynum); 
+====================
+#.# mi_rkey()
+
+int mi_rkey(MI_INFO *mip, byte *buf, int inx, const byte *key, uint key_len, enum ha_rkey_function 	search_flag)
+
+#.#.1 Description
+
+Reads the next row after the last row read, using the current index. 
+If one want's to read rows in physical sequences, then one should instead use mi_scan() or mi_rrnd().
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+Inx is the index (key) number, which must be the same as currently selected.
+
+If (mip->lastpos) is HA_OFFSET_ERROR (undefined) then mi_rnext() gives the first row.
+If you specify a different index number than the last read used, you will get an error.
+If the last (current) row has been changed since we read it, mi_rnext() will reposition from the position where that row WAS, not where it is now. (This behaviour is similar to CISAM and better than used in Codebase.)
+
+mi_extra(HA_EXTRA_KEYREAD) can be called first, to cause mi_rkey to read the key but not the record. Then call mi_extra(HA_EXTRA_NO_KEYREAD) to resume normal behaviour.
+ 
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_rnext( mip, buffer, keynum );
+====================
+#.# mi_rlast()
+
+int mi_rlast(MI_INFO *mip , byte *buf, int inx)
+
+#.#.1 Description
+
+Reads the last row in the MyISAM file according to the specified index.
+If one want's to read rows in physical sequences, then one should instead use mi_scan() or mi_rrnd().
+mip is an MI_INFO pointer to the open handle.
+buf is a pointer to the record buffer that will contain the row.
+Inx is the index (key) number, which must be the same as currently selected.
+
+mi_rlast() works by setting the current position (mip->lastpos) to HA_OFFSET_ERROR (undefined) then calling mi_rprev().
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_rlast( mip, buffer, keynum); 
+====================
+#.# mi_rnext()
+
+int mi_rnext(MI_INFO *mip , byte *buf, int inx )
+
+#.#.1 Description
+
+Reads the next row after the last row read, using the current index. 
+If one want's to read rows in physical sequences, then one should instead use mi_scan() or mi_rrnd().
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+Inx is the index (key) number, which must be the same as currently selected.
+
+If (mip->lastpos) is HA_OFFSET_ERROR (undefined) then mi_rnext() gives the first row.
+If you specify a different index number than the last read used, you will get an error.
+If the last (current) row has been changed since we read it, mi_rnext() will reposition from the position where that row WAS, not where it is now. (This behaviour is similar to CISAM and better than used in Codebase.)
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_rnext( mip, buffer, keynum );
+====================
+#.# mi_rrnd()
+
+int mi_rrnd( MI_INFO *mip , byte *buf, my_off_t filepos )
+
+#.#.1 Description
+
+Reads a row based on physical position.
+
+Position can be calculated from record number only when fixed record lengths are used: 
+position = mip->s.pack.header_length + recnum * mip->s->base.reclength. 
+If filepos= HA_OFFSET_ERROR then it reads the next row.
+And if (mip->lastpos == HA_OFFSET_ERROR) it reads the first row.
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+filepos is the byte position in the file of the required record.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_RECORD_DELETED
+A deleted record was read. 
+HA_ERR_END_OF_FILE
+End of file.
+
+#.#.4 Examples
+
+error = mi_rrnd( mip, buffer, mip->nextpos );
+====================
+#.# mi_rprev()
+
+int mi_rprev(MI_INFO *mip , byte *buf, int inx)
+
+#.#.1 Description
+
+Reads the row previous to the last row read, using the current index. 
+If one wants to read rows in physical sequences, then one should instead use mi_scan() or mi_rrnd().
+
+If (mip->lastpos) is HA_OFFSET_ERROR (undefined) then mi_rnext() gives the last row in the index.
+If you specify a different index number than the last read used, you will get an error.
+If the last (current) row has been changed since we read it, mi_rprev() will reposition from the position where that row WAS, not where it is now. This behaviour is similar to CISAM and better than used in Codebase. 
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+Inx is the index (key) number, which must be the same as currently selected.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_rprev( mip, buffer, keynum );
+====================
+#.# mi_rsame()
+
+int mi_rsame(MI_INFO *mip, byte *buf, int inx)
+
+#.#.1 Description
+
+Reads the current row to get its latest contents. This is useful to refresh the record buffer in case someone else has changed it.
+If inx is negative it reads by position. If inx is >= 0 it reads by key.
+With mi_rsame() one can switch to use any other index for the current row. This is good if you have a user application that lets the user do 'read-next' on a row.  In this case, if the user want's to start scanning on another index, one simply has to do a mi_rsame() on the new index to activate this.
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+inx is the index (key) number, or a negative number to select read by position not index. Maybe the negative number has to be (-1) to achieve this behaviour.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_WRONG_INDEX
+an incorrect index number was supplied
+HA_ERR_KEY_NOT_FOUND
+info->lastpos was not defined, or the record was already deleted.
+
+#.#.4 Examples
+
+error = mi_rsame( m5mip, rec_ptr, keynum );
+====================
+#.# mi_scan()
+
+int mi_scan(MI_INFO *mip, byte *buf)
+
+#.#.1 Description
+
+Reads the next row by physical position.
+
+Deleted rows are bypassed.
+mi_scan() uses a function pointer "read_rnd" that uses either lower level static or dynamic read functions, positioning from mip->nextpos. Read_rnd is defined in mi_open() depending if the table is Static (read*static - see mi_statrec.c), Compressed (read*pack - see mi_packrec.c), or Space packed or Blobs (read*dynamic - see mi_dynrec.c).
+See also mi_scan_init() which initialises ready to mi_scan() through the whole table.
+
+mip is an MI_INFO pointer to the open handle.
+buf is the record buffer that will contain the row.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_END_OF_FILE
+End of file
+Otherwise one has probably got a fatal error like HA_ERR_CRASHED or some I-O related error from the Operating System.
+
+#.#.4 Examples
+
+error = mi_scan( mip, recbuff ); 
+====================
+#.# mi_scan_init()
+
+int mi_scan_init(MI_INFO *mip[SB1])
+
+#.#.1 Description
+
+Initialises ready to mi_scan() through all rows.
+
+mip is an MI_INFO pointer to the open handle.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+====================
+#.# mi_status()
+
+int mi_status(MI_INFO *mip, MI_ISAMINFO *x, uint flag)
+
+#.#.1 Description
+
+Gets information about the table.
+It is used to get/fill the MI_ISAMINFO struct with statistics data about the MySQL server.  One can get information of the number of active rows, delete rows, file lengths...
+
+mip is an MI_INFO pointer to the open handle.
+flag is one of the following:
+HA_STATUS_POS		Return position
+HA_STATUS_NO_LOCK	Don't use external lock
+HA_STATUS_TIME		Return update time
+HA_STATUS_CONST		Return constants value
+HA_STATUS_VARIABLE
+HA_STATUS_ERRKEY
+HA_STATUS_AUTO
+
+#.#.2 Return values
+
+Zero.
+ 
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+====================
+#.# mi_update()
+
+int mi_update( MI_INFO *mip, const byte *oldbuf, byte *newbuf)
+
+#.#.1 Description
+
+Updates the contents of the current record.
+By default you must supply an oldbuf record buffer with the current record contents. This is compared with the file as a guard in case someone else has changed the record in the meantime. *
+
+mip is an MI_INFO pointer to the open handle.
+oldbuf is the record buffer that contains the current record contents.
+newbuf is the record buffer that contains the new record contents.
+
+*Sometimes you might want to force an update without checking whether another user has changed the record since you last read it. This is somewhat dangerous, so it should ideally not be used. That can be accomplished by wrapping the mi_update() call in two calls to mi_extra(), using these functions:
+HA_EXTRA_NO_READCHECK=5		No readcheck on update 
+HA_EXTRA_READCHECK=6			Use readcheck (def)
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+EACCES
+The file was opened for read-only access.
+HA_ERR_RECORD_CHANGED
+	When mi_update() read the current record contents before updating, it differed from oldbuf.
+HA_ERR_CRASHED
+Key could not be found ??
+HA_ERR_FOUND_DUPP_KEY
+HA_ERR_RECORD_FILE_FULL
+
+#.#.4 Examples
+
+error = mi_update( mip, oldbuf, newbuf );
+====================
+#.# mi_write()
+
+int mi_write( MI_INFO *mip, byte *record)
+
+#.#.1 Description
+
+Writes a row to a MyISAM table.
+
+mip is an MI_INFO pointer to the open handle.
+The record contents are supplied in buf record buffer.
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+HA_ERR_FOUND_DUPP_KEY
+A record already existed with a unique key same as this new record.
+HA_ERR_RECORD_FILE_FULL
+The error is given if you hit a system limit or if you try to create more rows in a table that you reserverd room for with mi_create().
+ENOSPC
+The disk is full.
+EACCES
+The file was opened for read-only access.
+
+#.#.4 Examples
+
+error = mi_write( m5mip, recbuf );
+====================
+#.# my_end()
+
+void my_end(int infoflag) 
+
+#.#.1 Description
+
+Shows debugging information about open MyISAM handles.
+my_end() exists primarily for MyISAM debugging.
+It would not normally be used in a production environment. 
+It can give a nice summary of how you have used my_xxx() functions.
+It can be used to check that you have closed all files that you have opened.
+
+infoflag	is the list function and can be:
+MY_CHECK_ERROR		List which MyISAM handles are open.
+MY_GIVE_INFO		Show runtime information.
+
+#.#.2 Return values
+
+Void
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+my_end(MY_CHECK_ERROR | MY_GIVE_INFO);
+====================
+#.# my_init()
+
+void my_init( void )
+
+#.#.1 Description
+
+Performs MyISAM initialisation for program startup, particularly if using threads.
+
+If using threads, be sure to call my_init() at start of program. (CFS does this in XPOPEN.) It is also safe to call my_init() when not using threads.
+
+#.#.2 Return values
+
+void
+Sometimes my_errno might be meaningful if a warning is generated during debugging.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+my_init();
+====================
+#.# init_key_cache()
+
+int init_key_cache( long int use_mem, (uint) reserve_mem;
+
+#.#.1 Description
+
+Starts and controls caching of keys. Call init_key_cache() to reserve memory for key caching and to start the caching. (CFS does this in XPOPEN if MYCACHE is defined (regular size), or MYCACHELARGE or MYCACHESMALL.)
+
+Provide use_mem the number of bytes of memory to use for key caching by this process.
+reserve_mem should be 0. This is just for very old systems with very little memory.
+
+#.#.2 Return values
+
+The number of 1kb memory blocks now allocated to key caching. Zero if key caching cannot be started (check my_errno), or key caching was already active.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+Blocks = init_key_cache( 65536L, IO_SIZE*4*10 );
+====================
+#.# _mi_make_key()
+
+uint _mi_make_key( MI_INFO *mip, uint keynr, uchar *key, const char *record, my_off_t filepos)
+
+#.#.1 Description
+
+Construct a key string for the given index, from the provided record buffer.
+??? When packed records are used ...
+This is an internal function, not for use by applications. Monty says: "This can't be used to create an external key for an application from your record."
+See mi_make_application_key() for a similar function that is useable by applications.
+
+The parameters are:
+A MI_INFO pointer mip.
+The index number keynr.
+The buffer to contain the formatted key string key.
+The record buffer record.
+???  A file position filepos or zero.
+
+#.#.2 Return values
+
+The byte length of the created key string.
+ 
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+uint new_length=_mi_make_key(info,i,new_key,newrec,pos);
+====================
+#.# _mi_print_key()
+
+void _mi_print_key(FILE *stream, MI_KEYSEG *keyseg, const uchar *key, uint length) 
+
+#.#.1 Description
+
+Prints a key in a user understandable format.
+This is an internal function for debugging, not for use by applications.
+??? Not yet fully documented. I just include it here so that I know it exists.
+
+#.#.2 Return values
+
+A readable print of the key contents goes to the specified output.
+ 
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+
+_mi_print_key(stdout,share->keyinfo[info->errkey].seg,info->lastkey, USE_WHOLE_KEY); 
+====================
+APPENDIX B		Choosing a table type        
+(excerpt from manual.txt in MySQL 3.23.8-alpha)
+
+With MySQL you can currently (version 3.23.5) choose between four usable table formats from a speed point of view.
+
+Static (Fixed-length) table characteristics
+* This is the default format. It's used when the table contains no `VARCHAR', `BLOB' or `TEXT' columns. 
+* All `CHAR', `NUMERIC' and `DECIMAL' columns are space-padded to the column width. 
+* Very quick. 
+* Easy to cache. 
+* Easy to reconstruct after a crash, because records are located in fixed positions. 
+* Doesn't have to be reorganized (with `myisamchk') unless a huge number of records are deleted and you want to return free disk space to the operating system. 
+* Usually requires more disk space than dynamic tables. 
+                                                                      
+Dynamic table characteristics 
+* This format is used if the table contains any `VARCHAR', `BLOB' or `TEXT' columns. 
+* All string columns are dynamic (except those with a length less than 4). 
+* Each record is preceded by a bitmap indicating which columns are empty (`''') for string columns, or zero for numeric columns (this isn't the same as columns containing `NULL' values).  If a string column has a length of zero after removal of trailing spaces, or a numeric column has a value of zero, it is marked in the bit map and not saved to disk.  Non-empty strings are saved as a length byte plus the string contents. 
+* Usually takes much less disk space than fixed-length tables. 
+* Each record uses only as much space as is required. If a record becomes larger, it is split into as many pieces as required.  This results in record fragmentation. 
+* If you update a row with information that extends the row length, the row will be fragmented.  In this case, you may have to run `myisamchk -r' from time to time to get better performance.  Use `myisamchk -ei tbl_name' for some statistics. 
+* Not as easy to reconstruct after a crash, because a record may be fragmented into many pieces and a link (fragment) may be missing. 
+* The expected row length for dynamic sized records is: 
+3
++ (number of columns + 7) / 8
++ (number of char columns) 
++ packed size of numeric columns 
++ length of strings 
++ (number of NULL columns + 7) / 8 
+There is a penalty of 6 bytes for each link. A dynamic record is linked whenever an update causes an enlargement of the record. 
+Each new link will be at least 20 bytes, so the next enlargement will probably go in the same link.  If not, there will be another link. You may check how many links there are with `myisamchk -ed'. All links may be removed with `myisamchk -r'.
+
+Compressed table characteristics 
+* A read-only table made with the `myisampack' utility. All customers with extended *MySQL* email support are entitled to a copy of `myisampack' for their internal usage. 
+* The uncompress code exists in all *MySQL* distributions so that even customers who don't have `myisampack' can read tables that were compressed with `myisampack' 
+* Takes very little disk space. Minimises disk usage. 
+* Each record is compressed separately (very little access overhead).  The header for a record is fixed (1-3 bytes) depending on the biggest record in the table.  Each column is compressed differently. Some of the compression types are: 
+- There is usually a different Huffman table for each column.
+- Suffix space compression. 
+- Prefix space compression. 
+- Numbers with value `0' are stored using 1 bit. 
+- If values in an integer column have a small range, the column is stored using the smallest possible type. For example, a `BIGINT' column (8 bytes) may be stored as a `TINYINT' column (1 byte) if all values are in the range `0' to `255'.
+- If a column has only a small set of possible values, the column type is converted to `ENUM'.
+- A column may use a combination of the above compressions. 
+* Can handle fixed or dynamic length records, but not `BLOB' or `TEXT' columns. 
+* Can be uncompressed with `myisamchk'.
+
+*MySQL* can support different index types, but the normal type is ISAM. 
+This is a B-tree index and you can roughly calculate the size for the index file as `(key_length+4)*0.67', summed over all keys.  (This is for the worst case when all keys are inserted in sorted order.)
+
+String indexes are space compressed. If the first index part is a string, it will also be prefix compressed.
+Space compression makes the index file smaller if the string column has a lot of trailing space or is a `VARCHAR' column that is not always used to the full length. 
+Prefix compression helps if there are many strings with an identical prefix.
+
+In memory table characteristics 
+HEAP tables only exists in memory so they are lost if `mysqld' is taken down or crashes. But since they are *very* fast they are usefull as anyway. 
+
+The *MySQL* internal HEAP tables uses 100% dynamic hashing without overflow areas and don't have problems with delete. 
+
+You can only access things by equality using a index (usually by the `=' operator) whith a heap table. 
+The downside with HEAPS are: 
+  1. You need enough extra memory for all HEAP tables that you want to use at the same time. 
+  2. You can't search on a part of a index. 
+  3. You can't search for the next entry in order (that is to use the index to do a `ORDER BY'). 
+1. *MySQL* also cannot find out how approximately many rows there are between two values. This is used by the optimizer to chose which index to use. But on the other hand no disk seeks are even needed.
+====================
+#.# mi_()
+
+#.#.1 Description
+
+#.#.2 Return values
+
+Zero if successful. Non-zero if an error occurred.
+
+#.#.3 Errors
+
+Nothing specific yet identified.
+
+#.#.4 Examples
+[SB1]int _mi_read_rnd_static_record(MI_INFO *info, byte *buf, my_off_t filepos, 
+                               my_bool skipp_deleted_blocks)
+int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
+
+Printed on 17/03/00
+
+C-7

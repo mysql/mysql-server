@@ -1,0 +1,10 @@
+*.lo
+.deps
+.libs
+Makefile
+Makefile.in
+conf_to_src
+config.status
+configure
+ctype_extra_sources.c
+libmysqlclient.la

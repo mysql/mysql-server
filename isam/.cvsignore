@@ -1,0 +1,10 @@
+.deps
+.libs
+Makefile
+Makefile.in
+isamchk
+isamlog
+pack_isam
+test1
+test2
+test3

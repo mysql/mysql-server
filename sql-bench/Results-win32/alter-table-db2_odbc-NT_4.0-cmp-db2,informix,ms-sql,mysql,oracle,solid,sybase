@@ -1,0 +1,10 @@
+Testing server 'IBM DB2 5' at 1998-11-21 23:08:51
+
+Testing of ALTER TABLE
+Testing with 16 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000)10 secs (10.26 usr  0.00 sys = 10.26 cpu)
+
+Time for alter_table_add (8):  0 secs ( 0.20 usr  0.00 sys =  0.20 cpu)
+
+Time for create_index (8):  1 secs ( 0.91 usr  0.00 sys =  0.91 cpu)

@@ -1,0 +1,19 @@
+Testing server 'Access 2000' at 2000-01-03  4:03:38
+
+Testing of some unusual tables
+All tests are done 1000 times with 255 fields
+
+Testing table with 255 fields
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 126 wallclock secs (125.72 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 194 wallclock secs (194.17 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 42 wallclock secs (42.34 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 82 wallclock secs (82.17 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 457 wallclock secs (457.69 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -1,0 +1,126 @@
+#!/usr/bin/perl
+# Copyright (C) 1979-1998 TcX AB & Monty Program KB & Detron HB
+#
+# This software is distributed with NO WARRANTY OF ANY KIND.  No author or
+# distributor accepts any responsibility for the consequences of using it, or
+# for whether it serves any particular purpose or works at all, unless he or
+# she says so in writing.  Refer to the Free Public License (the "License")
+# for full details.
+#
+# Every copy of this file must include a copy of the License, normally in a
+# plain ASCII text file named PUBLIC.	The License grants you the right to
+# copy, modify and redistribute this file, but only under certain conditions
+# described in the License.  Among other things, the License requires that
+# the copyright notice and this notice be preserved on all copies. */
+
+#
+# This scripts is started by safe_mysqld. It checks that MySQL is alive and
+# working ( = answering to ping).  If not, force mysqld down, check all
+# tables and let safe_mysqld restart the server.
+#
+# For this to work, you should have procmail installed as the commands
+# 'lockfile' and is used to sync with safe_mysqld
+#
+# NOTE:  You should only use this script as a last resort if mysqld locks
+# up unexpectedly in a critical application and you have to get it to
+# work temporarily while waiting for a solution from mysql@tcx.se or
+# mysql-support@tcx.se
+
+
+use POSIX "waitpid";
+
+# Arguments from safe_mysqld
+
+if ($#ARGV != 4)
+{
+  print "$0:  Wrong number of arguments. Aborting\n";
+  exit 1;
+}
+
+$lock_file=shift;		# File to lock to sync with safe_mysqld
+$pid_file=shift;		# Pid file used by mysqld
+$bin_dir=shift;			# Directory where mysqladmin is
+$test_timeout=shift;		# Time between testing if mysqld is alive
+$wait_timeout=shift;		# How long time to wait for ping
+
+$|=1;				# autoflush
+
+# Check that mysqld has started properly
+
+for ($i=1 ; $i < 10 ; $i ++)
+{
+  last if (-e $pid_file);
+}
+sleep(1);			# If server has just created the file
+if (($mysqld_pid=`cat $pid_file`) <= 0)
+{
+  print "$0: Error: Invalid pidfile (contains '$mysqld_pid'). Aborting\n";
+}
+  
+# Start pinging mysqld
+
+for (;;)
+{
+  sleep($test_timeout);		# Time between tests
+  `lockfile $lock_file > /dev/null 2>&1`;	# Sync with safe_mysqld
+  if (($pid=fork()) == 0)
+  {
+    setpgrp(0,0);
+    exit(int(system("$bin_dir/mysqladmin -w status > /dev/null")/256));
+  }
+  for ($i=0; ($res=waitpid(-1,&POSIX::WNOHANG)) == 0 && $i < $wait_timeout ; $i++)
+  {
+    sleep(1);
+  }
+  if ($res == 0)
+  {
+    print "$0: Warning: mysqld hanged;  Killing it so that safe_mysqld can restart it!\n";
+    $mysqld_pid= `cat $pid_file`;
+    if ($mysqld_pid <= 0)
+    {
+      print "$0: Error: Invalid pidfile (contains '$mysqld_pid'). Aborting\n";
+      system("rm -f $lock_file");
+      kill(-9,$pid);
+      exit 1;
+    }
+    print "$0: Sending signal 15 to $mysqld_pid\n";
+    kill(-15, $pid,$mysqld_pid); # Give it a last change to die nicely
+    for ($i=0 ; $i < 5 ; $i++) { sleep(1); } # Wait 5 seconds (signal safe)
+    waitpid(-1,&POSIX::WNOHANG);
+    if (kill(0,$pid,$mysqld_pid) != 0)
+    {
+      print "$0: Sending signal 9 to $mysqld_pid\n";
+      kill(-9,$pid,$mysqld_pid);	# No time to be nice anymore
+      sleep(2);				# Give system time to clean up
+      waitpid(-1,&POSIX::WNOHANG);
+      if (kill(0,$mysqld_pid) != 0)
+      {
+	print "$0: Warning: mysqld don't want to die. Aborting\n";
+	system("rm -f $lock_file");
+	exit 1;
+      }
+    }
+    # safe_mysqld will not restart mysqld if the pid file doesn't exists
+    system("rm $pid_file");
+    system("touch $pid_file");
+  }
+  elsif ($res == -1)
+  {
+    print "$0: Error: waitpid returned $res when wating for pid $pid\nPlease verify that $0 is correct for your system\n";
+    system("rm -f $lock_file");
+    exit 1;
+  }
+  else
+  {
+    $exit_code=int($?/256);
+    if ($exit_code != 0)
+    {
+      print "$0: Warning: mysqladmin returned exit code $exit_code\n";
+    }
+    else
+    {
+      #print "mysqld is alive and feeling well\n";
+    }
+  }
+  system("rm -f $lock_file");		# safemysqld will now take over
+}

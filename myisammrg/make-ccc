@@ -1,0 +1,3 @@
+ccc -I./../include -I../include -DDBUG_OFF -fast -O3 -c myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myrg_info.c myrg_locking.c myrg_open.c myrg_panic.c myrg_rrnd.c myrg_rsame.c myrg_static.c myrg_update.c
+rm libmyisammrg.a
+ar -cr libmyisammrg.a myrg_close.o

@@ -1,0 +1,19 @@
+Testing server 'Oracle 8.0.4.0.0' at 1999-04-03 22:38:13
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 48 wallclock secs (31.69 usr  4.93 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 48 wallclock secs (32.70 usr  5.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 69 wallclock secs (14.82 usr  1.82 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 81 wallclock secs (14.73 usr  1.51 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 246 wallclock secs (93.94 usr 13.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

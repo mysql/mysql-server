@@ -1,0 +1,19 @@
+Testing server 'Informix 7.30C1  ' at 1998-10-06  1:41:01
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 8.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 51 secs (51.92 usr  0.00 sys = 51.92 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207): 12 secs (11.92 usr  0.00 sys = 11.92 cpu)
+Time for select_range (400:61130): 29 secs (28.45 usr  0.00 sys = 28.45 cpu)
+Time for min_max_on_key (70000): 475 secs (474.89 usr  0.00 sys = 474.89 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+3840 queries in 768 loops of 10000 loops took 601 seconds
+Estimated time for count_key (50000): 7825 secs (7824.40 usr  0.00 sys = 7824.40 cpu)
+
+Estimated total time: 8393 secs (8391.74 usr  0.00 sys = 8391.74 cpu)

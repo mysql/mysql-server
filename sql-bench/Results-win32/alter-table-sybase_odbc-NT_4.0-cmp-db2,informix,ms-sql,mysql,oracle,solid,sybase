@@ -1,0 +1,14 @@
+Testing server 'Sybase enterprise 11.5 NT' at 1998-08-27  2:08:17
+
+Testing of ALTER TABLE
+Testing with 16 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000)11 secs (11.30 usr  0.00 sys = 11.30 cpu)
+
+Time for alter_table_add (8):  1 secs ( 0.14 usr  0.00 sys =  0.14 cpu)
+
+Time for create_index (8):  0 secs ( 0.41 usr  0.00 sys =  0.41 cpu)
+
+Time for drop_index (8):  0 secs ( 0.07 usr  0.00 sys =  0.07 cpu)
+
+Total time: 12 secs (12.39 usr  0.00 sys = 12.39 cpu)

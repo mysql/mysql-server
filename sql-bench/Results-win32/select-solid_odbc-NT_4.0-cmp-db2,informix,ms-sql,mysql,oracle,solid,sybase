@@ -1,0 +1,22 @@
+Testing server 'Solid version ???' at 1998-10-08 16:21:29
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 8.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 55 secs (55.66 usr  0.00 sys = 55.66 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207):  5 secs ( 5.04 usr  0.00 sys =  5.04 cpu)
+Time for select_range (400:61800): 106 secs (105.79 usr  0.00 sys = 105.79 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+3661 queries in 523 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 11491 secs (11490.52 usr  0.00 sys = 11490.52 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1785 queries in 357 loops of 10000 loops took 602 seconds
+Estimated time for count_key (50000): 16862 secs (16847.20 usr  0.00 sys = 16847.20 cpu)
+
+Estimated total time: 28523 secs (28507.76 usr  0.00 sys = 28507.76 cpu)

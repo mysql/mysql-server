@@ -1,0 +1,20 @@
+/* Copyright Abandoned 1996,1999 TCX DataKonsult AB & Monty Program KB & Detron HB
+   This file is public domain and comes with NO WARRANTY of any kind */
+
+/* Version numbers for protocol & mysqld */
+
+#ifdef _CUSTOMCONFIG_
+	#include <custom_conf.h>
+#else
+#define PROTOCOL_VERSION		@PROTOCOL_VERSION@
+#define MYSQL_SERVER_VERSION		"@VERSION@"
+#define FRM_VER				@DOT_FRM_VERSION@
+#define MYSQL_VERSION_ID		@MYSQL_VERSION_ID@
+#define MYSQL_PORT			@MYSQL_TCP_PORT@
+#define MYSQL_UNIX_ADDR			"@MYSQL_UNIX_ADDR@"
+
+/* mysqld compile time options */
+#ifndef MYSQL_CHARSET
+#define MYSQL_CHARSET			"@default_charset@"
+#endif
+#endif

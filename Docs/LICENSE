@@ -1,0 +1,98 @@
+	End-User License Agreement for MySQL Commercial Server
+
+                      (Version 6, July 13, 2000)
+
+	    Copyright (C) 2000, MySQL AB & MySQL Finland AB
+
+       Stockholm SWEDEN, Helsingfors FINLAND and Uppsala SWEDEN
+
+                         All rights reserved.
+
+Definitions. This End-User License Agreement ("License") is a legal
+agreement between you, either an individual or a single entity,
+("Licensee") and MySQL AB, MySQL Finland AB and Detron HB ("Licensor")
+for the software product identified above, which includes computer
+software and may include associated media, printed materials, and
+online or electronic documentation ("Software"). The Software also
+includes any updates and supplements to the original Software product
+provided to you by Licensor. Any software provided along with the
+Software that is associated with a separate end-user license agreement
+is licensed to you under the terms of that license agreement.
+
+Agreement to the License. The Software is protected by copyright laws
+and international copyright treaties, as well as other intellectual
+property laws and treaties. The Software is licensed, not sold. If you
+do not agree to the terms of this License, do not install or use the
+Software. By installing, copying, modifying, downloading,
+distributing, accessing or otherwise using the Software, you agree to
+be bound by the following terms of this License:
+
+1. Grant for Authorized Use of the Software
+
+Licensor hereby grants to Licensee a non-exclusive, non-transferable
+right to use the Software in: - Installing. You may install copies of
+the Software for authorized use on your computers, including
+workstations, terminals and other digital electronic devices
+("Computer"). - Single Computer use. You may only use the Software on
+one Computer at a time regardless the number of Computers with
+installed copies. This right covers any number of concurrent users,
+CPUs and MySQL-servers with any number of copies running on one
+Computer.
+
+2. Description of Other Rights
+
+Licensor grants no other rights to the Software except as expressly
+set forth herein:
+
+- Copying. You may not copy the Software unless copies or adaptations
+  are meant for authorized use, archival purposes or when copying or
+  adaptation is a necessary step in the authorized use of the Software.
+
+- Distribution. You may not distribute the Software.
+
+- Modifying. You may modify the Software but you must reproduce all
+  copyright notices in the Software on all modified copies and
+  adaptations.
+
+- License transfer. You may resell or rent this License. If any
+  modifications have been made to the Software, you must include a
+  proper notification that the Software is modified.
+
+- Support services. Licensor may provide you with support services
+  related to the Software. Use and terms of support services are not
+  governed in this License.
+
+3. Term
+
+This license is effective until terminated. Licensor has the
+right to terminate your License immediately if you fail to comply with
+any term of this License.
+
+4. No Warranty
+
+The Software is provided "as is". Licensor makes no warranties,
+express or implied, arising from course of dealing or usage of trade,
+or statutory, as to any matter whatsoever. In particular, any and all
+warranties or merchantability, fitness for a particular purpose or
+non-infringement of third party rights are expressly excluded. The
+entire risk as to the quality and performance of the Software is with
+you. If the Software proves defective, you assume all the cost of
+necessary service, repair or correction.
+
+5. Limited Liability
+
+In no event will Licensor be liable to you for any consequential or
+incidental damages, including any lost profits or lost savings, or for
+any claim by any party, even if a Licensor representative has been
+advised of the possibility of such damages. Some states do not allow
+the exclusion or limitation of liability. Therefore, in any case, the
+entire liability of Licensor under any provision of this License is
+limited to the amount actually paid by you for the Software.
+
+6. Governing Law and Jurisdiction
+
+This License will be governed by the laws in force in
+Sweden. Jurisdiction is with Tingsrätten of Stockholm, Sweden.
+
+Should you have any questions concerning the validity of this License,
+please contact: mysql-licensing@mysql.com.

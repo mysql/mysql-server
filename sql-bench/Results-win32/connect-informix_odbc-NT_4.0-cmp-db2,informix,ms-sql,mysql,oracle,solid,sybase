@@ -1,0 +1,21 @@
+Testing server 'Informix 7.30C1  ' at 1998-09-01  2:10:58
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 1989 secs (1989.51 usr  0.00 sys = 1989.51 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 2050 secs (2049.47 usr  0.00 sys = 2049.47 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 56 secs (55.99 usr  0.00 sys = 55.99 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 56 secs (56.37 usr  0.00 sys = 56.37 cpu)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 73 secs (73.49 usr  0.00 sys = 73.49 cpu)
+
+Total time: 4225 secs (4225.65 usr  0.00 sys = 4225.65 cpu)

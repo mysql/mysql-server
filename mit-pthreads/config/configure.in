@@ -1,0 +1,739 @@
+dnl Some reminders:
+dnl	"dnl" is a "delete to newline" command for m4 - the remainder of the
+dnl		line it's on, including the newline, will be discarded
+dnl	"#" comments will usually be copied through
+dnl	"[]" are quoting characters; use changequote around code that really
+dnl		needs to use them, but try not to invoke autoconf macros
+dnl		within such code
+dnl
+dnl When you change this file, re-run "autoreconf" -- that'll automatically
+dnl re-run both autoconf and autoheader.
+dnl
+dnl
+dnl To do:
+dnl	CLOCKS_PER_SEC	(default 100, Ultrix differs)
+dnl	CLK_TCK		(default 100, Ultrix differs)
+dnl	clockid_t	(not on all systems)
+dnl	timer_t		(not on all systems)
+dnl
+dnl
+dnl	Now, the real stuff.
+dnl
+dnl This must be first.
+AC_INIT(config.flags.in)
+dnl
+dnl This file does require autoconf 2.0 or better...
+dnl
+AC_PREREQ(2.0)dnl
+dnl
+dnl Hook for the "--enable-dce-compat" option, when Chris actually
+dnl implements it.
+dnl
+AC_ARG_ENABLE(dce-compat,
+    --enable-dce-compat	  DCE compatibility,
+[dnl "true" action
+  AC_MSG_ERROR([Actually, DCE compatibility doesn't work yet...])
+],
+[dnl "false" action
+  true
+])
+
+dnl What C compiler?
+AC_PROG_CC
+AC_PROG_CXX
+dnl Apparently autoconf doesn't test to see if the C compiler it locates
+dnl actually works... oops!
+AC_MSG_CHECKING(compiler availability and simple error detection)
+AC_TRY_COMPILE(,[ exit(0); ],[
+  dnl true
+  AC_TRY_COMPILE(,[ syntax errors galore! ],
+    dnl true
+    AC_MSG_ERROR(Can't detect syntax errors!  Is CC set right?),
+    dnl false
+    true)],
+  dnl false
+  AC_MSG_ERROR(Can't compile test program!  Is CC set right?))
+
+AC_TRY_COMPILE(,[
+  typedef int Integer;
+  extern int i;
+  extern Integer i;
+], , AC_MSG_ERROR(Can't redeclare variables with this compiler??))
+AC_TRY_COMPILE(,[
+  typedef long Long;
+  extern int i;
+  extern Long i;
+], AC_MSG_ERROR(Compiler doesn't detect conflicting declarations.))
+AC_MSG_RESULT(ok)
+
+if test $ac_cv_prog_gcc = yes ; then
+  CFLAGS="$CFLAGS -Werror"
+fi
+
+AC_PROG_CPP
+
+AC_PROG_RANLIB
+
+dnl Default value of prefix should be /usr/local/pthreads, not /usr/local.
+AC_PREFIX_DEFAULT(/usr/local/pthreads)
+
+dnl Determine $host, by guessing if necessary.
+AC_CANONICAL_SYSTEM
+
+syscall=NONE
+sysincludes=NONE
+extraincludes=NONE
+
+# Treat all x86 machines the same.
+# (Yet below, we pretend we can distinguish between the MIPS r2000 and r4000?)
+# (What about 680x0 machines?)
+changequote(,)dnl
+case $host in
+    i[456]86-*)
+	host=`echo $host | sed 's/^i[456]86/i386/'`
+	host_cpu=i386
+	;;
+esac
+changequote([,])dnl
+
+# Here, you should set the following variables:
+#  name
+#	The "name" of this configuration.  Used for "engine-*.c" file name,
+#	default for syscall file names.  Chris seems to have a thing for
+#	putting "-" between OS and version number, but the configure script
+#	will already have $host_cpu and $host_os available for you to use
+#	in constructing a name.
+#  sysincludes
+#	Name of machdep directory with "sys" include file
+#	replacements, if any.  This directory is optional;
+#	if you don't provide it, don't set this variable.
+#  except
+#	Names of any syscalls that shouldn't be generated
+#	from the template, if any.
+#  syscall
+#	Base name of the syscall template files, if not the
+#	same as <name>.  If they're the same, omit this.
+#
+# Also, you may define random symbols and update CFLAGS if
+# necessary.  However, for ease of porting to new machines,
+# it's best if you can create portable autoconf tests for
+# whatever you're trying to do, rather than hard-coding it
+# here based on the OS name.  So please, try to keep this
+# section as minimal as possible.
+
+except=""
+name=$host_cpu-$host_os
+
+case $host in
+changequote(,)dnl
+    alpha-*-netbsd1.3[H-Z]|alpha-*-netbsd1.4*)
+	name=alpha-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork lseek pipe fstat"
+	available_syscalls="sigsuspend sigprocmask"
+	;;
+changequote([,])dnl
+    alpha-*-netbsd1.3*)
+	name=alpha-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork lseek pipe sigsuspend sigprocmask fstat"
+	;;
+    alpha-*-netbsd1.1* | alpha-*-netbsd1.2*)
+	name=alpha-netbsd-1.1
+	sysincludes=netbsd-1.1
+	except="fork lseek pipe sigsuspend sigprocmask"
+	;;
+    alpha-*-osf*)
+	name=alpha-osf1
+	sysincludes=alpha-osf1
+	except="fork sigsuspend"
+	if test $ac_cv_prog_gcc = no ; then
+	  CFLAGS="$CFLAGS -std"
+	fi
+	;;
+changequote(,)dnl
+    arm32-*-netbsd1.3[H-Z]|arm32-*-netbsd1.4*)
+	name=arm32-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork pipe lseek ftruncate fstat"
+	available_syscalls="sigsuspend sigprocmask"
+	;;
+changequote([,])dnl
+    arm32-*-netbsd1.3*)
+	name=arm32-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork pipe lseek ftruncate sigsuspend sigprocmask fstat"
+	;;
+    hppa1.0-*-hpux10.20 | hppa1.1-*-hpux10.20)
+	name=hppa-hpux-10.20
+	sysincludes=hpux-10.20
+	except="fork"
+	;;
+    hppa1.1-*-hpux*9.*)
+	name=hppa-hpux-9.03
+	sysincludes=hpux-9.03
+	# hpux-9.03.mk seems to be missing; what should this be?
+	except="fork"
+	;;
+    sparc-*-sunos4.1.3* | sparc-*-sunos4.1.4*)
+	name=sparc-sunos-4.1.3
+	sysincludes=sunos-4.1.3
+	syscall=sparc-sunos4
+	except="fork pipe getpgrp getdirentries"
+	AC_DEFINE(sunos4)	# is this really needed??
+	;;
+    sparc-*-solaris2.3* | sparc-*-solaris2.4*)
+	name=sparc-sunos-5.3
+	sysincludes=sunos-5.3
+	except="fork sigaction"
+	# Should really come up with a test for this...
+	AC_DEFINE(LD_LINKS_STATIC_DATA)
+	AC_DEFINE(BROKEN_SIGNALS)
+	;;
+    sparc-*-solaris2*)
+	name=sparc-sunos-5.3
+	sysincludes=sunos-5.5
+	except="fork sigaction"
+	# Should really come up with a test for this...
+	AC_DEFINE(LD_LINKS_STATIC_DATA)
+	AC_DEFINE(BROKEN_SIGNALS)
+	;;
+changequote(,)dnl
+    sparc-*-netbsd1.3[H-Z]|sparc-*-netbsd1.4*)
+	name=sparc-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="pipe fork lseek ftruncate fstat"
+	available_syscalls="sigprocmask sigsuspend"
+	;;
+changequote([,])dnl
+    sparc-*-netbsd1.3*)
+	name=sparc-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="pipe fork lseek ftruncate sigprocmask sigsuspend fstat"
+	;;
+    sparc-*-netbsd1.0A | sparc-*-netbsd1.1* | sparc-*-netbsd1.2*)
+	name=sparc-sunos-4.1.3
+	sysincludes=netbsd-1.0
+	syscall=sparc-netbsd-1.1
+	except="pipe fork sigprocmask sigsuspend"
+	;;
+    i386-*-openbsd2.*)
+        name=i386-openbsd-2.0
+        sysincludes=openbsd-2.0
+        except="fork lseek ftruncate sigsuspend sigprocmask"
+        ;;
+    i386-*-linux*)
+	#name=i386-linux-1.0
+	#sysincludes=linux-1.0
+	name=i386-linux-2.0
+	sysincludes=linux-2.0
+	extraincludes="bits"
+	;;
+    i386-*-bsdi1.1)
+	name=i386-bsdi-1.1
+	sysincludes=bsdi-1.1
+	;;
+	i386-*-bsdi2.0* | i386-*-bsdi2.1*)
+		name=i386-bsdi-2.0
+        sysincludes=bsdi-2.0
+        syscall=i386-bsdi-2.0
+        except="fork lseek ftruncate sigsuspend"
+		;;
+changequote(,)dnl
+    i386-*-netbsd1.3[H-Z]|i386-*-netbsd1.4*)
+	name=i386-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork lseek ftruncate pipe fstat"
+	available_syscalls="sigsuspend sigprocmask"
+		;;
+changequote([,])dnl
+    i386-*-netbsd1.3*)
+	name=i386-netbsd-1.3
+	sysincludes=netbsd-1.1
+	except="fork lseek ftruncate pipe sigsuspend sigprocmask fstat"
+	;;
+    i386-*-netbsd1.1* | i386-*-netbsd1.2*)
+	name=i386-netbsd-1.0
+	sysincludes=netbsd-1.1
+	syscall=i386-netbsd-1.1
+	except="fork lseek ftruncate pipe sigsuspend sigprocmask"
+	;;
+    i386-*-netbsd1.0*)
+	name=i386-netbsd-1.0
+	sysincludes=netbsd-1.0
+	except="fork lseek ftruncate sigsuspend"
+	;;
+    i386-*-netbsd0.9*)
+	name=i386-netbsd-0.9
+	sysincludes=netbsd-0.9
+	;;
+    m68*-*-netbsd*)
+	name=m68000-netbsd
+	sysincludes=netbsd-1.1
+	except="lseek ftruncate pipe fstat"
+	available_syscalls="sigsuspend sigprocmask"
+	;;
+    i386-*-freebsd*)
+        name=i386-freebsd-2.0
+        sysincludes=freebsd-2.0
+        except="fork lseek ftruncate sigsuspend sigprocmask"
+        ;;
+    romp-*-bsd*)
+	name=romp-bsd
+	;;
+    mips-dec-ultrix*)
+	name=r2000-ultrix-4.2
+	sysincludes=ultrix-4.2
+	except="fork pipe"
+	;;
+    mips-sgi-irix*)
+	name=ip22-irix-5.2
+	sysincludes=irix-5.2
+	except="fstat stat"
+	AC_DEFINE(BROKEN_SIGNALS)
+	;;
+    i386-*-sco3.2v5*) 
+        name=i386-sco3.2.5
+        sysincludes=i386-sco3.2.5
+	syscall=i386-sco3.2.5
+	except="select socketcall accept bind connect getpeername getsockname getsockopt setsockopt listen recv recvfrom recvmsg send sendmsg sendto shutdown socket socketpair fork fcntl dup2 fstat fchmod fchown ftruncate pipe getdirentries sigaction sigpause wait3 waitpid getdtablesize"
+	;;
+    *)
+	AC_MSG_ERROR(System type $host not recognized or not supported.
+See $srcdir/configure.in for supported systems.)
+	exit 1
+	;;
+esac
+
+SYSCALL_EXCEPTIONS=$except
+AC_SUBST(SYSCALL_EXCEPTIONS)
+
+AC_CHECK_HEADERS(sys/termio.h termios.h termio.h alloc.h)
+
+dnl Don't use AC_CHECK_HEADERS for this one, we want to define a special
+dnl symbol name starting with pthread_ if it's found.
+AC_CHECK_HEADER(va_list.h, AC_DEFINE(pthread_have_va_list_h))
+
+dnl Generate a list of system calls that we could generate.  We later use
+dnl a syscall template .S file to produce a .o file for each syscall.  This
+dnl is a bit better for porting and development purposes than having every
+dnl syscall listed for every target system; this way we only need the
+dnl template, and special hanlding for only those syscalls that can't be
+dnl handled by the templates.
+AC_CHECK_HEADERS(syscall.h sys/syscall.h sys/filio.h)
+
+PTHREADS_CHECK_SYSCALLS(open write read creat close fcntl lseek dup2 dup pipe
+	fchmod fchown execve fstat lstat link unlink chdir chown chmod stat
+	rename select getdtablesize ioctl ftruncate flock fstatfs chroot uname
+	dnl - signals
+		sigsuspend sigaction sigpause sigprocmask ksigaction
+	dnl - directory reading
+		getdents readdir getdirentries
+	dnl - variants of `wait' syscalls
+		wait4 wait3 waitpid waitsys
+	dnl - BSD socket calls
+		socket bind connect accept listen getsockopt setsockopt socketpair
+	dnl - SYSV stream calls
+		poll putmsg getmsg
+	dnl - Linux version uses one syscall
+		socketcall
+
+	dnl - Process info
+		pgrpsys
+
+	exit
+	readv writev send sendto sendmsg recv recvfrom recvmsg
+	getpeername getsockname
+	shutdown
+	getpgrp fork)
+
+AC_SUBST(available_syscalls)
+AC_SUBST(missing_syscalls)
+
+dnl Disabled for now -- generates warnings from autoconf.
+dnl ## Check some type sizes.
+dnl AC_CHECK_SIZEOF(int)
+dnl AC_CHECK_SIZEOF(long)
+dnl AC_CHECK_SIZEOF(char *)
+
+## Determine some typedef values from the system header files.
+dnl
+dnl Autoconf provides these automatically.  They provide reasonable
+dnl fallbacks if the standard header files don't define the typedef names.
+dnl
+dnl AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+dnl AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+dnl AC_TYPE_UID_T
+AC_TYPE_SIGNAL
+dnl
+dnl Default these types if their definitions can't be found.
+dnl
+AC_CHECK_TYPE(ssize_t,int)
+AC_CHECK_TYPE(time_t,long)
+dnl
+AC_CHECK_HEADERS(sys/time.h)
+AC_HEADER_TIME
+
+dnl
+dnl Check for the existence of these types
+dnl
+dnl struct timespec
+dnl
+AC_MSG_CHECKING(for struct timespec in sys/time.h)
+AC_CACHE_VAL(pthreads_cv_timespec_in_time,
+  AC_TRY_COMPILE([#include <sys/time.h>], [struct timespec foo;],
+	pthreads_cv_timespec_in_time=yes, pthreads_cv_timespec_in_time=no))
+AC_MSG_RESULT($pthreads_cv_timespec_in_time)
+if test $pthreads_cv_timespec_in_time = yes ; then
+  AC_DEFINE(_OS_HAS_TIMESPEC)
+fi
+
+dnl	socklen_t
+AC_CACHE_VAL(pthreads_cv_socklen_t,
+  AC_TRY_COMPILE([#include <sys/types.h>
+#include <sys/socket.h>], [socklen_t foo;],
+	pthreads_cv_socklen_t=yes, pthreads_cv_socklen_t=no))
+AC_MSG_RESULT($pthreads_cv_socklen_t)
+if test $pthreads_cv_socklen_t = yes ; then
+  AC_DEFINE(_OS_HAS_SOCKLEN_T)
+fi
+
+
+dnl
+dnl  Usage: PTHREADS_FIND_TYPE(system-typedef-name, new-macro-name,
+dnl				list-of-includes-in-square-brackets,
+dnl				comma-separated-list-of-types-to-try)
+dnl
+dnl  PTHREADS_FIND_INTEGRAL_TYPE automatically provides a set of integral
+dnl  types, and does not permit specification of additional types.
+dnl
+dnl  The specified types must all be able to work as prefixes -- i.e., no
+dnl  direct specification of array or function types.  If you need such
+dnl  types, add typedefs for them to include/pthread/xtypes.h, and include
+dnl  that in the set of header files.  For simple struct types, you can
+dnl  try including the definition directly here, but it had better not
+dnl  contain any commas or square brackets.
+dnl
+dnl  If necessary, you can include other preprocessing commands and such
+dnl  in the `includes' portion.
+dnl
+dnl  Note:  For now, each of these needs a corresponding entry
+dnl  in acconfig.h.
+dnl
+dnl size_t
+dnl
+PTHREADS_FIND_INTEGRAL_TYPE(size_t, pthread_size_t, [
+#include <stddef.h>
+#include <sys/types.h>
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#endif
+])
+dnl
+dnl ssize_t
+dnl
+PTHREADS_FIND_INTEGRAL_TYPE(ssize_t, pthread_ssize_t, [
+#include <stddef.h>
+#include <stdlib.h>
+#include <unistd.h>
+])
+dnl
+dnl clock_t ---FIXME I don't know if this is the right set of header files. KR
+dnl
+PTHREADS_FIND_INTEGRAL_TYPE(clock_t, pthread_clock_t, [
+#include <stddef.h>
+#if TIME_WITH_SYS_TIME
+# include <time.h>
+# include <sys/time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+])
+dnl
+dnl time_t
+dnl
+PTHREADS_FIND_INTEGRAL_TYPE(time_t, pthread_time_t, [
+#include <stddef.h>
+#if TIME_WITH_SYS_TIME
+# include <time.h>
+# include <sys/time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+])
+dnl
+dnl fpos_t
+dnl
+dnl If fpos_t isn't defined in stdio.h, define it to be off_t.  It
+dnl looks like AC_CHECK_TYPE won't work for this, because it doesn't
+dnl include stdio.h.
+dnl
+AC_MSG_CHECKING(for fpos_t in stdio.h)
+AC_CACHE_VAL(pthreads_cv_fpos_t_in_stdio,
+  AC_TRY_COMPILE([#include <stdio.h>], [fpos_t position;],
+	pthreads_cv_fpos_t_in_stdio=yes, pthreads_cv_fpos_t_in_stdio=no))
+AC_MSG_RESULT($pthreads_cv_fpos_t_in_stdio)
+if test $pthreads_cv_fpos_t_in_stdio = yes ; then
+  PTHREADS_FIND_INTEGRAL_TYPE(fpos_t, pthread_fpos_t, [
+#include <stdio.h>
+#include <sys/types.h>
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#endif
+])
+else
+  AC_DEFINE(fpos_t,off_t)
+  AC_DEFINE(pthread_fpos_t,pthread_off_t)
+fi
+dnl
+dnl off_t
+dnl
+PTHREADS_FIND_INTEGRAL_TYPE(off_t, pthread_off_t, [
+#include <stdio.h>
+#include <sys/types.h>
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#endif
+])
+dnl
+dnl va_list -- This one could be tricky.  Fortunately, on some systems,
+dnl we can just include the gcc stdarg.h header file if we can't determine
+dnl the type here.  Won't work for non-gcc configurations though.
+dnl
+PTHREADS_FIND_TYPE(va_list, pthread_va_list, [#include <stdarg.h>],
+	char *, char **, void *, void **, int *, long *)
+dnl
+dnl
+
+arpa_headers="#include <sys/types.h>
+#include <arpa/nameser.h>"
+
+dnl
+dnl Type for network (IP) addresses, 32 bits.
+dnl For now, I'm assuming that the return type from _getlong is it.
+dnl
+AC_MSG_CHECKING(IP address type)
+AC_CACHE_VAL(pthread_cv_type_ipaddr,
+  AC_TRY_COMPILE($arpa_headers,[ &_getlong; ],[
+    for type in "unsigned long" "unsigned int" ; do
+      AC_TRY_COMPILE($arpa_headers, extern $type _getlong ();,[
+        pthread_cv_type_ipaddr="$type"
+        break
+      ])
+    done
+  ],[ AC_MSG_WARN(Can't compile _getlong reference.) ])
+  if test "$pthread_cv_type_ipaddr" = "" ; then
+	AC_MSG_WARN(Can't determine _getlong return type.)
+	AC_MSG_WARN(Defaulting to unsigned long.)
+	pthread_cv_type_ipaddr="unsigned long"
+  fi
+)
+AC_MSG_RESULT($pthread_cv_type_ipaddr)
+AC_DEFINE_UNQUOTED(pthread_ipaddr_type,$pthread_cv_type_ipaddr)
+
+dnl
+dnl Type for network (IP) ports, 16 bits.
+dnl For now, I'm assuming that the return type from _getshort is it.
+dnl
+AC_MSG_CHECKING(IP port type)
+AC_CACHE_VAL(pthread_cv_type_ipport,
+  AC_TRY_COMPILE($arpa_headers,[ &_getshort; ],[
+    for type in "unsigned short" "unsigned int" ; do
+      AC_TRY_COMPILE($arpa_headers, extern $type _getshort ();,[
+        pthread_cv_type_ipport="$type"
+        break
+      ])
+    done
+  ],[ AC_MSG_WARN(Can't compile _getshort reference.) ])
+  if test "$pthread_cv_type_ipport" = "" ; then
+	AC_MSG_WARN(Can't determine _getshort return type.)
+	AC_MSG_WARN(Defaulting to unsigned short.) 
+	pthread_cv_type_ipport="unsigned short"
+  fi
+)
+AC_MSG_RESULT($pthread_cv_type_ipport)
+AC_DEFINE_UNQUOTED(pthread_ipport_type,$pthread_cv_type_ipport)
+
+dnl
+dnl Guess where terminal devices are stored.  This is for use in the
+dnl ttyname() implementation provided here.
+dnl
+AC_MSG_CHECKING(pathname for terminal devices directory)
+AC_CACHE_VAL(pthread_cv_pty_path,
+  if test -d /devices/pseudo ; then
+    pty_path=/devices/pseudo/
+  else
+    pty_path=/dev/
+  fi
+  pthread_cv_pty_path=$pty_path
+)
+AC_DEFINE_UNQUOTED(_PATH_PTY,"$pthread_cv_pty_path")
+AC_MSG_RESULT($pthread_cv_pty_path)
+
+dnl
+dnl Look for timezone info, for use in ctime.
+dnl
+AC_MSG_CHECKING(directory name for time zone info)
+tzdir=NONE
+for f in /usr/lib/zoneinfo /usr/share/zoneinfo /usr/share/lib/zoneinfo /etc/zoneinfo /usr/local/lib/zoneinfo
+do
+  if test -d $f ; then
+    tzdir=$f
+    break
+  fi
+done
+case $tzdir in
+NONE)	
+	AC_MSG_WARN(Can't find zoneinfo directory.) 
+	AC_MSG_WARN(Defaulting zoneinfo directory to NULL.)
+	tzdir=NULL
+	;;
+esac
+AC_DEFINE_UNQUOTED(_PATH_TZDIR,"$tzdir")
+AC_MSG_RESULT($tzdir)
+
+AC_MSG_CHECKING(filename for local time zone)
+tzfile=NONE
+for f in $tzdir/localtime /etc/localtime
+do
+  if test -f $f ; then
+    tzfile=$f
+    break
+  fi
+done
+case $tzfile in
+NONE)	# Should this default to tzdir/localtime?
+	AC_MSG_WARN(Can't find local time zone file.) 
+	if test tzdir = NULL ; then
+		AC_MSG_WARN(Defaulting local time zone file to NULL)
+		tzfile=NULL
+	else
+		AC_MSG_WARN(Defaulting local time zone file to $tzdir/localtime.) 
+		tzfile=$tzdir/localtime
+	fi
+	;;
+esac
+AC_DEFINE_UNQUOTED(_PATH_TZFILE,"$tzfile")
+AC_MSG_RESULT($tzfile)
+
+dnl
+dnl Network stuff.  At the moment, I don't think there are any other
+dnl values we should expect.  If we find a system that does store these
+dnl files elsewhere -- or doesn't have them all -- then run some tests.
+dnl
+AC_DEFINE(_PATH_RESCONF,	"/etc/resolv.conf")
+AC_DEFINE(_PATH_HOSTS,		"/etc/hosts")
+AC_DEFINE(_PATH_NETWORKS,	"/etc/networks")
+AC_DEFINE(_PATH_PROTOCOLS,	"/etc/protocols")
+AC_DEFINE(_PATH_SERVICES,	"/etc/services")
+
+dnl
+dnl Other stuff
+dnl
+AC_DEFINE(_PATH_BSHELL,		"/bin/sh")
+
+dnl If the system provides vfork, autoconf scripts will detect it.
+dnl So we should hide it.
+AC_CHECK_FUNCS(vfork)
+
+srctop=`cd ${srcdir}/..;pwd`
+AC_SUBST(srctop)
+
+# Now we deal with symlinks &c.
+
+test -d include || mkdir include || \
+	AC_MSG_ERROR(Can't create include directory.)
+
+test -d include/pthread || mkdir include/pthread || \
+	AC_MSG_ERROR(Can't create include/pthread directory.)
+
+test -d lib || mkdir lib || \
+	AC_MSG_ERROR(Can't create lib directory.)
+
+test -d lib/libpthreadutil || mkdir lib/libpthreadutil || \
+	AC_MSG_ERROR(Can't create lib/libpthreadutil directory.)
+
+test -d bin || mkdir bin || \
+	AC_MSG_ERROR(Can't create bin directory.)
+
+test -d bin/finger || mkdir bin/finger || \
+	AC_MSG_ERROR(Can't create bin directory.)
+
+test -d tests || mkdir tests || \
+	AC_MSG_ERROR(Can't create tests directory.)
+
+if test x$syscall = xNONE ; then
+  syscall=$name
+fi
+
+links="include/pthread/machdep.h include/pthread/posix.h \
+	machdep.c syscall.S"
+targets="../machdep/engine-$name.h ../machdep/posix-$sysincludes.h \
+	../machdep/engine-$name.c ../machdep/syscall-$syscall.S"
+
+# Both these targets are optional.  (Autoconf-generated configure scripts
+# will require the existence of link targets, so check before adding them
+# to the list.)
+if test x$sysincludes != xNONE ; then
+  links="$links include/sys"
+  targets="$targets ../machdep/$sysincludes"
+fi
+
+if test x$extraincludes != xNONE ; then
+  for tmp in $extraincludes
+  do
+    links="$links include/$tmp"
+    targets="$targets ../machdep/$sysincludes/extra/$tmp"
+  done
+fi  
+
+syscall_file=../machdep/syscall-template-$syscall.S
+if test -r $srcdir/$syscall_file ; then
+  links="$links syscall-template.S"
+  targets="$targets $syscall_file"
+  HAVE_SYSCALL_TEMPLATE=yes
+else
+  # This really isn't a fatal problem.  In fact, it's expected, initially,
+  # for some targets.  This is just to persuade people to fix the targets
+  # they deal with to provide some sort of template.
+  #
+  # Eventually this file probably will be required...
+  AC_MSG_WARN(No syscall template file syscall-template-$syscall.S found.)
+  HAVE_SYSCALL_TEMPLATE=no
+fi
+AC_SUBST(HAVE_SYSCALL_TEMPLATE)
+
+dnl Now tell it to make the links.
+dnl (The links are actually made by config.status.)
+AC_LINK_FILES($targets, $links)
+
+if test x$makefile_frag != x ; then
+  makefile_frag=${srcdir}/$makefile_frag
+else
+  makefile_frag=/dev/null
+fi
+dnl Drop in file indicated by $makefile_frag on *the line after* the
+dnl magic @makefile_frag@ sequence.
+AC_SUBST_FILE(makefile_frag)
+
+
+dnl Generate output files...
+AC_CONFIG_HEADER(config.h)
+
+dnl This must be last.
+AC_OUTPUT(config.flags GNUmakefile Makefile \
+	lib/Makefile:../lib/Makefile.in \
+	lib/libpthreadutil/Makefile:../lib/libpthreadutil/Makefile.in \
+	bin/Makefile:../bin/Makefile.in \
+	bin/finger/Makefile:../bin/finger/Makefile.in \
+	tests/Makefile:../tests/Makefile.in)

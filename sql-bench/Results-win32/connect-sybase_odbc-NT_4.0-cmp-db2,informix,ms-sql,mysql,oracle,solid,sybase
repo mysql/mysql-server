@@ -1,0 +1,21 @@
+Testing server 'Sybase enterprise 11.5 NT' at 1998-08-27  2:20:02
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 1275 secs (1274.97 usr  0.00 sys = 1274.97 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 1330 secs (1329.69 usr  0.00 sys = 1329.69 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 40 secs (39.77 usr  0.00 sys = 39.77 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 40 secs (40.20 usr  0.00 sys = 40.20 cpu)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 40 secs (39.56 usr  0.00 sys = 39.56 cpu)
+
+Total time: 2725 secs (2724.61 usr  0.00 sys = 2724.61 cpu)

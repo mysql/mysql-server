@@ -1,0 +1,3268 @@
+2000-07-11  Michael Widenius  <monty@mysql.com>
+
+* Extended safe_mysqld;  Patch by Christian Hammers
+
+2000-07-04  Michael Widenius  <monty@mysql.com>
+
+* Changed the update log to take the query length argument; This
+  should make the update log \0 safe.
+
+2000-06-21  Michael Widenius  <monty@mysql.com>
+
+* Added net_read_timeout and net_write_timeout as startup parameters to mysqld
+
+2000-06-19  Michael Widenius  <monty@mysql.com>
+
+* Changed the copyright of MySQL to GPL and LGPL.
+* Added myisampack and pack_isam to the MySQL distribution.
+
+2000-06-01  Michael Widenius  <monty@mysql.com>
+
+* Added "FLUSH TABLES WITH READ LOCK" command
+
+2000-05-31  Michael Widenius  <monty@mysql.com>
+
+* Added table locks to Berkeley DB.
+
+2000-05-28  Michael Widenius  <monty@mysql.com>
+
+* Allow ON and USING with INNER JOIN.
+
+2000-05-23  Sasha
+
+* Fix that USE INDEX with 'PRIMARY' keys works.
+
+2000-05-20  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added symbolic links support for Win32.
+
+2000-05-19  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Changed protocol to let client know if the server is in AUTOCOMMIT mode
+  and if there is a pending transaction.  If there is a pending transaction
+  the client library will give an error before reconnecting to the server to
+  let the client know that the server did a rollback.
+  The protocol is still backward compatible with old clients
+* 'kill' now works on a thread that is locked on a 'write' to a dead client.
+
+2000-05-18  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* unlock tables before sending last packet of SELECT ... result to client.
+
+2000-05-16  Michael Widenius  <monty@mysql.com>
+
+* split Item_bool_func2::compare function into individual functions to get more
+  speed.
+* Small optimizations of do_select() to get more speed.	
+	
+2000-05-15  Michael Widenius  <monty@mysql.com>
+
+* CHECK will update the statistics for the keys.
+* Fixed bug in REPAIR TABLE when the table was used by other threads.	
+	
+2000-05-11  Michael Widenius  <monty@mysql.com>
+
+* put CREATE TEMPORARY TABLE commands in the update log.
+* UPDATE IGNORE will not abort if an update gives a DUPLICATE_KEY error.
+* Ensure that all fn_format() or unpack_filename() is called for all
+  generated filenames.
+
+2000-05-05  Michael Widenius  <monty@mysql.com>
+
+* Added timzone variable to SHOW VARIABLES.
+
+2000-05-04  Michael Widenius  <monty@mysql.com>
+
+* Don't write INSERT DELAYED to update log if SQL_LOG_UPDATE=0
+
+2000-05-03  Michael Widenius  <monty@mysql.com>
+
+* Fixed problem with REPLACE on HEAP tables.
+
+2000-04-26  Michael Widenius  <monty@mysql.com>
+
+* Added 'Writing to net' and 'Reading from net' as 'status' to
+  mysqladmin processlist.	
+
+2000-04-23  Michael Widenius  <monty@mysql.com>
+
+* Added CREATE DATABASE and DROP DATABASE to the update log
+* Fixed problem when doing a GROUP BY on an enum column with MANY
+  value combinations.
+* Avoid sorting for some simple GROUP BY queries.
+
+2000-04-22  Michael Widenius  <monty@mysql.com>
+
+* Fixed problems in update log when using LAST_INSERT_ID() to update
+  an table with an auto_increment key.	
+* New function: 'NULLIF(expr1,expr2)'
+	
+2000-04-14  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* UPDATE and DELETE on UNIQUE keys, where the whole key is used in the WHERE
+  part, are now faster than before.	
+	
+* Added optimisation to skip ORDER BY parts where the order by column
+  is a constant expression in the WHERE part.  ORDER BY will also
+  be skipped if ORDER BY matches a key where the key parts that are
+  missing in the ORDER BY is constants:
+
+  In the following case the ORDER BY will be removed:
+  SELECT * FROM foo WHERE column=constant ORDER BY column;
+
+  In the following case the first key will be used to solve the ORDER BY:
+  SELECT * FROM foo WHERE key_part1=const ORDER BY key_part2;
+
+2000-04-10  Michael Widenius  <monty@mysql.com>
+
+* Changed mysql.server to wait until the pid file is deleted on stop
+* Clients will automaticly be set to the same character set as the
+  server if one hasn't specified a character set with mysql_option()
+  or in the my.cnf files.
+
+2000-04-09  Michael Widenius  <monty@mysql.com>
+
+* Release of 3.23.14	
+* Fixed bug where complex CONCAT() use returned the wrong result.
+
+2000-04-07  Michael Widenius  <monty@mysql.com>
+
+* Added some optimization to LIMIT when the used KEY matches almost all
+  rows in the table.  (SELECT * from table where key_column > "a" LIMIT 1). 
+* REPLACE now honors the LOW_PRIORITY_UPDATES flag.
+
+2000-04-05  Michael Widenius  <monty@mysql.com>
+
+* Fixed that DROP TABLE is logged in the update log.
+* Fixed problem when searching on DECIMAL() key field
+  where the column data contained pre-zeros.
+	
+2000-04-02  Michael Widenius  <monty@mysql.com>
+
+* Fix bug in myisamchk when the auto_increment isn't the first key.
+
+2000-03-30  "Thimble Smith" <tim@mysql.com>
+	
+* Allow DATETIME in ISO8601 format: 2000-03-12T12:00:00
+	
+2000-03-30  Michael Widenius  <monty@mysql.com>
+
+* Added UMASK_DIR environment variable.
+* Fixed problem with seek and RAID tables.	
+	
+2000-03-29  Michael Widenius  <monty@mysql.com>
+
+* slow_queries log wasn't flushed on FLUSH LOGS.
+
+2000-03-28  Michael Widenius  <monty@mysql.com>
+
+* Fix that DELETE FROM table_name;  works on RAID tables.
+* Fix that DROP DATABASE works correctly with RAID tables.	
+	
+2000-03-27  Michael Widenius  <monty@mysql.com>
+
+* Added function CONNECTION_ID()
+
+2000-03-26  Michael Widenius  <monty@mysql.com>
+
+* When using = on BLOB or VARCHAR BINARY keys where only a part of the column
+  was indexed, the whole column of the result row wasn't compared.
+
+2000-03-24  takeshi@SoftAgency.co.jp
+
+* Fix for sjis & order by
+
+2000-03-23  Michael Widenius  <monty@mysql.com>
+
+* Added patches to allow client library to compile on BEOS.
+
+2000-03-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added STDCALL to some functions in libmysql that missed this.
+* When running in ANSI mode, don't allow one to use columns that isn't in
+  the GROUP BY part.
+
+2000-03-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.13
+* Removed end space from double/float numbers in results from temporary
+  tables.
+
+2000-03-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed automatic removal of table locks if doing a DROP TABLE on the last
+  locked table.	
+
+2000-03-13 Sasha
+	
+* Added CHECK TABLE command.
+	
+2000-03-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed int2str and longlong2str to use the optimized 
+  int10_to_str / longlong10_to_str functions.
+	
+2000-03-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug so that mysqladmin shutdown will wait for the local server to close
+  down.
+* Fixed a possible endless loop when calculating timestamp.
+	
+2000-02-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.12	
+* Changed that mysql_ping() doesn't increment the 'questions' status variable.
+* Fixed that mysql -D database doesn't kill 'mysql'.
+	
+2000-02-24  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Only allow SHOW GRANTS if you have a privilege on the mysql
+  tables
+* Fixed bug when storing 0 into a timestamp.
+	
+2000-02-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* When doing mysqladmin shutdown on a local connection, mysqladmin now
+  waits until the pidfile is gone before doing an shutdown.
+* Changed that the pid file is not removed until all threads have died.
+
+2000-02-23  Matt Wagner
+
+* When doing mysqladmin shutdown on a local connection, mysqladmin now
+  waits until the pidfile is gone before doing an shutdown.
+
+2000-02-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with LEFT JOIN and key_field IS NULL.
+
+2000-02-23  Sasha
+
+* Fixed core dump with some COUNT(DISTINCT ...) queries.
+
+2000-02-21  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added options USE KEYS (key_list) and IGNORE KEYS (key_list) as
+  join parameters in SELECT.
+* DROP of table is now done through the handler.
+	
+2000-02-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added ANSI SQL syntax ALTER TABLE ADD (column_def1, column_def2 ...)
+
+2000-02-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with optimizer that could sometimes use wrong keys
+
+2000-02-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed that GRANT/REVOKE ALL PRIVILEGES doesn't affect GRANT OPTION
+* Removed extra ) from the output of SHOW GRANTS
+	
+2000-02-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when storing numbers in timestamps.
+* Fix problem with timezones that has half hour offsets.
+* Storage of numbers in timestamp columns are now faster.
+
+2000-02-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow the syntax UNIQUE INDEX in CREATE statements.
+
+2000-02-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added options --i-am-a-dummy and --safe-updates to mysql.cc
+* Added variables select_limit and max_join_size to mysql.cc
+* Added sql variables: SQL_MAX_JOIN_SIZE and SQL_SAFE_UPDATES
+* Added READ_LOCAL lock that doesn't lock the table for concurrent inserts
+* Changed that LOCK TABLES .. READ doesn't anymore allow concurrent inserts
+* Added option --skip-delay-key-write to mysqld.
+	
+2000-02-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed security problem in the protocol regarding password checking.
+
+2000-02-03  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Allow 'end' as a field name.
+* Added _rowid as an alias for an auto_increment column.
+	
+2000-01-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Ignore empty queries in mysql when running in batch mode
+  (To be able to handle rows with double ';' chars).
+
+2000-01-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with timestamps and INSERT DELAYED
+
+2000-01-26  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Fixed problem that affected queries that did arithmetic on GROUP functions.
+
+2000-01-24  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Don't give a unnecessary GRANT error when using tables from many
+  databases in the same query.
+
+2000-01-20  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Fixed that 'date_column BETWEEN const_date AND const_date' works.
+
+2000-01-19  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when only changing a 0 to NULL in a table with BLOB/TEXT
+  columns.	
+* Fixed bug in range optimizer when using many key parts and or on the middle
+  key parts:  WHERE K1=1 and K3=2 and (K2=2 and K4=4 or K2=3 and K4=5)
+* Added the virtual VIO interface to the mysql connection streams.
+  (This will make it possible to use SSL through the VIO classe interface)
+	
+2000-01-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added command 'source' to mysql to allow reading of batch files inside
+  mysql.  Original patch by Matthew Vanecek.
+
+2000-01-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug that a change of all VARCHAR columns to CHAR columns didn't change
+  row type from dynamic to fixed.
+
+2000-01-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added print of default arguments options to all clients.
+* Added --log-slow-queries to mysqld to log all queries that takes a
+  long time to a separate log file with a time of how long the query took.
+* Fixed critical problem with the WITH GRANT OPTION option.
+* Added read-next-on-key to HEAP tables.  This should fix all
+  problems with HEAP tables when using not UNIQUE keys.
+* Disabled floating point exceptions for FreeBSD to fix core dump when
+  doing SELECT floor(pow(2,63));
+	
+2000-01-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed core dump when doing WHERE key_column=RAND(...)
+  (Note that this query can never use keys as the RAND() function must be
+  re-evaluated for each row)
+2000-01-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed optimization bug in SELECT .. LEFT JOIN ... key_column IS NULL, when
+  key_column could contain NULL values.
+* Fixed problem with 8 bit characters as separators in LOAD DATA INFILE.
+
+2000-01-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.8
+
+1999-12-31  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed GRANT problem when doing 'CREATE TABLE ... SELECT'
+
+1999-12-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with timezones that are < GMT -11
+* Fixed problem with ISAM when doing some ORDER BY .. DESC queries.
+
+1999-12-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug when doing a join on a text key which didn't covert the whole key.
+* Option --delay-key-write didn't enable delayed key writing
+* Fixed update of TEXT column which only involved case changes.
+
+1999-12-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed that INSERT DELAYED doesn't update timestamps that are given.
+
+1999-12-25  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added function yearweek() and options 'x', 'X', 'v' and 'V' to date_format()
+
+1999-12-22  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Fixed problem with MAX(indexed_column) and HEAP tables.
+* Fixed problem with BLOB NULL keys and LIKE "prefix%".
+
+1999-12-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with MyISAM and fixed length rows < 5 bytes.
+
+1999-12-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added RAID support (patch from Tõnu Samuel)
+
+1999-12-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added -O interactive_timeout to mysqld.
+* Changed the argument of mysql_data_seek to ulonglong from ulong.
+
+1999-11-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+Fixed bug in replace() on Alpha. Patch by 'Tom Holroyd'
+Fixed bug in LOAD DATA LOCAL INFILE on Alpha. Patch by 'Tom Holroyd'
+	
+1999-11-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added detection of pthread_attr_stacksize() in configure.
+* Added variable net_retry_count (needed for FreeBSD).
+
+Sun Nov 28 20:55:45 1999  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added option '--verbose' to mysqladmin
+
+1999-11-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when converting heap to myisam.
+* Fixed bug in HEAP tables when doing insert + delete + insert + scan the
+  table.
+	
+1999-11-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix core dump when releasing a lock from a non existing table
+* Remove locks on tables before starting to remove duplicates.
+* Added patch to make most string functions multi-byte safe (by Wei He)
+* Added Bytes_recieived/Bytes_sent statistics (by Sasha Pachev)
+* Added optimization of read_next() with MyISAM
+* Changed MyISAM to use concurrent inserts.
+	
+1999-11-21  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Inverted flag 'delayed_key_write' on 'show variables'
+
+1999-11-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added variable max_write_lock_count
+
+1999-11-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.6
+* Made floor() overflow safe on FREEBSD.
+* Allow quoting of identifers with `
+* Temporary tables now start with #sql	
+* Added option --quote-names to mysqldump.
+* Added option --ansi to change " to a identifier delimiter and || to
+  string concatenation.
+* Fixed INTO DUMPFILE to give better error messages.  NULL is now written
+  as an empty string.	
+* Changed Field_double and double->string to use snprintf() to avoid overflows.
+* Fixed bug that one could make a part of a PRIMARY KEY not null.
+* Fixed encrypt() to be thread safe and not reuse buffer.
+
+1999-11-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed that FLOAT(X) where X <= 24 -> FLOAT and X <= 53 -> DOUBLE.
+* Changed DECIMAL(X) to be DECIMAL(X,0) and DECIMAL to be DECIMAL(10,0)
+
+1999-11-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added mysqld option -O lower_case_table_names=[0|1] to force table
+  names to lower case.
+* Added mysql_odbc_escape_string() function to support big5 characters in
+  MyOBC.
+
+1999-11-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added patch by Sasha for user defined variables.
+* Changed that FLOAT and DOUBLE (without any length modifiers) are
+  not anymore fixed decimal point numbers.
+
+1999-10-22  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added option ROW_FORMAT=[default, dynamic, static, compressed] to
+  CREATE_TABLE
+
+1999-10-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* 'DELETE FROM table_name' didn't work on temporary tables
+
+1999-10-18  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.23.5	
+* Fixed problem with LIKE "%const"
+
+1999-10-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added bit function ~ (neg)
+
+1999-10-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added support for the GBK Chinese character set (by Wei He)
+
+1999-10-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Storage of date results is now much faster to date and datetime columns.
+
+1999-10-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug when using DISTINCT + ORDER BY RAND()
+* new option --relative to mysqladmin.
+
+1999-10-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added some error messages in mysqld.cc
+* Allow use of NATIONAL and NCHAR when defining character columns.
+  (They don't do anything)
+* Don't allow NULL columns in PRIMARY KEY:s (only in UNIQUE keys)
+
+1999-10-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Clear LAST_INSERT_ID if in uses this in ODBC context:
+  WHERE auto_increment_column IS NULL;
+* 'SET SQL_AUTO_IS_NULL=0|1' now turns off/on the above handling of 
+  auto_increment columns
+
+1999-10-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added parameter 'concurrency' for Solaris.
+
+1999-10-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when using an auto_increment column in two keys
+
+1999-10-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* AS on fieldname with CREATE TABLE table_name SELECT ... didn't work.
+
+1999-10-01  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* LIKE with many % ("%xxx%yy%zz%") are now much faster.
+
+1999-09-24  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix privilege check for LOAD DATA REPLACE .
+
+1999-09-22  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added SHOW GRANT FOR user (by Sinisa)
+* Added date + INTERVALL # date_interval_type	
+	
+1999-09-19  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with index optimzation with 'WHERE index is not null'
+
+* Allow creation of temporary tables with same name as original table.
+* When granting user a grant option for a database, he couldn't grant
+  privileges to other users.	
+
+1999-09-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Inserting a DATETIME into a TIME column will not anymore try to store 'days'
+  in it.	
+* Fixed problem with storage of float/double on low endian machines.
+
+1999-09-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.3
+* Added limit to UPDATE
+* Added client library function: mysql_change_user()
+
+1999-09-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added character set to 'show variables' 
+* Added support of '--[white-space]' as comment
+* Allow 'INSERT into table_name VALUES ();'
+
+1999-09-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Add mysqld option --delay-key-write to mysqld.cc
+
+1999-08-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with COUNT(DISTINCT) and GROUP BY
+
+1999-08-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added /*!version */
+* Fixed core dump with empty blob to reverse()
+* Fixed problem with year(now()) and year(curdate()).	
+
+1999-08-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added construct:
+	
+  CASE value WHEN [compare-value] THEN result
+            [WHEN [compare-value] THEN result ...]
+      [ELSE result]
+  END	
+
+  CASE WHEN [condition] THEN result
+      [WHEN [condition] THEN result ...]
+      [ELSE result]
+  END
+1999-08-19  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added check of arguments to acos() and asin().
+* unique_column IS NULL only returned the first row with NULL.
+
+1999-08-12  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* REGEXP(...,NULL) will not return an error anymore.
+
+* Removed ifdef mSQL_COMPLIANT when comparing NULL to NULL
+
+1999-08-05  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix problem with LOCK TABLES and DELETE FROM table.
+	
+1999-08-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Don't pack all keys even if one key is packed when not using PACK_KEYS=1.
+
+1999-08-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed core-dump bug when inserting table or column grant on user name ""
+
+1999-08-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix problem with LOCK TABLES when no database is selected.
+* New functions:  MD5(), (by Tõnu Samuel) and EXPORT_SET (by Sasha Pachev)
+* Changed Socket to my_socket (to avoid conflicts)
+
+1999-07-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with DISTINCT on BLOB column
+* new keywords: CASE, THEN, WHEN, ELSE, END
+* The CASE operator (by Tõnu Samuel) (not yet working)
+* set SQL_LOW_PRIORITY_UPDATES=# didn't work
+* Fixed range optimizer bug in
+  SELECT * FROM table_name WHERE key_part1 >= const AND (key_part2 = const OR key_part2 = const)
+
+1999-07-26  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* One can now update indexes columns that are used in the WHERE clause.
+  UPDATE tbl_name SET KEY=KEY+1 WHERE KEY > 100;
+
+1999-07-25  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added get_date() function to all item and fields. This makes date handling
+  a lot faster!	
+* Added handling of fuzzy dates (dates where day or month is 0)
+	
+1999-07-21  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Fixed optimization of SELECT ... WHERE key_part1=const1 and key_part_2=const2 and key_part1=const4 and key_part2=const4
+ (indextype should be range instead of ref)
+
+1999-07-20  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Changed handling of 'const_item' to allow handling of
+  ORDER BY RAND().	
+* MyISAM tables now allows keys on NULL and BLOB columns.
+* Optimize the following LEFT JOIN:
+  SELECT ... FROM t1 LEFT JOIN t2 ON ... WHERE t2.not_null_column IS NULL
+	
+1999-07-19  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added ORDER BY and GROUP BY with functions
+* Changed all handling of tables in sql_select.cc to use table_map instead
+  of table_nr.
+* Added use of column_name = formula to use keys
+* column_name = column_name2 don't anymore have to have identical packing
+* field IS NULL can now use keys
+	
+1999-07-16  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Changed heap tables to be stored in low_byte_first order (to make it easy
+  to convert to MyISAM tables)
+* Automatic change of HEAP temporary tables to MYISAM tables in case of
+  'table is full' errors.	
+* Added option --init-file=file_name to mysqld 
+
+1999-07-15  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added COUNT(DISTINCT value,[value,...])
+
+1999-07-14  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* changed name of temporary table to include getpid().
+* Added full support for CREATE TEMPORARY
+
+1999-07-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added CREATE TABLE options 'CHECKSUM' and 'PACK_KEYS'
+* Added mysqld option --default-table-type
+* Added column 'packed' to 'show index'
+* Added pack_keys and checksum to show table status
+	
+1999-07-01  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.23.0
+* Show NULL as the default value for AUTO_INCREMENT columns.
+* Fixed optimizer bug with tables with only one row.
+* Fixed bug when using LOCK TABLES table_name READ; FLUSH TABLES;
+
+1999-06-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added use of LIBWRAP (by "Henning P . Schmiedehausen" <hps@tanstaafl.de>)
+
+1999-06-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Don't allow AUTO_INCREMENT for other than numerical columns
+* Using AUTO_INCREMENT will now automaticly make the column NOT NULL.
+
+1999-06-22  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added privilege column to 'show columns'
+
+1999-07-13  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added SQL_BIG_RESULT (SQL_SMALL_RESULT is now default)
+* Use the MYISAM UNIQUE constraint to solve SELECT DISTINCT faster.
+	
+1999-06-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed most macros in the libmysql library to functions to avoid many
+  versions of shared libraries.
+
+1999-05-16  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Added "Row_type" to SHOW TABLE STATUS.
+
+1999-05-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added option IF NOT EXISTS to CREATE TABLE
+* Allow creation of CHAR(0) columns.
+
+1999-05-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added more error checking of errors from the table handler.
+
+1999-05-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added the '<=>' operator which will act as '=' but will return TRUE if both
+  arguments are NULL.
+
+1999-05-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* The default base for the log, update-log and pid-file name is now 
+  'hostname' with everything after the first '.' removed.
+
+1999-05-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Require '%' before format characters in DATE_FORMAT().
+* Add logging of GRANT and SET PASSWORD in the update log.
+
+1999-05-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed LIKE compare to behave as =;  This means that 'e' LIKE 'é' is now
+  true.
+
+1999-05-10  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* REPLACE now used direct read to find dupplicate row instead of key read;
+  This makes REPLACE a lot faster.
+
+1999-05-05  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* New option: CREATE TABLE SELECT ....
+* Added syntax for CREATE TEMPORARY TABLE (not yet implemented)
+	
+1999-05-03  Michael Widenius  <monty@tik.pp.sci.fi>
+
+@code{DESCRIBE TABLE} returns a lot of information about the tables
+
+1999-05-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added comments to tables
+* Added UNIQUE, in CREATE TABLE table_name (col int not null UNIQUE);
+
+1999-04-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Use auto_increment value provided by MYISAM
+* Use key_part statistics if available
+
+1999-04-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* null bits are now stored at start of row instead at the end.
+  (Now we only need one bit to mark a row deleted)
+	
+* DELAYED is now a reserved words. (because of conflicts from yacc)
+
+1999-04-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added patches for DEC_3_2 by "Andrea Suatoni" <and@itaca.it>
+
+1999-04-19  Jani Tolonen  <jani@monty.pp.sci.fi>
+
+* Added load_file() function
+
+1999-04-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added option --skip-show-databases to mysqld.
+
+1999-04-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* set start time when connection.
+
+1999-04-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with 'DELETE FROM TABLE' when table was locked by another
+  thread.
+
+1999-04-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Check if rows has changed now also works with BLOB/TEXT.
+* Added the INNER JOIN syntax;   This made 'INNER' a reserved word.
+
+1999-04-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with 'Host '..' is not allowed to connect to this MySQL
+  server' after one had inserted a new MySQL user with a GRANT command.
+
+1999-04-01  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added support for netmasks to the hostname in the MySQL tables.
+
+1999-03-31  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed net.cc to use TCP_NODELAY also on Linux.
+* If one compares a NOT NULL DATE/DATETIME column with IS NULL, this
+  is changed to a compare against 0 to satisfy some ODBC applications.
+  (By shreeve@uci.edu)
+
+1999-03-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* NULL IN (...) now returns NULL instead of 0.
+  This will ensure that 'null_column NOT IN (...)' doesn't match NULL values.
+* Changed the mysql.db entry to char(60).
+
+1999-03-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix storage of floating point values in TIME columns
+* Changed parsing of TIME strings to be more strict.  Now the fractional
+  second part is detected (and currently skipped)	
+  The following formats are supported
+  [[[DAYS] [H]H:]MM:]SS[.fraction]  and [[[[H]H]H]H]MM]SS[.fraction]
+* Detect (and ignore) second fraction part from DATETIME
+
+1999-03-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* On Win32 detect --basedir automaticly from path to mysqld.
+* Added option --skip-column-names to mysql.
+* Added some memory checks in sql_string.cc
+
+1999-03-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added the ODBC 3.0 EXTRACT(interval FROM datetime) function
+* Added lots of 'out of memory' checks for SELECT statements.
+
+1999-03-05  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed std() for big tables when result should be 0.
+
+1999-03-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* INSERT DELAYED had some garbage at end in the update log.
+	
+1999-03-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+*  Added a lot of casts in filesort.cc to make it more portable.
+
+1999-02-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed default size of key_buffer to 4M
+* Fixed problem with queries that needed temporary tables with blobs.
+
+1999-02-26  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added LOAD DATA [LOW_PRIORITY] INFILE.
+* Added option 'flush-time' to force MySQL-Win32 version to flush
+  the tables once in a while.	
+* On Linux all process didn't die on shutdown.
+	
+1999-02-18  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed a core dump problem when using --log-update and connecting
+  without a default database.
+* Added more error check if one get an error writing to the log files.
+
+1999-02-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed some configure errors
+* If one used @code{LEFT JOIN} on tables that had circular dependencies this
+  caused mysqld to hang forever.
+
+1999-02-05  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.22.16
+* mysqladmin processlist could core dump mysqld if a new user logged in.
+* DELETE FROM table_name WHERE key_column=column_name didn't find any matching
+  rows.
+* The default index name is now using the same case as the used column name.
+
+1999-02-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added the MODIFY attribute to ALTER TABLE (to be compatible with some other
+  SQL databases)	
+* Added LIKE to 'show status'
+
+1999-01-31  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* DATE_ADD(column,...) didn't work.
+* INSERT DELAYED could deadlock with status 'upgrading lock'
+
+1999-01-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Extended item_encrypt() to take longer salt strings than 2 characters.
+  (for FreeBSD)
+
+1999-01-26  Michael Widenius  <monty@monty.pp.sci.fi>
+	
+* Release of 3.22.15
+* LIKE on binary strings didn't work if one used a multi-byte character set.
+* mysqladmin -w will now wait for the server to come up if it's killed.
+
+Tue Jan 26 00:06:10 1999  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Fixed problem with ORDER BY whith 'only index' optimzation when there
+  where multiple key definitions for an used column.
+* GRANT with password didn't update in memory GRANT table before
+  'mysqladmin flush'
+
+1999-01-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Updating BLOB/TEXT through formulas didn't work for short (< 256 char)
+  strings.
+* Changed option --extended_insert-insert to --extended-insert in mysqldump
+
+1999-01-19  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Lots of changes to support INSERT DELAYED.
+
+1999-01-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed unpacking of DATE and DATETIME;  These are now about 5 times faster.
+
+1999-01-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* DATE_ADD with now() or curdate() reused the same string.
+* Added BENCHMARK(loop-count,expression) function to time expressions.
+
+1999-01-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* LEFT JOIN USING (col1,col2) gave an error if one used it with tables
+  from 2 different databases.
+* LOAD DATA LOCAL INFILE didn't work in the unix version because of a missing
+  file in the sql directory
+* Fixed problems with VARCHAR/BLOB on very short rows (< 4 bytes); One
+  could get error 127 when deleting rows.
+	
+1999-01-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Nicer error messages for table types.
+* Changed default number of connections to 100
+
+1999-01-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* When one did a GRANT on a new host mysqld could die on the first connect
+  from this host.
+* Use as default bigger buffers when using 'load data infile'.
+
+1999-01-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* All blob pointers have now reserved 8 bytes in the .frm files;  This makes
+  the .frm files portable to 64 bit architectures.
+
+* DECIMAL(x,y) now works according to ANSI SQL.
+
+1998-12-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* If one used ORDER BY on column name that was the same name as an alias,
+  the ORDER BY was done on the alias.
+
+1998-12-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added aggregate UDF functions. Thanks to
+   Andreas F. Bobak <bobak@relog.ch> for this !
+
+1998-12-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed sql_crypt() a bit to make it a bit more secure;  This will make old
+  string stored with the old decrypt() function unreadable! 
+	
+1998-12-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow empty arguments to mysqld to make it easier to start it
+  from shell scripts!
+
+1998-12-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* last_insert_id() is now updated for INSERT INTO ... SELECT
+* Setting a TIMESTAMP column to NULL didn't record the timestamp
+  value in the update log.
+
+1998-12-21  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed lock handler bug when one did:
+  INSERT INTO TABLE ... SELECT ... GROUP BY.
+* Added a patch for localtime_r() on Win32 that it will not crash anymore
+  if your date is > 2039, but instead it will return a time of all zero.
+* UDF function names are not longer case sensitive.
+* Added escape of '^Z' to \Z as ^Z doesn't work with pipes on Win32
+* Changed optimizer to not use 'range search' in some cases.
+* Changed optimizer to use result form 'check_range' in optimization of
+  searching of part keys.
+	
+1998-12-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* SELECT COUNT(*) didn't work on LEFT JOIN queries with only had expressions
+  in the ON part and there where no WHERE clause.
+* Added optional support for crypted frm files.
+
+1998-12-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Saving NOW(), CURDATE() or CURTIME() directly in a column didn't work.
+* SELECT COUNT(*) didn't work on LEFT JOIN queries with only had expressions
+  in the ON part and no WHERE clause.
+
+1998-12-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed a bug in sql_list.h that made ALTER TABLE dump a core in some context.
+
+1998-12-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow use of negative real numbers without a decimal point.
+* day number is now adjusted to max days in month if the resulting month
+  after DATE_ADD/DATE_SUB() doesn't have enough days.
+
+1998-12-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fix that GRANT compares columns case insensitive.
+* Add / to TMPDIR if needed.	
+	
+1998-12-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow GLOBAL as a table or database name.
+
+Thu Dec  3 10:29:11 1998  Michael Widenius  <monty@tik>
+
+* Added option SQL_SMALL_RESULT to SELECT to force use of fast temporary
+  tables when one knows that the result set will be small!
+
+1998-11-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* The hostname in user@hostname can now include '.' and '-' without quotes.
+
+1998-11-26  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when using DATE_ADD()/DATE_SUB() in a WHERE clause.
+* One can now set the password for a user with the
+  GRANT ... user IDENTIFIED BY 'password' syntax.
+* Fixed bug in GRANT checking with SELECT on many tables.	
+* Removed some 'no Database selected' errors.	
+* Release of 3.22.11
+	
+1998-11-21  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed USER() to return user@host
+* New command: FLUSH STATUS ; to reset most status variables.
+* New status variables: aborted_threads and aborted_connects.
+
+1998-11-20  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug in ORDER BY on FIELD()
+* New function make_set() (70% by Jani Tolonen)
+	
+1998-11-18  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added functions encrypt() and decrypt().  Because of endspace stripping of
+  CHAR() and VARCHAR() these should only be used with fixed size strings or
+  with BLOB/TEXT columns.
+
+1998-11-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Silently remove DEFAULT values from AUTO_INCREMENT columns.
+* Added new variable to mysqld: connection_timeout 
+
+1998-11-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Better error message when table doesn't exists.
+
+1998-11-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added option SET SQL_WARNINGS=1 to get a warning count also for simple
+  inserts.
+* IS NULL on a AUTO_INCREMENT column in a LEFT JOIN didn't work.
+* MySQL now uses SIGTERM instead of SIGQUIT with shutdown to work better
+  on FreeBSD.
+* Added option \G (print vertically) to mysql
+* SELECT HIGH_PRIORITY ... killed mysqld.
+	
+1998-11-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added grant checking to 'show tables'
+* Large changes to get grants integrated with the current privilege system. 
+	
+1998-11-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* SELECT .. WHERE t1.id1=t2.id2 could fail if t1.id1 and t1.id2 was keys
+  and of radically differently types.
+* Changed get_password to use getpass function. (Patch by Jaromir
+  Dolecek <dolecek@ics.muni.cz>)
+
+1998-11-04  Michael Widenius  <monty@analytik>
+
+* Release of 3.22.10	
+* Changed +, - (sign and minus), *, /, % and ABS() to be BIGINT aware.
+* ALTER TABLE and UPDATE now writes out the values of any duplicated keys.
+
+1998-11-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* ADABASD like INSERT statement:
+  INSERT INTO table_name SET column=value,column=value...
+* The client flag option 'CLIENT_IGNORE_SPACE' didn't work properly.
+* Fixed bug in ALTER TABLE that caused a core dump.
+* Added optimization of SELECT ... FROM table ORDER BY key_part1 LIMIT ...
+  This query will now use indexes instead of sorting the table.	  
+	
+Mon Nov  2 20:52:15 1998  Jani Tolonen  <jani@bitch.pp.sci.fi>
+
+* Added more variables to SHOW STATUS and changed format of output
+* Added command extended-status to mysqladmin which will show the
+  new status
+
+1998-10-30  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* columns of type date, date_time and 'set' are now stored a little
+  more efficient if they are 0, NULL or ''.
+
+1998-10-26  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Most errors are now printed through sql_write_error() which will add
+  date, time and thread id to the .err log.
+
+1998-10-25  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added option MYSQL_INIT_COMMAND to mysql_options() to make a query
+  on connect or reconnect.
+* Added option MYSQL_READ_DEFAULT_FILE and MYSQL_READ_DEFAULT_GROUP to
+  mysql_option() to read the following parameters from the my.cnf file:
+  "port", "socket", "compress", "password", "pipe", "timeout", "user",
+  "init-command", "host" and "database"
+	
+* Added maybe_null to the UDF structure
+
+1998-10-22  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added IGNORE to INSERT with many rows.
+* Added SQL GRANT commands
+* Release of 3.22.9
+
+1998-10-18  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* One can new set the last_insert_id() value in an update with
+  LAST_INSERT_ID(expr).  This makes it possible to return a value for things
+  like:
+  UPDATE table SET COUNT=LAST_INSERT_ID(COUNT+1) WHERE primary_key_col=#
+* display key name used by 'range' in the 'key' column in 'show processlist'
+* new SQL command:  FLUSH [ TABLES | HOSTS | LOGS | PRIVILEGES ] [, ...]
+* new SQL command:  KILL thread_id
+	
+Thu Oct 15 18:57:15 1998  Michael Widenius  <monty@tik>
+
+* Reuse memory for identical set and enum fields.
+
+1998-10-14  Michael Widenius  <monty@analytik>
+
+* Added open file information to mysqladmin debug
+* Fixed conversion problem when using ALTER TABLE from a INT to a short CHAR()
+  column.
+* Added 'SELECT HIGH_PRIORITY';  This will get a lock for the SELECT even if
+  there is a thread waiting another SELECT to get a WRITE LOCK.
+  NOTE: This makes HIGH_PRIORITY a reserved word
+	
+1998-10-12  Michael Widenius  <monty@analytik>
+
+* Moved wild_compare to string class to be able to use LIKE on BLOB/TEXT columns with \0
+* Added ESCAPE option to LIKE
+
+1998-10-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Update for AIX: Added a cast to all bzero() calls and changed to use
+  my_gethostbyname_r instead of gethostbyname_r.
+
+1998-10-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.22.8	
+* Added an extra thread signal loop on shutdown to avoid some error messages
+  from the client.
+* MySQL now uses the next available number as extension for the update
+  log file.
+
+1998-09-25  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* MySQL clients on NT will now by default first try to connect with named pipes
+  and after this with TCP/IP.
+
+1998-09-24  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problems with TIME columns and negative strings.
+* Added a new column 'state' to 'mysqladmin proc' that gives some
+  information what the thread is doing.
+	
+* DATE_ADD() and DATE_SUB() didn't work with group functions.
+
+1998-09-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* 'mysql' will now also try to reconnect on 'use database' commands.
+
+* Fix problem with ORDER BY and LEFT JOIN and const tables.
+
+1998-09-22  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem with ORDER BY if the first ORDER BY column was a key and
+  the rest wasn't.
+
+1998-09-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of 3.22.7
+* OPTIMIZE TABLE table_name can now be used to reclaim disk space
+  after many deletes.  This uses currently ALTER TABLE to re-generate
+  the table, but in the future it will use an integrated isamchk
+  for more speed.
+
+1998-09-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added functions for perfect hashing of symbols. Moved some other things
+  to the LEX structure for faster setup.
+* Changed libmysql.dll on Win32 to use TLS to get better multi-threading 
+
+1998-09-15  Michael Widenius  <monty@monty.pp.sci.fi>
+* Added --where to mysqldump (patch by Jim Faucette).
+* Fixed slow UPDATE/DELETE when using DATETIME or DATE keys.
+
+1998-09-14  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed some optimizations parameters to make better joins.	
+* Anyone can now use 'mysqladmin proc' to check ones own
+  threads. Only users with the 'Process_priv' privilege can get
+  information about all threads.
+* Fixed very unlikely optimizer bug in the range optimizer
+ (bug introduced in 3.22.6)
+* Added handling of formats YYMMDD, YYYYMMDD, YYMMDDHHMMSS to
+  DATETIME/TIMESTAMP when using numbers. (Before these formats only worked
+  with strings).
+
+1998-09-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added connect option CLIENT_IGNORE_SPACE to allow one to use
+  space after the function name and before '('  (Powerbuilder requires this).
+  This will make all function names reserved words.
+* comments that start with /*!  are now interpreted as commands. This feature
+  allows one to use MySQL extensions like:
+  'SELECT /*! STRAIGHT_JOIN */ * from table1,table1'
+  in a portable manor.	
+	
+1998-09-04  Michael Widenius  <monty@analytik>
+
+* Added SET OPTION INSERT_ID=#  to force use of specific INSERT_ID. This is
+  usable with new --log-long-format option.
+	
+1998-08-31  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed problem when INSERTING into TIME fields.
+
+1998-08-29  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added key cache and handler statistic to 'mysqladmin debug'.
+* changed UPDATE and DELETE to not use 'index only' range detection.
+  (Fixed slow update_key in the benchmarks)
+* Changed the insert benchmark because it was impossible to use it with
+  postgreSQL (to slow).
+
+Thu Aug 27 15:38:23 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* mysqldump will automaticly use LOAD DATA LOCAL INFILE if one uses
+  an TCP/IP connection.
+
+1998-08-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added support of local files with LOAD DATA LOCAL INFILE ..
+* Save history if one kills mysql with ^C.  Save history in MYSQL_HISTFILE.
+  Modfied patch by Tommy Larsen <tommy@mix.hive.no>
+	
+1998-08-26  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed a possible problem with mysql_refresh().
+
+Tue Aug 18 14:07:53 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Give an error for queries that mix GROUP columns and fields when there
+  is no GROUP BY specification.
+
+1998-08-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed sql_yacc.yy to allow field attributes in any order.
+	
+1998-08-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Increased max_allowed_packed to 1M as default.
+* LOAD DATA INFILE didn't copy single field separators in some case:
+  "Hello"Atif"!"
+
+1998-08-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed fatal bug in lpad().
+
+Thu Aug 13 01:00:44 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* REGEXP can now take a expression as the second argument.
+
+1998-08-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed LIKE to be faster in some cases with many '%': LIKE '%c%ompiler%'
+
+1998-08-11  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* All table lock handing is changed to avoid some very subtitle
+  deadlocks when using DROP TABLE, ALTER TABLE, DELETE FROM TABLE and
+  mysqladmin flush-tables under heavy usage.
+	
+1998-08-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow one to use the syntax 'CONSTRAINT symbol' before FOREIGN KEY.
+* new mysqld option '--low-priority-insert' to give inserts lower priority
+  than selects.
+* One can now use {INSERT | REPLACE} LOW_PRIORITY INTO ...
+  One side effect is that LOW_PRIORITY is now a reserved word :(	
+* Changed locking code to get better handling of locks of different types.
+
+1998-08-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* mysqld will now ignore trailing ';' characters in queries. This is to
+  make it easier to emigrate from some other SQL servers that require the
+  end ';'  	
+* One can now use a LIMIT value with DELETE to make it return after deleting
+  a given number of rows.
+* Fix for corrupted output of fixed format and SELECT INTO OUTFILE: 
+  select * from test into outfile "/tmp/test.txt" fields terminated by '' enclosed by ''
+
+1998-08-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* new mysqld option:  '-O max_connect_errors=#'.
+  Connect errors are now reset for each correct connection.	
+* Add support for INSERT INTO table ... VALUES(...),(...),(...)
+
+1998-08-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added Oracle GREATEST() and LEAST() functions.  One must now use
+  these instead if the MAX() and MIN() functions to get the biggest/smallest
+  value from a list of values. These can now handle real, bigint and
+  string values.
+* The following query now uses indexing instead of sorting the table:
+  SELECT ... FROM table ORDER BY key_part1 desc,key_part2 desc,...
+* Added check that the error message file has enough error messages.
+* DAYOFWEEK() had offset 0 for Sunday. Changed the offset to 1.
+
+1998-08-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* new option to mysql:  '--vertical' to print results in vertical mode.
+* All count structures in the client (affected_rows, insert_id...) are now of
+  type BIGINT to allow one to use 64 bit values.
+  This required a minor change in the MySQL protocol which may affect
+  old clients when using tables with auto_increment values > 24M.
+* The return type of mysql_fetch_lengths() has changed from uint *
+  to ulong *. This may give a warning for old clients but should work
+  on most machines.
+
+Thu Jul 30 15:29:05 1998  Michael Widenius  <monty@tik>
+
+* COUNT(), STD() and AVG() are extended to handle more than 4G rows.
+
+Wed Jul 29 10:36:05 1998  Michael Widenius  <monty@tik>
+
+* Added new option:
+  SET OPTION SQL_LOG_UPDATE=[0,1] to allow users with process_priv
+  privilege to bypass the update log.
+  (Modified patch from Sergey A Mukhin <violet@rosnet.net>)
+	
+Thu Jul 23 15:58:13 1998  Michael Widenius  <monty@tik>
+
+* Initialize line buffer in mysql.cc to make blob readings from pipes safer.
+
+Tue Jul 21 22:04:43 1998  Michael Widenius  <monty@tik>
+
+* One can now store -838:59:59 <= x <= 838:59:59 in a TIME column.
+* TIME_TO_SEC() and SEC_TO_TIME() can now handle negative times and hours
+  up to 32767.
+ 	
+Mon Jul 20 20:34:33 1998  Michael Widenius  <monty@tik>
+
+* Change mysys/dbug to allocate all thread varibles in one struct.
+  This makes it easier to make a threaded libmysql.dll
+	
+Sun Jul 19 12:54:45 1998  Michael Widenius  <monty@tik>
+
+* Changed ALTER TABLE to make it more multi-thread safe.
+* normal INSERT INTO TABLE are now also cached when used with
+  LOCK TABLES. (previously only INSERT ... SELECT and LOAD DATA INFILE
+  was cached)	
+
+Fri Jul 17 20:53:23 1998  Michael Widenius  <monty@tik>
+
+* Allow group functions with HAVING:
+  SELECT col FROM table GROUP BY col HAVING COUNT(*)>0;
+	
+Tue Jul 14 15:11:52 1998  Michael Widenius  <monty@tik>
+
+* Use the result from 'gethostname' as the name for pid files
+  (instead of uname()).
+
+Sun Jul 12 12:38:45 1998  Michael Widenius  <monty@tik>
+
+* Index only optimization;  Some queries are now resolved using
+  only indexes.  Until MySQL 4.0 this works only for number columns.
+
+  SELECT key_part1,key_part2 FROM table WHERE key_part1=#
+  SELECT COUNT(*) FROM table WHERE key_part1=# and key_part2=#
+  SELECT key_part2 FROM table GROUP BY key_part1;
+  SELECT * FROM table ORDER BY key_part2;
+	
+1998-07-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added function DATE_ADD() and DATE_SUB()
+
+1998-07-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added function SUBSTRING() with 2 arguments.
+
+1998-07-05  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added optimization to remove const reference tables from ORDER BY and
+  GROUP BY.
+* Allow '$' in table and column names.
+
+1998-07-04  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* new option --tmpdir for mysqld.
+
+1998-07-03  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* MySQL now automaticly changes a query from an ODBC client:
+  SELECT ... from table WHERE auto_increment_column IS NULL
+  to
+  SELECT ... from table WHERE auto_increment_column == LAST_INSERT_ID().
+  This allows some ODBC programs (Delphi, Access) to retrieve the newly
+  inserted row to fetch the auto_increment id.
+* Drop table now waits for all users to free a table before deleting it
+	
+1998-07-02  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* New functions: BIN(), HEX() and CONV() for converting between different
+  number bases.
+
+1998-07-01  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* If one created a table with smaller record length than 5, one couldn't
+  delete rows from this table	
+* mysqld now automaticly disables system locking on Linux, Win32 and if
+  one uses MIT-threads.  One can force the use of locking by doing:
+  --enable-locking.
+* Added new mysqld option --console, to force a console window (for error
+  messages) when using Win32.
+* Removed a useless check in the ISAM delete code; Delete should now be
+  a bit faster.
+	
+1998-06-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.22.3
+* New flag to mysqld: --one-thread for debugging with linuxthreads (or glibc)
+
+1998-06-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added the LEX structure to THD to get a bit more speed.
+* Added DROP TABLE IF EXISTS to not get an error if the table doesn't exists.
+* IF and EXISTS are now reserved words (they would have to be sooner or later)
+	
+1998-06-26  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added lots of new options to mysqldump.
+
+Wed Jun 24 23:33:35 1998  Michael Widenius  <monty@tik>
+
+* Server error messages are now in mysqld_errror.h
+* Added compression server/client protocol. (By Sinisa).
+
+1998-06-22  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* New functions:  <<, >>, rpad() and lpad().
+* Fixed a core-dump bug in the range optimizer.
+	
+Fri Jun 19 01:51:09 1998  Michael Widenius  <monty@tik>
+
+* One can now save default options (like passwords) in a config file (my.cnf).
+
+1998-06-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* searching on multiple constant keys that matched > 30 % of the rows didn't
+  always use the best possible key.
+	
+1998-06-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Lot's of small changes to get ORDER BY to work when no records are found
+  when using fields that are not in GROUP BY (MySQL extension)
+* Added new option --chroot to mysqld to start mysqld in a chroot environment
+  (by Nikki Chumakov <nikkic@cityline.ru>)
+	
+1998-06-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Add option --one-database to mysql to only update one database
+  from a update log.
+
+1998-06-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* end space is now ignored when comparing case sensitive strings;
+  This should fix some problems with ODBC!	
+* mysql_free_result() now automaticly handles a mysql_use_result() set that
+  is not completely read.
+	
+1998-06-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.22.1
+* Fixed problems with date_format() and wrong dates.
+* enum() and set() columns was compared binary; Changed to be case insensitive.
+
+1998-06-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added new API functions: mysql_init() and mysql_options().
+  One MUST now call mysql_init() before one calls mysql_real_connect().
+  One doesn't have to call mysql_init if one only calls mysql_connect().
+* LEFT JOIN core dumped if the second table is used with a constant
+  WHERE/ON expression with uniquely identifies one record.
+
+1998-06-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Range optimizer is not used anymore when comparing a string column
+  to a number.  This will make such compares slower but safer.
+
+Sun Jun  7 04:47:14 1998  Michael Widenius  <monty@tik>
+
+* UPDATE now returns a update information about how many rows was
+  matched, updated and if one got any 'warnings' when doing the update.
+
+Sat Jun  6 22:58:02 1998  Michael Widenius  <monty@tik>
+
+* Fixed wrong result from 'format(-100,2)'.
+
+1998-06-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added new C-API function: mysql_ping().
+* Added options AFTER column and FIRST to ALTER TABLE ... ADD columns.
+  This makes is possible to add a new column at some specific location
+  in an old table.
+* Fixed problem with find_in_set().
+
+1998-05-18  Michael Widenius  <monty@analytik>
+
+* Added new API function:  mysql_ping().
+
+1998-05-15  Michael Widenius  <monty@monty.pp.sci.fi>
+
+*  WEEK() now takes an optional argument to allow handling of weeks when the
+   first day of the week = Sunday (default or 0) or Monday ( extra argument is
+   1). WEEK() now returns the week number in the range 0-53 for the used
+   year.
+
+1998-05-13  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added flag -T32 to mysqld for running all queries under the main thread.
+  This makes it possible to debug mysqld under Linux with gdb!
+  (This is now called --one-thread)	
+	
+1998-05-12  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added optimization of 'not_null_column IS NULL' (needed for some Access
+  queries)
+* Made all time functions 'more streamlined'.
+
+1998-05-09  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow one to use STRAIGHT_JOIN between two tables to force the optimizer
+  to join them in a specific order.
+	
+Fri May  8 02:35:00 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added SET OPTION PASSWORD='new_crypted_password' and
+  SET OPTION PASSWORD= 'host' : 'user' : 'new_password'. The last version
+  only works for users with write access to the mysql database.
+  One can also use:  SET OPTION PASSWORD=PASSWORD("new_password");
+
+Tue May  5 14:41:47 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* String functions now return VARCHAR() instead of CHAR() and 
+  the column type is now VARCHAR() for fields saved as VARCHAR().
+  This should make the MyODBC driver better, but may break some old
+  MySQL clients that doesn't handle FIELD_TYPE_VARCHAR identical as
+  FIELD_TYPE_CHAR.
+ 
+Mon May  4 00:33:27 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added BOOL as a synonym for BIT and DISTINCTROW as a synonym for DISTINCT.
+* CREATE INDEX and DROP INDEX are now implemented trough ALTER TABLE.
+  CREATE TABLE is still the recommended (fast) way to create indexes.
+* Added option SET OPTION PASSWORD='new_password'.
+  mysqladmin can now be used by not anonymous users to change their
+  password.
+
+Sun May  3 18:47:24 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added option wait_timeout to mysqld.
+
+Sat Apr 18 14:14:23 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added hashing of fieldnames for tables with many fields.
+* The most frequently used string functions are now in assembler (Linux-intel).
+
+Thu Apr 16 16:14:14 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* Added quick checking if ok host.
+* Changed the interface for field->val_str() to better use stack buffers.
+
+Thu Apr  9 20:02:26 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* One can now reference to tables in different databases with:
+  table@database or database.table
+* Added cacheing of users & access rights (for faster access rights checking)
+
+1998-04-08  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Save of command line history to file in mysql client.
+  by Tommy Larsen <tommy@mix.hive.no>	
+	
+1998-04-07  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added time column to 'mysqladmin processes' to show how long a query
+  has taken or how long a thread has sleeped.
+	
+1998-04-06  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* 'show variables' now gives the correct path for 'datadir'.
+* Added logging and update_log to "show variables"	
+
+1998-03-29  Michael Widenius  <monty@analytik>
+
+* Added new type: YEAR. YEAR is stored on 1 byte with range 0, 1901-2155.
+* Added new DATE type that is stored on 3 bytes instead of 4. All new
+  tables will created with the new date type if one doesn't use
+  --old-protocol.
+* Fixed bug in record caches;  One could get 'Error from table handler: #'
+  on some OS from some queries.
+
+1998-03-27  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* mysql (the command line tool) striped start space from new rows.
+
+1998-03-25  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added user level locks:  GET_LOCK(string,timeout), RELEASE_LOCK(string)
+* Fixed bug in range optimizer when using:
+  WHERE	key_part_1 >= something and key_part_2 <= something_else
+* Changed connect timeout to 3 seconds to make it somewhat harder
+  for crackers to kill mysqld trough telnet + TCP/IP.
+
+1998-03-24  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* new mysqld option --big-selects:
+  Allow big result sets by saving all temporary sets on file.
+ (Solves most 'table full' errors)
+	
+1998-03-21  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* WHERE with string-column-key = constant-string didn't always find all rows
+  if the column had many values differing only with characters of the same sort
+  value (like e and é).
+* Added opened_tables to 'show status'.
+* Strings keys looked up with 'ref' was not compared case sensitively.
+* Added flag '--big-selects' to avoid 'Table is full' errors.
+  Using this will slow down some queries thought.	
+* Added umask() to make log_files non-readable for normal users.
+* Fixed some odd cases with queries that uses group functions where
+  the WHERE or HAVING didn't match anything.
+* Ignore users with old password (8 byte) on startup if not using
+ --old-protocol.
+* Changed name of the sql_memory allocation system and moved this to
+  the mysys library.
+
+1998-03-17  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added use of current_date, current_time and current_timestamp functions
+  without (). This automaticly made these reservered words :(	
+
+Tue Mar 10 12:34:50 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed mysql_real_connect() to include possible db for faster connection
+  to a new db.
+* select which matched all key fields returned the values in the same
+  case as the matched values instead of the found values.
+* Release of 3.21.26
+* In DATE_FORMAT() PM and AM was swapped for hours 00 and 12.
+
+Mon Mar  9 14:15:00 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added some tests to the table order optimizer to get some cases with
+  'SELECT ... FROM many_tables' much faster.
+* Added a retry loop around accept() to possible fix some problems on some
+  Linux machines.
+
+Fri Mar  6 01:18:47 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* from_days(0) now returns "0000-00-00"
+* Enchanted mysql_connect protocol to allow one to specify database
+  on connection. This will make MySQL twice as fast to connect to a database
+  for new clients.
+
+Thu Mar  5 18:09:45 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Updated record_cache code to be aligned for more speed.
+* New tests to crash-me
+* Extended the default max key size to 256.
+
+Wed Mar  4 00:02:16 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug when using BLOB/TEXT in GROUP BY with many tables.
+
+Mon Mar  2 18:58:10 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* A enum field that is not declared NOT NULL has NULL as default value.
+  (Before the default value was the first enum option)
+
+Tue Feb 24 20:11:30 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug in the join optimizer code when using many part keys
+  on the same key:  INDEX (Organisation,Surname(35),Initials(35)).
+
+Mon Feb 23 16:15:39 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* One can now kill threads that are waiting for 'disk full'.
+* Fixed some problems with UDF functions.
+* ALTER TABLE + IGNORE now returns right number of affected rows.
+* Fixed a bug when using 8 bytes long (alpha); filesort() didn't work. 
+  Affects DISTINCT, ORDER BY and GROUP BY on 64 bit processors. 
+
+Sat Feb 21 15:36:48 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed typedef string to my_string because of C++ new string class.
+* now one can kill threads that's are waiting on 'disk full'.
+
+Fri Feb 13 23:19:23 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.21.24
+* Fixed problem with LEFT JOIN and constant expressions in the ON part.
+
+Thu Feb 12 02:54:57 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added much more descriptive error messages to mysqladmin if connect failed.
+* Dynamic loadable functions. Based on source from:
+  Alexis Mikhailov <root@medinf.chuvashia.su>
+
+Thu Feb  5 15:19:14 1998    <monty@monty.pp.sci.fi>
+
+* One couldn't delete from a table if no one had done a select on the table.
+* Fixed problem with range optimizer which many OR's on key parts inside
+  each other.
+
+Tue Feb  3 14:34:32 1998    <monty@monty.pp.sci.fi>
+
+* Changed default umask for new files from 0664 to 0660.
+
+Fri Jan 30 23:58:19 1998    <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.21.23
+* Changed ALTER TABLE to work with WIN32 (Win32 can't rename open files)
+
+Thu Jan 29 20:37:50 1998    <monty@monty.pp.sci.fi>
+
+* Fixed that the following symbols are not reserved words:
+  TIME DATE TIMESTAMP TEXT BIT ENUM NO ACTION CHECK YEAR MONTH DAY HOUR
+  MINUTE SECOND STATUS VARIABLES.
+* Changed string handling in sql_yacc.yy and sql_lex.cc to be faster.
+* Setting a TIMSTAMP to NULL in LOAD DATA INFILE... didn't set the current
+  time for the TIMESTAMP.
+* Fixed that key conversions are tested in the WHERE clause
+* LOAD DATA INFILE .... REPLACE INTO ... had wrong 'skipped' count
+
+Tue Jan 27 15:24:50 1998    <monty@monty.pp.sci.fi>
+
+* Added switch --skip-thread-prior for systems where mysqld's thread
+  scheduling doesn't work properly. At least BSDI 3.1 works better with
+  this!
+* Added ODBC functions DAYNAME() and MONTHNAME().
+* Fixed unlikely(?) key optimizer bug when using ORs inside ANDs.
+
+Sat Jan 24 03:35:46 1998    <monty@monty.pp.sci.fi>
+
+* Release of 3.21.22
+* Added support of 'long constant strings' from ANSI SQL:
+  select 'first ' 'second';  -> 'first second';
+
+Mon Jan 19 17:59:49 1998    <monty@monty.pp.sci.fi>
+
+* Fixed problem with Russian character set and LIKE.
+* Fixed bug in ORDER BY on string formula with possible NULL values.
+* Added functions DAYOFYEAR(), DAYOFMONTH(), MONTH(), YEAR(), WEEK(),
+  QUARTER(), HOUR(), MINUTE(), SECOND() and FIND_IN_SET().
+* Changed weighting, when using many key parts, in join optimizer to avoid
+  full joins for a couple of cases.
+
+Sun Jan 18 21:16:06 1998    <monty@monty.pp.sci.fi>
+
+* Removed that NULL = NULL is true.  Now one must use IS NULL or IS NOT NULL
+  to test if a value is NULL. (This is according to ANSI SQL but may break
+  old applications that are ported from mSQL)
+  One can get the old behaviour by compiling with -DmSQL_COMPLIANT
+* Fix of count(*) problems when the WHERE clause didn't match any records.
+* Added function DAYOFMONTH()
+
+1998-01-14  Michael Widenius  <monty@analytik>
+
+* Fixed mysqladmin.c to display only the used socket or TCP/IP port.
+
+Mon Jan 12 19:32:31 1998    <monty@monty.pp.sci.fi>
+
+* Changed SHOW FIELDS to return NULL as default value for TIMESTAMP
+  (This removes the DEFAULT "" entry for timestamps in mysqldump)
+* Release of MySQL 3.21.21
+* Added commands SHOW STATUS and SHOW VARIABLES.
+* Fixed optimizer bug when using
+  'WHERE data_field=date_field2 and date_field2=constant'
+
+Sun Jan 11 05:07:59 1998    <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.21.20
+* Added long comments to MySQL /* */
+* Changed lex parsing to be a bit faster in some cases.
+
+Sat Jan 10 15:17:44 1998    <monty@monty.pp.sci.fi>
+
+* Fixed bug when using SELECT DISTINCT + NULL values.
+
+Fri Jan  9 16:45:26 1998    <monty@monty.pp.sci.fi>
+
+* Changed maximum table name and column name lengths from 32 to 64.
+* Aliases can now be of 'any' length.
+
+Thu Jan  8 02:28:11 1998    <monty@monty.pp.sci.fi>
+
+* Now one gets an error if one tries to create an INDEX or UNIQUE
+  on a column that allows NULL values. (Before the column was silently
+  made NOT NULL).
+
+Wed Jan  7 23:19:11 1998    <monty@monty.pp.sci.fi>
+
+* Changed protocol (downward compatible) to mark if a column
+  is auto_increment or a timestamp. This is needed for the
+  new java driver.
+* One can now in the clients check if a column is a automatic
+  TIMESTAMP or a AUTO_INCREMENT field.
+
+Sun Jan  4 20:10:21 1998    <monty@monty.pp.sci.fi>
+
+* Added update of big5 by jou@pdlc.ieo.nctu.edu.tw
+* Added hebrew sorting order by Zeev Suraski.
+
+Thu Jan  1 12:57:04 1998    <monty@monty.pp.sci.fi>
+
+* Release of 3.21.19
+* unique key fields was not marked as unique keys in mysqlshow.
+* Added function REVERSE() (by Zeev Suraski)
+* Changed ni_range() to fixed a case of slow range searching.
+
+Wed Dec 31 15:46:25 1997    <monty@monty.pp.sci.fi>
+
+* Release of 3.21.18a
+* Fixed problem with new filesort code from 3.21.18 on Linux
+
+Mon Dec 29 10:02:24 1997    <monty@monty.pp.sci.fi>
+
+* Added CROSS JOIN syntax. CROSS is now a reserved word
+* USE database was not always written to output log.
+* mysqladmin command 'status' doesn't increment 'Questions' anymore.
+
+Sun Dec 28 13:20:20 1997    <monty@monty.pp.sci.fi>
+
+* Recoded yacc/bison stack allocation to be even safer and allow MysQL
+  to handle even bigger expressions.
+
+Sat Dec 27 15:28:39 1997    <monty@monty.pp.sci.fi>
+
+* last_insert_id and used timestamp is now written to update log file.
+  timestamps, calculations with time and LAST_INSERT_ID() will now work
+  correctly when updating from the update log.
+
+Fri Dec 26 17:03:14 1997    <monty@monty.pp.sci.fi>
+
+* Give error message if client C functions are called in wrong order. 
+* Added automatic reconnect of clients for some cases. 
+
+Mon Dec 22 00:25:34 1997    <monty@monty.pp.sci.fi>
+
+* Range optimizer didn't solve ranges of type:
+  key_part1= x AND key_part2 > y.  This forced some ORDER BY queries to
+  do a full table scan when used with where like above.
+* Small sort sets doesn't use temporary files anymore.
+
+Fri Dec 19 16:30:24 1997    <monty@monty.pp.sci.fi>
+
+* Release of MySQL 3.21.17a
+* Fixed problem with compare of binary strings and blobs with ASCII
+  characters over 127. 
+
+Thu Dec 18 00:33:25 1997    <monty@monty.pp.sci.fi>
+
+* Fixed core dump in first() when chaning some very specific AND and OR
+  key columns.
+* Fixed lock problem: When freeing a read lock on a table with multiple
+  read locks, a thread waiting for write lock would have given the lock.
+  This shouldn't affect data integrity, but could possible make mysqld
+  to restart if one thread was reading data that another thread modified.
+* LIMIT offset,count didn't work in INSERT ... SELECT.
+
+Wed Dec 17 12:35:11 1997    <monty@monty.pp.sci.fi>
+
+* optimized key block caching. This will be quicker than the old one when
+  using bigger key caches.
+
+Tue Dec 16 23:33:24 1997    <monty@monty.pp.sci.fi>
+
+* Changed bool to my_bool in some item structures to use less memory.
+* Changed optimizer to use array references. This made the code 'nicer'
+
+Mon Dec 15 17:03:43 1997    <monty@monty.pp.sci.fi>
+
+* Release of Mysql 3.21.17
+* mysql: Added ouput of line number on errors when running batch.
+* SELECT column,SUM(expr) now returns NULL for column when there is no
+  matching rows.
+
+Sun Dec 14 14:59:46 1997    <monty@monty.pp.sci.fi>
+
+* Fixed create problem with fixed length records of exactly 256 bytes.
+  (One couldn't insert more than 1 record in such a table).
+
+Fri Dec 12 18:31:32 1997    <monty@monty.pp.sci.fi>
+
+* Added ODBC and ANSI SQL style LEFT OUTER JOIN.
+  The following are new reserved words:  LEFT, NATURAL, USING
+* Changed use of table bits and key bits to use typedefs to make it easy
+  to extend join tables and keys to 64.
+* The client library is now using the environment variable MYSQL_HOST as
+  the default host if it's defined.
+
+Wed Dec 10 01:29:11 1997    <monty@monty.pp.sci.fi>
+
+* Release of 3.21.16a
+* Field type SET with 33-55 elements didn't work.
+* Release of 3.21.16
+* Fixed bug in ALTER TABLE when copying from DATETIME to TIMESTAMP.
+  (All TIMESTAMP where set to current time).
+
+Tue Dec  9 14:53:15 1997    <monty@monty.pp.sci.fi>
+
+* Added function TIME_TO_SEC()
+
+Mon Dec  8 09:56:44 1997    <monty@monty.pp.sci.fi>
+
+* Allow empty strings as default values for BLOB and TEXT to be compatible with
+  mysqldump.
+* Added ODBC 2.0 & 3.0 functions: POWER(), SPACE(), COT(), DEGREES(), RADIANS(),
+  ROUND(2 arg) and TRUNCATE().
+* Added optional (ignored) argument to CURRENT_TIME() and CURRENT_TIMESTAMP().
+* LOCATE() parameters where swapped according to ODBC standard. Fixed.
+* Added detection of all ODBC 3.0 functions to crash-me
+* In some cases default values was not used for NOT NULL fields.
+* Timestamp wasn't updated in UPDATE SET... if the timestamp was used as
+  a value or in the WHERE clause.
+
+Sun Nov 30 04:06:31 1997    <monty@monty.pp.sci.fi>
+
+* Renamed version.h to mysql_version.h
+
+Sat Nov 29 10:50:28 1997    <monty@monty.pp.sci.fi>
+
+* Added dayofweek() for ODBC.
+* Allow DATE '1997-01-01', TIME '12:10:10' and TIMESTAMP '1997-01-01 12:10:10'
+  formats required by ANSI SQL.
+  This has the unfortunate side-effect that one can't have columns named
+  DATE, TIME or TIMESTAMP anymore :(
+* Changed net_write() to my_net_write() because of name conflict with sybase.
+* Added --no-auto-rehash option to mysql.
+* Added VARBINARY as synonym for VARCHAR BINARY
+
+Wed Nov 26 12:53:41 1997    <monty@monty.pp.sci.fi>
+
+* Added framework for multiple character sorting
+
+Tue Nov 25 04:03:29 1997    <monty@monty.pp.sci.fi>
+
+* Added extra client flag to mysql_real_connect to be compatible with
+  MyODBC.
+* Zeev fixed bug in DATE_FORMAT: It forgot to reset the null marker.
+
+Mon Nov 24 20:19:18 1997    <monty@monty.pp.sci.fi>
+
+* Fixed problem with wrong result order when using all of
+  DISTINCT + JOIN + ORDER BY + LIMIT.
+
+Sun Nov 23 14:29:54 1997    <monty@monty.pp.sci.fi>
+
+* mysql:  edit command now allows one to edit last query in a editor;
+  (patch by Zeev Suraski)
+* Recoded all delete item to avoid use of stack space for deletes.
+ (For crash-me)
+* Added command: SET SQL_LOG_OFF=1 to not log commands to standard log.
+  This will only affect users with process list privileges.
+
+Sat Nov 22 13:08:55 1997    <monty@monty.pp.sci.fi>
+
+* Added stack checking for crash-me :)
+  The following failed before:  select 1+1+1+1+1+.... (687 times)
+
+Fri Nov 21 01:50:34 1997    <monty@monty.pp.sci.fi>
+
+* Added new patch for Chinese Big5 code.
+* Change that blobs returns the max length for a blob instead of 8192
+  to the client as field_length.
+
+Thu Nov 20 15:37:05 1997    <monty@monty.pp.sci.fi>
+
+* fixed bug in range-optimizer that crashed mysql on some queries.
+* table and column name completion for mysql by
+  Zeev Suraski and Andi Gutmans
+* Fixed problem with queries that didn't find any records: This happens only
+  when using multiple part keys where the first part is a number and some
+  other part is a char or varchar.
+* Removed some wrong warning messages from range optimizer
+
+Wed Nov 19 16:41:14 1997    <monty@monty.pp.sci.fi>
+
+* Added new command REPLACE, which works like INSERT but replaces conflicting
+  records with the new record. REPLACE INTO TABLE ... SELECT ... works also.
+* Added new commands: CREATE DATABASE db_name and DROP DATABASE db_name
+* Added RENAME option to ALTER TABLE:  ALTER TABLE name RENAME AS new_name
+
+Sun Nov 16 21:41:32 1997    <monty@monty.pp.sci.fi>
+
+* The thread stack was overwritten if one tried to create a table with too many
+  fields (more than 1000).
+- Table scanning was a bit slower when using LOCK TABLE xxx WRITE. Fixed.
+
+Thu Nov 13 03:12:54 1997    <monty@monty.pp.sci.fi>
+
+* ALTER TABLE forgot BINARY attribute for strings and BLOBS
+* Change comparision of strings to integer to compare as floats instead
+  of as integers.
+* Added printing of Access denied errors to log.
+* Fixed some not 100% portable typedefs in mysql_com.h
+* Added Luuk de Boers defines for interval handling.
+  This isn't compleat yet.
+
+Wed Nov 12 00:28:58 1997    <monty@monty.pp.sci.fi>
+
+* Added automatic removal of 'ODBC function conversions': {fn now() }
+* Added new function DATE_FORMAT(date_expr,format). The format string is the
+  same one that was previously integrated with from_unix_timestamp().
+* Changed from_unix_timestamp() to call function DATE_FORMAT() with format
+  element.
+
+Mon Nov 10 18:17:39 1997    <monty@monty.pp.sci.fi>
+
+* Added flag for stupid ODBC applications (like access) that wants found_rows
+  instead of affected_rows.
+* Added basic functions for handling av ANSI INTERVAL.
+
+Sat Nov  8 01:20:03 1997    <monty@monty.pp.sci.fi>
+
+* compare with DATE and TIME with NULL didn't work. (IS NULL worked)
+* Added many changes from the Win32 port.
+* new function: DATE_ADD_MM().
+
+Wed Nov  5 13:10:10 1997  Michael Widenius  <monty@analytik>
+
+* SORTING on calculated DOUBLE values sorted on integer results instead.
+* SELECT ... WHERE KEY=constant ORDER BY ... didn't use key to retrieve
+  records. This was slow because everything was sorted..
+* CHECK isn't a reserved word anymore.
+	
+Mon Nov  3 07:55:47 1997  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Allow start of mysqld.cc without a current database.
+* Changed server version to include -debug and -log if compiled with debugging
+  and to show that one has a logging enabled.
+	
+Sat Nov  1 13:08:00 1997    <monty@monty.pp.sci.fi>
+
+* Added missing expression 'NOT IN'
+* Changed the place where HAVING should be. According to ANSI it should be
+  after GROUP BY but before ORDER BY.  MySQL 3.20 had it wrongly last.
+* Added Sybase command: USE DATABASE to start using another database.
+* Fixed core dump when one had a wrong password in the password column.
+* Added automatic adjusting of number of connections and table cache size
+  if the maximum number of files that can be opened are less than needed.
+  This should fix that mysqld doesn't crash even if one hasn't done a
+  ulimit -n 256 before starting mysqld.
+* Added limit checks for create table.
+* Added more checks of different errors from net_read for SCO port.
+
+Tue Oct 28 14:30:31 1997    <monty@monty.pp.sci.fi>
+
+* Fixed problem when using big table_caches; MySQL could previously only
+  open 256 files.
+
+Mon Oct 27 10:02:19 1997    <monty@monty.pp.sci.fi>
+
+* Added options LINE STARTING WITH to LOAD DATA INFILE and
+  SELECT ... into outfile. Now one can do:
+
+    LOAD DATA INFILE '/tmp/syslog.sql' INTO TABLE uptime
+    FIELDS TERMINATED BY ','  OPTIONALLY ENCLOSED by "'"
+    LINES STARTING WITH 'VALUES (' LINES TERMINATED by ');\n' ignore 100 lines
+
+and
+    SELECT * from uptime into outfile '/tmp/syslog2.sql'
+    FIELDS TERMINATED BY ','  OPTIONALLY ENCLOSED by "'"
+    LINES STARTING WITH 'INSERT INTO uptime VALUES (' LINES TERMINATED by ');\n'
+
+* Added IGNORE # LINES to LOAD DATA INFILE.
+
+* Allow \N as a shorthand of NULL in SQL statements.
+
+Sun Oct 26 11:34:38 1997    <monty@monty.pp.sci.fi>
+
+* More memory checking.
+* Fixed grouping of functions with many from tables.
+
+Sat Oct 25 01:46:27 1997    <monty@monty.pp.sci.fi>
+
+* New error message so one can check if the connection was lost while
+  the command was running or if the connection was down from the start.
+* The mysql command tool now does a automatic reconnect if the connection
+  was lost when it does a query.
+* new command: 'mysqladmin debug'. This forces the server to dump out some
+  useful information to stdout. Currently it prints all lock information.
+* Rewrite lexer to be faster and more easy to extend.
+
+Fri Oct 24 13:57:06 1997    <monty@monty.pp.sci.fi>
+
+* Fixed bug when like on number key.
+* Added --table option to mysql to print in table format.
+  Moved time and row information after query result.
+* Added != as an alias for <>.
+
+Thu Oct 23 16:00:22 1997    <monty@monty.pp.sci.fi>
+
+* Added function VERSION() to make easier logs.
+
+Tue Oct 21 00:09:13 1997    <monty@monty.pp.sci.fi>
+
+* Relase of 3.21.12
+* Added memory checks to all string functions to return NULL if some
+  string gets bigger than max_allowed_packet. This is to make MySQL more
+  secure.
+* Fixed core dump bug on range optimizer.
+* In some cases doing a join + group + INTO OUTFILE, the result wasn't
+  grouped.
+* Now SQL_BIG_TABLES + DISTINCT is also optimized.
+* Changed the syntax of ALTER TABLE ... ALTER COLUMN ident SET DEFAULT ...
+  (The DEFAULT keyword wasn't allowed or required before).
+* Added russian error messages.
+
+Mon Oct 20 04:10:53 1997    <monty@monty.pp.sci.fi>
+
+* LIKE with '_' as last character didn't work. Fixed
+* Added many error checks for 'end of memory'
+* Added ENCRYPT() function by Zeev Suraski.
+* Fixed better FOREIGN KEY syntax skipping.
+  New reserved words:  MATCH, FULL, PARTIAL
+
+Sun Oct 19 23:13:50 1997    <monty@monty.pp.sci.fi>
+
+* Force .log to logfile-name if one uses hostname as logfile.
+* mysqld now allows ip and hostname to the --bind-address option.
+
+Sat Oct 18 22:02:36 1997    <monty@monty.pp.sci.fi>
+
+* Added "SET OPTION CHARACTER SET cp1251_koi8" to enable conversions off
+  data to/from different character sets. Currently cp1251_koi8 is the only
+  one, but it's now trivial to add others.
+  Conversions:  strings in the query 		-> intern set
+	        fields and items in result	-> terminal set
+  One can get back to the old one with:
+  SET OPTION CHARACTER SET DEFAULT
+* Lots of changes for Win95 port
+
+Fri Oct 17 15:29:44 1997    <monty@monty.pp.sci.fi>
+
+* Changed the create column syntax off NOT NULL to be after the DEFAULT value
+  as specified in the ANSI SQL standard. This will make mysqldump with
+  NOT NULL and default values incompatible with MySQL 3.20.
+* New reserved words are: BOTH, FOR, LEADING and TRAILING 
+* Added a lot of function name alias so one can use the functions with
+  ODBC or ANSI SQL92 syntax.
+* Fixed ALTER TABLE person ALTER COLUMN phone SET DEFAULT NULL syntax.
+* Added CHAR and BIT as a synonyms for CHAR(1)
+* Changed the name if the INTERVAL type to ENUM, because INTERVAL is used in
+  ANSI SQL.
+* Added extended ANSI SQL TRIM() function.
+* Added CURTIME().
+
+Thu Oct 16 17:26:48 1997    <monty@monty.pp.sci.fi>
+
+* Fixed core dump when updating as user with only select privilige.
+
+Wed Oct 15 04:25:47 1997    <monty@monty.pp.sci.fi>
+
+* INSERT ... SELECT ... GROUP BY didn't work in some cases. On got
+  'Invalid use of group function'
+* When using LIMIT, SELECT now always uses keys instead of record scan.
+  This will give better performance on SELECT and a WHERE that matches many
+  rows.
+* Added function last_insert_id() to retreive last auto_increment value.
+  This is for clients to ODBC that can't use the mysql_insert_id API function.
+* Added option '--flush-logs' to mysqladmin.
+* Added command 'status' to mysql.
+* Moved some messages from libmysql.c to errmsg.c
+
+Mon Oct 13 18:38:01 1997    <monty@monty.pp.sci.fi>
+
+* Tested on BSDI 3.0 with the newest pthread library.
+* Added new group functions: BIT_OR() and BIT_AND().
+* Added compatibility functions: CHECK, REFERENCES.
+* Added BIT as a synonym for CHAR(1) to get better compatibility.
+* Added option ALL to GRANT for better compatibility. (GRANT is still
+  a dummy fuction.
+* CHECK is now a reserved word.
+
+Fri Oct 10 17:01:25 1997    <monty@monty.pp.sci.fi>
+
+* Added partly translated dutch messages.
+* Fixed bug in ORDER BY and GROUP BY with NULL columns
+
+Thu Oct  9 10:26:47 1997    <monty@monty.pp.sci.fi>
+
+* Added test of create of table without columns.
+* Release of 3.21.10
+* Fixed a couple of bugs in the range optimizer. Now test-select works.
+
+Tue Sep 30 02:40:42 1997    <monty@monty.pp.sci.fi>
+
+* Added new function: REPEAT(string,count).
+* Added patch of support of Chinese(BIG5).
+* Fixed awful slowdown of libmysql.c when configuring using '--with-debug=yes'
+  This affected all clients that got large results from the server.
+  (This didn't affect using --quick or mysql_use_result).
+
+Sun Sep 28 20:59:41 1997    <monty@monty.pp.sci.fi>
+
+* Made a new function: mysql_real_connect, that takes two extra arguments:
+  port and socket to use on connection.	
+* Added text types: TINYTEXT, TEXT, MIDDLETEXT and LONGTEXT.
+  These are actually blobs, but all searching is done text independent.
+  All old BLOB fields are now TEXT fields.
+* LONG VARCHAR is a synonym for TEXT. LONG BINARY is a synonym for BLOB.
+* 'LONG' is now a reserved word.
+
+Fri Sep 26 16:11:34 1997    <monty@monty.pp.sci.fi>
+
+* Release of 3.21.9
+* Fixed a couple of portable problems with include files. 
+* Fixed bug in range calculation that could return empty 
+  set when searching on multiple key with only one entry (very rare). 
+
+Wed Sep 24 15:51:37 1997    <monty@monty.pp.sci.fi>
+
+* Changed thread scope from PROCESS to SYSTEM. This should give better
+  scheduling (performance) on Solaris.
+* Fixed duplicated free bug in sql_base with io_cache.
+
+Tue Sep 23 13:05:23 1997    <monty@monty.pp.sci.fi>
+
+* Allow also the old SELECT ... INTO OUTFILE syntax.
+* Fixed bug with group by and select on key with many values.
+
+Mon Sep 22 14:54:00 1997    <monty@monty.pp.sci.fi>
+
+* mysql_fetch_lengths() returned sometimes wrong lengths when one used
+  mysql_use_result(). This affected at least some cases of mysqldump --quick.
+
+Sun Sep 21 20:50:07 1997    <monty@monty.pp.sci.fi>
+
+* Fixed memory leak bug in range optimizer.
+
+Sat Sep 20 00:03:51 1997    <monty@monty.pp.sci.fi>
+
+* Allow TIME, DATE and TIMESTAMP as column names.
+* Fixed bug in optimization of WHERE const op field.
+
+Fri Sep 19 12:06:37 1997    <monty@monty.pp.sci.fi>
+
+* Fixed problem when sorting on NULL fields.
+* Added handling of calculation of sum() functions.
+* Added handling of trigometric functions: PI(), ACOS(), ASIN(), ATAN(),
+  COS(), SIN() and TAN().
+* Fixed sorting of big tables for 64 bit integers (Alpha).
+
+Fri Aug 29 13:06:32 1997  Michael Widenius  <monty@analytik>
+
+* Added option --pid-file=# to mysqld
+* Added date formating to from_unixtime(), originally by Zeev Suraski.
+	
+Wed Aug 27 01:35:18 1997    <monty@monty.pp.sci.fi>
+
+* Fixed bug when using 'unsigned long' on Alpa.
+
+Tue Aug 26 03:23:28 1997    <monty@monty.pp.sci.fi>
+
+* Added option --bind-address to mysqld.
+* Changed 'Access denied' to return username and password usage.
+* Changed 'Access to database denied' to return username and database.
+
+Sun Aug 24 22:55:24 1997  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed password crypt from 31 bits to 62 bits to make passwords more
+  secure.
+* Changed protocol to allow for passing of mysql_errno to client.
+
+Fri Aug 22 18:14:00 1997    <monty@monty.pp.sci.fi>
+
+* Fixed bug in BETWEEN in range optimizer (Did only test = of the first
+  argument).
+
+Thu Aug 21 16:40:21 1997    <monty@monty.pp.sci.fi>
+
+* Version 3.21.6
+* Enabled range optimizer for update and delete. Now update and delete can
+  use keys again.
+* Fixed bug when using unknown field in group clause.
+
+Tue Aug 19 00:49:13 1997    <monty@monty.pp.sci.fi>
+
+* The range optimizer is now enabled as default. Use msyqld --skip-new
+  to disable it.
+* numerous small fixes to the range optimzer and a couple if fixes to
+  group and where handling.
+* Added patch from JOERG_HENNE@Non-HP-Germany-om88.om.hp.com to allow
+  mit-threads to work on HPUX10. (This patch is regarded alpha)
+
+Fri Aug 15 02:29:21 1997    <monty@monty.pp.sci.fi>
+
+* Remove reverse lookup of hostnames because this takes 2 seconds
+  one some machines for every connection!
+  This can be enabled with the --secure option to mysqld.
+
+Thu Aug 14 22:40:15 1997    <monty@monty.pp.sci.fi>
+
+* remove HAVING -> WHERE optimization. To fix this one has to change
+  all Item_ref fields to Item_fields.
+* Added patch for fast TCP/IP on FreeBSD.
+
+Wed Aug 13 17:14:50 1997    <monty@monty.pp.sci.fi>
+
+* Add optimizing of SELECT DISTINCT .... LIMIT # when there is no
+  GROUP or ORDER BY.
+* Changed mysql to only print time information if not silent or if -vvv.
+* Added polish error messages
+  
+Sun Aug 10 11:31:10 1997    <monty@monty.pp.sci.fi>
+
+* new function: substring_index(), originally by Zeev Suraski.
+* Added new option to mysqld: -O tmp_table_size=#
+* Removed all use of PTHREAD_MUTEX_INIT and PTHREAD_COND_INIT for
+  porting to FreeBSD 3.0 and HPUX.
+
+Thu Aug  7 01:24:50 1997    <monty@monty.pp.sci.fi>
+
+* New function from_unixtime(timestamp) which returns a date string in
+  YYYY-MM-DD HH:MM:DD format.
+* New function sec_to_time(seconds) which returns a string in H:MM:SS format.
+
+Sat Aug  2 17:18:22 1997    <monty@monty.pp.sci.fi>
+
+* Fixed some porting issues for OSF1 and for Alpha.
+  Now MySQL is know to configure on OSF1 with the Dec compiler,
+  after changeing one line in config.h:
+  #define SOCKET_SIZE_TYPE int
+
+Wed Jul 30 11:05:39 1997    <monty@monty.pp.sci.fi>
+
+* Added reverse check lookup of hostnames to get better security.
+* Fixed some possible buffer overflows if one uses too long filenames.
+* mysqld doesn't accept hostnames that starts with digits followed by a '.'
+  because the hostname may look like a IP.
+* Added option --skip-networking to only allow socket connections.
+  (This will not work with MIT threads!)
+
+Tue Jul 29 10:38:55 1997  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Removed wrong free() that killed the server on 'create/drop database'.
+* Changed the name of some mysqld -O options to better names.
+* Added option '-O join_cache_size=#'.
+* Added option '-O max_join_size=#' to be able to set a limit how big queries
+  (in this case big = slow) one should be able to handle without specifying
+  'SQL_OPTION OPTION_BIG_SELECTS=1'.
+  A # = is about 10 examined records. The default is 'unlimited'.
+* When comparing a TIME, DATE, DATETIME or TIMESTAMP column to a 
+  constant the constant is converted to a time value before comparing.
+  This will make it easier to get ODBC and particularly Access97 to work with
+  the above types. It should also make dates easier to use and the compares
+  should be quicker than before.
+* added check of too long table names for alias.
+
+Mon Jul 21 16:09:47 1997  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Applied patch from Jochen Wiedmann that fixes that query() in mysqlperl now
+  can take queries with \0 in it.
+
+Sat Jul 19 01:11:38 1997  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Store of timestamp with 2 digit year YYMMDD didn't work.
+* Fix that timestamp isn't automaticly updated if set in a update clause.
+* Now the automatic timestamp field is the FIRST timestamp field.
+	
+Thu Jul  3 13:34:26 1997    <monty@monty.pp.sci.fi>
+
+* Added check if database name is okey.
+* Addded check if too long table names.
+* SELECT * INTO OUTFILE, which didn't correctly if the outfile already existed.
+* 'mysql' now shows thread id when starting or doing a reconnect.
+* Changed the default sort buffer size from 2M to 1M.
+
+Mon Jun 30 10:18:39 1997    <monty@monty.pp.sci.fi>
+
+* mysqladmin: One can now do 'mysqladmin kill 5,6,7,8'
+* Fixed 'Packets out of order' message.  This error come sometimes when the
+  server was out of threads/memory. Now the correct message is retrieved by
+  the client.
+* Added more checks with thread create for 'out of memory' errors.
+* Added more checks if threads is killed to get faster kill.
+* Changed the default record cache from 512K to 128K to get less problem on
+  systems with little memory.
+
+Sat Jun 28 00:18:02 1997    <monty@monty.pp.sci.fi>
+
+* When the max connection limit is reached, one extra connection by a user with
+  the PROCESS_ACL privilege is granted.
+
+Fri Jun 27 22:03:24 1997    <monty@monty.pp.sci.fi>
+
+* Added new mysqld option: -O backlog=#
+
+Tue Jun 24 22:08:58 1997    <monty@monty.pp.sci.fi>
+
+* Fixed SELECT DISTINCT when using 'hidden group'. For example:
+  SELECT DISTINCT MOD(some_field,10) FROM test GROUP BY some_field;
+* Increased max packet size from 512K to 1024K for client.
+* Removed a lot of unused functions
+
+Mon Jun 23 22:58:07 1997    <monty@monty.pp.sci.fi>
+
+* Changed key_parts to have own field for shortened keys. This gives much
+  nicer code in select.
+
+Thu Jun 19 13:09:14 1997    <monty@monty.pp.sci.fi>
+
+* ALTER TABLE now returns warnings from field conversions.
+  Changed all numerical fields to check for correct number and
+  increment warning counts if the value is wrong.
+
+Wed Jun 18 22:14:36 1997    <monty@monty.pp.sci.fi>
+
+* Fixed buffer overflow when retrieving big packets.
+
+Tue Jun 17 03:26:27 1997    <monty@monty.pp.sci.fi>
+
+* Port changed to 3306 (got it reserved from ISI).
+
+Mon Jun 16 15:46:42 1997    <monty@monty.pp.sci.fi>
+
+* All double are now rounded before storad as integer values.
+* Fixed bug when using: SELECT WHERE A=const1 OR A=const2 OR A=const3,
+  and const1 = const3. In this case a key over A=const1 was wrongly used and
+  A=const2 wasn't used.
+* Added a fix for Visual Fox Base so that any schema name from a table
+  specification is automaticly removed.
+
+Sun Jun 15 12:47:23 1997    <monty@monty.pp.sci.fi>
+
+* The thr_alarm array is now initialized based on number of connections
+* Changed some memcpy() to bmove() to get rid of some warnings from purify.
+* Changed the sql_yacc.c to drop schema name from table name. This is a crude
+  patch to get VFP
+
+Sat Jun 14 12:04:59 1997    <monty@monty.pp.sci.fi>
+
+* fixed missed ptr variable in filesort.
+* Fixed wrong tablename and record count EXPLAIN.
+* Changed the 'key use' test to prefere keys even more over full join.
+* Fixed LIKE to work for binary strings.
+
+Fri Jun 13 13:38:14 1997    <monty@monty.pp.sci.fi>
+
+* New function char(num,....).
+
+Wed Jun 11 14:53:17 1997    <monty@monty.pp.sci.fi>
+
+* All field types tested with extrema values. date_time and timestamp
+  now require at least year, month and day on insert.
+
+Mon Jun  9 01:23:36 1997    <monty@monty.pp.sci.fi>
+
+* Added French error messages (by Therrien, Gilbert). English is still default.
+* Added option '--skip-name-resolve' to get mysqld to use only IP's to
+  autenticate a host. 'localhost' will still be used for local UNIX sockets.
+* Removed the between() function. On should use the 'col BETWEEN a AND b'
+  syntax instead.
+
+Sun Jun  8 11:05:46 1997    <monty@monty.pp.sci.fi>
+
+* New function ASCII.
+
+Sat May 31 01:00:18 1997    <monty@monty.pp.sci.fi>
+
+* host names are now compared case insensitive.
+
+Wed May 28 13:04:00 1997    <monty@monty.pp.sci.fi>
+
+* HAVING is added to WHERE if there is no grouping.
+* MySQL now doesn't anymore have to use a extra temporary table when sorting
+  on functions or SUM functions.
+
+Tue May 27 00:54:51 1997    <monty@monty.pp.sci.fi>
+
+* Added function to print a item for debugging purposes.
+* Fixed bug that one couldn't use 'table_name.field_name' in UPDATE.
+* Removed init code with reset some of the mysqld -O variables to default after
+  they where set by start options.
+
+Thu May 22 14:52:26 1997    <monty@monty.pp.sci.fi>
+
+* Added varbinary syntax: 0x###### which can be used as a string (default) or a
+  number.
+
+Sun May 18 22:00:58 1997    <monty@bitch.sci.fi>
+
+* mysqldump: added options to lock tables and specify many tables to dump
+* Add support of NULL fields in filesort
+* SELECT with COUNT(),MIN() .... with no matching rows now returns 1 row.
+
+Sat May 17 22:06:29 1997    <monty@bitch.sci.fi>
+
+* New operator IN. This uses a binary search to find a match.
+* Added 'SET OPTION SQL_BIG_TABLES= (0 | 1). Setting this to 1 will force
+  all temporary tables to disk. This will allow one to do big selects that
+  ordinary would give a 'table full' error.
+
+Fri May 16 18:53:21 1997    <monty@bitch.sci.fi>
+
+* New command LOCK TABLES table_name [alias] (READ | WRITE), ....
+
+Wed May 14 14:33:07 1997    <monty@bitch.sci.fi>
+
+* Renamed FIELD_TYPE_CHAR to FIELD_TYPE_TINY
+
+Mon May 12 09:54:24 1997    <monty@bitch.sci.fi>
+
+* Added command --log-update to get a update log for incremental backups.
+* log file rotation for mysqld.
+* log file for incremental backups
+* new command: DESCRIBE SELECT ....
+* Removed mysql_reload() and added mysql_refresh() instead.
+  Left a define to get old source to compile.
+
+Fri May  9 10:41:36 1997    <monty@bitch.sci.fi>
+
+* All functions now regards a binary type as 'sticky'.
+* The time is now only requested once at start of each query.
+* Splitted item_func.cc in two tables to get around that gcc uses too
+  much memory compiling it.
+* Changed MIN() and MAX() to return the original type.
+* Fixed bug in acl with anonymous user:  Now if one gets accepted by the user
+  table as a empty user name, the user name is set to '' when checking against
+  the 'db' and 'host' tables.
+* calculate all const expressions in the first optimizer pass. 
+
+Tue May  6 19:16:56 1997    <monty@bitch.sci.fi>
+
+* Fixed ORDER BY bug when selecting on very small tables that made the
+  optimizer use a full join.
+
+Mon May  5 00:15:52 1997    <monty@bitch.sci.fi>
+
+* Added use of table alias in insert, delete and update.
+* Removed FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, 
+  FIELD_TYPE_VAR_STRING from client code.
+* Change syntax of SELECT .. WHERE ... INTO OUTFILE .. to the more standard
+  SELECT .. INTO OUTFILE 'name' WHERE ...
+
+Thu May  1 23:16:14 1997    <monty@bitch.sci.fi>
+
+* Added new API functions:
+  mysql_row_seek(),mysql_row_tell() and mysql_field_tell().
+  mysql_field_seek() now returns old offset.
+* Added expr BETWEEN expr2 AND expr3.
+
+Sun Apr 27 16:16:17 1997    <monty@bitch.sci.fi>
+
+* Changed range() detection to get queries on prefix to works faster.
+  Now SELECT name FROM table WHERE name="prefix" is quick even if there
+  are lots of rows where name starts with prefix.
+* Fixed crash with shutdown and --log-isam
+* Added group function STD() (standard derivation).
+* mysql.cc: Fixed that NULL columns are always at least 4 wide for nicer output
+  of NULL values.
+* Fixed that calculations that are not in GROUP BY works as expected.
+  (ANSI SQL extension)
+  Example: SELECT id,id+1 FROM table GROUP BY id
+
+Thu Apr 24 13:41:01 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* Fixed convert bug which got mysqld to core dump with Aritmetic error on
+  Sparc-386
+
+Wed Apr 23 12:11:05 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* Added tty password to mysqlshow.c
+
+Tue Apr 22 15:44:11 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* The test of using MYSQL_PWD was reversed. Now MYSQL_PWD is enabled as default
+  in the default release
+
+Sun Apr 20 14:36:39 1997    <monty@bitch.sci.fi>
+
+* Now one usually only have to give --basedir to mysqld. All other paths
+  are relative in a normal installation.
+* BLOBs contained sometimes garbage when used with a SELECT on more than
+  one table and ORDER BY.
+* Added option --unbuffered to mysql. (For new mysqlaccess)
+* 'select *' without tables crashed server.
+* When using overlapping (unnecessary keys) and join over many tables
+  the optimizer could get confused and return 0 records.
+* Changed safe_mysqld to allow one to move installed releases.
+
+Sun Apr 13 10:40:50 1997    <monty@bitch.sci.fi>
+
+* Release 3.20.17
+* Added new function unix_timestamp([timestamp_column])
+
+Sat Apr 12 11:27:57 1997    <monty@bitch.sci.fi>
+
+* Fixed memory over run bug when using selects with many brace levels.
+* Change from_days() and weekday() to also take a full timestamp or
+  a datetime as argument. Before they only took a number of type YYYYMMDD or
+  YYMMDD.
+
+Wed Apr  9 13:22:24 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed stack usage to use less memory.
+* All communication packages and row buffers are now alloced on demand.
+  The default communication buffers are now smaller than before.
+* count(field) where field could have a NULL value didn't work.
+* IS NULL and IS NOT NULL now work in the WHERE.
+* BLOBs now work in the WHERE.
+* Remove pre-space from numbers when writing decimal() coulmns to file.
+* INSERT INTO ... SELECT .. WHERE could give the error 'Dupplicated field'
+
+Tue Apr  8 16:14:54 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added commands SET OPTION SQL_SELECT_LIMIT=# to provide framework
+  for options and to get some ODBC things to work.
+* Fixed bug in SELECT ... two tables ... GROUP BY
+* Fixed bug in INSERT ... SELECT ... GROUP BY
+* Fixed bug in acl: To use FILE_PRIV one also had to have SELECT PRIV
+  in the user grant table.
+* Fixed fatal bug in ranged querie with OR when one part of the query didn't
+  have any matching records.
+
+Mon Apr  7 16:03:00 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Now connections are allowed even if hostname isn't found.
+  In this case all hostname checks are done on IP.
+* When doing insert on timestamps, the timestamp was set to the
+  current time even if updated by a value.
+* Fixed LOAD DATA.. that if one has COLUMN TERMINATED BY to be same as
+  LINE TERMINATED BY, then LINE TERMINATED BY is set to a empty string.
+  This wasn't a bug, but a common mistake when reading columns separated
+  with newlines.
+
+Sun Apr  6 22:37:53 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed definition of function ELT as it should have been:
+  ELT(index,element,element,element....) now returns the index:s
+  element in the list. The first element has index 1.
+  FIELD(find,string,string,string) searches after the 'find' string
+  in the string list and returns a index to the found string.
+  The strings are compared case insensitive.
+* Added some tests to safe_mysqld to make it 'safer'
+ 
+Fri Apr  4 02:17:40 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* When sorting the db grant table, host wasn't sorted.
+
+Wed Apr  2 03:00:14 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed case  'WHERE key_num_column = "string"'
+* LIKE was case sensitive in some places and case insensitive in other.
+  Now LIKE is always case insensitive.
+* Fixed bug in select optimizer when using many tables with the same
+  column used as key to different tables.
+
+Sun Mar 30 21:22:39 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysql.cc; Allow '#' anywhere on the line.
+
+Thu Mar 27 02:42:12 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added new latin2 and Russian KOI8 character tables.
+* Added support for a dummy GRANT command satisfy Powerbuilder.
+
+Wed Mar 26 03:03:07 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Release of 3.20.15
+* Removed possible loop when thread waits for command from client
+  and fcntl() fails. Thanks to Mike Bretz for finding this bug 
+
+Tue Mar 25 18:03:15 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed alarm loop in mysqld.cc because shutdown didn't always
+  succeed in Linux.
+* Removed use of termbits from mysql.cc  This conflicted with glibc 2.0
+* Fixed syntax error in get_password.c (for BSD). Added flush of line.
+* Added test if 'linux' style gethostbyaddr_r in mysqld.cc
+* Fixed bug when doing a select as superuser without a database.
+* Fixed bug when doing SELECT with group calculation to outfile.
+
+Mon Mar 24 16:03:01 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Release of 3.20.14
+* Added new function SOUNDEX()
+* If one gives '-p' or -password to mysql or mysqladmin without an argument,
+  the password will be asked from the tty.
+
+Sun Mar 23 00:19:42 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Sometimes when doing a reconnect on a down connection this succeded
+  first on second try. Fixed by removing handling of SIGPIPE in client.
+* When adding a auto_increment key with ALTER_TABLE on got the error:
+  'Can't write, duplicate key'.
+
+Sat Mar 22 22:55:12 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* AVG() gave too small value on some selects with GROUP BY and ORDER BY.
+
+Fri Mar 21 12:27:32 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added new DATETIME type (by Giovanni Maruzzelli <maruzz@matrice.it>)
+* Fixed that define 'DONT_USE_DEFAULT_FIELDS' works
+* Added default password from MYSQL_PWD. (by Elmar Haneke)
+* Changed C++ code to be compatible with Sun Workshop
+
+Thu Mar 20 12:28:06 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* Changed to use a thread to handle alarms instead of signals on Solaris to
+  avoid race conditions.
+* Fixed default length of signed numbers. (George Harvey <georgeh@pinacl.co.uk>)
+* Added commando 'kill' to mysqladmin to kill a specific mysql thread.
+
+Wed Mar 19 12:21:33 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* sql_base.cc: Allow anything for CREATE INDEX.
+
+Mon Mar 17 19:54:11 1997  Michael Widenius TcX DataKonsulter AB  <monty@analytik>
+
+* Add prezeros when packing numbers to DATE, TIME and TIMESTAMP.
+* Fixed the OR bug for good.
+
+Fri Mar 14 11:46:54 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Release 3.20.13
+* Added changes by bonis@kiss.de to allow WHERE const op field
+* Fixed bug in mysql.c when reading long commands from batch.
+* mysqldump.c
+  Changed newlines, return and ASCII 0 to "\n", "\r" and "\0",
+  to allow restoring of columns with these.
+
+Thu Mar 13 20:02:53 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed bug in select with and-or levels.
+
+Mon Mar 10 04:04:03 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added support for Slovenian characters.
+* Fixed bug with limit and order by.
+* Allow order and group on items that isn't in the select list.
+
+Sun Mar  9 00:21:36 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added ANSISQL94 DATE and TIME types. Changed TIMESTAMP fields to work better
+  when updateing it with a number.
+
+Sat Mar  8 20:19:21 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Allow setting of timestamp values in INSERT.
+* Fixed bug with SELECT ... WHERE ... = NULL. 
+* Added changes for glibc 2.0
+
+Fri Mar  7 07:53:01 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed bug in alter table when changeing a not null field to allow NULLs.
+* Added HAVE_READDIR_R as a define which can be removed if one has
+  a broken readdir_r implementation (Sparc/Linux).
+
+Thu Mar  6 21:06:02 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added some ANS92 synonyms as field types to CREATE TABLE.
+  CREATE TABLE now allows FLOAT(4) and FLOAT(8) to mean FLOAT and DOUBLE.
+
+Wed Mar  5 00:41:29 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Release 3.20.11
+* Added sync of records count in sql_update. This fixed slow updates on first
+  connection. (Thanks to Vaclav Bittner for the test)
+* Changed temporary file prefix from UN to MY.
+* When using SELECT .... INTO OUTFILE all temporary tables are ISAM instead of
+  HEAP to allow big dumps.
+* Changed date functions to be 'string functions'. This fixed some 'funny'
+  side effects when sorting on dates.
+
+Tue Mar  4 23:07:03 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed FOREIGN KEY to not create a key. Now it's only for compability.
+* Extended ALTER TABLE according to SQL92.
+* Some minor compability changes.
+* Added --port and --socket to all utility programs and mysqld.
+
+Sat Feb 15 01:27:51 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added Oracle command DESCRIBE (DESC) as a synomym for some SHOW commands:
+  DESC table_name          <==>  SHOW FIELDS FROM table_name
+  DESC table_name column   <==>  SHOW FIELDS FROM table_name LIKE 'column'
+  DESC table_name 'column' <==>  SHOW FIELDS FROM table_name LIKE 'column'
+  mysql.cc thought that tinyblob, mediumblob and longblob was numerical.
+  (Was right adjusted)
+
+Thu Feb 13 00:49:29 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* mediumblob didn't work.
+* Fixed safe_mysqld and make_binary_distribution to work better.
+* ALTER TABLE and changeing a BLOB to a CHAR() added some garabage at
+  string end.
+
+Wed Feb 12 16:10:49 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* new insert type: INSERT INTO ... SELECT ....;
+
+Tue Feb 11 12:58:36 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed some defines to get mysql to compile on freebsd 2.0 (intel)
+* Removed all _A() from prototype declaration.
+* Removed use of ulong in mysql.h and mysql_com.h
+* Changed mysqldump to dump keynames.
+* SELECT ... INTO OUTFILE 'test' create the file in the base directory
+  instead in database directory (if one didn't give a full path)
+* A primary key is now defined as a key with name PRIMARY or the first
+  unique key if there doesn't exist a key with name PRIMARY.
+
+Mon Feb 10 00:40:48 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed leak bug when using LOAD DATA into a blob with is sometimes NULL.
+* DROP TABLE can now take a list of tables.
+* If a databas was crashed, in some cases a read of the wrong record
+  was used as a 'end of file', instead of returning an error.
+
+Sat Feb  8 00:16:07 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* merged structs field_t and FIELD to FIELD.
+
+Fri Feb  7 12:49:01 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* version 3.20.9
+* Alter table didn't copy null bit. This resulted that NULL fields where
+  always NULL.
+* CREATE didn't take numbers as DEFAULT.
+
+Wed Feb  5 13:28:19 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* New scripts 'add_file_priv' which add the new field 'file_priv'
+  to the user table. This scripts must be executed if one wants to
+  use the new SELECT ... INTO and LOAD DATA INFILE...  commands
+  with a version of mysql less than 3.20.7.
+* Found bug in locking code when another thread got a table opened
+  by another thread. This could make a thread block forever wating
+  for a write lock.
+
+Tue Feb  4 00:57:24 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed select_test.c and insert_test.c to include config.h
+
+Mon Feb  3 00:42:08 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Add an optional keyname for all key declarators.
+
+Sat Feb  1 19:02:43 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added command 'status' to mysqladmin for short logging.
+* Increased max keys to 16 and max key parts to 15.
+
+Fri Jan 31 00:05:23 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added ANSI92 extended ALTER TABLE statement.
+* Changed all locking code to detect ALTER table after one got a lock.
+  Tables are automaticly reopened if ALTERed. 
+* Changed some structs to classes to get better code when using CREATE TABLE.
+
+Thu Jan 30 01:12:13 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added new privilege to the user grant table: file_priv
+* Added some compitibility changes to mysql.cc
+* Added new syntax for creating keys with is a sub part of some field.
+* Did a lot of changes to get around bug when comparing fields of
+  different lengths. Hope I didn't break something else :)
+* Added long options to mysqldump.
+* Added new function NOW().
+
+Wed Jan 29 15:51:22 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added option -k for mysqlshow to get key info for table.
+* Changed some definitions from int to uint in mysql.h to get fewer warning
+  with prolint.
+
+Mon Jan 27 02:01:29 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added sql command 'load data infile...' for export from textfiles.
+* Added new API function mysql->info to pass info to client.
+* Added INTO OUTFILE as option to select to get result to file.
+
+Fri Jan 24 14:56:19 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Relase 3.20.5-beta
+* Got first version to work which MIT-threads.
+* Added long options to mysqld
+* mysqld now starts without system locking if compiled with MIT threads.
+* Added new sql function RAND([init])
+* Changed sql_lex to handle \0 unquoted, but the client can't send
+  the query through the C api, because it takes a str pointer.
+  one have to use mysql_real_query() to send the query.
+
+Thu Jan 23 00:33:26 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added API function: mysql_get_client_info
+* mysqld now uses the N_MAX_KEY_LENGTH from nisam.h as the max allowed key
+  length.
+* The following now works: "select filter_nr,filter_nr from filter order by
+  filter_nr"
+  Before you got the error: "Column: 'filter_nr' in order clause is ambiguous"
+
+Wed Jan 22 14:48:58 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed fctnl flag O_NDELAY to O_NONBLOCK (Posix, and to get MIT threads
+  to work)
+
+Tue Jan 21 12:31:17 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysql now outputs \0 \t \n and \\ when writing tab separated output.
+  when encountering ascii 0, tab, newline or \. This is to allow printing of
+  binary data in a portable format.
+  To get old behavior use -r (or --raw).
+* Added long options to mysqladmin, mysql and mysqlshow.
+* Added german error messages (60 of 80 error messages translated)
+* Added new api function: mysql_fetch_lengths(MYSQL_RES *) which
+  returns a array of of column lengths (of type uint).
+
+Sat Jan 18 23:59:53 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed bug with IS NULL in where clause.
+
+Fri Jan 17 12:14:38 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed the optimizer a little to get better results when searching on a key
+  part.
+* Added select option STRAIGHT_JOIN to tell the optimizer that it should join
+  tables in the given order.
+
+Thu Jan 16 00:55:41 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added support of comment starting with '--' in mysql.cc (Postgres syntax)
+* You can now have select_expressions and table columns in a select which
+  are not used in the group part. This makes it efficient to implement lookups.
+  If the not used column is not a constant for the group the column value
+  is unspecified.
+  Example: SELECT id,lookup.text,sum(*) FROM test,lookup
+	   WHERE test.id=lookup.id group by id;
+
+* Fixed bug in sum(function) (Could make core dump)
+* Changed auto_increment according to SQL_SYNTAX:
+  INSERT into table (auto_field) values (0) inserted 0, but the SQL_SYNTAX
+  statied it should insert a auto_incremnt value.
+
+Wed Jan 15 10:42:09 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysqlshow.c: Added number of records in table. Had to change the client code a
+  little to fix this.
+* mysql now allows double '' or "" in strings for embedded ' or ".
+* Changed copyright text in mysqlshow and mysqladmin.
+
+Mon Jan 13 02:33:09 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Relase 3.20.3
+* Using the new readline library from bash.
+* Updated a lot of text files.
+* safe_mysqld and mysql.server changed to be more compatible between the
+  source and the binary releases.
+
+Sun Jan 12 18:23:30 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* LIMIT takes now one or two numerical arguments.
+  If one argument the argument indicates the maximum number of rows in a result.
+  If two arguments the first arguments says the offset to the first row to return,
+  the second is the maximum number of rows.
+  With this it's easy to do a poor mans next page/previous page www application.
+* Changed name of SQL function FIELDS to ELT.
+* Made SHOW COLUMNS a synonym for SHOW FIELDS.
+  Added compatibility syntax FRIEND KEY to create table. This creates in mysql
+  a non unique key on the given columns.
+* Added CREATE INDEX and DROP INDEX as compatibility functions. In mysql 
+  CREATE INDEX only checks if the index exists and gives an error if it doesn't
+  exists. DROP INDEX always succeeds.
+
+Sat Jan 11 00:44:29 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysqladmin.c: Added client version to version info.
+
+Fri Jan 10 20:30:04 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed core dump bug in sql_acl (core on new connection).
+* Removed host,user and db tables from database test in the distribution.
+* FIELD_TYPE_CHAR can now be signed (-128 - 127) or unsigned (0 - 255)
+  Before it was always unsigned.
+
+Thu Jan  9 00:02:03 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed name from mysqllib to mysqlclient for mysql client lib.
+* The following failed: concat(1,concat(2),2).
+  Could not call a variable argument function in a variable argument count
+  function. Fixed.
+
+Wed Jan  8 15:58:49 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* weekday() returned wrong day 6 of 7 times.
+
+Mon Jan  6 23:49:31 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* changed a lot of source to get mysqld to be compiled with SUNPRO compiler.
+* sql functions must now have a '(' directly after the function name.
+  user '(' is now regarders as an identifier and a '('
+
+Fri Jan  3 12:18:14 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed possible bug when sorting with float and double.
+  Changed static sort_length to thread variable. This may have caused some
+  big sorts to fail when running two simultaneous sorts.
+* Changed sql function INTERVALL() to INTERVAL().
+
+Wed Jan  1 16:18:30 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added some portability files for testing with RTS threads.
+* Lot of changes for configure.
+
+Sun Dec 29 13:26:52 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Remove Makefile-linux-pl and Makefile-solaris-pl from the binary distribution.
+  Now only Makefile.PL is needed.
+
+Sat Dec 28 22:41:09 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed that insert with a timestamp set to NULL works. (This is for a cleaner
+  syntax)
+
+Fri Dec 27 01:28:02 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysqld now has english & swedish error messages.
+* unireg files moved to sql directory changed to c++.
+
+Thu Dec 26 11:57:57 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysqld: Added option 'b' for mysql basedir.  All given directories is
+  prefixed with this if not given with hard path.
+  added option '-L' (language). Default is 'english/'
+  Moved all unireg files to sql directory. 
+
+Fri Dec 20 11:05:37 1996  Michael Widenius TcX DataKonsulter AB  <monty@ozelot>
+
+* Changed lex to allow a database name, table name and field name to start with
+  number or '_'.
+
+* mysqldump should now be able to dump all field types.
+  Changed 'show fields from table' to be fully compatible with create.
+* Some bugs when parsing 'create table' fixed. (Blobs and timestamps was effected)
+* Fixed one possible dead lock bug when using many tables.
+* Changed a lot for configure
+
+Sun Dec 15 02:29:53 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added new functions: INSERT(),RTRIM(),LTRIM(),FORMAT().
+
+* New relase 3.19.5
+* Added functions DATABASE(),USER(),POW(),LOG10()  (needed for ODBC).
+
+Sat Dec 14 10:10:42 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* In a WHERE with a ORDER BY on fields from only one table the table is
+  now preferred as first table in a multi-join.
+* HAVING and IS NULL or IS NOT NULL now works.
+* a group on one column and a sort on a group function (SUM,AVG...) didn't
+  work together. Fixed.
+
+Fri Dec 13 07:20:47 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysqldump: Didn't send password to server.
+
+* New relase 3.19.4
+* Fixed horrible locking bug when inserting in one thread and reading
+  on another thread.
+* Fixed one-off decimal bug.  1.00 was outputed as 1.0
+* Added attribute 'Locked' to process list as info if a query is
+  locked by another query.
+* Fixed full magic timestamp. Timestamp length may now be 14,12,10,8,6,4 or 2.
+
+Thu Dec 12 18:14:57 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* sort on some number functions could be sorted wrong on last number.
+* if(arg,syntax_error,syntax_error) crashed.
+* added functions ceiling() and round(), exp(), log() and sqrt()
+* enchanted BETWEEN to handle strings.
+
+Wed Dec 11 09:09:02 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* MYODBC: Sometimes password test failed because of faulty charactermap in
+	  windows.
+
+Mon Dec  9 12:50:56 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* new relase 3.19.3
+* Fixed that select with grouping on blob's doesn't return wrong blob info.
+  grouping, sorting and distinct on blobs will not yet work as expected
+ (Probably it will group/sort by the first 7 characters in the blob)
+  Groping on formulas with a fixed string size (use mid on blob) should work.
+* When doing a full join (no direct keys) on multiple tables with blob fields,
+  the blob was garbage on output.
+* Fixed distinct with calculated columns.
+
+Sun Dec  8 19:53:24 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed bug when allocation string for group
+* new release 3.19.2
+* mysqldump.c: Didn't output ' around blobs.
+
+Sat Dec  7 13:00:43 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added user flag to mysqldump & mysqlshow.
+* ODBC: Added full support of SQLGetInfo(). Fixed limit bug (from 1.0.3).
+        myodbc-1.0.4 released
+
+Fri Dec  6 01:35:22 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* ODBC: Added more support SetStmtOptions(). Added more debugging code
+  myodbc-1.0.3 released
+ 
+Tue Dec  3 22:12:30 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added 'max_connections' and 'table_cache' as start variables to mysqld.
+* Changed weights in join optimizer: Now prefers to use keys even more:
+  Before the optimizer would prefer to do a full join on small tables
+ (< 300 records), even if there was a usable key.
+
+Mon Dec  2 00:17:42 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* new release 3.19.1
+* Fixed bug when joining tables without keys and null fields and varchars.
+  (mysqld hang)
+* Fixed output of 'mysql show'. All fields was 'unsigned zerofill'.
+
+* new release 3.19.0
+* Added new column specifier AUTO_INCREMENT.
+* Changed format of sql command 'show fields'.
+* Changed mysqlshow to use sql command 'show fields' to get more info.
+* Added synonym RLIKE for REGEXP to be compatible with mSQL
+
+Sun Dec  1 12:53:05 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* item_func.cc (fix_fields): Fixed new bug when calculation and levels.
+  Crashed stack when optimizing where! (fatal bug in 3.18.1)
+
+Fri Nov 29 00:32:09 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Distribution 3.18.1
+* Fixed optimizeing bug. 
+* New ODBC version with traceing in all functions with isn't supported yet
+  for easier debugging. Added NO WARRANTY info.
+  Released as 1.0.2
+
+Wed Nov 27 17:18:51 1996  Michael Widenius TcX DataKonsulter AB  <monty@ozelot>
+
+* Added Henry Spencer's regexp in 'field REGEXP string'. Can only be used
+  in select_expression or HAVING until I fix the where clause.
+
+Mon Nov 25 20:01:05 1996  Michael Widenius TcX DataKonsulter AB  <monty@ozelot>
+
+* Created files: CREDITS, PUBLIC. Updated FAQ, README, TODO, SQL_SYNTAX...
+* Done a lot of testing on HAVING.
+
+Sun Nov 24 00:45:07 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysql didn't stop on error in batch mode even if -f wasn't used.
+* Fixed DBD Makefile.PL for linux
+* Added a function.tst & function.res (test and result file of mysql functions)
+* libmysql.c: Added some checking for calls after connection has gone done.
+* Implemented HAVING with full expr syntax
+* Changed operators '=,
+
+Sat Nov 23 20:52:42 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* SQL_SYNTAX added 'like' as a boolean expression in select.
+* mysqladmin.c:  'mysqladmin garbage' didn't give an error.
+* sql_insert.cc: If one read a deleted record and did a insert with all fields
+  then the new record was marked deleted.
+* perl DBI interface ported.
+
+Thu Nov 21 00:58:44 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysql only used the TCP connection, no socket was ever created
+* There was a bug in when reading from getenv(MYSQL_TCP_PORT)
+* Added some more start-logging to check for port & socket.
+* If something got wrong at startup some threads was kept alive in Linux
+* If argument -h to mysqld is a relative path, change it to './'
+* Search after the 'unireg' directory from: current dir,
+  mysqld program dir/.. and in env(MY_BASEDIR_VERSION)
+* Added longlong support to Linux
+* Added copyright notices to all files. Everything should be ready for
+  distribution.
+
+Wed Nov 20 19:03:02 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Added function IF.
+* Added select without FROM clause (for easy test of functions)
+
+Tue Nov 19 11:48:55 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* mysql.c: Sometimes 'in-string' was not initialized.
+* linux distribution
+
+Mon Nov 18 13:47:09 1996  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed blob:s to work (as varchar) in ODBC (myodbc-1.0.1.zip)
+* Added option -O to set buffer sizes to mysqld
+
+Wed Nov 13 15:21:14 1996  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* New sql functions:  REPLACE, LCASE and UCASE
+* hacked search on '%xxx' to work.
+
+Tue Nov 12 00:52:35 1996  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* mysql.cc: Fixed problems with strings containing not backslashed ' or ".
+
+Mon Nov 11 14:52:30 1996  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* added braces to where clause. Change where to use items.
+
+Wed Nov  6 00:17:37 1996  Michael Widenius  <monty@analytikerna.se>
+
+* added PRIMARY KEY, KEY and UNIQUE to sql create.

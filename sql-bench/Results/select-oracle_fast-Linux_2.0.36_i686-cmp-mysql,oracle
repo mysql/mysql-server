@@ -1,0 +1,28 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-23 11:42:05
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 254 ranges.
+
+Creating table
+Time for book-keeping (1):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting 10000 rows
+Time to insert (10000): 41 wallclock secs ( 7.78 usr  0.78 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing big selects on the table
+Time for select_big (70:17207):  6 wallclock secs ( 1.99 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_range (410:785994): 575 wallclock secs (117.75 usr 24.70 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+47740 queries in 6820 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 881 wallclock secs (75.22 usr 16.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+38585 queries in 7717 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 778 wallclock secs (56.33 usr 12.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 2285 wallclock secs (259.15 usr 54.33 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

@@ -1,0 +1,19 @@
+Testing server 'Adabas 10.01.00' at 1998-08-18 23:58:32
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  2 secs ( 0.05 usr  0.03 sys =  0.08 cpu)
+
+Inserting data
+Time to insert (9768): 172 secs ( 6.70 usr  3.12 sys =  9.82 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 14 secs ( 2.35 usr  4.08 sys =  6.43 cpu)
+Time for select_join (200): 74 secs (22.10 usr 21.09 sys = 43.19 cpu)
+Time for select_distinct (800): 95 secs ( 6.59 usr 14.43 sys = 21.02 cpu)
+Time for select_group (2300): 86 secs ( 3.97 usr  7.49 sys = 11.46 cpu)
+
+Removing tables
+Time to drop_table (28):  2 secs ( 0.00 usr  0.01 sys =  0.01 cpu)
+Total time: 445 secs (41.77 usr 50.26 sys = 92.03 cpu)

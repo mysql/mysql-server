@@ -1,0 +1,30 @@
+#
+# For this script to work, you need to compile and install the
+# udf_example script !
+#
+
+CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "udf_example.so";
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "udf_example.so";
+CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
+CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
+CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
+
+select metaphon("hello"); 
+select myfunc_double("hello","world");
+select myfunc_int(1,2,3),myfunc_int("1","11","111");
+select lookup("localhost");
+select reverse_lookup("127.0.0.1");
+
+create temporary table t1 (a int,b double);
+insert into t1 values (1,5),(1,4),(2,8),(3,9),(4,11);
+select avgcost(a,b) from t1;
+select avgcost(a,b) from t1 group by a;
+drop table t1;
+
+DROP FUNCTION metaphon;
+DROP FUNCTION myfunc_double;
+DROP FUNCTION myfunc_int;
+DROP FUNCTION lookup;
+DROP FUNCTION reverse_lookup;
+DROP FUNCTION avgcost;

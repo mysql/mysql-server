@@ -1,0 +1,19 @@
+Testing server 'Solid version ???' at 1998-10-06 18:02:53
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 30 secs (29.42 usr  0.00 sys = 29.42 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 26 secs (26.97 usr  0.00 sys = 26.97 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 25 secs (24.27 usr  0.00 sys = 24.27 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 24 secs (24.17 usr  0.00 sys = 24.17 cpu)
+
+Total time: 107 secs (107.11 usr  0.00 sys = 107.11 cpu)

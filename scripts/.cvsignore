@@ -1,0 +1,15 @@
+Makefile
+Makefile.in
+make_binary_distribution
+msql2mysql
+mysql_config
+mysql_convert_table_format
+mysql_find_rows
+mysql_fix_privilege_tables
+mysql_install_db
+mysql_setpermission
+mysql_zap
+mysqlaccess
+mysqlbug
+mysqlhotcopy
+safe_mysqld
