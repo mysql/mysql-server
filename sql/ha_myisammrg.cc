@@ -75,8 +75,7 @@ int ha_myisammrg::write_row(byte * buf)
   if (table->time_stamp)
     update_timestamp(buf+table->time_stamp-1);
   if (table->next_number_field && buf == table->record[0])
-      return (my_errno=HA_ERR_WRONG_COMMAND);
-  //  update_auto_increment(); - [phi] have to check this before allowing it
+      update_auto_increment();
   return myrg_write(file,buf);
 }
 
