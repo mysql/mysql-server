@@ -215,7 +215,7 @@ public:
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_timestamp(byte *record);
   void update_auto_increment();
-  void print_error(int error, myf errflag);
+  virtual void print_error(int error, myf errflag);
   uint get_dup_key(int error);
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()

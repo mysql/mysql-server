@@ -162,6 +162,7 @@ class ha_berkeley: public handler
     pthread_mutex_unlock(&share->mutex);
   }
   longlong get_auto_increment();
+  void print_error(int error, myf errflag);
 };
 
 extern bool berkeley_skip, berkeley_shared_data;
