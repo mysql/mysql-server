@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.3";
+$VER="2.4";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -508,8 +508,8 @@ sub example
 [mysqld_multi]
 mysqld     = @bindir@/mysqld_safe
 mysqladmin = @bindir@/mysqladmin
-user       = multi_admin
-password   = multipass
+user       = root
+password   = your_password
 
 [mysqld2]
 socket     = /tmp/mysql.sock2

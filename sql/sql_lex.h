@@ -240,6 +240,7 @@ public:
   bool depended; /* depended from outer select subselect */
   /* not NULL if union used in subselect, point to subselect item */
   Item_subselect *item;
+  uint union_option;
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
@@ -373,7 +374,7 @@ typedef struct st_lex
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
-  uint grant, grant_tot_col, which_columns, union_option;
+  uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint param_count;
   bool drop_primary, drop_if_exists, local_file, olap;
