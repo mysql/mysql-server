@@ -14,6 +14,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "sync0rw.h"
 #include "os0sync.h"
+#include "os0file.h"
 #include "srv0srv.h"
 
 /*
@@ -939,6 +940,16 @@ sync_array_print_long_waits(void)
 		fprintf(stderr,
 "InnoDB: ###### Starts InnoDB Monitor for 30 secs to print diagnostic info:\n");
         	old_val = srv_print_innodb_monitor;
+
+		/* If some crucial semaphore is reserved, then also the InnoDB
+		Monitor can hang, and we do not get diagnostics. Since in
+		many cases an InnoDB hang is caused by a pwrite() or a pread()
+		call hanging inside the operating system, let us print right
+		now the values of pending calls of these. */
+
+		fprintf(stderr,
+"InnoDB: Pending preads %lu, pwrites %lu\n", (ulong)os_file_n_pending_preads,
+				(ulong)os_file_n_pending_pwrites);
 
         	srv_print_innodb_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
