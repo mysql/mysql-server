@@ -41,6 +41,10 @@ WWW (@uref{http://www.mysql.cz/})
 WWW (@uref{http://mysql.borsen.dk/})
 
 @item
+@image{Flags/denmark} Denmark [Cybercity Internet] @@
+WWW (@uref{http://mysql.mirrors.cybercity.dk/})
+
+@item
 @image{Flags/denmark} Denmark [SunSITE] @@
 WWW (@uref{http://mirrors.sunsite.dk/mysql/})
 FTP (@uref{ftp://sunsite.dk/mirrors/mysql/})
@@ -52,6 +56,10 @@ WWW (@uref{http://mysql.mirror.ok.ee/})
 @item
 @image{Flags/finland} Finland [KPNQwest] @@
 WWW (@uref{http://mysql.kpnqwest.fi/})
+
+@item
+@image{Flags/finland} Finland [Mediatraffic] @@
+WWW (@uref{http://mysql.mediatraffic.fi/})
 
 @item
 @image{Flags/finland} Finland [tonnikala.net] @@
@@ -220,6 +228,10 @@ FTP (@uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/})
 @item
 @image{Flags/turkey} Turkey [proGEN] @@
 WWW (@uref{http://mysql.progen.com.tr/})
+
+@item
+@image{Flags/turkey} Turkey [Turkish National Academic Network &  Information Center] @@
+WWW (@uref{http://mysql.ulak.net.tr/})
 
 @item
 @image{Flags/great-britain} UK [PLiG/UK] @@
@@ -391,7 +403,7 @@ WWW (@uref{http://mysql.webiiz.com/})
 
 @item
 @image{Flags/taiwan} Taiwan [I-SHOU University] @@
-WWW (@uref{http://mysql.isu.edu.tw})
+WWW (@uref{http://mysql.isu.edu.tw/})
 
 @item
 @image{Flags/taiwan} Taiwan [nctu.edu/HsinChu] @@
@@ -425,10 +437,6 @@ WWW (@uref{http://mysql.soa.co.nz/})
 @strong{Africa:}
 
 @itemize @bullet
-
-@item
-@image{Flags/south-africa} South African Republic [Mweb] @@
-WWW (@uref{http://www.mysql.mweb.co.za/})
 
 @item
 @image{Flags/south-africa} South African Republic [The Internet Solution/Johannesburg] @@
