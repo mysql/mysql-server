@@ -1221,20 +1221,19 @@ static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
   char temp_buff[IO_SIZE*2];
   DBUG_ENTER("_mi_cmp_buffer");
 
-  VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   next_length= IO_SIZE*2 - (uint) (filepos & (IO_SIZE-1));
 
   while (length > IO_SIZE*2)
   {
-    if (my_read(file,temp_buff,next_length,MYF(MY_NABP)))
+    if (my_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
+	memcmp((byte*) buff,temp_buff,next_length))
       goto err;
-    if (memcmp((byte*) buff,temp_buff,IO_SIZE))
-      DBUG_RETURN(1);
+    filepos+=next_length;
     buff+=next_length;
     length-= next_length;
     next_length=IO_SIZE*2;
   }
-  if (my_read(file,temp_buff,length,MYF(MY_NABP)))
+  if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
     goto err;
   DBUG_RETURN(memcmp((byte*) buff,temp_buff,length));
 err:

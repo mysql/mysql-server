@@ -11,7 +11,7 @@ In this directory are the queries and raw data files used to populate
 the MySQL benchmarks. In order to run the benchmarks you should normally
 execute a command like the following:
 
-run-all-tests --server=msyql --cmp=mysql,pg,solid --user=test --password=test --log
+run-all-tests --server=mysql --cmp=mysql,pg,solid --user=test --password=test --log
 
 The above means that one wants to run the benchmark with MySQL. The limits
 should be taken from all of mysql,PostgreSQL and Solid.  Login name and

@@ -155,6 +155,10 @@ while test $# -gt 0; do
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
+    --mysqld=*)
+       TMP=`$ECHO "$1" | $SED -e "s;--mysqld-=;"`
+       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $TMP"
+       ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Cannot do coverage test without the source - please use source dist"
@@ -170,6 +174,7 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
+      USE_RUNNING_SERVER=""
       ;;
     --client-gdb )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -182,6 +187,7 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --ddd option"
       fi
       DO_DDD=1
+      USE_RUNNING_SERVER=""
       ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
