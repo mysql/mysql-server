@@ -196,3 +196,7 @@ Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@tcx.se)
 00.10.18 by Monty (monty@mysql.com)
 - Added patch by Dave Huang <khym@bga.com> to fix problem with date/time
   on NETBSD/Alpha.
+
+01.01.11 by Monty (monty@mysql.com)
+- Added patch by Allen Briggs <briggs@ninthwonder.com> for
+  Apple PowerMac 8500 w/ G3 upgrade running NetBSD/macppc

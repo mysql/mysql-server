@@ -9,7 +9,7 @@
 use DBI;
 use Getopt::Long;
 
-$VER="1.4a";
+$VER="1.5";
 
 @fldnms= ("mail_from","mail_to","cc","date","time_zone","file","sbj","txt");
 $fields=8;
@@ -18,7 +18,7 @@ $fields=8;
 $opt_user= $opt_password= "";
 $opt_socket= "/tmp/mysql.sock";
 $opt_port= 3306;
-$opt_db="test";
+$opt_db="mail";
 $opt_table="mails";
 $opt_help=$opt_count=0;
 
@@ -61,7 +61,7 @@ foreach $val (@fldnms)
   }
   $fields++;
 }
-$query.= " from $opt_table where $ARGV[0]";
+$query.= " from $opt_table where $ARGV[0] order by date desc";
 
 ####
 #### Send query and save result
