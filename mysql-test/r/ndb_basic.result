@@ -577,7 +577,7 @@ create table t1
 (a bigint, b bigint, c bigint, d bigint, 
 primary key (a,b,c,d)) 
 engine=ndb
-max_rows=200000000;
+max_rows=800000000;
 Warnings:
 Warning	1105	Ndb might have problems storing the max amount of rows specified
 insert into t1 values
