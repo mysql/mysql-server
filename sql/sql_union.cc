@@ -41,7 +41,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 ***************************************************************************/
 
 select_union::select_union(TABLE *table_par)
-  :table(table_par), not_describe(0)
+  :table(table_par)
 {
   bzero((char*) &info,sizeof(info));
   /*
@@ -120,7 +120,7 @@ bool select_union::flush()
 ulong
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd) 
 {
-  ulong options_tmp= thd->options;
+  ulong options_tmp= thd->options | fake_select_lex->options;
   thd->lex->current_select= fake_select_lex;
   offset_limit_cnt= global_parameters->offset_limit;
   select_limit_cnt= global_parameters->select_limit +
@@ -149,6 +149,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   select_result *tmp_result;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
+  describe= test(additional_options & SELECT_DESCRIBE);
+
   /*
     result object should be reassigned even if preparing already done for
     max/min subquery (ALL/ANY optimization)
@@ -156,7 +158,26 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   result= sel_result;
 
   if (prepared)
+  {
+    if (describe)
+    {
+      /* fast reinit for EXPLAIN */
+      for (sl= first_select_in_union(); sl; sl= sl->next_select())
+      {
+	sl->join->result= result;
+	select_limit_cnt= HA_POS_ERROR;
+	offset_limit_cnt= 0;
+	if (!sl->join->procedure &&
+	    result->prepare(sl->join->fields_list, this))
+	{
+	  DBUG_RETURN(1);
+	}
+	sl->join->select_options|= SELECT_DESCRIBE;
+	sl->join->reinit();
+      }
+    }
     DBUG_RETURN(0);
+  }
   prepared= 1;
   res= 0;
   
@@ -169,8 +190,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   {
     if (!(tmp_result= union_result= new select_union(0)))
       goto err;
-    union_result->not_describe= 1;
     union_result->tmp_table_param.init();
+    if (describe)
+      tmp_result= sel_result;
   }
   else
   {
@@ -327,11 +349,11 @@ int st_select_lex_unit::exec()
   ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
-  if (executed && !uncacheable)
+  if (executed && !uncacheable && !describe)
     DBUG_RETURN(0);
   executed= 1;
   
-  if (uncacheable || !item || !item->assigned())
+  if (uncacheable || !item || !item->assigned() || describe)
   {
     if (optimized && item && item->assigned())
     {
@@ -339,7 +361,8 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
-    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL) &&
+        !describe)
       DBUG_RETURN(1);  // For sub-selects
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
@@ -350,7 +373,7 @@ int st_select_lex_unit::exec()
 	res= sl->join->reinit();
       else
       {
-	if (sl != global_parameters)
+	if (sl != global_parameters && !describe)
 	{
 	  offset_limit_cnt= sl->offset_limit;
 	  select_limit_cnt= sl->select_limit+sl->offset_limit;
@@ -362,7 +385,7 @@ int st_select_lex_unit::exec()
 	    We can't use LIMIT at this stage if we are using ORDER BY for the
 	    whole query
 	  */
-	  if (sl->order_list.first)
+	  if (sl->order_list.first || describe)
 	    select_limit_cnt= HA_POS_ERROR;
 	  else
 	    select_limit_cnt= sl->select_limit+sl->offset_limit;

@@ -369,9 +369,14 @@ const char *Item_ident::full_name() const
   }
   else
   {
-    tmp=(char*) sql_alloc((uint) strlen(table_name)+
-			  (uint) strlen(field_name)+2);
-    strxmov(tmp,table_name,".",field_name,NullS);
+    if (table_name[0])
+    {
+      tmp= (char*) sql_alloc((uint) strlen(table_name) +
+			     (uint) strlen(field_name) + 2);
+      strxmov(tmp, table_name, ".", field_name, NullS);
+    }
+    else
+      tmp= (char*) field_name;
   }
   return tmp;
 }
@@ -641,6 +646,7 @@ void Item_param::set_null()
   DBUG_ENTER("Item_param::set_null");
   /* These are cleared after each execution by reset() method */
   null_value= value_is_set= 1;
+  max_length= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -651,6 +657,7 @@ void Item_param::set_int(longlong i)
   item_type= INT_ITEM;
   value_is_set= 1;
   maybe_null= 0;
+  max_length= 11;
   DBUG_PRINT("info", ("integer: %lld", int_value));
   DBUG_VOID_RETURN;
 }
@@ -662,6 +669,8 @@ void Item_param::set_double(double value)
   item_type= REAL_ITEM;
   value_is_set= 1;
   maybe_null= 0;
+  decimals= NOT_FIXED_DEC;
+  max_length= DBL_DIG + 8;;
   DBUG_PRINT("info", ("double: %lg", real_value));
   DBUG_VOID_RETURN;
 }
@@ -674,6 +683,7 @@ void Item_param::set_value(const char *str, uint length)
   item_type= STRING_ITEM;
   value_is_set= 1;
   maybe_null= 0;
+  max_length= length;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
 }
@@ -699,6 +709,20 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
   item_type= STRING_ITEM;
   value_is_set= 1;
   maybe_null= 0;
+  switch(type)
+  {
+  case TIMESTAMP_DATE:
+    max_length= 10;
+    break;
+  case TIMESTAMP_DATETIME:
+    max_length= 19;
+    break;
+  case TIMESTAMP_TIME:
+    max_length= 8;
+    break;
+  default:
+    DBUG_ASSERT(0); // it should be impossible
+  }
 }
 
 

@@ -232,12 +232,12 @@ catchsigs(bool ignore){
   // handler named "handler". "handler" will then be called is instead 
   // of the defualt process signal handler)
   if(ignore){
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i<SIGRTMIN; i++){
       if(i != SIGCHLD)
 	signal(i, SIG_IGN);
     } 
   } else {
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i<SIGRTMIN; i++){
       signal(i, handler);
     }
   }

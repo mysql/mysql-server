@@ -1169,7 +1169,6 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   TMP_TABLE_PARAM tmp_table_param;
-  bool not_describe;
 
   select_union(TABLE *table_par);
   ~select_union();

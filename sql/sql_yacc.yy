@@ -1153,7 +1153,6 @@ merge_insert_types:
 
 opt_select_from:
 	opt_limit_clause {}
-	| FROM DUAL_SYM {}
 	| select_from select_lock_type;
 
 udf_func_type:
@@ -2296,17 +2295,19 @@ select_part2:
 
 select_into:
 	opt_limit_clause {}
-	| FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
-                           clause, and DUAL is system table without fields.
-                           Is "SELECT 1 FROM DUAL" any better than
-                           "SELECT 1" ? Hmmm :) */
         | into
 	| select_from
 	| into select_from
 	| select_from into;
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause opt_order_clause opt_limit_clause procedure_clause;
+	  FROM join_table_list where_clause group_clause having_clause
+	       opt_order_clause opt_limit_clause procedure_clause
+        | FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
+                           clause, and DUAL is system table without fields.
+                           Is "SELECT 1 FROM DUAL" any better than
+                           "SELECT 1" ? Hmmm :) */
+	;
 
 select_options:
 	/* empty*/
@@ -4929,7 +4930,6 @@ keyword:
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
 	| DO_SYM		{}
-	| DUAL_SYM		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
