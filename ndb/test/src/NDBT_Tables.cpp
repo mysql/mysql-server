@@ -48,7 +48,7 @@ const
 NDBT_Attribute T2Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Bigunsigned, 1, true), 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Bit, 23),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 
 		 1, false, true), // Nullable 
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned)

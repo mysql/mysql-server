@@ -218,6 +218,11 @@ NdbColumnImpl::create_psuedo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
     col->m_impl.m_attrSize = 8;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$ROW_SIZE")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_SIZE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
   } else {
     abort();
   }
@@ -1157,6 +1162,7 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
   { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
+  { DictTabInfo::ExtBit,             NdbDictionary::Column::Bit },
   { -1, -1 }
 };
 
@@ -1266,6 +1272,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_attrType =attrDesc.AttributeType;
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
+    if(attrDesc.AttributeSize == 0)
+    {
+      col->m_attrSize = 4;
+      col->m_arraySize = (attrDesc.AttributeArraySize + 31) >> 5;
+    }
     
     col->m_pk = attrDesc.AttributeKeyFlag;
     col->m_distributionKey = attrDesc.AttributeDKey;

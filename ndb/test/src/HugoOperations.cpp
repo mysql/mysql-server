@@ -407,7 +407,7 @@ HugoOperations::~HugoOperations(){
 int HugoOperations::equalForAttr(NdbOperation* pOp,
 				   int attrId, 
 				   int rowId){
-  int check = 0;
+  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);  
   if (attr->getPrimaryKey() == false){
     g_info << "Can't call equalForAttr on non PK attribute" << endl;
@@ -415,6 +415,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
   }
     
   switch (attr->getType()){
+  case NdbDictionary::Column::Bit:
   case NdbDictionary::Column::Char:
   case NdbDictionary::Column::Varchar:
   case NdbDictionary::Column::Binary:
@@ -440,11 +441,6 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
     g_info << "Float not allowed as PK value" << endl;
     check = -1;
     break;
-    
-  default:
-    g_info << "default" << endl;
-    check = -1;
-    break;
   }
   return check;
 }
@@ -453,10 +449,11 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
 				      int attrId, 
 				      int rowId,
 				      int updateId){
-  int check = 0;
+  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
 
   switch (attr->getType()){
+  case NdbDictionary::Column::Bit:
   case NdbDictionary::Column::Char:
   case NdbDictionary::Column::Varchar:
   case NdbDictionary::Column::Binary:
@@ -491,9 +488,6 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   case NdbDictionary::Column::Float:
     check = pOp->setValue( attr->getName(), 
 			   (float)calc.calcValue(rowId, attrId, updateId));
-    break;
-  default:
-    check = -1;
     break;
   }
   return check;
