@@ -98,15 +98,29 @@ parse_arguments "$@"
 
 for i in $TMP $TMPDIR $TEMPDIR $TEMP /tmp
 do
-  if [ "$i" ]; then 
+  if [ "$i" ]; then
     print_debug "Setting TMP to '$i'"
-    TMP=$i 
+    TMP=$i
     break
   fi
 done
 
-    
+
 #
+# Convert argument file from unix to DOS text
+#
+
+unix_to_dos()
+{
+  for arg do
+    print_debug "Replacing LF -> CRLF from '$arg'"
+
+    sed -e 's/$/\r/' $arg > $arg.tmp
+    rm -f $arg
+    mv $arg.tmp $arg
+  done
+}
+
 
 #
 # Create a tmp dest directory to copy files
@@ -121,16 +135,11 @@ fi
 
 $CP -r $SOURCE/VC++Files $BASE
 (
-find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
+find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.txt" \) -and -not -path \*SCCS\* -print
 )|(
-  while read v 
+  while read v
   do
-    print_debug "Replacing LF -> CRLF from '$v'"
-
-    # ^M -> type CTRL V + CTRL M 
-    cat $v | sed 's///' | sed 's/$//' > $v.tmp
-    rm $v
-    mv $v.tmp $v
+    unix_to_dos $v
   done
 )
 
@@ -147,7 +156,7 @@ rm -r -f "$BASE/share/Makefile.am"
 # Clean up if we did this from a bk tree
 #
 
-if [ -d $BASE/SCCS ]  
+if [ -d $BASE/SCCS ]
 then
   find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
@@ -169,9 +178,9 @@ copy_dir_files()
        mkdir $BASE/$arg
      fi
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
-             README INSTALL* LICENSE 
-    do 
-      if [ -f $i ] 
+             README INSTALL* LICENSE
+    do
+      if [ -f $i ]
       then
         $CP $SOURCE/$arg/$i $BASE/$arg/$i
       fi
@@ -195,21 +204,19 @@ copy_dir_dirs() {
 
   for arg do
 
-    basedir=$arg
-      
-    if [ ! -d $BASE/$arg ]; then
-      mkdir $BASE/$arg
-    fi
-    
-    copy_dir_files $arg
-    
-    cd $SOURCE/$arg/    
-    for i in *
-    do
-      if [ -d $SOURCE/$basedir/$i ] && [ "$i" != "SCCS" ]; then
-        copy_dir_files $basedir/$i
-      fi
-    done
+    cd $SOURCE
+    (
+    find $arg -type d \
+              -and -not -path \*SCCS\* \
+              -and -not -path \*.deps\* \
+              -and -not -path \*autom4te.cache -print
+    )|(
+      while read v
+      do
+        copy_dir_files $v
+      done
+    )
+
   done
 }
 
@@ -254,11 +261,11 @@ for i in COPYING COPYING.LIB ChangeLog README \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
          Docs/manual.txt Docs/mysqld_error.txt \
-         Docs/INSTALL-BINARY 
-         
+         Docs/INSTALL-BINARY
+
 do
   print_debug "Copying file '$i'"
-  if [ -f $i ] 
+  if [ -f $i ]
   then
     $CP $i $BASE/$i
   fi
@@ -284,11 +291,14 @@ done
 
 ./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
 
+unix_to_dos $BASE/README
+mv $BASE/README $BASE/README.txt
+
 #
 # Initialize the initial data directory
 #
 
-if [ -f scripts/mysql_install_db ]; then 
+if [ -f scripts/mysql_install_db ]; then
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
 fi
@@ -349,9 +359,9 @@ which_1 ()
 # Create the result zip/tar file
 #
 
-set_tarzip_options() 
+set_tarzip_options()
 {
-  for arg 
+  for arg
   do
     if [ "$arg" = "tar" ]; then
       ZIPFILE1=gnutar
