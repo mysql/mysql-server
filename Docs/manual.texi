@@ -19931,7 +19931,7 @@ cache.
 The value of the @code{--bdb-home} option.
 
 @item @code{bdb_max_lock}
-The maximum number of locks (1000 by default) you can have active on a
+The maximum number of locks (10,000 by default) you can have active on a
 BDB table. You should increase this if you get errors of type @code{bdb:
 Lock table is out of available locks} or @code{Got error 12 from ...}
 when you have do long transactions or when @code{mysqld} has to examine
@@ -24212,7 +24212,7 @@ ignore, use the directive multiple times, once for each database.
 You should not use this directive if you are using cross table updates
 and you don't want these update to be replicated.
 
-The main reason for this behavior is that it's hard from the command
+The main reason for this behaviour is that it's hard from the command
 alone know if a query should be replicated or not; For example if you
 are using multi-table-delete or multi-table-update commands in MySQL 4.x
 that goes across multiple databases.  It's also very fast to just check
@@ -31231,7 +31231,7 @@ mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
 
 If @code{expr2} or @code{expr3} is explicitely @code{NULL} then the
 result type of the @code{IF()} function is the type of the not
-@code{NULL} column. (This behavior is new in MySQL 4.0.3).
+@code{NULL} column. (This behaviour is new in MySQL 4.0.3).
 
 @code{expr1} is evaluated as an integer value, which means that if you are
 testing floating-point or string values, you should do so using a comparison
@@ -51001,7 +51001,7 @@ that can be used as data values in queries.
 Changed variable @code{DELAY_KEY_WRITE} to an enum to allow one set
 @code{DELAY_KEY_WRITE} for all tables without taking down the server.
 @item
-Changed behavior of @code{IF(condition,column,NULL)} so that it returns
+Changed behaviour of @code{IF(condition,column,NULL)} so that it returns
 the value of the column type.
 @item
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
