@@ -1428,6 +1428,18 @@ NdbBlob::postExecute(ExecType anExecType)
     if (invokeActiveHook() == -1)
       return -1;
   }
+  if (anExecType == NoCommit && theHeadInlineUpdateFlag) {
+    NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+    if (tOp == NULL ||
+       tOp->updateTuple() == -1 ||
+       setTableKeyValue(tOp) == -1 ||
+       setHeadInlineValue(tOp) == -1) {
+      setErrorCode(ErrAbort);
+      return -1;
+    }
+    tOp->m_abortOption = AbortOnError;
+    DBG("added op to update head+inline");
+  }
   DBG("postExecute [out]");
   return 0;
 }
