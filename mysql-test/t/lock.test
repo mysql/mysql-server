@@ -53,8 +53,8 @@ check table t1;
 # Check error message
 lock tables t1 write;
 check table t2;
---error 1100
-insert into t1 select nr from t1;
+--error 1143
+insert into t1 select index1,nr from t1;
 unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;
