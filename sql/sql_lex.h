@@ -66,7 +66,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_END
+  SQLCOM_END, SQLCOM_HELP,
 };
 
 enum lex_states
@@ -383,6 +383,7 @@ typedef struct st_lex
   bool derived_tables, describe;
   uint slave_thd_opt;
   CHARSET_INFO *charset;
+  char *help_arg;
 } LEX;
 
 

@@ -1486,6 +1486,10 @@ mysql_execute_command(THD *thd)
     send_ok(thd);
     break;
 
+  case SQLCOM_HELP:
+    res= mysqld_help(thd,lex->help_arg);
+    break;
+
   case SQLCOM_PURGE:
   {
     if (check_global_access(thd, SUPER_ACL))
