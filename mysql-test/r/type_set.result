@@ -1,3 +1,4 @@
+drop table if exists t1;
 create table t1 (a set (' ','a','b') not null);
 show create table t1;
 Table	Create Table
