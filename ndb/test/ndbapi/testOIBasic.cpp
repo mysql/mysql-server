@@ -1965,9 +1965,21 @@ BSet::calcpk(Par par, unsigned i)
 int
 BSet::setbnd(Par par) const
 {
-  for (unsigned j = 0; j < m_bvals; j++) {
-    const BVal& bval = *m_bval[j];
-    CHK(bval.setbnd(par) == 0);
+  if (m_bvals != 0) {
+    unsigned p1 = urandom(m_bvals);
+    unsigned p2 = 10009;        // prime
+    // random order
+    for (unsigned j = 0; j < m_bvals; j++) {
+      unsigned k = p1 + p2 * j;
+      const BVal& bval = *m_bval[k % m_bvals];
+      CHK(bval.setbnd(par) == 0);
+    }
+    // duplicate
+    if (urandom(5) == 0) {
+      unsigned k = urandom(m_bvals);
+      const BVal& bval = *m_bval[k];
+      CHK(bval.setbnd(par) == 0);
+    }
   }
   return 0;
 }
