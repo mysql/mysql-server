@@ -437,8 +437,8 @@ public:
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
-				List<String> *ignore_index= 0);
-
+				List<String> *ignore_index= 0,
+                                LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   List<Item>* get_item_list();
   List<String>* get_use_index();

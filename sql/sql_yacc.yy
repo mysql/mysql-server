@@ -1946,16 +1946,16 @@ preload_keys:
 	}
 	;
 
-preload_keys_spec:
-	keys_or_index { Select->interval_list.empty(); }
-	cache_key_list_or_empty 
-	{
-	  LEX *lex=Lex;
-	  SELECT_LEX *sel= &lex->select_lex;
-	  sel->use_index= sel->interval_list;
-	  sel->use_index_ptr= &sel->use_index;
-	}
-	;
+cache_keys_spec:
+        keys_or_index { Select->interval_list.empty(); }
+        cache_key_list_or_empty
+        {
+          LEX *lex=Lex;
+          SELECT_LEX *sel= &lex->select_lex;
+          sel->use_index= sel->interval_list;
+          sel->use_index_ptr= &sel->use_index;
+        }
+        ;
 
 cache_key_list_or_empty:
 	/* empty */
