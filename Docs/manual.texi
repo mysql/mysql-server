@@ -47375,7 +47375,7 @@ A C++ database independent library that supports MySQL.
 @item @uref{http://www.mysql.com/Downloads/Contrib/DelphiMySQL2.zip}
 Delphi interface to @code{libmysql.dll}, by @email{bsilva@@umesd.k12.or.us}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Udmysel.pas}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Udmysql.pas}
 A wrapper for libmysql.dll for usage in Delphi. By Reiner Sombrowsky.
 
 @item @uref{http://www.fichtner.net/delphi/mysql.delphi.phtml}
