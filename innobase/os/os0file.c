@@ -6,8 +6,6 @@ The interface to the operating system file i/o primitives
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
-#include <sys/stat.h>
-
 #include "os0file.h"
 #include "os0sync.h"
 #include "os0thread.h"
@@ -16,6 +14,9 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #undef HAVE_FDATASYNC
 
