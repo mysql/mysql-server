@@ -2250,13 +2250,6 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
   case ER_NET_ERROR_ON_WRITE:  
   case ER_SERVER_SHUTDOWN:  
   case ER_NEW_ABORTING_CONNECTION:
-    slave_print_error(rli,expected_error, 
-                      "query '%s' partially completed on the master \
-and was aborted. There is a chance that your master is inconsistent at this \
-point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START; .", thd->query);
-    thd->query_error= 1;
     return 1;
   default:
     return 0;

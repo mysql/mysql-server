@@ -65,6 +65,7 @@ static bool create_total_list(THD *thd, LEX *lex,
 			      TABLE_LIST **result, bool skip_first);
 static bool check_one_table_access(THD *thd, ulong want_access,
 				   TABLE_LIST *table, bool no_errors);
+static inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1332,9 +1333,7 @@ mysql_execute_command(void)
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated
     */
-    if (table_rules_on && tables && !tables_ok(thd,tables) &&
-        ((lex->sql_command != SQLCOM_DELETE_MULTI) ||
-         !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)))
+    if (all_tables_not_ok(thd,tables))
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
@@ -2968,9 +2967,18 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select->table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
+static inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
+{
+  return (table_rules_on && tables && !tables_ok(thd,tables) &&
+          ((thd->lex.sql_command != SQLCOM_DELETE_MULTI) ||
+           !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)));
+}
 
-void
-mysql_parse(THD *thd,char *inBuf,uint length)
+/*
+  When you modify mysql_parse(), you may need to mofify
+  mysql_test_parse_for_slave() in this same file.
+*/
+void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -3003,6 +3011,31 @@ mysql_parse(THD *thd,char *inBuf,uint length)
     lex_end(lex);
   }
   DBUG_VOID_RETURN;
+}
+
+/*
+  Usable by the replication SQL thread only: just parse a query to know if it
+  can be ignored because of replicate-*-table rules.
+
+  RETURN VALUES
+    0	cannot be ignored
+    1	can be ignored
+*/
+
+bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
+{
+  LEX *lex;
+  bool error= 0;
+
+  mysql_init_query(thd);
+  lex= lex_start(thd, (uchar*) inBuf, length);
+  if (!yyparse() && ! thd->fatal_error &&
+      all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
+    error= 1;                /* Ignore question */
+  free_items(thd);  /* Free strings used by items */
+  lex_end(lex);
+
+  return error;
 }
 
 
