@@ -2,7 +2,7 @@
 # Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 # This file is public domain and comes with NO WARRANTY of any kind
 
-# Mysql daemon start/stop script.
+# MySQL daemon start/stop script.
 
 # Usually this is put in /etc/init.d (at least on machines SYSV R4 based
 # systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/K01mysql.
@@ -20,17 +20,17 @@
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  3 5
 # Default-Stop: 3 5
-# Short-Description: start and stop MySLQ
+# Short-Description: start and stop MySQL
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
  
 # If you install MySQL on some other places than @prefix@, then you
-# have to do one of the following thing for this script to work:
+# have to do one of the following things for this script to work:
 #
-# - Run this script from the MySQL installation directory
+# - Run this script from within the MySQL installation directory
 # - Create a /etc/my.cnf file with the following information:
 #   [mysqld]
-#   basedir=path-to-mysql-installation-directory
+#   basedir=<path-to-mysql-installation-directory>
 # - Add the above to any other configuration file (for example ~/.my.ini)
 #   and copy my_print_defaults to /usr/bin
 # - Add the path to the mysql-installation-directory to the basedir variable
@@ -79,7 +79,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
+# Get arguments from the my.cnf file, groups [mysqld] and [mysql.server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -117,7 +117,7 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-parse_arguments `$print_defaults $defaults mysqld mysql_server`
+parse_arguments `$print_defaults $defaults mysqld mysql.server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
