@@ -3508,6 +3508,10 @@ lock_table_dequeue(
 	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
 	lock_table_remove_low(in_lock);
+
+	if (lock_get_type(in_lock) == LOCK_TABLE_EXP) {
+		in_lock->trx->n_lock_table_exp--;
+	}
 	
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
@@ -3609,7 +3613,6 @@ lock_release_off_kernel(
 			if (lock_get_type(lock) == LOCK_TABLE_EXP) {
 				ut_a(lock_get_mode(lock) == LOCK_S
 					|| lock_get_mode(lock) == LOCK_X);
-				trx->n_lock_table_exp--;
 			}
 		}
 
@@ -3676,7 +3679,6 @@ lock_release_tables_off_kernel(
 			}
 
 			lock_table_dequeue(lock);
-			trx->n_lock_table_exp--;
 
 			lock = UT_LIST_GET_LAST(trx->trx_locks);
 			continue;
