@@ -1320,11 +1320,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
-  {
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-    /* Re-acquire the mutex as pthread_cond_wait released it */
-    pthread_mutex_lock(&rli->log_space_lock);
-  }
   thd->proc_info = save_proc_info;
   pthread_mutex_unlock(&rli->log_space_lock);
   DBUG_RETURN(slave_killed);
