@@ -63,4 +63,8 @@ a0
 select 'a' union select concat('a', -0.0);
 a
 a
-good
+a0.0
+select 'a' union select concat('a', -0.0000);
+a
+a
+a0.0000

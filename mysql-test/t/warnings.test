@@ -26,9 +26,8 @@ show warnings limit 1;
 drop database if exists not_exists_db;
 show count(*) warnings;
 create table t1(id int);
-# PS doesn't give warnings on prepare
---disable_ps_protocol
 create table if not exists t1(id int);
+--disable_ps_protocol
 select @@warning_count;
 --enable_ps_protocol
 drop table t1;
@@ -96,12 +95,9 @@ drop table t1;
 # Test for deprecated TYPE= syntax
 #
 
-# PS doesn't give warnings on prepare
---disable_ps_protocol
 create table t1 (id int) type=heap;
 alter table t1 type=myisam;
 drop table t1;
---enable_ps_protocol
 
 #
 # Test for deprecated table_type variable
