@@ -686,7 +686,7 @@ int mysqld_help(THD *thd, const char *mask)
     goto end;
   }
   /* Init tables and fields to be usable from items */
-  setup_tables(tables);
+  setup_tables(tables, 0);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields)); 
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
   {
