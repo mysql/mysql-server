@@ -478,7 +478,17 @@ void *create_embedded_thd(int client_flag, char *db)
   return thd;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+int check_embedded_connection(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  thd->host= (char*)my_localhost;
+  thd->host_or_ip= thd->host;
+  thd->user= mysql->user;
+  return 0;
+}
+
+#else
 int check_embedded_connection(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
@@ -486,9 +496,13 @@ int check_embedded_connection(MYSQL *mysql)
   char scramble_buff[SCRAMBLE_LENGTH];
   int passwd_len;
 
-  thd->host= mysql->options.client_ip ?
-    mysql->options.client_ip : (char*)my_localhost;
-  thd->ip= thd->host;
+  if (mysql->options.client_ip)
+  {
+    thd->host= mysql->options.client_ip;
+    thd->ip= thd->host;
+  }
+  else
+    thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
 
   if (acl_check_host(thd->host,thd->ip))
