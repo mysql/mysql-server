@@ -58,5 +58,11 @@ public:
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table);
 
+  bool has_delete_triggers()
+  {
+    return (bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
+            bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER]);
+  }
+
   friend class Item_trigger_field;
 };
