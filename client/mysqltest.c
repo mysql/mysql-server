@@ -2100,7 +2100,7 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
     exit(1);
 
   if (argc > 1)

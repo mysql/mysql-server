@@ -54,3 +54,13 @@ select C.a, c.a from t1 c, t2 C;
 drop table t1, t2;
 
 show tables;
+
+#
+# Test all caps database name
+#
+create table t1 (a int);
+select TEST.t1.* from TEST.t1;
+alter table t1 rename to T1;
+select TEST.t1.* from TEST.t1;
+drop table t1;
+
