@@ -4909,12 +4909,12 @@ low-level table types to be called from the SQL engine, and each table
 type can be optimised for different performance characteristics.
 
 @item
-All MySQL table types (except @strong{InnoDB}) are implemented as files
+All MySQL table types (except @code{InnoDB}) are implemented as files
 (one table per file), which makes it really easy to backup, move, delete
 and even symlink databases and tables, even when the server is down.
 
 @item
-Tools to repair and optimise @strong{MyISAM} tables (the most common
+Tools to repair and optimise @code{MyISAM} tables (the most common
 MySQL table type).  A repair tool is only needed when a physical corruption
 of a data file happens, usually from a hardware failure.  It allows a
 majority of the data to be recovered.
@@ -8239,7 +8239,7 @@ link and the original database is deleted.  (This didn't happen in 3.22
 because configure didn't detect the @code{readlink} system call).
 
 @item
-@code{OPTIMIZE TABLE} now only works for @strong{MyISAM} tables.
+@code{OPTIMIZE TABLE} now only works for @code{MyISAM} tables.
 For other table types, you can use @code{ALTER TABLE} to optimise the table.
 During @code{OPTIMIZE TABLE} the table is now locked from other threads.
 
@@ -18887,7 +18887,7 @@ Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space and to defragment the data file.
 
-For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM} and
+For the moment @code{OPTIMIZE TABLE} only works on @code{MyISAM} and
 @code{BDB} tables. For @code{BDB} tables, @code{OPTIMIZE TABLE} is
 currently mapped to @code{ANALYZE TABLE}. @xref{ANALYZE TABLE}.
 
@@ -21521,7 +21521,7 @@ The following table shows which table types our standard @strong{MySQL-Max}
 binaries includes:
 
 @multitable @columnfractions .15 .10 .10
-@item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
+@item @strong{System} @tab @code{BDB} @tab @code{InnoDB}
 @item AIX 4.3 @tab N @tab Y
 @item HP-UX 11.0 @tab N @tab Y
 @item Linux-Alpha @tab N	@tab Y
@@ -36822,7 +36822,7 @@ high-byte first.
 @node MyISAM table formats, MyISAM table problems, Key space, MyISAM
 @subsection MyISAM Table Formats
 
-@strong{MyISAM} supports 3 different table types. Two of them are chosen
+@code{MyISAM} supports 3 different table types. Two of them are chosen
 automatically depending on the type of columns you are using. The third,
 compressed tables, can only be created with the @code{myisampack} tool.
 
@@ -37648,8 +37648,8 @@ set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
-Note that @strong{InnoDB does not create directories:
-you have to create them yourself.}
+Note that @code{InnoDB} @strong{does not create directories:
+you must create them yourself.}
 Use the Unix or MS-DOS @code{mkdir} command to create
 the data and log group home directories.
 Check also that the MySQL server
@@ -39384,7 +39384,7 @@ Finland
 * BDB start::                   BDB startup options
 * BDB characteristics::         Characteristics of @code{BDB} tables:
 * BDB TODO::                    Things we need to fix for BDB in the near future:
-* BDB portability::             Operating systems supported by @strong{BDB}
+* BDB portability::             Operating systems supported by @code{BDB}
 * BDB restrictions::            Restrictions on BDB Tables
 * BDB errors::                  Errors That May Occur When Using BDB Tables
 @end menu
@@ -39595,7 +39595,7 @@ Change to not use page locks at all when we are scanning tables.
 
 
 @node BDB portability, BDB restrictions, BDB TODO, BDB
-@subsection Operating systems supported by @strong{BDB}
+@subsection Operating systems supported by @code{BDB}
 
 If you after having built MySQL with support for BDB tables get
 the following error in the log file when you start @code{mysqld}:
@@ -49275,12 +49275,12 @@ present in previous versions.  We have added three new
 table types:
 
 @table @asis
-@item @strong{MyISAM}
+@item @code{MyISAM}
 A new ISAM library which is tuned for SQL and supports large files.
-@item @strong{BerkeleyDB} or @strong{BDB}
+@item @code{BerkeleyDB} or @code{BDB}
 Uses the Berkeley DB library from Sleepycat Software to implement
 transaction-safe tables.
-@item @strong{InnoDB}
+@item @code{InnoDB}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
 @end table
