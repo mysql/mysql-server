@@ -193,24 +193,24 @@ a	concat(b,?)
 3	threeMySQL
 4	fourMySQL
 set @arg00='MySQL' ;
-select group_concat(@arg00,b) from t1 
+select group_concat(@arg00,b order by a) from t1 
 group by 'a' ;
-group_concat(@arg00,b)
-MySQLtwo,MySQLfour,MySQLthree,MySQLone
-prepare stmt1 from ' select group_concat(?,b) from t1
+group_concat(@arg00,b order by a)
+MySQLone,MySQLtwo,MySQLthree,MySQLfour
+prepare stmt1 from ' select group_concat(?,b order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
-group_concat(?,b)
-MySQLtwo,MySQLfour,MySQLthree,MySQLone
-select group_concat(b,@arg00) from t1 
+group_concat(?,b order by a)
+MySQLone,MySQLtwo,MySQLthree,MySQLfour
+select group_concat(b,@arg00 order by a) from t1 
 group by 'a' ;
-group_concat(b,@arg00)
-twoMySQL,fourMySQL,threeMySQL,oneMySQL
-prepare stmt1 from ' select group_concat(b,?) from t1
+group_concat(b,@arg00 order by a)
+oneMySQL,twoMySQL,threeMySQL,fourMySQL
+prepare stmt1 from ' select group_concat(b,? order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
-group_concat(b,?)
-twoMySQL,fourMySQL,threeMySQL,oneMySQL
+group_concat(b,? order by a)
+oneMySQL,twoMySQL,threeMySQL,fourMySQL
 set @arg00='first' ;
 set @arg01='second' ;
 set @arg02=NULL;
@@ -320,11 +320,11 @@ a
 set @arg00= 'one' ;
 set @arg01= 'two' ;
 set @arg02= 'five' ;
-prepare stmt1 from ' select b FROM t1 where b in (?,?,?) ' ;
+prepare stmt1 from ' select b FROM t1 where b in (?,?,?) order by b ' ;
 execute stmt1 using @arg00, @arg01, @arg02 ;
 b
-two
 one
+two
 prepare stmt1 from ' select b FROM t1 where b like ? ';
 set @arg00='two' ;
 execute stmt1 using @arg00 ;
@@ -1334,7 +1334,7 @@ prepare stmt1 from 'update t1 set a=? where b=?
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
-select a,b from t1 order by a;
+select a,b from t1 order by a ;
 a	b
 1	one
 2	two

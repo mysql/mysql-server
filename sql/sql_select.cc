@@ -7188,7 +7188,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (keys.is_set(nr))
       {
 	int flag;
-	if (flag=test_if_order_by_key(order, table, nr, &not_used))
+	if ((flag= test_if_order_by_key(order, table, nr, &not_used)))
 	{
 	  if (!no_changes)
 	  {
