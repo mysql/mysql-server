@@ -15,7 +15,7 @@ LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/ndb/src/common/editline/libeditline.a \
             @TERMCAP_LIB@
 
-AM_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_mgm_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
