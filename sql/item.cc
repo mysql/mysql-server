@@ -253,7 +253,7 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::default_charset() const
+CHARSET_INFO * Item::default_charset() 
 {
   return current_thd->variables.collation_connection;
 }
@@ -676,11 +676,6 @@ void Item_param::set_value(const char *str, uint length, CHARSET_INFO *ci)
   maybe_null= 0;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
-}
-
-void Item_param::set_value(const char *str, uint length)
-{
-  set_value(str, length, default_charset());
 }
 
 

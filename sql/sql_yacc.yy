@@ -726,7 +726,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
-        prepare execute deallocate 
+        prepare prepare_src execute deallocate 
 END_OF_INPUT
 
 %type <NONE>
@@ -816,7 +816,7 @@ deallocate:
         };
 
 prepare:
-        PREPARE_SYM ident FROM TEXT_STRING_sys
+        PREPARE_SYM ident FROM prepare_src
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
@@ -827,9 +827,24 @@ prepare:
           }
           lex->sql_command= SQLCOM_PREPARE;
           lex->prepared_stmt_name= $2;
-          lex->prepared_stmt_code= $4;
         };
 
+prepare_src:
+        TEXT_STRING_sys
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $1;
+          lex->prepared_stmt_code_is_varref= false;
+        }
+        | '@' ident_or_text
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $2;
+          lex->prepared_stmt_code_is_varref= true;
+        };
+        
 execute:
         EXECUTE_SYM ident
         {

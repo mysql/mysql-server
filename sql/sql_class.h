@@ -556,8 +556,13 @@ public:
   Statement *find(ulong id)
   {
     if (last_found_statement == 0 || id != last_found_statement->id)
-      last_found_statement= (Statement *) hash_search(&st_hash, (byte *) &id,
-                                                      sizeof(id));
+    {
+      Statement *stmt;
+      stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+      if (stmt->name.str)
+        return NULL;
+      last_found_statement= stmt;
+    }
     return last_found_statement;
   }
   void erase(Statement *statement)
