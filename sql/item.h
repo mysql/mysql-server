@@ -41,16 +41,22 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint nagg;    // Total number of aggregated collations.
+  uint strong;  // Number of the strongest collation.
   
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    nagg= 0;
+    strong= 0;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    nagg= 0;
+    strong= 0;
   }
   void set(DTCollation &dt)
   { 
@@ -66,9 +72,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt);
-  bool set(DTCollation &dt1, DTCollation &dt2)
-  { set(dt1); return aggregate(dt2); }
+  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
+  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
+  { set(dt1); return aggregate(dt2, superset_conversion); }
   const char *derivation_name() const
   {
     switch(derivation)
