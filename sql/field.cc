@@ -3151,11 +3151,13 @@ bool Field_time::get_time(TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
+  ltime->day= 0;
   ltime->hour=   (int) (tmp/10000);
   tmp-=ltime->hour*10000;
   ltime->minute= (int) tmp/100;
   ltime->second= (int) tmp % 100;
   ltime->second_part=0;
+  ltime->time_type= TIMESTAMP_TIME;
   return 0;
 }
 
