@@ -9862,11 +9862,17 @@ static void test_bug4026()
   time_in.minute= 59;
   time_in.second= 59;
   time_in.second_part= 123456;
+  /*
+    This is not necessary, just to make assert below work: this field
+    is filled in when time is received from server
+  */
+  time_in.time_type= MYSQL_TIMESTAMP_TIME;
 
   datetime_in= time_in;
   datetime_in.year= 2003;
   datetime_in.month= 12;
   datetime_in.day= 31;
+  datetime_in.time_type= MYSQL_TIMESTAMP_DATETIME;
 
   mysql_stmt_bind_param(stmt, bind);
 
