@@ -2330,10 +2330,10 @@ bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
 #define MY_YACC_INIT 1000			// Start with big alloc
 #define MY_YACC_MAX  32000			// Because of 'short'
 
-bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
+bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
   LEX	*lex=current_lex;
-  int  old_info=0;
+  ulong old_info=0;
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
   if (!lex->yacc_yyvs)
