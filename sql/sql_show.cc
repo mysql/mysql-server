@@ -1198,7 +1198,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     char buff[128];
     char* p;
     
-    if (table->table_charset)
+    if (table->table_charset &&
+	!(thd->variables.sql_mode & MODE_MYSQL323) &&
+	!(thd->variables.sql_mode & MODE_MYSQL40))
     {
       packet->append(" CHARSET=");
       packet->append(table->table_charset->csname);
