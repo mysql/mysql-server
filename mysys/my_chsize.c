@@ -51,10 +51,11 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 #if defined(HAVE_SETFILEPOINTER)
   /* This is for the moment only true on windows */
   {
-    LARGE_INTEGER new_length;
     HANDLE win_file= (HANDLE) _get_osfhandle(fd);
-    new_length.QuadPart = newlength;
-    if (SetFilePointerEx(win_file,new_length,NULL,FILE_BEGIN))
+    long length_low, length_high;
+    length_low= (long) (ulong) newlength;
+    length_high= (long) ((ulonglong) newlength >> 32);
+    if (SetFilePointer(win_file, length_low, &length_high, FILE_BEGIN))
     {
       if (SetEndOfFile(win_file))
 	DBUG_RETURN(0);

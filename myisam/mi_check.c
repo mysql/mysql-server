@@ -1513,6 +1513,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   File new_file;
   my_off_t index_pos[MI_MAX_POSSIBLE_KEY];
   uint r_locks,w_locks;
+  int old_lock;
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO old_state;
   DBUG_ENTER("sort_index");
@@ -1556,8 +1557,11 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
-  old_state=share->state;			/* save state if not stored */
-  r_locks=share->r_locks; w_locks=share->w_locks;
+  old_state= share->state;			/* save state if not stored */
+  r_locks=   share->r_locks;
+  w_locks=   share->w_locks;
+  old_lock=  info->lock_type;
+
 	/* Put same locks as old file */
   share->r_locks= share->w_locks= share->tot_locks= 0;
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
@@ -1568,12 +1572,13 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 			MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
-  info->lock_type=F_UNLCK;			/* Force mi_readinfo to lock */
+  info->lock_type= F_UNLCK;			/* Force mi_readinfo to lock */
   _mi_readinfo(info,F_WRLCK,0);			/* Will lock the table */
-  info->lock_type=F_WRLCK;
-  share->r_locks=r_locks; share->w_locks=w_locks;
+  info->lock_type=  old_lock;
+  share->r_locks=   r_locks;
+  share->w_locks=   w_locks;
   share->tot_locks= r_locks+w_locks;
-  share->state=old_state;			/* Restore old state */
+  share->state=     old_state;			/* Restore old state */
 
   info->state->key_file_length=param->new_file_pos;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);

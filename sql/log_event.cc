@@ -1860,8 +1860,6 @@ Default database: '%s'",
     */
   } /* End of if (db_ok(... */
 
-end:
-
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
