@@ -2885,7 +2885,7 @@ fil_load_single_table_tablespace(
 	}
 
 	/* We do not use the size information we have about the file, because
-	the rounding formulat for extents and pages is somewhat complex; we
+	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
 	fil_node_create(filepath, 0, space_id, FALSE);

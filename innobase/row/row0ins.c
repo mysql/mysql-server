@@ -1192,7 +1192,7 @@ run_again:
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx, foreign->referenced_table_name);
-		fputs("\nor its .ind file does not currently exist!\n", ef);
+		fputs("\nor its .ibd file does not currently exist!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			return(DB_NO_REFERENCED_ROW);
