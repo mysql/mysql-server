@@ -220,7 +220,8 @@ enum SSL_type
 };
 
 
-#ifndef EMBEDDED_LIBRARY
+/* HFTODO - hide this if we don't want client in embedded server
+ */
 /* This structure is for every connection on both sides */
 struct st_vio
 {
@@ -263,5 +264,4 @@ struct st_vio
 #endif /* HAVE_SMEM */
 #endif /* HAVE_VIO */
 };
-#endif /* EMBEDDED_LIBRARY */
 #endif /* vio_violite_h_ */

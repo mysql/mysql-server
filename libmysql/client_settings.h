@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-static my_bool	mysql_client_init=0;
 extern uint		mysql_port;
 extern my_string	mysql_unix_port;
 
@@ -35,7 +34,7 @@ char *shared_memory_base_name=0;
 const char *def_shared_memory_base_name=default_shared_memory_base_name;
 #endif
 
-static my_bool org_my_init_done=0;
+extern my_bool org_my_init_done;
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
@@ -56,3 +55,8 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 #endif
+
+#define CLI_MYSQL_USE_RESULT cli_mysql_use_result
+
+MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
+

@@ -30,7 +30,10 @@
   3 byte length & 1 byte package-number.
 */
 
-#ifndef EMBEDDED_LIBRARY
+/*
+  HFTODO this must be hidden if we don't want client capabilities in 
+  embedded library
+ */
 #ifdef __WIN__
 #include <winsock.h>
 #endif
@@ -45,6 +48,19 @@
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
+
+#ifdef EMBEDDED_LIBRARY
+
+#ifdef net_flush
+#undef net_flush
+#endif
+
+extern "C" {
+my_bool	net_flush(NET *net);
+}
+
+#endif /*EMBEDDED_LIBRARY */
+
 
 /*
   The following handles the differences when this is linked between the
@@ -959,5 +975,4 @@ my_net_read(NET *net)
   return len;
 }
 
-#endif /* EMBEDDED_LIBRARY */
 

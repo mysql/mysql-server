@@ -232,6 +232,9 @@ void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
 my_bool net_realloc(NET *net, unsigned long length);
+
+/*HFTODO - should remove it
+ */
 #ifndef EMBEDDED_LIBRARY
 my_bool	net_flush(NET *net);
 #else
