@@ -183,8 +183,8 @@ insert into t1 values(1,1,NULL);
 insert into t2 values(1,10,NULL),(2,20,NULL);
 set timestamp=1038000000;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-select * from t1;
-select * from t2;
+select n,d,unix_timestamp(t) from t1;
+select n,d,unix_timestamp(t) from t2;
 --error 1064
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
 drop table t1,t2;

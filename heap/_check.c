@@ -75,7 +75,7 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
 	  break;				/* End of file */
       }
     }
-    _hp_find_record(info,pos);
+    hp_find_record(info,pos);
 
     if (!info->current_ptr[share->reclength])
       deleted++;

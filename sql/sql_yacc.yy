@@ -814,7 +814,7 @@ create:
 	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!lex->select_lex.add_table_to_list($5,
+	  if (!lex->select_lex.add_table_to_list(thd,$5,
 						 ($2 &
 						  HA_LEX_CREATE_TMP_TABLE ?
 						  &tmp_table_alias :
@@ -838,7 +838,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list($7,NULL,1))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $7,NULL,1))
 	      YYABORT;
 	    lex->create_list.empty();
 	    lex->key_list.empty();
@@ -1058,7 +1058,7 @@ field_spec:
 	type opt_attribute
 	{
 	  LEX *lex=Lex;
-	  if (add_field_to_list($1.str,
+	  if (add_field_to_list(lex->thd, $1.str,
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
@@ -1368,7 +1368,7 @@ alter:
 	  LEX *lex=&thd->lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
-	  if (!lex->select_lex.add_table_to_list($4, NULL,1))
+	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,1))
 	    YYABORT;
 	  lex->drop_primary=0;
 	  lex->create_list.empty();
@@ -1423,7 +1423,7 @@ alter_list_item:
           type opt_attribute
           {
             LEX *lex=Lex;
-            if (add_field_to_list($3.str,
+            if (add_field_to_list(lex->thd,$3.str,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
@@ -1634,9 +1634,10 @@ table_to_table_list:
 table_to_table:
 	table_ident TO_SYM table_ident
 	{
-	  SELECT_LEX_NODE *sl= Lex->current_select;
-	  if (!sl->add_table_to_list($1,NULL,1,TL_IGNORE) ||
-	      !sl->add_table_to_list($3,NULL,1,TL_IGNORE))
+	  LEX *lex=Lex;	  
+	  SELECT_LEX_NODE *sl= lex->current_select;
+	  if (!sl->add_table_to_list(lex->thd, $1,NULL,1,TL_IGNORE) ||
+	      !sl->add_table_to_list(lex->thd, $3,NULL,1,TL_IGNORE))
 	    YYABORT;
 	};
 
@@ -1760,7 +1761,7 @@ select_item_list:
 	| select_item
 	| '*'
 	  {
-	    if (add_item_to_list(new Item_field(NULL,NULL,"*")))
+	    if (add_item_to_list(YYTHD, new Item_field(NULL,NULL,"*")))
 	      YYABORT;
 	  };
 
@@ -1768,7 +1769,7 @@ select_item_list:
 select_item:
 	  remember_name select_item2 remember_end select_alias
 	  {
-	    if (add_item_to_list($2))
+	    if (add_item_to_list(YYTHD, $2))
 	      YYABORT;
 	    if ($4.str)
 	      $2->set_name($4.str);
@@ -2475,7 +2476,8 @@ join_table:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX_NODE *sel= lex->current_select;
-	  if (!($$= sel->add_table_to_list($2, $3, 0, lex->lock_option,
+	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3, 0,
+					   lex->lock_option,
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
@@ -2488,7 +2490,7 @@ join_table:
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
-                add_table_to_list(new Table_ident(unit), $5, 0,
+                add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
 				  lex->lock_option)))
 	    YYABORT;
 	};
@@ -2623,9 +2625,9 @@ group_clause:
 
 group_list:
 	group_list ',' order_ident order_dir
-	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
+	  { if (add_group_to_list(YYTHD, $3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_group_to_list($1,(bool) $2)) YYABORT; };
+	  { if (add_group_to_list(YYTHD, $1,(bool) $2)) YYABORT; };
 
 olap_opt:
 	/* empty */ {}
@@ -2684,9 +2686,9 @@ order_clause:
 
 order_list:
 	order_list ',' order_ident order_dir
-	  { if (add_order_to_list($3,(bool) $4)) YYABORT; }
+	  { if (add_order_to_list(YYTHD, $3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_order_to_list($1,(bool) $2)) YYABORT; };
+	  { if (add_order_to_list(YYTHD, $1,(bool) $2)) YYABORT; };
 
 order_dir:
 	/* empty */ { $$ =  1; }
@@ -2881,7 +2883,7 @@ drop:
 	     lex->drop_list.empty();
 	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
-	     if (!lex->current_select->add_table_to_list($5,NULL, 1))
+	     if (!lex->current_select->add_table_to_list(lex->thd, $5,NULL, 1))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
@@ -2905,7 +2907,7 @@ table_list:
 
 table_name:
 	table_ident
-	{ if (!Select->add_table_to_list($1, NULL, 1)) YYABORT; };
+	{ if (!Select->add_table_to_list(YYTHD, $1, NULL, 1)) YYABORT; };
 
 if_exists:
 	/* empty */ { $$= 0; }
@@ -3109,12 +3111,12 @@ update:
 update_list:
 	update_list ',' simple_ident equal expr
 	{
-	  if (add_item_to_list($3) || add_value_to_list($5))
+	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
 	}
 	| simple_ident equal expr
 	  {
-	    if (add_item_to_list($1) || add_value_to_list($3))
+	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	      YYABORT;
 	  };
 
@@ -3139,7 +3141,7 @@ delete:
 single_multi:
  	FROM table_ident
 	{
-	  if (!Select->add_table_to_list($2, NULL, 1, Lex->lock_option))
+	  if (!Select->add_table_to_list(YYTHD, $2, NULL, 1, Lex->lock_option))
 	    YYABORT;
 	}
 	where_clause opt_order_clause
@@ -3160,14 +3162,14 @@ table_wild_list:
 table_wild_one:
 	ident opt_wild
 	{
-	  if (!Select->add_table_to_list(new Table_ident($1), NULL, 1,
+	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), NULL, 1,
 	      Lex->lock_option))
 	    YYABORT;
         }
 	| ident '.' ident opt_wild
 	  {
-	    if (!Select->add_table_to_list(new Table_ident($1, $3, 0), NULL, 1,
-				    	   Lex->lock_option))
+	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
+					   NULL, 1, Lex->lock_option))
 	      YYABORT;
 	  }
 	;
@@ -3240,7 +3242,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
-	    if (!Select->add_table_to_list($4, NULL, 0))
+	    if (!Select->add_table_to_list(YYTHD, $4, NULL, 0))
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
@@ -3273,7 +3275,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
 	      $3->change_db($4);
-	    if (!Select->add_table_to_list($3, NULL, 0))
+	    if (!Select->add_table_to_list(YYTHD, $3, NULL, 0))
 	      YYABORT;
 	  }
 	| COLUMN_SYM TYPES_SYM
@@ -3331,7 +3333,7 @@ show_param:
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if(!Select->add_table_to_list($3, NULL,0))
+	    if(!Select->add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM STATUS_SYM
@@ -3376,7 +3378,7 @@ describe:
 	  lex->wild=0;
 	  lex->verbose=0;
 	  lex->sql_command=SQLCOM_SHOW_FIELDS;
-	  if (!Select->add_table_to_list($2, NULL,0))
+	  if (!Select->add_table_to_list(lex->thd, $2, NULL,0))
 	    YYABORT;
 	}
 	opt_describe_column {}
@@ -3500,14 +3502,14 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
 	{
-	  if (!Select->add_table_to_list($11, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $11, NULL, 1))
 	    YYABORT;
 	}
         |
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!Select->add_table_to_list($3, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $3, NULL, 1))
 	    YYABORT;
 
         }
@@ -3683,13 +3685,15 @@ ident_or_text:
 user:
 	ident_or_text
 	{
-	  if (!($$=(LEX_USER*) sql_alloc(sizeof(st_lex_user))))
+	  THD *thd= YYTHD;
+	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	    YYABORT;
 	  $$->user = $1; $$->host.str=NullS;
 	  }
 	| ident_or_text '@' ident_or_text
 	  {
-	  if (!($$=(LEX_USER*) sql_alloc(sizeof(st_lex_user))))
+	    THD *thd= YYTHD;
+	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 	  };
@@ -3936,7 +3940,7 @@ option_value:
 	  {
 	    THD *thd=YYTHD;
 	    LEX_USER *user;
-	    if (!(user=(LEX_USER*) sql_alloc(sizeof(LEX_USER))))
+	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host.str=0;
 	    user->user.str=thd->priv_user;
@@ -3973,7 +3977,7 @@ text_or_password:
 	      $$=$3.str;
 	    else
 	    {
-	      char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
+	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
 	      make_scrambled_password(buff,$3.str);
 	      $$=buff;
 	    }
@@ -4011,7 +4015,7 @@ table_lock_list:
 table_lock:
 	table_ident opt_table_alias lock_option
 	{
-	  if (!Select->add_table_to_list($1, $2, 0, (thr_lock_type) $3))
+	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, (thr_lock_type) $3))
 	   YYABORT;
 	}
         ;
@@ -4037,14 +4041,14 @@ handler:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_OPEN;
-	  if (!lex->current_select->add_table_to_list($2, $4, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
 	| HANDLER_SYM table_ident CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
-	  if (!lex->current_select->add_table_to_list($2, 0, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
 	| HANDLER_SYM table_ident READ_SYM
@@ -4054,7 +4058,7 @@ handler:
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= 1;
 	  lex->current_select->offset_limit= 0L;
-	  if (!lex->current_select->add_table_to_list($2, 0, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
         handler_read_or_scan where_clause opt_limit_clause { }
@@ -4249,7 +4253,7 @@ opt_table:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list($1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
 	      YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
@@ -4273,7 +4277,7 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-	     char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
+	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
 	     if (buff)
 	     {
 	       make_scrambled_password(buff,$4.str);

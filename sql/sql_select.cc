@@ -377,7 +377,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
 int
 JOIN::optimize()
 {
-  ha_rows select_limit;
   DBUG_ENTER("JOIN::optimize");
 
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
@@ -400,19 +399,17 @@ JOIN::optimize()
 #endif
 
   conds= optimize_cond(conds,&cond_value);
-  if (thd->fatal_error)
+  if (thd->fatal_error || thd->net.report_error)
   {
     // quick abort
     delete procedure;
-    error= 0;
-    DBUG_RETURN(1);
-  } else if (thd->net.report_error)
-    // normal error processing & cleanup
-    DBUG_RETURN(-1);
+    error= thd->net.report_error ? -1 : 1; 
+    DBUG_RETURN(-1);				// Return without cleanup
+  }
 
   if (cond_value == Item::COND_FALSE ||
       (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
-  {					/* Impossible cond */
+  {						/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
     DBUG_RETURN(0);
   }
@@ -429,24 +426,21 @@ JOIN::optimize()
 	DBUG_RETURN(0);
       }
       zero_result_cause= "Select tables optimized away";
-      tables_list= 0;					// All tables resolved
+      tables_list= 0;				// All tables resolved
     }
   }
 
   if (!tables_list)
-  {
-    test_function_query= 1;
     DBUG_RETURN(0);
-  }
 
-  error= -1;
+  error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, tables_list);
 
   /* Calculate how to do the join */
   thd->proc_info= "statistics";
   if (make_join_statistics(this, tables_list, conds, &keyuse) ||
       thd->fatal_error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   if (select_lex->dependent)
   {
@@ -460,7 +454,9 @@ JOIN::optimize()
   }
   thd->proc_info= "preparing";
   if (result->initialize_tables(this))
-    DBUG_RETURN(-1);
+  {
+    DBUG_RETURN(1);				// error = -1
+  }
   if (const_table_map != found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
@@ -474,7 +470,7 @@ JOIN::optimize()
   {						/* purecov: inspected */
     my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
     error= 1;					/* purecov: inspected */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   }
   if (const_tables && !thd->locked_tables &&
       !(select_options & SELECT_NO_UNLOCK))
@@ -502,9 +498,9 @@ JOIN::optimize()
   select=make_select(*table, const_table_map,
 		     const_table_map, conds, &error);
   if (error)
-  { /* purecov: inspected */
-    error= -1; /* purecov: inspected */
-    DBUG_RETURN(-1);
+  {						/* purecov: inspected */
+    error= -1;					/* purecov: inspected */
+    DBUG_RETURN(1);
   }
   if (make_join_select(this, select, conds))
   {
@@ -543,11 +539,11 @@ JOIN::optimize()
     bool all_order_fields_used;
     if (order)
       skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
-    if ((group=create_distinct_group(thd, order, fields_list,
-				     &all_order_fields_used)))
+    if ((group_list=create_distinct_group(thd, order, fields_list,
+				          &all_order_fields_used)))
     {
       bool skip_group= (skip_sort_order &&
-			test_if_skip_sort_order(tab, group, select_limit,
+			test_if_skip_sort_order(tab, group_list, select_limit,
 						1) != 0);
       if ((skip_group && all_order_fields_used) ||
 	  select_limit == HA_POS_ERROR ||
@@ -561,10 +557,10 @@ JOIN::optimize()
 	group=1;				// For end_write_group
       }
       else
-	group= 0;
+	group_list= 0;
     }
     else if (thd->fatal_error)			// End of memory
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
   }
   group_list= remove_const(this, group_list, conds, &simple_group);
   if (!group_list && group)
@@ -648,7 +644,7 @@ JOIN::optimize()
       (order && simple_order || group_list && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
   }
 
   if (!(select_options & SELECT_BIG_RESULT) &&
@@ -712,7 +708,7 @@ JOIN::exec()
 
   DBUG_ENTER("JOIN::exec");
 
-  if (test_function_query)
+  if (!tables_list)
   {                                           // Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
@@ -790,9 +786,9 @@ JOIN::exec()
 			    group_list : (ORDER*) 0),
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   (order == 0 || skip_sort_order) &&
-			   select_limit != HA_POS_ERROR,
-			   select_options, unit)))
+			   select_options,
+			   (order == 0 || skip_sort_order) ? select_limit :
+			   HA_POS_ERROR)))
       DBUG_VOID_RETURN;
 
     if (having_list && 
@@ -917,9 +913,8 @@ JOIN::exec()
       if (!(tmp_table2 = create_tmp_table(thd, &tmp_table_param, all_fields,
 					  (ORDER*) 0,
 					  select_distinct && !group_list,
-					  1, 0,
-					  select_options, unit)))
-      DBUG_VOID_RETURN;
+					  1, select_options, HA_POS_ERROR)))
+	DBUG_VOID_RETURN;
       if (group_list)
       {
 	thd->proc_info="Creating sort index";
@@ -1122,9 +1117,10 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
 	     SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
 	     bool fake_select_lex)
 {
+  int err;
+  bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
-  bool free_join= 1;
   JOIN *join;
   if (!fake_select_lex && select_lex->join != 0)
   {
@@ -1168,13 +1164,13 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     }
   }
 
-  switch (join->optimize()) 
+  if ((err= join->optimize()))
   {
-  case 1:
-    DBUG_RETURN(join->error);
-  case -1:
-    goto err;
-  } 
+    if (err == -1)
+      DBUG_RETURN(join->error);
+    DBUG_ASSERT(err == 1);
+    goto err;					// 1
+  }
 
   if (thd->net.report_error || (free_join && join->global_optimize()))
     goto err;
@@ -1187,13 +1183,13 @@ err:
     thd->limit_found_rows = join->send_records;
     thd->examined_row_count = join->examined_rows;
     thd->proc_info="end";
-    int error= (fake_select_lex?join->error:join->cleanup(thd)) || 
-      thd->net.report_error;
+    err= (fake_select_lex ? join->error : join->cleanup(thd));
+    if (thd->net.report_error)
+      err= -1;
     delete join;
-    DBUG_RETURN(error);
+    DBUG_RETURN(err);
   }
-  else
-    DBUG_RETURN(join->error);
+  DBUG_RETURN(join->error);
 }
 
 /*****************************************************************************
@@ -3887,8 +3883,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 bool allow_distinct_limit, ulong select_options,
-		 SELECT_LEX_UNIT *unit)
+		 ulong select_options, ha_rows rows_limit)
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
@@ -3908,9 +3903,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   uint temp_pool_slot=MY_BIT_NONE;
 
   DBUG_ENTER("create_tmp_table");
-  DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  allow_distinct_limit: %d  group: %d",
+  DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
-		      (int) allow_distinct_limit,test(group)));
+		      (ulong) rows_limit,test(group)));
 
   statistic_increment(created_tmp_tables, &LOCK_status);
 
@@ -4286,13 +4281,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
-    if (allow_distinct_limit)
-    {
-      set_if_smaller(table->max_rows, unit->select_limit_cnt);
-      param->end_write_records= unit->select_limit_cnt;
-    }
-    else
-      param->end_write_records= HA_POS_ERROR;
+    set_if_smaller(table->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
     table->distinct=1;
     table->keys=1;
     if (blob_count)
@@ -5679,7 +5669,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if ((error=table->file->write_row(table->record[0])))
 	  {
-	    if (create_myisam_from_heap(join.thd, table,
+	    if (create_myisam_from_heap(join->thd, table,
 					&join->tmp_table_param,
 					error, 0))
 	      DBUG_RETURN(-1);			// Not a table_is_full error
@@ -6060,12 +6050,32 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 }
 
 
-/*****************************************************************************
+/*
   If not selecting by given key, create an index how records should be read
-  return: 0  ok
-	  -1 some fatal error
-	   1  no records
-*****************************************************************************/
+
+  SYNOPSIS
+   create_sort_index()
+     thd		Thread handler
+     tab		Table to sort (in join structure)
+     order		How table should be sorted
+     filesort_limit	Max number of rows that needs to be sorted
+     select_limit	Max number of rows in final output
+		        Used to decide if we should use index or not     
+
+
+  IMPLEMENTATION
+   - If there is an index that can be used, 'tab' is modified to use
+     this index.
+   - If no index, create with filesort() an index file that can be used to
+     retrieve rows in order (should be done with 'read_record').
+     The sorted data is stored in tab->table and will be freed when calling
+     free_io_cache(tab->table).
+
+  RETURN VALUES
+    0		ok
+    -1		Some fatal error
+    1		No records
+*/
 
 static int
 create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,

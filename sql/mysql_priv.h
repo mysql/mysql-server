@@ -460,7 +460,8 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
 		       COND *conds, ulong options,
-		       enum enum_duplicates handle_duplicates);
+		       enum enum_duplicates handle_duplicates,
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
@@ -554,13 +555,13 @@ int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
 
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
-bool add_field_to_list(char *field_name, enum enum_field_types type,
+bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
 void store_position_for_column(const char *name);
-bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
+bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
 bool add_proc_to_list(THD *thd, Item *item);
@@ -871,22 +872,26 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
 
 /* Some inline functions for more speed */
 
-inline bool add_item_to_list(Item *item)
+inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return current_lex->current_select->add_item_to_list(item);
+  return thd->lex.current_select->add_item_to_list(thd, item);
 }
-inline bool add_value_to_list(Item *value)
+
+inline bool add_value_to_list(THD *thd, Item *value)
 {
-  return current_lex->value_list.push_back(value);
+  return thd->lex.value_list.push_back(value);
 }
-inline bool add_order_to_list(Item *item, bool asc)
+
+inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return current_lex->current_select->add_order_to_list(item, asc);
+  return thd->lex.current_select->add_order_to_list(thd, item, asc);
 }
-inline bool add_group_to_list(Item *item, bool asc)
+
+inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return current_lex->current_select->add_group_to_list(item, asc);
+  return thd->lex.current_select->add_group_to_list(thd, item, asc);
 }
+
 inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
