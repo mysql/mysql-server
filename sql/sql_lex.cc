@@ -111,8 +111,8 @@ void lex_start(THD *thd, uchar *buf,uint length)
   LEX *lex= thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
-  lex->buf= buf;
-  lex->end_of_query=(lex->ptr=buf)+length;
+  lex->buf= lex->ptr= buf;
+  lex->end_of_query=buf+length;
   lex->yylineno = 1;
   lex->in_comment=0;
   lex->length=0;
