@@ -738,7 +738,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
-#define clear_alloc_root(A) { (A)->free= (A)->used= (A)->pre_alloc= 0; }
+#define clear_alloc_root(A) bzero((void *) (A), sizeof(MEM_ROOT))
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
@@ -787,6 +787,10 @@ extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
                                      const char *from, ulong length);
+
+extern void thd_increment_bytes_sent(ulong length);
+extern void thd_increment_bytes_received(ulong length);
+extern void thd_increment_net_big_packet_count(ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

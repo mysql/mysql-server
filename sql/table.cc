@@ -733,7 +733,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-  opened_tables++;
+  current_thd->status_var.opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
     (void) hash_check(&outparam->name_hash);
@@ -1583,7 +1583,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   if (where)
   {
     Item_arena *arena= thd->current_arena, backup;
-    if (!arena->is_stmt_prepare())
+    TABLE_LIST *tbl= this;
+    if (arena->is_conventional())
       arena= 0;                                   // For easier test
 
     if (!where->fixed && where->fix_fields(thd, ancestor, &where))
@@ -1591,17 +1592,23 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
     if (arena)
       thd->set_n_backup_item_arena(arena, &backup);
-    if (outer_join)
+
+    /* Go up to join tree and try to find left join */
+    for (; tbl; tbl= tbl->embedding)
     {
-      /*
-        Store WHERE condition to ON expression for outer join, because we
-        can't use WHERE to correctly execute jeft joins on VIEWs and this
-        expression will not be moved to WHERE condition (i.e. will be clean
-        correctly for PS/SP)
-      */
-      on_expr= and_conds(on_expr, where);
+      if (tbl->outer_join)
+      {
+        /*
+          Store WHERE condition to ON expression for outer join, because we
+          can't use WHERE to correctly execute jeft joins on VIEWs and this
+          expression will not be moved to WHERE condition (i.e. will be clean
+          correctly for PS/SP)
+        */
+        tbl->on_expr= and_conds(tbl->on_expr, where);
+        break;
+      }
     }
-    else
+    if (tbl == 0)
     {
       /*
         It is conds of JOIN, but it will be stored in st_select_lex::prep_where
@@ -1609,6 +1616,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
       */
       *conds= and_conds(*conds, where);
     }
+
     if (arena)
       thd->restore_backup_item_arena(arena, &backup);
   }

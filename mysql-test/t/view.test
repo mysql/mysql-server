@@ -1230,3 +1230,44 @@ insert into v1 values (1) on duplicate key update s1 = 7;
 select * from t1;
 drop view v1;
 drop table t1;
+
+#
+# test of updating and fetching from the same table check
+#
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+-- error 1093
+update v2 set col1 = (select max(col1) from v1);
+#update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+delete from v2 where col1 = (select max(col1) from v1);
+#delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+insert into v2 values ((select max(col1) from v1));
+drop view v2,v1;
+drop table t1,t2;
+
+#
+# HANDLER with VIEW
+#
+create table t1 (s1 int);
+create view v1 as select * from t1;
+-- error 1347
+handler v1 open as xx;
+drop view v1;
+drop table t1;
+
+#
+# view with WHERE in nested join
+#
+create table t1(a int);
+insert into t1 values (0), (1), (2), (3);
+create table t2 (a int);
+insert into t2 select a from t1 where a > 1;
+create view v1 as select a from t1 where a > 1;
+select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
+drop view v1;
+drop table t1;

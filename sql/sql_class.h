@@ -443,6 +443,61 @@ struct system_variables
   DATE_TIME_FORMAT *time_format;
 };
 
+
+/* per thread status variables */
+
+typedef struct system_status_var
+{
+  ulong bytes_received;
+  ulong bytes_sent;
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+  ulong created_tmp_disk_tables;
+  ulong created_tmp_tables;
+  ulong ha_commit_count;
+  ulong ha_delete_count;
+  ulong ha_read_first_count;
+  ulong ha_read_last_count;
+  ulong ha_read_key_count;
+  ulong ha_read_next_count;
+  ulong ha_read_prev_count;
+  ulong ha_read_rnd_count;
+  ulong ha_read_rnd_next_count;
+  ulong ha_rollback_count;
+  ulong ha_update_count;
+  ulong ha_write_count;
+
+  /* KEY_CACHE parts. These are copies of the original */
+  ulong key_blocks_changed;
+  ulong key_blocks_used;
+  ulong key_cache_r_requests;
+  ulong key_cache_read;
+  ulong key_cache_w_requests;
+  ulong key_cache_write;
+  /* END OF KEY_CACHE parts */
+
+  ulong net_big_packet_count;
+  ulong opened_tables;
+  ulong select_full_join_count;
+  ulong select_full_range_join_count;
+  ulong select_range_count;
+  ulong select_range_check_count;
+  ulong select_scan_count;
+  ulong long_query_count;
+  ulong filesort_merge_passes;
+  ulong filesort_range_count;
+  ulong filesort_rows;
+  ulong filesort_scan_count;
+} STATUS_VAR;
+
+/*
+  This is used for 'show status'. It must be updated to the last ulong
+  variable in system_status_var
+*/
+
+#define last_system_status_var filesort_scan_count
+
+
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
@@ -477,6 +532,8 @@ public:
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_conventional() const
+  { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -682,6 +739,7 @@ public:
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
+  struct  system_status_var status_var; // Per thread statistic vars
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* 
     Note that (A) if we set query = NULL, we must at the same time set
@@ -1073,6 +1131,7 @@ public:
   {
     my_error(killed_errno(), MYF(0));
   }
+  void set_status_var_init();
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1556,3 +1615,7 @@ public:
   bool send_eof();
   void cleanup();
 };
+
+/* Functions in sql_class.cc */
+
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);

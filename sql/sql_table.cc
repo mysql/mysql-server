@@ -1517,7 +1517,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static bool close_cached_table(THD *thd, TABLE *table)
+void close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
 
@@ -1533,7 +1533,6 @@ static bool close_cached_table(THD *thd, TABLE *table)
 
   /* When lock on LOCK_open is freed other threads can continue */
   pthread_cond_broadcast(&COND_refresh);
-  DBUG_RETURN(0);
 }
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
@@ -3140,12 +3139,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       close the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
-    if (close_cached_table(thd, table))
-    {						// Aborted
-      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
+    close_cached_table(thd, table);
     table=0;					// Marker that table is closed
   }
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))

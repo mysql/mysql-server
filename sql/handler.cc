@@ -54,11 +54,7 @@
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 
-ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
-      ha_read_key_count, ha_read_next_count, ha_read_prev_count,
-      ha_read_first_count, ha_read_last_count,
-      ha_commit_count, ha_rollback_count,
-      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
+ulong ha_read_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -563,7 +559,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
-      statistic_increment(ha_commit_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_commit_count,&LOCK_status);
       thd->transaction.cleanup();
     }
     if (need_start_waiters)
@@ -652,7 +648,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-      statistic_increment(ha_rollback_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -725,7 +721,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
     operation_done=1;
 #endif
     if (operation_done)
-      statistic_increment(ha_rollback_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
 
@@ -920,7 +916,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,&LOCK_status);
 
   /*
     If there is very few deleted rows in the table, find the first row by
