@@ -292,7 +292,8 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
       Item *new_item= (*arg)->transform(transformer, argument);
       if (!new_item)
 	return 0;
-      *arg= new_item;
+      if (*arg != new_item)
+        current_thd->change_item_tree(arg, new_item);
     }
   }
   return (this->*transformer)(argument);

@@ -155,6 +155,7 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 unlock tables;
 LOCK TABLES t1 write, t2 write;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
@@ -460,7 +461,6 @@ drop table t1, t2, t3;
 create table t1 (col1 int);
 create table t2 (col1 int);
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 drop table t1,t2;

@@ -285,6 +285,7 @@ public:
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
+  virtual Item *set_no_const_sub(byte *arg) { return this; }
   virtual bool replace_equal_field_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
@@ -536,6 +537,7 @@ public:
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
+  Item *set_no_const_sub(byte *arg);
   bool replace_equal_field_processor(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
@@ -1024,6 +1026,7 @@ public:
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
   void print(String *str);
+  void cleanup();
 };
 
 class Item_in_subselect;

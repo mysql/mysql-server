@@ -647,6 +647,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
+    DBUG_PRINT("error",("state: %d", mysql->status));
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     return 1;
   }

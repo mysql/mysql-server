@@ -2809,7 +2809,8 @@ unsent_create_error:
       break;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      select_lex->item_list, lex->value_list,
-		      lex->duplicates);
+                      (lex->value_list.elements ?
+                       DUP_UPDATE : lex->duplicates));
     if (thd->net.report_error)
       res= -1;
     if (first_table->view && !first_table->contain_auto_increment)
@@ -6241,9 +6242,9 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
-  ulong privilege= INSERT_ACL |
-                   (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                   (lex->duplicates == DUP_UPDATE ? UPDATE_ACL : 0);
+  ulong privilege= (INSERT_ACL |
+                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
+                    (lex->value_list.elements ? UPDATE_ACL : 0));
 
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(1);
@@ -6308,27 +6309,13 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
         For temporary tables we don't have to check if the created table exists
       */
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-          find_real_table_in_list(tables, create_table->db,
-                                  create_table->real_name))
+          find_table_in_global_list(tables, create_table->db,
+                                    create_table->real_name))
       {
         net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
 
         goto err;
       }
-      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
-      {
-        TABLE_LIST *tab;
-        for (tab= tables; tab; tab= tab->next)
-        {
-          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
-                                      merge_list.first,
-                                      tables->db, tab->real_name))
-          {
-            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
-            goto err;
-          }
-        }  
-      }    
     }
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
       goto err;

@@ -958,7 +958,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 
   /* close handler tables which are marked for flush */
-  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
+  if (thd->handler_tables)
+    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
 
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
@@ -2095,11 +2096,14 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
           *ref= trans[i];
         else
         {
-          *ref= new Item_ref(trans + i, ref, table_list->view_name.str,
-                             item_name);
-          /* as far as Item_ref have defined refernce it do not need tables */
-          if (*ref)
+          Item_ref *item_ref= new Item_ref(trans + i, table_list->view_name.str,
+                                           item_name);
+          /* as far as Item_ref have defined reference it do not need tables */
+          if (item_ref)
+          {
+            thd->change_item_tree(ref, item_ref);
             (*ref)->fix_fields(thd, 0, ref);
+          }
         }
 	return (Field*) view_ref_found;
       }
@@ -2823,7 +2827,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
   RETURN
     0	ok
         'it' is updated to point at last inserted
-    1	error.  The error message is sent to client
+    1	error.  Error message is generated but not sent to client
 */
 
 bool
@@ -2999,9 +3003,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             during cleunup() this item will be put in list to replace
             expression from VIEW
           */
-          item->changed_during_fix_field= it->ref();
+          thd->nocheck_register_item_tree_change(it->ref(), item, &thd->mem_root);
         }
-
       }
       /* All fields are used */
       table->used_fields=table->fields;
@@ -3016,7 +3019,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 
 err:
-  send_error(thd);
   DBUG_RETURN(1);
 }
 

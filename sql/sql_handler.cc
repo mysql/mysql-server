@@ -288,7 +288,6 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     {
       (*table_ptr)->file->ha_index_or_rnd_end();
       VOID(pthread_mutex_lock(&LOCK_open));
-      table->file->ha_index_or_rnd_end();
       if (close_thread_table(thd, table_ptr))
       {
         /* Tell threads waiting for refresh that something has happened */
@@ -532,11 +531,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     {
       if (error == HA_ERR_RECORD_DELETED)
         continue;
-      if (err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
         sql_print_error("mysql_ha_read: Got error %d when reading table '%s'",
-                        err, tables->real_name);
-        table->file->print_error(err,MYF(0));
+                        error, tables->real_name);
+        table->file->print_error(error,MYF(0));
         goto err;
       }
       goto ok;

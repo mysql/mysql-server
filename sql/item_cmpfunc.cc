@@ -320,6 +320,17 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	func= &Arg_comparator::compare_binary_string;
       else if (func == &Arg_comparator::compare_e_string)
 	func= &Arg_comparator::compare_e_binary_string;
+
+      /*
+        As this is binary comparsion, mark all fields that they can't be
+        transformed. Otherwise we would get into trouble with comparisons
+        like:
+        WHERE col= 'j' AND col LIKE BINARY 'j'
+        which would be transformed to:
+        WHERE col= 'j'
+      */
+      (*a)->transform(&Item::set_no_const_sub, (byte*) 0);
+      (*b)->transform(&Item::set_no_const_sub, (byte*) 0);
     }
   }
   else if (type == INT_RESULT)

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 if ! test -f sql/mysqld.cc
 then
   echo "You must run this script from the MySQL top-level directory"

@@ -80,8 +80,7 @@ static bool check_fields(THD *thd, List<Item> &items)
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
-    it.replace(new Item_field(thd, field));
-    field->register_item_tree_changing(it.ref());
+    thd->change_item_tree(it.ref(), new Item_field(thd, field));
   }
   return FALSE;
 }
@@ -650,7 +649,7 @@ int mysql_multi_update_prepare(THD *thd)
     // Only set timestamp column if this is not modified
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     if (!tl->updatable || check_key_in_view(thd, tl))
       readonly_tables|= table->map;
@@ -689,6 +688,8 @@ int mysql_multi_update(THD *thd,
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
+  /* QQ: This should be fixed soon to get lower granularity locks */
+  select_lex->set_lock_for_tables(thd->lex->multi_lock_option);
   if ((res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
 

@@ -425,6 +425,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	RETURN_SYM
 %token	RETURNS_SYM
 %token	UDF_SONAME_SYM
+%token	UDF_RETURNS_SYM
 %token	FUNCTION_SYM
 %token	UNCOMMITTED_SYM
 %token	UNDEFINED_SYM
@@ -5730,7 +5731,6 @@ opt_insert_update:
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-            lex->duplicates= DUP_UPDATE;
           }
           KEY_SYM UPDATE_SYM update_list
         ;
@@ -6859,6 +6859,7 @@ keyword:
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
+	| FOUND_SYM		{}
 	| DISABLE_SYM		{}
 	| ENABLE_SYM		{}
 	| FULL			{}

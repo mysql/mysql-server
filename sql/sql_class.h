@@ -516,6 +516,9 @@ public:
   */
   Item *free_list;
   MEM_ROOT mem_root;
+#ifndef DBUG_OFF
+  bool backup_arena;
+#endif
   enum enum_state 
   {
     INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
@@ -552,7 +555,7 @@ public:
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
-  inline bool is_conventional_execution() const
+  inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
@@ -1167,7 +1170,7 @@ public:
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
-    if (!current_arena->is_conventional_execution())
+    if (!current_arena->is_conventional())
       nocheck_register_item_tree_change(place, *place, &mem_root);
     *place= new_value;
   }
@@ -1254,6 +1257,7 @@ public:
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
+  virtual bool simple_select() { return 0; }
   virtual void abort() {}
   /*
     Cleanup instance of this class for next execution of a prepared
@@ -1283,6 +1287,7 @@ public:
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
+  bool simple_select() { return 1; }
 };
 
 

@@ -1395,18 +1395,20 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     open_table().
     TODO: create and open should be done atomic !
   */
-  tmp_disable_binlog(thd);
-  if (!mysql_create_table(thd, create_table->db, create_table->real_name,
-			 create_info, *extra_fields, *keys, 0,
-			 select_field_count))
   {
-    if (!(table= open_table(thd, create_table, &thd->mem_root, (bool*) 0)))
-      quick_rm_table(create_info->db_type, create_table->db,
-                     table_case_name(create_info, create_table->real_name));
+    tmp_disable_binlog(thd);
+    if (!mysql_create_table(thd, create_table->db, create_table->real_name,
+                            create_info, *extra_fields, *keys, 0,
+                            select_field_count))
+    {
+      if (!(table= open_table(thd, create_table, &thd->mem_root, (bool*) 0)))
+        quick_rm_table(create_info->db_type, create_table->db,
+                       table_case_name(create_info, create_table->real_name));
+    }
+    reenable_binlog(thd);
+    if (!table)                                   // open failed
+      DBUG_RETURN(0);
   }
-  reenable_binlog(thd);
-  if (!table)                                   // open failed
-    DBUG_RETURN(0);
 
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)= mysql_lock_tables(thd, &table,1)))
@@ -3033,13 +3035,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->data_file_name=create_info->index_file_name=0;
 
   /* We don't log the statement, it will be logged later. */
-  tmp_disable_binlog(thd);
-  error= mysql_create_table(thd, new_db, tmp_name,
-                            create_info,create_list,key_list,1,0);
-  reenable_binlog(thd);
-  if (error)
-    DBUG_RETURN(error);
-
+  {
+    tmp_disable_binlog(thd);
+    error= mysql_create_table(thd, new_db, tmp_name,
+                              create_info,create_list,key_list,1,0);
+    reenable_binlog(thd);
+    if (error)
+      DBUG_RETURN(error);
+  }
   if (table->tmp_table)
   {
     TABLE_LIST tbl;
