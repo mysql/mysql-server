@@ -5,6 +5,9 @@
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
 
+# Embedded server doesn't support binlogging
+-- source include/not_embedded.inc
+
 -- source include/have_innodb.inc
 
 --disable_warnings
