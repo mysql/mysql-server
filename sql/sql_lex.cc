@@ -117,7 +117,30 @@ void lex_free(void)
 void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
+  lex->unit.init_query();
+  lex->unit.init_select();
   lex->thd= thd;
+  lex->unit.thd= thd;
+  lex->select_lex.init_query();
+  lex->value_list.empty();
+  lex->param_list.empty();
+  lex->unit.next= lex->unit.master=
+    lex->unit.link_next= lex->unit.return_to= 0;
+  lex->unit.prev= lex->unit.link_prev= 0;
+  lex->unit.slave= lex->unit.global_parameters= lex->current_select=
+    lex->all_selects_list= &lex->select_lex;
+  lex->select_lex.master= &lex->unit;
+  lex->select_lex.prev= &lex->unit.slave;
+  lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
+  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
+  lex->select_lex.options= 0;
+  lex->describe= 0;
+  lex->derived_tables= FALSE;
+  lex->lock_option= TL_READ;
+  lex->found_colon= 0;
+  lex->safe_to_cache_query= 1;
+  lex->time_zone_tables_used= 0;
+  lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;

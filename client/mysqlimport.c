@@ -264,7 +264,6 @@ static int write_to_table(char *filename, MYSQL *sock)
 {
   char tablename[FN_REFLEN], hard_path[FN_REFLEN],
        sql_statement[FN_REFLEN*16+256], *end;
-  my_bool local_file;
   DBUG_ENTER("write_to_table");
   DBUG_PRINT("enter",("filename: %s",filename));
 

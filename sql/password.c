@@ -35,7 +35,7 @@
     update user set password=PASSWORD("hello") where user="test"
   This saves a hashed number as a string in the password field.
 
-  The new autentication is performed in following manner:
+  The new authentication is performed in following manner:
 
   SERVER:  public_seed=create_random_string()
            send(public_seed)
