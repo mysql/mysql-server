@@ -311,7 +311,7 @@ TODO list:
 #include "emb_qcache.h"
 #endif
 
-#if !defined(DBUG_OFF) && !defined(DBUG_OFF)
+#if !defined(EXTRA_DBUG) && !defined(DBUG_OFF)
 #define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
   pthread_mutex_lock(M);}
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
@@ -2104,6 +2104,21 @@ void Query_cache::invalidate_table(Query_cache_block *table_block)
 }
 
 
+/*
+  Register given table list begining with given position in tables table of
+  block
+
+  SYNOPSIS
+    Query_cache::register_tables_from_list
+    tables_used     given table list
+    counter         number current position in table of tables of block
+    block_table     pointer to current position in tables table of block
+
+  RETURN
+    0   error
+    number of next position of table entry in table of tables of block
+*/
+
 TABLE_COUNTER_TYPE
 Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                                        TABLE_COUNTER_TYPE counter,
@@ -2738,13 +2753,12 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
   TABLE_COUNTER_TYPE table_count = 0;
   for (; tables_used; tables_used= tables_used->next_global)
   {
-
+    table_count++;
     if (tables_used->view)
     {
       DBUG_PRINT("qcache", ("view %s, db %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
-      table_count++;
       *tables_type|= HA_CACHE_TBL_NONTRANSACT;
       {
         TABLE_COUNTER_TYPE subcount;
@@ -2756,7 +2770,6 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
     }
     else
     {
-      table_count++;
       DBUG_PRINT("qcache", ("table %s, db %s, type %u",
                             tables_used->table->s->table_name,
                             tables_used->table->s->table_cache_key,
