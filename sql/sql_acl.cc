@@ -172,9 +172,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   tables[1].next=tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table=
-    tables[2].non_cachable_table= 1;
 
   uint counter;
   if (open_tables(thd, tables, &counter))
@@ -1328,7 +1325,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   bzero((char*) &tables,sizeof(tables));
   tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
-  tables.non_cachable_table= 1;	// just safety for table on stack
+
 #ifdef HAVE_REPLICATION
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -1386,7 +1383,7 @@ static bool test_if_create_new_users(THD *thd)
     bzero((char*) &tl,sizeof(tl));
     tl.db=	   (char*) "mysql";
     tl.real_name=  (char*) "user";
-    tl.non_cachable_table= 1;	// just safety for table on stack
+
     db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
@@ -2238,9 +2235,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 		  ? tables+2 : 0);
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table=
-    tables[2].non_cachable_table= 1;
 
 #ifdef HAVE_REPLICATION
   /*
@@ -2415,8 +2409,6 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
   tables[0].table=tables[1].table=0;
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table= 1;
 
 #ifdef HAVE_REPLICATION
   /*
@@ -2536,8 +2528,6 @@ my_bool grant_init(THD *org_thd)
   tables[0].next=tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_READ;
   tables[0].db=tables[1].db=thd->db;
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table= 1;
 
   uint counter;
   if (open_tables(thd, tables, &counter))
@@ -3375,9 +3365,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   tables->lock_type= (tables+1)->lock_type=
     (tables+2)->lock_type= (tables+3)->lock_type= TL_WRITE;
   tables->db= (tables+1)->db= (tables+2)->db= (tables+3)->db=(char*) "mysql";
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table=
-    tables[2].non_cachable_table= tables[3].non_cachable_table=1;
 
 #ifdef HAVE_REPLICATION
   /*

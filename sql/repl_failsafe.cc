@@ -736,7 +736,7 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
       table.db= (char*) db;
       table.real_name= (char*) table_name;
       table.updating= 1;
-      table.non_cachable_table= 1;	// just safety for table on stack
+
       if (!tables_ok(thd, &table))
 	continue;
     }

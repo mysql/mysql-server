@@ -670,9 +670,6 @@ int mysqld_help(THD *thd, const char *mask)
   tables[3].lock_type= TL_READ;
   tables[3].next= 0;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
-  // just safety for table on stack
-  tables[0].non_cachable_table= tables[1].non_cachable_table=
-    tables[2].non_cachable_table= tables[3].non_cachable_table= 1;
   
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
