@@ -21,3 +21,14 @@ drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 drop table t1;
+
+#
+# Tests of wrong enum values (bug #2023)
+#
+
+create table t1 (a enum ('0','1'));
+insert into t1 set a='foobar';
+select * from t1;
+update t1 set a = replace(a,'x','y');
+select * from t1;
+drop table t1;
