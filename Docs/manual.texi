@@ -845,7 +845,7 @@ files by using the @code{RAID} option. @xref{CREATE TABLE}.
 
 Another solution can be the included @code{MERGE} library, which allows
 you to handle a collection of identical tables as one.
-@xref{MERGE, MERGE tables}.
+@xref{MERGE, , @code{MERGE} tables}.
 
 
 @node Year 2000 compliance,  , Table size, What-is
@@ -35283,7 +35283,8 @@ to the datafile, the @code{RAID} handler will map the first
 @code{RAID_CHUNKSIZE} *1024 bytes to the next file and so on.
 @item
 @code{UNION} is used when you want to use a collection of identical
-tables as one. This only works with MERGE tables. @xref{MERGE}.
+tables as one. This only works with @code{MERGE} tables.
+@xref{MERGE, , @code{MERGE}}.
 
 For the moment you need to have @strong{select}, @strong{update}, and
 @strong{delete} privileges on the tables you map to a @code{MERGE} table.
@@ -37266,9 +37267,9 @@ will only clear the mapping for the table, not delete everything in the
 mapped tables. (We plan to fix this in 4.1).
 
 With identical tables we mean that all tables are created with identical
-column and key information.  You can't put a MERGE over tables where the
-columns are packed differently, doesn't have exactly the same columns or
-have the keys in different order.  Some of the tables can however be
+column and key information.  You can't merge tables in which the
+columns are packed differently, doesn't have exactly the same columns,
+or have the keys in different order.  However, some of the tables can be
 compressed with @code{myisampack}.  @xref{myisampack, , @code{myisampack}}.
 
 When you create a @code{MERGE} table, you will get a @file{.frm} table
@@ -37296,7 +37297,7 @@ kind of benefits.)
 @item
 Do more efficient searches. If you know exactly what you are looking
 after, you can search in just one of the split tables for some queries
-and use @strong{MERGE} table for others.  You can even have many
+and use @code{MERGE} table for others.  You can even have many
 different @code{MERGE} tables active, with possible overlapping files.
 @item
 More efficient repairs. It's easier to repair the individual files that
@@ -37314,9 +37315,10 @@ This is much faster and will save a lot of disk space.
 @item
 Go around the file-size limit for the operating system.
 @item
-You can create an alias/synonym for a table by just using MERGE over one
-table. There shouldn't be any really notable performance impacts of doing this
-(only a couple of indirect calls and memcpy's for each read).
+You can create an alias/synonym for a table by just using @code{MERGE}
+over one table. There shouldn't be any really notable performance
+impacts of doing this (only a couple of indirect calls and @code{memcpy()}
+calls for each read).
 @end itemize
 
 The disadvantages with @code{MERGE} tables are:
@@ -37330,7 +37332,7 @@ You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @code{REPLACE} doesn't work.
 @item
 @code{MERGE} tables uses more file descriptors. If you are using a
-@strong{MERGE} that maps over 10 tables and 10 users are using this, you
+@code{MERGE} that maps over 10 tables and 10 users are using this, you
 are using 10*10 + 10 file descriptors.  (10 datafiles for 10 users
 and 10 shared index files.)
 @item
@@ -49118,10 +49120,10 @@ Fixed bug in phrase operator @code{"..."} in boolean fulltext search.
 Fixed bug that caused duplicated rows when using truncation operator
 @code{*} in boolean fulltext search.
 @item
-Fixed bug in boolean fulltext search, that caused a crash when an identical
+Fixed bug in boolean fulltext search that caused a crash when an identical
 @code{MATCH} expression that did not use an index appeared twice.
 @item
-Query cache disabled in mysqldump.
+Query cache disabled in @code{mysqldump}.
 @item
 Fixed problem on Windows 98 that made sending of results very slow.
 @item
