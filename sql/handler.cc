@@ -105,6 +105,9 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
+static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
+uint known_extensions_id= 0;
+
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
   THD *thd= current_thd;
@@ -577,6 +580,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+    /*
+      As rollback can be 30 times slower than insert in InnoDB, and user may
+      not know there's rollback (if it's because of a dupl row), better warn.
+    */
+    const char *save_proc_info= thd->proc_info;
+    thd->proc_info= "Rolling back";
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
     {
@@ -647,7 +656,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
+      statistic_increment(ha_rollback_count,&LOCK_status);
+    thd->proc_info= save_proc_info;
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -759,6 +769,25 @@ int ha_savepoint(THD *thd, char *savepoint_name)
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
+
+
+int ha_start_consistent_snapshot(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if ((have_innodb == SHOW_OPTION_YES) &&
+      !innobase_start_trx_and_assign_read_view(thd))
+    return 0;
+#endif
+  /*
+    Same idea as when one wants to CREATE TABLE in one engine which does not
+    exist:
+  */
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "This MySQL server does not support any "
+               "consistent-read capable storage engine");
+  return 0;
+}
+
 
 bool ha_flush_logs()
 {
@@ -1754,4 +1783,66 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   if (!error)
     error= ha_index_end();
   return error;
+}
+
+
+/*
+  Returns a list of all known extensions.
+
+  SYNOPSIS
+    ha_known_exts()
+ 
+  NOTES
+    No mutexes, worst case race is a minor surplus memory allocation
+    We have to recreate the extension map if mysqld is restarted (for example
+    within libmysqld)
+
+  RETURN VALUE
+    pointer		pointer to TYPELIB structure
+*/
+
+TYPELIB *ha_known_exts(void)
+{
+  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
+  {
+    show_table_type_st *types;
+    List<char> found_exts;
+    List_iterator_fast<char> it(found_exts);
+    const char **ext, *old_ext;
+
+    known_extensions_id= mysys_usage_id;
+    found_exts.push_back((char*) ".db");
+    for (types= sys_table_types; types->type; types++)
+    {      
+      if (*types->value == SHOW_OPTION_YES)
+      {
+	handler *file= get_new_handler(0,(enum db_type) types->db_type);
+	for (ext= file->bas_ext(); *ext; ext++)
+	{
+	  while ((old_ext= it++))
+          {
+	    if (!strcmp(old_ext, *ext))
+	      break;
+          }
+	  if (!old_ext)
+	    found_exts.push_back((char *) *ext);
+
+	  it.rewind();
+	}
+	delete file;
+      }
+    }
+    ext= (const char **) my_once_alloc(sizeof(char *)*
+                                       (found_exts.elements+1),
+                                       MYF(MY_WME | MY_FAE));
+    
+    DBUG_ASSERT(ext);
+    known_extensions.count= found_exts.elements;
+    known_extensions.type_names= ext;
+
+    while ((old_ext= it++))
+      *ext++= old_ext;
+    *ext= 0;
+  }
+  return &known_extensions;
 }

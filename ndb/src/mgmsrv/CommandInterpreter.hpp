@@ -23,7 +23,6 @@
 
 #include <ndb_global.h>
 #include <Vector.hpp>
-#include <editline/editline.h>
 #include <BaseString.hpp>
 
 class MgmtSrvr;
@@ -63,26 +62,27 @@ private:
    */
   char *readline_gets ()
   {
+    static char linebuffer[254];
     static char *line_read = (char *)NULL;
-
-    // Disable the default file-name completion action of TAB
-    // rl_bind_key ('\t', rl_insert);
 
     /* If the buffer has already been allocated, return the memory
        to the free pool. */
     if (line_read)
-      {
-	free (line_read);
-	line_read = (char *)NULL;
-      }
+    {
+      free (line_read);
+      line_read = (char *)NULL;
+    }
     
     /* Get a line from the user. */
-    line_read = readline ("NDB> ");
-    
-    /* If the line has any text in it, save it on the history. */
-    if (line_read && *line_read)
-      add_history (line_read);
-    
+    fputs("ndb_mgmd> ", stdout);
+    linebuffer[sizeof(linebuffer)-1]=0;
+    line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
+    if (line_read == linebuffer) {
+      char *q=linebuffer;
+      while (*q > 31) q++;
+      *q=0;
+      line_read= strdup(linebuffer);
+    }
     return (line_read);
   }
   

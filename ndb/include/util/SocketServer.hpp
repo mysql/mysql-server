@@ -37,7 +37,7 @@ public:
   public:
     virtual ~Session() {}
     virtual void runSession(){}
-    virtual void stopSession(){}
+    virtual void stopSession(){ m_stop = true; }
   protected:
     friend class SocketServer;
     friend void* sessionThread_C(void*);
@@ -98,6 +98,8 @@ public:
    */
   void stopSessions(bool wait = false);
   
+  void foreachSession(void (*f)(SocketServer::Session*, void*), void *data);
+
 private:
   struct SessionInstance {
     Service * m_service;
