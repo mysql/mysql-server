@@ -679,6 +679,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	param_marker singlerow_subselect singlerow_subselect_init
 	signed_literal NUM_literal
 	exists_subselect exists_subselect_init sp_opt_default
+	simple_ident_nospvar simple_ident_q
 
 %type <item_list>
 	expr_list sp_expr_list udf_expr_list udf_expr_list2 when_list
@@ -1257,7 +1258,7 @@ sp_fdparams:
 	;
 
 sp_fdparam:
-	  ident type sp_opt_locator
+	  ident type
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
@@ -1283,7 +1284,7 @@ sp_pdparams:
 	;
 
 sp_pdparam:
-	  sp_opt_inout ident type sp_opt_locator
+	  sp_opt_inout ident type
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
@@ -1303,11 +1304,6 @@ sp_opt_inout:
 	| IN_SYM      { $$= sp_param_in; }
 	| OUT_SYM     { $$= sp_param_out; }
 	| INOUT_SYM   { $$= sp_param_inout; }
-	;
-
-sp_opt_locator:
-	  /* Empty */
-	| AS LOCATOR_SYM
 	;
 
 sp_proc_stmts:
@@ -1576,7 +1572,13 @@ sp_proc_stmt:
 	  {
 	    LEX *lex= Lex;
 
-	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
+	    /* QQ What else? This doesn't seem to be a practical way,
+	          but at the moment we can't think of anything better... */
+	    if ((lex->sql_command == SQLCOM_SELECT && !lex->result) ||
+	        lex->sql_command == SQLCOM_SHOW_CREATE_PROC ||
+	        lex->sql_command == SQLCOM_SHOW_CREATE_FUNC ||
+	        lex->sql_command == SQLCOM_SHOW_STATUS_PROC ||
+	        lex->sql_command == SQLCOM_SHOW_STATUS_FUNC)
 	    {
 	      /* We maybe have one or more SELECT without INTO */
 	      lex->sphead->m_multi_results= TRUE;
@@ -4907,7 +4909,7 @@ ident_eq_list:
 	ident_eq_value;
 
 ident_eq_value:
-	simple_ident equal expr_or_default
+	simple_ident_nospvar equal expr_or_default
 	 {
 	  LEX *lex=Lex;
 	  if (lex->field_list.push_back($1) ||
@@ -4994,12 +4996,12 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr_or_default
+	update_list ',' simple_ident_nospvar equal expr_or_default
 	{
 	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
 	}
-	| simple_ident equal expr_or_default
+	| simple_ident_nospvar equal expr_or_default
 	  {
 	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	      YYABORT;
@@ -5633,7 +5635,7 @@ NUM_literal:
 **********************************************************************/
 
 insert_ident:
-	simple_ident	 { $$=$1; }
+	simple_ident_nospvar { $$=$1; }
 	| table_wild	 { $$=$1; };
 
 table_wild:
@@ -5680,7 +5682,23 @@ simple_ident:
 	         (Item*) new Item_ref(NullS,NullS,$1.str);
 	  }
 	}
-	| ident '.' ident
+        | simple_ident_q { $$= $1; }
+	;
+
+simple_ident_nospvar:
+	ident
+	{
+	  SELECT_LEX *sel=Select;
+	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	       sel->get_in_sum_expr() > 0) ?
+              (Item*) new Item_field(NullS,NullS,$1.str) :
+	      (Item*) new Item_ref(NullS,NullS,$1.str);
+	}
+	| simple_ident_q { $$= $1; }
+	;	
+
+simple_ident_q:
+	ident '.' ident
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;

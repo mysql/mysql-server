@@ -283,4 +283,39 @@ create table t3 (column_1 int)|
 call bug1653()|
 drop procedure bug1653|
 drop table t3|
+create procedure bug2259()
+begin
+declare v1 int;
+declare c1 cursor for select s1 from t10;
+fetch c1 into v1;
+end|
+call bug2259()|
+ERROR 24000: Cursor is not open
+drop procedure bug2259|
+create procedure bug2272()
+begin
+declare v int;
+update t1 set v = 42;
+end|
+insert into t1 values (666, 51.3)|
+call bug2272()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+delete from t1|
+drop procedure bug2272|
+create procedure bug2329_1()
+begin
+declare v int;
+insert into t1 (v) values (5);
+end|
+create procedure bug2329_2()
+begin
+declare v int;
+replace t1 set v = 5;
+end|
+call bug2329_1()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+call bug2329_2()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+drop procedure bug2329_1|
+drop procedure bug2329_2|
 drop table t1|

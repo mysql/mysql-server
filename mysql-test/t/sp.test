@@ -109,6 +109,23 @@ delete from t1|
 drop procedure locset|
 
 
+# In some contexts local variables are not recognized
+# (and in some, you have to qualify the identifier).
+create procedure setcontext()
+begin
+  declare data int default 2;
+
+  insert into t1 (id, data) values ("foo", 1);
+  replace t1 set data = data, id = "bar";
+  update t1 set id = "kaka", data = 3 where t1.data = data;
+end|
+
+call setcontext()|
+select * from t1|
+delete from t1|
+drop procedure setcontext|
+
+
 # Set things to null
 --disable_warnings
 drop table if exists t3|
@@ -1035,6 +1052,60 @@ select * from t2|
 delete from t1|
 delete from t2|
 drop procedure bug1874|
+
+#
+# BUG#2260
+#
+create procedure bug2260()
+begin
+  declare v1 int;
+  declare continue handler for not found set @x2 = 1;
+  declare c1 cursor for select data from t1;
+
+  open c1;
+  fetch c1 into v1;
+  set @x2 = 2;
+  close c1;
+end|
+
+call bug2260()|
+select @x2|
+drop procedure bug2260|
+
+#
+# BUG#2267
+#
+create procedure bug2267_1()
+begin
+  show procedure status;
+end|
+
+create procedure bug2267_2()
+begin
+  show function status;
+end|
+
+create procedure bug2267_3()
+begin
+  show create procedure bug2267_1;
+end|
+
+create procedure bug2267_4()
+begin
+  show create function fac;
+end|
+
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+call bug2267_1()|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+call bug2267_2()|
+call bug2267_3()|
+call bug2267_4()|
+
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
 
 
 #
