@@ -1244,3 +1244,10 @@ a	b
 3	three
 4	four
 drop table t1, t2;
+create table t1 (a int, b varchar(30), primary key(a)) engine = bdb;
+insert into t1 values (1,'one');
+commit;
+truncate t1;
+select * from t1;
+a	b
+drop table t1;
