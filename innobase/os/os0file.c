@@ -347,9 +347,12 @@ try_again:
 
 	UT_NOT_USED(purpose);
 
-#ifdef O_DSYNC
+	/* Currently use only O_SYNC because there may be a bug in
+	   Linux O_DSYNC! */
+
+#ifdef O_SYNC
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
-	        create_flag = create_flag | O_DSYNC;
+	        create_flag = create_flag | O_SYNC;
 	}
 #endif
 	if (create_mode == OS_FILE_CREATE) {

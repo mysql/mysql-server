@@ -651,8 +651,6 @@ dict_table_get_index(
 	char*		name)	/* in: index name */
 {
 	dict_index_t*	index	= NULL;
-
-	mutex_enter(&(dict_sys->mutex));
 	
 	index = dict_table_get_first_index(table);
 
@@ -665,8 +663,6 @@ dict_table_get_index(
 		index = dict_table_get_next_index(index);
 	}	
 	
-	mutex_exit(&(dict_sys->mutex));
-
 	return(index);
 }
 
