@@ -213,6 +213,8 @@ typedef struct st_relay_log_info
   */
   int event_len;
 
+  time_t last_master_timestamp; 
+
   /*
     Needed for problems when slave stops and we want to restart it
     skipping one or more events in the master log that have caused
@@ -390,6 +392,16 @@ typedef struct st_master_info
   enum enum_binlog_formats old_format;
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
+  /* 
+     The difference in seconds between the clock of the master and the clock of
+     the slave (second - first). It must be signed as it may be <0 or >0.
+     clock_diff_with_master is computed when the I/O thread starts; for this the
+     I/O thread does a SELECT UNIX_TIMESTAMP() on the master.
+     "how late the slave is compared to the master" is computed like this:
+     clock_of_slave - last_timestamp_executed_by_SQL_thread - clock_diff_with_master
+
+  */
+  long clock_diff_with_master; 
   
   st_master_info()
     :ssl(0), fd(-1),  io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
@@ -512,7 +524,7 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
 void clear_until_condition(RELAY_LOG_INFO* rli);
-void clear_last_slave_error(RELAY_LOG_INFO* rli);
+void clear_slave_error_timestamp(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file);
