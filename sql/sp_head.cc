@@ -45,6 +45,54 @@ sp_map_result_type(enum enum_field_types type)
   }
 }
 
+/*
+ * Returns TRUE if the 'cmd' is a command that might result in
+ * multiple result sets being sent back.
+ * Note: This does not include SQLCOM_SELECT which is treated
+ *       separately in sql_yacc.yy.
+ */
+bool
+sp_multi_results_command(enum enum_sql_command cmd)
+{
+  switch (cmd) {
+  case SQLCOM_ANALYZE:
+  case SQLCOM_HA_READ:
+  case SQLCOM_SHOW_BINLOGS:
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_COLUMN_TYPES:
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_CREATE_DB:
+  case SQLCOM_SHOW_CREATE_FUNC:
+  case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_ERRORS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_INNODB_STATUS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_LOGS:
+  case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_NEW_MASTER:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_PRIVILEGES:
+  case SQLCOM_SHOW_PROCESSLIST:
+  case SQLCOM_SHOW_SLAVE_HOSTS:
+  case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_STATUS_FUNC:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_WARNS:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
