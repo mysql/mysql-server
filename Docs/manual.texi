@@ -2304,12 +2304,14 @@ to do and is a powerful way to get information about any table in a database
 that will help us create a situation matching the one you have.
 
 @item
-For speed-related bugs or problems with @code{SELECT} statements, you should
-always include the output of @code{EXPLAIN SELECT ...}, and at least the
-number of rows that the @code{SELECT} statement produces.  The more
-information you give about your situation, the more likely it is that someone
-can help you!  For example, the following is an example of a very good bug
-report (it should of course be posted with the @code{mysqlbug} script):
+For speed-related bugs or problems with @code{SELECT} statements, you
+should always include the output of @code{EXPLAIN SELECT ...}, and at
+least the number of rows that the @code{SELECT} statement produces.  You
+should also include the output from @code{SHOW CREATE TABLE table_name}
+for each involved table. The more information you give about your
+situation, the more likely it is that someone can help you!  For
+example, the following is an example of a very good bug report (it
+should of course be posted with the @code{mysqlbug} script):
 
 Example run using the @code{mysql} command-line tool (note the use of the
 @code{\G} statement terminator for statements whose output width would
@@ -50440,6 +50442,12 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments
+@item
+@code{--skip-ssl} can now be used to disable SSL in the MySQL clients,
+even if one is using other ssl options in a options file or previously
+on the command line.
+@item
 Added @code{LOCK TABLES} and @code{CREATE TEMPORARY TABLES} privilege on
 the database level.  One must run the @code{ mysql_fix_privilege_tables}
 script on old installations to activate these.
@@ -50494,12 +50502,13 @@ This affected at least @code{default-table-type} option.
 Fixed a bug that caused @code{REPAIR TABLE} to fail on tables
 with duplicates in a unique key.
 @item
-Fixed a bug in guessing a field type out of the function. The error was 
-introduced in 4.0.3 so that field type depended on the first argument to
-the function instead of the function itself
+Fixed a bug from 4.0.3 in calculating the default field type for some
+functions. This affected queries of type @code{CREATE TABLE table_name
+SELECT expression(),...}
 @item
-Fixed a bug with wildcarded fields in select list, which led to the wrong 
-number of elements in a list containing all fields
+Fixed bug in queries of type
+@code{SELECT * FROM table-list GROUP BY ...} and
+@code{SELECT DISTINCT * FROM ...}.
 @item
 Fixed bug with the @code{--slow-log} when logging an administrator command
 (like @code{FLUSH TABLES}).

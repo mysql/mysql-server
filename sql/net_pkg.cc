@@ -115,7 +115,13 @@ net_printf(NET *net, uint errcode, ...)
     is useful for rare errors that are not worth the hassle to put in
     errmsg.sys, but at the same time, the message is not fixed text
   */
-  format=errcode ? ER(errcode) : va_arg(args,char*);
+  if (errcode)
+    format= ER(errcode);
+  else
+  {
+    format=va_arg(args,char*);
+    errcode= ER_UNKNOWN_ERROR;
+  }
   offset= net->return_errno ? 2 : 0;
   text_pos=(char*) net->buff+head_length+offset+1;
   (void) vsprintf(my_const_cast(char*) (text_pos),format,args);

@@ -114,7 +114,7 @@ String *Item_func_sha::val_str(String *str)
     /* No need to check error as the only case would be too long message */
     sha1_input(&context,(const unsigned char *) sptr->ptr(), sptr->length());
     /* Ensure that memory is free and we got result */
-    if ( !( str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest)) ) )
+    if (!( str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest))))
     {
       sprintf((char *) str->ptr(),
       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\
@@ -144,24 +144,25 @@ void Item_func_sha::fix_length_and_dec()
 
 String *Item_func_aes_encrypt::val_str(String *str)
 {
-  String * sptr = args[0]->val_str(str); // String to encrypt
-  String tmp_value;  // required to handle  second parameter
-  String * key= args[1]->val_str(&tmp_value); // key
+  char key_buff[80];
+  String tmp_key_value(key_buff, sizeof(key_buff));
+  String *sptr= args[0]->val_str(str);			// String to encrypt
+  String *key=  args[1]->val_str(&tmp_key_value);	// key
   int aes_length;
   if (sptr && key) // we need both arguments to be not NULL
   {
     null_value=0;
-    aes_length=my_aes_get_size(sptr->length()); // calculate result length
+    aes_length=my_aes_get_size(sptr->length()); // Calculate result length
     
-    if (!str->alloc(aes_length))  // Ensure that memory is free
+    if (!str_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
-      if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str->ptr(),
+      if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str_value.ptr(),
 			 key->ptr(), key->length()) == aes_length)
       {		     
 	// We got the expected result length
-	str->length((uint) aes_length);
-	return str;
+	str_value.length((uint) aes_length);
+	return &str_value;
       }
     }
   }
@@ -178,29 +179,34 @@ void Item_func_aes_encrypt::fix_length_and_dec()
 
 String *Item_func_aes_decrypt::val_str(String *str)
 {
-  String * sptr= args[0]->val_str(str); // String to decrypt
-  String tmp_value; // temporary string required for parsing
-  String * key=  args[1]->val_str(&tmp_value); // key
-  int length;        // original length after decrypt
-  if (sptr && key)  // Need to have both arguments not NULL
+  char key_buff[80];
+  String tmp_key_value(key_buff, sizeof(key_buff)), *sptr, *key;
+  DBUG_ENTER("Item_func_aes_decrypt::val_str");
+
+  sptr= args[0]->val_str(str);			// String to decrypt
+  key=  args[1]->val_str(&tmp_key_value);	// Key
+  if (sptr && key)  			// Need to have both arguments not NULL
   {
     null_value=0;
-    if (!str->alloc(sptr->length()))  // Ensure that memory is free
+    if (!str_value.alloc(sptr->length()))  // Ensure that memory is free
     {
       // finally decrypt directly to allocated buffer.
-      length=my_aes_decrypt(sptr->ptr(), sptr->length(), (char*) str->ptr(),
+      int length;
+      length=my_aes_decrypt(sptr->ptr(), sptr->length(),
+			    (char*) str_value.ptr(),
                             key->ptr(), key->length());
       if (length >= 0)  // if we got correct data data
       {      
-        str->length((uint) length);
-        return str;
+        str_value.length((uint) length);
+        DBUG_RETURN(&str_value);
       }
     }
   }
   // Bad parameters. No memory or bad data will all go here
   null_value=1;
-  return 0;
+  DBUG_RETURN(0);
 }
+
 
 void Item_func_aes_decrypt::fix_length_and_dec()
 {

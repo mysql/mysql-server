@@ -178,7 +178,7 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   char block[AES_BLOCK_SIZE];	/* 128 bit block used for padding */
   int rc;			/* Result codes */
   int num_blocks;		/* Number of complete blocks */
-  char pad_len;			/* Pad size for the last block */
+  uint pad_len;			/* Pad size for the last block */
   int i;
 
   if ((rc=my_aes_create_key(&aes_key,AES_DECRYPT,key,key_length)))
@@ -197,7 +197,8 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   }
 
   rijndaelDecrypt(aes_key.rk, aes_key.nr, source, block);
-  pad_len = block[AES_BLOCK_SIZE-1]; /* Use last char in the block as size */
+  /* Use last char in the block as size */
+  pad_len = (uint) (uchar) block[AES_BLOCK_SIZE-1];
 
   if (pad_len > AES_BLOCK_SIZE)
     return AES_BAD_DATA;

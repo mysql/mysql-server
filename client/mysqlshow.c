@@ -18,16 +18,14 @@
 
 #define SHOW_VERSION "9.4"
 
-#include <my_global.h>
 #include "client_priv.h"
 #include <my_sys.h>
 #include <m_string.h>
-#include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
+#include <mysql.h>
+#include <mysqld_error.h>
 #include <signal.h>
 #include <stdarg.h>
-#include "sslopt-vars.h"
+#include <sslopt-vars.h>
 
 static my_string host=0,opt_password=0,user=0;
 static my_bool opt_show_keys=0,opt_compress=0,opt_status=0, tty_password=0;
@@ -85,9 +83,6 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
-  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
-      opt_ssl_cipher)
-    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
@@ -156,7 +151,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include "sslopt-longopts.h"
+#include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
    (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -224,6 +219,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;
+#include <sslopt-case.h>
   case 'V':
     print_version();
     exit(0);
