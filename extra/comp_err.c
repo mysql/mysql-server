@@ -41,7 +41,7 @@ static char *HEADERFILE= (char*) "mysqld_error.h";
 static char *NAMEFILE= (char*) "mysqld_ername.h";
 static char *STATEFILE= (char*) "sql_state.h";
 static char *TXTFILE= (char*) "../sql/share/errmsg.txt";
-static char *DATADIR= (char*) "../sql/share/";
+static char *DATADIRECTORY= (char*) "../sql/share/";
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
 
 /* Header for errmsg.sys files */
@@ -112,8 +112,8 @@ static struct my_option my_long_options[]=
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"in_file", 'F', "Input file", (gptr *) & TXTFILE, (gptr *) & TXTFILE,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_dir", 'D', "Output base directory", (gptr *) & DATADIR,
-   (gptr *) & DATADIR,
+  {"out_dir", 'D', "Output base directory", (gptr *) & DATADIRECTORY,
+   (gptr *) & DATADIRECTORY,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"out_file", 'O', "Output filename (errmsg.sys)", (gptr *) & OUTFILE,
    (gptr *) & OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -281,7 +281,7 @@ static int create_sys_files(struct languages *lang_head,
       DBUG_RETURN(1);
     }
 
-    outfile_end= strxmov(outfile, DATADIR, 
+    outfile_end= strxmov(outfile, DATADIRECTORY, 
                          tmp_lang->lang_long_name, NullS);
     if (!my_stat(outfile, &stat_info,MYF(0)))
     {
