@@ -175,6 +175,7 @@ select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -245,6 +246,8 @@ CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255));
 SET TIMESTAMP=1000000000;
 SET @@session.character_set_client=7,@@session.collation_connection=51,@@session.collation_server=30;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t1;
 create table `t1` (
 `pk` varchar(10) not null default '', 
