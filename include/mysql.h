@@ -122,17 +122,17 @@ struct st_mysql_options {
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
-   on connect, find out the replication role of the server, and
+   On connect, find out the replication role of the server, and
    establish connections to all the peers
  */
   my_bool rpl_probe;
- /* 
-    each call to mysql_real_query() will parse it to tell if it is a read
-    or a write, and direct it to the slave or the master
+ /*
+   Each call to mysql_real_query() will parse it to tell if it is a read
+   or a write, and direct it to the slave or the master
  */
   my_bool rpl_parse;
  /*
-   if set, never read from a master,only from slave, when doing
+   If set, never read from a master,only from slave, when doing
    a read that is replication-aware
  */
   my_bool no_master_reads;
@@ -185,8 +185,10 @@ typedef struct st_mysql {
    added though mysql_rpl_probe() or mysql_set_master()/ mysql_add_slave()
  */
   my_bool rpl_pivot;
-  /* pointers to the master, and the next slave
-    connections, points to itself if lone connection  */
+  /*
+    Pointers to the master, and the next slave connections, points to
+    itself if lone connection.
+  */
   struct st_mysql* master, *next_slave;
 
   struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
@@ -234,21 +236,27 @@ typedef struct st_mysql_manager
   char last_error[MAX_MYSQL_MANAGER_ERR];
 } MYSQL_MANAGER;
 
-/* Set up and bring down the server; to ensure that applications will
- * work when linked against either the standard client library or the
- * embedded server library, these functions should be called. */
+/*
+  Set up and bring down the server; to ensure that applications will
+  work when linked against either the standard client library or the
+  embedded server library, these functions should be called.
+*/
 int STDCALL mysql_server_init(int argc, char **argv, char **groups);
 void STDCALL mysql_server_end(void);
 
-/* Set up and bring down a thread; these function should be called
- * for each thread in an application which opens at least one MySQL
- * connection.  All uses of the connection(s) should be between these
- * function calls. */
+/*
+  Set up and bring down a thread; these function should be called
+  for each thread in an application which opens at least one MySQL
+  connection.  All uses of the connection(s) should be between these
+  function calls.
+*/
 my_bool STDCALL mysql_thread_init(void);
 void STDCALL mysql_thread_end(void);
 
-/* Functions to get information from the MYSQL and MYSQL_RES structures */
-/* Should definitely be used if one uses shared libraries */
+/*
+  Functions to get information from the MYSQL and MYSQL_RES structures
+  Should definitely be used if one uses shared libraries.
+*/
 
 my_ulonglong STDCALL mysql_num_rows(MYSQL_RES *res);
 unsigned int STDCALL mysql_num_fields(MYSQL_RES *res);
@@ -272,7 +280,6 @@ MYSQL *		STDCALL mysql_init(MYSQL *mysql);
 int		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
 				      const char *cert, const char *ca,
 				      const char *capath, const char *cipher);
-int		STDCALL mysql_ssl_clear(MYSQL *mysql);
 my_bool		STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 					  const char *passwd, const char *db);
 MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,

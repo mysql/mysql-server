@@ -31,6 +31,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqlhotcopy \
 			mysqldumpslow \
 			mysql_explain_log \
+			mysql_tableinfo \
 			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
@@ -50,6 +51,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 		        mysqldumpslow.sh \
 			mysql_explain_log.sh \
 			mysqld_multi.sh \
+			mysql_tableinfo.sh \
 			mysqld_safe.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \

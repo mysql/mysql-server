@@ -90,7 +90,7 @@ EXPORTS
 	mysql_real_escape_string
 	mysql_ssl_set
 	mysql_ssl_clear
-    mysql_real_connect
+	mysql_real_connect
 	mysql_master_query
 	mysql_master_send_query
 	mysql_slave_query

@@ -241,7 +241,7 @@ static struct my_option my_long_options[] =
   {"unpack", 'u', "Unpack file packed with myisampack.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
-   "Print more information. This can be used with --describe and --check. Use many -v for more verbosity!", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
+   "Print more information. This can be used with --description and --check. Use many -v for more verbosity!", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -312,7 +312,7 @@ static void usage(void)
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent\n\
   -v, --verbose       Print more information. This can be used with\n\
-                      --describe and --check. Use many -v for more verbosity!\n\
+                      --description and --check. Use many -v for more verbosity!\n\
   -V, --version       Print version and exit.\n\
   -w, --wait          Wait if table is locked.\n");
 
@@ -365,7 +365,7 @@ static void usage(void)
   puts("Other actions:\n\
   -a, --analyze	      Analyze distribution of keys. Will make some joins in\n\
 		      MySQL faster.  You can check the calculated distribution\n\
-		      by using '--describe --verbose table_name'.\n\
+		      by using '--description --verbose table_name'.\n\
   -d, --description   Prints some information about table.\n\
   -A, --set-auto-increment[=value]\n\
 		      Force auto_increment to start at this or higher value\n\

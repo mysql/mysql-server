@@ -1448,8 +1448,8 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************/
 
-int STDCALL
-mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
+static int
+mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 {
 #ifdef HAVE_OPENSSL
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
@@ -2051,7 +2051,7 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef HAVE_OPENSSL
-    mysql_ssl_clear(mysql);
+    mysql_ssl_free(mysql);
 #endif /* HAVE_OPENSSL */
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
