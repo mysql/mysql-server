@@ -33,6 +33,7 @@ set-variable	= sort_buffer_size=1M
 set-variable	= read_buffer_size=1M
 set-variable	= myisam_sort_buffer_size=64M
 set-variable	= thread_cache=8
+set-variable	= query_cache_size=16M
 # Try number of CPU's*2 for thread_concurrency
 set-variable	= thread_concurrency=8
 

@@ -3501,10 +3501,8 @@ ha_innobase::records_in_range(
 
 /*************************************************************************
 Gives an UPPER BOUND to the number of rows in a table. This is used in
-filesort.cc and the upper bound must hold. TODO: Since the number of
-rows in a table may change after this function is called, we still may
-get a 'Sort aborted' error in filesort.cc of MySQL. The ultimate fix is to
-improve the algorithm of filesort.cc. */
+filesort.cc and its better if the upper bound hold.
+*/
 
 ha_rows
 ha_innobase::estimate_number_of_rows(void)
@@ -3568,6 +3566,29 @@ ha_innobase::scan_time()
 	by 10, which would be physically realistic. */
 	
 	return((double) (prebuilt->table->stat_clustered_index_size));
+}
+
+/*
+  Calculate the time it takes to read a set of ranges through and index
+  This enables us to optimise reads for clustered indexes.
+*/
+
+double ha_innobase::read_time(uint index, uint ranges, ha_rows rows)
+{
+  ha_rows total_rows;
+  double time_for_scan;
+  if (index != table->primary_key)
+    return handler::read_time(index, ranges, rows); // Not clustered
+  if (rows <= 2)
+    return (double) rows;
+  /*
+    Assume that the read is proportional to scan time for all rows + one
+    seek per range.
+  */
+  time_for_scan= scan_time();
+  if ((total_rows= estimate_number_of_rows()) < rows)
+    return time_for_scan;
+  return (ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
 /*************************************************************************
