@@ -1676,26 +1676,13 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       Item *item;
-      /*
-         I'm (Sergei) too lazy to implement proper recursive descent here,
-         and anyway, nobody will use such a stupid queries
-         that will require it :-)
-         May be later...
-      */
       while ((item=li++))
-      {
-        if (item->type() == Item::FUNC_ITEM &&
-            ((Item_func *)item)->functype() == Item_func::FT_FUNC)
-        {
-          cond_func=(Item_func_match *)item;
-          break;
-        }
-      }
+        add_ft_keys(keyuse_array,stat,item,usable_tables);
     }
   }
 
-  if ((!cond_func || cond_func->key == NO_SUCH_KEY) ||
-      (!(usable_tables & cond_func->table->map)))
+  if (!cond_func || cond_func->key == NO_SUCH_KEY ||
+      !(usable_tables & cond_func->table->map))
     return;
 
   KEYUSE keyuse;
@@ -1706,7 +1693,6 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
-
 
 static int
 sort_keyuse(KEYUSE *a,KEYUSE *b)
