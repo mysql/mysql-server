@@ -11557,7 +11557,7 @@ have the necessary privileges to perform the request, but the server cannot
 tell that from either table by itself; the privileges granted by the entries
 in both tables must be combined.
 
-The @code{host} table can be used to maintain a list of ``secure'' servers.
+The @code{host} table can be used to maintain a list of secure servers.
 At TcX, the @code{host} table contains a list of all machines on the local
 network. These are granted all privileges.
 
@@ -11577,12 +11577,12 @@ like this:
 +--------------------+----+-
 @end example
 
-Naturally, you should always test your entries in the grant tables (e.g.,
-using @code{mysqlaccess}) to make sure your access privileges are actually
-set up the way you think they are.
+Naturally, you should always test your entries in the grant tables (for 
+example, using @code{mysqlaccess}) to make sure your access privileges are 
+actually set up the way you think they are.
 
 @node Privilege changes, Default privileges, Request access, Privilege system
-@section When privilege changes take effect
+@section When Privilege Changes Take Effect
 
 When @code{mysqld} starts, all grant table contents are read into memory and
 become effective at that point.
@@ -11615,7 +11615,7 @@ Global privilege changes and password changes take effect the next time the
 client connects.
 
 @node Default privileges, Adding users, Privilege changes, Privilege system
-@section Setting up the initial MySQL privileges
+@section Setting Up the Initial MySQL Privileges
 
 After installing @strong{MySQL}, you set up the initial access privileges by
 running @code{scripts/mysql_install_db}.
@@ -11629,7 +11629,7 @@ of privileges:
 The @strong{MySQL} @code{root} user is created as a superuser who can do
 anything.  Connections must be made from the local host.
 
-@strong{Note:}
+@strong{NOTE:}
 The initial @code{root} password is empty, so anyone can connect as @code{root}
 @emph{without a password} and be granted all privileges.
 
@@ -11660,7 +11660,8 @@ mysql> UPDATE user SET Password=PASSWORD('new_password')
 mysql> FLUSH PRIVILEGES;
 @end example
 
-You can in @strong{MySQL} 3.22 and above use the @code{SET PASSWORD} statement:
+You can, in @strong{MySQL} Version 3.22 and above, use the @code{SET PASSWORD}
+statement:
 
 @example
 shell> mysql -u root mysql
@@ -11673,13 +11674,13 @@ Another way to set the password is by using the @code{mysqladmin} command:
 shell> mysqladmin -u root password new_password
 @end example
 
-Only user with write/update access to the mysql database can change the
-password for others user.  All normal users (not anonymous ones) can only
-change his own password with either of the above commands or with
-@code{SET PASSWORD=PASSWORD('new password')}
+Only users with write/update access to the mysql database can change the
+password for others users.  All normal users (not anonymous ones) can only
+change their own password with either of the above commands or with
+@code{SET PASSWORD=PASSWORD('new password')}.
 
 Note that if you update the password in the @code{user} table directly using
-the first method, you must tell the server to reread the grant tables (with
+the first method, you must tell the server to re-read the grant tables (with
 @code{FLUSH PRIVILEGES}), because the change will go unnoticed otherwise.
 
 Once the @code{root} password has been set, thereafter you must supply that
@@ -11696,20 +11697,20 @@ add other users.
 If you want the initial privileges to be different than those just described
 above, you can modify @code{mysql_install_db} before you run it.
 
-To recreate the grant tables completely, remove all the @file{*.frm},
-@file{*.MYI} and @file{*.MYD} files in the directory containing the
+To re-create the grant tables completely, remove all the @file{.frm},
+@file{.MYI}, and @file{.MYD} files in the directory containing the
 @code{mysql} database.  (This is the directory named @file{mysql} under
 the database directory, which is listed when you run @code{mysqld
 --help}.) Then run the @code{mysql_install_db} script, possibly after
 editing it first to have the privileges you want.
 
-@strong{NOTE:} For @strong{MySQL} versions older than 3.22.10, you should NOT
-delete the @file{*.frm} files.  If you accidentally do this, you should
-copy them back from your @strong{MySQL} distribution before running
-@code{mysql_install_db}.
+@strong{NOTE:} For @strong{MySQL} versions older than Version 3.22.10, 
+you should NOT delete the @file{.frm} files.  If you accidentally do this, 
+you should copy them back from your @strong{MySQL} distribution before 
+running @code{mysql_install_db}.
 
 @node Adding users, Passwords, Default privileges, Privilege system
-@section Adding new user privileges to MySQL
+@section Adding New User Privileges to MySQL
 
 You can add users two different ways: by using @code{GRANT} statements
 or by manipulating the @strong{MySQL} grant tables directly.  The
@@ -11748,14 +11749,14 @@ use a password @code{'some_pass'} to do so.  Note that we must issue
 @code{monty@@"%"}.  If we don't add the entry with @code{localhost}, the
 anonymous user entry for @code{localhost} that is created by
 @code{mysql_install_db} will take precedence when we connect from the local
-host, because it has a more specific @code{Host} field value and thuse comes
+host, because it has a more specific @code{Host} field value and thus comes
 earlier in the @code{user} table sort order.
 
 @item admin
 A user who can connect from @code{localhost} without a password and who is
 granted the @strong{reload} and @strong{process} administrative privileges.
 This allows the user to execute the @code{mysqladmin reload},
-@code{mysqladmin refresh} and @code{mysqladmin flush-*} commands, as well as
+@code{mysqladmin refresh}, and @code{mysqladmin flush-*} commands, as well as
 @code{mysqladmin processlist} .  No database-related privileges are granted.
 (They can be granted later by issuing additional @code{GRANT} statements.)
 
@@ -11784,9 +11785,9 @@ mysql> FLUSH PRIVILEGES;
 @end example
 
 Depending on your @strong{MySQL} version, you may have to use a different
-number of @code{'Y'} values above (versions prior to 3.22.11 had fewer
+number of @code{'Y'} values above (versions prior to Version 3.22.11 had fewer
 privilege columns).  For the @code{admin} user, the more readable extended
-@code{INSERT} syntax that is available starting with 3.22.11 is used.
+@code{INSERT} syntax that is available starting with Version 3.22.11 is used.
 
 Note that to set up a superuser, you need only create a @code{user} table
 entry with the privilege fields set to @code{'Y'}.  No @code{db} or
@@ -11798,9 +11799,9 @@ are assigned the default value of @code{'N'}.  This is the same thing that
 @code{GRANT USAGE} does.
 
 The following example adds a user @code{custom} who can connect from hosts
-@code{localhost}, @code{server.domain} and @code{whitehouse.gov}.  He wants
+@code{localhost}, @code{server.domain}, and @code{whitehouse.gov}.  He wants
 to access the @code{bankaccount} database only from @code{localhost},
-the @code{expenses} database only from @code{whitehouse.gov} and
+the @code{expenses} database only from @code{whitehouse.gov}, and
 the @code{customer} database from all three hosts.  He wants
 to use the password @code{stupid} from all three hosts.
 
@@ -11856,7 +11857,7 @@ allow user @code{custom} to connect from the various hosts with the given
 password, but grant no permissions to him (all privileges are set to the
 default value of @code{'N'}).  The next three @code{INSERT} statements add
 @code{db} table entries that grant privileges to @code{custom} for the
-@code{bankaccount}, @code{expenses} and @code{customer} databases, but only
+@code{bankaccount}, @code{expenses}, and @code{customer} databases, but only
 when accessed from the proper hosts.  As usual, when the grant tables are
 modified directly, the server must be told to reload them (with
 @code{FLUSH PRIVILEGES}) so that the privilege changes take effect.
@@ -11879,14 +11880,14 @@ mysql> INSERT INTO user VALUES ('%.mydomainname.com', 'myusername',
 mysql> FLUSH PRIVILEGES;
 @end example
 
-You can also use @code{xmysqladmin}, @code{mysql_webadmin} and even
+You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
 @code{xmysql} to insert, change and update values in the grant tables.
 You can find these utilities in the
 @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory of the @strong{MySQL}
 Website}.
 
 @node Passwords, Access denied, Adding users, Privilege system
-@section How to set up passwords
+@section How to Set Up Passwords
 @cindex Passwords, setting
 @findex PASSWORD()
 
@@ -11953,14 +11954,13 @@ shell> mysqladmin -u jeffrey password biscuit
 @end example
 
 @strong{NOTE:} @code{PASSWORD()} does not perform password encryption in the
-same way that Unix passwords are encrypted.  You should not assume that if
-your Unix password and your @strong{MySQL} password are the same, that
+same way that UNIX passwords are encrypted.  You should not assume that if
+your UNIX password and your @strong{MySQL} password are the same, that
 @code{PASSWORD()} will result in the same encrypted value as is stored in the
-Unix password file.
-@xref{User names}.
+UNIX password file. @xref{User names}.
 
 @node Access denied,  , Passwords, Privilege system
-@section Causes of @code{Access denied} errors
+@section Causes of @code{Access denied} Errors
 
 If you encounter @code{Access denied} errors when you try to connect to the
 @strong{MySQL} server, the list below indicates some courses of
@@ -12010,11 +12010,11 @@ host.
 
 @item
 @cindex @code{mysql_fix_privilege_tables}
-If you updated an existing @strong{MySQL} installation from a pre-3.22.11
-version to 3.22.11 or later, did you run the
+If you updated an existing @strong{MySQL} installation from a version earlier 
+than Version 3.22.11 to Version 3.22.11 or later, did you run the 
 @code{mysql_fix_privilege_tables} script?  If not, do so.  The structure of
-the grant tables changed with @strong{MySQL} 3.22.11 when the @code{GRANT}
-statement became functional.
+the grant tables changed with @strong{MySQL} Version 3.22.11 when the 
+@code{GRANT} statement became functional.
 
 @item
 If your privileges seem to have changed in the middle of a session, it may be
@@ -12025,7 +12025,7 @@ client connections, but it also affects existing connections as indicated in
 @item
 If you can't get your password to work, remember that you must use
 the @code{PASSWORD()} function if you set the password with the
-@code{INSERT}, @code{UPDATE} or @code{SET PASSWORD} statements.  The
+@code{INSERT}, @code{UPDATE}, or @code{SET PASSWORD} statements.  The
 @code{PASSWORD()} function is unnecessary if you specify the password using
 the @code{GRANT ... INDENTIFIED BY} statement or the @code{mysqladmin
 password} command.
@@ -12036,7 +12036,7 @@ password} command.
 default host to which clients try to connect if you specify no host
 explicitly.  However, connections to @code{localhost} do not work if you are
 running on a system that uses MIT-pthreads (@code{localhost} connections are
-made using Unix sockets, which are not supported by MIT-pthreads).  To avoid
+made using UNIX sockets, which are not supported by MIT-pthreads).  To avoid
 this problem on such systems, you should use the @code{--host} option to name
 the server host explicitly.  This will make a TCP/IP connection to the
 @code{mysqld} server.  In this case, you must have your real hostname in
@@ -12074,11 +12074,11 @@ row in the @code{user} table that matches that host:
 Host ... is not allowed to connect to this MySQL server
 @end example
 
-You can fix this by using the command line tool @code{mysql} (on the
-server host!) to add a row to the @code{user}, @code{db} or @code{host}
+You can fix this by using the command-line tool @code{mysql} (on the
+server host!) to add a row to the @code{user}, @code{db}, or @code{host}
 table for the user/hostname combination from which you are trying to
 connect and then execute @code{mysqladmin flush-privileges}.  If you are
-not running @strong{MySQL} 3.22 and you don't know the IP number or
+not running @strong{MySQL} Version 3.22 and you don't know the IP number or
 hostname of the machine from which you are connecting, you should put an
 entry with @code{'%'} as the @code{Host} column value in the @code{user}
 table and restart @code{mysqld} with the @code{--log} option on the
@@ -12109,7 +12109,7 @@ IP to a hostname.  In this case you can execute @code{mysqladmin
 flush-hosts} to reset the internal DNS cache.  Some permanent solutions
 are:
 
-@itemize @bullet
+@itemize @minus
 @item
 Try to find out what is wrong with your DNS server and fix this.
 @item
@@ -12130,13 +12130,13 @@ If @code{mysql -u root test} works but @code{mysql -h your_hostname -u root
 test} results in @code{Access denied}, then you may not have the correct name
 for your host in the @code{user} table.  A common problem here is that the
 @code{Host} value in the user table entry specifies an unqualified hostname,
-but your system's name resolution routines return a fully-qualified domain
+but your system's name resolution routines return a fully qualified domain
 name (or vice-versa).  For example, if you have an entry with host
 @code{'tcx'} in the @code{user} table, but your DNS tells @strong{MySQL} that
 your hostname is @code{'tcx.subnet.se'}, the entry will not work. Try adding
 an entry to the @code{user} table that contains the IP number of your host as
 the @code{Host} column value.  (Alternatively, you could add an entry to the
-@code{user} table with a @code{Host} value that contains a wildcard---for
+@code{user} table with a @code{Host} value that contains a wild card---for
 example, @code{'tcx.%'}.  However, use of hostnames ending with @samp{%} is
 @emph{insecure} and is @emph{not} recommended!)
 
@@ -12154,7 +12154,7 @@ in the @code{user} table or the @code{db} table.
 @item
 If you can't figure out why you get @code{Access denied}, remove from the
 @code{user} table all entries that have @code{Host} values containing
-wildcards (entries that contain @samp{%} or @samp{_}).  A very common error
+wild cards (entries that contain @samp{%} or @samp{_}).  A very common error
 is to insert a new entry with @code{Host}=@code{'%'} and
 @code{User}=@code{'some user'}, thinking that this will allow you to specify
 @code{localhost} to connect from the same machine.  The reason that this
@@ -12201,7 +12201,7 @@ sure you haven't specified an old password in any of your option files!
 @xref{Option files}.
 
 @item
-If you make changes to the grant tables directly (using @code{INSERT} or
+If you make changes to the grant tables directly (using an @code{INSERT} or
 @code{UPDATE} statement) and your changes seem to be ignored, remember
 that you must issue a @code{FLUSH PRIVILEGES} statement or execute a
 @code{mysqladmin flush-privileges} command to cause the server to re-read
@@ -12212,7 +12212,7 @@ specify it until after you flush the privileges, because the server
 won't know you've changed the password yet!
 
 @item
-If you have access problems with a Perl, PHP, Python or ODBC program, try to
+If you have access problems with a Perl, PHP, Python, or ODBC program, try to
 connect to the server with @code{mysql -u user_name db_name} or @code{mysql
 -u user_name -pyour_pass db_name}.  If you are able to connect using the
 @code{mysql} client, there is a problem with your program and not with the
@@ -12244,12 +12244,12 @@ feel you must post the problem to the mailing list, always provide a
 dump of the @strong{MySQL} grant tables. You can dump the tables with
 the @code{mysqldump mysql} command. As always, post your problem using
 the @code{mysqlbug} script.  @xref{Bug reports}.  In some cases you may need
-to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
+to restart @code{mysqld} with @code{--skip-grant-tables} to run 
 @code{mysqldump}.
 @end itemize
 
 @node Reference, Table types, Privilege system, Top
-@chapter MySQL language reference
+@chapter MySQL Language Reference
 
 @menu
 * Literals::                    Literals: how to write strings and numbers
@@ -12296,7 +12296,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 @cindex Strings
 @cindex Strings, escaping characters
 @node Literals, Variables, Reference, Reference
-@section Literals: how to write strings and numbers
+@section Literals: How to Write Strings and Numbers
 
 @menu
 * String syntax::               Strings
@@ -12365,19 +12365,19 @@ A double quote (@samp{"}) character.
 @item \\
 A backslash (@samp{\}) character.
 
-@findex % (wildcard character)
-@findex Wildcard character (%)
+@findex % (wild card character)
+@findex Wild card character (%)
 @item \%
 A @samp{%} character. This is used to search for literal instances of
 @samp{%} in contexts where @samp{%} would otherwise be interpreted
-as a wildcard character. @xref{String comparison functions}.
+as a wild card character. @xref{String comparison functions}.
 
-@findex _ (wildcard character)
-@findex Wildcard character (_)
+@findex _ (wild card character)
+@findex Wild card character (_)
 @item \_
 A @samp{_} character. This is used to search for literal instances of
 @samp{_} in contexts where @samp{_} would otherwise be interpreted
-as a wildcard character. @xref{String comparison functions}.
+as a wild card character. @xref{String comparison functions}.
 @end table
 
 Note that if you use @samp{\%} or @samp{\_} in some string contexts, these
@@ -12483,11 +12483,11 @@ as the equivalent floating-point number.
 
 @tindex Hexadecimal values
 @node Hexadecimal values, NULL values, Number syntax, Literals
-@subsection Hexadecimal values
+@subsection Hexadecimal Values
 
-@strong{MySQL} supports hexadecimal values.  In number context these acts
-like an integer (64 bit precision). In string context these acts like a binary
-string where each pair of hex digits is converted to a character.
+@strong{MySQL} supports hexadecimal values.  In number context these act
+like an integer (64-bit precision). In string context these act like a binary
+string where each pair of hex digits is converted to a character:
 
 @example
 mysql> SELECT 0xa+0
@@ -12496,11 +12496,11 @@ mysql> select 0x5061756c;
        -> Paul
 @end example
 
-Hexadecimal strings is often used by ODBC to give values for BLOB columns.
+Hexadecimal strings are often used by ODBC to give values for BLOB columns.
 
 @tindex NULL value
 @node NULL values, Legal names, Hexadecimal values, Literals
-@subsection @code{NULL} values
+@subsection @code{NULL} Values
 
 The @code{NULL} value means ``no data'' and is different from values such
 as @code{0} for numeric types or the empty string for string types.
@@ -12511,35 +12511,35 @@ or export formats (@code{LOAD DATA INFILE}, @code{SELECT ... INTO OUTFILE}).
 @xref{LOAD DATA, , @code{LOAD DATA}}.
 
 @node Legal names,  , NULL values, Literals
-@subsection Database, table, index, column and alias names
+@subsection Database, Table, Index, Column, and Alias Names
 
 @menu
 * Name case sensitivity::       Case sensitivity in names
 @end menu
 
-Database, table, index, column and alias names all follow the same rules in
-@strong{MySQL}:
+Database, table, index, column, and alias names all follow the same rules in
+@strong{MySQL}.
 
 @tindex Quoting of identifiers
 @tindex `
 @tindex "
-Note that the rules changed starting with @strong{MySQL} 3.23.6 when we
-introduced quoting of identifiers (database, table and column names)
+Note that the rules changed starting with @strong{MySQL} Version 3.23.6 when we
+introduced quoting of identifiers (database, table, and column names)
 with @samp{`} (@samp{"} will also work to quote identifiers if you run
 in ANSI mode).
 
 @multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
-@item Database @tab 64 @tab Any character that is allowed in a directory name except @code{/}.
-@item Table @tab 64 @tab Any character that is allowed in file name, except @code{/} or @code{.}
-@item Column @tab 64 @tab All characters
-@item Alias @tab 255 @tab All characters
+@item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/}.
+@item Table @tab 64 @tab Any character that is allowed in a file name, except @samp{/} or @samp{.}.
+@item Column @tab 64 @tab All characters.
+@item Alias @tab 255 @tab All characters.
 @end multitable
 
 Note that in addition to the above, you can't have ASCII(0) or ASCII(255) in
 an identifier.
 
-Note that if the identifer is a restricted word or contains special character
+Note that if the identifer is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
 
 @example
@@ -12580,7 +12580,7 @@ from whichever table used in the query contains a column of that name
 @code{tbl_name} of the current database
 @item @code{db_name.tbl_name.col_name} @tab Column @code{col_name} from table
 @code{tbl_name} of the database @code{db_name}.  This form is available in
-@strong{MySQL} 3.22 or later.
+@strong{MySQL} Version 3.22 or later.
 @item
 @code{`column_name`} @tab A column that is a keyword or contains special characters.
 @end multitable
@@ -12603,7 +12603,7 @@ database.  This syntax is accepted for ODBC compatibility, because some ODBC
 programs prefix table names with a @samp{.} character.
 
 @node Name case sensitivity,  , Legal names, Legal names
-@subsubsection Case sensitivity in names
+@subsubsection Case Sensitivity in Names
 @cindex Database names, case sensitivity
 @cindex Table names, case sensitivity
 @cindex Column names, case sensitivity
@@ -12616,10 +12616,10 @@ programs prefix table names with a @samp{.} character.
 In @strong{MySQL}, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
 underlying operating system determines the case sensitivity of database and
-table names.  This means database and table names are case sensitive in Unix
+table names.  This means database and table names are case sensitive in UNIX
 and case insensitive in Windows.
 
-@strong{Note:} Although database and table names are case insensitive for
+@strong{NOTE:} Although database and table names are case insensitive for
 Windows, you should not refer to a given database or table using different
 cases within the same query.  The following query would not work because it
 refers to a table both as @code{my_table} and as @code{MY_TABLE}:
@@ -12641,9 +12641,9 @@ mysql> SELECT col_name FROM tbl_name AS a
 Aliases on columns are case insensitive.
 
 @node Variables, Column types, Literals, Reference
-@section User variables
+@section User Variables
 
-@strong{MySQL} supports thread specific variables with the
+@strong{MySQL} supports thread-specific variables with the
 @code{@@variablename} syntax.  A variable name may consist of
 alphanumeric characters from the current character set and also
 @samp{_}, @samp{$}, and @samp{.} . The default character set is
@@ -12652,7 +12652,7 @@ ISO-8859-1 Latin1; this may be changed with the
 sets}.
 
 Variables don't have to be initialized.  They contain @code{NULL} by default
-and can store an integer, real or string value.  All variables for
+and can store an integer, real, or string value.  All variables for
 a thread are automatically freed when the thread exits.
 
 You can set a variable with the @code{SET} syntax:
@@ -12683,10 +12683,10 @@ required, such as in the @code{LIMIT} clause of a @code{SELECT} statement,
 or the @code{IGNORE number LINES} clause of a @code{LOAD DATA} statement.
 
 @strong{NOTE:}  In a @code{SELECT} statement, each expression is only
-evaluated when it's sent to the client.  This means that one can't
-in the @code{HAVING}, @code{GROUP BY} or @code{ORDER BY} clause refer to an
-expression that involves variables that are set in the @code{SELECT} part.
-For example, the following statement will NOT work as expected:
+evaluated when it's sent to the client.  This means that in the @code{HAVING},
+@code{GROUP BY}, or @code{ORDER BY} clause, you can't refer to an expression 
+that involves variables that are set in the @code{SELECT} part. For example, 
+the following statement will NOT work as expected:
 
 @example
 SELECT (@@aa:=id) AS a, (@@aa+3) AS b FROM table_name HAVING b=5;
@@ -12696,7 +12696,7 @@ The reason is that @code{@@aa} will not contain the value of the current
 row, but the value of @code{id} for the previous accepted row.
 
 @node Column types, Functions, Variables, Reference
-@section Column types
+@section Column Types
 
 @strong{MySQL} supports a number of column types, which may be grouped into
 three categories: numeric types, date and time types, and string (character)
@@ -12769,7 +12769,7 @@ A large integer. The signed range is @code{-9223372036854775808} to
 @code{18446744073709551615}.  Note that all arithmetic is done using
 signed @code{BIGINT} or @code{DOUBLE} values, so you shouldn't use
 unsigned big integers larger than @code{9223372036854775807} (63 bits)
-except with bit functions!  Note that @code{-}, @code{+} and @code{*}
+except with bit functions!  Note that @samp{-}, @samp{+}, and @samp{*}
 will use @code{BIGINT} arithmetic when both arguments are @code{INTEGER}
 values!  This means that if you multiply two big integers (or results
 from functions that return integers) you may get unexpected results if
@@ -12780,14 +12780,13 @@ the result is larger than @code{9223372036854775807}.
 @item FLOAT(precision) [ZEROFILL]
 
 A floating-point number. Cannot be unsigned.  @code{precision} can be
-@code{<=24} for a single precision floating point number and between 25
-and 53 for a double precision floating point number.
-these types are like the @code{FLOAT} and @code{DOUBLE} types described
-immediately below. @code{FLOAT(X)} have the same ranges as the
-corresponding @code{FLOAT} and @code{DOUBLE} types, but the display
-size and number of decimals is undefined.
+@code{<=24} for a single-precision floating-point number and between 25
+and 53 for a double-precision floating-point number. These types are like 
+the @code{FLOAT} and @code{DOUBLE} types described immediately below. 
+@code{FLOAT(X)} has the same range as the corresponding @code{FLOAT} and 
+@code{DOUBLE} types, but the display size and number of decimals is undefined.
 
-In @strong{MySQL} 3.23, this is a true floating point value.  In
+In @strong{MySQL} Version 3.23, this is a true floating-point value.  In
 earlier @strong{MySQL} versions, @code{FLOAT(precision)} always has 2 decimals.
 
 @cindex ODBC compatibility
@@ -12800,10 +12799,10 @@ This syntax is provided for ODBC compatibility.
 
 A small (single-precision) floating-point number. Cannot be unsigned.
 Allowable values are @code{@w{-3.402823466E+38}} to
-@code{@w{-1.175494351E-38}}, @code{0} and @code{@w{1.175494351E-38}} to
+@code{@w{-1.175494351E-38}}, @code{0}, and @code{@w{1.175494351E-38}} to
 @code{3.402823466E+38}.  The M is the display width and D is the
 number of decimals.  @code{FLOAT} without an argument or with an argument of
-<= 24 stands for a single-precision floating point number.
+<= 24 stands for a single-precision floating-point number.
 
 @tindex DOUBLE
 @tindex FLOAT(precision)
@@ -12811,11 +12810,11 @@ number of decimals.  @code{FLOAT} without an argument or with an argument of
 
 A normal-size (double-precision) floating-point number. Cannot be
 unsigned. Allowable values are @code{@w{-1.7976931348623157E+308}} to
-@code{@w{-2.2250738585072014E-308}}, @code{0} and
+@code{@w{-2.2250738585072014E-308}}, @code{0}, and
 @code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The M
 is the display width and D is the number of decimals.  @code{DOUBLE}
 without an argument or @code{FLOAT(X)} where 25 <= X <= 53 stands for a
-double-precision floating point number.
+double-precision floating-point number.
 
 @tindex DOUBLE PRECISION
 @tindex REAL
@@ -12829,8 +12828,8 @@ These are synonyms for @code{DOUBLE}.
 
 An unpacked floating-point number.  Cannot be unsigned.  Behaves like a
 @code{CHAR} column: ``unpacked'' means the number is stored as a string,
-using one character for each digit of the value.  The decimal point,
-and, for negative numbers, the @samp{-} sign is not counted in M.  If
+using one character for each digit of the value.  The decimal point
+and, for negative numbers, the @samp{-} sign, are not counted in M.  If
 @code{D} is 0, values will have no decimal point or fractional part.
 The maximum range of @code{DECIMAL} values is the same as for
 @code{DOUBLE}, but the actual range for a given @code{DECIMAL} column
@@ -12838,8 +12837,8 @@ may be constrained by the choice of @code{M} and @code{D}.
 
 If @code{D} is left out it's set to 0. If @code{M} is left out it's set to 10.
 
-Note that in @strong{MySQL} 3.22 the @code{M} argument includes the sign
-and the decimal point.
+Note that in @strong{MySQL} Version 3.22 the @code{M} argument includes the 
+sign and the decimal point.
 
 @tindex NUMERIC
 @item NUMERIC(M,D) [ZEROFILL]
@@ -12867,7 +12866,7 @@ to assign values to @code{DATETIME} columns using either strings or numbers.
 
 A timestamp.  The range is @code{'1970-01-01 00:00:00'} to sometime in the
 year @code{2037}.  @strong{MySQL} displays @code{TIMESTAMP} values in
-@code{YYYYMMDDHHMMSS}, @code{YYMMDDHHMMSS}, @code{YYYYMMDD} or @code{YYMMDD}
+@code{YYYYMMDDHHMMSS}, @code{YYMMDDHHMMSS}, @code{YYYYMMDD}, or @code{YYMMDD}
 format, depending on whether @code{M} is @code{14} (or missing), @code{12},
 @code{8} or @code{6}, but allows you to assign values to @code{TIMESTAMP}
 columns using either strings or numbers.  A @code{TIMESTAMP} column is useful
@@ -12877,12 +12876,12 @@ recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
 
-A @code{TIMESTAMP} is always stored in 4 bytes; The @code{M} argument only
+A @code{TIMESTAMP} is always stored in 4 bytes. The @code{M} argument only
 affects how the @code{TIMESTAMP} column is displayed.
 
 Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
 be numbers while other @code{TIMESTAMP(X)} columns are reported to be
-strings.  This is just to ensure that one can reliable dump and restore
+strings.  This is just to ensure that one can reliably dump and restore
 the table with these types!
 
 @tindex TIME
@@ -12896,12 +12895,12 @@ numbers.
 @tindex YEAR
 @item YEAR[(2|4)]
 
-A year in 2- or 4- digit formats (default is 4-digit).  The allowable values are
-@code{1901} to @code{2155}, and @code{0000} in the 4 year format and
-1970-2069 if you use the 2 digit format (70-69).  @strong{MySQL} displays
-@code{YEAR} values in @code{YYYY} format, but allows you to assign
-values to @code{YEAR} columns using either strings or numbers.
-(The @code{YEAR} type is new in @strong{MySQL} 3.22.)
+A year in 2- or 4- digit formats (default is 4-digit).  The allowable values
+are @code{1901} to @code{2155}, and @code{0000} in the 4-digit year format,
+and 1970-2069 if you use the 2-digit format (70-69).  @strong{MySQL} displays
+@code{YEAR} values in @code{YYYY} format, but allows you to assign values to 
+@code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is 
+new in @strong{MySQL} Version 3.22.)
 
 @tindex NATIONAL CHAR
 @tindex NCHAR
@@ -12917,7 +12916,7 @@ default character set unless the @code{BINARY} keyword is given.
 
 @code{NATIONAL CHAR} (short form @code{NCHAR}) is the ANSI SQL way to
 define that a CHAR column should use the default CHARACTER set.  This is
-default in @strong{MySQL}.
+the default in @strong{MySQL}.
 
 @code{CHAR} is a shorthand for @code{CHARACTER}.
 
@@ -12934,11 +12933,11 @@ as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
 @tindex VARCHAR
 @item [NATIONAL] VARCHAR(M) [BINARY]
 
-A variable-length string.  Note:
-Trailing spaces are removed when the value is stored (this differs from the
-ANSI SQL specification). The range of @code{M} is 1 to 255 characters.
-@code{VARCHAR} values are sorted and compared in case-insensitive fashion
-unless the @code{BINARY} keyword is given. @xref{Silent column changes}.
+A variable-length string.  @strong{NOTE:} Trailing spaces are removed when 
+the value is stored (this differs from the ANSI SQL specification). The range 
+of @code{M} is 1 to 255 characters. @code{VARCHAR} values are sorted and 
+compared in case-insensitive fashion unless the @code{BINARY} keyword is 
+given. @xref{Silent column changes}.
 
 @code{VARCHAR} is a shorthand for @code{CHARACTER VARYING}.
 
@@ -13003,14 +13002,14 @@ be chosen from the list of values @code{'value1'}, @code{'value2'},
 
 @cindex Storage requirements
 @node Storage requirements, Numeric types, Column types, Column types
-@subsection Column type storage requirements
+@subsection Column Type Storage Requirements
 
 The storage requirements for each of the column types supported by
 @strong{MySQL} are listed below by category.
 
 @subheading Numeric types
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{TINYINT}       @tab 1 byte
 @item @code{SMALLINT}      @tab 2 bytes
@@ -13029,7 +13028,7 @@ The storage requirements for each of the column types supported by
 
 @subheading Date and time types
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{DATE}          @tab 3 bytes
 @item @code{DATETIME}      @tab 8 bytes
@@ -13040,7 +13039,7 @@ The storage requirements for each of the column types supported by
 
 @subheading String types
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{CHAR(M)} @tab @code{M} bytes, @code{1 <= M <= 255}
 @item @code{VARCHAR(M)} @tab @code{L}+1 bytes, where @code{L <= M} and
@@ -13068,26 +13067,26 @@ storage required is the length of the string (@code{L}), plus 1 byte to
 record the length of the string.  For the string @code{'abcd'}, @code{L} is 4
 and the storage requirement is 5 bytes.
 
-The @code{BLOB} and @code{TEXT} types require 1, 2, 3 or 4 bytes to record
+The @code{BLOB} and @code{TEXT} types require 1, 2, 3, or 4 bytes to record
 the length of the column value, depending on the maximum possible length of
 the type.
 
 If a table includes any variable-length column types, the record format will
 also be variable-length.  Note that when a table is created, @strong{MySQL}
-may under certain conditions change a column from a variable-length type to a
+may, under certain conditions, change a column from a variable-length type to a
 fixed-length type, or vice-versa.  @xref{Silent column changes}.
 
 The size of an @code{ENUM} object is determined by the number of different
-enumeration values.  1 byte is used for enumerations with up to 255 possible
-values.  2 bytes are used for enumerations with up to 65535 values.
+enumeration values.  One byte is used for enumerations with up to 255 possible
+values.  Two bytes are used for enumerations with up to 65535 values.
 
 The size of a @code{SET} object is determined by the number of different
 set members.  If the set size is @code{N}, the object occupies @code{(N+7)/8}
-bytes, rounded up to 1, 2, 3, 4 or 8 bytes.  A @code{SET} can have a maximum
+bytes, rounded up to 1, 2, 3, 4, or 8 bytes.  A @code{SET} can have a maximum
 of 64 members.
 
 @node Numeric types, Date and time types, Storage requirements, Column types
-@subsection Numeric types
+@subsection Numeric Types
 
 @strong{MySQL} supports all of the ANSI/ISO SQL92 numeric types.  These
 types include the exact numeric data types (@code{NUMERIC},
@@ -13109,10 +13108,10 @@ example:
 @end example
 
 In this example, @code{9} (@code{precision}) represents the number of
-significant decimal digits which will be stored for values, and
-@code{2} (@code{scale}) represents the number of digits which will be
+significant decimal digits that will be stored for values, and
+@code{2} (@code{scale}) represents the number of digits that will be
 stored following the decimal point.  In this case, therefore, the range
-of values which can be stored in the @code{salary} column is from
+of values that can be stored in the @code{salary} column is from
 @code{-9999999.99} to @code{9999999.99}.  In ANSI/ISO SQL92, the syntax
 @code{DECIMAL(p)} is equivalent to @code{DECIMAL(p,0)}.  Similarly, the
 syntax @code{DECIMAL} is equivalent to @code{DECIMAL(p,0)}, where the
@@ -13125,7 +13124,7 @@ the ability to control both precision and scale explicitly.
 @code{DECIMAL} and @code{NUMERIC} values are stored as strings, rather
 than as binary floating point numbers, in order to preserve the decimal
 precision of those values.  One character is used for each digit of the
-value, the decimal point (if @code{scale} > 0) and the @samp{-} sign
+value, the decimal point (if @code{scale} > 0), and the @samp{-} sign
 (for negative numbers).  If @code{scale} is 0, @code{DECIMAL} and
 @code{NUMERIC} values contain no decimal point or fractional part.
 
@@ -13149,16 +13148,16 @@ of an integral value in parentheses following the base keyword for the
 type (for example, @code{INT(4)}).  This optional width specification is
 used to left-pad the display of values whose width is less than the
 width specified for the column, but does not constrain the range of
-values which can be stored in the column, nor the number of digits which
+values which can be stored in the column, nor the number of digits that
 will be displayed for values whose width exceeds that specified for the
 column.  When used in conjunction with the optional extension attribute
-@code{ZEROFILL} the default padding of spaces is replaced with zeroes.
+@code{ZEROFILL}, the default padding of spaces is replaced with zeroes.
 For example, for a column declared as @code{INT(5) ZEROFILL}, a value
 of @code{4} is retrieved as @code{00004}.  Note that if you store larger
-values than the display width in an integral column, you may experience
+values than the display width in an integer column, you may experience
 problems when @strong{MySQL} generates temporary tables for some
-complicated joins as in these case @strong{MySQL} trust that the data
-did fit into the original column width.
+complicated joins, as in these cases @strong{MySQL} will trust that the 
+data did fit into the original column width.
 
 All integral types can have an optional (non-standard) attribute
 @code{UNSIGNED}.  Unsigned values can be used when you want to allow
@@ -13188,7 +13187,7 @@ standard, @strong{MySQL} recognizes @code{DOUBLE} as a synonym for the
 @code{DOUBLE PRECISION} type.  In contrast with the standard's
 requirement that the precision for @code{REAL} be smaller than that used
 for @code{DOUBLE PRECISION}, @strong{MySQL} implements both as 8-byte
-double-precision floating point values (when not running in ``Ansi mode'').
+double-precision floating-point values (when not running in ``Ansi mode'').
 For maximum portability, code requiring storage of approximate numeric
 data values should use @code{FLOAT} or @code{DOUBLE PRECISION} with no
 specification of precision or number of decimal points.
@@ -13209,13 +13208,13 @@ If you try to store @code{-9999999999} and @code{9999999999},
 the values stored in the column become @code{0} and @code{4294967296}.
 
 Conversions that occur due to clipping are reported as ``warnings'' for
-@code{ALTER TABLE}, @code{LOAD DATA INFILE}, @code{UPDATE} and
+@code{ALTER TABLE}, @code{LOAD DATA INFILE}, @code{UPDATE}, and
 multi-row @code{INSERT} statements.
 
 @cindex Types, Date and Time
 @cindex Date and Time types
 @node Date and time types, String types, Numeric types, Column types
-@subsection Date and time types
+@subsection Date and Time Types
 
 @menu
 * Y2K issues::                  Y2K issues and date types
@@ -13225,7 +13224,7 @@ multi-row @code{INSERT} statements.
 @end menu
 
 The date and time types are @code{DATETIME}, @code{DATE},
-@code{TIMESTAMP}, @code{TIME} and @code{YEAR}.  Each of these has a
+@code{TIMESTAMP}, @code{TIME}, and @code{YEAR}.  Each of these has a
 range of legal values, as well as a ``zero'' value that is used when you
 specify a really illegal value.  Note that @strong{MySQL} allows you to store
 certain 'not strictly' legal date values, for example @code{1999-11-31}.
@@ -13235,11 +13234,11 @@ date checking 'fast', @strong{MySQL} only checks that the month is in
 the range of 0-12 and the day is in the range of 0-31. The above ranges
 are defined this way because @strong{MySQL} allows you to store, in a
 @code{DATE} or @code{DATETIME} column, dates where the day or month-day
-are zero.  This is extremely useful for applications that need to store
+is zero.  This is extremely useful for applications that need to store
 a birth-date for which you don't know the exact date. In this case you
 simply store the date like @code{1999-00-00} or @code{1999-01-00}.  (You
-can of course not expect to get a correct value from functions like
-@code{DATE_SUB()} or @code{DATE_ADD} for dates like these).
+cannot expect to get a correct value from functions like @code{DATE_SUB()}
+or @code{DATE_ADD} for dates like these.)
 
 Here are some general considerations to keep in mind when working
 with date and time types:
@@ -13248,18 +13247,18 @@ with date and time types:
 @item
 @strong{MySQL} retrieves values for a given date or time type in a standard
 format, but it attempts to interpret a variety of formats for values that
-you supply (e.g., when you specify a value to be assigned to or compared to a
-date or time type).  Nevertheless, only the formats described in the
-following sections are supported.  It is expected that you will supply legal
-values, and unpredictable results may occur if you use values in other
+you supply (for example, when you specify a value to be assigned to or 
+compared to a date or time type).  Nevertheless, only the formats described 
+in the following sections are supported.  It is expected that you will supply 
+legal values, and unpredictable results may occur if you use values in other
 formats.
 
 @item
 Although @strong{MySQL} tries to interpret values in several formats, it
 always expects the year part of date values to be leftmost.  Dates must be
-given in year-month-day order (e.g., @code{'98-09-04'}), rather than in the
-month-day-year or day-month-year orders commonly used elsewhere (e.g.,
-@code{'09-04-98'}, @code{'04-09-98'}).
+given in year-month-day order (for example, @code{'98-09-04'}), rather than 
+in the month-day-year or day-month-year orders commonly used elsewhere (for
+example, @code{'09-04-98'}, @code{'04-09-98'}).
 
 @item
 @strong{MySQL} automatically converts a date or time type value to a number
@@ -13267,7 +13266,7 @@ if the value is used in a numeric context, and vice versa.
 
 @item
 When @strong{MySQL} encounters a value for a date or time type that is
-out of range or otherwise illegal for the type (see start of this
+out of range or otherwise illegal for the type (see the start of this
 section), it converts the value to the ``zero'' value for that type.
 (The exception is that out-of-range @code{TIME} values are clipped to
 the appropriate endpoint of the @code{TIME} range.)  The table below
@@ -13289,13 +13288,13 @@ using the values @code{'0'} or @code{0}, which are easier to write.
 
 @item
 ``Zero'' date or time values used through @strong{MyODBC} are converted
-automatically to @code{NULL} in @strong{MyODBC} 2.50.12 and above, because
-ODBC can't handle such values.
+automatically to @code{NULL} in @strong{MyODBC} Version 2.50.12 and above, 
+because ODBC can't handle such values.
 @end itemize
 
 @cindex Year 2000 issues
 @node Y2K issues, DATETIME, Date and time types, Date and time types
-@subsubsection Y2K issues and date types
+@subsubsection Y2K Issues and Date Types
 
 @strong{MySQL} itself is Y2K-safe (@pxref{Year 2000 compliance}),
 but input values presented to @strong{MySQL} may not be.  Any input
@@ -13303,7 +13302,7 @@ containing 2-digit year values is ambiguous, because the century is unknown.
 Such values must be interpreted into 4-digit form because @strong{MySQL} stores
 years internally using four digits.
 
-For @code{DATETIME}, @code{DATE}, @code{TIMESTAMP} and @code{YEAR} types,
+For @code{DATETIME}, @code{DATE}, @code{TIMESTAMP}, and @code{YEAR} types,
 @strong{MySQL} interprets dates with ambiguous year values using the
 following rules:
 
@@ -13320,22 +13319,22 @@ data mean.  If the heuristics used by @strong{MySQL} don't produce the
 correct values, you should provide unambiguous input containing 4-digit
 year values.
 
-@code{ORDER BY} will sort 2 digit @code{YEAR/DATE/DATETIME} types properly.
+@code{ORDER BY} will sort 2-digit @code{YEAR/DATE/DATETIME} types properly.
 
 Note also that some functions like @code{MIN()} and @code{MAX()} will convert a
-@code{TIMESTAMP/DATE} to a number. This means that a timestamp with a 2
-digit year will not work properly with these functions.  The fix in this
-case is to convert the @code{TIMESTAMP/DATE} to 4 digit year format or
+@code{TIMESTAMP/DATE} to a number. This means that a timestamp with a 
+2-digit year will not work properly with these functions.  The fix in this
+case is to convert the @code{TIMESTAMP/DATE} to 4-digit year format or
 use something like @code{MIN(DATE_ADD(timestamp,INTERVAL 0 DAYS))}.
 
 @tindex DATETIME
 @tindex DATE
 @tindex TIMESTAMP
 @node DATETIME, TIME, Y2K issues, Date and time types
-@subsubsection The @code{DATETIME}, @code{DATE} and @code{TIMESTAMP} types
+@subsubsection The @code{DATETIME}, @code{DATE}, and @code{TIMESTAMP} Types
 
-The @code{DATETIME}, @code{DATE} and @code{TIMESTAMP} types are related.
-This section describes their characteristics, how they are similar and how
+The @code{DATETIME}, @code{DATE}, and @code{TIMESTAMP} types are related.
+This section describes their characteristics, how they are similar, and how
 they differ.
 
 The @code{DATETIME} type is used when you need values that contain both date
@@ -13373,7 +13372,7 @@ You explicitly set the @code{TIMESTAMP} column to @code{NULL}.
 @end itemize
 
 @code{TIMESTAMP} columns other than the first may also be set to the current
-date and time.  Just set the column to @code{NULL}, or to @code{NOW()}.
+date and time.  Just set the column to @code{NULL} or to @code{NOW()}.
 
 You can set any @code{TIMESTAMP} column to a value different than the current
 date and time by setting it explicitly to the desired value.  This is true
@@ -13422,7 +13421,7 @@ specify an arbitrary display size at table creation time, but values of 0 or
 greater than 14 are coerced to 14.  Odd-valued sizes in the range from 1 to
 13 are coerced to the next higher even number.
 
-You can specify @code{DATETIME}, @code{DATE} and @code{TIMESTAMP} values using
+You can specify @code{DATETIME}, @code{DATE}, and @code{TIMESTAMP} values using
 any of a common set of formats:
 
 @itemize @bullet
@@ -13431,13 +13430,13 @@ As a string in either @code{'YYYY-MM-DD HH:MM:SS'} or @code{'YY-MM-DD
 HH:MM:SS'} format.  A ``relaxed'' syntax is allowed---any punctuation
 character may be used as the delimiter between date parts or time parts.
 For example, @code{'98-12-31 11:30:45'}, @code{'98.12.31 11+30+45'},
-@code{'98/12/31 11*30*45'} and @code{'98@@12@@31 11^30^45'} are
+@code{'98/12/31 11*30*45'}, and @code{'98@@12@@31 11^30^45'} are
 equivalent.
 
 @item
 As a string in either @code{'YYYY-MM-DD'} or @code{'YY-MM-DD'} format.
 A ``relaxed'' syntax is allowed here, too.  For example, @code{'98-12-31'},
-@code{'98.12.31'}, @code{'98/12/31'} and @code{'98@@12@@31'} are
+@code{'98.12.31'}, @code{'98/12/31'}, and @code{'98@@12@@31'} are
 equivalent.
 
 @item
@@ -13468,23 +13467,23 @@ format, provided that the number makes sense as a date.  For example,
 
 @item
 As the result of a function that returns a value that is acceptable
-in a @code{DATETIME}, @code{DATE} or @code{TIMESTAMP} context, such as
+in a @code{DATETIME}, @code{DATE}, or @code{TIMESTAMP} context, such as
 @code{NOW()} or @code{CURRENT_DATE}.
 @end itemize
 
-Illegal @code{DATETIME}, @code{DATE} or @code{TIMESTAMP} values are converted
+Illegal @code{DATETIME}, @code{DATE}, or @code{TIMESTAMP} values are converted
 to the ``zero'' value of the appropriate type (@code{'0000-00-00 00:00:00'},
-@code{'0000-00-00'} or @code{00000000000000}).
+@code{'0000-00-00'}, or @code{00000000000000}).
 
 For values specified as strings that include date part delimiters, it is not
 necessary to specify two digits for month or day values that are less than
 @code{10}.  @code{'1979-6-9'} is the same as @code{'1979-06-09'}.  Similarly,
 for values specified as strings that include time part delimiters, it is not
-necessary to specify two digits for hour, month or second values that are
+necessary to specify two digits for hour, month, or second values that are
 less than @code{10}.  @code{'1979-10-30 1:2:3'} is the same as
 @code{'1979-10-30 01:02:03'}.
 
-Values specified as numbers should be 6, 8, 12 or 14 digits long.  If the
+Values specified as numbers should be 6, 8, 12, or 14 digits long.  If the
 number is 8 or 14 digits long, it is assumed to be in @code{YYYYMMDD} or
 @code{YYYYMMDDHHMMSS} format and that the year is given by the first 4
 digits.  If the number is 6 or 12 digits long, it is assumed to be in
@@ -13496,7 +13495,7 @@ Values specified as non-delimited strings are interpreted using their length
 as given.  If the string is 8 or 14 characters long, the year is assumed to
 be given by the first 4 characters.  Otherwise the year is assumed to be
 given by the first 2 characters.  The string is interpreted from left to
-right to find year, month, day, hour, minute and second values, for as many
+right to find year, month, day, hour, minute, and second values, for as many
 parts as are present in the string.  This means you should not use strings
 that have fewer than 6 characters.  For example, if you specify @code{'9903'},
 thinking that will represent March, 1999, you will find that @strong{MySQL}
@@ -13551,7 +13550,7 @@ object, the time part of the resulting value is deleted, because the
 @code{DATE} type stores no time information.
 
 @item
-Remember that although @code{DATETIME}, @code{DATE} and @code{TIMESTAMP}
+Remember that although @code{DATETIME}, @code{DATE}, and @code{TIMESTAMP}
 values all can be specified using the same set of formats, the types do not
 all have the same range of values.  For example, @code{TIMESTAMP} values
 cannot be earlier than @code{1970} or later than @code{2037}.  This means
@@ -13587,7 +13586,7 @@ Year values in the range @code{70-99} are converted to @code{1970-1999}.
 
 @tindex TIME
 @node TIME, YEAR, DATETIME, Date and time types
-@subsubsection The @code{TIME} type
+@subsubsection The @code{TIME} Type
 
 @strong{MySQL} retrieves and displays @code{TIME} values in @code{'HH:MM:SS'}
 format (or @code{'HHH:MM:SS'} format for large hours values).  @code{TIME}
@@ -13627,15 +13626,15 @@ in a @code{TIME} context, such as @code{CURRENT_TIME}.
 @end itemize
 
 For @code{TIME} values specified as strings that include a time part
-delimiter, it is not necessary to specify two digits for hours, minutes or
+delimiter, it is not necessary to specify two digits for hours, minutes, or
 seconds values that are less than @code{10}.  @code{'8:3:2'} is the same as
 @code{'08:03:02'}.
 
 Be careful about assigning ``short'' @code{TIME} values to a @code{TIME}
 column.  @strong{MySQL} interprets values using the assumption that the
 rightmost digits represent seconds.  (@strong{MySQL} interprets @code{TIME}
-values as elapsed time, rather than as time of day.)  For example, you might
-think of @code{'11:12'}, @code{'1112'} and @code{1112} as meaning
+values as elapsed time rather than as time of day.)  For example, you might
+think of @code{'11:12'}, @code{'1112'}, and @code{1112} as meaning
 @code{'11:12:00'} (12 minutes after 11 o'clock), but @strong{MySQL}
 interprets them as @code{'00:11:12'} (11 minutes, 12 seconds).  Similarly,
 @code{'12'} and @code{12} are interpreted as @code{'00:00:12'}.
@@ -13653,7 +13652,7 @@ original value was specified as @code{'00:00:00'} or whether it was illegal.
 
 @tindex YEAR
 @node YEAR,  , TIME, Date and time types
-@subsubsection The @code{YEAR} type
+@subsubsection The @code{YEAR} Type
 
 The @code{YEAR} type is a 1-byte type used for representing years.
 
@@ -13693,10 +13692,10 @@ in a @code{YEAR} context, such as @code{NOW()}.
 Illegal @code{YEAR} values are converted to @code{0000}.
 
 @node String types, Choosing types, Date and time types, Column types
-@subsection String types
+@subsection String Types
 
 The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
-@code{ENUM} and @code{SET}.
+@code{ENUM}, and @code{SET}.
 
 @tindex CHAR
 @tindex VARCHAR
@@ -13708,14 +13707,14 @@ The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
 @end menu
 
 @node CHAR, BLOB, String types, String types
-@subsubsection The @code{CHAR} and @code{VARCHAR} types
+@subsubsection The @code{CHAR} and @code{VARCHAR} Types
 
 The @code{CHAR} and @code{VARCHAR} types are similar, but differ in the
 way they are stored and retrieved.
 
 The length of a @code{CHAR} column is fixed to the length that you declare
 when you create the table.  The length can be any value between 1 and 255.
-(As of @strong{MySQL} 3.23, the length of @code{CHAR} may be 0 to 255.)
+(As of @strong{MySQL} Version 3.23, the length of @code{CHAR} may be 0 to 255.)
 When @code{CHAR} values are stored, they are right-padded with spaces to the
 specified length.  When @code{CHAR} values are retrieved, trailing spaces are
 removed.
@@ -13756,7 +13755,7 @@ when the table was created.  The @code{BINARY} attribute means that column
 values are sorted and compared in case-sensitive fashion according to the
 ASCII order of the machine where the @strong{MySQL} server is running.
 
-The @code{BINARY} attribute is ``sticky''.  This means that if a column marked
+The @code{BINARY} attribute is sticky.  This means that if a column marked
 @code{BINARY} is used in an expression, the whole expression is compared as a
 @code{BINARY} value.
 
@@ -13767,15 +13766,15 @@ column at table creation time.
 @tindex BLOB
 @tindex TEXT
 @node BLOB, ENUM, CHAR, String types
-@subsubsection The @code{BLOB} and @code{TEXT} types
+@subsubsection The @code{BLOB} and @code{TEXT} Types
 
 A @code{BLOB} is a binary large object that can hold a variable amount of
 data.  The four @code{BLOB} types @code{TINYBLOB}, @code{BLOB},
-@code{MEDIUMBLOB} and @code{LONGBLOB} differ only in the maximum length of
+@code{MEDIUMBLOB}, and @code{LONGBLOB} differ only in the maximum length of
 the values they can hold.
 @xref{Storage requirements}.
 
-The four @code{TEXT} types @code{TINYTEXT}, @code{TEXT}, @code{MEDIUMTEXT}
+The four @code{TEXT} types @code{TINYTEXT}, @code{TEXT}, @code{MEDIUMTEXT},
 and @code{LONGTEXT} correspond to the four @code{BLOB} types and have the
 same maximum lengths and storage requirements.  The only difference between
 @code{BLOB} and @code{TEXT} types is that sorting and comparison is performed
@@ -13793,7 +13792,7 @@ column that can be as big as you like.  Similarly, you can regard a
 @itemize @bullet
 @item
 You can have indexes on @code{BLOB} and @code{TEXT} columns with
-@strong{MySQL} versions 3.23.2 and newer. Older versions of
+@strong{MySQL} Version 3.23.2 and newer. Older versions of
 @strong{MySQL} did not support this.
 
 @item
@@ -13847,12 +13846,12 @@ do so on both the server and client ends. @xref{Server parameters}.
 @end itemize
 
 Note that each @code{BLOB} or @code{TEXT} value is represented internally by
-a separately-allocated object. This is in contrast to all other column types,
+a separately allocated object. This is in contrast to all other column types,
 for which storage is allocated once per column when the table is opened.
 
 @tindex ENUM
 @node ENUM, SET, BLOB, String types
-@subsubsection The @code{ENUM} type
+@subsubsection The @code{ENUM} Type
 
 An @code{ENUM} is a string object whose value normally is chosen from a list
 of allowed values that are enumerated explicitly in the column specification
@@ -13914,7 +13913,7 @@ values that were used to specify the allowable values at table creation time.
 
 If you retrieve an @code{ENUM} in a numeric context, the column value's index
 is returned.  If you store a number into an @code{ENUM}, the number is
-treated as an index, and the the value stored is the enumeration member with
+treated as an index, and the value stored is the enumeration member with
 that index.  (However, this will not work with @code{LOAD DATA}, which treats
 all input as strings.)
 
@@ -13932,7 +13931,7 @@ the @code{ENUM} definition in the second column.
 
 @tindex SET
 @node SET,  , ENUM, String types
-@subsubsection The @code{SET} type
+@subsubsection The @code{SET} Type
 
 A @code{SET} is a string object that can have zero or more values, each of
 which must be chosen from a list of allowed values specified when the table
@@ -13980,7 +13979,7 @@ does not matter how many times a given element is listed in the value.
 When the value is retrieved later, each element in the value will appear
 once, with elements listed according to the order in which they were
 specified at table creation time.  For example, if a column is specified as
-@code{SET("a","b","c","d")}, then @code{"a,d"}, @code{"d,a"} and
+@code{SET("a","b","c","d")}, then @code{"a,d"}, @code{"d,a"}, and
 @code{"d,a,a,d,d"} will all appear as @code{"a,d"} when retrieved.
 
 @code{SET} values are sorted numerically.  @code{NULL} values sort before
@@ -14011,7 +14010,7 @@ the @code{SET} definition in the second column.
 @cindex Types, choosing
 @cindex Choosing types
 @node Choosing types, Indexes, String types, Column types
-@subsection Choosing the right type for a column
+@subsection Choosing the Right Type for a Column
 
 For the most efficient use of storage, try to use the most precise type in
 all cases. For example, if an integer column will be used for values in the
@@ -14030,7 +14029,7 @@ and convert results back to floating-point values only when necessary.
 @cindex Indexes
 @cindex Keys
 @node Indexes, Multiple-column indexes, Choosing types, Column types
-@subsection Column indexes
+@subsection Column Indexes
 
 All @strong{MySQL} column types can be indexed.  Use of indexes on the
 relevant columns is the best way to improve the performance of @code{SELECT}
@@ -14058,17 +14057,17 @@ mysql> CREATE TABLE test (
 @end example
 
 For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
-column, you cannot index the entire thing.
+column.  You cannot index the entire column.
 
-In @strong{MySQL} 3.23.23 or later, you can also create special
+In @strong{MySQL} Version 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
-@code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
-only from @code{VARCHAR} and @code{TEXT} columns.
-Indexing always happens over the entire column, partial indexing is not
-supported. See @ref{MySQL full-text search} for details of operation.
+@code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be
+created only from @code{VARCHAR} and @code{TEXT} columns.
+Indexing always happens over the entire column and partial indexing is not
+supported. See @ref{MySQL full-text search} for details.
 
 @node Multiple-column indexes, Other-vendor column types, Indexes, Column types
-@subsection Multiple-column indexes
+@subsection Multiple-column Indexes
 
 @strong{MySQL} can create indexes on multiple columns.  An index may
 consist of up to 15 columns. (On @code{CHAR} and @code{VARCHAR} columns you
@@ -14126,7 +14125,7 @@ indexes}.
 
 @cindex Type portability
 @node Other-vendor column types,  , Multiple-column indexes, Column types
-@subsection Using column types from other database engines
+@subsection Using Column Types from Other Database Engines
 
 To make it easier to use code written for SQL implementations from other
 vendors, @strong{MySQL} maps column types as shown in the table below.  These
@@ -14157,7 +14156,7 @@ statement, @strong{MySQL} reports the table structure using the equivalent
 
 @cindex Functions for @code{SELECT} and @code{WHERE} clauses
 @node Functions, CREATE DATABASE, Column types, Reference
-@section Functions for use in @code{SELECT} and @code{WHERE} clauses
+@section Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 A @code{select_expression} or @code{where_definition} in a SQL statement
 can consist of any expression using the functions described below.
@@ -14166,7 +14165,7 @@ An expression that contains @code{NULL} always produces a @code{NULL} value
 unless otherwise indicated in the documentation for the operators and
 functions involved in the expression.
 
-@strong{Note:} There must be no whitespace between a function name and the
+@strong{NOTE:} There must be no whitespace between a function name and the
 parenthesis following it. This helps the @strong{MySQL} parser distinguish
 between function calls and references to tables or columns that happen to
 have the same name as a function.  Spaces around arguments are permitted,
@@ -14187,7 +14186,7 @@ mysql> select MOD(29,9);
 +-----------+
 @end example
 
-Is displayed like this:
+is displayed like this:
 
 @example
 mysql> select MOD(29,9);
@@ -14211,14 +14210,14 @@ mysql> select MOD(29,9);
 @end menu
 
 @node Grouping functions, Arithmetic functions, Functions, Functions
-@subsection Grouping functions
+@subsection Grouping Functions
 @cindex Grouping of expressions
 @table @code
 
 @findex () (parentheses)
 @findex parentheses ( and )
 @item ( ... )
-Parentheses. Use these to force the order of evaluation in an expression.
+Parentheses. Use these to force the order of evaluation in an expression:
 @example
 mysql> select 1+2*3;
         -> 7
@@ -14228,10 +14227,10 @@ mysql> select (1+2)*3;
 @end table
 
 @node Arithmetic functions, Bit functions, Grouping functions, Functions
-@subsection Normal arithmetic operations
+@subsection Normal Arithmetic Operations
 
 The usual arithmetic operators are available.  Note that in the case of
-@code{-}, @code{+} and @code{*}, the result is calculated with @code{BIGINT}
+@samp{-}, @samp{+}, and @samp{*}, the result is calculated with @code{BIGINT}
 (64-bit) precision if both arguments are integers!
 
 @cindex Arithmetic expressions
@@ -14239,7 +14238,7 @@ The usual arithmetic operators are available.  Note that in the case of
 @findex + (addition)
 @findex addition (+)
 @item +
-Addition
+Addition:
 @example
 mysql> select 3+5;
         -> 8
@@ -14248,7 +14247,7 @@ mysql> select 3+5;
 @findex - (subtraction)
 @findex subtraction (-)
 @item -
-Subtraction
+Subtraction:
 @example
 mysql> select 3-5;
         -> -2
@@ -14257,7 +14256,7 @@ mysql> select 3-5;
 @findex * (multiplication)
 @findex multiplication (*)
 @item *
-Multiplication
+Multiplication:
 @example
 mysql> select 3*5;
         -> 15
@@ -14273,7 +14272,7 @@ multiplication exceeds the 64-bit range of @code{BIGINT} calculations.
 @findex / (division)
 @findex division (/)
 @item /
-Division
+Division:
 @example
 mysql> select 3/5;
         -> 0.60
@@ -14295,7 +14294,7 @@ in a context where its result is converted to an integer!
 @findex Functions, arithmetic
 @findex Functions, bit
 @node Bit functions, Logical functions, Arithmetic functions, Functions
-@subsection Bit functions
+@subsection Bit Functions
 
 @strong{MySQL} uses @code{BIGINT} (64-bit) arithmetic for bit operations, so
 these operators have a maximum range of 64 bits.
@@ -14304,7 +14303,7 @@ these operators have a maximum range of 64 bits.
 @findex | (bitwise OR)
 @findex OR, bitwise
 @item |
-Bitwise OR
+Bitwise OR:
 @example
 mysql> select 29 | 15;
         -> 31
@@ -14313,7 +14312,7 @@ mysql> select 29 | 15;
 @findex & (bitwise AND)
 @findex AND, bitwise
 @item &
-Bitwise AND
+Bitwise AND:
 @example
 mysql> select 29 & 15;
         -> 13
@@ -14321,7 +14320,7 @@ mysql> select 29 & 15;
 
 @findex << (left shift)
 @item <<
-Shifts a longlong (@code{BIGINT}) number to the left.
+Shifts a longlong (@code{BIGINT}) number to the left:
 @example
 mysql> select 1 << 2
         -> 4
@@ -14329,7 +14328,7 @@ mysql> select 1 << 2
 
 @findex >> (right shift)
 @item >>
-Shifts a longlong (@code{BIGINT}) number to the right.
+Shifts a longlong (@code{BIGINT}) number to the right:
 @example
 mysql> select 4 >> 2
         -> 1
@@ -14337,7 +14336,7 @@ mysql> select 4 >> 2
 
 @findex ~
 @item ~
-Invert all bits.
+Invert all bits:
 @example
 mysql> select 5 & ~1
         -> 4
@@ -14345,7 +14344,7 @@ mysql> select 5 & ~1
 
 @findex BIT_COUNT()
 @item BIT_COUNT(N)
-Returns the number of bits that are set in the argument @code{N}.
+Returns the number of bits that are set in the argument @code{N}:
 @example
 mysql> select BIT_COUNT(29);
         -> 4
@@ -14355,9 +14354,9 @@ mysql> select BIT_COUNT(29);
 @findex Logical functions
 @findex Functions, logical
 @node Logical functions, Comparison functions, Bit functions, Functions
-@subsection Logical operations
+@subsection Logical Operations
 
-All logical functions return @code{1} (TRUE) or @code{0} (FALSE).
+All logical functions return @code{1} (TRUE) or @code{0} (FALSE):
 
 @table @code
 @findex NOT, logical
@@ -14366,7 +14365,7 @@ All logical functions return @code{1} (TRUE) or @code{0} (FALSE).
 @itemx !
 Logical NOT. Returns @code{1} if the argument is @code{0}, otherwise returns
 @code{0}.
-Exception: @code{NOT NULL} returns @code{NULL}.
+Exception: @code{NOT NULL} returns @code{NULL}:
 @example
 mysql> select NOT 1;
         -> 0
@@ -14385,7 +14384,7 @@ the same way as @code{(!1)+1}.
 @item OR
 @itemx ||
 Logical OR. Returns @code{1} if either argument is not @code{0} and not
-@code{NULL}.
+@code{NULL}:
 @example
 mysql> select 1 || 0;
         -> 1
@@ -14401,7 +14400,7 @@ mysql> select 1 || NULL;
 @item AND
 @itemx &&
 Logical AND. Returns @code{0} if either argument is @code{0} or @code{NULL},
-otherwise returns @code{1}.
+otherwise returns @code{1}:
 @example
 mysql> select 1 && NULL;
         -> 0
@@ -14414,9 +14413,9 @@ mysql> select 1 && 0;
 @cindex Type conversions
 @findex Comparison operators
 @node Comparison functions, String comparison functions, Logical functions, Functions
-@subsection Comparison operators
+@subsection Comparison Operators
 
-Comparison operations result in a value of @code{1} (TRUE), @code{0} (FALSE)
+Comparison operations result in a value of @code{1} (TRUE), @code{0} (FALSE),
 or @code{NULL}. These functions work for both numbers and strings.  Strings
 are automatically converted to numbers and numbers to strings as needed (as
 in Perl).
@@ -14474,7 +14473,7 @@ mysql> SELECT 0 = 'x6';
 @findex = (equal)
 @findex equal (=)
 @item =
-Equal
+Equal:
 @example
 mysql> select 1 = 0;
         -> 0
@@ -14494,7 +14493,7 @@ mysql> select '.01' = 0.01;
 @findex not equal (!=)
 @item <>
 @itemx !=
-Not equal
+Not equal:
 @example
 mysql> select '.01' <> '0.01';
         -> 1
@@ -14507,7 +14506,7 @@ mysql> select 'zapp' <> 'zappp';
 @findex <= (less than or equal)
 @findex less than or equal (<=)
 @item <=
-Less than or equal
+Less than or equal:
 @example
 mysql> select 0.1 <= 2;
         -> 1
@@ -14516,7 +14515,7 @@ mysql> select 0.1 <= 2;
 @findex < (less than)
 @findex less than (<)
 @item <
-Less than
+Less than:
 @example
 mysql> select 2 <= 2;
         -> 1
@@ -14525,7 +14524,7 @@ mysql> select 2 <= 2;
 @findex >= (greater than or equal)
 @findex greater than or equal (>=)
 @item >=
-Greater than or equal
+Greater than or equal:
 @example
 mysql> select 2 >= 2;
         -> 1
@@ -14534,7 +14533,7 @@ mysql> select 2 >= 2;
 @findex > (greater than)
 @findex greater than (>)
 @item >
-Greater than
+Greater than:
 @example
 mysql> select 2 > 2;
         -> 0
@@ -14542,7 +14541,7 @@ mysql> select 2 > 2;
 
 @findex <=> (Equal to)
 @item <=>
-Null safe equal
+Null safe equal:
 @example
 mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
         -> 1 1 0
@@ -14552,7 +14551,7 @@ mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
 @findex IS NOT NULL
 @item IS NULL
 @itemx IS NOT NULL
-Test whether or not a value is or is not @code{NULL}
+Test whether or not a value is or is not @code{NULL}:
 @example
 mysql> select 1 IS NULL, 0 IS NULL, NULL IS NULL:
         -> 0 0 1
@@ -14571,9 +14570,9 @@ comparison is performed as follows:
 
 @itemize @bullet
 @item
-If @code{expr} is a @code{TIMESTAMP}, @code{DATE} or @code{DATETIME}
-column, min and max are formatted to the same format if they
-are constants.
+If @code{expr} is a @code{TIMESTAMP}, @code{DATE}, or @code{DATETIME}
+column, @code{MIN()} and @code{MAX()} are formatted to the same format if
+they are constants.
 @item
 If @code{expr} is a case-insensitive string expression, a case-insensitive
 string comparison is done.
@@ -14605,7 +14604,7 @@ evaluated according to the type of @code{expr} and sorted. The search for the
 item is then done using a binary search. This means @code{IN} is very quick
 if the @code{IN} value list consists entirely of constants.  If @code{expr}
 is a case-sensitive string expression, the string comparison is performed in
-case-sensitive fashion.
+case-sensitive fashion:
 
 @example
 mysql> select 2 IN (0,3,5,'wefwf');
@@ -14621,7 +14620,7 @@ Same as @code{NOT (expr IN (value,...))}.
 @findex ISNULL()
 @item ISNULL(expr)
 If @code{expr} is @code{NULL}, @code{ISNULL()} returns @code{1}, otherwise
-it returns @code{0}.
+it returns @code{0}:
 @example
 mysql> select ISNULL(1+1);
         -> 0
@@ -14634,7 +14633,7 @@ false!
 
 @findex COALESCE()
 @item COALESCE(list)
-Returns first non-@code{NULL} element in list.
+Returns first non-@code{NULL} element in list:
 
 @example
 mysql> select COALESCE(NULL,1);
@@ -14648,7 +14647,7 @@ mysql> select COALESCE(NULL,NULL,NULL);
 Returns @code{0} if @code{N} < @code{N1}, @code{1} if @code{N} < @code{N2}
 and so on. All arguments are treated as integers.  It is required that
 @code{N1} < @code{N2} < @code{N3} < @code{...} < @code{Nn} for this function
-to work correctly. This is because a binary search is used (very fast).
+to work correctly. This is because a binary search is used (very fast):
 
 @example
 mysql> select INTERVAL(23, 1, 15, 17, 30, 44, 200);
@@ -14663,7 +14662,7 @@ mysql> select INTERVAL(22, 23, 30, 44, 200);
 @findex String comparison functions
 @findex Functions, string comparison
 @node String comparison functions, Casts, Comparison functions, Functions
-@subsection String comparison functions
+@subsection String Comparison Functions
 
 @cindex Case sensitivity, in string comparisons
 @cindex String comparisons, case sensitivity
@@ -14675,7 +14674,7 @@ comparison is performed in case-sensitive fashion.
 @item expr LIKE pat [ESCAPE 'escape-char']
 Pattern matching using
 SQL simple regular expression comparison. Returns @code{1} (TRUE) or @code{0}
-(FALSE).  With @code{LIKE} you can use the following two wildcard characters
+(FALSE).  With @code{LIKE} you can use the following two wild card characters
 in the pattern:
 
 @multitable @columnfractions .1 .9
@@ -14690,7 +14689,7 @@ mysql> select 'David!' LIKE '%D%v%';
         -> 1
 @end example
 
-To test for literal instances of a wildcard character, precede the character
+To test for literal instances of a wild card character, precede the character
 with the escape character.  If you don't specify the @code{ESCAPE} character,
 @samp{\} is assumed:
 
@@ -14721,11 +14720,11 @@ mysql> select 10 LIKE '1%';
         -> 1
 @end example
 
-Note: Because @strong{MySQL} uses the C escape syntax in strings (e.g.,
+Note: Because @strong{MySQL} uses the C escape syntax in strings (for example,
 @samp{\n}), you must double any @samp{\} that you use in your @code{LIKE}
 strings.  For example, to search for @samp{\n}, specify it as @samp{\\n}.  To
 search for @samp{\}, specify it as @samp{\\\\} (the backslashes are stripped
-once by the parser, and another time when the pattern match is done, leaving
+once by the parser and another time when the pattern match is done, leaving
 a single backslash to be matched).
 
 @findex NOT LIKE
@@ -14743,9 +14742,9 @@ Performs a pattern match of a string expression @code{expr} against a pattern
 @xref{Regexp}.  Returns @code{1} if @code{expr} matches @code{pat}, otherwise
 returns @code{0}.  @code{RLIKE} is a synonym for @code{REGEXP}, provided for
 @code{mSQL} compatibility. Note: Because @strong{MySQL} uses the C escape
-syntax in strings (e.g., @samp{\n}), you must double any @samp{\} that you
-use in your @code{REGEXP} strings.  As of @strong{MySQL} 3.23.4,
-@code{REGEXP} is case insensitive for normal (not binary) strings.
+syntax in strings (for example, @samp{\n}), you must double any @samp{\} that
+you use in your @code{REGEXP} strings.  As of @strong{MySQL} Version 3.23.4,
+@code{REGEXP} is case insensitive for normal (not binary) strings:
 
 @example
 mysql> select 'Monty!' REGEXP 'm%y%%';
@@ -14772,7 +14771,7 @@ Same as @code{NOT (expr REGEXP pat)}.
 @code{STRCMP()}
 returns @code{0} if the strings are the same, @code{-1} if the first
 argument is smaller than the second according to the current sort order,
-and @code{1} otherwise.
+and @code{1} otherwise:
 
 @example
 mysql> select STRCMP('text', 'text2');
@@ -14788,23 +14787,24 @@ mysql> select STRCMP('text', 'text');
 @code{MATCH ... AGAINST()} is used for full-text search and returns
 relevance - similarity measure between the text in columns
 @code{(col1,col2,...)} and the query @code{expr}. Relevance is a
-positive floating point number. Zero relevance means no similarity.
+positive floating-point number. Zero relevance means no similarity.
 For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
-@code{MATCH ... AGAINST()} is available in @strong{MySQL} 3.23.23 or later.
-For details and usage examples see @xref{MySQL full-text search}.
+@code{MATCH ... AGAINST()} is available in @strong{MySQL} Version 
+3.23.23 or later. For details and usage examples 
+@pxref{MySQL full-text search}.
 @end table
 
 @findex Casts
 @node Casts, Control flow functions, String comparison functions, Functions
-@subsection Cast operators
+@subsection Cast Operators
 
 @table @code
 @findex BINARY
 @item @code{BINARY}
 The @code{BINARY} operator casts the string following it to a binary string.
 This is an easy way to force a column comparison to be case sensitive even
-if the column isn't defined as @code{BINARY} or @code{BLOB}.
+if the column isn't defined as @code{BINARY} or @code{BLOB}:
 @example
 mysql> select "a" = "A";
         -> 1
@@ -14812,20 +14812,20 @@ mysql> select BINARY "a" = "A";
         -> 0
 @end example
 
-@code{BINARY} was introduced in @strong{MySQL} 3.23.0
+@code{BINARY} was introduced in @strong{MySQL} 3.23.0.
 @end table
 
 @findex Control flow functions
 @findex Functions, control flow
 @node Control flow functions, Mathematical functions, Casts, Functions
-@subsection Control flow functions
+@subsection Control Flow Functions
 
 @table @code
 @findex IFNULL()
 @item IFNULL(expr1,expr2)
 If @code{expr1} is not @code{NULL}, @code{IFNULL()} returns @code{expr1},
 else it returns @code{expr2}.  @code{IFNULL()} returns a numeric or string
-value, depending on the context in which it is used.
+value, depending on the context in which it is used:
 @example
 mysql> select IFNULL(1,0);
         -> 1
@@ -14840,7 +14840,7 @@ mysql> select IFNULL(1/0,'yes');
 @findex NULLIF()
 @item NULLIF(expr1,expr2)
 If @code{expr1 = expr2} is true, return @code{NULL} else return @code{expr1}.
-This is the same as @code{CASE WHEN x = y THEN NULL ELSE x END}
+This is the same as @code{CASE WHEN x = y THEN NULL ELSE x END}:
 @example
 mysql> select NULLIF(1,1);
         -> NULL
@@ -14856,7 +14856,7 @@ are equal.
 If @code{expr1} is TRUE (@code{expr1 <> 0} and @code{expr1 <> NULL}) then
 @code{IF()} returns @code{expr2}, else it returns @code{expr3}.
 @code{IF()} returns a numeric or string value, depending on the context
-in which it is used.
+in which it is used:
 
 @example
 mysql> select IF(1>2,2,3);
@@ -14869,7 +14869,7 @@ mysql> select IF(strcmp('test','test1'),'no','yes');
 
 @code{expr1} is evaluated as an integer value, which means that if you are
 testing floating-point or string values, you should do so using a comparison
-operation.
+operation:
 
 @example
 mysql> select IF(0.1,1,0);
@@ -14884,10 +14884,10 @@ may not be what you expect.  In the second case, the comparison tests the
 original floating-point value to see whether it is non-zero.  The result
 of the comparison is used as an integer.
 
-The default return type of @code{IF()} (which may matter when it stored into
-a temporary table) is calculated in @strong{MySQL} 3.23 as follows:
+The default return type of @code{IF()} (which may matter when it is stored into
+a temporary table) is calculated in @strong{MySQL} Version 3.23 as follows:
 
-@multitable @columnfractions .7 .3
+@multitable @columnfractions .55 .45
 @item @strong{Expression} @tab @strong{Return value}
 @item expr2 or expr3 returns string @tab string
 @item expr2 or expr3 returns a floating point value @tab floating point
@@ -14900,9 +14900,9 @@ a temporary table) is calculated in @strong{MySQL} 3.23 as follows:
 
 The first version returns the @code{result} where
 @code{value=compare-value}. The second version returns the result for
-the first condition which is true. If there was no matching result
+the first condition, which is true. If there was no matching result
 value, then the result after @code{ELSE} is returned. If there is no
-@code{ELSE} part then @code{NULL} is returned.
+@code{ELSE} part then @code{NULL} is returned:
 
 @example
 mysql> SELECT CASE 1 WHEN 1 THEN "one" WHEN 2 THEN "two" ELSE "more" END;
@@ -14917,7 +14917,7 @@ mysql> SELECT CASE BINARY "B" when "a" then 1 when "b" then 2 END;
 @findex Mathematical functions
 @findex Functions, mathematical
 @node Mathematical functions, String functions, Control flow functions, Functions
-@subsection Mathematical functions
+@subsection Mathematical Functions
 All mathematical functions return @code{NULL} in case of an error.
 
 @table @code
@@ -14925,7 +14925,7 @@ All mathematical functions return @code{NULL} in case of an error.
 @findex minus, unary (-)
 @findex unary minus (-)
 @item -
-Unary minus. Changes the sign of the argument.
+Unary minus. Changes the sign of the argument:
 @example
 mysql> select - 2;
         -> -2
@@ -14937,7 +14937,7 @@ may have the value of @code{-2^63}!
 
 @findex ABS()
 @item ABS(X)
-Returns the absolute value of @code{X}.
+Returns the absolute value of @code{X}:
 @example
 mysql> select ABS(2);
         -> 2
@@ -14949,8 +14949,8 @@ This function is safe to use with @code{BIGINT} values.
 
 @findex SIGN()
 @item SIGN(X)
-Returns the sign of the argument as @code{-1}, @code{0} or @code{1}, depending
-on whether @code{X} is negative, zero, or positive.
+Returns the sign of the argument as @code{-1}, @code{0}, or @code{1}, depending
+on whether @code{X} is negative, zero, or positive:
 @example
 mysql> select SIGN(-32);
         -> -1
@@ -14966,7 +14966,7 @@ mysql> select SIGN(234);
 @item MOD(N,M)
 @itemx %
 Modulo (like the @code{%} operator in C).
-Returns the remainder of @code{N} divided by @code{M}.
+Returns the remainder of @code{N} divided by @code{M}:
 @example
 mysql> select MOD(234, 10);
         -> 4
@@ -14980,7 +14980,7 @@ This function is safe to use with @code{BIGINT} values.
 
 @findex FLOOR()
 @item FLOOR(X)
-Returns the largest integer value not greater than @code{X}.
+Returns the largest integer value not greater than @code{X}:
 @example
 mysql> select FLOOR(1.23);
         -> 1
