@@ -5962,10 +5962,7 @@ Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @menu
 * Quick Standard Installation::  
 * General Installation Issues::  
-* Many versions::               How and when updates are released
-* MySQL binaries::              MySQL binaries
 * Installing source::           Installing a @strong{MySQL} source distribution
-* Perl support::                Perl installation comments
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Upgrading/Downgrading MySQL
 * Operating System Specific Notes::  
@@ -6160,7 +6157,7 @@ NOTE: If you want to use InnoDB tables, there are certain startup
 options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 
 
-@node General Installation Issues, Many versions, Quick Standard Installation, Installing
+@node General Installation Issues, Installing source, Quick Standard Installation, Installing
 @section General Installation Issues
 
 @c @node Methods of Installation, , ,
@@ -6173,6 +6170,8 @@ options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 * Which OS::                    
 * Which version::               
 * Installation layouts::        
+* Many versions::               
+* MySQL binaries::              
 @end menu
 
 @node Getting MySQL, Which OS, General Installation Issues, General Installation Issues
@@ -7266,7 +7265,7 @@ Another test is that we use the newest @strong{MySQL} version in our internal
 production environment, on at least one machine.  We have more than 100
 gigabytes of data to work with.
 
-@node Installation layouts,  , Which version, General Installation Issues
+@node Installation layouts, Many versions, Which version, General Installation Issues
 @subsection Installation Layouts
 
 @cindex installation layouts
@@ -7331,8 +7330,8 @@ The header file and library directories are @file{include/mysql} and
 You can create your own binary installation from a compiled source
 distribution by executing the script @file{scripts/make_binary_distribution}.
 
-@node Many versions, MySQL binaries, General Installation Issues, Installing
-@section How and When Updates Are Released
+@node Many versions, MySQL binaries, Installation layouts, General Installation Issues
+@subsection How and When Updates Are Released
 
 @cindex releases, updating
 @cindex updating, releases of MySQL
@@ -7392,8 +7391,8 @@ and things that ``must be done.''  ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
 already working.''
 
-@node MySQL binaries, Installing source, Many versions, Installing
-@section MySQL Binaries Compiled by MySQL AB
+@node MySQL binaries,  , Many versions, General Installation Issues
+@subsection MySQL Binaries Compiled by MySQL AB
 
 @cindex binary distributions
 
@@ -7451,7 +7450,7 @@ If you want to compile a debug version of @strong{MySQL}, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
 
-@node Installing source, Perl support, MySQL binaries, Installing
+@node Installing source, Post-installation, General Installation Issues, Installing
 @section Installing a MySQL Source Distribution
 
 @cindex installing, source distribution
@@ -8380,294 +8379,8 @@ We haven't gotten @code{readline} to work with MIT-pthreads.  (This isn't
 needed, but may be interesting for someone.)
 @end itemize
 
-@cindex Perl, installing
-@cindex installing, Perl
-@node Perl support, Post-installation, Installing source, Installing
-@section Perl Installation Comments
 
-@menu
-* Perl installation::           Installing Perl on Unix
-* ActiveState Perl::            Installing ActiveState Perl on Windows
-* Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
-* Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
-@end menu
-
-@node Perl installation, ActiveState Perl, Perl support, Perl support
-@subsection Installing Perl on Unix
-
-Perl support for @strong{MySQL} is provided by means of the
-@code{DBI}/@code{DBD} client interface.  @xref{Perl}.  The Perl
-@code{DBD}/@code{DBI} client code requires Perl Version 5.004 or later.  The
-interface @strong{will not work} if you have an older version of Perl.
-
-@strong{MySQL} Perl support also requires that you've installed
-@strong{MySQL} client programming support.  If you installed @strong{MySQL}
-from RPM files, client programs are in the client RPM, but client programming
-support is in the developer RPM.  Make sure you've installed the latter RPM.
-
-As of Version 3.22.8, Perl support is distributed separately from the main
-@strong{MySQL} distribution.  If you want to install Perl support, the files
-you will need can be obtained from 
-@uref{http://www.mysql.com/Downloads/Contrib/}.
-
-The Perl distributions are provided as compressed @code{tar} archives and
-have names like @file{MODULE-VERSION.tar.gz}, where @code{MODULE} is the
-module name and @code{VERSION} is the version number.  You should get the
-@code{Data-Dumper}, @code{DBI}, and @code{Msql-Mysql-modules} distributions
-and install them in that order.  The installation procedure is shown below.
-The example shown is for the @code{Data-Dumper} module, but the procedure is
-the same for all three distributions:
-
-@enumerate
-@item
-Unpack the distribution into the current directory:
-@example
-shell> gunzip < Data-Dumper-VERSION.tar.gz | tar xvf -
-@end example
-This command creates a directory named @file{Data-Dumper-VERSION}.
-
-@item
-Change into the top-level directory of the unpacked distribution:
-@example
-shell> cd Data-Dumper-VERSION
-@end example
-
-@item
-Build the distribution and compile everything:
-@example
-shell> perl Makefile.PL
-shell> make
-shell> make test
-shell> make install
-@end example
-@end enumerate
-
-The @code{make test} command is important because it verifies that the
-module is working.  Note that when you run that command during the
-@code{Msql-Mysql-modules} installation to exercise the interface code, the
-@strong{MySQL} server must be running or the test will fail.
-
-It is a good idea to rebuild and reinstall the @code{Msql-Mysql-modules}
-distribution whenever you install a new release of @strong{MySQL},
-particularly if you notice symptoms such as all your @code{DBI} scripts
-dumping core after you upgrade @strong{MySQL}.
-
-If you don't have the right to install Perl modules in the system directory
-or if you to install local Perl modules, the following reference may help
-you:
-
-@example
-@uref{http://www.iserver.com/support/contrib/perl5/modules.html}
-@end example
-
-Look under the heading
-@code{Installing New Modules that Require Locally Installed Modules}.
-
-@node ActiveState Perl, Windows Perl, Perl installation, Perl support
-@subsection Installing ActiveState Perl on Windows
-@cindex installing, Perl on Windows
-@cindex Perl, installing on Windows
-@cindex ActiveState Perl
-
-To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
-Windows, you should do the following:
-
-@itemize @bullet
-@item 
-Get ActiveState Perl from 
-@uref{http://www.activestate.com/Products/ActivePerl/index.html}
-and install it.
-
-@item
-Open a DOS shell.
-
-@item 
-If required, set the HTTP_proxy variable. For example, you might try:
-
-@example
-set HTTP_proxy=my.proxy.com:3128
-@end example
-
-@item
-Start the PPM program: 
-
-@example
-C:\> c:\perl\bin\ppm.pl
-@end example
-
-@item
-If you have not already done so, install @code{DBI}:
-
-@example
-ppm> install DBI
-@end example
-
-@item
-If this succeeds, run the following command:
-
-@example
-install ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
-@end example
-@end itemize
-
-The above should work at least with ActiveState Perl Version 5.6.
-
-If you can't get the above to work, you should instead install the
-@strong{MyODBC} driver and connect to @strong{MySQL} server through
-ODBC:
-
-@example
-use DBI;
-$dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
-  die "Got error $DBI::errstr when connecting to $dsn\n";
-@end example
-
-@node Windows Perl, Perl support problems, ActiveState Perl, Perl support
-@subsection Installing the MySQL Perl Distribution on Windows
-
-The @strong{MySQL} Perl distribution contains @code{DBI},
-@code{DBD:MySQL} and @code{DBD:ODBC}.
-
-@itemize @bullet
-@item 
-Get the Perl distribution for Windows from
-@uref{http://www.mysql.com/download.html}.
-
-@item
-Unzip the distribution in @code{C:} so that you get a @file{C:\PERL} directory.
-
-@item
-Add the directory @file{C:\PERL\BIN} to your path.
-
-@item
-Add the directory @file{C:\PERL\BIN\MSWIN32-x86-thread} or
-@file{C:\PERL\BIN\MSWIN32-x86} to your path.
-
-@item
-Test that @code{perl} works by executing @code{perl -v} in a DOS shell.
-@end itemize
-
-@cindex problems, installing Perl
-@cindex Perl DBI/DBD, installation problems
-@node Perl support problems,  , Windows Perl, Perl support
-@subsection Problems Using the Perl @code{DBI}/@code{DBD} Interface
-
-If Perl reports that it can't find the @file{../mysql/mysql.so} module,
-then the problem is probably that Perl can't locate the shared library
-@file{libmysqlclient.so}.
-
-You can fix this by any of the following methods:
-
-@itemize @bullet
-@item
-Compile the @code{Msql-Mysql-modules} distribution with @code{perl
-Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
-
-@item
-Copy @code{libmysqlclient.so} to the directory where your other shared
-libraries are located (probably @file{/usr/lib} or @file{/lib}).
-
-@item
-On Linux you can add the pathname of the directory where
-@file{libmysqlclient.so} is located to the @file{/etc/ld.so.conf} file.
-
-@tindex LD_RUN_PATH environment variable
-@tindex Environment variable, LD_RUN_PATH
-@item
-Add the pathname of the directory where @file{libmysqlclient.so} is located
-to the @code{LD_RUN_PATH} environment variable.
-@end itemize
-
-If you get the following errors from @code{DBD-mysql},
-you are probably using @code{gcc} (or using an old binary compiled with
-@code{gcc}):
-
-@example
-/usr/bin/perl: can't resolve symbol '__moddi3'
-/usr/bin/perl: can't resolve symbol '__divdi3'
-@end example
-
-Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
-@file{mysql.so} library gets built (check the output from @code{make} for
-@file{mysql.so} when you compile the Perl client).  The @code{-L} option
-should specify the pathname of the directory where @file{libgcc.a} is located
-on your system.
-
-Another cause of this problem may be that Perl and @strong{MySQL} aren't both
-compiled with @code{gcc}.  In this case, you can solve the mismatch by
-compiling both with @code{gcc}.
-
-If you get the following error from @code{Msql-Mysql-modules}
-when you run the tests:
-
-@example
-t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
-@end example
-
-it means that you need to include the compression library, -lz, to the
-link line. This can be doing the following change in the file
-@file{lib/DBD/mysql/Install.pm}:
-
-@example
-$sysliblist .= " -lm";
-
-to
-
-$sysliblist .= " -lm -lz";
-@end example
-
-After this, you MUST run 'make realclean' and then proceed with the
-installation from the beginning.
-
-If you want to use the Perl module on a system that doesn't support dynamic
-linking (like SCO) you can generate a static version of Perl that includes
-@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
-version of Perl with the @code{DBI} code linked in and install it on top of
-your current Perl.  Then you use that to build a version of Perl that
-additionally has the @code{DBD} code linked in, and install that.
-
-On SCO, you must have the following environment variables set:
-
-@example
-shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
-or
-shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
-@end example
-
-First, create a Perl that includes a statically linked @code{DBI} by running
-these commands in the directory where your @code{DBI} distribution is
-located:
-
-@example
-shell> perl Makefile.PL -static -config
-shell> make
-shell> make install
-shell> make perl
-@end example
-
-Then you must install the new Perl. The output of @code{make perl} will
-indicate the exact @code{make} command you will need to execute to perform
-the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
-MAP_TARGET=perl}.
-
-Next, use the just-created Perl to create another Perl that also includes a
-statically-linked @code{DBD::mysql} by running these commands in the
-directory where your @code{Msql-Mysql-modules} distribution is located:
-
-@example
-shell> perl Makefile.PL -static -config
-shell> make
-shell> make install
-shell> make perl
-@end example
-
-Finally, you should install this new Perl.  Again, the output of @code{make
-perl} indicates the command to use.
-
-
-@node Post-installation, Upgrade, Perl support, Installing
+@node Post-installation, Upgrade, Installing source, Installing
 @section Post-installation Setup and Testing
 
 @cindex post-installation, setup and testing
@@ -9659,12 +9372,10 @@ information.
 * Linux::                       
 * Windows::                     
 * Solaris::                     
-* Solaris 2.7::                 
-* Solaris x86::                 
 * BSD Notes::                   
 * Mac OS X::                    
 * Other Unix Notes::            
-* SCO Unixware::                
+* OS/2::                        
 * BeOS::                        
 * Novell Netware::              
 @end menu
@@ -10014,7 +9725,7 @@ and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
 @node Linux-x86, Linux-SPARC, Binary notes-Linux, Linux
-@subsubsection Linux-x86 Notes
+@subsubsection Linux x86 Notes
 
 @strong{MySQL} requires @code{libc} Version 5.4.12 or newer. It's known to
 work with @code{libc} 5.4.46.  @code{glibc} Version 2.0.6 and later should
@@ -10717,7 +10428,7 @@ Other Windows-specific issues are described in the @file{README} file that
 comes with the @strong{MySQL}-Windows distribution.
 
 
-@node Solaris, Solaris 2.7, Windows, Operating System Specific Notes
+@node Solaris, BSD Notes, Windows, Operating System Specific Notes
 @subsection Solaris Notes
 
 @cindex Solaris installation problems
@@ -10899,8 +10610,13 @@ If you would like @strong{MySQL} to start automatically, you can copy
 symbolic link to it named @file{/etc/rc3.d/S99mysql.server}.
 
 
-@node Solaris 2.7, Solaris x86, Solaris, Operating System Specific Notes
-@subsection Solaris 2.7/2.8 Notes
+@menu
+* Solaris 2.7::                 
+* Solaris x86::                 
+@end menu
+
+@node Solaris 2.7, Solaris x86, Solaris, Solaris
+@subsubsection Solaris 2.7/2.8 Notes
 
 You can normally use a Solaris 2.6 binary on Solaris 2.7 and 2.8.  Most
 of the Solaris 2.6 issues also apply for Solaris 2.7 and 2.8.
@@ -10979,8 +10695,8 @@ Configure @strong{MySQL} with the @code{--with-named-z-libs=no} option.
 @end itemize
 
 
-@node Solaris x86, BSD Notes, Solaris 2.7, Operating System Specific Notes
-@subsection Solaris x86 Notes
+@node Solaris x86,  , Solaris 2.7, Solaris
+@subsubsection Solaris x86 Notes
 
 On Solaris 2.8 on x86, @strong{mysqld} will core dump if you run
 'strip' in.
@@ -11003,7 +10719,7 @@ If this doesn't help, you should compile a debug version and run
 it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 
 
-@node BSD Notes, Mac OS X, Solaris x86, Operating System Specific Notes
+@node BSD Notes, Mac OS X, Solaris, Operating System Specific Notes
 @subsection BSD Notes
 
 @menu
@@ -11265,7 +10981,7 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 @end example
 
 
-@node Other Unix Notes, SCO Unixware, Mac OS X, Operating System Specific Notes
+@node Other Unix Notes, OS/2, Mac OS X, Operating System Specific Notes
 @subsection Other Unix Notes
 
 @menu
@@ -11278,6 +10994,7 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 * Alpha-DEC-OSF1::              
 * SGI-Irix::                    
 * SCO::                         
+* SCO Unixware::                
 @end menu
 
 
@@ -11877,7 +11594,7 @@ CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 @end example
 
 
-@node SCO,  , SGI-Irix, Other Unix Notes
+@node SCO, SCO Unixware, SGI-Irix, Other Unix Notes
 @subsubsection SCO Notes
 
 The current port is tested only on a ``sco3.2v5.0.4'' and
@@ -12035,8 +11752,8 @@ if they were compiled with @code{icc} or @code{cc}.
 Perl works best when compiled with @code{cc}.
 
 
-@node SCO Unixware, BeOS, Other Unix Notes, Operating System Specific Notes
-@subsection SCO Unixware Version 7.0 Notes
+@node SCO Unixware,  , SCO, Other Unix Notes
+@subsubsection SCO Unixware Version 7.0 Notes
 
 You must use a version of @strong{MySQL} at least as recent as Version 3.22.13
 because that version fixes some portability problems under Unixware.
@@ -12055,8 +11772,8 @@ If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 * OS/2::                        
 @end menu
 
-@node OS/2,  , SCO Unixware, SCO Unixware
-@subsubsection OS/2 Notes
+@node OS/2, BeOS, Other Unix Notes, Operating System Specific Notes
+@subsection OS/2 Notes
 
 @strong{MySQL} uses quite a few open files. Because of this, you should add
 something like the following to your @file{CONFIG.SYS} file:
@@ -12113,7 +11830,7 @@ mysql> CREATE FUNCTION metaphon RETURNS STRING SONAME "example";
 @end example
 
 
-@node BeOS, Novell Netware, SCO Unixware, Operating System Specific Notes
+@node BeOS, Novell Netware, OS/2, Operating System Specific Notes
 @subsection BeOS Notes
 
 We are really interested in getting @strong{MySQL} to work on BeOS, but
@@ -12137,9 +11854,6 @@ a port.
 
 We are interested in finding someone to do a port, and we will help them
 with any technical questions they may have while doing the port.
-
-
-
 
 
 @node Privilege system, Reference, Installing, Top
@@ -51981,6 +51695,7 @@ That's all there is to it!
 * Command-line options::        
 * Option files::                
 * Installing many servers::     
+* Perl support::                
 @end menu
 
 @node Installing binary, Building clients, Placeholder, Placeholder
@@ -52655,7 +52370,7 @@ shell> my_print_defaults client mysql
 The above output contains all options for the groups 'client' and 'mysql'.
 
 
-@node Installing many servers,  , Option files, Placeholder
+@node Installing many servers, Perl support, Option files, Placeholder
 @appendixsec Installing Many Servers on the Same Machine
 
 @cindex post-install, many servers
@@ -52729,6 +52444,294 @@ start them with @code{./bin/safe_mysqld} then in most cases the only
 option you need to add/change is the @code{socket} and @code{port}
 argument to @code{safe_mysqld}.
 
+
+@node Perl support,  , Installing many servers, Placeholder
+@appendixsec Perl Installation Comments
+
+@cindex Perl, installing
+@cindex installing, Perl
+
+@menu
+* Perl installation::           Installing Perl on Unix
+* ActiveState Perl::            Installing ActiveState Perl on Windows
+* Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
+* Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
+@end menu
+
+@node Perl installation, ActiveState Perl, Perl support, Perl support
+@appendixsubsec Installing Perl on Unix
+
+Perl support for @strong{MySQL} is provided by means of the
+@code{DBI}/@code{DBD} client interface.  @xref{Perl}.  The Perl
+@code{DBD}/@code{DBI} client code requires Perl Version 5.004 or later.  The
+interface @strong{will not work} if you have an older version of Perl.
+
+@strong{MySQL} Perl support also requires that you've installed
+@strong{MySQL} client programming support.  If you installed @strong{MySQL}
+from RPM files, client programs are in the client RPM, but client programming
+support is in the developer RPM.  Make sure you've installed the latter RPM.
+
+As of Version 3.22.8, Perl support is distributed separately from the main
+@strong{MySQL} distribution.  If you want to install Perl support, the files
+you will need can be obtained from 
+@uref{http://www.mysql.com/Downloads/Contrib/}.
+
+The Perl distributions are provided as compressed @code{tar} archives and
+have names like @file{MODULE-VERSION.tar.gz}, where @code{MODULE} is the
+module name and @code{VERSION} is the version number.  You should get the
+@code{Data-Dumper}, @code{DBI}, and @code{Msql-Mysql-modules} distributions
+and install them in that order.  The installation procedure is shown below.
+The example shown is for the @code{Data-Dumper} module, but the procedure is
+the same for all three distributions:
+
+@enumerate
+@item
+Unpack the distribution into the current directory:
+@example
+shell> gunzip < Data-Dumper-VERSION.tar.gz | tar xvf -
+@end example
+This command creates a directory named @file{Data-Dumper-VERSION}.
+
+@item
+Change into the top-level directory of the unpacked distribution:
+@example
+shell> cd Data-Dumper-VERSION
+@end example
+
+@item
+Build the distribution and compile everything:
+@example
+shell> perl Makefile.PL
+shell> make
+shell> make test
+shell> make install
+@end example
+@end enumerate
+
+The @code{make test} command is important because it verifies that the
+module is working.  Note that when you run that command during the
+@code{Msql-Mysql-modules} installation to exercise the interface code, the
+@strong{MySQL} server must be running or the test will fail.
+
+It is a good idea to rebuild and reinstall the @code{Msql-Mysql-modules}
+distribution whenever you install a new release of @strong{MySQL},
+particularly if you notice symptoms such as all your @code{DBI} scripts
+dumping core after you upgrade @strong{MySQL}.
+
+If you don't have the right to install Perl modules in the system directory
+or if you to install local Perl modules, the following reference may help
+you:
+
+@example
+@uref{http://www.iserver.com/support/contrib/perl5/modules.html}
+@end example
+
+Look under the heading
+@code{Installing New Modules that Require Locally Installed Modules}.
+
+@node ActiveState Perl, Windows Perl, Perl installation, Perl support
+@appendixsubsec Installing ActiveState Perl on Windows
+
+@cindex installing, Perl on Windows
+@cindex Perl, installing on Windows
+@cindex ActiveState Perl
+
+To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
+Windows, you should do the following:
+
+@itemize @bullet
+@item 
+Get ActiveState Perl from 
+@uref{http://www.activestate.com/Products/ActivePerl/index.html}
+and install it.
+
+@item
+Open a DOS shell.
+
+@item 
+If required, set the HTTP_proxy variable. For example, you might try:
+
+@example
+set HTTP_proxy=my.proxy.com:3128
+@end example
+
+@item
+Start the PPM program: 
+
+@example
+C:\> c:\perl\bin\ppm.pl
+@end example
+
+@item
+If you have not already done so, install @code{DBI}:
+
+@example
+ppm> install DBI
+@end example
+
+@item
+If this succeeds, run the following command:
+
+@example
+install ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
+@end example
+@end itemize
+
+The above should work at least with ActiveState Perl Version 5.6.
+
+If you can't get the above to work, you should instead install the
+@strong{MyODBC} driver and connect to @strong{MySQL} server through
+ODBC:
+
+@example
+use DBI;
+$dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
+  die "Got error $DBI::errstr when connecting to $dsn\n";
+@end example
+
+@node Windows Perl, Perl support problems, ActiveState Perl, Perl support
+@appendixsubsec Installing the MySQL Perl Distribution on Windows
+
+The @strong{MySQL} Perl distribution contains @code{DBI},
+@code{DBD:MySQL} and @code{DBD:ODBC}.
+
+@itemize @bullet
+@item 
+Get the Perl distribution for Windows from
+@uref{http://www.mysql.com/download.html}.
+
+@item
+Unzip the distribution in @code{C:} so that you get a @file{C:\PERL} directory.
+
+@item
+Add the directory @file{C:\PERL\BIN} to your path.
+
+@item
+Add the directory @file{C:\PERL\BIN\MSWIN32-x86-thread} or
+@file{C:\PERL\BIN\MSWIN32-x86} to your path.
+
+@item
+Test that @code{perl} works by executing @code{perl -v} in a DOS shell.
+@end itemize
+
+@cindex problems, installing Perl
+@cindex Perl DBI/DBD, installation problems
+@node Perl support problems,  , Windows Perl, Perl support
+@appendixsubsec Problems Using the Perl @code{DBI}/@code{DBD} Interface
+
+If Perl reports that it can't find the @file{../mysql/mysql.so} module,
+then the problem is probably that Perl can't locate the shared library
+@file{libmysqlclient.so}.
+
+You can fix this by any of the following methods:
+
+@itemize @bullet
+@item
+Compile the @code{Msql-Mysql-modules} distribution with @code{perl
+Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
+
+@item
+Copy @code{libmysqlclient.so} to the directory where your other shared
+libraries are located (probably @file{/usr/lib} or @file{/lib}).
+
+@item
+On Linux you can add the pathname of the directory where
+@file{libmysqlclient.so} is located to the @file{/etc/ld.so.conf} file.
+
+@tindex LD_RUN_PATH environment variable
+@tindex Environment variable, LD_RUN_PATH
+@item
+Add the pathname of the directory where @file{libmysqlclient.so} is located
+to the @code{LD_RUN_PATH} environment variable.
+@end itemize
+
+If you get the following errors from @code{DBD-mysql},
+you are probably using @code{gcc} (or using an old binary compiled with
+@code{gcc}):
+
+@example
+/usr/bin/perl: can't resolve symbol '__moddi3'
+/usr/bin/perl: can't resolve symbol '__divdi3'
+@end example
+
+Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
+@file{mysql.so} library gets built (check the output from @code{make} for
+@file{mysql.so} when you compile the Perl client).  The @code{-L} option
+should specify the pathname of the directory where @file{libgcc.a} is located
+on your system.
+
+Another cause of this problem may be that Perl and @strong{MySQL} aren't both
+compiled with @code{gcc}.  In this case, you can solve the mismatch by
+compiling both with @code{gcc}.
+
+If you get the following error from @code{Msql-Mysql-modules}
+when you run the tests:
+
+@example
+t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
+@end example
+
+it means that you need to include the compression library, -lz, to the
+link line. This can be doing the following change in the file
+@file{lib/DBD/mysql/Install.pm}:
+
+@example
+$sysliblist .= " -lm";
+
+to
+
+$sysliblist .= " -lm -lz";
+@end example
+
+After this, you MUST run 'make realclean' and then proceed with the
+installation from the beginning.
+
+If you want to use the Perl module on a system that doesn't support dynamic
+linking (like SCO) you can generate a static version of Perl that includes
+@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
+version of Perl with the @code{DBI} code linked in and install it on top of
+your current Perl.  Then you use that to build a version of Perl that
+additionally has the @code{DBD} code linked in, and install that.
+
+On SCO, you must have the following environment variables set:
+
+@example
+shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
+or
+shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
+shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
+shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
+@end example
+
+First, create a Perl that includes a statically linked @code{DBI} by running
+these commands in the directory where your @code{DBI} distribution is
+located:
+
+@example
+shell> perl Makefile.PL -static -config
+shell> make
+shell> make install
+shell> make perl
+@end example
+
+Then you must install the new Perl. The output of @code{make perl} will
+indicate the exact @code{make} command you will need to execute to perform
+the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
+MAP_TARGET=perl}.
+
+Next, use the just-created Perl to create another Perl that also includes a
+statically-linked @code{DBD::mysql} by running these commands in the
+directory where your @code{Msql-Mysql-modules} distribution is located:
+
+@example
+shell> perl Makefile.PL -static -config
+shell> make
+shell> make install
+shell> make perl
+@end example
+
+Finally, you should install this new Perl.  Again, the output of @code{make
+perl} indicates the command to use.
 
 
 @node Function Index, Concept Index, Placeholder, Top
