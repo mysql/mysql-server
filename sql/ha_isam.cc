@@ -52,7 +52,7 @@ int ha_isam::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     (void) nisam_extra(file,HA_EXTRA_WAIT_LOCK);
   if (!table->db_record_offset)
-    int_option_flag|=HA_REC_NOT_IN_SEQ;
+    int_table_flags|=HA_REC_NOT_IN_SEQ;
   return (0);
 }
 

@@ -20,8 +20,9 @@ LDADD =			libdbug.a ../strings/libmystrings.a
 pkglib_LIBRARIES =	libdbug.a
 noinst_HEADERS =	dbug_long.h
 libdbug_a_SOURCES =	dbug.c sanity.c
-EXTRA_DIST =		example1.c example2.c example3.c user.r monty.doc readme.prof \
-			main.c factorial.c
+EXTRA_DIST =		example1.c example2.c example3.c \
+			user.r monty.doc readme.prof \
+			main.c factorial.c dbug_analyze.c
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \
@@ -32,7 +33,7 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			sleep.h specific.h version.h pwd.h timers.h uio.h \
 			cdefs.h machdep.h signal.h __signal.h util.h
 
-# Must be linked with libs thta are not compiled yet
+# Must be linked with libs that are not compiled yet
 extra_progs: factorial dbug_analyze
 
 factorial: main.o factorial.o

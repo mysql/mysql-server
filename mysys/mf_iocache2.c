@@ -117,6 +117,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   }
   info->pos_in_file=pos;
   info->seek_not_done=1;
+  DBUG_VOID_RETURN;
 }
 
 

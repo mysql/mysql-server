@@ -23,7 +23,7 @@
 
 #include "libmysqlfs.h"
 #include "mysqlcorbafs.h"
-#include <getopt.h>
+#include <my_getopt.h>
 #define MAXPATHLEN 256
 
 #include <sys/types.h>
@@ -62,6 +62,10 @@ static char *default_charset, *current_host, *current_user, *opt_password,
     *path,*fields_terminated=0, *lines_terminated=0, *enclosed=0, 
     *opt_enclosed=0, *escaped=0;
 
+
+/* This should be fixed to use my_getopt when the program is ready
+
+
 static struct option long_options[] =
 {
   {"add-locks",    no_argument,    0,OPT_LOCKS},
@@ -99,6 +103,7 @@ static struct option long_options[] =
   {0, 0, 0, 0}
 };
 
+*/
 
 /*
 void
@@ -428,6 +433,8 @@ static int get_options(int *argc,char ***argv)
   my_bool tty_password=0;
   DBUG_ENTER("get_options");
   load_defaults("my",load_default_groups,argc,argv);
+
+  /* change this to use my_getopt when program is ready */
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(*argc,*argv,"#::p::h:u:O:P:S:T:EBaAcCdefFlnqtvVw:?Ix",
 			long_options, &option_index)) != EOF)

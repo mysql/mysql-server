@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.8"
+#define IMPORT_VERSION "3.4"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -37,53 +37,98 @@ static char *add_load_option(char *ptr,const char *object,
 			     const char *statement);
 
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
-		replace=0,silent=0,ignore=0,opt_compress=0,opt_local_file=0;
-
+		replace=0,silent=0,ignore=0,opt_compress=0,opt_local_file=0,
+                opt_low_priority= 0, tty_password= 0;
 static MYSQL	mysql_connection;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
-		*escaped=0, opt_low_priority=0, *opt_columns=0,
- 		*default_charset;
+		*escaped=0, *opt_columns=0, *default_charset;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
+static my_string opt_ignore_lines=0;
 #include "sslopt-vars.h"
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"character-sets-dir", required_argument,     0, OPT_CHARSETS_DIR},
-  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
-  {"columns",           required_argument,      0, 'c'},
-  {"compress",	        no_argument,	        0, 'C'},
-  {"debug",		optional_argument,	0, '#'},
-  {"delete",		no_argument,		0, 'd'},
-  {"fields-terminated-by", required_argument,	  0, (int) OPT_FTB},
-  {"fields-enclosed-by", required_argument,	  0, (int) OPT_ENC},
-  {"fields-optionally-enclosed-by", required_argument, 0, (int) OPT_O_ENC},
-  {"fields-escaped-by",  required_argument,	  0, (int) OPT_ESC},
-  {"force",		no_argument,		0, 'f'},
-  {"help",		no_argument,		0, '?'},
-  {"host",		required_argument,	0, 'h'},
-  {"ignore",		no_argument,		0, 'i'},
-  {"lines-terminated-by", required_argument,	0, (int) OPT_LTB},
-  {"local",		no_argument,		0, 'L'},
-  {"lock-tables",	no_argument,		0, 'l'},
-  {"low-priority",	no_argument,		0, (int) OPT_LOW_PRIORITY},
-  {"password",		optional_argument,	0, 'p'},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"columns", 'c',
+   "Use only these columns to import the data to. Give the column names in a comma separated list. This is same as giving columns to LOAD DATA INFILE.",
+   (gptr*) &opt_columns, (gptr*) &opt_columns, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'", 0, 0, 0,
+   GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0}, 
+  {"delete", 'd', "First delete all rows from table.", (gptr*) &opt_delete,
+   (gptr*) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-terminated-by", OPT_FTB,
+   "Fields in the textfile are terminated by ...", (gptr*) &fields_terminated,
+   (gptr*) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-enclosed-by", OPT_ENC,
+   "Fields in the importfile are enclosed by ...", (gptr*) &enclosed,
+   (gptr*) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-optionally-enclosed-by", OPT_O_ENC,
+   "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
+   (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
+   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"force", 'f', "Continue even if we get an sql-error.",
+   (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (gptr*) &current_host,
+   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore", 'i', "If duplicate unique key was found, keep old row.",
+   (gptr*) &ignore, (gptr*) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
+   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
+   (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"local", 'L', "Read all files through the client", (gptr*) &opt_local_file,
+   (gptr*) &opt_local_file, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"lock-tables", 'l', "Lock all tables for write.", (gptr*) &lock_tables,
+   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"low-priority", OPT_LOW_PRIORITY,
+   "Use LOW_PRIORITY when updating the table", (gptr*) &opt_low_priority,
+   (gptr*) &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe",	    	no_argument,	   	0, 'W'},
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port",		required_argument,	0, 'P'},
-  {"replace",		no_argument,		0, 'r'},
-  {"silent",		no_argument,		0, 's'},
-  {"socket",		required_argument,	0, 'S'},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
+  {"replace", 'r', "If duplicate unique key was found, replace old row.",
+   (gptr*) &replace, (gptr*) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",		required_argument,	0, 'u'},
+  {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
+   (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose",		no_argument,		0, 'v'},
-  {"version",		no_argument,		0, 'V'},
-  {0, 0, 0, 0}
+  {"verbose", 'v', "Print info about the various stages.", (gptr*) &verbose,
+   (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -110,155 +155,57 @@ read the text file directly. In other cases the client will open the text\n\
 file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
 
   printf("\nUsage: %s [OPTIONS] database textfile...",my_progname);
-  printf("\n\
-  -#, --debug[=...]     Output debug log. Often this is 'd:t:o,filename`\n\
-  -?, --help		Displays this help and exits.\n\
-  --default-character-set=...\n\
-                        Set the default character set.\n\
-  --character-sets-dir=...\n\
-                        Directory where character sets are\n\
-  -c, --columns=...     Use only these columns to import the data to.\n\
-                        Give the column names in a comma separated list.\n\
-                        This is same as giving columns to LOAD DATA INFILE.\n\
-  -C, --compress        Use compression in server/client protocol\n\
-  -d, --delete          First delete all rows from table.\n\
-  -f, --force		Continue even if we get an sql-error.\n\
-  -h, --host=...	Connect to host.\n\
-  -i, --ignore          If duplicate unique key was found, keep old row.\n\
-  -l, --lock-tables     Lock all tables for write.\n\
-  -L, --local		Read all files through the client\n\
-  --low-priority	Use LOW_PRIORITY when updating the table\n\
-  -p, --password[=...]	Password to use when connecting to server.\n\
-			If password is not given it's asked from the tty.\n");
-#ifdef __WIN__
-  puts("-W, --pipe              Use named pipes to connect to server");
-#endif
-  printf("\
-  -P, --port=...	Port number to use for connection.\n\
-  -r, --replace         If duplicate unique key was found, replace old row.\n\
-  -s, --silent		Be more silent.\n\
-  -S, --socket=...	Socket file to use for connection.\n");
-#include "sslopt-usage.h"
-#ifndef DONT_ALLOW_USER_CHANGE
-  printf("\
-  -u, --user=#		User for login if not current user.\n");
-#endif
-  printf("\
-  -v, --verbose		Print info about the various stages.\n\
-  -V, --version		Output version information and exit.\n\
-  --fields-terminated-by=...\n\
-                        Fields in the textfile are terminated by ...\n\
-  --fields-enclosed-by=...\n\
-                        Fields in the importfile are enclosed by ...\n\
-  --fields-optionally-enclosed-by=...\n\
-                        Fields in the i.file are opt. enclosed by ...\n\
-  --fields-escaped-by=...\n\
-                        Fields in the i.file are escaped by ...\n\
-  --lines-terminated-by=...\n\
-                        Lines in the i.file are terminated by ...\n\
-");
   print_defaults("my",load_default_groups);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid) {
+  case 'p':
+    if (argument)
+    {
+      char *start=argument;
+      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      opt_password=my_strdup(argument,MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+      if (*start)
+	start[1]=0;				/* Cut length of argument */
+    }
+    else
+      tty_password= 1;
+    break;
+#ifdef __WIN__
+  case 'W':
+    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+    opt_local_file=1;
+    break;
+#endif
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o");
+    break;
+  case 'V': print_version(); exit(0);
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+#include "sslopt-case.h"
+  }
+  return 0;
+}
+
 
 static int get_options(int *argc, char ***argv)
 {
-  int c, option_index;
-  my_bool tty_password=0;
+  int ho_error;
 
-  while ((c=getopt_long(*argc,*argv,
-			(char*) "#::p::c:h:u:P:S:CdfilLrsvV?IW",
-			long_options, &option_index)) != EOF)
-  {
-    switch(c) {
-    case 'c':
-      opt_columns= optarg;
-      break;
-    case 'C':
-      opt_compress=1;
-      break;
-    case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
-      break;
-    case OPT_CHARSETS_DIR:
-      charsets_dir= optarg;
-      break;
-    case 'd':
-      opt_delete= 1;
-      break;
-    case 'f':
-      ignore_errors= 1;
-      break;
-    case 'h':
-      current_host= optarg;
-      break;
-    case 'i':
-      ignore= 1;
-      break;
-#ifndef DONT_ALLOW_USER_CHANGE
-    case 'u':
-      current_user= optarg;
-      break;
-#endif
-    case 'p':
-      if (optarg)
-      {
-	char *start=optarg;
-	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-	opt_password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	if (*start)
-	  start[1]=0;				/* Cut length of argument */
-      }
-      else
-	tty_password= 1;
-      break;
-    case 'P':
-      opt_mysql_port= (unsigned int) atoi(optarg);
-      break;
-    case 'r':
-      replace= 1;
-      break;
-    case 's':
-      silent= 1;
-      break;
-    case 'S':
-      opt_mysql_unix_port= optarg;
-      break;
-#ifdef __WIN__
-    case 'W':
-      opt_mysql_unix_port=MYSQL_NAMEDPIPE;
-      opt_local_file=1;
-      break;
-#endif
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o");
-      break;
-    case 'l': lock_tables= 1;   break;
-    case 'L': opt_local_file=1; break;
-    case 'v': verbose= 1;	break;
-    case 'V': print_version(); exit(0);
-    case 'I':
-    case '?':
-      usage();
-      exit(0);
-    case (int) OPT_FTB:
-      fields_terminated= optarg;
-      break;
-    case (int) OPT_LTB:
-      lines_terminated= optarg;
-      break;
-    case (int) OPT_ENC:
-      enclosed= optarg;
-      break;
-    case (int) OPT_O_ENC:
-      opt_enclosed= optarg;
-      break;
-    case (int) OPT_ESC:
-      escaped= optarg;
-      break;
-#include "sslopt-case.h"
-    }
-  }
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   if (enclosed && opt_enclosed)
   {
     fprintf(stderr, "You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n");
@@ -274,8 +221,6 @@ static int get_options(int *argc, char ***argv)
     if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
       exit(1);
   }
-  (*argc)-=optind;
-  (*argv)+=optind;
   if (*argc < 2)
   {
     usage();
@@ -345,6 +290,8 @@ static int write_to_table(char *filename, MYSQL *sock)
 		       " OPTIONALLY ENCLOSED BY");
   end= add_load_option(end, escaped, " ESCAPED BY");
   end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
+  if (opt_ignore_lines)
+    end= strmov(strmov(strmov(end, " IGNORE "), opt_ignore_lines), " LINES");
   if (opt_columns)
     end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
   *end= '\0';

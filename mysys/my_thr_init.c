@@ -34,6 +34,9 @@ pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
 #ifndef HAVE_LOCALTIME_R
 pthread_mutex_t LOCK_localtime_r;
 #endif
+#ifndef HAVE_GETHOSTBYNAME_R
+pthread_mutex_t LOCK_gethostbyname_r;
+#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -77,6 +80,9 @@ my_bool my_thread_global_init(void)
 #ifndef HAVE_LOCALTIME_R
   pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
+#ifndef HAVE_GETHOSTBYNAME_R
+  pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
+#endif
   return my_thread_init();
 }
 
@@ -90,6 +96,9 @@ void my_thread_global_end(void)
 #endif
 #ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errchk_mutexattr);
+#endif
+#ifndef HAVE_GETHOSTBYNAME_R
+  pthread_mutex_destroy(&LOCK_gethostbyname_r);
 #endif
 }
 
@@ -105,50 +114,61 @@ static long thread_id=0;
 my_bool my_thread_init(void)
 {
   struct st_my_thread_var *tmp;
+  my_bool error=0;
+
+#ifdef EXTRA_DEBUG_THREADS
+  fprintf(stderr,"my_thread_init(): thread_id=%ld\n",pthread_self());
+#endif  
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
   pthread_mutex_lock(&THR_LOCK_lock);
 #endif
+
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
   {
-    pthread_mutex_unlock(&THR_LOCK_lock);
-    return 0;						/* Safequard */
+#ifdef EXTRA_DEBUG
+    fprintf(stderr,"my_thread_init() called more than once in thread %ld\n",
+	        pthread_self());
+#endif    
+    goto end;
   }
-    /* We must have many calloc() here because these are freed on
-       pthread_exit */
-  if (!(tmp=(struct st_my_thread_var *)
-	calloc(1,sizeof(struct st_my_thread_var))))
+  if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
   {
-    pthread_mutex_unlock(&THR_LOCK_lock);
-    return 1;
+    error= 1;
+    goto end;
   }
   pthread_setspecific(THR_KEY_mysys,tmp);
 
 #else
-  if (THR_KEY_mysys.id)   /* Already initialized */
-  {
-#if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
-    pthread_mutex_unlock(&THR_LOCK_lock);
-#endif
-    return 0;
-  }
+  /*
+    Skip initialization if the thread specific variable is already initialized
+  */
+  if (THR_KEY_mysys.id)
+    goto end;
   tmp= &THR_KEY_mysys;
 #endif
   tmp->id= ++thread_id;
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
+
+end:
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
   pthread_mutex_unlock(&THR_LOCK_lock);
 #endif
-  return 0;
+  return error;
 }
 
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp=my_thread_var;
+#ifdef EXTRA_DEBUG_THREADS
+  fprintf(stderr,"my_thread_end(): tmp=%p,thread_id=%ld\n",
+	  tmp,pthread_self());
+#endif  
   if (tmp)
   {
 #if !defined(DBUG_OFF)
+    /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug)
     {
       free(tmp->dbug);
@@ -163,6 +183,7 @@ void my_thread_end(void)
     free(tmp);
 #endif
   }
+  /* The following free has to be done, even if my_thread_var() is 0 */
 #if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
   pthread_setspecific(THR_KEY_mysys,0);
 #endif

@@ -4,6 +4,7 @@
  * $Id$
  */
 
+/* Avoid problem with including bits/pthreadtypes.h with libc 2.2 */
 
 #include <unistd.h>
 #include <setjmp.h>

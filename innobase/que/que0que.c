@@ -555,6 +555,12 @@ que_graph_free_recursive(
 			btr_pcur_free_for_mysql(upd->pcur);
 		}
 
+		que_graph_free_recursive(upd->cascade_node);		
+
+		if (upd->cascade_heap) {
+			mem_heap_free(upd->cascade_heap);
+		}
+		
 		que_graph_free_recursive(upd->select);
 
 		mem_heap_free(upd->heap);
@@ -1110,9 +1116,6 @@ que_thr_move_to_run_state_for_mysql(
 		trx->n_active_thrs++;
 
 		thr->is_active = TRUE;
-
-		ut_ad((thr->graph)->n_active_thrs == 1);
-		ut_ad(trx->n_active_thrs == 1);
 	}
 	
 	thr->state = QUE_THR_RUNNING;

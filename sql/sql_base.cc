@@ -195,6 +195,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   Item *item;
   char buff[80];
   CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  DBUG_ENTER("send_fields");
 
   String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
 
@@ -255,11 +256,11 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net);
-  return 0;
+  send_eof(&thd->net,1);
+  DBUG_RETURN(0);
  err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
-  return 1;					/* purecov: inspected */
+  DBUG_RETURN(1);				/* purecov: inspected */
 }
 
 
@@ -430,6 +431,7 @@ void close_thread_tables(THD *thd, bool locked)
 
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
+  thd->some_tables_deleted=0;
 
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)
@@ -1692,7 +1694,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	{
 	  if (found)
 	  {
-	    if ((*found)->eq(item))
+	    if ((*found)->eq(item,0))
 	      continue;				// Same field twice (Access?)
 	    if (current_thd->where)
 	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
@@ -1708,7 +1710,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	}
       }
     }
-    else if (!table_name && (item->eq(find) ||
+    else if (!table_name && (item->eq(find,0) ||
 			     find->name &&
 			     !my_strcasecmp(item->name,find->name)))
     {
@@ -2186,7 +2188,7 @@ int setup_ftfuncs(THD *thd)
     lj.rewind();
     while ((ftf2=lj++) != ftf)
     {
-      if (ftf->eq(ftf2) && !ftf2->master)
+      if (ftf->eq(ftf2,1) && !ftf2->master)
         ftf2->master=ftf;
     }
   }

@@ -271,8 +271,6 @@ If join_results allocated new block(s) then we need call pack_cache again.
 
 TODO list:
 
-  - Invalidate queries that use innoDB tables changed in transaction & remove
-      invalidation by table type
   - Delayed till after-parsing qache answer (for column rights processing)
   - Optimize cache resizing
       - if new_size < old_size then pack & shrink
@@ -280,11 +278,10 @@ TODO list:
   - Move MRG_MYISAM table type processing to handlers, something like:
         tables_used->table->file->register_used_filenames(callback,
                                                           first_argument);
-  - In Query_cache::insert_table eliminate strlen(). To do this we have to
-        add db_len to the TABLE_LIST and TABLE structures.
 */
 
 #include "mysql_priv.h"
+#ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -1030,7 +1027,8 @@ err:
   Remove all cached queries that uses any of the tables in the list
 */
 
-void Query_cache::invalidate(TABLE_LIST *tables_used)
+void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
+			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table list)");
   if (query_cache_size > 0)
@@ -1039,8 +1037,44 @@ void Query_cache::invalidate(TABLE_LIST *tables_used)
     if (query_cache_size > 0)
     {
       DUMP(this);
+
+      using_transactions = using_transactions &&
+	(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN));
       for ( ; tables_used; tables_used=tables_used->next)
-	invalidate_table(tables_used);
+      {
+	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
+	if (using_transactions && 
+	   tables_used->table->file->has_transactions())
+	  /* 
+	     Tables_used->table can't be 0 in transaction.
+	     Only 'drop' invalidate not opened table, but 'drop' 
+	     force transaction finish.
+	  */
+	  thd->add_changed_table(tables_used->table);
+	else
+	  invalidate_table(tables_used);
+      }
+    }
+    STRUCT_UNLOCK(&structure_guard_mutex);
+  }
+  DBUG_VOID_RETURN;
+}
+
+void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
+{
+  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (query_cache_size > 0 && tables_used)
+  {
+    STRUCT_LOCK(&structure_guard_mutex);
+    if (query_cache_size > 0)
+    {
+      DUMP(this);
+      for ( ; tables_used; tables_used=tables_used->next)
+      {
+	invalidate_table((byte*) tables_used->key, tables_used->key_length);
+	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
+			      tables_used->table_name));
+      }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
   }
@@ -1051,41 +1085,27 @@ void Query_cache::invalidate(TABLE_LIST *tables_used)
   Remove all cached queries that uses the given table
 */
 
-void Query_cache::invalidate(TABLE *table)
+void Query_cache::invalidate(THD *thd, TABLE *table, 
+			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table)");
+  
   if (query_cache_size > 0)
   {
     STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
-      invalidate_table(table);
-    STRUCT_UNLOCK(&structure_guard_mutex);
-  }
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Remove all cached queries that uses the given table type.
-*/
-
-void Query_cache::invalidate(Query_cache_table::query_cache_table_type type)
-{
-  DBUG_ENTER("Query_cache::invalidate (type)");
-  if (query_cache_size > 0)
-  {
-    STRUCT_LOCK(&structure_guard_mutex);
-    DUMP(this);
     if (query_cache_size > 0)
     {
-      /* invalidate_table reduce list while only root of list remain */
-      while (tables_blocks[type] != 0)
-	invalidate_table(tables_blocks[type]);
+      using_transactions = using_transactions &&
+	(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN));
+      if (using_transactions && table->file->has_transactions())
+	thd->add_changed_table(table);
+      else
+	invalidate_table(table);
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
   }
   DBUG_VOID_RETURN;
 }
-
 
 /*
   Remove all cached queries that uses the given database
@@ -1100,12 +1120,9 @@ void Query_cache::invalidate(char *db)
     if (query_cache_size > 0)
     {
       DUMP(this);
-      for (int i=0 ; i < (int) Query_cache_table::TYPES_NUMBER; i++)
-      {
 	/* invalidate_table reduce list while only root of list remain */
-	while (tables_blocks[i] !=0 )
-	  invalidate_table(tables_blocks[i]);
-      }
+      while (tables_blocks !=0 )
+	invalidate_table(tables_blocks);
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
   }
@@ -1120,7 +1137,8 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
   {
     /* Calculate the key outside the lock to make the lock shorter */
     char key[MAX_DBKEY_LENGTH];
-    uint key_length= filename_2_table_key(key, filename);
+    uint32 db_length;
+    uint key_length= filename_2_table_key(key, filename, &db_length);
     STRUCT_LOCK(&structure_guard_mutex);
     if (query_cache_size > 0)			// Safety if cache removed
     {
@@ -1801,10 +1819,14 @@ void Query_cache::invalidate_table(TABLE_LIST *table_list)
 
 void Query_cache::invalidate_table(TABLE *table)
 {
+  invalidate_table((byte*) table->table_cache_key, table->key_length);
+}
+
+void Query_cache::invalidate_table(byte * key, uint32  key_length)
+{
   Query_cache_block *table_block;
   if ((table_block = ((Query_cache_block*)
-		      hash_search(&tables, (byte*) table->table_cache_key,
-				  table->key_length))))
+		      hash_search(&tables, key, key_length))))
     invalidate_table(table_block);
 }
 
@@ -1842,8 +1864,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
     block_table->n=n;
     if (!insert_table(tables_used->table->key_length,
 		      tables_used->table->table_cache_key, block_table,
-		      Query_cache_table::type_convertion(tables_used->table->
-							 db_type)))
+		      tables_used->db_length))
       break;
 
     if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
@@ -1855,10 +1876,12 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	   table++)
       {
 	char key[MAX_DBKEY_LENGTH];
-	uint key_length =filename_2_table_key(key, table->table->filename);
+	uint32 db_length;
+	uint key_length =filename_2_table_key(key, table->table->filename,
+					      &db_length);
 	(++block_table)->n= ++n;
 	if (!insert_table(key_length, key, block_table,
-			  Query_cache_table::type_convertion(DB_TYPE_MYISAM)))
+			  db_length))
 	  goto err;
       }
     }
@@ -1885,7 +1908,7 @@ err:
 my_bool
 Query_cache::insert_table(uint key_len, char *key,
 			  Query_cache_block_table *node,
-			  Query_cache_table::query_cache_table_type type)
+			  uint32 db_length)
 {
   DBUG_ENTER("Query_cache::insert_table");
   DBUG_PRINT("qcache", ("insert table node 0x%lx, len %d",
@@ -1909,9 +1932,8 @@ Query_cache::insert_table(uint key_len, char *key,
       DBUG_RETURN(0);
     }
     Query_cache_table *header = table_block->table();
-    header->type(type);
     double_linked_list_simple_include(table_block,
-				      &tables_blocks[type]);
+				      &tables_blocks);
     Query_cache_block_table *list_root = table_block->table(0);
     list_root->n = 0;
     list_root->next = list_root->prev = list_root;
@@ -1923,7 +1945,7 @@ Query_cache::insert_table(uint key_len, char *key,
       DBUG_RETURN(0);
     }
     char *db = header->db();
-    header->table(db + strlen(db) + 1);
+    header->table(db + db_length + 1);
   }
 
   Query_cache_block_table *list_root = table_block->table(0);
@@ -1947,7 +1969,7 @@ void Query_cache::unlink_table(Query_cache_block_table *node)
     // list is empty (neighbor is root of list)
     Query_cache_block *table_block = neighbour->block();
     double_linked_list_exclude(table_block,
-			       &tables_blocks[table_block->table()->type()]);
+			       &tables_blocks);
     hash_delete(&tables,(byte *) table_block);
     free_memory_block(table_block);
   }
@@ -2033,7 +2055,7 @@ Query_cache::get_free_block(ulong len, my_bool not_less, ulong min)
 	  block=block->prev;
 	  n++;
 	}
-	if(block->length < len)
+	if (block->length < len)
 	  block=block->next;
       }
     }
@@ -2513,8 +2535,8 @@ my_bool Query_cache::move_by_type(byte **border,
     new_block->n_tables=1;
     memmove((char*) new_block->data(), data, len-new_block->headers_len());
     relink(block, new_block, next, prev, pnext, pprev);
-    if (tables_blocks[new_block->table()->type()] == block)
-      tables_blocks[new_block->table()->type()] = new_block;
+    if (tables_blocks == block)
+      tables_blocks = new_block;
 
     Query_cache_block_table *nlist_root = new_block->table(0);
     nlist_root->n = 0;
@@ -2771,10 +2793,10 @@ my_bool Query_cache::join_results(ulong join_limit)
 }
 
 
-uint Query_cache::filename_2_table_key (char *key, const char *path)
+uint Query_cache::filename_2_table_key (char *key, const char *path,
+					uint32 *db_length)
 {
   char tablename[FN_REFLEN+2], *filename, *dbname;
-  uint db_length;
   DBUG_ENTER("Query_cache::filename_2_table_key");
 
   /* Safety if filename didn't have a directory name */
@@ -2785,10 +2807,10 @@ uint Query_cache::filename_2_table_key (char *key, const char *path)
   filename=  tablename + dirname_length(tablename + 2) + 2;
   /* Find start of databasename */
   for (dbname= filename - 2 ; dbname[-1] != FN_LIBCHAR ; dbname--) ;
-  db_length= (filename - dbname) - 1;
-  DBUG_PRINT("qcache", ("table '%-.*s.%s'", db_length, dbname, filename));
+  *db_length= (filename - dbname) - 1;
+  DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
-  DBUG_RETURN((uint) (strmov(strmake(key, dbname, db_length) + 1,
+  DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
 			     filename) -key) + 1);
 }
 
@@ -2975,22 +2997,18 @@ void Query_cache::tables_dump()
   DBUG_PRINT("qcache", ("--------------------"));
   DBUG_PRINT("qcache", ("TABLES"));
   DBUG_PRINT("qcache", ("--------------------"));
-  for (int i=0; i < (int) Query_cache_table::TYPES_NUMBER; i++)
+  if (tables_blocks != 0)
   {
-    DBUG_PRINT("qcache", ("--- type %u", i));
-    if (tables_blocks[i] != 0)
+    Query_cache_block *table_block = tables_blocks;
+    do
     {
-      Query_cache_block *table_block = tables_blocks[i];
-      do
-      {
-	Query_cache_table *table = table_block->table();
-	DBUG_PRINT("qcache", ("'%s' '%s'", table->db(), table->table()));
-	table_block = table_block->next;
-      } while ( table_block != tables_blocks[i]);
-    }
-    else
-      DBUG_PRINT("qcache", ("no tables in list"));
+      Query_cache_table *table = table_block->table();
+      DBUG_PRINT("qcache", ("'%s' '%s'", table->db(), table->table()));
+      table_block = table_block->next;
+    } while ( table_block != tables_blocks);
   }
+  else
+    DBUG_PRINT("qcache", ("no tables in list"));
   DBUG_PRINT("qcache", ("--------------------"));
 }
 
@@ -3082,7 +3100,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
       break;
     }
     case Query_cache_block::TABLE:
-      if (in_list(tables_blocks[block->table()->type()], block, "tables"))
+      if (in_list(tables_blocks, block, "tables"))
 	result = 1;
       if (in_table_list(block->table(0),  block->table(0), "table list root"))
 	result = 1;
@@ -3197,28 +3215,25 @@ my_bool Query_cache::check_integrity(bool not_locked)
   }
 
   DBUG_PRINT("qcache", ("check tables ..."));
-  for (i=0 ; (int) i < (int) Query_cache_table::TYPES_NUMBER; i++)
+  if ((block = tables_blocks))
   {
-    if ((block = tables_blocks[i]))
+    do
     {
-      do
+      DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
+			    (ulong) block, (uint) block->type));
+      uint length;
+      byte *key = query_cache_table_get_key((byte*) block, &length, 0);
+      gptr val = hash_search(&tables, key, length);
+      if (((gptr)block) != val)
       {
-	DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
-			      (ulong) block, (uint) block->type));
-	uint length;
-	byte *key = query_cache_table_get_key((byte*) block, &length, 0);
-	gptr val = hash_search(&tables, key, length);
-	if (((gptr)block) != val)
-	{
-	  DBUG_PRINT("error", ("block 0x%lx found in tables hash like 0x%lx",
-			       (ulong) block, (ulong) val));
-	}
-
-	if (in_blocks(block))
-	  result = 1;
-	block=block->next;
-      } while (block != tables_blocks[i]);
-    }
+	DBUG_PRINT("error", ("block 0x%lx found in tables hash like 0x%lx",
+			     (ulong) block, (ulong) val));
+      }
+      
+      if (in_blocks(block))
+	result = 1;
+      block=block->next;
+    } while (block != tables_blocks);
   }
 
   DBUG_PRINT("qcache", ("check free blocks"));
@@ -3446,3 +3461,5 @@ err2:
 }
 
 #endif /* DBUG_OFF */
+
+#endif /*HAVE_QUERY_CACHE*/

@@ -90,16 +90,13 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
   FT_SEG_ITERATOR ftsi;
   _mi_ft_segiterator_init(info, keynr, record, &ftsi);
 
+  ft_parse_init(parsed, info->s->keyinfo[keynr].seg->charset);
   while (_mi_ft_segiterator(&ftsi))
     if (ftsi.pos)
       if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
         return 1;
 
-  /* Handle the case where all columns are NULL */
-  if (!is_tree_inited(parsed) && ft_parse(parsed, (byte*) "", 0))
-    return 1;
-  else
-    return 0;
+  return 0;
 }
 
 FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
@@ -153,6 +150,7 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wlist,
 int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 {
   FT_SEG_ITERATOR ftsi1, ftsi2;
+  CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
 
@@ -160,9 +158,8 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
   {
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
-          _mi_compare_text(default_charset_info,
-	                 (uchar*) ftsi1.pos,ftsi1.len,
-			 (uchar*) ftsi2.pos,ftsi2.len,0)))
+          _mi_compare_text(cs, (uchar*) ftsi1.pos,ftsi1.len,
+                               (uchar*) ftsi2.pos,ftsi2.len,0)))
       return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
   }
   return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;
@@ -174,6 +171,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
 {
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
+  CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
   uint key_length;
   int cmp, cmp2;
 
@@ -185,9 +183,8 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   error=0;
   while(old_word->pos && new_word->pos)
   {
-    cmp=_mi_compare_text(default_charset_info,
-	                 (uchar*) old_word->pos,old_word->len,
-			 (uchar*) new_word->pos,new_word->len,0);
+    cmp=_mi_compare_text(cs, (uchar*) old_word->pos,old_word->len,
+                             (uchar*) new_word->pos,new_word->len,0);
     cmp2= cmp ? 0 : (fabs(old_word->weight - new_word->weight) > 1.e-5);
 
     if (cmp < 0 || cmp2)

@@ -11,6 +11,12 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "univ.i"
 
+
+/* If the following is set to TRUE, we do not call os_file_flush in every
+os_file_write */
+extern ibool	os_do_not_call_flush_at_each_write;
+extern ibool	os_has_said_disk_full;
+
 #ifdef __WIN__
 
 /* We define always WIN_ASYNC_IO, and check at run-time whether
@@ -18,12 +24,6 @@ Created 10/21/1995 Heikki Tuuri
 #define WIN_ASYNC_IO
 
 #define UNIV_NON_BUFFERED_IO
-
-#else
-
-#if defined(HAVE_AIO_H) && defined(HAVE_LIBRT)
-#define POSIX_ASYNC_IO
-#endif
 
 #endif
 
@@ -54,6 +54,9 @@ log. */
 #define	OS_FILE_OPEN			51
 #define	OS_FILE_CREATE			52
 #define OS_FILE_OVERWRITE		53
+
+#define OS_FILE_READ_ONLY 		333
+#define	OS_FILE_READ_WRITE		444
 
 /* Options for file_create */
 #define	OS_FILE_AIO			61
@@ -117,6 +120,27 @@ ulint
 os_get_os_version(void);
 /*===================*/
                   /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
+/********************************************************************
+Creates the seek mutexes used in positioned reads and writes. */
+
+void
+os_io_init_simple(void);
+/*===================*/
+/********************************************************************
+A simple function to open or create a file. */
+
+os_file_t
+os_file_create_simple(
+/*==================*/
+			/* out, own: handle to the file, not defined if error,
+			error number can be retrieved with os_get_last_error */
+	char*	name,	/* in: name of the file or path as a null-terminated
+			string */
+	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
+			(if does not exist, error), or OS_FILE_CREATE if a new
+			file is created (if exists, error) */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
 Opens an existing file or creates a new. */
 
@@ -317,6 +341,8 @@ os_aio_windows_handle(
 	void**	message2,
 	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
 #endif
+
+/* Currently we do not use Posix async i/o */
 #ifdef POSIX_ASYNC_IO
 /**************************************************************************
 This function is only used in Posix asynchronous i/o. Waits for an aio

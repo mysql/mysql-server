@@ -44,6 +44,15 @@ half-written pages in the data files. */
 void
 trx_sys_doublewrite_restore_corrupt_pages(void);
 /*===========================================*/
+/********************************************************************
+Determines if a page number is located inside the doublewrite buffer. */
+
+ibool
+trx_doublewrite_page_inside(
+/*========================*/
+				/* out: TRUE if the location is inside
+				the two blocks of the doublewrite buffer */
+	ulint	page_no);	/* in: page number */
 /*******************************************************************
 Checks if a page address is the trx sys header page. */
 UNIV_INLINE
@@ -250,7 +259,7 @@ therefore 256 */
 /* The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
-/* Transaction system header; protected by trx_sys->mutex */
+/* Transaction system header */
 /*-------------------------------------------------------------*/
 #define	TRX_SYS_TRX_ID_STORE	0	/* the maximum trx id or trx number
 					modulo TRX_SYS_TRX_ID_UPDATE_MARGIN

@@ -16,9 +16,10 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "8.3"
+#define SHOW_VERSION "9.4"
 
 #include <my_global.h>
+#include "client_priv.h"
 #include <my_sys.h>
 #include <m_string.h>
 #include "mysql.h"
@@ -26,10 +27,10 @@
 #include "mysqld_error.h"
 #include <signal.h>
 #include <stdarg.h>
-#include <getopt.h>
+#include "sslopt-vars.h"
 
 static my_string host=0,opt_password=0,user=0;
-static my_bool opt_show_keys=0,opt_compress=0,opt_status=0;
+static my_bool opt_show_keys=0,opt_compress=0,opt_status=0, tty_password=0;
 static uint opt_verbose=0;
 
 static void get_options(int *argc,char ***argv);
@@ -48,7 +49,6 @@ static void print_res_row(MYSQL_RES *result,MYSQL_ROW cur);
 
 static const char *load_default_groups[]= { "mysqlshow","client",0 };
 static my_string opt_mysql_unix_port=0;
-#include "sslopt-vars.h"
 
 int main(int argc, char **argv)
 {
@@ -121,32 +121,52 @@ int main(int argc, char **argv)
   return 0;				/* No compiler warnings */
 }
 
-
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"character-sets-dir", required_argument, 0, 'c'},
-  {"compress",	no_argument,	   0, 'C'},
-  {"debug",	optional_argument, 0, '#'},
-  {"help",	no_argument,	   0, '?'},
-  {"host",	required_argument, 0, 'h'},
-  {"status",	no_argument,	   0, 'i'},
-  {"keys",	no_argument,	   0, 'k'},
-  {"password",	optional_argument, 0, 'p'},
-  {"port",	required_argument, 0, 'P'},
+  {"character-sets-dir", 'c', "Directory where character sets are",
+   (gptr*) &charsets_dir, (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"status", 'i', "Shows a lot of extra information about each table.",
+   (gptr*) &opt_status, (gptr*) &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"keys", 'k', "Show keys for table", (gptr*) &opt_show_keys,
+   (gptr*) &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.", 
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
 #ifdef __WIN__
-  {"pipe",	no_argument,	   0, 'W'},
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket",	required_argument, 0, 'S'},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",	required_argument, 0, 'u'},
+  {"user", 'u', "User for login if not current user.", (gptr*) &user,
+   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose",	no_argument,	   0, 'v'},
-  {"version",	no_argument,	   0, 'V'},
-  {0, 0, 0, 0}
+  {"verbose", 'v',
+   "More verbose output; You can use this multiple times to get even more verbose output.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
+  
+  
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
@@ -160,33 +180,6 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Shows the structure of a mysql database (databases,tables and columns)\n");
   printf("Usage: %s [OPTIONS] [database [table [column]]]\n",my_progname);
-  printf("\n\
-  -#, --debug=...       output debug log. Often this is 'd:t:o,filename`\n\
-  -?, --help		display this help and exit\n\
-  -c, --character-sets-dir=...\n\
-                        Directory where character sets are\n\
-  -C, --compress        Use compression in server/client protocol\n\
-  -h, --host=...	connect to host\n\
-  -i, --status		Shows a lot of extra information about each table\n\
-  -k, --keys		show keys for table\n\
-  -p, --password[=...]	password to use when connecting to server\n\
-			If password is not given it's asked from the tty.\n");
-#ifdef __WIN__
-  puts("-W, --pipe		Use named pipes to connect to server");
-#endif
-  printf("\
-  -P  --port=...	Port number to use for connection\n\
-  -S  --socket=...	Socket file to use for connection\n");
-#include "sslopt-usage.h"
-#ifndef DONT_ALLOW_USER_CHANGE
-  printf("\
-  -u, --user=#		user for login if not current user\n");
-#endif
-  printf("\
-  -v, --verbose		more verbose output; You can use this multiple times\n\
-                        to get even more verbose output.\n\
-  -V, --version		output version information and exit\n");
-
   puts("\n\
 If last argument contains a shell or SQL wildcard (*,?,% or _) then only\n\
 what\'s matched by the wildcard is shown.\n\
@@ -195,85 +188,61 @@ If no table is given then all matching tables in database are shown\n\
 If no column is given then all matching columns and columntypes in table\n\
 are shown");
   print_defaults("my",load_default_groups);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid) {
+  case 'v':
+    opt_verbose++;
+    break;
+  case 'p':
+    if (argument)
+    {
+      char *start=argument;
+      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      opt_password=my_strdup(argument,MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+      if (*start)
+	start[1]=0;				/* Cut length of argument */
+    }
+    else
+      tty_password=1;
+    break;
+  case 'W':
+#ifdef __WIN__
+    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+#endif
+    break;
+#include "sslopt-case.h"
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+    break;
+  case '?':
+  case 'I':					/* Info */
+    usage();
+    exit(0);
+  }
+  return 0;
 }
 
 
 static void
 get_options(int *argc,char ***argv)
 {
-  int c,option_index;
-  my_bool tty_password=0;
+  int ho_error;
 
-  while ((c=getopt_long(*argc,*argv,"c:h:p::u:#::P:S:Ck?vVWi",long_options,
-			&option_index)) != EOF)
-  {
-    switch(c) {
-    case 'C':
-      opt_compress=1;
-      break;
-    case 'c':
-      charsets_dir= optarg;
-      break;
-    case 'v':
-      opt_verbose++;
-      break;
-    case 'h':
-      host = optarg;
-      break;
-    case 'i':
-      opt_status=1;
-      break;
-    case 'k':
-      opt_show_keys=1;
-      break;
-    case 'p':
-      if (optarg)
-      {
-	char *start=optarg;
-	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-	opt_password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	if (*start)
-	  start[1]=0;				/* Cut length of argument */
-      }
-      else
-	tty_password=1;
-      break;
-#ifndef DONT_ALLOW_USER_CHANGE
-    case 'u':
-      user=optarg;
-      break;
-#endif
-    case 'P':
-      opt_mysql_port= (unsigned int) atoi(optarg);
-      break;
-    case 'S':
-      opt_mysql_unix_port= optarg;
-      break;
-    case 'W':
-#ifdef __WIN__
-      opt_mysql_unix_port=MYSQL_NAMEDPIPE;
-#endif
-      break;
-#include "sslopt-case.h"
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o");
-      break;
-    case 'V':
-      print_version();
-      exit(0);
-      break;
-    default:
-      fprintf(stderr,"Illegal option character '%c'\n",opterr);
-      /* Fall throught */
-    case '?':
-    case 'I':					/* Info */
-      usage();
-      exit(0);
-    }
-  }
-  (*argc)-=optind;
-  (*argv)+=optind;
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+  
   if (tty_password)
     opt_password=get_tty_password(NullS);
   return;

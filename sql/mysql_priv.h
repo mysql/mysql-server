@@ -75,22 +75,30 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
+#define STACK_BUFF_ALLOC	32	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
 #define TEMP_POOL_SIZE          128
-/* The following parameters is to decide when to use an extra cache to
-   optimise seeks when reading a big table in sorted order */
+/*
+  The following parameters is to decide when to use an extra cache to
+   optimise seeks when reading a big table in sorted order
+*/
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 
-// The following is used to decide if MySQL should use table scanning
-// instead of reading with keys.  The number says how many evaluation of the
-// WHERE clause is comparable to reading one extra row from a table.
+/*
+  The following is used to decide if MySQL should use table scanning
+  instead of reading with keys.  The number says how many evaluation of the
+  WHERE clause is comparable to reading one extra row from a table.
+*/
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
-// Number of rows in a reference table when refereed through a not unique key.
-// This value is only used when we don't know anything about the key
-// distribution.
+
+/*
+  Number of rows in a reference table when refereed through a not unique key.
+  This value is only used when we don't know anything about the key
+  distribution.
+*/
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
 /* Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used) */
@@ -251,7 +259,33 @@ inline THD *_current_thd(void)
 #include "item.h"
 #include "sql_class.h"
 #include "opt_range.h"
+
+#ifdef HAVE_QUERY_CACHE
 #include "sql_cache.h"
+#define query_cache_store_query(A, B) query_cache.store_query(A, B)
+#define query_cache_destroy() query_cache.destroy()
+#define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
+#define query_cache_resize(A) query_cache.resize(A)
+#define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
+#define query_cache_invalidate1(A) query_cache.invalidate(A)
+#define query_cache_send_result_to_client(A, B, C) \
+  query_cache.send_result_to_client(A, B, C)
+#define query_cache_invalidate_by_MyISAM_filename_ref \
+  &query_cache_invalidate_by_MyISAM_filename
+#else
+#define query_cache_store_query(A, B)
+#define query_cache_destroy()
+#define query_cache_result_size_limit(A)
+#define query_cache_resize(A)
+#define query_cache_invalidate3(A, B, C)
+#define query_cache_invalidate1(A)
+#define query_cache_send_result_to_client(A, B, C) 0
+#define query_cache_invalidate_by_MyISAM_filename_ref NULL
+
+#define query_cache_abort(A)
+#define query_cache_end_of_result(A)
+#define query_cache_invalidate_by_MyISAM_filename_ref NULL
+#endif /*HAVE_QUERY_CACHE*/
 
 int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -583,7 +617,7 @@ extern pthread_cond_t COND_refresh,COND_thread_count;
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
             opt_using_transactions, use_temp_pool, mysql_embedded;
-extern bool opt_local_infile;
+extern my_bool opt_local_infile;
 extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,

@@ -20,8 +20,8 @@
       break;
     case OPT_SSL_KEY:
       opt_use_ssl = 1;				/* true */
-      my_free(opt_ssl_key, MYF(MY_ALLOW_ZERO_PTR));
-      opt_ssl_key = my_strdup(optarg, MYF(0));
+//QQ to be removed???      my_free(opt_ssl_key, MYF(MY_ALLOW_ZERO_PTR));
+//QQ to be removed???      opt_ssl_key = my_strdup(optarg, MYF(0));
       break;
     case OPT_SSL_CERT:
       opt_use_ssl = 1;				/* true */

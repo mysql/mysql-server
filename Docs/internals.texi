@@ -57,6 +57,7 @@ This is a manual about @strong{MySQL} internals.
 * mysys functions::             Functions In The @code{mysys} Library
 * DBUG::                        DBUG Tags To Use
 * protocol::                    MySQL Client/Server Protocol
+* Fulltext Search::             Fulltext Search in MySQL
 @end menu
 
 
@@ -184,7 +185,7 @@ Now the code in @file{sql/records.cc} will be used to read through them
 in sorted order by using the row pointers in the result file.
 To optimize this, we read in a big block of row pointers, sort these
 and then we read the rows in the sorted order into a row buffer
-(@code{record_buffer}) .
+(@code{record_buffer}).
 
 @end itemize
 
@@ -287,7 +288,7 @@ Put the @samp{@{} after a @code{switch} on the same line, as this gives
 better overall indentation for the switch statement:
 
 @example
-switch (arg) {
+switch (arg) @{
 @end example
 
 @item
@@ -304,7 +305,7 @@ Put a space after @samp{,} for function arguments
 Functions return @samp{0} on success, and non-zero on error, so you can do:
 
 @example
-if(a() || b() || c()) { error("something went wrong"); }
+if(a() || b() || c()) @{ error("something went wrong"); @}
 @end example
 
 @item
@@ -489,6 +490,8 @@ Remember to lock databases for optimal caching.
 
 @item void end_key_cache _A((void));
 End key caching.
+@end table 
+
 
 
 @node DBUG, protocol, mysys functions, Top
@@ -533,7 +536,7 @@ Print query.
 @end table
 
 
-@node protocol,  , DBUG, Top
+@node protocol, Fulltext Search, DBUG, Top
 @chapter MySQL Client/Server Protocol
 
 @menu
@@ -548,47 +551,56 @@ Print query.
 @section Raw Packet Without Compression
 
 @example
--------------------------------------------------
-| Packet Length	| Packet no 	| Data		|
-| 3 Bytes	| 1 Byte 	| n Bytes	|
--------------------------------------------------
++-----------------------------------------------+
+| Packet Length | Packet no     | Data          |
+| 3 Bytes       | 1 Byte        | n Bytes       |
++-----------------------------------------------+
 @end example
 
-3 Byte packet length
-  The length is calculated with int3store
-  See include/global.h for details.
-  The max packetsize can be 16 MB.
-1 Byte packet no
+@table @asis
+@item 3 Byte packet length
+The length is calculated with int3store
+See include/global.h for details.
+The max packetsize can be 16 MB.
 
-If no compression is used the first 4 bytes of each paket
-is the header of the paket.
-The packet number is incremented for each sent packet. The first
-packet starts with 0		
+@item 1 Byte packet no
+If no compression is used the first 4 bytes of each packet is the header 
+of the packet. The packet number is incremented for each sent packet.
+The first packet starts with 0.
+@item n Byte data 
 
-n Byte data 
+@end table
 
 The packet length can be recalculated with:
+
+@example
 length = byte1 + (256 * byte2) + (256 * 256 * byte3)
+@end example
+
 
 @node raw packet with compression, basic packets, raw packet without compression, protocol
 @section Raw Packet With Compression
 
 @example
------------------------------------------------------
-| Packet Length	| Packet no | Uncomp. Packet Length |
-| 3 Bytes	| 1 Byte    | 3 Bytes		    |
------------------------------------------------------
++---------------------------------------------------+
+| Packet Length | Packet no | Uncomp. Packet Length |
+| 3 Bytes       | 1 Byte    | 3 Bytes               |
++---------------------------------------------------+
 @end example
 
-3 Byte packet length
-  The length is calculated with int3store
-  See include/global.h for details.
-  The max packetsize can be 16 MB.
-1 Byte packet no
-3 Byte uncompressed packet length
+@table @asis
+@item 3 Byte packet length
+The length is calculated with int3store
+See include/global.h for details.
+The max packetsize can be 16 MB.
+
+@item 1 Byte packet no
+@item 3 Byte uncompressed packet length
+@end table
 
 If compression is used the first 7 bytes of each packet
 is the header of the packet.
+
 
 @node basic packets, communication, raw packet with compression, protocol
 @section Basic Packets
@@ -598,52 +610,57 @@ is the header of the packet.
 * error packet::                
 @end menu
 
+
 @node ok packet, error packet, basic packets, basic packets
 @subsection OK Packet
 
-	For details see sql/net_pkg.cc
-	function send_ok
+For details, see @file{sql/net_pkg.cc::send_ok()}.
+
 @example
-	-------------------------------------------------
-	| Header	| No of Rows 	| Affected Rows |
-	| 		| 1 Byte 	| 1-8 Byte	|
-	-------------------------------------------------
-	| ID (last_insert_id)	| Status | Length 	|
-	| 1-8 Byte		| 2 Byte | 1-8 Byte	|
-	-------------------------------------------------
-	| Messagetext					|
-	| n Byte					|
-	-------------------------------------------------
++-----------------------------------------------+
+| Header        | No of Rows    | Affected Rows |
+|               | 1 Byte        | 1-8 Byte      |
+|-----------------------------------------------|
+| ID (last_insert_id)   | Status | Length       |
+| 1-8 Byte              | 2 Byte | 1-8 Byte     |
+|-----------------------------------------------|
+| Messagetext                                   |
+| n Byte                                        |
++-----------------------------------------------+
 @end example
 
-	Header
-	1 byte number of rows ? (always 0 ?)
-	1-8 bytes affected rows
-	1-8 byte id (last_insert_id) 
-	2 byte Status (usually 0)
-	If the OK-packege includes a message:
-	1-8 bytes length of message
-	n bytes messagetext
+@table @asis
+@item Header
+@item 1 byte number of rows ? (always 0 ?)
+@item 1-8 bytes affected rows
+@item 1-8 byte id (last_insert_id) 
+@item 2 byte Status (usually 0)
+@item If the OK-packege includes a message:
+@item 1-8 bytes length of message
+@item n bytes messagetext
+@end table
 
 
 @node error packet,  , ok packet, basic packets
 @subsection Error Packet	
 
 @example
-	-------------------------------------------------
-	| Header	| Statuscode	| Error no	|
-	| 		| 1 Byte 	| 2 Byte	|
-	-------------------------------------------------
-	| Messagetext			       | 0x00	|
-	| n Byte			       | 1 Byte |
-	-------------------------------------------------
++-----------------------------------------------+
+| Header        | Status code   | Error no      |
+|               | 1 Byte        | 2 Byte        |
+|-----------------------------------------------|
+| Messagetext                          | 0x00   |
+| n Byte                               | 1 Byte |
++-----------------------------------------------+
 @end example
 
-	Header
-	1 byte status code (0xFF = ERROR)
-	2 byte error number (is only sent to new 3.23 clients.
-	n byte errortext
-	1 byte 0x00
+@table @asis
+@item Header
+@item 1 byte status code (0xFF = ERROR)
+@item 2 byte error number (is only sent to new 3.23 clients.
+@item n byte errortext
+@item 1 byte 0x00
+@end table
 
 
 @node communication, fieldtype codes, basic packets, protocol
@@ -742,24 +759,24 @@ is the header of the packet.
 @section Fieldtype Codes
 
 @example
-		display_length 	|enum_field_type	|flags
-		----------------------------------------------------
-Blob		03 FF FF 00	|01 FC			|03 90 00 00
-Mediumblob	03 FF FF FF	|01 FC			|03 90 00 00
-Tinyblob	03 FF 00 00	|01 FC			|03 90 00 00
-Text		03 FF FF 00	|01 FC			|03 10 00 00
-Mediumtext	03 FF FF FF	|01 FC			|03 10 00 00
-Tinytext	03 FF 00 00	|01 FC			|03 10 00 00
-Integer		03 0B 00 00	|01 03			|03 03 42 00
-Mediumint	03 09 00 00 	|01 09			|03 00 00 00
-Smallint	03 06 00 00	|01 02			|03 00 00 00
-Tinyint		03 04 00 00	|01 01			|03 00 00 00
-Varchar		03 XX 00 00	|01 FD			|03 00 00 00
-Enum		03 05 00 00	|01 FE			|03 00 01 00
-Datetime	03 13 00 00	|01 0C			|03 00 00 00
-Timestamp	03 0E 00 00	|01 07			|03 61 04 00
-Time		03 08 00 00	|01 0B			|03 00 00 00
-Date		03 0A 00 00	|01 0A			|03 00 00 00
+                display_length  |enum_field_type        |flags
+                ----------------------------------------------------
+Blob            03 FF FF 00     |01 FC                  |03 90 00 00
+Mediumblob      03 FF FF FF     |01 FC                  |03 90 00 00
+Tinyblob        03 FF 00 00     |01 FC                  |03 90 00 00
+Text            03 FF FF 00     |01 FC                  |03 10 00 00
+Mediumtext      03 FF FF FF     |01 FC                  |03 10 00 00
+Tinytext        03 FF 00 00     |01 FC                  |03 10 00 00
+Integer         03 0B 00 00     |01 03                  |03 03 42 00
+Mediumint       03 09 00 00     |01 09                  |03 00 00 00
+Smallint        03 06 00 00     |01 02                  |03 00 00 00
+Tinyint         03 04 00 00     |01 01                  |03 00 00 00
+Varchar         03 XX 00 00     |01 FD                  |03 00 00 00
+Enum            03 05 00 00     |01 FE                  |03 00 01 00
+Datetime        03 13 00 00     |01 0C                  |03 00 00 00
+Timestamp       03 0E 00 00     |01 07                  |03 61 04 00
+Time            03 08 00 00     |01 0B                  |03 00 00 00
+Date            03 0A 00 00     |01 0A                  |03 00 00 00
 @end example
 
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
@@ -768,6 +785,48 @@ Date		03 0A 00 00	|01 0A			|03 00 00 00
 @c @unnumbered Index
 
 @c @printindex fn
+
+@node Fulltext Search,  , protocol, Top
+@chapter Fulltext Search in MySQL
+
+Hopefully, sometime there will be complete description of
+fulltext search algorithms.
+Now it's just unsorted notes.
+
+@menu
+* Weighting in boolean mode::  
+@end menu
+
+@node Weighting in boolean mode, , , Fulltext Search
+@section Weighting in boolean mode
+
+The basic idea is as follows: in expression
+@code{A or B or (C and D and E)}, either @code{A} or @code{B} alone
+is enough to match the whole expression. While @code{C},
+@code{D}, and @code{E} should @strong{all} match. So it's
+reasonable to assign weight 1 to @code{A}, @code{B}, and
+@code{(C and D and E)}. And @code{C}, @code{D}, and @code{E}
+should get a weight of 1/3.
+
+Things become more complicated when considering boolean
+operators, as used in MySQL FTB. Obvioulsy, @code{+A +B}
+should be treated as @code{A and B}, and @code{A B} -
+as @code{A or B}. The problem is, that @code{+A B} can @strong{not}
+be rewritten in and/or terms (that's the reason why this - extended -
+set of operators was chosen). Still, aproximations can be used.
+@code{+A B C} can be approximated as @code{A or (A and (B or C))}
+or as @code{A or (A and B) or (A and C) or (A and B and C)}.
+Applying the above logic (and omitting mathematical
+transformations and normalization) one gets that for
+@code{+A_1 +A_2 ... +A_N B_1 B_2 ... B_M} the weights
+should be: @code{A_i = 1/N}, @code{B_j=1} if @code{N==0}, and,
+otherwise, in the first rewritting approach @code{B_j = 1/3},
+and in the second one - @code{B_j = (1+(M-1)*2^M)/(M*(2^(M+1)-1))}.
+
+The second expression gives somewhat steeper increase in total
+weight as number of matched B's increases, because it assigns
+higher weights to individual B's. Also the first expression in
+much simplier. So it is the first one, that is implemented in MySQL.
 
 @summarycontents
 @contents

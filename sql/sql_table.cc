@@ -161,7 +161,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   }
   if (some_tables_deleted)
   {
-    query_cache.invalidate(tables);
+    query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
     {
       mysql_update_log.write(thd, thd->query,thd->query_length);
@@ -282,7 +282,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   file=get_new_handler((TABLE*) 0, create_info->db_type);
 
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      (file->option_flag() & HA_NO_TEMP_TABLES))
+      (file->table_flags() & HA_NO_TEMP_TABLES))
   {
     my_error(ER_ILLEGAL_HA,MYF(0),table_name);
     DBUG_RETURN(-1);
@@ -381,13 +381,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
   if (auto_increment &&
-      (file->option_flag() & HA_WRONG_ASCII_ORDER))
+      (file->table_flags() & HA_NO_AUTO_INCREMENT))
   {
     my_error(ER_TABLE_CANT_HANDLE_AUTO_INCREMENT,MYF(0));
     DBUG_RETURN(-1);
   }
 
-  if (blob_columns && (file->option_flag() & HA_NO_BLOBS))
+  if (blob_columns && (file->table_flags() & HA_NO_BLOBS))
   {
     my_error(ER_TABLE_CANT_HANDLE_BLOB,MYF(0));
     DBUG_RETURN(-1);
@@ -443,10 +443,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
+    key_info->algorithm=key->algorithm;
 
+    /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key->type == Key::FULLTEXT)
     {
-      if (!(file->option_flag() & HA_CAN_FULLTEXT))
+      if (!(file->table_flags() & HA_CAN_FULLTEXT))
       {
         my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
         DBUG_RETURN(-1);
@@ -470,7 +472,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
       if (f_is_blob(sql_field->pack_flag))
       {
-	if (!(file->option_flag() & HA_BLOB_KEY))
+	if (!(file->table_flags() & HA_BLOB_KEY))
 	{
 	  my_printf_error(ER_BLOB_USED_AS_KEY,ER(ER_BLOB_USED_AS_KEY),MYF(0),
 			  column->field_name);
@@ -496,7 +498,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
 	  DBUG_RETURN(-1);
 	}
-	if (!(file->option_flag() & HA_NULL_KEY))
+	if (!(file->table_flags() & HA_NULL_KEY))
 	{
 	  my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
 			  MYF(0),column->field_name);
@@ -506,7 +508,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
       if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       {
-	if (column_nr == 0 || (file->option_flag() & HA_AUTO_PART_KEY))
+	if (column_nr == 0 || (file->table_flags() & HA_AUTO_PART_KEY))
 	  auto_increment--;			// Field is used
       }
       key_part_info->fieldnr= field;
@@ -526,14 +528,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	}
 	else if (column->length > length ||
 		 ((f_is_packed(sql_field->pack_flag) || 
-		   ((file->option_flag() & HA_NO_PREFIX_CHAR_KEYS) &&
+		   ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		    (key_info->flags & HA_NOSAME))) &&
 		  column->length != length))
 	{
 	  my_error(ER_WRONG_SUB_KEY,MYF(0));
 	  DBUG_RETURN(-1);
 	}
-	if (!(file->option_flag() & HA_NO_PREFIX_CHAR_KEYS))
+	if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
 	  length=column->length;
       }
       else if (length == 0)
@@ -593,7 +595,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
   }
   if (!unique_key && !primary_key &&
-      (file->option_flag() & HA_REQUIRE_PRIMARY_KEY))
+      (file->table_flags() & HA_REQUIRE_PRIMARY_KEY))
   {
     my_error(ER_REQUIRES_PRIMARY_KEY,MYF(0));
     DBUG_RETURN(-1);
@@ -870,7 +872,8 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   return 1;
 }
 
-static int prepare_for_restore(THD* thd, TABLE_LIST* table)
+static int prepare_for_restore(THD* thd, TABLE_LIST* table,
+    HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("prepare_for_restore");
 
@@ -919,6 +922,56 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
   DBUG_RETURN(0);
 }
 
+static int prepare_for_repair(THD* thd, TABLE_LIST* table,
+    HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("prepare_for_repair");
+
+  if (!(check_opt->sql_flags & TT_USEFRM))
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+
+    char from[FN_REFLEN],tmp[FN_REFLEN];
+    char* db = thd->db ? thd->db : table->db;
+
+    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->name);
+    fn_format(from, from, "", MI_NAME_DEXT, 4);
+    sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+
+    close_cached_table(thd,table->table);
+
+    if (lock_and_wait_for_table_name(thd,table))
+      DBUG_RETURN(-1);
+
+    if (my_rename(from, tmp, MYF(MY_WME)))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed renaming .MYD file"));
+    }
+    if (mysql_truncate(thd, table, 1))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed generating table from .frm file"));
+    }
+    if (my_rename(tmp, from, MYF(MY_WME)))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed restoring .MYD file"));
+    }
+  }
+
+  // now we should be able to open the partially repaired table
+  // to finish the repair in the handler later on
+  if (!(table->table = reopen_name_locked_table(thd, table)))
+     unlock_table_name(thd, table);
+  DBUG_RETURN(0);
+}
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
@@ -926,7 +979,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     thr_lock_type lock_type,
 			     bool open_for_modify,
 			     uint extra_open_options,
-                             int (*prepare_func)(THD *, TABLE_LIST *),
+                     int (*prepare_func)(THD *, TABLE_LIST *, HA_CHECK_OPT *),
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -960,7 +1013,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     packet->length(0);
     if (prepare_func)
     {
-      switch ((*prepare_func)(thd, table)) {
+      switch ((*prepare_func)(thd, table, check_opt)) {
         case  1: continue; // error, message written to net
         case -1: goto err; // error, message could be written to net
         default:         ; // should be 0 otherwise
@@ -1066,8 +1119,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (fatal_error)
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
+    {
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
+      /* May be something modified consequently we have to invalidate cache */
+      query_cache_invalidate3(thd, table->table, 0);
+    }
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (my_net_write(&thd->net, (char*) packet->ptr(),
@@ -1106,7 +1163,8 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR, 0,
+				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR,
+                                &prepare_for_repair,
 				&handler::repair));
 }
 
@@ -1774,7 +1832,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
   table_list->table=0;				// For query cache
-  query_cache.invalidate(table_list);
+  query_cache_invalidate3(thd, table_list, 0);
 
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),

@@ -55,7 +55,7 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
   my_b_clear(&file);
   init_tree(&tree, max_in_memory_size / 16, 0, size, comp_func, 0, NULL, comp_func_fixed_arg);
   /* If the following fail's the next add will also fail */
-  init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
+  my_init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
   max_elements= max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+size);
   open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
 		   MYF(MY_WME));

@@ -225,13 +225,13 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 /*
   This function is called when MySQL writes the log segment of a
   transaction to the binlog. It is called when the LOCK_log mutex is
-  reserved. Here we communicate to transactional table handlers whta
+  reserved. Here we communicate to transactional table handlers what
   binlog position corresponds to the current transaction. The handler
   can store it and in recovery print to the user, so that the user
   knows from what position in the binlog to start possible
   roll-forward, for example, if the crashed server was a slave in
   replication. This function also calls the commit of the table
-  handler, because the order of trasnactions in the log of the table
+  handler, because the order of transactions in the log of the table
   handler must be the same as in the binlog.
 
   arguments:
@@ -263,7 +263,6 @@ int ha_report_binlog_offset_and_commit(THD *thd,
   return error;
 }
 
-
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
@@ -271,7 +270,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    bool operation_done=0;
+    bool operation_done= 0;
+    bool transaction_commited= 0;
     /* Update the binary log if we have cached some queries */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
@@ -289,6 +289,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
 	error=1;
       }
+      else
+	transaction_commited= 1;
       trans->bdb_tid=0;
     }
 #endif
@@ -302,12 +304,14 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       }
       trans->innodb_active_trans=0;
       if (trans == &thd->transaction.all)
-      {
-	query_cache.invalidate(Query_cache_table::INNODB);
-	operation_done=1;
-      }
+	operation_done= transaction_commited= 1;
+	
     }
 #endif
+#ifdef HAVE_QUERY_CACHE
+    if (transaction_commited)
+      query_cache.invalidate(thd->transaction.changed_tables);
+#endif /*HAVE_QUERY_CACHE*/
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->tx_isolation=thd->session_tx_isolation;
@@ -543,7 +547,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
     scanning the table.
   */
   if (deleted < 10 || primary_key >= MAX_KEY || 
-      !(option_flag() & HA_READ_ORDER))
+      !(index_flags(primary_key) & HA_READ_ORDER))
   {
     (void) rnd_init();
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
@@ -831,7 +835,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (update_create_info)
   {
     update_create_info_from_table(create_info, &table);
-    if (table.file->option_flag() & HA_DROP_BEFORE_CREATE)
+    if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
       table.file->delete_table(name);		// Needed for BDB tables
   }
   error=table.file->create(name,&table,create_info);

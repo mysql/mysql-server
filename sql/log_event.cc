@@ -1607,7 +1607,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     {
       mysql_parse(thd, thd->query, q_len);
       if (expected_error !=
-	  (actual_error = thd->net.last_errno) && expected_error)
+	  (actual_error = thd->net.last_errno) && expected_error &&
+	  !ignored_error_code(actual_error) &&
+	  !ignored_error_code(expected_error))
       {
 	const char* errmsg = "Slave: did not get the expected error\
  running query from master - expected: '%s' (%d), got '%s' (%d)"; 

@@ -28,8 +28,9 @@
   even if space allocation failed
 */
 
-my_bool _init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-		   uint init_alloc, uint alloc_increment CALLER_INFO_PROTO)
+my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+			    uint init_alloc,
+			    uint alloc_increment CALLER_INFO_PROTO)
 {
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)

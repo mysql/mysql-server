@@ -38,7 +38,7 @@ for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
 done
 
@@ -125,6 +125,20 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
+
+# Print version of CC and CXX compiler (if they support --version)
+CC_VERSION=`$CC --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_RESULT("$CC $CC_VERSION")
+fi
+CXX_VERSION=`$CXX --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_RESULT("$CXX $CXX_VERSION")
+fi
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -277,19 +291,15 @@ case "$target_os" in
     if test "$GCC" != "yes"; then
       # We are using built-in inline function
       CFLAGS="$CFLAGS -Kalloca"
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
-    else
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
     fi
+    CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
   sysv5OpenUNIX8*) 
     if test "$GCC" != "yes"; then
       # We are using built-in inline function
       CFLAGS="$CFLAGS -Kalloca"
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
-    else
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
     fi
+    CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
 esac
 AC_SUBST(CC)
@@ -307,6 +317,19 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+
+  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs,
+  # we will gets some problems when linking static programs.
+  # The following code is used to fix this problem.
+
+  if test "$CXX" = "gcc"
+  then
+    if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+    then
+      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW"
+      CXXLDFLAGS="$CXXLDFLAGS -Wl,--defsym -Wl,__cxa_pure_virtual=0"
+    fi
+  fi
 fi
 
 # Avoid bug in fcntl on some versions of linux
@@ -341,6 +364,9 @@ AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(CMP, cmp, cmp)
 AC_PATH_PROG(CHMOD, chmod, chmod)
 AC_PATH_PROG(HOSTNAME, hostname, hostname)
+# Check for a GNU tar named 'gtar', or 'gnutar' (MacOS X) and
+# fall back to 'tar' otherwise and hope that it's a GNU tar as well
+AC_CHECK_PROGS(TAR, gnutar gtar tar)
 dnl We use a path for perl so the script startup works
 dnl We make sure to use perl, not perl5, in hopes that the RPMs will
 dnl not depend on the perl5 binary being installed (probably a bug in RPM)
@@ -435,16 +461,17 @@ AC_ARG_WITH(other-libc,
    enable_shared="no"
    all_is_static="yes"
    CFLAGS="$CFLAGS -I$other_libc_include"
+   # There seems to be a feature in gcc that treats system and libc headers
+   # silently when they violatate ANSI C++ standard, but it is strict otherwise
+   # since gcc cannot now recognize that our headers are libc, we work around
+   # by telling it to be permissive. Note that this option only works with
+   # new versions of gcc (2.95.x and above)
    CXXFLAGS="$CXXFLAGS -fpermissive -I$other_libc_include"
-#There seems to be a feature in gcc that treats system and libc headers
-#leniently when they violatate ANSI C++ standard, but it is strict otherwise
-#since gcc cannot now recognize that our headers are libc, we work around
-#by telling it to be permissive
    static_nss=
    if test -f "$other_libc_lib/libnss_files.a"
    then
-   # libc has been compiled with --enable-static-nss
-   # we need special flags, but we will have to add those later
+     # libc has been compiled with --enable-static-nss
+     # we need special flags, but we will have to add those later
      STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
   -Wl,--end-group"
      static_nss=1
@@ -460,12 +487,12 @@ AC_ARG_WITH(other-libc,
      LDFLAGS="$LDFLAGS -static -L$other_libc_lib "
    fi
    
+   # When linking against custom libc installed separately, we want to force
+   # all binary builds to be static, including the build done by configure
+   # itself to test for system features.
    with_mysqld_ldflags="-all-static"
    with_client_ldflags="-all-static"
    NOINST_LDFLAGS="-all-static"
-#when linking against custom libc installed separately, we want to force all
-#binary builds to be static, including the build done by configure itself
-#to test for system features   
  ],
  [
   other_libc_include=
@@ -659,6 +686,9 @@ AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # For crypt() on Linux
 AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
+
+# For sem_xxx functions on Solaris 2.6
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4))
 
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
@@ -858,9 +888,9 @@ case $SYSTEM_TYPE in
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS";
     ;;
   *hpux10.20*)
-    echo "Enabling snprintf workaround for hpux 10.20"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE"
-    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE"
+    echo "Enabling workarounds for hpux 10.20"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -868,9 +898,9 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *hpux11.*)
-    echo "Enabling pread/pwrite workaround for hpux 11"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS"
-    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS"
+    echo "Enabling workarounds for hpux 11"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -934,6 +964,10 @@ dnl Is this the right match for DEC OSF on alpha?
 	  CFLAGS="$CFLAGS -mieee"
 	  CXXFLAGS="$CXXFLAGS -mieee"
       fi
+      echo "Adding defines for OSF1"
+      # gethostbyname_r is deprecated and doesn't work ok on OSF1
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
     ;;
 esac
 
@@ -974,7 +1008,8 @@ Reference Manual.])
         if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
 	then
 	  with_named_thread="-lpthread -lmach -lexc"
-	  #with_named_thread="-lpthread -lmach -lexc -lc"
+	  CFLAGS="$CFLAGS -D_REENTRANT"
+	  CXXFLAGS="$CXXFLAGS -D_REENTRANT"
 	  AC_DEFINE(HAVE_DEC_THREADS)
 	  AC_MSG_RESULT("yes")
 	else
@@ -1557,16 +1592,16 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-#do not treat warnings as errors if we are linking agaist other libc
-#this is to work around gcc not being permissive on non-system includes
-#with respect to ANSI C++
+# Do not treat warnings as errors if we are linking agaist other libc
+# this is to work around gcc not being permissive on non-system includes
+# with respect to ANSI C++
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no" 
 then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1599,7 +1634,7 @@ then
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1631,7 +1666,7 @@ then
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1657,7 +1692,7 @@ then
   # Check definition of pthread_getspecific
   AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
   AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1796,6 +1831,17 @@ AC_ARG_WITH(embedded-server,
     [with_embedded_server=$withval],
     [with_embedded_server=no]
 )
+
+AC_ARG_WITH(query_cache,
+    [  --without-query-cache   Do not build query cache.],
+    [with_query_cache=$withval],
+    [with_query_cache=yes]
+)
+
+if test "$with_query_cache" = "yes"
+then
+  AC_DEFINE(HAVE_QUERY_CACHE)
+fi
 
 AC_ARG_WITH(extra-tools,
     [  --without-extra-tools   Skip building utilites in the tools directory.],
@@ -2288,7 +2334,7 @@ EOF
   fi
 fi
 
-#IMPORTANT - do not modify LIBS past this line - this hack is the only way
+# IMPORTANT - do not modify LIBS past this line - this hack is the only way
 # I know to add the static NSS magic if we have static NSS libraries with
 # glibc - Sasha
 
@@ -2321,7 +2367,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  myisam/Makefile myisammrg/Makefile \
  man/Makefile BUILD/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
- libmysql/Makefile client/Makefile \
+ libmysql/Makefile client/Makefile os2/Makefile \
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile tools/Makefile \
@@ -2339,8 +2385,9 @@ echo "latest release, upcoming features, and other information to make your"
 echo "work or play with MySQL more productive. There you can also find"
 echo "information about mailing lists for MySQL discussion."
 echo
-echo "Remember to check the platform specific part in the reference manual for"
-echo "hints about installing on your platfrom. See the Docs directory."
+echo "Remember to check the platform specific part of the reference manual for"
+echo "hints about installing MySQL on your platform. Also have a look at the"
+echo "files in the Docs directory."
 echo
 # The following text is checked in ./Do-compile to se that the configure ends.
 echo "Thank you for choosing MySQL!"

@@ -197,7 +197,7 @@
 "Netværksfejl ved skrivning til master",
 "Kan ikke finde en FULLTEXT nøgle som svarer til kolonne listen",
 "Kan ikke udføre den givne kommando fordi der findes aktive, låste tabeller eller fordi der udføres en transaktion",
-"Ukendt systemvariabel '%-.64'",
+"Ukendt systemvariabel '%-.64s'",
 "Tabellen '%-.64s' er markeret med fejl og bør repareres",
 "Tabellen '%-.64s' er markeret med fejl og sidste (automatiske?) REPAIR fejlede",
 "Advarsel: Visse data i tabeller der ikke understøtter transaktioner kunne ikke tilbagestilles",

@@ -59,7 +59,7 @@ bool
 Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   Item **arg,**arg_end;
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;
   used_tables_cache=0;
   const_item_cache=1;
@@ -148,7 +148,7 @@ void Item_func::print_op(String *str)
   str->append(')');
 }
 
-bool Item_func::eq(const Item *item) const
+bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -160,7 +160,7 @@ bool Item_func::eq(const Item *item) const
       func_name() != item_func->func_name())
     return 0;
   for (uint i=0; i < arg_count ; i++)
-    if (!args[i]->eq(item_func->args[i]))
+    if (!args[i]->eq(item_func->args[i], binary_cmp))
       return 0;
   return 1;
 }
@@ -627,7 +627,12 @@ double Item_func_round::val()
 	      log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
   if (truncate)
-    return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+  {
+    if (value >= 0)
+      return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+    else
+      return dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+  }
   return dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
 }
 
@@ -1087,7 +1092,7 @@ bool
 udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)
@@ -1607,7 +1612,7 @@ longlong Item_func_get_lock::val_int()
   set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)
@@ -1975,7 +1980,7 @@ void Item_func_get_user_var::print(String *str)
   str->append(')');
 }
 
-bool Item_func_get_user_var::eq(const Item *item) const
+bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -2039,6 +2044,9 @@ void Item_func_match::init_search(bool no_order)
   if (ft_handler)
     return;
 
+  if (key == NO_SUCH_KEY)
+    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
+
   if (master)
   {
     join_key=master->join_key=join_key|master->join_key;
@@ -2047,9 +2055,6 @@ void Item_func_match::init_search(bool no_order)
     join_key=master->join_key;
     return;
   }
-
-  if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
 
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
@@ -2115,6 +2120,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
   }
+
   return 0;
 }
 
@@ -2198,7 +2204,7 @@ err:
   return 1;
 }
 
-bool Item_func_match::eq(const Item *item) const
+bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
   if (item->type() != FUNC_ITEM)
     return 0;
@@ -2209,7 +2215,7 @@ bool Item_func_match::eq(const Item *item) const
   Item_func_match *ifm=(Item_func_match*) item;
 
   if (key == ifm->key && table == ifm->table &&
-      key_item()->eq(ifm->key_item()))
+      key_item()->eq(ifm->key_item(), binary_cmp))
     return 1;
 
   return 0;
@@ -2247,9 +2253,12 @@ double Item_func_match::val()
 
 Item *get_system_var(LEX_STRING name)
 {
-  if (!strcmp(name.str,"IDENTITY"))
+  if (!my_strcasecmp(name.str,"IDENTITY"))
     return new Item_int((char*) "@@IDENTITY",
 			current_thd->insert_id(),21);
-  my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
+  if (!my_strcasecmp(name.str,"VERSION"))
+    return new Item_string("@@VERSION",server_version,
+			   (uint) strlen(server_version));
+  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
   return 0;
 }

@@ -176,13 +176,15 @@ cleanup:
   }
   if (using_transactions && ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
+  if (deleted)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (deleted)
-    query_cache.invalidate(table_list);
   delete select;
   if (error >= 0)				// Fatal error
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
@@ -355,6 +357,9 @@ void multi_delete::send_error(uint errcode,const char *err)
   if (!deleted)
     DBUG_VOID_RETURN;
 
+  /* Somthing alredy deleted consequently we have to invalidate cache */
+  query_cache_invalidate3(thd, delete_tables, 1);
+
   /* Below can happen when thread is killed early ... */
   if (!table_being_deleted)
     table_being_deleted=delete_tables;
@@ -470,7 +475,9 @@ bool multi_delete::send_eof()
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
   if (deleted)
-    query_cache.invalidate(delete_tables);
+  {
+    query_cache_invalidate3(thd, delete_tables, 1);
+  }
   ::send_ok(&thd->net,deleted);
   return 0;
 }
@@ -520,7 +527,11 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
-    DBUG_RETURN(error ? -1 : 0);
+    /* Sasha: if we return here we will not have binloged the truncation and
+       we will not send_ok() to the client. Yes, we do need better coverage
+       testing, this bug has been here for a few months :-).
+    */
+    goto end; 
   }
 
   (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
@@ -548,8 +559,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bzero((char*) &create_info,sizeof(create_info));
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
-  query_cache.invalidate(table_list); 
-
+  query_cache_invalidate3(thd, table_list, 0); 
+end:
   if (!dont_send_ok)
   {
     if (!error)

@@ -90,6 +90,8 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
+static my_bool org_my_init_done=0;
+
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
@@ -98,7 +100,11 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 }
 
 void STDCALL mysql_server_end()
-{}
+{
+  /* If library called my_init(), free memory allocated by it */
+  if (!org_my_init_done)
+    my_end(0);
+}
 
 my_bool STDCALL mysql_thread_init()
 {
@@ -211,8 +217,13 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
+#if defined(HPUX) && defined(THREAD)
+    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+      break;
+#else
     if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
       break;
+#endif
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
@@ -698,10 +709,10 @@ static const char *default_options[]=
   "port","socket","compress","password","pipe", "timeout", "user",
   "init-command", "host", "database", "debug", "return-found-rows",
   "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
-  "character-set-dir", "default-character-set", "interactive-timeout",
+  "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-chiper",
+  "ssl-cipher",
  NullS
 };
 
@@ -848,13 +859,13 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  options->client_flag&= CLIENT_LOCAL_FILES;
           break;
 	case 23:  /* replication probe */
-	  options->rpl_probe = 1;
+	  options->rpl_probe= 1;
 	  break;
 	case 24: /* enable-reads-from-master */
-	  options->rpl_parse = 1;
+	  options->no_master_reads= 0;
 	  break;
 	case 25: /* repl-parse-query */
-	  options->no_master_reads = 0;
+	  options->rpl_parse= 1;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -1352,6 +1363,7 @@ static void mysql_once_init()
   if (!mysql_client_init)
   {
     mysql_client_init=1;
+    org_my_init_done=my_init_done;
     my_init();					/* Will init threads */
     init_client_errs();
     if (!mysql_port)
@@ -1631,7 +1643,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
     }
     else
-#if defined(HAVE_GETHOSTBYNAME_R) && defined(_REENTRANT) && defined(THREAD)
     {
       int tmp_errno;
       struct hostent tmp_hostent,*hp;
@@ -1642,22 +1653,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       {
 	net->last_errno=CR_UNKNOWN_HOST;
 	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
+	my_gethostbyname_r_free();
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
+      my_gethostbyname_r_free();
     }
-#else
-    {
-      struct hostent *hp;
-      if (!(hp=gethostbyname(host)))
-      {
-	net->last_errno=CR_UNKNOWN_HOST;
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, socket_errno);
-	goto error;
-      }
-      memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
-    }
-#endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)
@@ -2673,7 +2674,7 @@ mysql_dump_debug_info(MYSQL *mysql)
   DBUG_RETURN(simple_command(mysql,COM_DEBUG,0,0,0));
 }
 
-char * STDCALL
+const char * STDCALL
 mysql_stat(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_stat");
@@ -2698,14 +2699,14 @@ mysql_ping(MYSQL *mysql)
 }
 
 
-char * STDCALL
+const char * STDCALL
 mysql_get_server_info(MYSQL *mysql)
 {
   return((char*) mysql->server_version);
 }
 
 
-char * STDCALL
+const char * STDCALL
 mysql_get_host_info(MYSQL *mysql)
 {
   return(mysql->host_info);
@@ -2718,7 +2719,7 @@ mysql_get_proto_info(MYSQL *mysql)
   return (mysql->protocol_version);
 }
 
-char * STDCALL
+const char * STDCALL
 mysql_get_client_info(void)
 {
   return (char*) MYSQL_SERVER_VERSION;
@@ -2803,12 +2804,12 @@ MYSQL_FIELD * STDCALL mysql_fetch_fields(MYSQL_RES *res)
   return (res)->fields;
 }
 
-MYSQL_ROWS * STDCALL mysql_row_tell(MYSQL_RES *res)
+MYSQL_ROW_OFFSET STDCALL mysql_row_tell(MYSQL_RES *res)
 {
   return res->data_cursor;
 }
 
-uint STDCALL mysql_field_tell(MYSQL_RES *res)
+MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res)
 {
   return (res)->current_field;
 }
@@ -2835,12 +2836,12 @@ uint STDCALL mysql_errno(MYSQL *mysql)
   return mysql->net.last_errno;
 }
 
-char * STDCALL mysql_error(MYSQL *mysql)
+const char * STDCALL mysql_error(MYSQL *mysql)
 {
   return mysql->net.last_error;
 }
 
-char *STDCALL mysql_info(MYSQL *mysql)
+const char *STDCALL mysql_info(MYSQL *mysql)
 {
   return mysql->info;
 }

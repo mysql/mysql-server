@@ -982,7 +982,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       s->dependent=(table_map) 0;
     s->key_dependent=(table_map) 0;
     if ((table->system || table->file->records <= 1) && ! s->dependent &&
-	!(table->file->option_flag() & HA_NOT_EXACT_COUNT) &&
+	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
         !table->fulltext_searched)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -1073,7 +1073,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	if (s->dependent & ~(join->const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
-	    !(table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{					// system table
 	  int tmp;
 	  s->type=JT_SYSTEM;
@@ -1114,7 +1114,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part == PREV_BITS(uint,table->key_info[key].key_parts) &&
-	      (table->key_info[key].flags & HA_NOSAME))
+	      (table->key_info[key].flags & HA_NOSAME) &&
+              !table->fulltext_searched)
 	  {
 	    if (const_ref == eq_part)
 	    {					// Found everything for ref.
@@ -1247,14 +1248,14 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
       {
 	if (new_fields->val->used_tables())
 	{
-	  if (old->val->eq(new_fields->val))
+	  if (old->val->eq(new_fields->val, old->field->binary()))
 	  {
 	    old->level=old->const_level=and_level;
 	    old->exists_optimize&=new_fields->exists_optimize;
 	  }
 	}
-	else if (old->val->eq(new_fields->val) && old->eq_func &&
-		 new_fields->eq_func)
+	else if (old->val->eq(new_fields->val, old->field->binary()) &&
+		 old->eq_func && new_fields->eq_func)
 	{
 	  old->level=old->const_level=and_level;
 	  old->exists_optimize&=new_fields->exists_optimize;
@@ -1609,7 +1610,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		       join_tab[i].table->map);
       }
     }
-    if (init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
       return TRUE;
     /* fill keyuse with found key parts */
     for (KEY_FIELD *field=key_fields ; field != end ; field++)
@@ -1881,7 +1882,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    ** Set tmp to (previous record count) * (records / combination)
 	    */
 	    if ((found_part & 1) &&
-		!(table->file->option_flag() & HA_ONLY_WHOLE_INDEX))
+		!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX))
 	    {
 	      max_key_part=max_part_bit(found_part);
 	      /* Check if quick_range could determinate how many rows we
@@ -1969,7 +1970,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       if ((records >= s->found_records || best > s->read_time) &&
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
-	  !((s->table->file->option_flag() & HA_TABLE_SCAN_ON_INDEX) &&
+	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
 	    s->table->used_keys && best_key))
       {						// Check full join
 	if (s->on_expr)
@@ -2362,7 +2363,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->do_send_rows = 1;
-  join->row_limit=HA_POS_ERROR;
+  join->row_limit=join->thd->select_limit;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -2769,7 +2770,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
       ORDER *order;
       for (order=start_order ; order ; order=order->next)
       {
-	if ((*ref_item)->eq(order->item[0]))
+	if ((*ref_item)->eq(order->item[0],0))
 	  break;
       }
       if (order)
@@ -3026,7 +3027,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
   Item *right_item= func->arguments()[1];
   Item_func::Functype functype=  func->functype();
 
-  if (right_item->eq(field) && left_item != value)
+  if (right_item->eq(field,0) && left_item != value)
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -3045,7 +3046,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 				       func->arguments()[1]->result_type()));
     }
   }
-  else if (left_item->eq(field) && right_item != value)
+  else if (left_item->eq(field,0) && right_item != value)
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -3286,7 +3287,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
   {						// boolan compare function
     Item *left_item=	((Item_func*) cond)->arguments()[0];
     Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(right_item))
+    if (left_item->eq(right_item,1))
     {
       if (!left_item->maybe_null ||
 	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
@@ -3331,22 +3332,22 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
       return 0;
     Item *left_item=	((Item_func*) cond)->arguments()[0];
     Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(comp_item))
+    if (left_item->eq(comp_item,1))
     {
       if (right_item->const_item())
       {
 	if (*const_item)
-	  return right_item->eq(*const_item);
+	  return right_item->eq(*const_item, 1);
 	*const_item=right_item;
 	return 1;
       }
     }
-    else if (right_item->eq(comp_item))
+    else if (right_item->eq(comp_item,1))
     {
       if (left_item->const_item())
       {
 	if (*const_item)
-	  return left_item->eq(*const_item);
+	  return left_item->eq(*const_item, 1);
 	*const_item=left_item;
 	return 1;
       }
@@ -3823,6 +3824,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
 	  group->field->move_field((char*) ++group->buff);
+	  ++group_buff;
 	}
 	else
 	  group->field->move_field((char*) group_buff);
@@ -4898,11 +4900,12 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	JOIN_TAB *jt=join->join_tab;
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
-	    !(jt->table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
-	  join->send_records = jt->records;
+	  jt->table->file->info(HA_STATUS_VARIABLE);
+	  join->send_records = jt->table->file->records;
 	}
 	else 
 	{
@@ -4940,10 +4943,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	join->procedure->end_group();
       if (idx < (int) join->send_group_parts)
       {
-	int error;
+	int error=0;
 	if (join->procedure)
 	{
-	  error=0;
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
  	  else if (join->do_send_rows)
@@ -4961,13 +4963,16 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else
+	  else if (join->do_send_rows)
 	    error=join->result->send_data(*join->fields) ? 1 : 0;
 	}
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
+	{
+	  join->send_records++;
 	  DBUG_RETURN(0);
+	}
 	if (!error && ++join->send_records >= join->thd->select_limit &&
 	    join->do_send_rows)
 	{
@@ -5267,7 +5272,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
   if (!field->table->const_table && !field->table->maybe_null)
   {
     Item *ref_item=part_of_refkey(field->table,field);
-    if (ref_item && ref_item->eq(right_item))
+    if (ref_item && ref_item->eq(right_item,1))
     {
       if (right_item->type() == Item::FIELD_ITEM)
 	return (field->eq_def(((Item_field *) right_item)->field));
@@ -5532,7 +5537,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-	  if (table->file->option_flag() & HA_NOT_READ_PREFIX_LAST)
+	  if (table->file->table_flags() & HA_NOT_READ_PREFIX_LAST)
 	    DBUG_RETURN(1);
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
@@ -6513,7 +6518,7 @@ test_if_subpart(ORDER *a,ORDER *b)
 {
   for (; a && b; a=a->next,b=b->next)
   {
-    if ((*a->item)->eq(*b->item))
+    if ((*a->item)->eq(*b->item,1))
       a->asc=b->asc;
     else
       return 0;
@@ -6540,7 +6545,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
 
   for (; a && b; a=a->next,b=b->next)
   {
-    if (!(*a->item)->eq(*b->item))
+    if (!(*a->item)->eq(*b->item,1))
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
@@ -6989,6 +6994,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->offset_limit=0;
   if (thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));

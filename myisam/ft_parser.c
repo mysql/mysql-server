@@ -35,12 +35,10 @@ typedef struct st_ft_docstat {
 
 } FT_DOCSTAT;
 
-static int FT_WORD_cmp(void* cmp_arg, FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
-  return _mi_compare_text(default_charset_info,
-			  (uchar*) w1->pos, w1->len,
-			  (uchar*) w2->pos, w2->len,
-			  (my_bool) (cmp_arg != 0));
+  return _mi_compare_text(cs, (uchar*) w1->pos, w1->len,
+                              (uchar*) w2->pos, w2->len, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
@@ -135,13 +133,20 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
     for (;doc<end;doc++)
     {
       if (true_word_char(*doc)) break;
-      if (*doc == FTB_LBR || *doc == FTB_RBR)
+      if (*doc == FTB_RQUOT && param->quot) {
+        param->quot=doc;
+        *start=doc+1;
+        return 3; /* FTB_RBR */
+      }
+      if ((*doc == FTB_LBR || *doc == FTB_RBR || *doc == FTB_LQUOT)
+          && !param->quot)
       {
         /* param->prev=' '; */
         *start=doc+1;
+        if (*doc == FTB_LQUOT) param->quot=*start;
         return (*doc == FTB_RBR)+2;
       }
-      if (param->prev == ' ')
+      if (param->prev == ' ' && !param->quot)
       {
         if (*doc == FTB_YES ) { param->yesno=+1;    continue; } else
         if (*doc == FTB_EGAL) { param->yesno= 0;    continue; } else
@@ -151,7 +156,8 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
         if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
       }
       param->prev=*doc;
-      param->yesno=param->plusminus=param->pmsign=0;
+      param->yesno=(param->quot != 0);
+      param->plusminus=param->pmsign=0;
     }
 
     mwc=0;
@@ -207,15 +213,16 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   return 0;
 }
 
+void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
+{
+  if (!is_tree_inited(wtree))
+    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+}
+
 int ft_parse(TREE *wtree, byte *doc, int doclen)
 {
   byte   *end=doc+doclen;
   FT_WORD w;
-
-  if (!is_tree_inited(wtree))
-  {
-    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, NULL);
-  }
 
   while (ft_simple_get_word(&doc,end,&w))
   {

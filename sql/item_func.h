@@ -98,7 +98,7 @@ public:
   void make_field(Send_field *field);
   table_map used_tables() const;
   void update_used_tables();
-  bool eq(const Item *item) const;
+  bool eq(const Item *item, bool binary_cmp) const;
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
@@ -889,7 +889,7 @@ public:
   bool const_item() const { return const_var_flag; }
   table_map used_tables() const
   { return const_var_flag ? 0 : RAND_TABLE_BIT; }
-  bool eq(const Item *item) const;
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
@@ -937,7 +937,7 @@ public:
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
   bool fix_fields(THD *thd,struct st_table_list *tlist);
-  bool eq(const Item *) const;
+  bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
   double val();
 

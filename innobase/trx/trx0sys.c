@@ -20,10 +20,41 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "log0log.h"
+#include "os0file.h"
 
 /* The transaction system */
 trx_sys_t*		trx_sys 	= NULL;
 trx_doublewrite_t*	trx_doublewrite = NULL;
+
+/********************************************************************
+Determines if a page number is located inside the doublewrite buffer. */
+
+ibool
+trx_doublewrite_page_inside(
+/*========================*/
+				/* out: TRUE if the location is inside
+				the two blocks of the doublewrite buffer */
+	ulint	page_no)	/* in: page number */
+{
+	if (trx_doublewrite == NULL) {
+
+		return(FALSE);
+	}
+
+	if (page_no >= trx_doublewrite->block1
+	    && page_no < trx_doublewrite->block1
+					+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		return(TRUE);
+	}
+
+	if (page_no >= trx_doublewrite->block2
+	    && page_no < trx_doublewrite->block2
+					+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
 
 /********************************************************************
 Creates or initialializes the doublewrite buffer at a database start. */
@@ -36,6 +67,11 @@ trx_doublewrite_init(
 {
 	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
 
+	/* When we have the doublewrite buffer in use, we do not need to
+	call os_file_flush (Unix fsync) after every write. */
+	
+	os_do_not_call_flush_at_each_write = TRUE;
+	
 	mutex_create(&(trx_doublewrite->mutex));
 	mutex_set_level(&(trx_doublewrite->mutex), SYNC_DOUBLEWRITE);
 
@@ -402,7 +438,6 @@ trx_sys_update_mysql_binlog_offset(
 	trx_sysf_t*	sys_header;
 	char		namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN];
 	
-	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->mysql_log_file_name);
 
 	memset(namebuf, ' ', TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
@@ -488,7 +523,7 @@ trx_sys_print_mysql_binlog_offset(void)
 	}
 
 	fprintf(stderr,
-	"InnoDB: Last MySQL binlog file offset %lu %lu, file name %s\n",
+	"InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
 		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
 		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO

@@ -74,12 +74,26 @@
 
 ulonglong safemalloc_mem_limit = ~(ulonglong)0;
 
+#ifdef THREAD
+pthread_t shutdown_th,main_th,signal_th;
+#endif
+
 #define pNext		tInt._pNext
 #define pPrev		tInt._pPrev
 #define sFileName	tInt._sFileName
 #define uLineNum	tInt._uLineNum
 #define uDataSize	tInt._uDataSize
+#define thread_id       tInt.thread_id
 #define lSpecialValue	tInt._lSpecialValue
+
+#ifndef PEDANTIC_SAFEMALLOC
+static int sf_malloc_tampered = 0; /* set to 1 after TERMINATE() if we had
+				    to fiddle with cNewCount and the linked
+				    list of blocks so that _sanity() will
+				    not fuss when it is not supposed to
+				 */
+#endif
+				   
 
 	/* Static functions prototypes */
 
@@ -174,6 +188,9 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     pTmp -> sFileName = (my_string) sFile;
     pTmp -> uLineNum = uLine;
     pTmp -> uDataSize = uSize;
+#ifdef THREAD
+    pTmp->thread_id = pthread_self();
+#endif
     pTmp -> pPrev = NULL;
 
     /* Add this remember structure to the linked list */
@@ -359,6 +376,19 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
   return 0;
 }
 
+#ifdef THREAD
+static int legal_leak(struct remember* pPtr)
+{
+ return pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id
+	    || shutdown_th == pPtr->thread_id
+   || signal_th == pPtr->thread_id;
+}
+#else
+static int legal_leak(struct remember* pPtr)
+{
+  return 1;
+}
+#endif
 
 /*
  * TERMINATE(FILE *file)
@@ -372,10 +402,54 @@ void TERMINATE (FILE *file)
   DBUG_ENTER("TERMINATE");
   pthread_mutex_lock(&THR_LOCK_malloc);
 
-  /* Report the difference between number of calls to  */
-  /* NEW and the number of calls to FREE.  >0 means more	 */
-  /* NEWs than FREEs.  <0, etc.				 */
+  /*
+    Report the difference between number of calls to
+    NEW and the number of calls to FREE.  >0 means more
+    NEWs than FREEs.  <0, etc.
+  */
 
+#if !defined(PEDANTIC_SAFEMALLOC) && defined(THREAD)
+  /*
+    Avoid false alarms for blocks that we cannot free before my_end()
+    This does miss some positives, but that is ok. This will only miss
+    failures to free things allocated in the main thread which 
+    performs only one-time allocations. If you really need to
+    debug memory allocations in the main thread,
+    #define PEDANTIC_SAFEMALLOC
+  */
+  if ((pPtr=pRememberRoot))
+  {
+    while (pPtr)
+    {
+      if (legal_leak(pPtr))
+      {
+	sf_malloc_tampered=1;
+	cNewCount--;
+	lCurMemory -= pPtr->uDataSize;
+	if (pPtr->pPrev)
+	{
+	  struct remember* tmp;
+	  tmp = pPtr->pPrev->pNext = pPtr->pNext;
+	  if (tmp)
+	   tmp->pPrev = pPtr->pPrev; 
+	  pPtr->pNext = pPtr->pPrev = 0;
+	  pPtr = tmp;
+	}
+	else
+	{
+	  pRememberRoot = pPtr->pNext;
+	  pPtr->pNext = pPtr->pPrev = 0;
+	  pPtr = pRememberRoot;
+	  if (pPtr)
+	    pPtr->pPrev=0;
+	}
+      }
+      else
+	pPtr = pPtr->pNext;
+    }
+  }
+#endif  
+  
   if (cNewCount)
   {
     if (file)
@@ -402,10 +476,14 @@ void TERMINATE (FILE *file)
       if (file)
       {
 	fprintf (file,
-		 "\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'\n",
+		 "\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
 		 pPtr -> uDataSize,
 		 (ulong) &(pPtr -> aData[sf_malloc_prehunc]),
 		 pPtr -> uLineNum, pPtr -> sFileName);
+#ifdef THREAD
+	fprintf(file, " in thread %ld", pPtr->thread_id);
+#endif
+	fprintf(file, "\n");
 	(void) fflush(file);
       }
       DBUG_PRINT("safe",
@@ -484,6 +562,10 @@ int _sanity (const char *sFile, uint uLine)
   uint count=0;
 
   pthread_mutex_lock(&THR_LOCK_malloc);
+#ifndef PEDANTIC_SAFEMALLOC  
+  if (sf_malloc_tampered && cNewCount < 0)
+    cNewCount=0;
+#endif  
   count=cNewCount;
   for (pTmp = pRememberRoot; pTmp != NULL && count-- ; pTmp = pTmp -> pNext)
     flag+=_checkchunk (pTmp, sFile, uLine);
@@ -492,6 +574,7 @@ int _sanity (const char *sFile, uint uLine)
   {
     const char *format="Safemalloc link list destroyed, discovered at '%s:%d'";
     fprintf (stderr, format, sFile, uLine); fputc('\n',stderr);
+    fprintf (stderr, "root=%p,count=%d,pTmp=%p\n", pRememberRoot,count,pTmp);
     (void) fflush(stderr);
     DBUG_PRINT("safe",(format, sFile, uLine));
     flag=1;

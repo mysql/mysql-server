@@ -122,6 +122,13 @@ bfill((A)->null_flags,(A)->null_bytes,255);\
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128
 
+/*
+ *  Minimum length pattern before Turbo Boyer-Moore is used
+ *  for SELECT "text" LIKE "%pattern%", excluding the two
+ *  wildcards in class Item_func_like.
+ */
+#define MIN_TURBOBM_PATTERN_LEN 3
+
 	/* Include prototypes for unireg */
 
 #include "mysqld_error.h"

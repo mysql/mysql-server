@@ -204,7 +204,7 @@ btr_cur_search_to_nth_level(
 				the caller uses his search latch
 				to protect the record! */
 	btr_cur_t*	cursor, /* in/out: tree cursor; the cursor page is
-				   s- or x-latched, but see also above! */
+				s- or x-latched, but see also above! */
 	ulint		has_search_latch,/* in: info on the latch mode the
 				caller currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
@@ -228,6 +228,7 @@ btr_cur_search_to_nth_level(
 	ulint		insert_planned;
 	ulint		buf_mode;
 	ulint		estimate;
+	ulint		ignore_sec_unique;
 	ulint		root_height = 0; /* remove warning */
 #ifdef BTR_CUR_ADAPT
 	btr_search_t*	info;
@@ -246,7 +247,9 @@ btr_cur_search_to_nth_level(
 #endif	
 	insert_planned = latch_mode & BTR_INSERT;
 	estimate = latch_mode & BTR_ESTIMATE;
-	latch_mode = latch_mode & ~(BTR_INSERT | BTR_ESTIMATE);
+	ignore_sec_unique = latch_mode & BTR_IGNORE_SEC_UNIQUE;
+	latch_mode = latch_mode & ~(BTR_INSERT | BTR_ESTIMATE
+					| BTR_IGNORE_SEC_UNIQUE);
 
 	ut_ad(!insert_planned || (mode == PAGE_CUR_LE));
 	
@@ -343,7 +346,8 @@ btr_cur_search_to_nth_level(
 
 			rw_latch = latch_mode;
 
-			if (insert_planned && ibuf_should_try(index)) {
+			if (insert_planned && ibuf_should_try(index,
+							ignore_sec_unique)) {
 				
 				/* Try insert to the insert buffer if the
 				page is not in the buffer pool */
@@ -356,7 +360,6 @@ retry_page_get:
 					buf_mode,
 					IB__FILE__, __LINE__,
 					mtr);
-
 		if (page == NULL) {
 			/* This must be a search to perform an insert;
 			try insert to the insert buffer */
@@ -365,7 +368,7 @@ retry_page_get:
 			ut_ad(insert_planned);
 			ut_ad(cursor->thr);
 
-			if (ibuf_should_try(index) &&
+			if (ibuf_should_try(index, ignore_sec_unique) &&
 				ibuf_insert(tuple, index, space, page_no,
 							cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */

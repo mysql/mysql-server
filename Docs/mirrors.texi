@@ -3,6 +3,11 @@
 @itemize @bullet
 
 @item
+@image{Flags/armenia} Armenia [AbideWeb Technologies] @@
+WWW (@uref{http://mysql.abideweb.com/})
+FTP (@uref{ftp://mysql.abideweb.com/mirrors/MySQL/})
+
+@item
 @image{Flags/austria} Austria [Univ. of Technology/Vienna] @@
 WWW (@uref{http://gd.tuwien.ac.at/db/mysql/})
 FTP (@uref{ftp://gd.tuwien.ac.at/db/mysql/})
@@ -58,8 +63,22 @@ WWW (@uref{http://mysql-mirror.free.fr/})
 FTP (@uref{ftp://ftp.free.fr/pub/MySQL/})
 
 @item
+@image{Flags/france} France [mir2.ovh.net/] @@
+WWW (@uref{http://mir2.ovh.net/ftp.mysql.com/})
+FTP (@uref{ftp://mir1.ovh.net/ftp.mysql.com/})
+
+@item
+@image{Flags/france} France [Netsample] @@
+WWW (@uref{http://www.mysql.netsample.com/})
+
+@item
 @image{Flags/france} France [Omegatomic] @@
 WWW (@uref{http://mysql.omegatomic.com/})
+
+@item
+@image{Flags/france} France [Universite Paris 10] @@
+WWW (@uref{http://ftp.u-paris10.fr/mysql.com})
+FTP (@uref{ftp://ftp.u-paris10.fr/mysql.com})
 
 @item
 @image{Flags/germany} Germany [GWDG] @@
@@ -70,6 +89,11 @@ FTP (@uref{ftp://ftp.gwdg.de/pub/misc/mysql/})
 @image{Flags/germany} Germany [SunSITE Central Europe] @@
 WWW (@uref{http://sunsite.informatik.rwth-aachen.de/mysql/})
 FTP (@uref{ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/})
+
+@item
+@image{Flags/germany} Germany [Tiscali] @@
+WWW (@uref{http://filepile.tiscali.de/mirror/mysql/})
+FTP (@uref{ftp://filepile.tiscali.de/mirror/mysql/})
 
 @item
 @image{Flags/germany} Germany [Wolfenbuettel] @@
@@ -96,14 +120,21 @@ WWW (@uref{http://mysql.sote.hu/})
 FTP (@uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/})
 
 @item
-@image{Flags/iceland} Iceland [GM] @@
-WWW (@uref{http://mysql.gm.is/})
-FTP (@uref{ftp://ftp.gm.is/pub/mysql/})
+@image{Flags/iceland} Iceland [Tvíund] @@
+WWW (@uref{http://mysql.tviund.is/})
 
 @item
 @image{Flags/ireland} Ireland [Esat Net] @@
 WWW (@uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/})
 FTP (@uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/})
+
+@item
+@image{Flags/ireland} Ireland [MD NMTB Media] @@
+WWW (@uref{http://mirrors.nmtbmedia.com/mysql/})
+
+@item
+@image{Flags/israel} Israel [fresh.co.il] @@
+WWW (@uref{http://mysql.fresh.co.il/})
 
 @item
 @image{Flags/italy} Italy [feelinglinux.com] @@
@@ -120,10 +151,6 @@ WWW (@uref{http://mysql.tzone.it/})
 @item
 @image{Flags/latvia} Latvia [linux.lv] @@
 FTP (@uref{ftp://ftp.linux.lv/pub/software/mysql/})
-
-@item
-@image{Flags/netherlands} Netherlands [Compukos] @@
-WWW (@uref{http://mysql.compukos.nl/})
 
 @item
 @image{Flags/netherlands} Netherlands [OMS-Net] @@
@@ -157,9 +184,14 @@ WWW (@uref{http://darkstar.ist.utl.pt/mysql/})
 FTP (@uref{ftp://darkstar.ist.utl.pt/pub/mysql/})
 
 @item
-@image{Flags/portugal} Portugal [Netc] @@
-WWW (@uref{http://ftp.netc.pt/pub/mysql/})
-FTP (@uref{ftp://ftp.netc.pt/pub/mysql/})
+@image{Flags/portugal} Portugal [Netvisão] @@
+WWW (@uref{http://mysql.netvisao.pt/})
+FTP (@uref{ftp://mirrors2.netvisao.pt/pub/mysql/})
+
+@item
+@image{Flags/portugal} Portugal [VIZZAVI] @@
+WWW (@uref{http://ftp.vizzavi.pt/pub/mysql/})
+FTP (@uref{ftp://ftp.vizzavi.pt/pub/mysql/})
 
 @item
 @image{Flags/romania} Romania [roedu.net/Bucharest] @@
@@ -178,11 +210,6 @@ FTP (@uref{ftp://ftp.chg.ru/pub/databases/mysql/})
 @image{Flags/slovenia} Slovenia [ARNES] @@
 WWW (@uref{http://ftp.arnes.si/mysql/})
 FTP (@uref{ftp://ftp.arnes.si/packages/mysql/})
-
-@item
-@image{Flags/spain} Spain [GMC Control Systems] @@
-WWW (@uref{http://mysql.neptuno2000.com/})
-FTP (@uref{ftp://ftp.neptuno2000.com/pub/mysql/})
 
 @item
 @image{Flags/sweden} Sweden [Sunet] @@
@@ -243,9 +270,8 @@ FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 WWW (@uref{http://mysql.adgrafix.com/})
 
 @item
-@image{Flags/usa} USA [Ahaza Systems / Seattle, WA] @@
-WWW (@uref{http://mysql.mirrortree.com/})
-FTP (@uref{ftp://mysql.mirrortree.com/pub/mysql/})
+@image{Flags/usa} USA [Fast Mirror / Englewood, CO] @@
+WWW (@uref{http://mysql.fastmirror.com/})
 
 @item
 @image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@
@@ -274,11 +300,6 @@ FTP (@uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/})
 @image{Flags/usa} USA [UUNet] @@
 WWW (@uref{http://mysql.secsup.org/})
 FTP (@uref{ftp://mysql.secsup.org/pub/software/mysql/})
-
-@item
-@image{Flags/usa} USA [ValueClick / Los Angeles, CA] @@
-WWW (@uref{http://mysql.valueclick.com/})
-FTP (@uref{ftp://mysql.valueclick.com/pub/mysql/})
 
 @end itemize
 
@@ -316,11 +337,6 @@ FTP (@uref{ftp://mysql.ogmios.co.cr/pub/mysql/})
 @itemize @bullet
 
 @item
-@image{Flags/china} China [Gremlins/Hong Kong] @@
-WWW (@uref{http://mysql.gremlins.com.hk/})
-FTP (@uref{ftp://ftp.mirrors.gremlins.com.hk/mysql/})
-
-@item
 @image{Flags/china} China [HKLPG/Hong Kong] @@
 WWW (@uref{http://mysql.hklpg.org/})
 
@@ -334,6 +350,10 @@ WWW (@uref{http://mysql.shellhung.org/})
 FTP (@uref{ftp://ftp.shellhung.org/pub/Mirror/mysql/})
 
 @item
+@image{Flags/indonesia} Indonesia [CBN] @@
+WWW (@uref{http://mysql.cbn.net.id/})
+
+@item
 @image{Flags/indonesia} Indonesia [incaf.net] @@
 WWW (@uref{http://mysql.incaf.net/})
 FTP (@uref{ftp://mysql.incaf.net/})
@@ -341,6 +361,7 @@ FTP (@uref{ftp://mysql.incaf.net/})
 @item
 @image{Flags/indonesia} Indonesia [M-Web] @@
 WWW (@uref{http://mysql.mweb.net.id/})
+FTP (@uref{ftp://mysql.mweb.net.id/pub/database/mysql/})
 
 @item
 @image{Flags/indonesia} Indonesia [web.id] @@
@@ -390,6 +411,10 @@ WWW (@uref{http://mysql.ttn.net/})
 @image{Flags/australia} Australia [planetmirror.com] @@
 WWW (@uref{http://mysql.planetmirror.com/})
 FTP (@uref{ftp://planetmirror.com/pub/mysql/})
+
+@item
+@image{Flags/new-zealand} New Zealand [Cubalan] @@
+WWW (@uref{http://mysql.soa.co.nz/})
 
 @end itemize
 

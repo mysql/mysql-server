@@ -100,23 +100,7 @@ typedef struct st_mysql_rows {
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {			/* struct for once_alloc */
-  struct st_used_mem *next;			/* Next block in use */
-  unsigned int	left;				/* memory left in block  */
-  unsigned int	size;				/* size of block */
-} USED_MEM;
-typedef struct st_mem_root {
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  unsigned int	min_malloc;
-  unsigned int	block_size;
-
-  void (*error_handler)(void);
-} MEM_ROOT;
-#endif
+#include <my_alloc.h>
 
 typedef struct st_mysql_data {
   my_ulonglong rows;
@@ -272,15 +256,15 @@ my_bool STDCALL mysql_eof(MYSQL_RES *res);
 MYSQL_FIELD *STDCALL mysql_fetch_field_direct(MYSQL_RES *res,
 					      unsigned int fieldnr);
 MYSQL_FIELD * STDCALL mysql_fetch_fields(MYSQL_RES *res);
-MYSQL_ROWS * STDCALL mysql_row_tell(MYSQL_RES *res);
-unsigned int STDCALL mysql_field_tell(MYSQL_RES *res);
+MYSQL_ROW_OFFSET STDCALL mysql_row_tell(MYSQL_RES *res);
+MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res);
 
 unsigned int STDCALL mysql_field_count(MYSQL *mysql);
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql);
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql);
 unsigned int STDCALL mysql_errno(MYSQL *mysql);
-char * STDCALL mysql_error(MYSQL *mysql);
-char * STDCALL mysql_info(MYSQL *mysql);
+const char * STDCALL mysql_error(MYSQL *mysql);
+const char * STDCALL mysql_info(MYSQL *mysql);
 unsigned long STDCALL mysql_thread_id(MYSQL *mysql);
 const char * STDCALL mysql_character_set_name(MYSQL *mysql);
 
@@ -353,10 +337,10 @@ int		STDCALL mysql_refresh(MYSQL *mysql,
 				     unsigned int refresh_options);
 int		STDCALL mysql_kill(MYSQL *mysql,unsigned long pid);
 int		STDCALL mysql_ping(MYSQL *mysql);
-char *		STDCALL mysql_stat(MYSQL *mysql);
-char *		STDCALL mysql_get_server_info(MYSQL *mysql);
-char *		STDCALL mysql_get_client_info(void);
-char *		STDCALL mysql_get_host_info(MYSQL *mysql);
+const char *		STDCALL mysql_stat(MYSQL *mysql);
+const char *		STDCALL mysql_get_server_info(MYSQL *mysql);
+const char *		STDCALL mysql_get_client_info(void);
+const char *		STDCALL mysql_get_host_info(MYSQL *mysql);
 unsigned int	STDCALL mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_list_dbs(MYSQL *mysql,const char *wild);
 MYSQL_RES *	STDCALL mysql_list_tables(MYSQL *mysql,const char *wild);
@@ -370,7 +354,8 @@ int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 void		STDCALL mysql_free_result(MYSQL_RES *result);
 void		STDCALL mysql_data_seek(MYSQL_RES *result,
 					my_ulonglong offset);
-MYSQL_ROW_OFFSET STDCALL mysql_row_seek(MYSQL_RES *result, MYSQL_ROW_OFFSET);
+MYSQL_ROW_OFFSET STDCALL mysql_row_seek(MYSQL_RES *result,
+						MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
 					   MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW	STDCALL mysql_fetch_row(MYSQL_RES *result);

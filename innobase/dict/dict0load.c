@@ -688,7 +688,16 @@ dict_load_indexes(
 		
 			dict_load_fields(table, index, heap);
 
-			dict_index_add_to_cache(table, index);
+			if (index->type & DICT_CLUSTERED == 0
+			    && NULL == dict_table_get_first_index(table)) {
+
+				fprintf(stderr,
+	"InnoDB: Error: trying to load index %s for table %s\n"
+	"InnoDB: but the first index was not clustered\n",
+				index->name, table->name);
+			} else {
+				dict_index_add_to_cache(table, index);
+			}
 		}
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -937,6 +946,11 @@ dict_load_foreign(
 	foreign->n_fields = mach_read_from_4(rec_get_nth_field(rec, 5, &len));
 
 	ut_a(len == 4);
+
+	/* We store the type to the bits 24-31 of n_fields */
+	
+	foreign->type = foreign->n_fields >> 24;
+	foreign->n_fields = foreign->n_fields & 0xFFFFFF;
 	
 	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(id) + 1);
 				

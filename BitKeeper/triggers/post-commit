@@ -59,8 +59,9 @@ EOF
 
 #++
 # docs-commit@ mail
+# Picks up anything under the Docs subdirectory (relevant for docs team).
 #--
- bk changes -v -r+ | grep -q Docs/manual.texi
+ bk changes -v -r+ | grep -q "  Docs/"
  if [ $? -eq 0 ]
  then
   echo "Notifying docs list at $DOCS"

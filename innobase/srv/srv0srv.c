@@ -69,13 +69,19 @@ char*	srv_main_thread_op_info = (char *) "";
 names, where the file name itself may also contain a path */
 
 char*	srv_data_home 	= NULL;
-char*	srv_logs_home 	= NULL;
 char*	srv_arch_dir 	= NULL;
 
 ulint	srv_n_data_files = 0;
 char**	srv_data_file_names = NULL;
 ulint*	srv_data_file_sizes = NULL;	/* size in database pages */ 
 
+ibool	srv_auto_extend_last_data_file	= FALSE; /* if TRUE, then we
+						 auto-extend the last data
+						 file */
+ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
+						 the max size auto-extending
+						 may increase the last data
+						 file size */
 ulint*  srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
@@ -1605,7 +1611,7 @@ srv_read_initfile(
 
 /*************************************************************************
 Initializes the server. */
-static
+
 void
 srv_init(void)
 /*==========*/
@@ -1673,7 +1679,7 @@ srv_init(void)
 /*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
-static
+
 void
 srv_general_init(void)
 /*==================*/
@@ -1695,6 +1701,7 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
+	ibool			has_slept	= FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
 
@@ -1712,7 +1719,7 @@ srv_conc_enter_innodb(
 
 		return;
 	}
-
+retry:
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
@@ -1725,7 +1732,23 @@ srv_conc_enter_innodb(
 
 		return;
 	}
+
+	/* If the transaction is not holding resources, let it sleep
+	for 100 milliseconds, and try again then */
 	
+	if (!has_slept && !trx->has_search_latch
+	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+	    	has_slept = TRUE; /* We let is sleep only once to avoid
+	    			  starvation */
+
+	    	os_fast_mutex_unlock(&srv_conc_mutex);
+
+	    	os_thread_sleep(100000);
+
+		goto retry;
+	}	    	
+
 	/* Too many threads inside: put the current thread to a queue */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
@@ -1917,6 +1940,9 @@ srv_normalize_init_values(void)
 					* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}		
 
+	srv_last_file_size_max = srv_last_file_size_max
+					* ((1024 * 1024) / UNIV_PAGE_SIZE);
+		
 	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
 
 	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;
@@ -2000,15 +2026,18 @@ srv_suspend_mysql_thread(
 /*=====================*/
 				/* out: TRUE if the lock wait timeout was
 				exceeded */
-	que_thr_t*	thr)	/* in: query thread associated with
-				the MySQL OS thread */
+	que_thr_t*	thr)	/* in: query thread associated with the MySQL
+				OS thread */
 {
 	srv_slot_t*	slot;
 	os_event_t	event;
 	double		wait_time;
-
+	trx_t*		trx;
+	
 	ut_ad(!mutex_own(&kernel_mutex));
 
+	trx = thr_get_trx(thr);
+	
 	os_event_set(srv_lock_timeout_thread_event);
 
 	mutex_enter(&kernel_mutex);
@@ -2044,9 +2073,20 @@ srv_suspend_mysql_thread(
 	
 	srv_conc_force_exit_innodb(thr_get_trx(thr));
 
+	/* Release possible foreign key check latch */
+	if (trx->has_dict_foreign_key_check_lock) {
+
+		rw_lock_s_unlock(&dict_foreign_key_check_lock);
+	}
+
 	/* Wait for the release */
 	
 	os_event_wait(event);
+
+	if (trx->has_dict_foreign_key_check_lock) {
+
+		rw_lock_s_lock(&dict_foreign_key_check_lock);
+	}
 
 	/* Return back inside InnoDB */
 	

@@ -1,3 +1,5 @@
+-- source include/have_query_cache.inc
+
 #
 # Test grants with query cache
 #

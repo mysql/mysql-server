@@ -64,8 +64,10 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_DATA		38	/* start of the data on the page */
 
 /* File page trailer */
-#define FIL_PAGE_END_LSN	8	/* this should be same as
-					FIL_PAGE_LSN */
+#define FIL_PAGE_END_LSN	8	/* the low 4 bytes of this are used
+					to store the page checksum, the
+					last 4 bytes should be identical
+					to the last 4 bytes of FIL_PAGE_LSN */
 #define FIL_PAGE_DATA_END	8
 
 /* File page types */
@@ -134,6 +136,21 @@ fil_space_truncate_start(
 	ulint	trunc_len);	/* in: truncate by this much; it is an error
 				if this does not equal to the combined size of
 				some initial files in the space */
+/**************************************************************************
+Tries to extend a data file by the number of pages given. Any fractions of a
+megabyte are ignored. */
+
+ibool
+fil_extend_last_data_file(
+/*======================*/
+				/* out: TRUE if success, also if we run
+				out of disk space we may return TRUE */
+	ulint*	actual_increase,/* out: number of pages we were able to
+				extend, here the orginal size of the file and
+				the resulting size of the file are rounded
+				downwards to a full megabyte, and the
+				difference expressed in pages is returned */
+	ulint	size_increase);	/* in: try to extend this many pages */
 /***********************************************************************
 Frees a space object from a file system. Closes the files in the chain
 but does not delete them. */
