@@ -67,3 +67,9 @@ drop table t1;
 create table t1 (f float(54));	# Should give an error
 drop table if exists t1;
 
+# Don't allow 'double unsigned' to be set to a negative value (Bug #7700)
+create table t1 (d1 double, d2 double unsigned);
+insert into t1 set d1 = -1.0;
+update t1 set d2 = d1;
+select * from t1;
+drop table t1;
