@@ -698,7 +698,7 @@ ha_innobase::update_thd(
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
-	
+
 	trx = check_trx_exists(thd);
 
 	if (prebuilt->trx != trx) {
@@ -711,11 +711,23 @@ ha_innobase::update_thd(
 	return(0);
 }
 
-static void register_trans(THD *thd)
+/*************************************************************************
+Registers the InnoDB transaction in MySQL, to receive commit/rollback
+events. This function must be called every time InnoDB starts a
+transaction internally. */
+static
+void
+register_trans(
+/*============*/
+	THD*	thd)	/* in: thd to use the handle */
 {
-  trans_register_ha(thd, FALSE, &innobase_hton);
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-    trans_register_ha(thd, TRUE, &innobase_hton);
+        /* register the start of the statement */
+        trans_register_ha(thd, FALSE, &innobase_hton);
+        if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+
+              /* no autocommit mode, register for a transaction */
+              trans_register_ha(thd, TRUE, &innobase_hton);
+        }
 }
 
 /*   BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
@@ -1459,12 +1471,12 @@ innobase_report_binlog_offset_and_commit(
 
 	ut_a(trx != NULL);
 
-	trx->mysql_log_file_name = log_file_name;  	
+	trx->mysql_log_file_name = log_file_name;
 	trx->mysql_log_offset = (ib_longlong)end_offset;
-	
+
 	trx->flush_log_later = TRUE;
 
-  	innobase_commit(thd, trx_handle);
+	innobase_commit(thd, trx_handle);
 
 	trx->flush_log_later = FALSE;
 
@@ -1474,18 +1486,18 @@ innobase_report_binlog_offset_and_commit(
 /***********************************************************************
 This function stores the binlog offset and flushes logs. */
 
-void 
+void
 innobase_store_binlog_offset_and_flush_log(
 /*=======================================*/
     char *binlog_name,          /* in: binlog name */
-    longlong 	offset)		/* in: binlog offset */
+    longlong	offset)		/* in: binlog offset */
 {
 	mtr_t mtr;
-	
+
 	assert(binlog_name != NULL);
 
 	/* Start a mini-transaction */
-        mtr_start_noninline(&mtr); 
+        mtr_start_noninline(&mtr);
 
 	/* Update the latest MySQL binlog name and offset info
         in trx sys header */
@@ -1497,7 +1509,7 @@ innobase_store_binlog_offset_and_flush_log(
 
         /* Commits the mini-transaction */
         mtr_commit(&mtr);
-        
+
 	/* Syncronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
@@ -1520,14 +1532,14 @@ innobase_commit_complete(
 
         if (trx && trx->active_trans) {
 
-          trx->active_trans = 0;
+                trx->active_trans = 0;
 
-	if (srv_flush_log_at_trx_commit == 0) {
+                if (srv_flush_log_at_trx_commit == 0) {
 
-	        return(0);
-	}
+                        return(0);
+                }
 
-  	trx_commit_complete_for_mysql(trx);
+                trx_commit_complete_for_mysql(trx);
         }
 
 	return(0);

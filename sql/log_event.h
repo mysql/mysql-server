@@ -305,7 +305,10 @@ struct sql_ex_info
 /*
    This flag only makes sense for Format_description_log_event.
    It is set not when the event is written, but when a binlog file
-   is closed.
+   is closed. It serves as a reliable indicator that binlog was
+   closed correctly. (Stop_log_event is not enough, there's always
+   a small chance that mysqld crashes in the middle of insert
+   and end of the binlog would look like a Stop_log_event)
 */
 
 #define LOG_EVENT_BINLOG_CLOSED_F   0x1
@@ -355,20 +358,26 @@ enum Log_event_type
 {
   /*
     Every time you update this enum (when you add a type), you have to
-    update the code of Format_description_log_event::Format_description_log_event().
-    Make sure you always insert new types ***BEFORE*** ENUM_END_EVENT.
+    fix Format_description_log_event::Format_description_log_event().
   */
   UNKNOWN_EVENT= 0, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
   INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
   APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
   /*
-    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer sql_ex,
-    allowing multibyte TERMINATED BY etc; both types share the same class
-    (Load_log_event)
+    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
+    sql_ex, allowing multibyte TERMINATED BY etc; both types share the
+    same class (Load_log_event)
   */
-  NEW_LOAD_EVENT, XID_EVENT,
+  NEW_LOAD_EVENT,
   RAND_EVENT, USER_VAR_EVENT,
   FORMAT_DESCRIPTION_EVENT,
+  XID_EVENT,
+
+  /*
+    add new events here - right above this comment!
+    existing events should never change their numbers
+  */
+
   ENUM_END_EVENT /* end marker */
 };
 

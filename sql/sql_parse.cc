@@ -83,6 +83,10 @@ const char *command_name[]={
   "Error"					// Last command number
 };
 
+const char *xa_state_names[]={
+  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
+};
+
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
 
 #ifdef __WIN__
@@ -524,6 +528,12 @@ void free_max_user_conn(void)
 
   sql_command is actually set to SQLCOM_END sometimes
   so we need the +1 to include it in the array.
+
+  numbers are:
+     0  - read-only query
+  != 0  - query that may change a table
+     2  - query that returns meaningful ROW_COUNT() -
+          a number of modified rows
 */
 
 char  uc_update_queries[SQLCOM_END+1];
@@ -559,7 +569,7 @@ void init_update_queries(void)
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return uc_update_queries[command] > 0;
+  return uc_update_queries[command];
 }
 
 /*
@@ -2153,7 +2163,7 @@ mysql_execute_command(THD *thd)
   */
   if (opt_readonly &&
       !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
-      (uc_update_queries[lex->sql_command] > 0))
+      uc_update_queries[lex->sql_command])
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
     DBUG_RETURN(-1);
@@ -4056,7 +4066,6 @@ create_error:
     break;
   }
   case SQLCOM_XA_START:
-    res= FALSE;
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
     {
       if (! thd->transaction.xid.eq(&thd->lex->ident))
@@ -4066,7 +4075,7 @@ create_error:
       }
       thd->transaction.xa_state=XA_ACTIVE;
       send_ok(thd);
-      res=0;
+      res=TRUE;
       break;
     }
     if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
@@ -4076,7 +4085,8 @@ create_error:
     }
     if (thd->transaction.xa_state != XA_NOTR)
     {
-      my_error(ER_XAER_RMFAIL, MYF(0));
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xa_state]);
       break;
     }
     if (thd->active_transaction() || thd->locked_tables)
@@ -4091,11 +4101,10 @@ create_error:
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
-    res=0;
+    res=TRUE;
     break;
   case SQLCOM_XA_END:
     /* fake it */
-    res= FALSE;
     if (thd->lex->xa_opt != XA_NONE)
     { // SUSPEND and FOR MIGRATE are not supported yet. TODO
       my_error(ER_XAER_INVAL, MYF(0));
@@ -4103,7 +4112,8 @@ create_error:
     }
     if (thd->transaction.xa_state != XA_ACTIVE)
     {
-      my_error(ER_XAER_RMFAIL, MYF(0));
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xa_state]);
       break;
     }
     if (!thd->transaction.xid.eq(&thd->lex->ident))
@@ -4113,13 +4123,13 @@ create_error:
     }
     thd->transaction.xa_state=XA_IDLE;
     send_ok(thd);
-    res=0;
+    res=TRUE;
     break;
   case SQLCOM_XA_PREPARE:
-    res= FALSE;
     if (thd->transaction.xa_state != XA_IDLE)
     {
-      my_error(ER_XAER_RMFAIL, MYF(0));
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xa_state]);
       break;
     }
     if (!thd->transaction.xid.eq(&thd->lex->ident))
@@ -4133,7 +4143,7 @@ create_error:
       thd->transaction.xa_state=XA_NOTR;
       break;
     }
-    res=0;
+    res=TRUE;
     thd->transaction.xa_state=XA_PREPARED;
     send_ok(thd);
     break;
@@ -4146,29 +4156,30 @@ create_error:
     }
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
     {
-      if (res=ha_commit(thd))
-      {
-        my_error(res==1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
-        res= FALSE;
-      }
+      int r;
+      if ((r= ha_commit(thd)))
+        my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
       else
+      {
         send_ok(thd);
+        res= TRUE;
+      }
     }
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
     {
       if (ha_commit_one_phase(thd, 1))
-      {
         my_error(ER_XAER_RMERR, MYF(0));
-        res= FALSE;
-      }
       else
+      {
         send_ok(thd);
+        res= TRUE;
+      }
     }
     else
     {
-      res= FALSE;
-      my_error(ER_XAER_RMFAIL, MYF(0));
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xa_state]);
       break;
     }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
@@ -4185,23 +4196,23 @@ create_error:
     if (thd->transaction.xa_state != XA_IDLE &&
         thd->transaction.xa_state != XA_PREPARED)
     {
-      res= FALSE;
-      my_error(ER_XAER_RMFAIL, MYF(0));
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xa_state]);
       break;
     }
     if (ha_rollback(thd))
-    {
       my_error(ER_XAER_RMERR, MYF(0));
-      res= FALSE;
-    }
     else
+    {
       send_ok(thd);
+      res= TRUE;
+    }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
-    res= mysql_xa_recover(thd);
+    res= !mysql_xa_recover(thd);
     break;
   default:
     DBUG_ASSERT(0);                             /* Impossible */

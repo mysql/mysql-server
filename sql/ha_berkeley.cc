@@ -238,15 +238,13 @@ static int berkeley_commit(THD *thd, bool all)
   DBUG_ENTER("berkeley_commit");
   DBUG_PRINT("trans",("ending transaction %s", all ? "all" : "stmt"));
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
-  int error=txn_commit(all ? trx->all : trx->stmt,0);
+  DB_TXN **txn= all ? &trx->all : &trx->stmt;
+  int error=txn_commit(*txn,0);
+  *txn=0;
 #ifndef DBUG_OFF
   if (error)
     DBUG_PRINT("error",("error: %d",error));
 #endif
-  if (all)
-    trx->all=0;
-  else
-    trx->stmt=0;
   DBUG_RETURN(error);
 }
 
@@ -255,11 +253,9 @@ static int berkeley_rollback(THD *thd, bool all)
   DBUG_ENTER("berkeley_rollback");
   DBUG_PRINT("trans",("aborting transaction %s", all ? "all" : "stmt"));
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
-  int error=txn_abort(all ? trx->all : trx->stmt);
-  if (all)
-    trx->all=0;
-  else
-    trx->stmt=0;
+  DB_TXN **txn= all ? &trx->all : &trx->stmt;
+  int error=txn_abort(*txn);
+  *txn=0;
   DBUG_RETURN(error);
 }
 
@@ -1904,7 +1900,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
       if (trx->stmt)
       {
 	/*
-	   F_UNLOCK is done without a transaction commit / rollback.
+	   F_UNLCK is done without a transaction commit / rollback.
 	   This happens if the thread didn't update any rows
 	   We must in this case commit the work to keep the row locks
 	*/
@@ -1929,6 +1925,7 @@ int ha_berkeley::start_stmt(THD *thd)
   int error=0;
   DBUG_ENTER("ha_berkeley::start_stmt");
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
+  DBUG_ASSERT(trx);
   /*
     note that trx->stmt may have been already initialized as start_stmt()
     is called for *each table* not for each storage engine,
@@ -2277,6 +2274,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   DB_BTREE_STAT *stat=0;
   DB_TXN_STAT *txn_stat_ptr= 0;
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
+  DBUG_ASSERT(trx);
 
   /*
    Original bdb documentation says:
@@ -2291,10 +2289,10 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       txn_stat_ptr && txn_stat_ptr->st_nactive>=2)
   {
     DB_TXN_ACTIVE *atxn_stmt= 0, *atxn_all= 0;
-    
+
     u_int32_t all_id= trx->all->id(trx->all);
     u_int32_t stmt_id= trx->stmt->id(trx->stmt);
-    
+
     DB_TXN_ACTIVE *cur= txn_stat_ptr->st_txnarray;
     DB_TXN_ACTIVE *end= cur + txn_stat_ptr->st_nactive;
     for (; cur!=end && (!atxn_stmt || !atxn_all); cur++)
@@ -2302,7 +2300,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       if (cur->txnid==all_id) atxn_all= cur;
       if (cur->txnid==stmt_id) atxn_stmt= cur;
     }
-    
+
     if (atxn_stmt && atxn_all &&
 	log_compare(&atxn_stmt->lsn,&atxn_all->lsn))
     {
