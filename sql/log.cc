@@ -141,7 +141,7 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
   io_cache_type = io_cache_type_arg;
   no_auto_events = no_auto_events_arg;
   max_size=max_size_arg;
-  DBUG_PRINT("info",("log_type=%d max_size=%lu", log_type, max_size));
+  DBUG_PRINT("info",("log_type: %d max_size: %lu", log_type, max_size));
   if (!inited)
   {
     inited= 1;
@@ -909,7 +909,7 @@ bool MYSQL_LOG::append(Log_event* ev)
     goto err;
   }
   bytes_written += ev->get_event_len();
-  DBUG_PRINT("info",("max_size=%lu",max_size));
+  DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
   {
     pthread_mutex_lock(&LOCK_index);
@@ -943,7 +943,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
     }
     bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
-  DBUG_PRINT("info",("max_size=%lu",max_size));
+  DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
   {
     pthread_mutex_lock(&LOCK_index);
@@ -1206,7 +1206,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
         }
       }
       /* We wrote to the real log, check automatic rotation; */
-      DBUG_PRINT("info",("max_size=%lu",max_size));      
+      DBUG_PRINT("info",("max_size: %lu",max_size));      
       should_rotate= (my_b_tell(file) >= (my_off_t) max_size); 
     }
     error=0;
@@ -1337,7 +1337,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					    log_file.pos_in_file)))
       goto err;
     signal_update();
-    DBUG_PRINT("info",("max_size=%lu",max_size));
+    DBUG_PRINT("info",("max_size: %lu",max_size));
     if (my_b_tell(&log_file) >= (my_off_t) max_size)
     {
       pthread_mutex_lock(&LOCK_index);
