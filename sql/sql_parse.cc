@@ -1458,6 +1458,7 @@ mysql_execute_command(void)
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
+    /* This query don't work now. See comment in repl_failsafe.cc */
 #ifndef WORKING_NEW_MASTER
     net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SHOW NEW MASTER");
     res= 1;

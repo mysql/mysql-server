@@ -85,15 +85,15 @@ slave-bin.001	263	Query	1	263	use test; drop table t1
 slave-bin.001	311	Query	1	311	use test; create table t1 (word char(20) not null)
 slave-bin.001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
 slave-bin.001	1065	Exec_load	1	1056	;file_id=1
-slave-bin.001	1088	Query	1	1079	use test; drop table t1
-slave-bin.001	1136	Query	1	4	use test; create table t5 (a int)
-slave-bin.001	1194	Query	1	62	use test; drop table t5
+slave-bin.001	1088	Query	1	1088	use test; drop table t1
+slave-bin.001	1136	Query	1	1136	use test; create table t5 (a int)
+slave-bin.001	1194	Query	1	1194	use test; drop table t5
 slave-bin.001	1242	Rotate	2	1242	slave-bin.002;pos=4
 show binlog events in 'slave-bin.002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.002	4	Query	1	110	use test; create table t1 (n int)
-slave-bin.002	62	Query	1	168	use test; insert into t1 values (1)
-slave-bin.002	122	Query	1	228	use test; drop table t1
+slave-bin.002	4	Query	1	4	use test; create table t1 (n int)
+slave-bin.002	62	Query	1	62	use test; insert into t1 values (1)
+slave-bin.002	122	Query	1	122	use test; drop table t1
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
 127.0.0.1	root	MASTER_PORT	1	master-bin.002	276	slave-relay-bin.003	211	master-bin.002	Yes	Yes			0		0	276	211
