@@ -1114,3 +1114,4 @@ create table t2(id int);
 create table t3(flag int);
 -- error 1064
 select (select * from t3 where id not null) from t1, t2;
+drop table t1,t2,t3;
