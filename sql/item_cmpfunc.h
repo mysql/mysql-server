@@ -573,3 +573,5 @@ inline Item *and_conds(Item *a,Item *b)
     cond->update_used_tables();
   return cond;
 }
+
+Item *and_expressions(Item *a, Item *b, Item **org_item);
