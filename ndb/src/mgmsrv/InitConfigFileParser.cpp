@@ -42,7 +42,7 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  : m_configValues(1000, 20), m_userProperties(true) {
+  :  m_userProperties(true), m_configValues(1000, 20) {
 
   m_config = new Properties(true);
   m_defaults = new Properties(true);
@@ -349,6 +349,8 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   case ConfigInfo::STRING:
     MGM_REQUIRE(ctx.m_currentSection->put(pname, value));
     break;
+  case ConfigInfo::SECTION:
+    abort();
   }
   return true;
 }

@@ -4051,7 +4051,7 @@ void Dbacc::deleteLongKey(Signal* signal)
 }//Dbacc::deleteLongKey()
 
 
-void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   LongKeyPage *page;
   Uint32 indexNo;
@@ -4206,7 +4206,7 @@ void Dbacc::insertPageArrayList(Signal* signal)
 // --------------------------------------------------------------------------------- */
 //       Check the page array list.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom) 
+void Dbacc::checkPageArrayList(Signal* signal, const char *calledFrom) 
 {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
@@ -4251,7 +4251,7 @@ void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom)
 // --------------------------------------------------------------------------------- */
 //       Check the page to put into the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Insert(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   LongKeyPage *page;
@@ -4318,7 +4318,7 @@ void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
 // --------------------------------------------------------------------------------- */
 //       Check the page to remove from the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Remove(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Remove(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   Uint32 noOfOccurrence = 0;
