@@ -61,7 +61,7 @@ static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 ulong 		net_buffer_length=8192;
-ulong		max_allowed_packet=16*1024*1024L;
+ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 
@@ -928,7 +928,8 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-cipher","protocol", "shared_memory_base_name",
+  "ssl-cipher", "max-allowed-packet",
+  "protocol", "shared-memory-base-name",
   NullS
 };
 
@@ -1099,14 +1100,17 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 25: /* repl-parse-query */
 	  options->rpl_parse= 1;
 	  break;
-        case 27:/* protocol */
+	case 27:
+	  options->max_allowed_packet= atoi(opt_arg);
+	  break;
+        case 28:		/* protocol */
           if ((options->protocol = find_type(opt_arg, &sql_protocol_typelib,0)) == ~(ulong) 0)
           {
             fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
             exit(1);
           }
           break;
-        case 28: /*shared_memory_base_name*/
+        case 29:		/* shared_memory_base_name */
 #ifdef HAVE_SMEM
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
@@ -2242,6 +2246,7 @@ Try also with PIPE or TCP/IP
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d  client_flag: %d",
 		     mysql->server_version,mysql->server_capabilities,
 		     mysql->server_status, client_flag));
+  /* This needs to be changed as it's not useful with big packets */
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
     strmake(buff+5,user,32);			/* Max user name */
@@ -2350,6 +2355,8 @@ Try also with PIPE or TCP/IP
 
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
+  if (mysql->options.max_allowed_packet)
+    net->max_packet_size= mysql->options.max_allowed_packet;
   if (db && mysql_select_db(mysql,db))
     goto error;
 
@@ -2853,7 +2860,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
-  DBUG_PRINT("query",("Query = \"%s\"",query));
+  DBUG_PRINT("query",("Query = '%-.4096s'",query));
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);

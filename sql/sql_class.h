@@ -432,7 +432,7 @@ public:
   uint client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   uint sql_mode;
-  uint max_client_packet_length;
+  ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
