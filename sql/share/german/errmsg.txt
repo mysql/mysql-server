@@ -243,7 +243,7 @@
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Subselect return more than 1 field",
+"Cardinality error (more/less than %d columns)",
 "Subselect return more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",

@@ -236,7 +236,7 @@
 "User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Subselect returns more than 1 field",
+"Cardinality error (more/less than %d columns)",
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",

@@ -34,7 +34,7 @@ public:
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
-             SUBSELECT_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -87,10 +87,18 @@ public:
   virtual bool is_null() { return 0; };
   virtual CHARSET_INFO *thd_charset() const;
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
-  virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  virtual bool binary() const 
+  {
+    return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0;
+  }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
   
   virtual bool check_loop(uint id);
+
+  // Row emulation
+  virtual uint cols() { return 1; }
+  virtual Item* el(uint i) { return this; }
+  virtual bool check_cols(uint c);
 };
 
 
@@ -469,6 +477,7 @@ public:
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"
+#include "item_row.h"
 
 class Item_copy_string :public Item
 {

@@ -178,10 +178,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	SUBSELECT	inscrit	const	PRIMARY	PRIMARY	35	const	1	
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo,email FROM
 inscrit WHERE pseudo='joce');
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT * FROM inscrit WHERE
 pseudo='joce');
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
 pseudo
 joce
