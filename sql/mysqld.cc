@@ -327,6 +327,7 @@ const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
@@ -1047,71 +1048,97 @@ static void set_ports()
 #ifndef EMBEDDED_LIBRARY
 /* Change to run as another user if started with --user */
 
-static void set_user(const char *user)
+static struct passwd *check_user(const char *user)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  struct passwd *ent;
+  struct passwd *user_info;
   uid_t user_id= geteuid();
 
-  // don't bother if we aren't superuser
+  // Don't bother if we aren't superuser
   if (user_id)
   {
     if (user)
     {
-      /* Don't give a warning, if real user is same as given with --user */
-      struct passwd *user_info= getpwnam(user);
+      // Don't give a warning, if real user is same as given with --user
+      user_info= getpwnam(user);
       if ((!user_info || user_id != user_info->pw_uid) &&
 	  global_system_variables.log_warnings)
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
     }
-    return;
+    return NULL;
   }
   if (!user)
   {
     if (!opt_bootstrap)
     {
-      fprintf(stderr,"Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
+      sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(1);
     }
-    return;
+    return NULL;
   }
   if (!strcmp(user,"root"))
-    return;				// Avoid problem with dynamic libraries
+    return NULL;                        // Avoid problem with dynamic libraries
 
-  uid_t uid;
-  if (!(ent = getpwnam(user)))
+  if (!(user_info= getpwnam(user)))
   {
-    // allow a numeric uid to be used
+    // Allow a numeric uid to be used
     const char *pos;
-    for (pos=user; my_isdigit(mysqld_charset,*pos); pos++) ;
-    if (*pos)					// Not numeric id
-    {
-      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-      unireg_abort(1);
-    }
-    uid=atoi(user);				// Use numberic uid
+    for (pos= user; my_isdigit(mysqld_charset,*pos); pos++) ;
+    if (*pos)                                   // Not numeric id
+      goto err;
+    if (!(user_info= getpwuid(atoi(user))))
+      goto err;
+    else
+      return user_info;
   }
   else
-  {
-#ifdef HAVE_INITGROUPS
-    initgroups((char*) user,ent->pw_gid);
-#endif
-    if (setgid(ent->pw_gid) == -1)
-    {
-      sql_perror("setgid");
-      unireg_abort(1);
-    }
-    uid=ent->pw_uid;
-  }
+    return user_info;
 
-  if (setuid(uid) == -1)
+err:
+  sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+#endif
+  return NULL;
+}
+
+static void set_user(const char *user, struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+#ifdef HAVE_INITGROUPS
+  initgroups((char*) user,user_info->pw_gid);
+#endif
+  if (setgid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setgid");
+    unireg_abort(1);
+  }
+  if (setuid(user_info->pw_uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
   }
 #endif
 }
+
+
+static void set_effective_user(struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+  if (setegid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setegid");
+    unireg_abort(1);
+  }
+  if (seteuid(user_info->pw_uid) == -1)
+  {
+    sql_perror("seteuid");
+    unireg_abort(1);
+  }
+#endif
+}
+
 
 /* Change root user if started with  --chroot */
 
@@ -1188,7 +1215,16 @@ static void server_init(void)
       unireg_abort(1);
     }
   }
-  set_user(mysqld_user);		// Works also with mysqld_user==NULL
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory) // getuid() == 0 here
+      set_effective_user(user_info);
+    else
+#endif
+      set_user(mysqld_user, user_info);
+  }
 
 #ifdef __NT__
   /* create named pipe */
@@ -2619,18 +2655,25 @@ server.");
   dflt_key_cache= sql_key_cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-  if (locked_in_memory && !geteuid())
+  if (locked_in_memory && !getuid())
   {
+    if (seteuid(0) == -1)
+    {                        // this should never happen
+      sql_perror("seteuid");
+      unireg_abort(1);
+    }
     if (mlockall(MCL_CURRENT))
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
       locked_in_memory= 0;
     }
+    if (user_info)
+      set_user(mysqld_user, user_info);
   }
-#else
-  locked_in_memory=0;
+  else
 #endif
+    locked_in_memory=0;
 
   ft_init_stopwords();
 
