@@ -424,11 +424,6 @@ bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-#ifndef EMBEDDED_LIBRARY
-bool check_stack_overrun(THD *thd,char *dummy);
-#else
-#define check_stack_overrun(A, B) 0
-#endif
 
 bool table_cache_init(void);
 void table_cache_free(void);
@@ -534,7 +529,6 @@ int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
-void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
@@ -969,11 +963,6 @@ void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
-#ifndef EMBEDDED_LIBRARY
-extern "C" void unireg_abort(int exit_code);
-#else
-#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
-#endif
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
@@ -1122,3 +1111,19 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
 }
+
+
+/*
+  Some functions that are different in the embedded library and the normal
+  server
+*/
+
+#ifndef EMBEDDED_LIBRARY
+extern "C" void unireg_abort(int exit_code);
+void kill_delayed_threads(void);
+bool check_stack_overrun(THD *thd,char *dummy);
+#else
+#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
+inline void kill_delayed_threads(void) {}
+#define check_stack_overrun(A, B) 0
+#endif
