@@ -23724,6 +23724,10 @@ You can't have a key on a @code{BLOB} or @code{TEXT} column.
 rows, one by one, which isn't that fast.
 @item
 The maximum blob size is 8000 bytes.
+@item
+Before dropping a database with @code{INNOBASE} tables one has to drop
+the individual tables first.  If one doesn't do that, the space in the
+Innobase table space will not be reclaimed.
 @end itemize
 
 @cindex tutorial

@@ -114,7 +114,7 @@ public:
       if (tmp)
       {
 	tmp->table=new_table;
-	tmp->key_start=tmp->part_of_key=0;
+	tmp->key_start=tmp->part_of_key=tmp->part_of_sortkey=0;
 	tmp->unireg_check=Field::NONE;
 	tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
 	tmp->reset_fields();

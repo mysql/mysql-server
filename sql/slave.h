@@ -4,7 +4,7 @@
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
-  uint32 pos,pending;
+  ulonglong pos,pending;
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   // the variables below are needed because we can change masters on the fly
@@ -29,11 +29,11 @@ typedef struct st_master_info
     pthread_mutex_destroy(&lock);
     pthread_cond_destroy(&cond);
   }
-  inline void inc_pending(uint32 val)
+  inline void inc_pending(ulonglong val)
   {
     pending += val;
   }
-  inline void inc_pos(uint32 val)
+  inline void inc_pos(ulonglong val)
   {
     pthread_mutex_lock(&lock);
     pos += val + pending;
@@ -43,14 +43,14 @@ typedef struct st_master_info
   }
   // thread safe read of position - not needed if we are in the slave thread,
   // but required otherwise
-  inline void read_pos(uint32& var)
+  inline void read_pos(ulonglong& var)
   {
     pthread_mutex_lock(&lock);
     var = pos;
     pthread_mutex_unlock(&lock);
   }
 
-  int wait_for_pos(THD* thd, String* log_name, ulong log_pos);
+  int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
 } MASTER_INFO;
 
 typedef struct st_table_rule_ent
