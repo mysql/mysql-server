@@ -339,20 +339,19 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   {
     uchar *to= *pos;
     TIME  tm;
-    
-    /* TODO: why length is compared with 8 here? */
-    tm.second_part= (length > 8 ) ? (ulong) sint4korr(to+7): 0;
 
+    tm.neg= (bool) to[0];
+    day= (uint) sint4korr(to+1);
     /*
       Note, that though ranges of hour, minute and second are not checked
       here we rely on them being < 256: otherwise
       we'll get buffer overflow in make_{date,time} functions,
       which are called when time value is converted to string.
     */
-    day= (uint) sint4korr(to+1);
     tm.hour=   (uint) to[5] + day * 24;
     tm.minute= (uint) to[6];
     tm.second= (uint) to[7];
+    tm.second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
     if (tm.hour > 838)
     {
       /* TODO: add warning 'Data truncated' here */
@@ -361,7 +360,6 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
       tm.second= 59;
     }
     tm.day= tm.year= tm.month= 0;
-    tm.neg= (bool)to[0];
 
     param->set_time(&tm, TIMESTAMP_TIME,
                     MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
@@ -372,14 +370,16 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
 static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
   uint length;
- 
+
   if ((length= get_param_length(pos, len)) >= 4)
   {
     uchar *to= *pos;
     TIME  tm;
-    
-    tm.second_part= (length > 7 ) ? (ulong) sint4korr(to+7): 0;
-    
+
+    tm.neg=    0;
+    tm.year=   (uint) sint2korr(to);
+    tm.month=  (uint) to[2];
+    tm.day=    (uint) to[3];
     /*
       Note, that though ranges of hour, minute and second are not checked
       here we rely on them being < 256: otherwise
@@ -393,11 +393,8 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     }
     else
       tm.hour= tm.minute= tm.second= 0;
-    
-    tm.year=   (uint) sint2korr(to);
-    tm.month=  (uint) to[2];
-    tm.day=    (uint) to[3];
-    tm.neg=    0;
+
+    tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
 
     param->set_time(&tm, TIMESTAMP_DATETIME, 
                     MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
@@ -592,6 +589,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       param->item_result_type= STRING_RESULT;
     }
   }
+  param->param_type= (enum enum_field_types) param_type;
 }
 
 #ifndef EMBEDDED_LIBRARY

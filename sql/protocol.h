@@ -18,7 +18,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define PACKET_BUFFET_EXTRA_ALLOC	1024
 
 class i_string;
 class THD;
