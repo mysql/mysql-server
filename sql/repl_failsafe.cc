@@ -860,7 +860,7 @@ int load_master_data(THD* thd)
 	of LOAD DATA FROM MASTER - no reason to forbid it, really,
 	although it does not make much sense for the user to do it
       */
-      if (row[0] && row[1])
+      if (row && row[0] && row[1])
       {
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
