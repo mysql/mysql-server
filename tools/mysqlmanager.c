@@ -232,8 +232,8 @@ static int set_exec_param(struct manager_thd* thd, char* args_start,
 
 #define HANDLE_DECL(com) static int com (struct manager_thd* thd, char* args_start,char* args_end)
 #define HANDLE_NOARG_DECL(com) static int com \
-  (struct manager_thd* thd, char* __attribute__((unused)) args_start,\
- char* __attribute__((unused)) args_end)
+  (struct manager_thd* thd, char *args_start __attribute__((unused)),\
+ char* args_end __attribute__((unused)))
 
 
 HANDLE_NOARG_DECL(handle_ping);
@@ -1063,7 +1063,7 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
 }
 
 static pthread_handler_decl(process_launcher_messages,
-			    __attribute__((unused)) arg)
+			    args __attribute__((unused)))
 {
   my_thread_init();
   for (;!in_shutdown;)
