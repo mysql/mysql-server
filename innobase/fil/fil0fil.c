@@ -2466,7 +2466,8 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 		return(TRUE);
 	}
 
-	if (version != -1LL && space->tablespace_version != version) {
+	if (version != ((ib_longlong)-1)
+				&& space->tablespace_version != version) {
 		mutex_exit(&(system->mutex));
 
 		return(TRUE);
