@@ -866,24 +866,24 @@ dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_INNOBASE
-dnl Sets HAVE_INNOBASE_DB if --with-innobase-db is used
+dnl Sets HAVE_INNOBASE_DB if --with-innobase is used
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_INNOBASE], [
-  AC_ARG_WITH([innobase-db],
+  AC_ARG_WITH([innobase],
               [\
-  --with-innobase-db      Use Innobase DB],
+  --with-innobase         Use Innobase],
               [innobase="$withval"],
               [innobase=no])
 
-  AC_MSG_CHECKING([for Innobase DB])
+  AC_MSG_CHECKING([for Innobase])
 
   have_innobase_db=no
   innobase_includes=
   innobase_libs=
   case "$innobase" in
     yes )
-      AC_MSG_RESULT([Using Innobase DB])
+      AC_MSG_RESULT([Using Innobase])
       AC_DEFINE(HAVE_INNOBASE_DB)
       have_innobase_db="yes"
       innobase_includes="-I../innobase/include"
@@ -929,7 +929,7 @@ dnl circular references.
       AC_CHECK_LIB(rt, aio_read, [innobase_libs="$innobase_libs -lrt"])
       ;;
     * )
-      AC_MSG_RESULT([Not using Innobase DB])
+      AC_MSG_RESULT([Not using Innobase])
       ;;
   esac
 
