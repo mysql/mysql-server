@@ -16,7 +16,7 @@ Copyright:	GPL / LGPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
-Packager:	David Axmark <david@mysql.com>
+Packager:	Lenz Grimmer <lenz@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
@@ -217,7 +217,13 @@ export PATH
 # We need to build shared libraries separate from mysqld-max because we
 # are using --with-other-libc
 
-BuildMySQL "--disable-shared $USE_OTHER_LIBC_DIR --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
+BuildMySQL "--disable-shared \
+			$USE_OTHER_LIBC_DIR \
+			--with-berkeley-db \
+			--with-innodb \
+			--with-ssl \
+			--with-vio \
+			--with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .
@@ -244,11 +250,13 @@ mv Docs/manual.ps.save Docs/manual.ps
 # RPM:s destroys Makefile.in files, so we generate them here
 automake
 
-BuildMySQL "--disable-shared" \
-	   "--with-mysqld-ldflags='-all-static'" \
-	   "--with-client-ldflags='-all-static'" \
-  	   "$USE_OTHER_LIBC_DIR" \
-	   "--without-berkeley-db --without-innodb"
+BuildMySQL "--disable-shared \
+	   --with-mysqld-ldflags='-all-static' \
+	   --with-client-ldflags='-all-static' \
+  	 $USE_OTHER_LIBC_DIR \
+	   --without-berkeley-db \
+		 --without-vio \
+		 --without-ssl"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
@@ -263,8 +271,9 @@ install -d $RBR/usr/share/mysql-test
 install -d $RBR%{_mandir}
 install -d $RBR/usr/{sbin,share,include}
 install -d $RBR/usr/lib
-# Make install
-make install DESTDIR=$RBR benchdir_root=/usr/share/
+# Install all binaries stripped except for mysqld (required for UDFs
+# to work)
+make install-strip DESTDIR=$RBR benchdir_root=/usr/share/
 
 # Install shared libraries (Disable for architectures that don't support it)
 (cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
@@ -458,6 +467,13 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Mon Jul 15 2002 Lenz Grimmer <lenz@mysql.com>
+
+- Updated Packager information
+- Fixed the build options: the regular package is supposed to
+  include InnoDB and linked statically, while the Max package
+	should include BDB and SSL support
 
 * Fri May 03 2002 Lenz Grimmer <lenz@mysql.com>
 
