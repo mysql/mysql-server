@@ -1,0 +1,9 @@
+WS2_32_shutdown
+WS2_32_closesocket
+WSASetLastError
+WS2_32_recv
+WSASetLastError
+WS2_32_send
+WSAGetLastError
+GetProcessSwitchCount
+RunningProcess
