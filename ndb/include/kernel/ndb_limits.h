@@ -68,7 +68,7 @@
  * API can order a multiple of this number of records at a time since
  * fragments can be scanned in parallel.
  */
-#define MAX_PARALLEL_OP_PER_SCAN 64
+#define MAX_PARALLEL_OP_PER_SCAN 512
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -83,7 +83,7 @@
 * batch size from all nodes. This parameter should most likely be
 * configurable, or dependent on sendBufferSize.
 */
-#define MAX_SCAN_BATCH_SIZE 196608
+#define MAX_SCAN_BATCH_SIZE 262144
 /*
  * Maximum number of Parallel Scan queries on one hash index fragment
  */
