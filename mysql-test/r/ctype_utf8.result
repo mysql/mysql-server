@@ -849,3 +849,15 @@ utf8_bin	6109
 utf8_bin	61
 utf8_bin	6120
 drop table t1;
+CREATE TABLE t1 (
+user varchar(255) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('one'),('two');
+SELECT CHARSET('a');
+CHARSET('a')
+utf8
+SELECT user, CONCAT('<', user, '>') AS c FROM t1;
+user	c
+one	<one>
+two	<two>
+DROP TABLE t1;
