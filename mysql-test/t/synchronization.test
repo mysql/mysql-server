@@ -1,6 +1,11 @@
 #
-# Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination table
+# Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination
+# table
 #
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
