@@ -1140,7 +1140,15 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
 charset_name:
-	ident	
+	BINARY
+	{ 
+	  if (!($$=get_charset_by_name("binary",MYF(0))))
+	  {
+	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,"binary");
+	    YYABORT;
+	  }
+	}
+	| ident	
 	{ 
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
