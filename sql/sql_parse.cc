@@ -1403,7 +1403,7 @@ mysql_execute_command(THD *thd)
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
-    select_result *result;
+    select_result *result=lex->result;
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
     if (tables)
@@ -1430,45 +1430,9 @@ mysql_execute_command(THD *thd)
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
-    if (lex->exchange)
+    if (!result)
     {
-      if (lex->exchange->dumpfile)
-      {
-	if (!(result=new select_dump(lex->exchange)))
-	{
-	  res= -1;
-	  break;
-	}
-      }
-      else
-      {
-	if (!(result=new select_export(lex->exchange)))
-	{
-	  res= -1;
-	  break;
-	}
-      }
-    }
-    else if (lex->select_into_var_list.elements)
-    {
-      if (!(result=new select_dumpvar()))
-      {
-	res= -1;
-	break;
-      }
-    }
-    else 
-    {
-      if (!(result=new select_send()))
-      {
-	res= -1;
-#ifdef DELETE_ITEMS
-	delete select_lex->having;
-	delete select_lex->where;
-#endif
-	break;
-      }
-      else
+      if ((result=new select_send()))
       {
 	/*
 	  Normal select:
@@ -1478,6 +1442,15 @@ mysql_execute_command(THD *thd)
 	TABLE_LIST *table;
 	for (table = tables ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
+      }
+      else
+      {
+	res= -1;
+#ifdef DELETE_ITEMS
+	delete select_lex->having;
+	delete select_lex->where;
+#endif
+	break;
       }
     }
 
@@ -2976,8 +2949,8 @@ mysql_init_select(LEX *lex)
     lex->thd->variables.select_limit;
   select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
   lex->exchange= 0;
+  lex->result= 0;
   lex->proc_list.first= 0;
-  lex->select_into_var_list.empty();
 }
 
 
