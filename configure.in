@@ -38,6 +38,7 @@ sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/ha_archive.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_example.m4)
+sinclude(config/ac-macros/ha_federated.m4)
 sinclude(config/ac-macros/ha_innodb.m4)
 sinclude(config/ac-macros/ha_isam.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
@@ -2420,6 +2421,7 @@ MYSQL_CHECK_EXAMPLEDB
 MYSQL_CHECK_ARCHIVEDB
 MYSQL_CHECK_CSVDB
 MYSQL_CHECK_NDBCLUSTER
+MYSQL_CHECK_FEDERATED
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
