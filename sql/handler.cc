@@ -526,7 +526,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 
 /*
   RETURN
-     -1  - cannot prepare
       0  - ok
       1  - error, transaction was rolled back
 */
@@ -539,8 +538,6 @@ int ha_prepare(THD *thd)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
-    if (trans->no_2pc)
-      DBUG_RETURN(-1);
     for (; *ht; ht++)
     {
       int err;
