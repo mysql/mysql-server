@@ -991,14 +991,11 @@ public:
 
 /* Some usefull inline functions */
 
-inline Item *and_conds(THD *thd, Item *a, Item *b, TABLE_LIST *tables)
+inline Item *and_conds(Item *a, Item *b)
 {
   if (!b) return a;
   if (!a) return b;
-  Item *cond= new Item_cond_and(a,b);
-  if (cond)
-    cond->fix_fields(thd, tables, &cond);
-  return cond;
+  return new Item_cond_and(a, b);
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);

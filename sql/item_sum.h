@@ -32,40 +32,32 @@ public:
     UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
-  Item **args,*tmp_args[2];
+  Item **args, *tmp_args[2];
+  Item **args_copy;			/* copy of arguments for PS */
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
   void mark_as_sum_func();
-  Item_sum() : arg_count(0),quick_group(1) 
+  Item_sum() :args_copy(0), arg_count(0), quick_group(1) 
   {
     mark_as_sum_func();
   }
-  Item_sum(Item *a) :quick_group(1)
+  Item_sum(Item *a)
+    :args(tmp_args), args_copy(0), arg_count(1), quick_group(1)
   {
-    arg_count=1;
-    args=tmp_args;
     args[0]=a;
     mark_as_sum_func();
   }
-  Item_sum( Item *a, Item *b ) :quick_group(1)
+  Item_sum( Item *a, Item *b )
+    :args(tmp_args), args_copy(0),  arg_count(2), quick_group(1)
   {
-    arg_count=2;
-    args=tmp_args;
     args[0]=a; args[1]=b;
     mark_as_sum_func();
   }
   Item_sum(List<Item> &list);
   //Copy constructor, need to perform subselects with temporary tables
   Item_sum(THD *thd, Item_sum *item);
-  void cleanup()
-  {
-    DBUG_ENTER("Item_sum::cleanup");
-    Item_result_field::cleanup();
-    result_field=0;
-    DBUG_VOID_RETURN;
-  }
-
+  void cleanup();
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
   inline bool reset() { clear(); return add(); };
@@ -100,6 +92,8 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
+  bool save_args_for_prepared_statements(THD *);
+  bool save_args(Statement* stmt);
 
   bool walk (Item_processor processor, byte *argument);
 };
@@ -190,7 +184,6 @@ class Item_sum_count_distinct :public Item_sum_int
 {
   TABLE *table;
   table_map used_table_cache;
-  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree_base;
@@ -236,7 +229,8 @@ class Item_sum_count_distinct :public Item_sum_int
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
      used_table_cache(item->used_table_cache),
-     field_lengths(item->field_lengths), tmp_table_param(item->tmp_table_param),
+     field_lengths(item->field_lengths),
+     tmp_table_param(item->tmp_table_param),
      tree(item->tree), original(item), key_length(item->key_length),
      max_elements_in_tree(item->max_elements_in_tree),
      rec_offset(item->rec_offset), use_tree(item->use_tree),
