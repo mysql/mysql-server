@@ -235,8 +235,7 @@ mutex_create_func(
 	mutex->cline = cline;
 	
 	/* Check that lock_word is aligned; this is important on Intel */
-
-	ut_a(((ulint)(&(mutex->lock_word))) % 4 == 0);
+	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
 
 	/* NOTE! The very first mutexes are not put to the mutex list */
 
@@ -266,11 +265,14 @@ mutex_free(
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 	
-	mutex_enter(&mutex_list_mutex);
+	if (mutex != &mutex_list_mutex && mutex != &sync_thread_mutex) {
 
-	UT_LIST_REMOVE(list, mutex_list, mutex);
+	        mutex_enter(&mutex_list_mutex);
 
-	mutex_exit(&mutex_list_mutex);
+	        UT_LIST_REMOVE(list, mutex_list, mutex);
+
+		mutex_exit(&mutex_list_mutex);
+	}
 
 #if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER) 
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
@@ -1230,13 +1232,26 @@ sync_init(void)
 }
 
 /**********************************************************************
-Frees the resources in synchronization data structures. */
+Frees the resources in InnoDB's own synchronization data structures. Use
+os_sync_free() after calling this. */
 
 void
 sync_close(void)
 /*===========*/
 {
+	mutex_t*	mutex;
+
 	sync_array_free(sync_primary_wait_array);
+
+	mutex = UT_LIST_GET_FIRST(mutex_list);
+
+	while (mutex) {
+	        mutex_free(mutex);
+		mutex = UT_LIST_GET_FIRST(mutex_list);
+	}
+
+	mutex_free(&mutex_list_mutex);
+	mutex_free(&sync_thread_mutex);	
 }
 
 /***********************************************************************
