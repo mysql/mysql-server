@@ -54,48 +54,47 @@ select count(*) from t1;
 select count(*) from t2;
 
 flush tables; flush status;
-show status like "key_%";
+show status like "key_read%";
 
 select count(*) from t1 where b = 'test1';
-show status like "key_%";
+show status like "key_read%";
 select count(*) from t1 where b = 'test1';
-show status like "key_%";
+show status like "key_read%";
 
 flush tables; flush status;
 select @@preload_buffer_size;
-preload t1 keys;
-show status like "preload_%";
-show status like "key_%";
+load index into cache t1 keys;
+show status like "key_read%";
 select count(*) from t1 where b = 'test1';
-show status like "key_%";
+show status like "key_read%";
 
 flush tables; flush status;
-show status like "key_%";
+show status like "key_read%";
 set session preload_buffer_size=256*1024;
 select @@preload_buffer_size;
-preload t1 keys ignore leaves;
-show status like "key_%";
+load index into cache t1 keys ignore leaves;
+show status like "key_read%";
 select count(*) from t1 where b = 'test1';
-show status like "key_%";
+show status like "key_read%";
 
 flush tables; flush status; 
-show status like "key_%";
+show status like "key_read%";
 set session preload_buffer_size=1*1024;
 select @@preload_buffer_size;
-preload t1 keys, t2 keys (primary,b) ignore leaves;
-show status like "key_%";
+load index into cache t1 keys, t2 keys (primary,b) ignore leaves;
+show status like "key_read%";
 select count(*) from t1 where b = 'test1';
 select count(*) from t2 where b = 'test1';
-show status like "key_%";
+show status like "key_read%";
 
 flush tables; flush status;
-show status like "key_%";
-preload t3 keys, t2 keys (primary,b) ;
-show status like "key_%";
+show status like "key_read%";
+load index into cache t3 keys, t2 keys (primary,b) ;
+show status like "key_read%";
 
 flush tables; flush status;
-show status like "key_%";
-preload t3 keys (b), t2 keys (c) ;
-show status like "key_%";
+show status like "key_read%";
+load index into cache t3 keys (b), t2 keys (c) ;
+show status like "key_read%";
 
 drop table t1, t2;
