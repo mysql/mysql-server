@@ -34,9 +34,6 @@ void unireg_init(ulong options)
 
   current_pid=(ulong) getpid();		/* Save for later ref */
   init_time();				/* Init time-functions (read zone) */
-#ifdef USE_MY_ATOF
-  init_my_atof();			/* use our atof */
-#endif
 #ifndef EMBEDDED_LIBRARY
   my_abort_hook=unireg_abort;		/* Abort with close of databases */
 #endif
@@ -49,7 +46,5 @@ void unireg_init(ulong options)
     log_10[i]= nr ; nr*= 10.0;
   }
   specialflag|=options;			/* Set options from argv */
-
-  thread_stack_min=thread_stack - STACK_MIN_SIZE;
   DBUG_VOID_RETURN;
 }

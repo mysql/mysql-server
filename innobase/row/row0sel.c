@@ -930,7 +930,9 @@ row_sel_try_search_shortcut(
 	ut_ad(node->read_view);
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	row_sel_open_pcur(node, plan, TRUE, mtr);
 
@@ -2080,7 +2082,7 @@ row_sel_store_row_id_to_prebuilt(
 		      (ulong) len, index->table_name, index->name,
 		      (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID),
 		      err_buf);
-		ut_a(0);
+		ut_error;
 	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
@@ -2770,7 +2772,7 @@ row_search_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (trx->n_mysql_tables_in_use == 0) {
@@ -2831,7 +2833,7 @@ row_search_for_mysql(
 
 		if (direction != prebuilt->fetch_direction) {
 			if (prebuilt->n_fetch_cached > 0) {
-				ut_a(0);
+				ut_error;
 				/* TODO: scrollable cursor: restore cursor to
 				the place of the latest returned row,
 				or better: prevent caching for a scroll
@@ -2886,7 +2888,16 @@ row_search_for_mysql(
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
 	    && dtuple_get_n_fields(search_tuple)
-				== dict_index_get_n_unique(index)) {
+					== dict_index_get_n_unique(index)
+	    && (index->type & DICT_CLUSTERED
+		 || !dtuple_contains_null(search_tuple))) {
+
+		/* Note above that a UNIQUE secondary index can contain many
+		rows with the same key value if one of the columns is the SQL
+		null. A clustered index under MySQL can never contain null
+		columns because we demand that all the columns in primary key
+		are non-null. */
+
 		unique_search = TRUE;
 
 		/* Even if the condition is unique, MySQL seems to try to

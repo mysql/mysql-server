@@ -292,7 +292,7 @@ DATABASE()
 select ENCRYPT("test") from t1;
 ENCRYPT("test")
 select LAST_INSERT_ID() from t1;
-last_insert_id()
+LAST_INSERT_ID()
 select RAND() from t1;
 RAND()
 select UNIX_TIMESTAMP() from t1;
@@ -593,7 +593,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=1024;
 Warnings:
-Warning	1281	Query cache failed to set size 1024, new query cache size is 0
+Warning	1282	Query cache failed to set size 1024, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -601,7 +601,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=10240;
 Warnings:
-Warning	1281	Query cache failed to set size 10240, new query cache size is 0
+Warning	1282	Query cache failed to set size 10240, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -609,7 +609,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=20480;
 Warnings:
-Warning	1281	Query cache failed to set size 20480, new query cache size is 0
+Warning	1282	Query cache failed to set size 20480, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -617,7 +617,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=40960;
 Warnings:
-Warning	1281	Query cache failed to set size 40960, new query cache size is 0
+Warning	1282	Query cache failed to set size 40960, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -774,6 +774,23 @@ select * from t3;
 delete from t4 where a=1;
 flush query cache;
 drop table t1,t2,t3,t4;
+set query_cache_wlock_invalidate=1;
+create table t1 (a int not null);
+create table t2 (a int not null);
+select * from t1;
+a
+select * from t2;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+lock table t1 write, t2 read;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+unlock table;
+drop table t1,t2;
+set query_cache_wlock_invalidate=default;
 SET NAMES koi8r;
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
@@ -829,6 +846,11 @@ SELECT * FROM test.t1;
 a
 USE test;
 DROP TABLE t1;
+set character_set_results=null;
+select @@character_set_results;
+@@character_set_results
+NULL
+set character_set_results=default;
 create table t1 (a int);
 show status like "Qcache_queries_in_cache";
 Variable_name	Value

@@ -179,11 +179,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool drop_temporary, bool dont_log_query)
 {
   TABLE_LIST *table;
-  char	path[FN_REFLEN];
+  char	path[FN_REFLEN], *alias;
   String wrong_tables;
-  db_type table_type;
   int error;
-  bool some_tables_deleted=0, tmp_table_deleted=0;
+  bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
   if (lock_table_names(thd, tables))
@@ -212,13 +211,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       drop_locked_tables(thd,db,table->real_name);
       if (thd->killed)
 	DBUG_RETURN(-1);
-
+      alias= (lower_case_table_names == 2) ? table->alias : table->real_name;
       /* remove form file and isam files */
-      strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
-	      NullS);
+      strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
       (void) unpack_filename(path,path);
-
-      table_type=get_table_type(path);
     }
     if (drop_temporary || access(path,F_OK))
     {
@@ -232,10 +228,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      *(end=fn_ext(path))=0;			// Remove extension
+      db_type table_type= get_table_type(path);
+      *(end=fn_ext(path))=0;			// Remove extension for delete
       error=ha_delete_table(table_type, path);
       if (error == ENOENT && if_exists)
 	error = 0;
+      if (error == HA_ERR_ROW_IS_REFERENCED)
+      {
+	/* the table is referenced by a foreign key constraint */
+        foreign_key_error=1;
+      }
       if (!error || error == ENOENT)
       {
 	/* Delete the table definition file */
@@ -268,7 +270,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   error= 0;
   if (wrong_tables.length())
   {
-    my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    if (!foreign_key_error)
+      my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    else
+      my_error(ER_ROW_IS_REFERENCED,MYF(0));
     error= 1;
   }
   DBUG_RETURN(error);
@@ -333,6 +338,47 @@ static int sort_keys(KEY *a, KEY *b)
 	  0);
 }
 
+/*
+  Check TYPELIB (set or enum) for duplicates
+  
+  SYNOPSIS
+    check_duplicates_in_interval()
+    set_or_name   "SET" or "ENUM" string for warning message
+    name          name of the checked column
+    typelib       list of values for the column
+
+  DESCRIPTION
+    This function prints an warning for each value in list 
+    which has some duplicates on its right
+
+  RETURN VALUES
+    void
+*/
+
+void check_duplicates_in_interval(const char *set_or_name,
+				  const char *name, TYPELIB *typelib)
+{
+  unsigned int old_count= typelib->count;
+  const char **old_type_names= typelib->type_names;
+
+  old_count= typelib->count;
+  old_type_names= typelib->type_names;
+  const char **cur_value= typelib->type_names;
+  for ( ; typelib->count > 1; cur_value++)
+  {
+    typelib->type_names++;
+    typelib->count--;
+    if (find_type((char*)*cur_value,typelib,1))
+    {
+      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
+			  ER_DUPLICATED_VALUE_IN_TYPE,
+			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
+			  name,*cur_value,set_or_name);
+    }
+  }
+  typelib->count= old_count;
+  typelib->type_names= old_type_names;
+}
 
 /*
   Create a table
@@ -369,7 +415,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                        uint select_field_count)
 {
   char		path[FN_REFLEN];
-  const char	*key_name;
+  const char	*key_name, *alias;
   create_field	*sql_field,*dup_field;
   int		error= -1;
   uint		db_options,field,null_fields,blob_columns;
@@ -377,15 +423,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   KEY	        *key_info,*key_info_buffer;
   KEY_PART_INFO *key_part_info;
   int		auto_increment=0;
+  int           timestamps= 0, timestamps_with_niladic= 0;
   handler	*file;
   int           field_no,dup_no;
   enum db_type	new_db_type;
   DBUG_ENTER("mysql_create_table");
 
-  /*
-    Check for duplicate fields and check type of table to create
-  */
-
+  /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
   {
     my_error(ER_TABLE_MUST_HAVE_COLUMNS,MYF(0));
@@ -407,6 +451,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   db_options=create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
+  alias= table_case_name(create_info, table_name);
   file=get_new_handler((TABLE*) 0, create_info->db_type);
 
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -422,10 +467,24 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->charset= create_info->default_table_charset;
     /*
       table_charset is set in ALTER TABLE if we want change character set
-      for all varchar/char columns
+      for all varchar/char columns.
+      But the table charset must not affect the BLOB fields, so don't
+      allow to change my_charset_bin to somethig else.
     */
-    if (create_info->table_charset)
+    if (create_info->table_charset && sql_field->charset != &my_charset_bin)
       sql_field->charset= create_info->table_charset;
+
+    CHARSET_INFO *savecs= sql_field->charset;
+    if ((sql_field->flags & BINCMP_FLAG) &&
+	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
+						    MY_CS_BINSORT,MYF(0))))
+    {
+      char tmp[64];
+      strmake(strmake(tmp, savecs->csname, sizeof(tmp)-4), "_bin", 4);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+      DBUG_RETURN(-1);
+    }
+    
     sql_field->create_length_to_internal_length();
 
     /* Don't pack keys in old tables if the user has requested this */
@@ -539,6 +598,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::INTERVAL_FIELD;
+      check_duplicates_in_interval("ENUM",sql_field->field_name,
+				   sql_field->interval);
       break;
     case FIELD_TYPE_SET:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -546,6 +607,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::BIT_FIELD;
+      check_duplicates_in_interval("SET",sql_field->field_name,
+				   sql_field->interval);
       break;
     case FIELD_TYPE_DATE:			// Rest of string types
     case FIELD_TYPE_NEWDATE:
@@ -555,8 +618,22 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
       break;
     case FIELD_TYPE_TIMESTAMP:
-      sql_field->unireg_check=Field::TIMESTAMP_FIELD;
-      /* fall through */
+      /* We should replace old TIMESTAMP fields with their newer analogs */
+      if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
+      {
+        if (!timestamps)
+        {
+          sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+          timestamps_with_niladic++;
+        }
+        else
+          sql_field->unireg_check= Field::NONE;
+      }
+      else if (sql_field->unireg_check != Field::NONE)
+        timestamps_with_niladic++;
+      
+      timestamps++;
+      /* fall-through */
     default:
       sql_field->pack_flag=(FIELDFLAG_NUMBER |
 			    (sql_field->flags & UNSIGNED_FLAG ? 0 :
@@ -573,6 +650,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
     pos+=sql_field->pack_length;
+  }
+  if (timestamps_with_niladic > 1)
+  {
+    my_error(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS,MYF(0));
+    DBUG_RETURN(-1);
   }
   if (auto_increment > 1)
   {
@@ -632,6 +714,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
+    if (key->name && !tmp_table &&
+	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
+    {
+      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
+      DBUG_RETURN(-1);
+    }
   }
   tmp=min(file->max_keys(), MAX_KEY);
   if (key_count > tmp)
@@ -846,26 +934,35 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
 	  if ((length=column->length) > file->max_key_length() ||
 	      length > file->max_key_part_length())
-	  {
-	    my_error(ER_WRONG_SUB_KEY,MYF(0));
-	    DBUG_RETURN(-1);
-	  }
+          {
+            length=min(file->max_key_length(), file->max_key_part_length());
+            if (key->type == Key::MULTIPLE)
+            {
+              /* not a critical problem */
+              char warn_buff[MYSQL_ERRMSG_SIZE];
+              sprintf(warn_buff,ER(ER_TOO_LONG_KEY),length);
+              push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                           ER_TOO_LONG_KEY, warn_buff);
+            }
+            else
+            {
+              my_error(ER_TOO_LONG_KEY,MYF(0),length);
+              DBUG_RETURN(-1);
+            }
+          }
 	}
-        /* TODO HF What's this for??? */
-	else if (f_is_geom(sql_field->pack_flag))
-	{
-	}
-	else if (column->length > length ||
-		 ((f_is_packed(sql_field->pack_flag) ||
-		   ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
-		    (key_info->flags & HA_NOSAME))) &&
-		  column->length != length))
-	{
-	  my_error(ER_WRONG_SUB_KEY,MYF(0));
-	  DBUG_RETURN(-1);
-	}
-	if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-	  length=column->length;
+	else if (!f_is_geom(sql_field->pack_flag) &&
+                  (column->length > length ||
+                   ((f_is_packed(sql_field->pack_flag) ||
+                     ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+                      (key_info->flags & HA_NOSAME))) &&
+                    column->length != length)))
+        {
+          my_error(ER_WRONG_SUB_KEY,MYF(0));
+          DBUG_RETURN(-1);
+        }
+        else if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
+          length=column->length;
       }
       else if (length == 0)
       {
@@ -875,8 +972,20 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
       if (length > file->max_key_part_length())
       {
-	my_error(ER_WRONG_SUB_KEY,MYF(0));
-	DBUG_RETURN(-1);
+        length=file->max_key_part_length();
+        if (key->type == Key::MULTIPLE)
+        {
+          /* not a critical problem */
+          char warn_buff[MYSQL_ERRMSG_SIZE];
+          sprintf(warn_buff,ER(ER_TOO_LONG_KEY),length);
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_TOO_LONG_KEY, warn_buff);
+        }
+        else
+        {
+          my_error(ER_TOO_LONG_KEY,MYF(0),length);
+          DBUG_RETURN(-1);
+        }
       }
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
@@ -956,7 +1065,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else
-    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,table_name,reg_ext);
+    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,alias,reg_ext);
   unpack_filename(path,path);
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -967,7 +1076,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       create_info->table_existed= 1;		// Mark that table existed
       DBUG_RETURN(0);
     }
-    my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(-1);
   }
   if (wait_if_global_read_lock(thd, 0))
@@ -1046,7 +1155,8 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 {
   char buff[MAX_FIELD_NAME],*buff_end;
 
-  if (!check_if_keyname_exists(field_name,start,end))
+  if (!check_if_keyname_exists(field_name,start,end) &&
+      my_strcasecmp(system_charset_info,field_name,primary_key_name))
     return (char*) field_name;			// Use fieldname
   buff_end=strmake(buff,field_name,MAX_FIELD_NAME-4);
   for (uint i=2 ; ; i++)
@@ -1107,7 +1217,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(0);
   if (!(table=open_table(thd,db,name,name,(bool*) 0)))
   {
-    quick_rm_table(create_info->db_type,db,name);
+    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
     DBUG_RETURN(0);
   }
   table->reginfo.lock_type=TL_WRITE;
@@ -1116,7 +1226,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
     VOID(pthread_mutex_unlock(&LOCK_open));
-    quick_rm_table(create_info->db_type,db,name);
+    quick_rm_table(create_info->db_type,db,table_case_name(create_info, name));
     DBUG_RETURN(0);
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -1131,18 +1241,32 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 bool
 mysql_rename_table(enum db_type base,
 		   const char *old_db,
-		   const char * old_name,
+		   const char *old_name,
 		   const char *new_db,
-		   const char * new_name)
+		   const char *new_name)
 {
-  char from[FN_REFLEN],to[FN_REFLEN];
+  char from[FN_REFLEN], to[FN_REFLEN];
+  char tmp_from[NAME_LEN+1], tmp_to[NAME_LEN+1];
   handler *file=get_new_handler((TABLE*) 0, base);
   int error=0;
   DBUG_ENTER("mysql_rename_table");
+
+  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  {
+    /* Table handler expects to get all file names as lower case */
+    strmov(tmp_from, old_name);
+    my_casedn_str(system_charset_info, tmp_from);
+    old_name= tmp_from;
+
+    strmov(tmp_to, new_name);
+    my_casedn_str(system_charset_info, tmp_to);
+    new_name= tmp_to;
+  }
   (void) sprintf(from,"%s/%s/%s",mysql_data_home,old_db,old_name);
   (void) sprintf(to,"%s/%s/%s",mysql_data_home,new_db,new_name);
   fn_format(from,from,"","",4);
   fn_format(to,to,    "","",4);
+
   if (!(error=file->rename_table((const char*) from,(const char *) to)))
   {
     if (rename_file_ext(from,to,reg_ext))
@@ -1157,6 +1281,7 @@ mysql_rename_table(enum db_type base,
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
+
 
 /*
   Force all other threads to stop using the table
@@ -1202,7 +1327,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
   Close a cached table
 
   SYNOPSIS
-    clsoe_cached_table()
+    close_cached_table()
     thd			Thread handler
     table		Table to remove from cache
 
@@ -1552,6 +1677,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store("Operation failed",16, system_charset_info);
       break;
 
+    case HA_ADMIN_REJECT:
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("Operation need committed state",30, system_charset_info);
+      open_for_modify= FALSE;
+      break;
+
     case HA_ADMIN_ALREADY_DONE:
       protocol->store("status", 6, system_charset_info);
       protocol->store("Table is already up to date", 27, system_charset_info);
@@ -1762,7 +1893,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *table_name= table->real_name;
   char *src_db= thd->db;
   char *src_table= table_ident->table.str;
-  int  err;
+  int  err, res= -1;
+  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
   /*
@@ -1776,6 +1908,13 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(-1);
   }
+  
+  src_tables_list.db= table_ident->db.str ? table_ident->db.str : thd->db;
+  src_tables_list.real_name= table_ident->table.str;
+  src_tables_list.next= 0;
+  
+  if (lock_and_wait_for_table_name(thd, &src_tables_list))
+    goto err;
 
   if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
     strxmov(src_path, (*tmp_table)->path, reg_ext, NullS);
@@ -1786,7 +1925,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
-      DBUG_RETURN(-1);
+      goto err;
     }
   }
 
@@ -1814,9 +1953,9 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   /* 
     Create a new table by copying from source table
-  */
-  if (my_copy(src_path, dst_path, MYF(MY_WME)))
-    DBUG_RETURN(-1);
+  */  
+  if (my_copy(src_path, dst_path, MYF(MY_WME|MY_DONT_OVERWRITE_FILE)))
+    goto err;
 
   /*
     As mysql_truncate don't work on a new table at this stage of 
@@ -1832,16 +1971,28 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     {
       (void) rm_temporary_table(create_info->db_type, 
                                 dst_path); /* purecov: inspected */
-      DBUG_RETURN(-1);     /* purecov: inspected */
+      goto err;     /* purecov: inspected */
     }
   }
   else if (err)
   {
     (void) quick_rm_table(create_info->db_type, db, 
                           table_name); /* purecov: inspected */
-    DBUG_RETURN(-1);       /* purecov: inspected */
+    goto err;       /* purecov: inspected */
   }
-  DBUG_RETURN(0);
+
+  // Must be written before unlock
+  mysql_update_log.write(thd,thd->query, thd->query_length);
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+			  test(create_info->options &
+			       HA_LEX_CREATE_TMP_TABLE));
+    mysql_bin_log.write(&qinfo);
+  }
+  res= 0;
+  goto err;
   
 table_exists:
   if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
@@ -1850,10 +2001,16 @@ table_exists:
     sprintf(warn_buff,ER(ER_TABLE_EXISTS_ERROR),table_name);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                  ER_TABLE_EXISTS_ERROR,warn_buff);
-    DBUG_RETURN(0);
+    res= 0;
   }
-  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-  DBUG_RETURN(-1);
+  else
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+
+err:
+  pthread_mutex_lock(&LOCK_open);
+  unlock_table_name(thd, &src_tables_list);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(res);
 }
 
 
@@ -1943,9 +2100,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
 err:
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
-  if (error == 0) {
+  if (error == 0)
+  {
     send_ok(thd);
-   DBUG_RETURN(0);
+    DBUG_RETURN(0);
   }
   DBUG_RETURN(error);
 }
@@ -1964,21 +2122,24 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 {
   TABLE *table,*new_table;
   int error;
-  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN],
-       *table_name,*db;
+  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
+  char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
-  bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
-  uint save_time_stamp,db_create_options, used_fields;
+  uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
   table_name=table_list->real_name;
+  alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
+
   db=table_list->db;
-  if (!new_db || !strcmp(new_db,db))
-    new_db=db;
+  if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
+  {
+    new_db= db;
+  }
   used_fields=create_info->used_fields;
 
   mysql_ha_closeall(thd, table_list);
@@ -1986,7 +2147,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-							tablespace_op));
+						   tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -1994,18 +2155,32 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (new_name)
   {
     strmov(new_name_buff,new_name);
-    fn_same(new_name_buff,table_name,3);
+    strmov(new_alias= new_alias_buff, new_name);
     if (lower_case_table_names)
-      my_casedn_str(system_charset_info,new_name);
-    if (!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
-      new_name=table_name;			// No. Make later check easier
+    {
+      if (lower_case_table_names != 2)
+      {
+	my_casedn_str(system_charset_info, new_name_buff);
+	new_alias= new_name;			// Create lower case table name
+      }
+      my_casedn_str(system_charset_info, new_name);
+    }
+    if (new_db == db &&
+	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
+    {
+      /*
+        Source and destination table names are equal: make later check
+        easier.
+      */
+      new_alias= new_name= table_name;
+    }
     else
     {
       if (table->tmp_table)
       {
 	if (find_temporary_table(thd,new_db,new_name_buff))
 	{
-	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
+	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name_buff);
 	  DBUG_RETURN(-1);
 	}
       }
@@ -2015,14 +2190,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		    F_OK))
 	{
 	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
+	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0), new_alias);
 	  DBUG_RETURN(-1);
 	}
       }
     }
   }
   else
-    new_name=table_name;
+    new_alias= new_name= table_name;
 
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
@@ -2059,7 +2234,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
         *fn_ext(new_name)=0;
         close_cached_table(thd, table);
-        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
+        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
@@ -2084,14 +2259,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	  VOID(pthread_mutex_unlock(&LOCK_open));
  	  table->file->deactivate_non_unique_index(HA_POS_ERROR);
+	/* COND_refresh will be signaled in close_thread_tables() */
  	}
  	else
  	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
  			      ER_ILLEGAL_HA,
  			      ER(ER_ILLEGAL_HA), table->table_name);
-  	break;
-
-	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
     }
@@ -2122,7 +2295,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->table_charset;
 
-  restore_record(table,default_values);			// Empty record for DEFAULT
+  restore_record(table,default_values);		// Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(drop_list);
   List_iterator<create_field> def_it(fields);
   List_iterator<Alter_column> alter_it(alter_list);
@@ -2171,8 +2344,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (def)
     {						// Field is changed
       def->field=field;
-      if (def->sql_type == FIELD_TYPE_TIMESTAMP)
-	use_timestamp=1;
       if (!def->after)
       {
 	create_list.push_back(def);
@@ -2182,9 +2353,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     else
     {						// Use old field value
       create_list.push_back(def=new create_field(field,field));
-      if (def->sql_type == FIELD_TYPE_TIMESTAMP)
-	use_timestamp=1;
-
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
       while ((alter=alter_it++))
@@ -2326,6 +2494,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (key->type != Key::FOREIGN_KEY)
 	key_list.push_back(key);
+      if (key->name &&
+	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
+      {
+	my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
+	DBUG_RETURN(-1);
+      }
     }
   }
 
@@ -2431,9 +2605,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
 
-  save_time_stamp=new_table->time_stamp;
-  if (use_timestamp)
-    new_table->time_stamp=0;
+ 
+  /* 
+    We don't want update TIMESTAMP fields during ALTER TABLE 
+    and copy_data_between_tables uses only write_row() for new_table so
+    don't need to set up timestamp_on_update_now member.
+  */
+  new_table->timestamp_default_now= 0;
   new_table->next_number_field=new_table->found_next_number_field;
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
@@ -2446,7 +2624,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-  new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
   {
@@ -2468,7 +2645,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd,table->table_cache_key,table_name);
-    if (rename_temporary_table(thd, new_table, new_db, new_name))
+    if (rename_temporary_table(thd, new_table, new_db, new_alias))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));
@@ -2492,6 +2669,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
+
   /*
     Data is copied.  Now we rename the old table to a temp name,
     rename the new one to the old name, remove all entries from the old table
@@ -2543,12 +2721,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
-			      new_name))
+			      new_alias))
   {						// Try to get everything back
     error=1;
-    VOID(quick_rm_table(new_db_type,new_db,new_name));
+    VOID(quick_rm_table(new_db_type,new_db,new_alias));
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-    VOID(mysql_rename_table(old_db_type,db,old_name,db,table_name));
+    VOID(mysql_rename_table(old_db_type,db,old_name,db,alias));
   }
   if (error)
   {
@@ -2714,13 +2892,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       goto err;
   };
 
-  /* Turn off recovery logging since rollback of an
-     alter table is to delete the new table so there
-     is no need to log the changes to it.              */
-  error = ha_recovery_logging(thd,FALSE);
+  /*
+    Turn off recovery logging since rollback of an alter table is to
+    delete the new table so there is no need to log the changes to it.
+  */
+  error= ha_recovery_logging(thd,FALSE);
   if (error)
   {
-    error = 1;
+    error= 1;
     goto err;
   }
 
@@ -2796,7 +2975,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysql_admin_table");
+  DBUG_ENTER("mysql_checksum_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
@@ -2839,12 +3018,10 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
         /* calculating table's checksum */
         ha_checksum crc= 0;
 
-	if (t->db_type == DB_TYPE_INNODB) {
-	  /* InnoDB must be told explicitly to retrieve all columns, because
-	  this function does not set field->query_id in the columns to the
-	  current query id */
-	  t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-	}
+        /* InnoDB must be told explicitly to retrieve all columns, because
+        this function does not set field->query_id in the columns to the
+        current query id */
+        t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
         if (t->file->rnd_init(1))
           protocol->store_null();

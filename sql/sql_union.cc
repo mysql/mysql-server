@@ -112,6 +112,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
+  ORDER *tmp_order;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   /*
@@ -150,6 +151,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
+    if (!join)
+      goto err;
+
     thd_arg->lex->current_select= sl;
     set_limit(sl, sl);
     if (sl->braces)
@@ -175,6 +179,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Item *item_tmp;
       while ((item_tmp= it++))
       {
+	/* Error's in 'new' will be detected after loop */
 	types.push_back(new Item_type_holder(thd_arg, item_tmp));
       }
 
@@ -200,12 +205,14 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
+  item_list.empty();
+  // it is not single select
   if (first_select->next_select())
   {
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
-				  (ORDER*) 0, !union_option, 1, 
+				  (ORDER*) 0, union_distinct, 1, 
 				  (first_select_in_union()->options |
 				   thd_arg->options |
 				   TMP_TABLE_ALL_COLUMNS),
@@ -219,15 +226,25 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     result_table_list.table= table;
     union_result->set_table(table);
 
-    item_list.empty();
     thd_arg->lex->current_select= lex_select_save;
     {
+      Statement *stmt= thd->current_statement;
+      Statement backup;
+      if (stmt)
+	thd->set_n_backup_item_arena(stmt, &backup);
       Field **field;
       for (field= table->field; *field; field++)
       {
-	if (item_list.push_back(new Item_field(*field)))
+	Item_field *item= new Item_field(*field);
+	if (!item || item_list.push_back(item))
+	{
+	  if (stmt)
+	    thd->restore_backup_item_arena(stmt, &backup);
 	  DBUG_RETURN(-1);
+	}
       }
+      if (stmt)
+	thd->restore_backup_item_arena(stmt, &backup);
     }
   }
   else
@@ -262,6 +279,8 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
+    if (union_distinct) // for subselects
+      table->file->extra(HA_EXTRA_CHANGE_KEY_TO_UNIQUE);
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
@@ -306,33 +325,14 @@ int st_select_lex_unit::exec()
 	  sl->options|= found_rows_for_union;
 	}
 	sl->join->select_options=sl->options;
-	/*
-	  As far as union share table space we should reassign table map,
-	  which can be spoiled by 'prepare' of JOIN of other UNION parts
-	  if it use same tables
-	*/
-	uint tablenr=0;
-	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
-	     table_list;
-	     table_list= table_list->next, tablenr++)
-	{
-	  if (table_list->shared)
-	  {
-	    /*
-	      review notes: Check it carefully. I still can't understand
-	      why I should not touch table->used_keys. For my point of
-	      view we should do here same procedura as it was done by
-	      setup_table
-	    */
-	    setup_table_map(table_list->table, table_list, tablenr);
-	  }
-	}
 	res= sl->join->optimize();
       }
       if (!res)
       {
 	records_at_start= table->file->records;
 	sl->join->exec();
+        if (sl == union_distinct)
+          table->file->extra(HA_EXTRA_CHANGE_KEY_TO_DUP);
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
@@ -391,8 +391,10 @@ int st_select_lex_unit::exec()
 	  allocate JOIN for fake select only once (privent
 	  mysql_select automatic allocation)
 	*/
-	fake_select_lex->join= new JOIN(thd, item_list,
-					fake_select_lex->options, result);
+	if (!(fake_select_lex->join= new JOIN(thd, item_list,
+					      fake_select_lex->options, result)))
+	  DBUG_RETURN(-1);
+
 	/*
 	  Fake st_select_lex should have item list for correctref_array
 	  allocation.
@@ -439,7 +441,7 @@ int st_select_lex_unit::cleanup()
   {
     DBUG_RETURN(0);
   }
-  cleaned= 0;
+  cleaned= 1;
 
   if (union_result)
   {
@@ -466,4 +468,26 @@ int st_select_lex_unit::cleanup()
     delete join;
   }
   DBUG_RETURN(error);
+}
+
+
+void st_select_lex_unit::reinit_exec_mechanism()
+{
+  prepared= optimized= executed= 0;
+#ifndef DBUG_OFF
+  if (first_select()->next_select())
+  {
+    List_iterator_fast<Item> it(item_list);
+    Item *field;
+    while ((field= it++))
+    {
+      /*
+	we can't cleanup here, because it broke link to temporary table field,
+	but have to drop fixed flag to allow next fix_field of this field
+	during re-executing
+      */
+      field->fixed= 0;
+    }
+  }
+#endif
 }

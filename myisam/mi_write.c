@@ -500,7 +500,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       get_key_length(alen,a);
       DBUG_ASSERT(info->ft1_to_ft2==0);
       if (alen == blen &&
-          mi_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0)==0)
+          mi_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0, 0)==0)
       {
         /* yup. converting */
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
@@ -916,8 +916,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
   DBUG_ENTER("_mi_init_bulk_insert");
   DBUG_PRINT("enter",("cache_size: %lu", cache_size));
 
-  if (info->bulk_insert || (rows && rows < MI_MIN_ROWS_TO_USE_BULK_INSERT))
-    DBUG_RETURN(0);
+  DBUG_ASSERT(!info->bulk_insert &&
+	      (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
 
   for (i=total_keylength=num_keys=0 ; i < share->base.keys ; i++)
   {

@@ -299,7 +299,7 @@ buf_LRU_get_free_block(void)
 	buf_block_t*	block		= NULL;
 	ibool		freed;
 	ulint		n_iterations	= 1;
-	ibool		mon_value_was   = 0; /* remove bug */
+	ibool		mon_value_was   = FALSE;
 	ibool		started_monitor	= FALSE;
 loop:
 	mutex_enter(&(buf_pool->mutex));
@@ -310,20 +310,26 @@ loop:
 
 	   	fprintf(stderr,
 "  InnoDB: ERROR: over 9 / 10 of the buffer pool is occupied by\n"
-"InnoDB: lock heaps or the adaptive hash index!\n"
+"InnoDB: lock heaps or the adaptive hash index! Check that your\n"
+"InnoDB: transactions do not set too many row locks.\n"
+"InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
+"InnoDB: the buffer pool bigger?\n"
 "InnoDB: We intentionally generate a seg fault to print a stack trace\n"
-"InnoDB: on Linux!\n");
+"InnoDB: on Linux!\n",
+		(ulong)(buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-		ut_a(0);
+		ut_error;
 	   
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
+		if (!srv_print_innodb_monitor) {
 
-	   	/* Over 80 % of the buffer pool is occupied by lock heaps
-	   	or the adaptive hash index. This may be a memory leak! */
+	   		/* Over 80 % of the buffer pool is occupied by lock
+			heaps or the adaptive hash index. This may be a memory
+			leak! */
 
-	   	ut_print_timestamp(stderr);
-	   	fprintf(stderr,
+	   		ut_print_timestamp(stderr);
+	   		fprintf(stderr,
 "  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
 "InnoDB: transactions do not set too many row locks.\n"
@@ -333,8 +339,9 @@ loop:
 "InnoDB: lock heap and hash index sizes.\n",
 			(ulong) (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-		srv_print_innodb_monitor = TRUE;
-
+			srv_print_innodb_monitor = TRUE;
+			os_event_set(srv_lock_timeout_thread_event);
+		}
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
 
@@ -423,6 +430,7 @@ loop:
 		mon_value_was = srv_print_innodb_monitor;
 		started_monitor = TRUE;
 		srv_print_innodb_monitor = TRUE;
+		os_event_set(srv_lock_timeout_thread_event);
 	}
 
 	/* No free block was found: try to flush the LRU list */
@@ -467,7 +475,9 @@ buf_LRU_old_adjust_len(void)
 	ulint	new_len;
 
 	ut_a(buf_pool->LRU_old);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
 
 	for (;;) {
@@ -540,7 +550,9 @@ buf_LRU_remove_block(
 {
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 		
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->in_LRU_list);
@@ -604,7 +616,9 @@ buf_LRU_add_block_to_end_low(
 	
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
@@ -667,7 +681,9 @@ buf_LRU_add_block_low(
 	
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(!block->in_LRU_list);
@@ -768,7 +784,9 @@ buf_LRU_block_free_non_file_page(
 /*=============================*/
 	buf_block_t*	block)	/* in: block, must not contain a file page */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
 	ut_a((block->state == BUF_BLOCK_MEMORY)
@@ -805,7 +823,9 @@ buf_LRU_block_remove_hashed_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
@@ -859,7 +879,9 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state == BUF_BLOCK_REMOVE_HASH);
 
 	block->state = BUF_BLOCK_MEMORY;

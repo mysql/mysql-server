@@ -5,8 +5,21 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
-SET @@session.pseudo_thread_id=100;
+SET @save_select_limit=@@session.sql_select_limit;
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
 ERROR HY000: Access denied. You need the SUPER privilege for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+ERROR HY000: Access denied. You need the SUPER privilege for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
 drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);

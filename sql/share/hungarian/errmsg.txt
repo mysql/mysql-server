@@ -233,7 +233,7 @@ character-set=latin2
 "Option '%s' used twice in statement",
 "User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
 "Access denied. You need the %-.128s privilege for this operation",
-"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
+"Variable '%-.64s' is a SESSION variable and can't be used with SET GLOBAL",
 "Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
 "Variable '%-.64s' doesn't have a default value",
 "Variable '%-.64s' can't be set to the value of '%-.64s'",
@@ -243,6 +243,7 @@ character-set=latin2
 "This version of MySQL doesn't yet support '%s'",
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 "Slave SQL thread ignored the query because of replicate-*-table rules",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Operand should contain %d column(s)",
@@ -266,7 +267,7 @@ character-set=latin2
 "Z_DATA_ERROR: Input data was corrupted for zlib",
 "%d line(s) was(were) cut by group_concat()",
 "Row %ld doesn't contain data for all columns",
-"Row %ld was truncated; It contained more data than there where input columns",
+"Row %ld was truncated; It contained more data than there were input columns",
 "Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
 "Data truncated, out of range for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
@@ -278,8 +279,8 @@ character-set=latin2
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started",
+"Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
 "It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart",
@@ -291,10 +292,14 @@ character-set=latin2
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
-"The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"'%s' is deprecated, use '%s' instead",
+"The target table %-.100s of the %s is not updateable",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
+"The MySQL server is running with the %s option so it cannot execute this statement",
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' field",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS t1,t2;
 DROP DATABASE IF EXISTS test_$1;
 create database test_$1;
 create table test_$1.r1 (i int) raid_type=1;
+create table test_$1.r2 (i int) raid_type=1 raid_chunks=32;
 drop database test_$1;
 CREATE TABLE t1 (
 id int unsigned not null auto_increment primary key,

@@ -171,7 +171,7 @@ mtr_log_parse_full_page(
 /****************************************************************
 Writes to the database log the full contents of the pages that this mtr has
 modified. */
-
+static
 void
 mtr_log_write_backup_full_pages(
 /*============================*/
@@ -495,13 +495,11 @@ mtr_read_dulint(
 /*===========*/
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
-	ulint		type __attribute__((unused)), /* in: MLOG_8BYTES */
 	mtr_t*		mtr __attribute__((unused)))
                                 /* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);
-	ut_ad(type == MLOG_8BYTES);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
 						MTR_MEMO_PAGE_S_FIX) ||
 	      mtr_memo_contains(mtr, buf_block_align(ptr), 

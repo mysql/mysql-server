@@ -91,6 +91,8 @@ Item *create_func_time_format(Item *a, Item *b);
 Item *create_func_time_to_sec(Item* a);
 Item *create_func_to_days(Item* a);
 Item *create_func_ucase(Item* a);
+Item *create_func_unhex(Item* a);
+Item *create_func_uuid(void);
 Item *create_func_version(void);
 Item *create_func_weekday(Item* a);
 Item *create_load_file(Item* a);

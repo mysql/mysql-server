@@ -46,14 +46,24 @@ public:
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
   struct st_table *table;		// Pointer for table
+  struct st_table *orig_table;		// Pointer to original table
   const char	*table_name,*field_name;
   LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
   key_map	key_start,part_of_key,part_of_sortkey;
+  /* 
+    We use three additional unireg types for TIMESTAMP to overcome limitation 
+    of current binary format of .frm file. We'd like to be able to support 
+    NOW() as default and on update value for such fields but unable to hold 
+    this info anywhere except unireg_check field. This issue will be resolved
+    in more clean way with transition to new text based .frm format.
+    See also comment for Field_timestamp::Field_timestamp().
+  */
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
-		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+                BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD};
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
@@ -77,7 +87,6 @@ public:
   uint32	field_length;		// Length of field
   uint16	flags;
   uchar		null_bit;		// Bit used to test null bit
-  uint          abs_offset;             // use only in group_concat
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
 	utype unireg_check_arg, const char *field_name_arg,
@@ -643,7 +652,11 @@ public:
   void set_time();
   virtual void set_default()
   {
-    set_time();
+    if (table->timestamp_field == this &&
+        unireg_check != TIMESTAMP_UN_FIELD)
+      set_time();
+    else
+      Field::set_default();
   }
   inline long get_timestamp()
   {
@@ -658,6 +671,7 @@ public:
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
+  void set_timestamp_offsets();
 };
 
 
@@ -679,6 +693,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 
@@ -860,7 +875,8 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
 };
 
@@ -907,7 +923,8 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
 };
 
@@ -949,14 +966,9 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->blob_ptr_size); }
-  uint32 max_data_length() const
+  inline uint32 max_data_length() const
   {
-    switch (packlength) {
-    case 1: return 255;
-    case 2: return (uint32) 0xFFFFL;
-    case 3: return (uint32) 0xFFFFFF;
-    default: return (uint32) 0xFFFFFFFF;
-    }
+    return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
   void reset(void) { bzero(ptr, packlength+sizeof(char*)); }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }
@@ -1185,8 +1197,8 @@ Field *make_field(char *ptr, uint32 field_length,
 		  struct st_table *table);
 uint pack_length_to_packflag(uint type);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
-bool set_field_to_null(Field *field);
-bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
+int set_field_to_null(Field *field);
+int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
 

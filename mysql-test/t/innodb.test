@@ -753,8 +753,7 @@ insert into t2 set id=1, t1_id=1;
 delete t1,t2 from t1,t2 where t1.id=t2.t1_id;
 select * from t1;
 select * from t2;
-drop table t1,t2;
-DROP TABLE IF EXISTS t1,t2;
+drop table t2,t1;
 CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
@@ -934,6 +933,33 @@ SELECT * from t1;
 drop table t1;
 
 #
+# Test dictionary handling with spaceand quoting
+#
+
+CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
+#show create table t2;
+drop table t2,t1;
+
+#
+# Test of multi updated and foreign keys
+#
+
+create table `t1` (`id` int( 11 ) not null  ,primary key ( `id` )) engine = innodb;
+insert into `t1`values ( 1 ) ;
+create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) ,constraint `t1_id_fk` foreign key ( `id` ) references `t1` (`id` )) engine = innodb;
+insert into `t2`values ( 1 ) ;
+create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
+insert into `t3`values ( 1 ) ;
+--error 1217
+delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+--error 1217
+update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+--error 1109
+update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+drop table t3,t2,t1;
+
+#
 # Test timestamps
 #
 
@@ -1003,3 +1029,18 @@ checksum table t1, t2, t3, t4 extended;
 #show table status;
 drop table t1,t2,t3;
 
+#
+# Test problem with refering to different fields in same table in UNION
+# (Bug #2552)
+#
+create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
+insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
+select name2 from t1  union all  select name from t1 union all select id from t1;
+drop table t1;
+
+#
+# Bug2160
+#
+create table t1 (a int) engine=innodb;
+create table t2 like t1;
+drop table t1,t2;

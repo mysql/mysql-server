@@ -5,7 +5,7 @@ The B-tree
 
 Created 6/2/1994 Heikki Tuuri
 *******************************************************/
-
+ 
 #include "btr0btr.h"
 
 #ifdef UNIV_NONINL
@@ -75,9 +75,6 @@ The leaf pages of a tree are allocated from one file segment, to
 make them consecutive on disk if possible. From the other file segment
 we allocate pages for the non-leaf levels of the tree.
 */
-
-/* If this many inserts occur sequentially, it affects page split */
-#define BTR_PAGE_SEQ_INSERT_LIMIT	5
 
 /******************************************************************
 Creates a new index page to the tree (not the root, and also not
@@ -299,7 +296,9 @@ btr_page_alloc_for_ibuf(
 
 	new_page = buf_page_get(dict_tree_get_space(tree), node_addr.page,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	flst_remove(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		    new_page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE,
@@ -357,7 +356,9 @@ btr_page_alloc(
 
 	new_page = buf_page_get(dict_tree_get_space(tree), new_page_no,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 							
 	return(new_page);
 }	
@@ -398,7 +399,7 @@ btr_get_size(
 		
 		n += fseg_n_reserved_pages(seg_header, &dummy, &mtr);		
 	} else {
-		ut_a(0);
+		ut_error;
 	}
 
 	mtr_commit(&mtr);
@@ -664,8 +665,9 @@ btr_create(
 		ibuf_hdr_frame = fseg_create(space, 0,
 				IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(ibuf_hdr_frame, SYNC_TREE_NODE_NEW);
-
+#endif /* UNIV_SYNC_DEBUG */
 		ut_ad(buf_frame_get_page_no(ibuf_hdr_frame)
  						== IBUF_HEADER_PAGE_NO);
 		/* Allocate then the next page to the segment: it will be the
@@ -690,7 +692,9 @@ btr_create(
 
 	page_no = buf_frame_get_page_no(frame);
 	
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(frame, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (type & DICT_IBUF) {
 		/* It is an insert buffer tree: initialize the free list */
@@ -705,7 +709,9 @@ btr_create(
 									mtr);
 		/* The fseg create acquires a second latch on the page,
 		therefore we must declare it: */
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(frame, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 	}
 	
 	/* Create a new index page on the the allocated segment page */
@@ -1080,18 +1086,18 @@ btr_page_get_split_rec_to_left(
 	page = btr_cur_get_page(cursor);
 	insert_point = btr_cur_get_rec(cursor);
 
-	if ((page_header_get_ptr(page, PAGE_LAST_INSERT)
-	    == page_rec_get_next(insert_point))
-	    && (page_header_get_field(page, PAGE_DIRECTION) == PAGE_LEFT)
-	    && ((page_header_get_field(page, PAGE_N_DIRECTION)
-	     	 			>= BTR_PAGE_SEQ_INSERT_LIMIT)
-	     	|| (page_header_get_field(page, PAGE_N_DIRECTION) + 1
-	     	 			>= page_get_n_recs(page)))) {
+	if (page_header_get_ptr(page, PAGE_LAST_INSERT)
+	    == page_rec_get_next(insert_point)) {
 
 	     	infimum = page_get_infimum_rec(page);
-	     	 			
-		if ((infimum != insert_point)
-		    && (page_rec_get_next(infimum) != insert_point)) {
+		
+		/* If the convergence is in the middle of a page, include also
+		the record immediately before the new insert to the upper
+		page. Otherwise, we could repeatedly move from page to page
+		lots of records smaller than the convergence point. */
+
+		if (infimum != insert_point
+		    && page_rec_get_next(infimum) != insert_point) {
 
 			*split_rec = insert_point;
 		} else {
@@ -1125,29 +1131,29 @@ btr_page_get_split_rec_to_right(
 	page = btr_cur_get_page(cursor);
 	insert_point = btr_cur_get_rec(cursor);
 
-	if ((page_header_get_ptr(page, PAGE_LAST_INSERT) == insert_point)
-	    && (page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT)
-	    && ((page_header_get_field(page, PAGE_N_DIRECTION)
-	     	 			>= BTR_PAGE_SEQ_INSERT_LIMIT)
-	     	|| (page_header_get_field(page, PAGE_N_DIRECTION) + 1
-	     	 			>= page_get_n_recs(page)))) {
+	/* We use eager heuristics: if the new insert would be right after
+	the previous insert on the same page, we assume that there is a
+	pattern of sequential inserts here. */
+
+	if (page_header_get_ptr(page, PAGE_LAST_INSERT) == insert_point) {
 
 	     	supremum = page_get_supremum_rec(page);
 	     	 			
-		if ((page_rec_get_next(insert_point) != supremum)
-		    && (page_rec_get_next(page_rec_get_next(insert_point))
-			!= supremum)
-		    && (page_rec_get_next(page_rec_get_next(
-					page_rec_get_next(insert_point)))
-			!= supremum)) {
+		if (page_rec_get_next(insert_point) != supremum
+		    && page_rec_get_next(page_rec_get_next(insert_point))
+			!= supremum) {
 
-			/* If there are >= 3 user records up from the insert
-			point, split all but 2 off */
-
-			*split_rec = page_rec_get_next(page_rec_get_next(
-					page_rec_get_next(insert_point)));
+			/* If there are >= 2 user records up from the insert
+			point, split all but 1 off. We want to keep one because
+			then sequential inserts can use the adaptive hash
+			index, as they can do the necessary checks of the right
+			search position just by looking at the records on this
+			page. */
+		
+			*split_rec = page_rec_get_next(
+					page_rec_get_next(insert_point));
 		} else {
-			/* Else split at inserted record */
+			/* Else split at the new record to insert */
 	     		*split_rec = NULL;
 	     	}
 
@@ -1520,7 +1526,9 @@ func_start:
 	
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_tree_get_lock(tree), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	page = btr_cur_get_page(cursor);
 

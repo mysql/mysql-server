@@ -30,11 +30,11 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 static uint find_field(TABLE *form,uint start,uint length);
 
 
-static byte* get_field_name(Field *buff,uint *length,
+static byte* get_field_name(Field **buff,uint *length,
 			    my_bool not_used __attribute__((unused)))
 {
-  *length= (uint) strlen(buff->field_name);
-  return (byte*) buff->field_name;
+  *length= (uint) strlen((*buff)->field_name);
+  return (byte*) (*buff)->field_name;
 }
 
 /*
@@ -101,7 +101,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (!outparam->real_name || !outparam->table_name)
     goto err_end;
 
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),
+  if ((file=my_open(fn_format(index_file,name,"",reg_ext,MY_UNPACK_FILENAME),
 		    O_RDONLY | O_SHARE,
 		    MYF(0)))
       < 0)
@@ -465,7 +465,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       goto err_not_open;			/* purecov: inspected */
     }
     reg_field->comment=comment;
-    reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
@@ -479,7 +478,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     if (outparam->timestamp_field == reg_field)
       outparam->timestamp_field_offset=i;
     if (use_hash)
-      (void) my_hash_insert(&outparam->name_hash,(byte*) *field_ptr); // Will never fail
+      (void) my_hash_insert(&outparam->name_hash,(byte*) field_ptr); // Will never fail
   }
   *field_ptr=0;					// End marker
 
@@ -581,7 +580,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  {
 	    if ((index_flags & HA_KEY_READ_ONLY) &&
 		(field->key_type() != HA_KEYTYPE_TEXT ||
-		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		 (!((ha_option & HA_KEY_READ_WRONG_STR) ||
+		    (field->flags & BINARY_FLAG)) &&
 		  !(keyinfo->flags & HA_FULLTEXT))))
 	      field->part_of_key.set_bit(key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
@@ -700,8 +700,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (db_stat)
   {
     int err;
+    unpack_filename(index_file,index_file);
     if ((err=(outparam->file->
-	      ha_open(unpack_filename(index_file,index_file),
+	      ha_open(index_file,
 		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
 		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
 		       ((db_stat & HA_WAIT_IF_LOCKED) ||
@@ -1282,14 +1283,17 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-   char *start=name;
+  char *start=name;
+  /* Used to catch empty names and names with end space */
+  bool last_char_is_space= TRUE;
 
-  if (lower_case_table_names)
+  if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1300,19 +1304,22 @@ bool check_db_name(char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
-  return (uint) (name - start) > NAME_LEN || name == start;
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   a '/', or a '.' character
+  or ' ' at the end
   returns 1 on error
 */
 
@@ -1322,10 +1329,17 @@ bool check_table_name(const char *name, uint length)
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  bool last_char_is_space= FALSE;
+#else
+  if (name[length-1]==' ')
+    return 1;
+#endif
 
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, end);
@@ -1340,16 +1354,23 @@ bool check_table_name(const char *name, uint length)
       return 1;
     name++;
   }
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  return last_char_is_space;
+#else
   return 0;
+#endif
 }
+
 
 bool check_column_name(const char *name)
 {
   const char *start= name;
-
+  bool last_char_is_space= TRUE;
+  
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1360,13 +1381,15 @@ bool check_column_name(const char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
   }
   /* Error if empty or too long column name */
-  return (name == start || (uint) (name - start) > NAME_LEN);
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 /*
