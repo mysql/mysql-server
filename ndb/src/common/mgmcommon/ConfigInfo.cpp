@@ -259,6 +259,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MANDATORY,
     0,
     MAX_INT_RNIL },
+
+  {
+    KEY_INTERNAL,
+    "ByteOrder",
+    "COMPUTER",
+    0,
+    ConfigInfo::DEPRICATED,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0,
+    0 },
   
   /****************************************************************************
    * SYSTEM
