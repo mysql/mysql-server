@@ -947,6 +947,8 @@ delete from t1|
 select row_count()|
 delete from t1|
 select row_count()|
+select * from t1|
+select row_count()|
 drop procedure rc|
 
 
