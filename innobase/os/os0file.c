@@ -300,7 +300,8 @@ os_file_handle_error(
 				/* out: TRUE if we should retry the
 				operation */
 	os_file_t	file,	/* in: file pointer */
-	char*		name)	/* in: name of a file or NULL */
+	char*		name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
 {
 	ulint	err;
 
@@ -343,6 +344,7 @@ os_file_handle_error(
 	                fprintf(stderr, "InnoDB: File name %s\n", name);
 	        }
 	  
+		fprintf(stderr, "InnoDB: System call %s.\n", operation);
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
 		fflush(stderr);
@@ -424,8 +426,9 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -465,8 +468,9 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -573,8 +577,9 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -620,8 +625,9 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -654,7 +660,7 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "close");
 	return(FALSE);
 #else
 	int	ret;
@@ -662,7 +668,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(file, NULL);
+		os_file_handle_error(file, NULL, "close");
 		return(FALSE);
 	}
 
@@ -830,7 +836,7 @@ os_file_flush(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -863,7 +869,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1104,7 +1110,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(file, NULL); 
+	retry = os_file_handle_error(file, NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -1869,7 +1875,7 @@ os_aio(
 				offset where to read or write */
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
-	ulint		n,	/* in: number of bytes to read or write */	
+	ulint		n,	/* in: number of bytes to read or write */
 	void*		message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
@@ -2022,8 +2028,8 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name);
-
+	retry = os_file_handle_error(file, name,
+			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
 		goto try_again;
@@ -2121,7 +2127,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name);
+		os_file_handle_error(slot->file, slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  
