@@ -1058,9 +1058,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
         case 28:		/* protocol */
-          if ((options->protocol = find_type(opt_arg,
-					     &sql_protocol_typelib,0))
-	      == ~(ulong) 0)
+          if ((options->protocol= find_type(opt_arg,
+					    &sql_protocol_typelib,0)) <= 0)
           {
             fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
             exit(1);
