@@ -41,9 +41,9 @@ public:
       return result_field;
     return (max_length > 255) ?
       (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary,
-      			      default_charset_info) :
+      			      str_value.charset()) :
       (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary, 
-                                 default_charset_info);
+                                 str_value.charset());
   }  
 };
 
