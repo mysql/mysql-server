@@ -305,31 +305,6 @@ count(*)
 48
 drop table t1;
 create table t1 (
-a char(5) character set ucs2,
-b varchar(7) character set utf8,
-primary key(a, b)
-) engine=ndb;
-insert into t1 values
-('a','A '),('B   ','b'),('c','C    '),('D','d'),('e  ','E'),('F','f  '),
-('A','b '),('b   ','C'),('C','d  '),('d','E'),('E  ','f'),
-('a','C '),('B   ','d'),('c','E  '),('D','f');
-insert into t1 values('d','f');
-ERROR 23000: Duplicate entry '' for key 1
-select a,b,length(a),length(b) from t1 order by a,b limit 3;
-a	b	length(a)	length(b)
-a	A 	2	2
-A	b 	2	2
-a	C 	2	2
-select a,b,length(a),length(b) from t1 order by a desc, b desc limit 3;
-a	b	length(a)	length(b)
-F	f  	2	3
-E	f	2	1
-e	E	2	1
-select a,b,length(a),length(b) from t1 where a='c' and b='c';
-a	b	length(a)	length(b)
-c	C    	2	5
-drop table t1;
-create table t1 (
 a char(10) primary key
 ) engine=ndb;
 insert into t1 values ('jonas % ');

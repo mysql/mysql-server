@@ -1246,7 +1246,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
     DBUG_VOID_RETURN;
   }
 
-  enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
+  enum ndb_mgm_event_severity severity = NDB_MGM_EVENT_SEVERITY_ALL;
     
   char * tmpString = my_strdup(parameters,MYF(MY_WME));
   My_auto_ptr<char> ap1(tmpString);
@@ -1254,7 +1254,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   int enable;
 
-  Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
+  const unsigned int *enabled= ndb_mgm_get_logfilter(m_mgmsrv);
   if(enabled == NULL) {
     ndbout << "Couldn't get status" << endl;
     printError();
@@ -1276,8 +1276,8 @@ CommandInterpreter::executeClusterLog(char* parameters)
       printf("enabled[%d] = %d\n", i, enabled[i]);
 #endif
     ndbout << "Severities enabled: ";
-    for(i = 1; i < (int)NDB_MGM_CLUSTERLOG_ALL; i++) {
-      const char *str= ndb_mgm_get_clusterlog_level_string((ndb_mgm_clusterlog_level)i);
+    for(i = 1; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
+      const char *str= ndb_mgm_get_event_severity_string((ndb_mgm_event_severity)i);
       if (str == 0)
       {
 	DBUG_ASSERT(false);
@@ -1311,8 +1311,10 @@ CommandInterpreter::executeClusterLog(char* parameters)
   int res_enable;
   item = strtok_r(NULL, " ", &tmpPtr);
   if (item == NULL) {
-    res_enable= ndb_mgm_filter_clusterlog(m_mgmsrv,
-					  NDB_MGM_CLUSTERLOG_ON, enable, NULL);
+    res_enable=
+      ndb_mgm_set_clusterlog_severity_filter(m_mgmsrv,
+					     NDB_MGM_EVENT_SEVERITY_ON,
+					     enable, NULL);
     if (res_enable < 0)
     {
       ndbout << "Couldn't set filter" << endl;
@@ -1324,32 +1326,33 @@ CommandInterpreter::executeClusterLog(char* parameters)
   }
 
   do {
-    severity= NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+    severity= NDB_MGM_ILLEGAL_EVENT_SEVERITY;
     if (strcasecmp(item, "ALL") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_ALL;	
+      severity = NDB_MGM_EVENT_SEVERITY_ALL;	
     } else if (strcasecmp(item, "ALERT") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_ALERT;
+      severity = NDB_MGM_EVENT_SEVERITY_ALERT;
     } else if (strcasecmp(item, "CRITICAL") == 0) { 
-      severity = NDB_MGM_CLUSTERLOG_CRITICAL;
+      severity = NDB_MGM_EVENT_SEVERITY_CRITICAL;
     } else if (strcasecmp(item, "ERROR") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_ERROR;
+      severity = NDB_MGM_EVENT_SEVERITY_ERROR;
     } else if (strcasecmp(item, "WARNING") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_WARNING;
+      severity = NDB_MGM_EVENT_SEVERITY_WARNING;
     } else if (strcasecmp(item, "INFO") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_INFO;
+      severity = NDB_MGM_EVENT_SEVERITY_INFO;
     } else if (strcasecmp(item, "DEBUG") == 0) {
-      severity = NDB_MGM_CLUSTERLOG_DEBUG;
+      severity = NDB_MGM_EVENT_SEVERITY_DEBUG;
     } else if (strcasecmp(item, "OFF") == 0 ||
 	       strcasecmp(item, "ON") == 0) {
       if (enable < 0) // only makes sense with toggle
-	severity = NDB_MGM_CLUSTERLOG_ON;
+	severity = NDB_MGM_EVENT_SEVERITY_ON;
     }
-    if (severity == NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL) {
+    if (severity == NDB_MGM_ILLEGAL_EVENT_SEVERITY) {
       ndbout << "Invalid severity level: " << item << endl;
       DBUG_VOID_RETURN;
     }
 
-    res_enable = ndb_mgm_filter_clusterlog(m_mgmsrv, severity, enable, NULL);
+    res_enable= ndb_mgm_set_clusterlog_severity_filter(m_mgmsrv, severity,
+						       enable, NULL);
     if (res_enable < 0)
     {
       ndbout << "Couldn't set filter" << endl;

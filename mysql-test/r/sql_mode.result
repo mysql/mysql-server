@@ -17,7 +17,7 @@ t1	CREATE TABLE `t1` (
   `pseudo` varchar(35) character set latin2 NOT NULL default '',
   `email` varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  (`a`),
-  UNIQUE KEY `email` TYPE BTREE (`email`)
+  UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="ansi_quotes";
 show variables like 'sql_mode';
@@ -30,7 +30,7 @@ t1	CREATE TABLE "t1" (
   "pseudo" varchar(35) character set latin2 NOT NULL default '',
   "email" varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  ("a"),
-  UNIQUE KEY "email" TYPE BTREE ("email")
+  UNIQUE KEY "email" USING BTREE ("email")
 ) ENGINE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_table_options";
 show variables like 'sql_mode';
@@ -43,7 +43,7 @@ t1	CREATE TABLE `t1` (
   `pseudo` varchar(35) character set latin2 NOT NULL default '',
   `email` varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  (`a`),
-  UNIQUE KEY `email` TYPE BTREE (`email`)
+  UNIQUE KEY `email` USING BTREE (`email`)
 )
 set @@sql_mode="no_key_options";
 show variables like 'sql_mode';

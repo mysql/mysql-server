@@ -107,6 +107,9 @@ public:
     Closed = 3,
     Invalid = 9
   };
+  /**
+   * Get the state of a NdbBlob object.
+   */
   State getState();
   /**
    * Inline blob header.
@@ -116,7 +119,7 @@ public:
   };
   /**
    * Prepare to read blob value.  The value is available after execute.
-   * Use getNull to check for NULL and getLength to get the real length
+   * Use getNull() to check for NULL and getLength() to get the real length
    * and to check for truncation.  Sets current read/write position to
    * after the data read.
    */
@@ -129,10 +132,10 @@ public:
    */
   int setValue(const void* data, Uint32 bytes);
   /**
-   * Callback for setActiveHook.  Invoked immediately when the prepared
-   * operation has been executed (but not committed).  Any getValue or
-   * setValue is done first.  The blob handle is active so readData or
-   * writeData etc can be used to manipulate blob value.  A user-defined
+   * Callback for setActiveHook().  Invoked immediately when the prepared
+   * operation has been executed (but not committed).  Any getValue() or
+   * setValue() is done first.  The blob handle is active so readData or
+   * writeData() etc can be used to manipulate blob value.  A user-defined
    * argument is passed along.  Returns non-zero on error.
    */
   typedef int ActiveHook(NdbBlob* me, void* arg);
@@ -195,10 +198,15 @@ public:
   const NdbError& getNdbError() const;
   /**
    * Return info about all blobs in this operation.
+   *
+   * Get first blob in list.
    */
-  // Get first blob in list
   NdbBlob* blobsFirstBlob();
-  // Get next blob in list after this one
+  /**
+   * Return info about all blobs in this operation.
+   *
+   * Get next blob in list. Initialize with blobsFirstBlob().
+   */
   NdbBlob* blobsNextBlob();
 
 private:
