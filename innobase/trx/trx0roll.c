@@ -317,6 +317,51 @@ trx_savepoint_for_mysql(
 }
 
 /***********************************************************************
+Releases a named savepoint. Savepoints which
+were set after this savepoint are deleted. */
+
+ulint
+trx_release_savepoint_for_mysql(
+/*================================*/
+						/* out: if no savepoint
+						of the name found then
+						DB_NO_SAVEPOINT,
+						otherwise DB_SUCCESS */
+	trx_t*		trx,			/* in: transaction handle */
+	const char*	savepoint_name)		/* in: savepoint name */
+{
+	trx_named_savept_t*	savep;
+
+	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+
+	while (savep != NULL) {
+	        if (0 == ut_strcmp(savep->name, savepoint_name)) {
+		        /* Found */
+			break;
+		}
+	        savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
+	}
+
+	if (savep == NULL) {	
+
+	        return(DB_NO_SAVEPOINT);
+	}
+
+	/* We can now free all savepoints strictly later than this one */
+
+	trx_roll_savepoints_free(trx, savep);
+	
+	/* Now we can free this savepoint too */
+
+	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+
+	mem_free(savep->name);
+	mem_free(savep);
+
+	return(DB_SUCCESS);
+}
+
+/***********************************************************************
 Returns a transaction savepoint taken at this point in time. */
 
 trx_savept_t
