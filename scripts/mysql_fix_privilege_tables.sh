@@ -140,7 +140,7 @@ echo ""
 # Change the user table to MySQL 4.0 format
 #
 
-echo "Adding new fields used by MySQL 4.02 to the privilege tables"
+echo "Adding new fields used by MySQL 4.0.2 to the privilege tables"
 echo "You can ignore any Duplicate column errors"
 
 @bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
