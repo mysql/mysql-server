@@ -3339,6 +3339,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     str_to_datetime(value, length, tm, 0, &err);
@@ -3612,6 +3613,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     length= 2;
     break;
   }
+  case MYSQL_TYPE_INT24: /* mediumint is sent as 4 bytes int */
   case MYSQL_TYPE_LONG:
   {
     long value= sint4korr(*row);
