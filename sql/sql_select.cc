@@ -1267,7 +1267,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       select->quick=0;
       if (records != HA_POS_ERROR)
       {
-	s->records=s->found_records=records;
+	s->found_records=records;
 	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
       }
     }
