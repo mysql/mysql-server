@@ -168,7 +168,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   pthread_mutex_destroy(&THR_LOCK_keycache);
   pthread_mutex_destroy(&THR_LOCK_malloc);
   pthread_mutex_destroy(&THR_LOCK_open);
-  pthread_mutex_destroy(&LOCK_bitmap);
   DBUG_POP();				/* Must be done before my_thread_end */
   my_thread_end();
   my_thread_global_end();

@@ -35,11 +35,13 @@
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 
 #if defined(__EMX__)
-#include <sys/ioctl.h>
 #define ioctlsocket ioctl
-#endif				/* defined(__EMX__) */
+#endif	/* defined(__EMX__) */
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -106,6 +108,9 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 #if !defined(___WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
     vio->fcntl_mode = fcntl(sd, F_GETFL);
+#elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
+    /* Non blocking sockets doesn't work good on HPUX 11.0 */
+    (void) ioctl(net->fd,FIOSNBIO,0);
 #endif
 #else /* !defined(__WIN__) && !defined(__EMX__) */
     {
