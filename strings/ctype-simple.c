@@ -235,9 +235,9 @@ long my_strntol_8bit(CHARSET_INFO *cs,
 		     char **endptr, int *err)
 {
   int negative;
-  register ulong cutoff;
+  register uint32 cutoff;
   register unsigned int cutlim;
-  register ulong i;
+  register uint32 i;
   register const char *s;
   register unsigned char c;
   const char *save, *e;
@@ -297,8 +297,8 @@ long my_strntol_8bit(CHARSET_INFO *cs,
 #endif
 
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
 
   overflow = 0;
   i = 0;
@@ -318,7 +318,7 @@ long my_strntol_8bit(CHARSET_INFO *cs,
       overflow = 1;
     else
     {
-      i *= (ulong) base;
+      i *= (uint32) base;
       i += c;
     }
   }
@@ -331,16 +331,16 @@ long my_strntol_8bit(CHARSET_INFO *cs,
   
   if (negative)
   {
-    if (i  > (ulong) LONG_MIN)
+    if (i  > (uint32) INT_MIN32)
       overflow = 1;
   }
-  else if (i > (ulong) LONG_MAX)
+  else if (i > INT_MAX32)
     overflow = 1;
   
   if (overflow)
   {
     err[0]= ERANGE;
-    return negative ? LONG_MIN : LONG_MAX;
+    return negative ? INT_MIN32 : INT_MAX32;
   }
   
   return (negative ? -((long) i) : (long) i);
@@ -358,9 +358,9 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
 		       char **endptr, int *err)
 {
   int negative;
-  register ulong cutoff;
+  register uint32 cutoff;
   register unsigned int cutlim;
-  register ulong i;
+  register uint32 i;
   register const char *s;
   register unsigned char c;
   const char *save, *e;
@@ -419,8 +419,8 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
 #endif
 
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
   overflow = 0;
   i = 0;
   
@@ -440,7 +440,7 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
       overflow = 1;
     else
     {
-      i *= (ulong) base;
+      i *= (uint32) base;
       i += c;
     }
   }
@@ -454,7 +454,7 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
   if (overflow)
   {
     err[0]= ERANGE;
-    return ((ulong)~0L);
+    return (~(uint32) 0);
   }
   
   return (negative ? -((long) i) : (long) i);

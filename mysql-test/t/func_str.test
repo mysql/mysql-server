@@ -385,8 +385,9 @@ drop table t1, t2;
 # Test case for conversion of long string value to integer (Bug #3472)
 #
 
-create table t1 (c1 INT);
-insert into t1 (c1) values ('21474836461');
+create table t1 (c1 INT, c2 INT UNSIGNED);
+insert into t1 values ('21474836461','21474836461');
+insert into t1 values ('-21474836461','-21474836461');
 show warnings;
 select * from t1;
 drop table t1;

@@ -456,10 +456,7 @@ public:
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
-  Item_int(const char *str_arg) :
-    value(str_arg[0] == '-' ? strtoll(str_arg,(char**) 0,10) :
-	  (longlong) strtoull(str_arg,(char**) 0,10))
-    { max_length= (uint) strlen(str_arg); name=(char*) str_arg; fixed= 1; }
+  Item_int(const char *str_arg, uint length=64);
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
@@ -479,9 +476,7 @@ public:
 class Item_uint :public Item_int
 {
 public:
-  Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg, (char**) 0,10), length) 
-    { unsigned_flag= 1; }
+  Item_uint(const char *str_arg, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
   double val()

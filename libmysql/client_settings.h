@@ -62,10 +62,4 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
 #ifdef EMBEDDED_LIBRARY
 int init_embedded_server(int argc, char **argv, char **groups);
 void end_embedded_server();
-
-#else
-/* Prevent warnings of unused parameters */
-#define init_embedded_server(a,b,c) ((void)a, (void)b, (void)c, 0)
-#define end_embedded_server()
 #endif /*EMBEDDED_LIBRARY*/
-
