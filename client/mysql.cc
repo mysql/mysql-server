@@ -174,9 +174,7 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 			   
 #include "sslopt-vars.h"
 
-#ifndef DBUG_OFF
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
-#endif
 
 void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
@@ -1558,7 +1556,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
       init_pager();
       char last_char;
       
-      int num_name, num_cat;
+      int num_name= 0, num_cat= 0;
       LINT_INIT(num_name);
       LINT_INIT(num_cat);
 
