@@ -399,3 +399,9 @@ select count(*) from t1;
 count(*)
 1
 drop table t1;
+create table t1 (a int primary key, b text, fulltext(b));
+create table t2 (a int, b text);
+insert t1 values (1, "aaaa"), (2, "bbbb");
+insert t2 values (10, "aaaa"), (2, "cccc");
+replace t1 select * from t2;
+drop table t1, t2;
