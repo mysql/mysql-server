@@ -48849,6 +48849,14 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
 @item
+Don't use @code{signal()} on windows because this appears to not be
+100 % reliable.
+@item
+Fixed bug when doing @code{WHERE column_name=NULL} on an indexed column
+that had @code{NULL} values.
+@item
+Fixed bug when doing @code{LEFT JOIN ...  ON (column_name = constant) WHERE column_name = constant}.
+@item
 When using replications, aborted queries that contained @code{%} could cause
 a core dum.
 @item
