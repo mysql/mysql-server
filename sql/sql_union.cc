@@ -264,9 +264,27 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
-  // it is not single select
   if (first_select->next_select())
   {
+
+  // it is not single select
+
+    /*
+      Check that it was possible to aggregate
+      all collations together for UNION.
+    */
+    List_iterator_fast<Item> tp(types);
+    Item *type;
+    while ((type= tp++))
+    {
+      if (type->result_type() == STRING_RESULT &&
+          type->collation.derivation == DERIVATION_NONE)
+      {
+        my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), "UNION");
+        goto err;
+      }
+    }
+
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
