@@ -34,3 +34,27 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+
+#
+# Now let us test how well we replicate LOAD DATA LOCAL in situation when
+# we met duplicates in tables to which we are adding rows.
+# (It supposed that LOAD DATA LOCAL ignores such errors)
+#
+connection master;
+create table t1(a int);
+insert into t1 values (1), (2), (2), (3);
+select * into outfile '../../var/master-data/rpl_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key);
+load data local infile './var/master-data/rpl_loaddatalocal.select_outfile' into table t1;
+system rm ./var/master-data/rpl_loaddatalocal.select_outfile ;
+select * from t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -272,6 +272,8 @@ const char* Log_event::get_type_str()
   case XID_EVENT: return "Xid";
   case USER_VAR_EVENT: return "User var";
   case FORMAT_DESCRIPTION_EVENT: return "Format_desc";
+  case BEGIN_LOAD_QUERY_EVENT: return "Begin_load_query";
+  case EXECUTE_LOAD_QUERY_EVENT: return "Execute_load_query";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -783,10 +785,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   switch(buf[EVENT_TYPE_OFFSET]) {
   case QUERY_EVENT:
-    ev  = new Query_log_event(buf, event_len, description_event);
+    ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
     break;
   case LOAD_EVENT:
-    ev = new Create_file_log_event(buf, event_len, description_event);
+    ev = new Load_log_event(buf, event_len, description_event);
     break;
   case NEW_LOAD_EVENT:
     ev = new Load_log_event(buf, event_len, description_event);
@@ -831,6 +833,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     break;
   case FORMAT_DESCRIPTION_EVENT:
     ev = new Format_description_log_event(buf, event_len, description_event); 
+    break;
+  case BEGIN_LOAD_QUERY_EVENT:
+    ev = new Begin_load_query_log_event(buf, event_len, description_event);
+    break;
+  case EXECUTE_LOAD_QUERY_EVENT:
+    ev = new Execute_load_query_log_event(buf, event_len, description_event);
     break;
   default:
     DBUG_PRINT("error",("Unknown evernt code: %d",(int) buf[EVENT_TYPE_OFFSET]));
@@ -1085,10 +1093,13 @@ bool Query_log_event::write(IO_CACHE* file)
     Calculate length of whole event
     The "1" below is the \0 in the db's length
   */
-  event_length= (uint) (start-buf) + db_len + 1 + q_len;
+  event_length= (uint) (start-buf) + get_post_header_size_for_derived() + db_len + 1 + q_len;
 
   return (write_header(file, event_length) ||
-          my_b_safe_write(file, (byte*) buf, (uint) (start-buf)) ||
+          my_b_safe_write(file, (byte*) buf, QUERY_HEADER_LEN) ||
+          write_post_header_for_derived(file) ||
+          my_b_safe_write(file, (byte*) start_of_status,
+                          (uint) (start-start_of_status)) ||
           my_b_safe_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
           my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
 }
@@ -1150,7 +1161,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 */
 
 Query_log_event::Query_log_event(const char* buf, uint event_len,
-                                 const Format_description_log_event *description_event)
+                                 const Format_description_log_event *description_event,
+                                 Log_event_type event_type)
   :Log_event(buf, description_event), data_buf(0), query(NullS), catalog(NullS), 
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
@@ -1163,7 +1175,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
   common_header_len= description_event->common_header_len;
-  post_header_len= description_event->post_header_len[QUERY_EVENT-1]; 
+  post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len=%ld, common_header_len=%d, post_header_len=%d",
                      event_len, common_header_len, post_header_len));
   
@@ -1196,13 +1208,12 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                         (uint) status_vars_len));
     tmp-= 2;
   }
-  /* we have parsed everything we know in the post header */
-#ifndef DBUG_OFF
-  if (tmp) /* this is probably a master newer than us */
-    DBUG_PRINT("info", ("Query_log_event has longer post header than we know\
-  (%d more bytes)", tmp));
-#endif
-  
+  /*
+    We have parsed everything we know in the post header for QUERY_EVENT,
+    the rest of post header is either comes from older version MySQL or
+    dedicated to derived events (e.g. Execute_load_query...)
+  */
+
   /* variable-part: the status vars; only in MySQL 5.0  */
   
   start= (char*) (buf+post_header_len);
@@ -1281,8 +1292,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 */
 
 #ifdef MYSQL_CLIENT
-void Query_log_event::print(FILE* file, bool short_form,
-                            LAST_EVENT_INFO* last_event_info)
+void Query_log_event::print_query_header(FILE* file, bool short_form,
+                                         LAST_EVENT_INFO* last_event_info)
 {
   // TODO: print the catalog ??
   char buff[40],*end;				// Enough for SET TIMESTAMP
@@ -1292,8 +1303,8 @@ void Query_log_event::print(FILE* file, bool short_form,
   if (!short_form)
   {
     print_header(file);
-    fprintf(file, "\tQuery\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
-	    (ulong) thread_id, (ulong) exec_time, error_code);
+    fprintf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
+	    get_type_str(), (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
@@ -1399,7 +1410,13 @@ void Query_log_event::print(FILE* file, bool short_form,
       memcpy(last_event_info->charset, charset, 6);
     }
   }
+}
 
+
+void Query_log_event::print(FILE* file, bool short_form,
+                            LAST_EVENT_INFO* last_event_info)
+{
+  print_query_header(file, short_form, last_event_info);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fputs(";\n", file);
 }
@@ -1412,6 +1429,12 @@ void Query_log_event::print(FILE* file, bool short_form,
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
+{
+  return exec_event(rli, query, q_len);
+}
+
+
+int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query_arg, uint32 q_len_arg)
 {
   int expected_error,actual_error= 0;
   /*
@@ -1444,8 +1467,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->query_length= q_len;
-    thd->query = (char*)query;
+    thd->query_length= q_len_arg;
+    thd->query= (char*)query_arg;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1506,7 +1529,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       }
 
       /* Execute the query (note that we bypass dispatch_command()) */
-      mysql_parse(thd, thd->query, q_len);
+      mysql_parse(thd, thd->query, thd->query_length);
 
     }
     else
@@ -1518,7 +1541,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query, q_len))
+      if (mysql_test_parse_for_slave(thd, thd->query, thd->query_length))
         clear_all_errors(thd, rli);        /* Can ignore query */
       else
       {
@@ -1560,7 +1583,7 @@ Default database: '%s'. Query: '%s'",
 			expected_error,
 			actual_error ? thd->net.last_error: "no error",
 			actual_error,
-			print_slave_db_safe(db), query);
+			print_slave_db_safe(db), query_arg);
       thd->query_error= 1;
     }
     /*
@@ -1581,7 +1604,7 @@ Default database: '%s'. Query: '%s'",
 			"Error '%s' on query. Default database: '%s'. Query: '%s'",
 			(actual_error ? thd->net.last_error :
 			 "unexpected success or fatal error"),
-			print_slave_db_safe(thd->db), query);
+			print_slave_db_safe(thd->db), query_arg);
       thd->query_error= 1;
     }
 
@@ -1828,11 +1851,6 @@ int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
     server starts or when FLUSH LOGS), or to create artificial events to parse
     binlogs from MySQL 3.23 or 4.x.
     When in a client, only the 2nd use is possible.
-
-  TODO
-    Update this code with the new event for LOAD DATA, once they are pushed (in
-    4.1 or 5.0). If it's in 5.0, only the "case 4" block should be updated.
-
 */
 
 Format_description_log_event::
@@ -1866,6 +1884,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[DELETE_FILE_EVENT-1]= DELETE_FILE_HEADER_LEN;
       post_header_len[NEW_LOAD_EVENT-1]= post_header_len[LOAD_EVENT-1];
       post_header_len[FORMAT_DESCRIPTION_EVENT-1]= FORMAT_DESCRIPTION_HEADER_LEN;
+      post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= post_header_len[APPEND_BLOCK_EVENT-1];
+      post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
     }
     break;
 
@@ -2071,12 +2091,9 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-void Load_log_event::pack_info(Protocol *protocol)
+uint Load_log_event::get_query_buffer_length()
 {
-  char *buf, *pos;
-  uint buf_len;
-
-  buf_len=
+  return
     5 + db_len + 3 +                        // "use DB; "
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
     7 +					    // LOCAL
@@ -2089,11 +2106,15 @@ void Load_log_event::pack_info(Protocol *protocol)
     19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'"
     15 + 22 +                               // " IGNORE xxx  LINES"
     3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
+}
 
-  if (!(buf= my_malloc(buf_len, MYF(MY_WME))))
-    return;
-  pos= buf;
-  if (db && db_len)
+
+void Load_log_event::print_query(bool need_db, char *buf,
+                                 char **end, char **fn_start, char **fn_end)
+{
+  char *pos= buf;
+
+  if (need_db && db && db_len)
   {
     pos= strmov(pos, "use `");
     memcpy(pos, db, db_len);
@@ -2101,6 +2122,10 @@ void Load_log_event::pack_info(Protocol *protocol)
   }
 
   pos= strmov(pos, "LOAD DATA ");
+
+  if (fn_start)
+    *fn_start= pos;
+
   if (check_fname_outside_temp_buf())
     pos= strmov(pos, "LOCAL ");
   pos= strmov(pos, "INFILE '");
@@ -2112,7 +2137,12 @@ void Load_log_event::pack_info(Protocol *protocol)
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     pos= strmov(pos, " IGNORE ");
 
-  pos= strmov(pos ,"INTO TABLE `");
+  pos= strmov(pos ,"INTO");
+
+  if (fn_end)
+    *fn_end= pos;
+
+  pos= strmov(pos ," TABLE `");
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
@@ -2161,7 +2191,18 @@ void Load_log_event::pack_info(Protocol *protocol)
     *pos++= ')';
   }
 
-  protocol->store(buf, pos-buf, &my_charset_bin);
+  *end= pos;
+}
+
+
+void Load_log_event::pack_info(Protocol *protocol)
+{
+  char *buf, *end;
+
+  if (!(buf= my_malloc(get_query_buffer_length(), MYF(MY_WME))))
+    return;
+  print_query(TRUE, buf, &end, 0, 0);
+  protocol->store(buf, end-buf, &my_charset_bin);
   my_free(buf, MYF(0));
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -2368,11 +2409,6 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fname_len = strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
 
-  /*
-    In 5.0 this event will have the same format, as we are planning to log LOAD
-    DATA INFILE in a completely different way (as a plain-text query) since 4.1
-    or 5.0 (Dmitri's WL#874)
-  */
   DBUG_RETURN(0);
 }
 
@@ -2532,7 +2568,6 @@ void Load_log_event::set_fields(const char* affected_db,
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  char *load_data_query= 0;
   thd->db_length= db_len;
   thd->db= (char*) rewrite_db(db, &thd->db_length);
   DBUG_ASSERT(thd->query == 0);
@@ -2575,7 +2610,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       "data truncated" warning but which is absorbed and never gets to the
       error log); still we init it to avoid a Valgrind message.
     */
-    mysql_reset_errors(thd);
+    mysql_reset_errors(thd, 0);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
@@ -2594,21 +2629,30 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     else
     {
       char llbuff[22];
+      char *end;
       enum enum_duplicates handle_dup;
       bool ignore= 0;
+      char *load_data_query;
+
       /*
-        Make a simplified LOAD DATA INFILE query, for the information of the
-        user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
+        Forge LOAD DATA INFILE query which will be used in SHOW PROCESS LIST
+        and written to slave's binlog if binlogging is on.
       */
-      if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
-                                               strlen(tables.table_name) + 8)))
+      if (!(load_data_query= (char *)thd->alloc(get_query_buffer_length() + 1)))
       {
-        thd->query_length= (uint)(strxmov(load_data_query,
-                                          "LOAD DATA INFILE '", fname,
-                                          "' INTO TABLE `", tables.table_name,
-                                          "` <...>", NullS) - load_data_query);
-        thd->query= load_data_query;
+        /*
+          This will set thd->fatal_error in case of OOM. So we surely will notice
+          that something is wrong.
+        */
+        goto error;
       }
+
+      print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
+                  (char **)&thd->lex->fname_end);
+      *end= 0;
+      thd->query_length= end - load_data_query;
+      thd->query= load_data_query;
+
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
@@ -2654,6 +2698,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       List<Item> field_list;
       set_fields(thd->db,field_list);
       thd->variables.pseudo_thread_id= thread_id;
+      List<Item> set_fields;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -2663,9 +2708,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	*/
 	thd->net.pkt_nr = net->pkt_nr;
       }
-      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, ignore,
-                     net != 0, TL_WRITE))
-	thd->query_error = 1;
+      /*
+        It is safe to use set_fields twice because we are not going to
+        update it inside mysql_load().
+      */
+      if (mysql_load(thd, &ex, &tables, field_list, set_fields, set_fields,
+                     handle_dup, ignore, net != 0))
+        thd->query_error= 1;
       if (thd->cuted_fields)
       {
 	/* log_pos is the position of the LOAD event in the master log */
@@ -2691,7 +2740,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     if (net)
       skip_load_data_infile(net);
   }
-	    
+
+error:
   thd->net.vio = 0; 
   char *save_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -2700,8 +2750,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
-  if (load_data_query)
-    my_afree(load_data_query);
   if (thd->query_error)
   {
     /* this err/sql_errno code is copy-paste from net_send_error() */
@@ -4016,8 +4064,8 @@ void Append_block_log_event::print(FILE* file, bool short_form,
     return;
   print_header(file);
   fputc('\n', file);
-  fprintf(file, "#Append_block: file_id: %d  block_len: %d\n",
-	  file_id, block_len);
+  fprintf(file, "#%s: file_id: %d  block_len: %d\n",
+	  get_type_str(), file_id, block_len);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -4036,14 +4084,21 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 			     block_len));
   protocol->store(buf, length, &my_charset_bin);
 }
-#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
+
+/*
+  Append_block_log_event::get_open_mode()
+*/
+
+int Append_block_log_event::get_open_mode() const
+{
+  return O_WRONLY | O_APPEND | O_BINARY;
+}
 
 /*
   Append_block_log_event::exec_event()
 */
 
-#if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
   char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
@@ -4055,14 +4110,18 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
+  if ((fd = my_open(fname, get_open_mode(), MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
+    slave_print_error(rli, my_errno,
+                      "Error in %s event: could not open file '%s'",
+                      get_type_str(), fname);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Error in Append_block event: write to '%s' failed", fname);
+    slave_print_error(rli, my_errno,
+                      "Error in %s event: write to '%s' failed",
+                      get_type_str(), fname);
     goto err;
   }
   error=0;
@@ -4332,6 +4391,216 @@ err:
 }
 
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
+
+
+/**************************************************************************
+	Begin_load_query_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+Begin_load_query_log_event::
+Begin_load_query_log_event(THD* thd_arg, const char* db_arg, char* block_arg,
+                           uint block_len_arg, bool using_trans)
+  :Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
+                          using_trans)
+{
+   file_id= thd_arg->file_id= mysql_bin_log.next_file_id();
+}
+#endif
+
+
+Begin_load_query_log_event::
+Begin_load_query_log_event(const char* buf, uint len,
+                           const Format_description_log_event* desc_event)
+  :Append_block_log_event(buf, len, desc_event)
+{
+}
+
+
+#if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+int Begin_load_query_log_event::get_open_mode() const
+{
+  return O_CREAT | O_WRONLY | O_BINARY | O_TRUNC;
+}
+#endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
+
+
+/**************************************************************************
+	Execute_load_query_log_event methods
+**************************************************************************/
+
+
+#ifndef MYSQL_CLIENT
+Execute_load_query_log_event::
+Execute_load_query_log_event(THD* thd_arg, const char* query_arg,
+                     ulong query_length_arg, uint fn_pos_start_arg,
+                     uint fn_pos_end_arg,
+                     enum_load_dup_handling dup_handling_arg,
+                     bool using_trans, bool suppress_use):
+  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
+                  suppress_use),
+  file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
+  fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
+{
+}
+#endif /* !MYSQL_CLIENT */
+
+
+Execute_load_query_log_event::
+Execute_load_query_log_event(const char* buf, uint event_len,
+                             const Format_description_log_event* desc_event):
+  Query_log_event(buf, event_len, desc_event, EXECUTE_LOAD_QUERY_EVENT),
+  file_id(0), fn_pos_start(0), fn_pos_end(0)
+{
+  if (!Query_log_event::is_valid())
+    return;
+
+  buf+= desc_event->common_header_len;
+
+  fn_pos_start= uint4korr(buf + ELQ_FN_POS_START_OFFSET);
+  fn_pos_end= uint4korr(buf + ELQ_FN_POS_END_OFFSET);
+  dup_handling= (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
+
+  if (fn_pos_start > q_len || fn_pos_end > q_len ||
+      dup_handling > LOAD_DUP_REPLACE)
+    return;
+
+  file_id= uint4korr(buf + ELQ_FILE_ID_OFFSET);
+}
+
+
+ulong Execute_load_query_log_event::get_post_header_size_for_derived()
+{
+  return EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN;
+}
+
+
+bool
+Execute_load_query_log_event::write_post_header_for_derived(IO_CACHE* file)
+{
+  char buf[EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN];
+  int4store(buf, file_id);
+  int4store(buf + 4, fn_pos_start);
+  int4store(buf + 4 + 4, fn_pos_end);
+  *(buf + 4 + 4 + 4)= (char)dup_handling;
+  return my_b_safe_write(file, (byte*) buf, EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN);
+}
+
+
+#ifdef MYSQL_CLIENT
+void Execute_load_query_log_event::print(FILE* file, bool short_form,
+                                         LAST_EVENT_INFO* last_event_info)
+{
+  print(file, short_form, last_event_info, 0);
+}
+
+
+void Execute_load_query_log_event::print(FILE* file, bool short_form,
+                                         LAST_EVENT_INFO* last_event_info,
+                                         const char *local_fname)
+{
+  print_query_header(file, short_form, last_event_info);
+
+  if (local_fname)
+  {
+    my_fwrite(file, (byte*) query, fn_pos_start, MYF(MY_NABP | MY_WME));
+    fprintf(file, " LOCAL INFILE \'");
+    fprintf(file, local_fname);
+    fprintf(file, "\'");
+    if (dup_handling == LOAD_DUP_REPLACE)
+      fprintf(file, " REPLACE");
+    fprintf(file, " INTO");
+    my_fwrite(file, (byte*) query + fn_pos_end, q_len-fn_pos_end,
+        MYF(MY_NABP | MY_WME));
+    fprintf(file, ";\n");
+  }
+  else
+  {
+    my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
+    fprintf(file, ";\n");
+  }
+
+  if (!short_form)
+    fprintf(file, "# file_id: %d \n", file_id);
+}
+#endif
+
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+void Execute_load_query_log_event::pack_info(Protocol *protocol)
+{
+  char *buf, *pos;
+  if (!(buf= my_malloc(9 + db_len + q_len + 10 + 21, MYF(MY_WME))))
+    return;
+  pos= buf;
+  if (db && db_len)
+  {
+    pos= strmov(buf, "use `");
+    memcpy(pos, db, db_len);
+    pos= strmov(pos+db_len, "`; ");
+  }
+  if (query && q_len)
+  {
+    memcpy(pos, query, q_len);
+    pos+= q_len;
+  }
+  pos= strmov(pos, " ;file_id=");
+  pos= int10_to_str((long) file_id, pos, 10);
+  protocol->store(buf, pos-buf, &my_charset_bin);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+}
+
+
+int
+Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
+{
+  char *p;
+  char *buf;
+  char *fname;
+  char *fname_end;
+  int error;
+
+  /* Replace filename and LOCAL keyword in query before executing it */
+  if (!(buf = my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
+                        (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME))))
+  {
+    slave_print_error(rli, my_errno, "Not enough memory");
+    return 1;
+  }
+
+  p= buf;
+  memcpy(p, query, fn_pos_start);
+  p+= fn_pos_start;
+  fname= (p= strmake(p, " INFILE \'", 9));
+  p= slave_load_file_stem(p, file_id, server_id);
+  fname_end= (p= strmake(p, ".data", 5));
+  *(p++)='\'';
+  switch (dup_handling)
+  {
+  case LOAD_DUP_IGNORE:
+    p= strmake(p, " IGNORE", 7);
+    break;
+  case LOAD_DUP_REPLACE:
+    p= strmake(p, " REPLACE", 8);
+    break;
+  default:
+    /* Ordinary load data */
+    break;
+  }
+  p= strmake(p, " INTO", 5);
+  p= strmake(p, query+fn_pos_end, q_len-fn_pos_end);
+
+  error= Query_log_event::exec_event(rli, buf, p-buf);
+
+  /* Forging file name for deletion in same buffer */
+  *fname_end= 0;
+
+  (void) my_delete(fname, MYF(MY_WME));
+
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  return error;
+}
+#endif
 
 
 /**************************************************************************

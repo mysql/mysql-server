@@ -19,5 +19,9 @@ create database mysqltest;
 create table t1(a int, b int, unique(b));
 use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
-show binlog events from 96; # should be nothing
+# Starting from 5.0.3 LOAD DATA is replicated much in the same way as ordinary
+# query so "show binlog ..." should show two events (before 5.0.3 no events
+# were returned).
+--replace_column 2 # 5 #
+show binlog events from 98;
 drop database mysqltest;

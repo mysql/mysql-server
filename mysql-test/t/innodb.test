@@ -1285,15 +1285,30 @@ show variables like "innodb_thread_sleep_delay";
 # Test varchar
 #
 
-#let $default=`select @@storage_engine`;
-#set storage_engine=INNODB;
-#source include/varchar.inc;
-#eval set storage_engine=$default;
+let $default=`select @@storage_engine`;
+set storage_engine=INNODB;
+source include/varchar.inc;
+
+#
+# Some errors/warnings on create
+#
+
+--error 1005
+create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65536));
+show create table t1;
+drop table t1;
+create table t1 (v varchar(65530) character set utf8);
+show create table t1;
+drop table t1;
+
+eval set storage_engine=$default;
 
 # InnoDB specific varchar tests
---error 1074
 create table t1 (v varchar(16384)) engine=innodb;
+drop table t1;
 
 # The following should be moved to type_bit.test when innodb will support it
---error 1178                                                                    
-create table t1 (a bit, key(a)) engine=innodb;                                  
+--error 1178
+create table t1 (a bit, key(a)) engine=innodb;
+

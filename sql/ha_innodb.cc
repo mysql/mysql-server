@@ -2920,6 +2920,7 @@ calc_row_difference(
 	ulint		o_len;
 	ulint		n_len;
 	ulint		col_pack_len;
+	byte*		new_mysql_row_col;
 	byte*	        o_ptr;
         byte*	        n_ptr;
         byte*	        buf;
@@ -2948,9 +2949,16 @@ calc_row_difference(
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
 		
+		/* Use new_mysql_row_col and col_pack_len save the values */
+
+		new_mysql_row_col = n_ptr;
 		col_pack_len = field->pack_length();
+
 		o_len = col_pack_len;
 		n_len = col_pack_len;
+
+		/* We use o_ptr and n_ptr to dig up the actual data for
+		comparison. */ 
 
 		field_mysql_type = field->type();
 	
@@ -3017,15 +3025,11 @@ calc_row_difference(
 						&dfield,
 						(byte*)buf,
 						TRUE,
-						n_ptr,
+						new_mysql_row_col,
 						col_pack_len,
 						prebuilt->table->comp);
-				ufield->new_val.data =
-						dfield_get_data_noninline(
-								&dfield);
-				ufield->new_val.len =
-						dfield_get_len_noninline(
-								&dfield);
+				ufield->new_val.data = dfield.data;
+				ufield->new_val.len = dfield.len;
 			} else {
 				ufield->new_val.data = NULL;
 				ufield->new_val.len = UNIV_SQL_NULL;
@@ -4033,7 +4037,11 @@ create_index(
 		col_type = get_innobase_type_from_mysql_type(key_part->field);
 
 		if (DATA_BLOB == col_type
-		    || key_part->length < field->pack_length()) {
+		    || (key_part->length < field->pack_length()
+			&& field->type() != MYSQL_TYPE_VARCHAR)
+		    || (field->type() == MYSQL_TYPE_VARCHAR
+			&& key_part->length < field->pack_length()
+			          - ((Field_varstring*)field)->length_bytes)) {
 
 		        prefix_len = key_part->length;
 

@@ -19,7 +19,7 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-INCLUDES =		@MT_INCLUDES@ @ZLIB_INCLUDES@ \
+INCLUDES =		@ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 			-I$(srcdir) $(openssl_includes) -I$(top_builddir)/include
