@@ -24,9 +24,12 @@
  *
  * Classes and methods used in this example:
  *
+ *  Ndb_cluster_connection
+ *       connect()
+ *       wait_until_ready()
+ *
  *  Ndb
  *       init()
- *       waitUntilRead()
  *       getDictionary()
  *       startTransaction()
  *       closeTransaction()
@@ -74,7 +77,6 @@
 
 
 #include <NdbApi.hpp>
-#include <NdbScanFilter.hpp>
 // Used for cout
 #include <iostream>
 
@@ -235,7 +237,7 @@ int scan_delete(Ndb* myNdb,
   int deletedRows = 0;
   int check;
   NdbError              err;
-  NdbConnection		*myTrans;
+  NdbTransaction	*myTrans;
   NdbScanOperation	*myScanOp;
 
   /**
@@ -407,7 +409,7 @@ int scan_update(Ndb* myNdb,
   int updatedRows = 0;
   int check;
   NdbError              err;
-  NdbConnection		*myTrans;
+  NdbTransaction	*myTrans;
   NdbScanOperation	*myScanOp;
 
   /**
@@ -588,7 +590,7 @@ int scan_print(Ndb * myNdb)
   int fetchedRows = 0;
   int check;
   NdbError              err;
-  NdbConnection		*myTrans;
+  NdbTransaction	*myTrans;
   NdbScanOperation	*myScanOp;
   /* Result of reading attribute value, three columns:
      REG_NO, BRAND, and COLOR
