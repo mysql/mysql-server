@@ -27,13 +27,15 @@ typedef struct charset_info_st CHARSET_INFO;
  * @class NdbDictionary
  * @brief Data dictionary class
  * 
- * The preferred and supported way to create tables and indexes
+ * The preferred and supported way to create and drop tables and indexes
  * in ndb is through the 
  * MySQL Server (see MySQL reference Manual, section MySQL Cluster).
  *
  * Tables and indexes that are created directly through the 
  * NdbDictionary class
  * can not be viewed from the MySQL Server.
+ * Dropping indexes directly via the NdbApi will cause inconsistencies
+ * if they were originally created from a MySQL Cluster.
  * 
  * This class supports schema data enquiries such as:
  * -# Enquiries about tables
@@ -1180,8 +1182,10 @@ public:
     const Table * getIndexTable(const char * indexName, 
 				const char * tableName);
   public:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data);
     void set_local_table_data_size(unsigned sz);
+#endif
   };
 };
 
