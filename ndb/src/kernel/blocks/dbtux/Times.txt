@@ -1,0 +1,18 @@
+"mc02" 2x1700 MHz linux-2.4.9 gcc-2.96 -O3 one db-node
+
+case a: index on Unsigned
+testOIBasic -case u -table 1 -index 1 -fragtype small -threads 10 -rows 100000 -subloop 1 -nologging
+
+case b: index on Varchar(5) + Varchar(5) + Varchar(20) + Unsigned
+testOIBasic -case u -table 2 -index 4 -fragtype small -threads 10 -rows 100000 -subloop 1 -nologging
+
+update without index, update with index
+shows ms / 1000 for each and pct overhead
+
+040616          mc02/a  40 ms   87 ms   114 pct
+                mc02/b  51 ms  128 ms   148 pct
+
+optim 1         mc02/a  38 ms   85 ms   124 pct
+                mc02/b  51 ms  123 ms   140 pct
+
+vim: set et:
