@@ -318,6 +318,7 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);
 static void init_var_hash();
+static VAR* var_from_env(const char *, const char *);
 static byte* get_var_key(const byte* rec, uint* len,
 			 my_bool __attribute__((unused)) t);
 static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
@@ -654,11 +655,10 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
     if (!(v = (VAR*) hash_search(&var_hash, save_var_name,
 			       var_name - save_var_name)))
     {
-      if (ignore_not_existing)
-	DBUG_RETURN(0);
-      if (end)
-	*(char*) end = 0;
-      die("Variable '%s' used uninitialized", save_var_name);
+      char c=*var_name, *s=(char*)var_name;;
+      *s=0;
+      v=var_from_env(save_var_name, "");
+      *s=c;
     }
     --var_name;					/* Point at last character */
   }
@@ -2580,7 +2580,7 @@ static void var_free(void *v)
 }
 
 
-static void var_from_env(const char *name, const char *def_val)
+static VAR* var_from_env(const char *name, const char *def_val)
 {
   const char *tmp;
   VAR *v;
@@ -2589,6 +2589,7 @@ static void var_from_env(const char *name, const char *def_val)
 
   v = var_init(0, name, 0, tmp, 0);
   my_hash_insert(&var_hash, (byte*)v);
+  return v;
 }
 
 
@@ -2599,10 +2600,8 @@ static void init_var_hash(MYSQL *mysql)
   if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
-  var_from_env("MASTER_MYPORT", "9306");
-  var_from_env("SLAVE_MYPORT", "9307");
-  var_from_env("MYSQL_TEST_DIR", "/tmp");
-  var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
+  if (opt_big_test)
+    my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0, "1",0));
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);

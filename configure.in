@@ -2905,7 +2905,6 @@ then
     NDB_DEFS="-DNDEBUG"
     CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_RELEASE_LOC)"
   fi
-fi
 
 AC_SUBST([NDB_DEFS])
 
@@ -2928,14 +2927,9 @@ then
 fi
 AC_SUBST([ndb_bin_am_ldflags])
 AC_SUBST([ndb_opt_test_subdirs])
-
-AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
-
-# Output results
-AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
-   ndb/docs/Makefile dnl
-   ndb/Makefile ndb/include/Makefile dnl
+AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile dnl
@@ -2976,7 +2970,14 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/test/ndbapi/Makefile dnl
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
-   ndb/test/run-test/Makefile dnl
+   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   )
+fi
+
+AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
+
+# Output results
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
@@ -2989,15 +2990,14 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
- support-files/MacOSX/Makefile mysql-test/Makefile mysql-test/ndb/Makefile dnl
+ support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
- cmd-line-utils/readline/Makefile dnl
- , , [
-  test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
- ])
+ cmd-line-utils/readline/Makefile)
+ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+ AC_OUTPUT
 
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo
