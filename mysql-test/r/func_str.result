@@ -515,7 +515,7 @@ collation(make_set(255,_latin2'a',_latin2'b',_latin2'c'))	coercibility(make_set(
 latin2_general_ci	4
 select collation(export_set(255,_latin2'y',_latin2'n',_latin2' ')), coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '));
 collation(export_set(255,_latin2'y',_latin2'n',_latin2' '))	coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '))
-binary	4
+latin2_general_ci	4
 select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
 collation(trim(_latin2' a '))	coercibility(trim(_latin2' a '))
 latin2_general_ci	4
@@ -630,6 +630,15 @@ t1	CREATE TABLE `t1` (
   `encode('abcd','ab')` varbinary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a char character set latin2);
+insert into t1 values (null);
+select charset(a), collation(a), coercibility(a) from t1;
+charset(a)	collation(a)	coercibility(a)
+latin2	latin2_general_ci	2
+drop table t1;
+select charset(null), collation(null), coercibility(null);
+charset(null)	collation(null)	coercibility(null)
+binary	binary	5
 select SUBSTR('abcdefg',3,2);
 SUBSTR('abcdefg',3,2)
 cd
@@ -683,16 +692,16 @@ drop table t1, t2;
 create table t1 (c1 INT, c2 INT UNSIGNED);
 insert into t1 values ('21474836461','21474836461');
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 insert into t1 values ('-21474836461','-21474836461');
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 show warnings;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 select * from t1;
 c1	c2
 2147483647	4294967295

@@ -288,8 +288,16 @@ DROP TABLE t1;
 #
 # Bug #6475
 #
-
 create table t1 (a char(3), b char(20), primary key (a, b));
 insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
 select group_concat(a) from t1 group by b;
 drop table t1;
+
+#
+# Bug #8656: Crash with group_concat on alias in outer table
+#
+create table r2 (a int, b int);
+insert into r2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from r2) from  r2;
+drop table r2;
+
