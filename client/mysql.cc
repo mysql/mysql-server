@@ -2834,25 +2834,13 @@ com_status(String *buffer __attribute__((unused)),
   const char *status;
   char buff[22];
   ulonglong id;
+  MYSQL_RES *result;
+  LINT_INIT(result);
 
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
   {
-    MYSQL_RES *result;
-    LINT_INIT(result);
-    tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
-    if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
-	(result=mysql_use_result(&mysql)))
-    {
-      MYSQL_ROW cur=mysql_fetch_row(result);
-      if (cur)
-      {
-        tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
-        tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
-      }
-      mysql_free_result(result);
-    }
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio && mysql.net.vio->ssl_arg &&
 	SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg))
@@ -2886,9 +2874,20 @@ com_status(String *buffer __attribute__((unused)),
   if ((id= mysql_insert_id(&mysql)))
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
-  tee_fprintf(stdout, "Client characterset:\t%s\n",
-	      charset_info->name);
-  tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
+  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database") &&
+      (result=mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW cur=mysql_fetch_row(result);
+    if (cur)
+    {
+      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Db     characterset:\t%s\n", cur[3] ? cur[3] : "");
+      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[2] ? cur[2] : "");
+      tee_fprintf(stdout, "Conn.  characterset:\t%s\n", cur[1] ? cur[1] : "");
+    }
+    mysql_free_result(result);
+  }
+
 #ifndef EMBEDDED_LIBRARY
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
