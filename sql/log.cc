@@ -1260,6 +1260,7 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
+#ifdef HAVE_REPLICATION
   if (should_rotate && expire_logs_days)
   {
     long purge_time= time(0) - expire_logs_days*24*60*60;
@@ -1267,6 +1268,7 @@ err:
       error= purge_logs_before_date(current_thd, purge_time);
   }
 
+#endif
   DBUG_RETURN(error);
 }
 
