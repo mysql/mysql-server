@@ -1327,12 +1327,6 @@ innobase_commit(
 			that the current SQL statement ended */
 {
 	trx_t*		trx;
-	dict_table_t*	table;
-	ib_longlong	auto_inc_value;
-        ib_longlong	aic_new;
-	char 		table_name[1000];
-	ulint		db_name_len;
-	ulint		table_name_len;
 
   	DBUG_ENTER("innobase_commit");
   	DBUG_PRINT("trans", ("ending transaction"));
@@ -1365,41 +1359,6 @@ innobase_commit(
 	        fprintf(stderr,
 "InnoDB: Error: thd->transaction.all.innodb_active_trans == 0\n"
 "InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
-	}
-
-	if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
-	   (thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
-	   (thd->lex->create_info.auto_increment_value != 0)) {
-
-		/* Query was ALTER TABLE...AUTO_INC = x; Find out a table
-		definition from the dictionary and get the current value
-		of the auto increment field. Set a new value to the
-		auto increment field if the new value is creater than 
-		the current value. */
-
-		aic_new = thd->lex->create_info.auto_increment_value;
-		db_name_len = strlen(thd->lex->query_tables->db);
-		table_name_len = strlen(thd->lex->query_tables->real_name);
-
-		ut_ad((db_name_len + 1 + table_name_len) < 999);
-		strcpy(table_name, thd->lex->query_tables->db);
-		strcat(table_name, "/");
-		strcat(table_name, thd->lex->query_tables->real_name);
-
-		table = dict_table_get(table_name, trx);
-
-		if (table) {
-			auto_inc_value = dict_table_autoinc_peek(table);
-
-			if( auto_inc_value < aic_new) {
-
-				/* We have to decrease the new auto increment
-				value by one because this function will increase
-				the value given by one. */
-
-				dict_table_autoinc_update(table, aic_new - 1);
-			}
-		}
 	}
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
@@ -3871,6 +3830,7 @@ ha_innobase::create(
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
 	THD		*thd= current_thd;
+	ib_longlong     auto_inc_value;
 
   	DBUG_ENTER("ha_innobase::create");
 
@@ -4040,6 +4000,20 @@ ha_innobase::create(
 	innobase_table = dict_table_get(norm_name, NULL);
 
 	DBUG_ASSERT(innobase_table != 0);
+
+	if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+	   (thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
+	   (thd->lex->create_info.auto_increment_value != 0)) {
+
+		/* Query was ALTER TABLE...AUTO_INC = x; Find out a table
+		definition from the dictionary and get the current value
+		of the auto increment field. Set a new value to the
+		auto increment field if the new value is creater than 
+		the current value. */
+
+		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+	}
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
