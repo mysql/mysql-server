@@ -246,4 +246,4 @@
 "Foutief argumenttype voor variabele '%-.64s'",
 "Variabele '%-.64s' kan alleen worden gewijzigd, niet gelezen",
 "Foutieve toepassing/plaatsing van '%s'",
-"Deze versie van MySQL ondersteunt nog geen '%s',"
+"Deze versie van MySQL ondersteunt nog geen '%s'",
