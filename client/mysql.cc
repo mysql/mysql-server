@@ -2914,9 +2914,9 @@ com_status(String *buffer __attribute__((unused)),
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
     {
-      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[2] ? cur[2] : "");
       tee_fprintf(stdout, "Db     characterset:\t%s\n", cur[3] ? cur[3] : "");
-      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[2] ? cur[2] : "");
+      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[0] ? cur[0] : "");
       tee_fprintf(stdout, "Conn.  characterset:\t%s\n", cur[1] ? cur[1] : "");
     }
     mysql_free_result(result);

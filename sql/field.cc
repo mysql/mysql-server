@@ -968,7 +968,9 @@ int Field_decimal::store(longlong nr)
 double Field_decimal::val_real(void)
 {
   int not_used;
-  return my_strntod(&my_charset_bin, ptr, field_length, NULL, &not_used);
+  char *end_not_used;
+  return my_strntod(&my_charset_bin, ptr, field_length, &end_not_used,
+                    &not_used);
 }
 
 longlong Field_decimal::val_int(void)
@@ -1776,13 +1778,23 @@ void Field_medium::sql_type(String &res) const
 ** long int
 ****************************************************************************/
 
-
+/*
+  A helper function to check whether the next character
+  in the string "s" is MINUS SIGN. 
+*/
+#ifdef HAVE_CHARSET_ucs2
 static bool test_if_minus(CHARSET_INFO *cs,
                           const char *s, const char *e)
 {
   my_wc_t wc;
   return cs->cset->mb_wc(cs, &wc, (uchar*) s, (uchar*) e) > 0 && wc == '-';
 }
+#else
+/*
+  If not UCS2 support is compiled then it is easier
+*/
+#define test_if_minus(cs, s, e)  (*s == '-')
+#endif
 
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
@@ -4360,8 +4372,9 @@ int Field_string::store(longlong nr)
 double Field_string::val_real(void)
 {
   int not_used;
+  char *end_not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
+  return my_strntod(cs, ptr, field_length, &end_not_used, &not_used);
 }
 
 
@@ -4577,7 +4590,9 @@ double Field_varstring::val_real(void)
   int not_used;
   uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, (char**)0, &not_used);
+  char *end_not_used;
+  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, &end_not_used,
+                    &not_used);
 }
 
 
@@ -4955,12 +4970,13 @@ double Field_blob::val_real(void)
 {
   int not_used;
   char *blob;
+  char *end_not_used;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0, &not_used);
+  return my_strntod(cs,blob,length, &end_not_used, &not_used);
 }
 
 

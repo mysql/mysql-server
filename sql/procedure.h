@@ -59,7 +59,11 @@ public:
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
   void set(const char *str,uint length,CHARSET_INFO *cs)
-  { int err; value=my_strntod(cs,(char*) str,length,(char**)0,&err); }
+  {
+    int err;
+    char *end_not_used;
+    value= my_strntod(cs, (char*) str, length, &end_not_used, &err);
+  }
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s) { s->set(value,decimals,default_charset()); return s; }
@@ -99,9 +103,10 @@ public:
   double val() 
   { 
     int err;
-    CHARSET_INFO *cs=str_value.charset();
+    CHARSET_INFO *cs= str_value.charset();
+    char *end_not_used;
     return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
-		      (char**) 0, &err);
+		      &end_not_used, &err);
   }
   longlong val_int()
   { 

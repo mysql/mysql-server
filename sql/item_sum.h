@@ -600,9 +600,11 @@ public:
   double val()
   {
     int err;
-    String *res;  res=val_str(&str_value);
+    char *end_not_used;
+    String *res;
+    res=val_str(&str_value);
     return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),
-			    (char**) 0, &err) : 0.0;
+			    &end_not_used, &err) : 0.0;
   }
   longlong val_int()
   {

@@ -828,8 +828,11 @@ public:
   double val()
   {
     int err;
-    String *res;  res=val_str(&str_value);
-    return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),0,&err) : 0.0;
+    String *res;
+    char *end_not_used;
+    res=val_str(&str_value);
+    return res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+                            &end_not_used, &err) : 0.0;
   }
   longlong val_int()
   {
