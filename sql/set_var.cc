@@ -1193,7 +1193,7 @@ static void fix_max_connections(THD *thd, enum_var_type type)
 static void fix_thd_mem_root(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    reset_root_defaults(&thd->mem_root,
+    reset_root_defaults(thd->mem_root,
                         thd->variables.query_alloc_block_size,
                         thd->variables.query_prealloc_size);
 }

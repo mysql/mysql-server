@@ -724,7 +724,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   {
     // Allocates everything through the internal memroot
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-    my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+    thd->mem_root= &alloc;
   }
   else
     bzero((char*) &alloc,sizeof(alloc));
@@ -1041,7 +1041,7 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
   rowid_length= table->file->ref_length;
   record= head->record[0];
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-  my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+  thd_param->malloc= &alloc;
 }
 
 
@@ -1476,7 +1476,8 @@ public:
                     KEY_PART_INFO *min_max_arg_part_arg,
                     uint group_prefix_len_arg, uint used_key_parts_arg,
                     uint group_key_parts_arg, KEY *index_info_arg,
-                    uint index_arg, uint key_infix_len_arg, byte *key_infix_arg,
+                    uint index_arg, uint key_infix_len_arg,
+                    byte *key_infix_arg,
                     SEL_TREE *tree_arg, SEL_ARG *index_tree_arg,
                     uint param_idx_arg, ha_rows quick_prefix_records_arg)
   : have_min(have_min_arg), have_max(have_max_arg),
@@ -1486,12 +1487,10 @@ public:
     index(index_arg), key_infix_len(key_infix_len_arg), range_tree(tree_arg),
     index_tree(index_tree_arg), param_idx(param_idx_arg),
     quick_prefix_records(quick_prefix_records_arg)
-{
-  if (key_infix_len)
-    memcpy(this->key_infix, key_infix_arg, key_infix_len);
-}
-
-
+    {
+      if (key_infix_len)
+        memcpy(this->key_infix, key_infix_arg, key_infix_len);
+    }
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -1649,8 +1648,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       DBUG_RETURN(0);				// Can't use range
     }
     key_parts= param.key_parts;
-    old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-    my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+    old_root= thd->mem_root;
+    thd->mem_root= &alloc;
 
     /*
       Make an array with description of all key parts of all table keys.
@@ -1795,7 +1794,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
     }
 
-    my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+    thd->mem_root= old_root;
 
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
@@ -1809,8 +1808,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
 
   free_mem:
-    my_pthread_setspecific_ptr(THR_MALLOC, old_root);
     free_root(&alloc,MYF(0));			// Return memory & allocator
+    thd->mem_root= old_root;
     thd->no_errors=0;
   }
 
@@ -5229,7 +5228,7 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
   NOTES
     The caller must call QUICK_SELECT::init for returned quick select
 
-    CAUTION! This function may change THR_MALLOC to a MEM_ROOT which will be
+    CAUTION! This function may change thd->mem_root to a MEM_ROOT which will be
     deallocated when the returned quick select is deleted.
 
   RETURN
@@ -5473,7 +5472,8 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              TABLE_REF *ref)
 {
-  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
+  MEM_ROOT *old_root= thd->mem_root;
+  /* The following call may change thd->mem_root */
   QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
@@ -5534,11 +5534,11 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   }
 
 ok:
-  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+  thd->mem_root= old_root;
   return quick;
 
 err:
-  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+  thd->mem_root= old_root;
   delete quick;
   return 0;
 }
@@ -7497,10 +7497,10 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   if (!parent_alloc)
   {
     init_sql_alloc(&alloc, join->thd->variables.range_alloc_block_size, 0);
-    my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+    thd->mem_root= &alloc;
   }
   else
-    bzero(&alloc, sizeof(MEM_ROOT));
+    bzero(&alloc, sizeof(MEM_ROOT));            // ensure that it's not used
 }
 
 
