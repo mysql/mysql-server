@@ -148,6 +148,9 @@ NdbColumnImpl::init(Type t)
     m_length = 4;
     m_cs = default_cs;
     break;
+  case Undefined:
+    assert();
+    break;
   }
   m_pk = false;
   m_nullable = false;

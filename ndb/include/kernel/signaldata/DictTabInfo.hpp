@@ -38,7 +38,7 @@
                      offsetof(x, l) }
 
 #define DTIBREAK(x) \
-  { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0 }
+  { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
 
 class DictTabInfo {
   /**
