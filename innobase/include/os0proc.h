@@ -16,7 +16,7 @@ typedef void*			os_process_t;
 typedef unsigned long int	os_process_id_t;
 
 /* The cell type in os_awe_allocate_mem page info */
-#if defined(__NT__) && defined(ULONG_PTR)
+#if defined(__WIN2000__) && defined(ULONG_PTR)
 typedef ULONG_PTR	os_awe_t;
 #else
 typedef ulint		os_awe_t;

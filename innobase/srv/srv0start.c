@@ -1008,7 +1008,7 @@ innobase_start_or_create_for_mysql(void)
         srv_startup_is_before_trx_rollback_phase = TRUE;
 	os_aio_use_native_aio = FALSE;
 
-#if !defined(__NT__) && !defined(UNIV_SIMULATE_AWE)
+#if !defined(__WIN2000__) && !defined(UNIV_SIMULATE_AWE)
 	if (srv_use_awe) {
 
 	        fprintf(stderr,
