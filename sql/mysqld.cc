@@ -2080,8 +2080,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str,
-			      myf MyFlags __attribute__((unused)))
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   NET *net;
   DBUG_ENTER("my_message_sql");
@@ -2094,7 +2093,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       net->last_errno=error ? error : ER_UNKNOWN_ERROR;
     }
   }
-  else
+  if (!net || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
 }

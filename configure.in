@@ -2181,6 +2181,21 @@ else
 fi
 AC_SUBST(docs_dirs)
 
+# Shall we build the man pages?
+AC_ARG_WITH(man,
+    [  --without-man          Skip building of the man pages.],
+    [with_man=$withval],
+    [with_man=yes]
+)
+
+if test "$with_man" = "yes"
+then
+  man_dirs="man"
+else
+  man_dirs=""
+fi
+AC_SUBST(man_dirs)
+
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
     [  --without-bench         Skip building of the benchmark suite.],

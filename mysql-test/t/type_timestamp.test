@@ -71,6 +71,7 @@ select * from t1;
 set new=1;
 select * from t1;
 drop table t1;
+set new=0;
 
 #
 # Bug #1885, bug #2539. 
@@ -114,5 +115,36 @@ create table t1 (ts timestamp(19));
 show create table t1;
 set TIMESTAMP=1000000000;
 insert into t1 values ();
+select * from t1;
+drop table t1;
+
+#
+# Test for bug #4131, TIMESTAMP columns missing minutes and seconds when
+# using GROUP BY in @@new=1 mode.
+#
+set new=1;
+create table t1 (a char(2), t timestamp);
+insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
+                      ('b', '2004-02-01 00:00:00');
+select max(t) from t1 group by a;
+drop table t1;
+
+#
+# More --new mode tests
+# Both columns created before and during alter should have same length.
+#
+create table t1 (ts1 timestamp);
+show create table t1;
+alter table t1 add ts2 timestamp;
+set new=0;
+show create table t1;
+drop table t1;
+# Selecting from table in --new mode should not affect further selects.
+create table t1 (ts1 timestamp);
+insert into t1 values ('2004-01-01 00:00:00'), ('2004-01-01 01:00:00');
+select * from t1;
+set new=1;
+select * from t1;
+set new=0;
 select * from t1;
 drop table t1;
