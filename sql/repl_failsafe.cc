@@ -249,6 +249,18 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   /* Impossible */
 }
 
+/* 
+  Before 4.0.15 we had a member of THD called log_pos, it was meant for
+  failsafe replication code in repl_failsafe.cc which is disabled until
+  it is reworked. Event's log_pos used to be preserved through 
+  log-slave-updates to make code in repl_failsafe.cc work (this 
+  function, SHOW NEW MASTER); but on the other side it caused unexpected
+  values in Exec_master_log_pos in A->B->C replication setup, 
+  synchronization problems in master_pos_wait(), ... So we 
+  (Dmitri & Guilhem) removed it.
+  
+  So for now this function is broken. 
+*/
 
 int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 {
@@ -414,6 +426,9 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   return (Slave_log_event*)ev;
 }
 
+/*
+   This function is broken now. See comment for translate_master().
+ */
 
 int show_new_master(THD* thd)
 {

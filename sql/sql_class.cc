@@ -125,7 +125,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   where="field list";
   server_id = ::server_id;
   slave_net = 0;
-  log_pos = 0;
   command=COM_CONNECT;
   set_query_id=1;
   db_access=NO_ACCESS;
