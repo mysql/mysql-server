@@ -89,6 +89,16 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif /* NEED_SYS_SYSLOG_H */
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
+
+#ifdef __linux__
+#define my_fromhost(A)	   fromhost()
+#define my_hosts_access(A) hosts_access()
+#define my_eval_client(A)  eval_client()
+#else
+#define my_fromhost(A)	   fromhost(A)
+#define my_hosts_access(A) hosts_access(A)
+#define my_eval_client(A)  eval_client(A)
+#endif
 #endif /* HAVE_LIBWRAP */
 
 #ifdef HAVE_SYS_MMAN_H
@@ -2258,7 +2268,6 @@ static void create_new_thread(THD *thd)
     if (cached_thread_count > wake_thread)
     {
       start_cached_thread(thd);
-      (void) pthread_mutex_unlock(&LOCK_thread_count);
     }
     else
     {
@@ -2285,9 +2294,9 @@ static void create_new_thread(THD *thd)
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	DBUG_VOID_RETURN;
       }
-      
-      (void) pthread_mutex_unlock(&LOCK_thread_count);
     }
+    (void) pthread_mutex_unlock(&LOCK_thread_count);
+
   }
   DBUG_PRINT("info",("Thread created"));
   DBUG_VOID_RETURN;
@@ -2415,29 +2424,27 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-#ifndef __linux__
-	fromhost(&req);
-	if (!hosts_access(&req))
+	my_fromhost(&req);
+	if (!my_hosts_access(&req))
 	{
-	  // This may be stupid but refuse() includes an exit(0)
-	  // which we surely don't want...
-	  // clean_exit() - same stupid thing ...
-	  syslog(deny_severity, "refused connect from %s", eval_client(&req));
-#else
-	fromhost();
-	if (!hosts_access())
-	{
-	  syslog(deny_severity, "refused connect from %s", eval_client());
-#endif
+	  /*
+	    This may be stupid but refuse() includes an exit(0)
+	    which we surely don't want...
+	    clean_exit() - same stupid thing ...
+	  */
+	  syslog(deny_severity, "refused connect from %s",
+		 my_eval_client(&req));
+
+	  /*
+	    C++ sucks (the gibberish in front just translates the supplied
+	    sink function pointer in the req structure from a void (*sink)();
+	    to a void(*sink)(int) if you omit the cast, the C++ compiler
+	    will cry...
+	  */
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  // C++ sucks (the gibberish in front just translates the supplied
-	  // sink function pointer in the req structure from a void (*sink)();
-	  // to a void(*sink)(int) if you omit the cast, the C++ compiler
-	  // will cry...
-
-	  (void) shutdown(new_sock,2);  // This looks fine to me...
+	  (void) shutdown(new_sock,2);
 	  (void) closesocket(new_sock);
 	  continue;
 	}

@@ -46854,7 +46854,6 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.51::                
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
@@ -46909,20 +46908,19 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
-@appendixsubsec Changes in release 3.23.51
+@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.50
 
 @itemize @bullet
+@item
+Fixed timeout for @code{GET_LOCK()} on HPUX with DCE threads.
+@item
+Fixed memory allocation bug in the glibc library used to build Linux
+binaries, which caused mysqld to die in 'free()'.
 @item
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
 @item
 Fixed bug in character table converts when used with big ( > 64K) strings.
-@end itemize
-
-@node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
-@appendixsubsec Changes in release 3.23.50
-
-@itemize @bullet
 @item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.
