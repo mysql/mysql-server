@@ -16,17 +16,20 @@ ndb_mgmd_SOURCES = \
 	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
 	InitConfigFileParser.cpp \
-	Config.cpp \
-	CommandInterpreter.cpp
+	Config.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
                -I$(top_srcdir)/ndb/src/mgmapi \
-               -I$(top_srcdir)/ndb/src/common/mgmcommon
+               -I$(top_srcdir)/ndb/src/common/mgmcommon \
+               -I$(top_srcdir)/ndb/src/mgmclient
 
-LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
+LDADD_LOC = $(top_srcdir)/ndb/src/mgmclient/CommandInterpreter.o \
+            $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+            $(top_builddir)/strings/libmystrings.a \
+            @readline_link@ \
+            @NDB_SCI_LIBS@ \
 	    @TERMCAP_LIB@
 
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
