@@ -8226,7 +8226,7 @@ and that provides output about what is happening.
 @item
 If your client programs are using threads, you need to also compile a
 thread-safe version of the MySQL client library with the
-@code{--with-thread-safe-client} configure options. This will create a
+@code{--enable-thread-safe-client} configure options. This will create a
 @code{libmysqlclient_r} library with which you should link your threaded
 applications.  @xref{Threaded clients}.
 
@@ -11945,7 +11945,7 @@ If you are compiling with @code{gcc}, you can use the following
 
 @example
 CC=gcc CXX=gcc CXXFLAGS=-O3 \
-./configure --prefix=/usr/local/mysql --with-thread-safe-client --with-named-thread-libs=-lpthread
+./configure --prefix=/usr/local/mysql --enable-thread-safe-client --with-named-thread-libs=-lpthread
 @end example
 
 On Irix 6.5.11 with native Irix C and C++ compilers ver. 7.3.1.2, the
@@ -42240,11 +42240,11 @@ To make @code{mysql_real_connect()} thread safe, you must recompile the
 client library with this command:
 
 @example
-shell> ./configure --with-thread-safe-client
+shell> ./configure --enable-thread-safe-client
 @end example
 
 This will create a thread-safe client library @code{libmysqlclient_r}.
-@code{--with-thread-safe-client}.  This library is thread safe per
+@code{--enable-thread-safe-client}.  This library is thread safe per
 connection.  You can let two threads share the same connection as long
 as you do the following:
 
@@ -47119,6 +47119,9 @@ not yet 100% confident in this code.
 @node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
+@item
+Fixed problem with @code{BDB} tables and @code{UNIQUE} columns defined
+as @code{NULL}.
 @item
 Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
 @item
