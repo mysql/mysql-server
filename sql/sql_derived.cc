@@ -268,13 +268,8 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
         unit->cleanup();
     }
     else
-    {
-      free_tmp_table(thd, table);
       unit->cleanup();
-    }
     lex->current_select= save_current_select;
-    if (res)
-      free_tmp_table(thd, table);
   }
   return res;
 }
