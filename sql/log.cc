@@ -1212,12 +1212,24 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     /* Write log events to reset the 'run environment' of the SQL command */
 
-    if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+    if (thd)
     {
-      Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
+      if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+      {
+        Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
+        e.set_log_pos(this);
+        if (e.write(file))
+          goto err;
+      }
+#if MYSQL_VERSION_ID < 40100      
+      if (thd->variables.convert_set)
+      {
+	Query_log_event e(thd, "SET CHARACTER SET DEFAULT", 25, 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+#endif
     }
 
     /*
