@@ -81,6 +81,7 @@ innobase_shutdown_for_mysql(void);
 
 extern  ulint   srv_sizeof_trx_t_in_ha_innodb_cc;
 
+extern  ibool   srv_is_being_started;
 extern	ibool	srv_startup_is_before_trx_rollback_phase;
 extern	ibool	srv_is_being_shut_down;
 
