@@ -85,7 +85,8 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
-  open_tables=temporary_tables=0;
+  open_tables=temporary_tables=handler_tables=0;
+  handler_items=0;
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
@@ -161,6 +162,11 @@ THD::~THD()
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
+    close_thread_tables(this);
+  }
+  if (handler_tables)
+  {
+    open_tables=handler_tables; handler_tables=0;
     close_thread_tables(this);
   }
   close_temporary_tables(this);
