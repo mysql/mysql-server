@@ -86,6 +86,10 @@ trx_create(
 	trx->start_time = time(NULL);
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+	trx->id = ut_dulint_zero;
+	trx->no = ut_dulint_max;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
