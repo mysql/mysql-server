@@ -81,7 +81,7 @@ character-set=latin1
 "Blob felt '%-.64s' kan ikke brukes ved spesifikasjon av nøkler",
 "For stor nøkkellengde for kolonne '%-.64s' (maks = %d). Bruk BLOB istedenfor",
 "Bare ett auto felt kan være definert som nøkkel.",
-"%s: klar for tilkoblinger\n",
+"%s: klar for tilkoblinger",
 "%s: Normal avslutning\n",
 "%s: Oppdaget signal %d. Avslutter!\n",
 "%s: Avslutning komplett\n",

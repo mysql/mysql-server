@@ -242,6 +242,9 @@ merge to completion before shutdown */
 
 ibool	srv_fast_shutdown	= FALSE;
 
+/* Generate a innodb_status.<pid> file */
+ibool	srv_innodb_status	= FALSE;
+
 ibool	srv_use_doublewrite_buf	= TRUE;
 
 ibool   srv_set_thread_priorities = TRUE;
