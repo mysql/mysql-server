@@ -2046,12 +2046,15 @@ And if you use Windows, you might find the files in this directory: @*
 @*@*
 
 Let's look at the .MYD Data file (MyISAM SQL Data file) more closely.
+There are three possible formats -- fixed, dynamic, and packed. First, 
+let's discuss the fixed format.
+
 
 @table @strong
 @item Page Size
 Unlike most DBMSs, MySQL doesn't store on disk using pages. Therefore
 you will not see filler space between rows. (Reminder: This does not
-refer to BDB and INNODB tables, which do use pages).
+refer to BDB and InnoDB tables, which do use pages).
 @*
 
 @item Record Header
@@ -2069,8 +2072,8 @@ The minimal record header is a set of flags:
 
 The length of the record header is thus:@*
 (1 + number of NULL columns + 7) / 8 bytes@*
-After the header, all columns are stored in 
-the order that they were created, which is the 
+After the header, all columns are stored in
+the order that they were created, which is the
 same order that you would get from SHOW COLUMNS.
 
 Here's an example. Suppose you say:
@@ -2115,9 +2118,71 @@ right is @code{on}, and (b) remember that the first flag bit is the X bit.)
 
 There are complications -- the record header is more complex if there
 are variable-length fields -- but the simple display shown in the
-example is exactly what you'd see if you looked at the MySQL Data file 
+example is exactly what you'd see if you looked at the MySQL Data file
 with a debugger or a hexadecimal file dumper.
 @*
+
+So much for the fixed format. Now, let's discuss the dynamic format.
+@*
+
+The dynamic file format is necessary if rows can vary in size. That will 
+be the case if there are BLOB columns, or "true" VARCHAR columns. (Remember 
+that MySQL may treat VARCHAR columns as if they're CHAR columns, in which 
+case the fixed format is used.) A dynamic row has more fields in the header. 
+The important ones are "the actual length", "the unused length", and "the 
+overflow pointer". The actual length is the total number of bytes in all the
+columns. The unused length is the total number of bytes between one physical
+record and the next one. The overflow pointer is the location of the rest of 
+the record if there are multiple parts.
+@*
+
+For example, here is a dynamic row:@*
+@example(
+03, 00             start of header
+04                 actual length
+0c                 unused length
+01, fc             flags + overflow pointer
+****               data in the row
+************       unused bytes
+                   <-- next row starts here)
+@end example
+
+In the example, the actual length and the unused length
+are short (one byte each) because the table definition
+says that the columns are short -- if the columns were
+potentially large, then the actual length and the unused
+length could be two bytes each, three bytes each, and so 
+on. In this case, actual length plus unused length is 10
+hexadecimal (sixteen decimal), which is a minimum.
+
+As for the third format -- packed -- we will only say
+briefly that: 
+@itemize @bullet
+@item
+Numeric values are stored in a form that depends on the 
+range (start/end values) for the data type.
+@item
+All columns are packed using either Huffman or enum coding.
+@end itemize
+
+For details, see the source files /myisam/mi_statrec.c
+(for fixed format), /myisam/mi_dynrec.c (for dynamic
+format), and /myisam/mi_packrec.c (for packed format).
+
+Note: Internally, MySQL uses a format much like the fixed format 
+which it uses for disk storage. The main differences are:
+@enumerate @bullet
+@item
+BLOBs have a length and a memory pointer rather than being stored inline.
+@item
+"True VARCHAR" (a column storage which will be fully implemented in
+version 5.0) will have a 16-bit length plus the data.
+@item
+All integer or floating-point numbers are stored with the low byte first. 
+Point (3) does not apply for ISAM storage or internals.
+@end enumerate
+@*
+
 
 @section Physical Attributes of Columns
 
