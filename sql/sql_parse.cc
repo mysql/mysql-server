@@ -2046,7 +2046,7 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION,NullS);
       goto error;
     }
-    res=mysql_truncate(thd,tables);
+    res=mysql_truncate(thd, tables, 0);
     break;
   case SQLCOM_DELETE:
   {

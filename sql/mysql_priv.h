@@ -477,7 +477,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
                  ha_rows rows, ulong options);
-int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
+int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
