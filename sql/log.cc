@@ -1068,6 +1068,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 #else
     IO_CACHE *file = &log_file;
 #endif    
+    DBUG_PRINT("info",("event type=%d",event_info->get_type_code()));
     /* 
        In the future we need to add to the following if tests like
        "do the involved tables match (to be implemented)

@@ -57,7 +57,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
 void skip_load_data_infile(NET* net);
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
-static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli);
 static inline bool io_slave_killed(THD* thd,MASTER_INFO* mi);
 static inline bool sql_slave_killed(THD* thd,RELAY_LOG_INFO* rli);
@@ -2729,102 +2728,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 }
 
 
-static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
-{
-  int error = 1;
-  ulong num_bytes;
-  bool cev_not_written;
-  THD* thd;
-  NET* net = &mi->mysql->net;
-  DBUG_ENTER("process_io_create_file");
-
-  if (unlikely(!cev->is_valid()))
-    DBUG_RETURN(1);
-  /*
-    TODO: fix to honor table rules, not only db rules
-  */
-  if (!db_ok(cev->db, replicate_do_db, replicate_ignore_db))
-  {
-    skip_load_data_infile(net);
-    DBUG_RETURN(0);
-  }
-  DBUG_ASSERT(cev->inited_from_old);
-  thd = mi->io_thd;
-  thd->file_id = cev->file_id = mi->file_id++;
-  thd->server_id = cev->server_id;
-  cev_not_written = 1;
-  
-  if (unlikely(net_request_file(net,cev->fname)))
-  {
-    sql_print_error("Slave I/O: failed requesting download of '%s'",
-		    cev->fname);
-    goto err;
-  }
-
-  /*
-    This dummy block is so we could instantiate Append_block_log_event
-    once and then modify it slightly instead of doing it multiple times
-    in the loop
-  */
-  {
-    Append_block_log_event aev(thd,0,0,0);
-  
-    for (;;)
-    {
-      if (unlikely((num_bytes=my_net_read(net)) == packet_error))
-      {
-	sql_print_error("Network read error downloading '%s' from master",
-			cev->fname);
-	goto err;
-      }
-      if (unlikely(!num_bytes)) /* eof */
-      {
-	send_ok(net); /* 3.23 master wants it */
-	Execute_load_log_event xev(thd,0);
-	xev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&xev)))
-	{
-	  sql_print_error("Slave I/O: error writing Exec_load event to \
-relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
-	break;
-      }
-      if (unlikely(cev_not_written))
-      {
-	cev->block = (char*)net->read_pos;
-	cev->block_len = num_bytes;
-	cev->log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(cev)))
-	{
-	  sql_print_error("Slave I/O: error writing Create_file event to \
-relay log");
-	  goto err;
-	}
-	cev_not_written=0;
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
-      }
-      else
-      {
-	aev.block = (char*)net->read_pos;
-	aev.block_len = num_bytes;
-	aev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&aev)))
-	{
-	  sql_print_error("Slave I/O: error writing Append_block event to \
-relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
-      }
-    }
-  }
-  error=0;
-err:
-  DBUG_RETURN(error);
-}
-
 /*
   Start using a new binary log on the master
 
@@ -2928,18 +2831,6 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     mi->ignore_stop_event=1;
     inc_pos= 0;
     break;
-  case CREATE_FILE_EVENT:
-  {
-    /* We come here when and only when tmp_buf != 0 */
-    DBUG_ASSERT(tmp_buf);
-    int error = process_io_create_file(mi,(Create_file_log_event*)ev);
-    delete ev;
-    mi->master_log_pos += event_len;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-    pthread_mutex_unlock(&mi->data_lock);
-    my_free((char*)tmp_buf, MYF(0));
-    DBUG_RETURN(error);
-  }
   default:
     mi->ignore_stop_event=0;
     inc_pos= event_len;

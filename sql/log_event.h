@@ -687,9 +687,20 @@ public:
   char* block;
   uint block_len;
   uint file_id;
-  
+  /*
+    'db' is filled when the event is created in mysql_load() (the event needs to
+    have a 'db' member to be well filtered by binlog-*-db rules). 'db' is not
+    written to the binlog (it's not used by Append_block_log_event::write()), so
+    it can't be read in the Append_block_log_event(const char* buf, int
+    event_len) constructor.
+    In other words, 'db' is used only for filtering by binlog-*-db rules.
+    Create_file_log_event is different: its 'db' (which is inherited from
+    Load_log_event) is written to the binlog and can be re-read.
+  */
+  const char* db;
+
 #ifndef MYSQL_CLIENT
-  Append_block_log_event(THD* thd, char* block_arg,
+  Append_block_log_event(THD* thd, const char* db_arg, char* block_arg,
 			 uint block_len_arg, bool using_trans);
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(String* packet);
@@ -703,6 +714,7 @@ public:
   int get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
   bool is_valid() { return block != 0; }
   int write_data(IO_CACHE* file);
+  const char* get_db() { return db; }
 };
 
 
@@ -710,9 +722,10 @@ class Delete_file_log_event: public Log_event
 {
 public:
   uint file_id;
+  const char* db; /* see comment in Append_block_log_event */
   
 #ifndef MYSQL_CLIENT
-  Delete_file_log_event(THD* thd, bool using_trans);
+  Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -725,15 +738,17 @@ public:
   int get_data_size() { return DELETE_FILE_HEADER_LEN ;}
   bool is_valid() { return file_id != 0; }
   int write_data(IO_CACHE* file);
+  const char* get_db() { return db; }
 };
 
 class Execute_load_log_event: public Log_event
 {
 public:
   uint file_id;
-  
+  const char* db; /* see comment in Append_block_log_event */ 
+
 #ifndef MYSQL_CLIENT
-  Execute_load_log_event(THD* thd, bool using_trans);
+  Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -746,6 +761,7 @@ public:
   int get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
   bool is_valid() { return file_id != 0; }
   int write_data(IO_CACHE* file);
+  const char* get_db() { return db; }
 };
 
 #ifdef MYSQL_CLIENT

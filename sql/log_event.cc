@@ -1605,11 +1605,12 @@ void Create_file_log_event::pack_info(String* packet)
 #endif  
 
 #ifndef MYSQL_CLIENT  
-Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
+Append_block_log_event::Append_block_log_event(THD* thd_arg, const char* db_arg,
+                                               char* block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
   :Log_event(thd_arg,0, using_trans), block(block_arg),
-   block_len(block_len_arg), file_id(thd_arg->file_id)
+   block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1653,8 +1654,9 @@ void Append_block_log_event::pack_info(String* packet)
   net_store_data(packet, buf1);
 }
 
-Delete_file_log_event::Delete_file_log_event(THD* thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
+Delete_file_log_event::Delete_file_log_event(THD* thd_arg, const char* db_arg,
+                                             bool using_trans) 
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1699,8 +1701,9 @@ void Delete_file_log_event::pack_info(String* packet)
 
 
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD* thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
+Execute_load_log_event::Execute_load_log_event(THD* thd_arg, const char* db_arg,
+                                               bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1904,7 +1907,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
-	    
+
+  /*
+    We test replicate_*_db rules. Note that we have already prepared the file to
+    load, even if we are going to ignore and delete it now. So it is possible
+    that we did a lot of disk writes for nothing. In other words, a big LOAD
+    DATA INFILE on the master will still consume a lot of space on the slave
+    (space in the relay log + space of temp files: twice the space of the file
+    to load...) even if it will finally be ignored.
+    TODO: fix this; this can be done by testing rules in
+    Create_file_log_event::exec_event() and then discarding Append_block and
+    al. Another way is do the filtering in the I/O thread (more efficient: no
+    disk writes at all).
+  */
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
@@ -2209,7 +2224,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   
@@ -2220,7 +2235,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if (write_base(&file))
   {
     strmov(p, ".info"); // to have it right in the error message
-    slave_print_error(rli,my_errno, "Could not write to file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not write to file '%s'", fname_buf);
     goto err;
   }
   end_io_cache(&file);
@@ -2230,16 +2245,14 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: write to '%s' failed", fname_buf);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;					// Everything is ok
 
 err:
@@ -2258,8 +2271,6 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".info", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   return Log_event::exec_event(rli);
 }
 
@@ -2273,16 +2284,14 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: write to '%s' failed", fname);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;
 
 err:
@@ -2297,7 +2306,6 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
-  ulong save_options;
   IO_CACHE file;
   Load_log_event* lev = 0;
 
@@ -2306,7 +2314,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Exec_load event: could not open file '%s'", fname);
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
@@ -2314,21 +2322,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 							 (bool)0)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
-    slave_print_error(rli,0, "File '%s' appears corrupted", fname);
+    slave_print_error(rli,0, "Error in Exec_load event: file '%s' appears corrupted", fname);
     goto err;
   }
-  /*
-    We want to disable binary logging in slave thread because we need the file
-    events to appear in the same order as they do on the master relative to
-    other events, so that we can preserve ascending order of log sequence
-    numbers - needed to handle failover .
-  */
-  save_options = thd->options;
-  thd->options &= ~ (ulong) (OPTION_BIN_LOG);
+
   lev->thd = thd;
   /*
     lev->exec_event should use rli only for errors
-    i.e. should not advance rli's position
+    i.e. should not advance rli's position.
+    lev->exec_event is the place where the table is loaded (it calls
+    mysql_load()).
   */
   if (lev->exec_event(0,rli,1)) 
   {
@@ -2349,15 +2352,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 			tmp, fname);
       my_free(tmp,MYF(0));
     }
-    thd->options= save_options;
     goto err;
   }
-  thd->options = save_options;
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error = 0;
 
 err:
