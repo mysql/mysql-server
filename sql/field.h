@@ -986,7 +986,7 @@ public:
   uint8 row,col,sc_length,interval_id;		// For rea_create_table
   uint	offset,pack_flag;
   create_field() :after(0) {}
-  create_field(Field *field,bool ignore_default=0);
+  create_field(Field *field, Field *orig_field);
 };
 
 

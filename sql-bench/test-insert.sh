@@ -901,6 +901,16 @@ if ($limits->{'insert_select'})
   $end_time=new Benchmark;
   print "Time for drop table(2): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+  if ($opt_fast && defined($server->{vacuum}))
+  {
+    $server->vacuum(1,\$dbh);
+  }
+  if ($server->small_rollback_segment())
+  {
+    $dbh->disconnect;				# close connection
+    $dbh = $server->connect();
+  }
 }
 
 

@@ -43,7 +43,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   DBUG_ENTER("open_temp_file");
 #if defined(_MSC_VER)
   {
-    char *end,*res,**old_env,*temp_env[1];
+    char temp[FN_REFLEN],*end,*res,**old_env,*temp_env[1];
     old_env=environ;
     if (dir)
     {

@@ -4550,7 +4550,7 @@ Field *make_field(char *ptr, uint32 field_length,
 
 /* Create a field suitable for create of table */
 
-create_field::create_field(Field *old_field,bool ignore_default)
+create_field::create_field(Field *old_field,Field *orig_field)
 {
   field=      old_field;
   field_name=change=old_field->field_name;
@@ -4574,15 +4574,24 @@ create_field::create_field(Field *old_field,bool ignore_default)
     interval= ((Field_enum*) old_field)->typelib;
   else
     interval=0;
-  if (!ignore_default && !old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
-      old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr)
+  if (!old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
+      old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr &&
+      orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff));
-    field->val_str(&tmp,&tmp);
-    pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
-    pos[tmp.length()]=0;
-    def=new Item_string(pos,tmp.length());
+    String tmp(buff,sizeof(buff)),*res;
+
+    /* Get the value from record[2] (the default value row) */
+    my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
+    orig_field->move_field(diff);		// Points now at record[2]
+    res=orig_field->val_str(&tmp,&tmp);
+    orig_field->move_field(-diff);		// Back to record[0]
+    if (res)					// If not NULL value
+    {
+      pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
+      pos[tmp.length()]=0;
+      def=new Item_string(pos,tmp.length());
+    }
   }
   else
     def=0;

@@ -96,6 +96,7 @@ THD::THD()
   start_time=(time_t) 0;
   last_nx_table = last_nx_db = 0;
   inactive_timeout=net_wait_timeout;
+  open_options=ha_open_options;
   cond_count=0;
   command=COM_CONNECT;
   set_query_id=1;

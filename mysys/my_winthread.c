@@ -61,7 +61,7 @@ static pthread_handler_decl(pthread_start,param)
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
-  pthread_exit((*func)(func_param));
+  pthread_exit((void*) (*func)(func_param));
   return 0;				  /* Safety */
 }
 
@@ -103,7 +103,7 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 }
 
 
-void pthread_exit(unsigned A)
+void pthread_exit(void *a)
 {
   _endthread();
 }

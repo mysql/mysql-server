@@ -1,14 +1,14 @@
-Testing server 'MySQL 3.23.25 beta' at 2000-09-27  5:16:11
+Testing server 'MySQL 3.23.26 gamma' at 2000-10-13 16:31:55
 
 Wisconsin benchmark test
 
 Time for create_table (3):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Inserting data
-Time to insert (31000): 19 wallclock secs ( 2.39 usr  3.67 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to insert (31000): 19 wallclock secs ( 2.59 usr  4.13 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Time to delete_big (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Running actual benchmark
-Time for wisc_benchmark (114):  9 wallclock secs ( 5.80 usr  1.64 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for wisc_benchmark (114):  9 wallclock secs ( 5.80 usr  1.47 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Total time: 28 wallclock secs ( 8.19 usr  5.31 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 28 wallclock secs ( 8.39 usr  5.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
