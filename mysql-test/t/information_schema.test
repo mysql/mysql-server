@@ -339,3 +339,10 @@ select column_type from information_schema.columns
 where table_schema="information_schema" and table_name="COLUMNS" and
 (column_name="character_set_name" or column_name="collation_name");
 
+#
+# Bug#2718 information_schema: errors in "tables"
+#
+select TABLE_ROWS from information_schema.tables where 
+table_schema="information_schema" and table_name="COLUMNS";
+select table_type from information_schema.tables
+where table_schema="mysql" and table_name="user";
