@@ -626,7 +626,7 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
-				 (char*) "\\");
+				 new Item_string("\\",1,&my_charset_latin1));
   if (thd->is_fatal_error)
     return 0;					// OOM
   return prepare_simple_select(thd,cond,tables,table,error);

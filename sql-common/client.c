@@ -1732,7 +1732,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
 	goto error;
       }
-      memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
+      memcpy(&sock_addr.sin_addr, hp->h_addr,
+             min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
       my_gethostbyname_r_free();
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);

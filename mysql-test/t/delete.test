@@ -98,3 +98,14 @@ select * from t11;
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 drop table t11, t12, t2;
+
+#
+# Bug #4198: deletion and KEYREAD
+#
+
+create table t1 (a int, b int, unique key (a), key (b));
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+check table t1;
+select * from t1;
+drop table t1;

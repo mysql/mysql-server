@@ -376,8 +376,6 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
        rec_per_key_part+=keyinfo->keysegs, key++, keyinfo++)
   {
-    if (*killed_ptr(param))
-      DBUG_RETURN(-1);
     param->key_crc[key]=0;
     if (!(((ulonglong) 1 << key) & share->state.key_map))
     {
