@@ -64,15 +64,15 @@ static void my_coll_agg_error(Item** args, uint ac, const char *fname)
     my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
 }
 
-bool Item_func::agg_arg_collations(DTCollation &c, uint from, uint argc)
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint ac)
 {
   uint i;
-  c.set(args[from]->collation);
-  for (i= from+1; i < argc; i++)
+  c.set(av[0]->collation);
+  for (i= 1; i < ac; i++)
   {
-    if (c.aggregate(args[i]->collation))
+    if (c.aggregate(av[i]->collation))
     {
-      my_coll_agg_error(args+from, argc-from, func_name());
+      my_coll_agg_error(av, ac, func_name());
       return TRUE;
     }
   }
@@ -80,14 +80,14 @@ bool Item_func::agg_arg_collations(DTCollation &c, uint from, uint argc)
 }
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
-						  uint from, uint argc)
+						  Item **av, uint ac)
 {
-  if (agg_arg_collations(c, from, argc))
-    return FALSE;
-
+  if (agg_arg_collations(c, av, ac))
+    return TRUE;
+  
   if (c.derivation == DERIVATION_NONE)
   {
-    my_coll_agg_error(args+from, argc-from, func_name());
+    my_coll_agg_error(av, ac, func_name());
     return TRUE;
   }
   return FALSE;
