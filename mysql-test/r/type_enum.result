@@ -1693,3 +1693,35 @@ oe
 ue
 ss
 DROP TABLE t1;
+CREATE TABLE t1 (
+a ENUM('ä','ö','ü') character set utf8 default 'ü'
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('ä','ö','ü') character set utf8 default 'ü'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('ä'), ('ö'), ('ü');
+select a from t1 order by a;
+a
+ä
+ö
+ü
+drop table t1;
+set names utf8;
+CREATE TABLE t1 (
+a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
+);
+insert into t1 values ('Ã¤'),('Ã¶'),('Ã¼');
+set names latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('ä','ö','ü') default 'ü'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select a from t1 order by a;
+a
+ä
+ö
+ü
+drop table t1;
