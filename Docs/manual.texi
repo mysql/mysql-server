@@ -48946,6 +48946,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+fixed that SQL_CALC_FOUND_ROWS works with UNIONs. It will work only if first 
+select has this option and if there is global LIMIT for entire select. For the
+moment this requires using braces for individual select's.
+@item
 Don't give an error for @code{CREATE TABLE ...(... VARCHAR(0))}.
 @item
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in @file{mysql.cc} on Linux
