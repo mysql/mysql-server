@@ -137,3 +137,17 @@ INSERT INTO t1 VALUES (8,NULL,'real');
 INSERT INTO t1 VALUES (9,NULL,'nowy');
 SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
 DROP TABLE t1;
+
+#
+# test for #739
+
+CREATE TABLE t1 (
+  title text
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+
+DROP TABLE t1;
