@@ -50834,10 +50834,10 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
-Small fix in mysqld_safe for some shells
+Small fix in @code{mysqld_safe} for some shells.
 @item
-Give error if one has more than 2 ^ 32 rows in a MyISAM MERGE file and one
-has not compiled MySQL with @code{-DBIG_TABLES}.
+Give error if a @code{MyISAM} @code{MERGE} table has more than 2 ^ 32 rows and
+MySQL was not compiled with with @code{-DBIG_TABLES}.
 @item
 Fixed some @code{ORDER BY ... DESC} problems with InnoDB.
 @item
@@ -50857,7 +50857,7 @@ Fixed bug where @code{GRANT}/@code{REVOKE} failed if hostname was given in
 not matching case.
 @item
 Don't give warning in @code{LOAD DATA INFILE} when setting a
-@code{timestamp} to a string of '0'.
+@code{timestamp} to a string value of @code{'0'}.
 @item
 Fixed bug in @code{myisamchk -R} mode.
 @item
@@ -50930,7 +50930,7 @@ output in @code{SHOW GRANTS}.
 Fixed that @code{mysqld --help} reports correct values for @code{--datadir}
 and @code{--bind-address}.
 @item
-Fixed that one can drop UDFs that didn't exist when mysqld was started.
+Fixed that one can drop UDFs that didn't exist when @code{mysqld} was started.
 @item
 Fixed core dump problem with @code{SHOW VARIABLES} on some 64 bit systems
 (like Solaris sparc).
