@@ -24,16 +24,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define NO_MIN_RANGE	1
-#define NO_MAX_RANGE	2
-#define NEAR_MIN	4
-#define NEAR_MAX	8
-#define UNIQUE_RANGE	16
-#define EQ_RANGE	32
-#define NULL_RANGE	64
-#define GEOM_FLAG      128
-
-
 typedef struct st_key_part {
   uint16           key,part, store_length, length;
   uint8            null_bit;
@@ -135,9 +125,24 @@ public:
   */
   virtual int  reset(void) = 0;
 
+  /*
+    Initialize get_next() for row retrieval.
+    SYNOPSIS
+      get_next_init()
+
+    get_next_init() must be called before the first get_next().
+    If get_next_init() call fails get_next() must not be called.
+
+    RETURN
+      0      OK
+      other  Error code
+  */
+  virtual int  get_next_init() { return false; }
+  virtual int  get_next() = 0;   /* get next record to retrieve */
+
   /* Range end should be called when we have looped over the whole index */
   virtual void range_end() {}
-  virtual int  get_next() = 0;   /* get next record to retrieve */
+
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
 
@@ -236,6 +241,14 @@ protected:
     closed no later then this quick select is deleted.
   */
   bool free_file;
+  bool in_range;
+  uint multi_range_count; /* copy from thd->variables.multi_range_count */
+  uint multi_range_length; /* the allocated length for the array */
+  uint multi_range_bufsiz; /* copy from thd->variables.read_rnd_buff_size */
+  KEY_MULTI_RANGE *multi_range; /* the multi-range array (allocated and
+                                       freed by QUICK_RANGE_SELECT) */
+  HANDLER_BUFFER *multi_range_buff; /* the handler buffer (allocated and
+                                       freed by QUICK_RANGE_SELECT) */
 
 protected:
   friend class TRP_ROR_INTERSECT;
@@ -270,18 +283,19 @@ public:
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
 
+  int init();
   int reset(void)
   {
     next=0;
     range= NULL;
-    cur_range= NULL;
+    cur_range= (QUICK_RANGE**) ranges.buffer;
     /*
       Note: in opt_range.cc there are places where it is assumed that this
       function always succeeds 
     */
     return 0;
   }
-  int init();
+  int get_next_init(void);
   int get_next();
   void range_end();
   int get_next_prefix(uint prefix_length, byte *cur_prefix);
@@ -296,6 +310,13 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT& org) : QUICK_SELECT_I()
+  {
+    bcopy(&org, this, sizeof(*this));
+    multi_range_length= 0;
+    multi_range= NULL;
+    multi_range_buff= NULL;
+  }
 };
 
 

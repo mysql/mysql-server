@@ -76,6 +76,7 @@
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
+#define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -276,6 +277,21 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
+/*
+  This is a buffer area that the handler can use to store rows.
+  'end_of_used_area' should be kept updated after calls to
+  read-functions so that other parts of the code can use the
+  remaining area (until next read calls is issued).
+*/
+
+typedef struct st_handler_buffer
+{
+  const byte *buffer;         /* Buffer one can start using */
+  const byte *buffer_end;     /* End of buffer */
+  byte *end_of_used_area;     /* End of area that was used by handler */
+} HANDLER_BUFFER;
+
+
 class handler :public Sql_alloc
 {
  protected:
@@ -309,6 +325,12 @@ public:
   time_t create_time;			/* When table was created */
   time_t check_time;
   time_t update_time;
+
+  /* The following are for read_multi_range */
+  bool multi_range_sorted;
+  KEY_MULTI_RANGE *multi_range_curr;
+  KEY_MULTI_RANGE *multi_range_end;
+  HANDLER_BUFFER *multi_range_buffer;
 
   /* The following are for read_range() */
   key_range save_end_range, *end_range;
@@ -421,6 +443,10 @@ public:
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
   virtual int index_read_last(byte * buf, const byte * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
+                                     KEY_MULTI_RANGE *ranges, uint range_count,
+                                     bool sorted, HANDLER_BUFFER *buffer);
+  virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
