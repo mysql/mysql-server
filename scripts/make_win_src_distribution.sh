@@ -251,7 +251,7 @@ copy_dir_dirs() {
 
 for i in client dbug extra heap include isam \
          libmysql libmysqld merge myisam \
-         myisammrg mysys regex sql strings sql-common \
+         myisammrg mysys regex sql strings sql-common sql/examples \
          tools vio zlib
 do
   copy_dir_files $i
