@@ -5541,43 +5541,44 @@ pipes.
 All of the above binaries are optimised for the Pentium Pro
 processor but should work on any Intel processor >= i386.
 
-In the following circumstances you will need to use the MySQL
-configuration file:
+You will need to use an option file to specify your MySQL configuration
+under the following circumstances:
 @itemize @bullet
 @item
-The install/data directories are different than the default
-@file{c:\mysql} and @file{c:\mysql\data}.
+The installation or data directories are different than the default
+locations (@file{c:\mysql} and @file{c:\mysql\data}).
 @item
-If you want to use one of the these servers:
+You want to use one of these servers:
 @itemize @bullet
 @item mysqld.exe
 @item mysqld-max.exe
 @item mysqld-max-nt.exe
 @end itemize
 @item
-If you need to tune the server settings.
+You need to tune the server settings.
 @end itemize
 
 Normally you can use the @code{WinMySQLAdmin} tool to edit the
-configuration file @code{my.ini}. In this case you don't have to worry
+option file @code{my.ini}.  In this case you don't have to worry
 about the following section.
 
-There are two configuration files with the same function: @file{my.cnf}
-and @file{my.ini} file, however please note that only of one these
-should be used to avoid confusion. Both files are plain text.  The
-@file{my.cnf} file , if used, should be created in the root directory of
-drive C and the @file{my.ini} file on the WinDir directory e.g:
-@file{C:\WINDOWS} or @file{C:\WINNT}.  MySQL will first read the
-@code{my.ini} file, followed by the @code{my.cnf} file.
+There are two option files with the same function: @file{my.cnf} and
+@file{my.ini} file.  However, to avoid confusion, it's best if you use only
+of one them. Both files are plain text.  The @file{my.cnf} file, if used,
+should be created in the root directory of drive C.  The @file{my.ini}
+file, if used, should be created in the Windows system directory (e.g.,
+@file{C:\WINDOWS} or @file{C:\WINNT}).  MySQL will look first for the
+@code{my.ini} file, then for the @code{my.cnf} file.
 
 If your PC uses a boot loader where the C drive isn't the boot drive,
 then your only option is to use the @file{my.ini} file.  Also note that
-if you use the @code{WinMySQLAdmin} tool, only the @file{my.ini} file is
-used by this tool. The @file{\mysql\bin} directory contains a help file
-with instructions for using this tool.
+if you use the @code{WinMySQLAdmin} tool, it uses only the @file{my.ini}
+file.  The @file{\mysql\bin} directory contains a help file with
+instructions for using this tool.
 
-Using @code{notepad.exe}, create the configuration file and
-edit the base section and keys:
+Using @code{notepad.exe}, create the option file and edit the
+@code{[mysqld]} section to specify values for the @code{basedir} and
+@code{datadir} parameters:
 
 @example
 [mysqld]
@@ -5588,19 +5589,22 @@ basedir=the_install_path
 datadir=the_data_path
 @end example
 
-If the data directory is other than the default
-@file{c:\mysql\data}, you must cut the whole @file{\data\mysql}
-directory and paste it on the your option new directory,
-e.g.: @file{d:\mydata\mysql}.
+Note that Windows pathnames should be specified in option files using
+forward slashes rather than backslashes.  If you do use backslashes, you
+must double them.
+
+If you would like to use a data directory different than the default of
+@file{c:\mysql\data}, you must copy the entire contents of the
+@file{c:\mysql\data} directory to the new location.
 
 If you want to use the @code{InnoDB} transactional tables, you
 need to manually create two new directories to hold the InnoDB
 data and log files, e.g. @file{c:\ibdata} and @file{c:\iblogs}.
-You will also need to add some extra lines to the configuration
+You will also need to add some extra lines to the option
 file. @xref{InnoDB start}.
 
 If you don't want to use @code{InnoDB} tables, add the
-@code{skip-innodb} option to the configuration file.
+@code{skip-innodb} option to the option file.
 
 Now you are ready to test starting the server.
 
