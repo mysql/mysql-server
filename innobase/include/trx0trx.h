@@ -24,6 +24,13 @@ saving CPU time. The kernel mutex contention is increased, however. */
 
 extern ulint	trx_n_mysql_transactions;
 
+/************************************************************************
+Releases the search latch if trx has reserved it. */
+
+void
+trx_search_latch_release_if_reserved(
+/*=================================*/
+        trx_t*     trx); /* in: transaction */
 /********************************************************************
 Retrieves the error_info field from a trx. */
 
@@ -282,6 +289,13 @@ struct trx_struct{
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
+        ulint           mysql_n_tables_locked;
+                                        /* how many tables the current SQL
+					statement uses, except those
+					in consistent read */
+        ibool           has_search_latch;
+			                /* TRUE if this trx has latched the
+			                search system latch in S-mode */
         ibool           ignore_duplicates_in_insert;
                                         /* in an insert roll back only insert
                                         of the latest row in case

@@ -98,12 +98,18 @@ btr_cur_search_to_nth_level(
 				the previous page of the record! Inserts
 				should always be made using PAGE_CUR_LE to
 				search the position! */
-	ulint		latch_mode, /* in: BTR_SEARCH_LEAF, ...;
+	ulint		latch_mode, /* in: BTR_SEARCH_LEAF, ..., ORed with
+				BTR_INSERT and BTR_ESTIMATE;
 				cursor->left_page is used to store a pointer
 				to the left neighbor page, in the cases
-				BTR_SEARCH_PREV and BTR_MODIFY_PREV */
-	btr_cur_t*	cursor, /* out: tree cursor; the cursor page is s- or
-				x-latched */
+				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
+				NOTE that if has_search_latch
+				is != 0, we maybe do not have a latch set
+				on the cursor page, we assume
+				the caller uses his search latch
+				to protect the record! */
+	btr_cur_t*	cursor, /* in/out: tree cursor; the cursor page is
+				s- or x-latched, but see also above! */
 	ulint		has_search_latch,/* in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */

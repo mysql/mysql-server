@@ -2142,6 +2142,7 @@ ha_innobase::external_lock(
 	prebuilt->in_update_remember_pos = TRUE;
 
 	if (lock_type == F_WRLCK) {
+
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		prebuilt->select_lock_type = LOCK_X;
@@ -2153,13 +2154,27 @@ ha_innobase::external_lock(
 		}
 
 		trx->n_mysql_tables_in_use++;
+
+		if (prebuilt->select_lock_type != LOCK_NONE) {
+
+		  trx->mysql_n_tables_locked++;
+		}
 	} else {
 		trx->n_mysql_tables_in_use--;
 
-		if (trx->n_mysql_tables_in_use == 0 &&
-		    !(thd->options
-		      & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
-		  innobase_commit(thd, trx);
+		if (trx->n_mysql_tables_in_use == 0) {
+
+		  trx->mysql_n_tables_locked = 0;
+
+		  if (trx->has_search_latch) {
+
+		    trx_search_latch_release_if_reserved(trx);
+		  }
+
+		  if (!(thd->options
+			& (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+		    innobase_commit(thd, trx);
+		  }
 		}
 	}
 
@@ -2688,6 +2703,39 @@ ha_innobase::info(
   	}
 
   	DBUG_VOID_RETURN;
+}
+
+/***********************************************************************
+Tries to check that an InnoDB table is not corrupted. If corruption is
+noticed, prints to stderr information about it. In case of corruption
+may also assert a failure and crash the server. */
+
+int
+ha_innobase::check(
+/*===============*/
+					/* out: HA_ADMIN_CORRUPT or
+					HA_ADMIN_OK */
+	THD* 		thd,		/* in: user thread handle */
+	HA_CHECK_OPT* 	check_opt)	/* in: check options, currently
+					ignored */
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	ulint		ret;
+	
+	if (prebuilt->mysql_template == NULL) {
+		/* Build the template; we will use a dummy template
+		in index scans done in checking */
+
+		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
+	}
+
+	ret = row_check_table_for_mysql(prebuilt);
+
+	if (ret == DB_SUCCESS) {
+		return(HA_ADMIN_OK);
+	}
+	
+  	return(HA_ADMIN_CORRUPT); 
 }
 
 /*****************************************************************
