@@ -2562,7 +2562,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   char *key_ptr= (char*) key_val;
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   bool cur_covered;
-  bool prev_covered= bitmap_is_set(&info->covered_fields, key_part->fieldnr);
+  bool prev_covered= (bitmap_is_set(&info->covered_fields, 
+                                    key_part->fieldnr))? 1 : 0;
   key_range min_range;
   key_range max_range;
   min_range.key= (byte*) key_val;
@@ -2575,7 +2576,9 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   for(i= 0, sel_arg= scan->sel_arg; sel_arg;
       i++, sel_arg= sel_arg->next_key_part)
   {
-    cur_covered= bitmap_is_set(&info->covered_fields, (key_part + i)->fieldnr);
+    DBUG_PRINT("info",("sel_arg step"));
+    cur_covered= (bitmap_is_set(&info->covered_fields,
+                                (key_part + i)->fieldnr))? 1 : 0;
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
