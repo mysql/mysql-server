@@ -4209,7 +4209,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 ****************************************************************************/
 
 void
-mysql_init_query(THD *thd, bool lexonly)
+mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly)
 {
   DBUG_ENTER("mysql_init_query");
   LEX *lex= thd->lex;
@@ -4243,6 +4243,7 @@ mysql_init_query(THD *thd, bool lexonly)
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
   lex->empty_field_list_on_rset= 0;
+  lex_start(thd, buf, length);
   if (! lexonly)
   {
     thd->select_number= lex->select_lex.select_number= 1;
@@ -4391,10 +4392,10 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
-  mysql_init_query(thd);
+  mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
-    LEX *lex=lex_start(thd, (uchar*) inBuf, length);
+    LEX *lex= thd->lex;
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4460,12 +4461,11 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 
 bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 {
-  LEX *lex;
+  LEX *lex= thd->lex;
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  mysql_init_query(thd);
-  lex= lex_start(thd, (uchar*) inBuf, length);
+  mysql_init_query(thd, (uchar*) inBuf, length);
   if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */

@@ -446,7 +446,13 @@ String *Item_func_spatial_collection::val_str(String *str)
     }
   }
   if (str->length() > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
+  }
 
   null_value = 0;
   return str;
