@@ -2719,7 +2719,7 @@ Popular iODBC Driver Manager (libiodbc) now available as Open Source.
 @item @uref{http://users.ids.net/~bjepson/freeODBC/}
 The FreeODBC Pages.
 
-@item @uref{http:/http://genix.net/unixODBC/}
+@item @uref{http://genix.net/unixODBC/}
 The unixODBC Project goals are to develop and promote unixODBC to be the
 definitive standard for ODBC on the Linux platform.  This is to include GUI
 support for KDE.
@@ -2776,7 +2776,7 @@ environment.
 @item @uref{http://www.wix.com/mysql-hosting/}
 Registry of Web providers who support @strong{MySQL}.
 
-@item @uref{http://www.softagency.co.jp/mysql/index.en.phtml}
+@item @uref{http://www.softagency.co.jp/mysql/index.en.html}
 Links about using @strong{MySQL} in Japan/Asia.
 
 @item @uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/}
@@ -2895,11 +2895,6 @@ same (or similar) query.  Uses PHP and @strong{MySQL}.
 @c EMAIL: paul@sword.damocles.com (Paul Bannister)
 @item @uref{http://www.stopbit.com/}
 Stopbit - A technology news site using @strong{MySQL} and PHP.
-
-@c Added 990604
-@c EMAIL: ah@dybdahl.dk
-@item @uref{http://www.jokes2000.com/scripts/}
-Example scripts at Jokes2000.
 
 @item @uref{http://www.linuxsupportline.com/~kalendar/}
 KDE based calendar manager - The calendar manager has both single user
@@ -7749,7 +7744,7 @@ For the source distribution of @code{glibc} 2.0.7, a patch that is easy to
 apply and is tested with @strong{MySQL} may be found at:
 
 @example
-@uref{http://www.mysql.com/Download/Linux/glibc-2.0.7-total-patch.tar.gz}
+@uref{http://www.mysql.com/Downloads/Linux/glibc-2.0.7-total-patch.tar.gz}
 @end example
 
 If you experience crashes like these when you build @strong{MySQL}, you can
@@ -42339,7 +42334,7 @@ more than one way to compute}
 
 @itemize @bullet
 
-@item @uref{http:www.spylog.ru/, SpyLOG ;  A very popular Web counter site}
+@item @uref{http://www.spylog.ru/, SpyLOG ;  A very popular Web counter site}
 
 @item @uref{http://www.tucows.com/, TuCows Network; Free Software archive}
 
@@ -42360,8 +42355,6 @@ more than one way to compute}
 @item @uref{http://www.herbaria.harvard.edu/Data/Gray/gray.html,Harvard's Gray Herbarium Index of Plant Names}
 
 @item @uref{http://www.game-developer.com/,The Game Development Search Engine}
-
-@item @uref{http://www.i-run.com/html/cookbook.html,My-Recipe.com; Cookbook at i-run.com}
 
 @item @uref{www.theinnkeeper.com, The Innkeeper Vacation Guides}
 
@@ -42494,7 +42487,7 @@ the @strong{MySQL} database
 @itemize @bullet
 @c @item @uref{http://www.wh200th.com,  White House 200th Anniversary site}
 
-@item @uref{http://war.jgaa.com:8080/support/index.php3, Jgaa's Internet - Official Support Site}
+@item @uref{http://support.jgaa.com/, Jgaa's Internet - Official Support Site}
 
 @item @uref{http://io.incluso.com, Ionline - online publication:} @strong{MySQL},
 PHP, Java, Web programming, DB development
@@ -42557,10 +42550,6 @@ Ecommerce site that is selling computers.
 @end itemize
 
 @appendixsec Programming
-
-@itemize @bullet
-@item @uref{http://www.perl.org/cpan-testers, The Perl CPAN Testers results page}
-@end itemize
 
 @cindex web pages, miscellaneous
 @appendixsec Uncategorized Pages
@@ -43159,6 +43148,10 @@ and "post-processing" on both fields, records, and operations.
 Apache module to include HTML from @strong{MySQL} queries into your pages,
 and run update queries.  Originally written to implement a simple fast
 low-overhead banner-rotation system.  By Sasha Pachev.
+
+@item @uref{http://htcheck.sourceforge.net, htCheck} - URL checker with
+MySQL backend. Spidered URLs can later be queried using SQL to retrieve
+various kinds of information, eg. broken links. Written by Gabriele Bartolini.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
 This package has various functions for generating html code from a SQL
@@ -44090,6 +44083,9 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+Better error message when slave @code{max_allowed_packet} is to low to
+read a very long log event from the master
 @item
 Fixed bug when too many rows where removed when using
 @code{SELECT DISTINCT ... HAVING}.
