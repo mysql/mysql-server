@@ -11,19 +11,19 @@ FULLTEXT KEY a(b,c)
 INSERT INTO t1 VALUES (1,'lala lolo lili','oooo aaaa pppp');
 INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');
 INSERT INTO t1 VALUES (3,'qpwoei','zmxnvb');
-SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM t1;
-a	MATCH  b  AGAINST ('lala lkjh')
-1	0.67003107070923
-2	0
-3	0
-SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM t1;
-a	MATCH  c  AGAINST ('lala lkjh')
-1	0
-2	0.67756325006485
-3	0
-SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM t1;
-a	MATCH b,c AGAINST ('lala lkjh')
-1	0.64840710163116
-2	0.66266459226608
-3	0
+SELECT a, FORMAT(MATCH  b  AGAINST ('lala lkjh'),6) FROM t1;
+a	FORMAT(MATCH  b  AGAINST ('lala lkjh'),6)
+1	0.670031
+2	0.000000
+3	0.000000
+SELECT a, FORMAT(MATCH  c  AGAINST ('lala lkjh'),6) FROM t1;
+a	FORMAT(MATCH  c  AGAINST ('lala lkjh'),6)
+1	0.000000
+2	0.677563
+3	0.000000
+SELECT a, FORMAT(MATCH b,c AGAINST ('lala lkjh'),6) FROM t1;
+a	FORMAT(MATCH b,c AGAINST ('lala lkjh'),6)
+1	0.648407
+2	0.662665
+3	0.000000
 drop table t1;

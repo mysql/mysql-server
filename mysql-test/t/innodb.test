@@ -1093,6 +1093,7 @@ show create table t2;
 drop table t2;
 
 # Test error handling
+--replace_result \\ /
 --error 1005
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 

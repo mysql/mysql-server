@@ -272,7 +272,7 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SET NAMES latin1;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 #alter table t1 modify t text character set latin1 collate latin1_german2_ci not null;
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
