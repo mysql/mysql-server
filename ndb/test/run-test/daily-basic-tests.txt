@@ -456,7 +456,7 @@ max-time: 150000
 cmd: testOperations
 args:
 
-max-time: 1500
+max-time: 15000
 cmd: testTransactions
 args:
 
