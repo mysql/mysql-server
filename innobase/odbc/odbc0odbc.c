@@ -421,7 +421,7 @@ SQLError(
 	}
 
 	*pfNativeError = 0;
-	ut_memcpy(szSqlState, "S1000", 6);
+	ut_memcpy(szSqlState, (char *) "S1000", 6);
 
 	len = (ulint)cbErrorMsgMax - 1;
 

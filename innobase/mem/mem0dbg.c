@@ -372,7 +372,8 @@ void
 mem_heap_validate_or_print(
 /*=======================*/
 	mem_heap_t* 	heap, 	/* in: memory heap */
-	byte*		top,	/* in: calculate and validate only until
+	byte*		top __attribute__((unused)),	
+	                        /* in: calculate and validate only until
 				this top pointer in the heap is reached,
 				if this pointer is NULL, ignored */
 	ibool		print,	/* in: if TRUE, prints the contents
@@ -578,7 +579,8 @@ static
 void
 mem_print_info_low(
 /*===============*/
-	ibool	print_all)	/* in: if TRUE, all heaps are printed,
+	ibool	print_all __attribute__((unused)))
+                                /* in: if TRUE, all heaps are printed,
 				else only the heaps allocated after the
 				previous call of this function */	
 {

@@ -489,7 +489,7 @@ row_lock_table_autoinc_for_mysql(
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
-	trx->op_info = "setting auto-inc lock";
+	trx->op_info = (char *) "setting auto-inc lock";
 
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
@@ -525,14 +525,14 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = "";
+		trx->op_info = (char *) "";
 
 		return(err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 		
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);	
 }
@@ -569,7 +569,7 @@ row_insert_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "inserting";
+	trx->op_info = (char *) "inserting";
 
 	trx_start_if_not_started(trx);
 
@@ -610,7 +610,7 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = "";
+		trx->op_info = (char *) "";
 
 		return(err);
 	}
@@ -627,7 +627,7 @@ run_again:
 	}	
 
 	row_update_statistics_if_needed(prebuilt);
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -754,7 +754,7 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "updating or deleting";
+	trx->op_info = (char *) "updating or deleting";
 
 	trx_start_if_not_started(trx);
 
@@ -831,7 +831,7 @@ run_again:
 		
 		if (err == DB_RECORD_NOT_FOUND) {
 			trx->error_state = DB_SUCCESS;
-			trx->op_info = "";
+			trx->op_info = (char *) "";
 
 			return((int) err);
 		}
@@ -842,7 +842,7 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = "";
+		trx->op_info = (char *) "";
 
 		return(err);
 	}
@@ -861,7 +861,7 @@ run_again:
 
 	row_update_statistics_if_needed(prebuilt);
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -949,17 +949,17 @@ row_create_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "creating table";
+	trx->op_info = (char *) "creating table";
 
 	trx_start_if_not_started(trx);
 
 	namelen = ut_strlen(table->name);
 
-	keywordlen = ut_strlen("innodb_monitor");
+	keywordlen = ut_strlen((char *) "innodb_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"innodb_monitor", keywordlen)) {
+ 				(char *) "innodb_monitor", keywordlen)) {
 
 		/* Table name ends to characters innodb_monitor:
 		start monitor prints */
@@ -972,32 +972,34 @@ row_create_table_for_mysql(
 		os_event_set(srv_lock_timeout_thread_event);
 	}
 
-	keywordlen = ut_strlen("innodb_lock_monitor");
+	keywordlen = ut_strlen((char *) "innodb_lock_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"innodb_lock_monitor", keywordlen)) {
+ 				(char *) "innodb_lock_monitor", keywordlen)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
 	}
 
-	keywordlen = ut_strlen("innodb_tablespace_monitor");
+	keywordlen = ut_strlen((char *) "innodb_tablespace_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"innodb_tablespace_monitor", keywordlen)) {
+				      (char *) "innodb_tablespace_monitor", 
+				      keywordlen)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
 	}
 
-	keywordlen = ut_strlen("innodb_table_monitor");
+	keywordlen = ut_strlen((char *) "innodb_table_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"innodb_table_monitor", keywordlen)) {
+				      (char *) "innodb_table_monitor",
+				      keywordlen)) {
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
@@ -1057,7 +1059,7 @@ row_create_table_for_mysql(
 	mutex_exit(&(dict_sys->mutex));
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -1081,7 +1083,7 @@ row_create_index_for_mysql(
 	
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
-	trx->op_info = "creating index";
+	trx->op_info = (char *) "creating index";
 
 	trx_start_if_not_started(trx);
 
@@ -1121,7 +1123,7 @@ row_create_index_for_mysql(
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 	
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -1152,7 +1154,7 @@ row_table_add_foreign_constraints(
 
 	ut_a(sql_string);
 	
-	trx->op_info = "adding foreign keys";
+	trx->op_info = (char *) "adding foreign keys";
 
 	trx_start_if_not_started(trx);
 
@@ -1226,16 +1228,16 @@ row_drop_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "dropping table";
+	trx->op_info = (char *) "dropping table";
 
 	trx_start_if_not_started(trx);
 
 	namelen = ut_strlen(name);
-	keywordlen = ut_strlen("innodb_monitor");
+	keywordlen = ut_strlen((char *) "innodb_monitor");
 
 	if (namelen >= keywordlen
 	    && 0 == ut_memcmp(name + namelen - keywordlen,
- 					"innodb_monitor", keywordlen)) {
+			      (char *) "innodb_monitor", keywordlen)) {
 
 		/* Table name ends to characters innodb_monitor:
 		stop monitor prints */
@@ -1244,30 +1246,33 @@ row_drop_table_for_mysql(
 		srv_print_innodb_lock_monitor = FALSE;
 	}
 
-	keywordlen = ut_strlen("innodb_lock_monitor");
+	keywordlen = ut_strlen((char *) "innodb_lock_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(name + namelen - keywordlen,
- 				"innodb_lock_monitor", keywordlen)) {
+				      (char *) "innodb_lock_monitor",
+				      keywordlen)) {
 
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	}
 
-	keywordlen = ut_strlen("innodb_tablespace_monitor");
+	keywordlen = ut_strlen((char *) "innodb_tablespace_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(name + namelen - keywordlen,
- 				"innodb_tablespace_monitor", keywordlen)) {
+				      (char *) "innodb_tablespace_monitor",
+				      keywordlen)) {
 
 		srv_print_innodb_tablespace_monitor = FALSE;
 	}
 
-	keywordlen = ut_strlen("innodb_table_monitor");
+	keywordlen = ut_strlen((char *) "innodb_table_monitor");
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(name + namelen - keywordlen,
- 				"innodb_table_monitor", keywordlen)) {
+				      (char *) "innodb_table_monitor",
+				      keywordlen)) {
 
 		srv_print_innodb_table_monitor = FALSE;
 	}
@@ -1277,7 +1282,7 @@ row_drop_table_for_mysql(
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
 
-	str1 =
+	str1 = (char *) 
 	"PROCEDURE DROP_TABLE_PROC () IS\n"
 	"table_name CHAR;\n"
 	"sys_foreign_id CHAR;\n"
@@ -1288,7 +1293,7 @@ row_drop_table_for_mysql(
 	"BEGIN\n"
 	"table_name := '";
 	
-	str2 = 
+	str2 = (char *) 
 	"';\n"
 	"SELECT ID INTO table_id\n"
 	"FROM SYS_TABLES\n"
@@ -1423,7 +1428,7 @@ funct_exit:
 
 	que_graph_free(graph);
 	
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -1445,13 +1450,13 @@ row_drop_database_for_mysql(
 	ut_a(name != NULL);
 	ut_a(name[strlen(name) - 1] == '/');
 	
-	trx->op_info = "dropping database";
+	trx->op_info = (char *) "dropping database";
 	
 	trx_start_if_not_started(trx);
 
 	mutex_enter(&(dict_sys->mutex));
 
-	while (table_name = dict_get_first_table_name_in_db(name)) {
+	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, strlen(name)) == 0);
 
 		err = row_drop_table_for_mysql(table_name, trx, TRUE);
@@ -1470,7 +1475,7 @@ row_drop_database_for_mysql(
 	
 	trx_commit_for_mysql(trx);
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return(err);
 }
@@ -1511,20 +1516,20 @@ row_rename_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = "renaming table";
+	trx->op_info = (char *) "renaming table";
 	trx_start_if_not_started(trx);
 
-	str1 =
+	str1 = (char *) 
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
 	"new_table_name CHAR;\n"
 	"old_table_name CHAR;\n"
 	"BEGIN\n"
 	"new_table_name :='";
 
-	str2 = 
+	str2 = (char *) 
 	"';\nold_table_name := '";
 
-	str3 =
+	str3 = (char *) 
 	"';\n"
 	"UPDATE SYS_TABLES SET NAME = new_table_name\n"
 	"WHERE NAME = old_table_name;\n"
@@ -1591,7 +1596,7 @@ funct_exit:
 
 	que_graph_free(graph);
 	
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }
@@ -1718,7 +1723,7 @@ row_check_table_for_mysql(
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
 	ulint		ret 	= DB_SUCCESS;
 
-	prebuilt->trx->op_info = "checking table";
+	prebuilt->trx->op_info = (char *) "checking table";
 	
 	index = dict_table_get_first_index(table);
 
@@ -1751,7 +1756,7 @@ row_check_table_for_mysql(
 		index = dict_table_get_next_index(index);
 	}
 
-	prebuilt->trx->op_info = "";
+	prebuilt->trx->op_info = (char *) "";
 
 	return(ret);
 }

@@ -103,9 +103,10 @@ ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
 				/* out: TRUE if freed */
-	ulint	n_iterations)	/* in: how many times this has been called
-				repeatedly without result: a high value
-				means that we should search farther */
+	ulint	n_iterations __attribute__((unused))) /* in: how many times
+                                this has been called repeatedly without
+                                result: a high value means that we should 
+                                search farther */
 {
 	buf_block_t*	block;
 	ibool		freed;
@@ -199,7 +200,7 @@ buf_LRU_get_free_block(void)
 	buf_block_t*	block		= NULL;
 	ibool		freed;
 	ulint		n_iterations	= 0;
-	ibool		mon_value_was;
+	ibool		mon_value_was   = 0; /* remove bug */
 	ibool		started_monitor	= FALSE;
 loop:
 	mutex_enter(&(buf_pool->mutex));

@@ -803,7 +803,7 @@ fsp_parse_init_file_page(
 /*=====================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page)	/* in: page or NULL */
 {
 	ut_ad(ptr && end_ptr);
@@ -1252,7 +1252,7 @@ fsp_seg_inode_page_get_nth_inode(
 			/* out: segment inode */
 	page_t*	page,	/* in: segment inode page */
 	ulint	i,	/* in: inode index on page */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	mtr_t*	mtr __attribute__((unused))) /* in: mini-transaction handle */
 {
 	ut_ad(i < FSP_SEG_INODES_PER_PAGE);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
@@ -1494,7 +1494,7 @@ fseg_get_nth_frag_page_no(
 				/* out: page number, FIL_NULL if not in use */
 	fseg_inode_t* 	inode,	/* in: segment inode */
 	ulint		n,	/* in: slot index */
-	mtr_t*		mtr)	/* in: mtr handle */
+	mtr_t*		mtr __attribute__((unused))) /* in: mtr handle */
 {
 	ut_ad(inode && mtr);
 	ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
@@ -1632,7 +1632,7 @@ fseg_create_general(
 	fsp_header_t*	space_header;
 	fseg_inode_t*	inode;
 	dulint		seg_id;
-	fseg_header_t*	header;
+	fseg_header_t*	header = 0; /* remove warning */
 	rw_lock_t*	latch;
 	ibool		success;
 	page_t*		ret		= NULL;
