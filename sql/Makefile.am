@@ -107,7 +107,11 @@ BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
 AM_YFLAGS =		-d
 
-link_sources:
+mysql_tzinfo_to_sql.cc:
+	rm -f mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
+
+link_sources: mysql_tzinfo_to_sql.cc
 	rm -f mini_client_errors.c
 	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
@@ -116,8 +120,6 @@ link_sources:
 	@LN_CP_F@ ../sql-common/client.c client.c
 	rm -f my_time.c
 	@LN_CP_F@ ../sql-common/my_time.c my_time.c
-	rm -f mysql_tzinfo_to_sql.cc
-	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
