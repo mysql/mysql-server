@@ -312,8 +312,8 @@ bool Field::optimize_range(uint idx)
 }
 
 /****************************************************************************
-** Functions for the Field_decimal class
-** This is an unpacked number.
+  Functions for the Field_decimal class
+  This is an number stored as a pre-space (or pre-zero) string
 ****************************************************************************/
 
 void
@@ -326,6 +326,8 @@ void Field_decimal::overflow(bool negative)
 {
   uint len=field_length;
   char *to=ptr, filler= '9';
+
+  current_thd->cuted_fields++;
   if (negative)
   {
     if (!unsigned_flag)
@@ -419,7 +421,7 @@ void Field_decimal::store(const char *from,uint len)
   if ((tmp_dec=dec))
     tmp_dec++;
 
-  for (; from!=end && isspace(*from); from++) ;	// Read spaces
+  for (; from !=end && isspace(*from); from++) ; // Read spaces
   if (from == end)
   {
     current_thd->cuted_fields++;
@@ -428,23 +430,22 @@ void Field_decimal::store(const char *from,uint len)
   else if (*from == '+' || *from == '-')	// Found some sign ?
   {
     sign_char= *from++;
-    /* 
-     Unsigned can't have any flag. So we'll just drop "+"  
-     and will overflow on "-"
+    /*
+      Unsigned can't have any flag. So we'll just drop "+"
+      and will overflow on "-"
     */ 
     if (unsigned_flag)  
     { 
       if (sign_char=='-')
       {
-        current_thd->cuted_fields++;
         Field_decimal::overflow(1);
         return;
       }
       else 
         sign_char=0;
     }
-      
   }
+
   pre_zeros_from= from;
   for (; from!=end && *from == '0'; from++) ;	// Read prezeros
   pre_zeros_end=int_digits_from=from;      
@@ -484,7 +485,7 @@ void Field_decimal::store(const char *from,uint len)
 
   if (current_thd->count_cuted_fields)
   {
-    for (;from!=end && isspace(*from); from++) ;   // Read end spaces
+    for (;from != end && isspace(*from); from++) ;   // Read end spaces
     if (from != end)                     // If still something left, warn
     {
       current_thd->cuted_fields++; 
@@ -563,7 +564,6 @@ void Field_decimal::store(const char *from,uint len)
 
   if (field_length < tmp_uint + (int) (sign_char == '-'))
   {
-    current_thd->cuted_fields++;
     // too big number, change to max or min number
     Field_decimal::overflow(sign_char == '-');
     return;
@@ -606,7 +606,7 @@ void Field_decimal::store(const char *from,uint len)
   }
   else
   {
-    left_wall=to+(sign_char!=0)-1;
+    left_wall=to+(sign_char != 0)-1;
     if (!expo_sign_char)	// If exponent was specified, ignore prezeros
     {
       for (;pos != left_wall && pre_zeros_from !=pre_zeros_end;
@@ -659,7 +659,7 @@ void Field_decimal::store(const char *from,uint len)
 	{
 	  if (tmp_char != '0')			// Losing a non zero digit ?
 	  {
-	    if (current_thd->count_cuted_fields && !is_cuted_fields_incr)
+	    if (!is_cuted_fields_incr)
 	      current_thd->cuted_fields++;
 	    return;
 	  }
@@ -696,14 +696,12 @@ void Field_decimal::store(double nr)
   if (unsigned_flag && nr < 0)
   {
     overflow(1);
-    current_thd->cuted_fields++;
     return;
   }
   
   if (isinf(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
-    current_thd->cuted_fields++;
     return;      
   }
   
@@ -721,10 +719,7 @@ void Field_decimal::store(double nr)
   length=(uint) strlen(buff);
 
   if (length > field_length)
-  {
     overflow(nr < 0.0);
-    current_thd->cuted_fields++;
-  }
   else
   {
     to=ptr;
@@ -740,7 +735,6 @@ void Field_decimal::store(longlong nr)
   if (unsigned_flag && nr < 0)
   {
     overflow(1);
-    current_thd->cuted_fields++;
     return;
   }
   char buff[22];
@@ -748,10 +742,7 @@ void Field_decimal::store(longlong nr)
   uint int_part=field_length- (dec  ? dec+1 : 0);
 
   if (length > int_part)
-  {
     overflow(test(nr < 0L));			/* purecov: inspected */
-    current_thd->cuted_fields++;		/* purecov: inspected */
-  }
   else
   {
     char fyllchar = zerofill ? (char) '0' : (char) ' ';
