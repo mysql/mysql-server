@@ -1440,3 +1440,6 @@ third
 2
 3
 drop table t1;
+create table t1 (a int) engine=innodb;
+create table t2 like t1;
+drop table t1,t2;
