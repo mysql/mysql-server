@@ -323,13 +323,11 @@ THD::~THD()
 #endif
 
   DBUG_PRINT("info", ("freeing host"));
-#ifndef EMBEDDED_LIBRARY
   if (host != my_localhost)			// If not pointer to constant
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);
   safeFree(ip);
-#endif
   safeFree(db);
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
