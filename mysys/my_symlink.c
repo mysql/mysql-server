@@ -103,7 +103,8 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #define BUFF_LEN FN_LEN
 #endif
 
-int my_realpath(char *to, const char *filename, myf MyFlags)
+int my_realpath(char *to, const char *filename,
+		myf MyFlags __attribute__((unused)))
 {
 #if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
   int result=0;
