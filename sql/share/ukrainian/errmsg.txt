@@ -297,5 +297,5 @@ character-set=koi8u
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
 "Таблиця %-.100s у %s не може оновлюватись",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
 "The MySQL server is running with the %s option so it cannot execute this statement",
