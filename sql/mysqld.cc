@@ -5163,11 +5163,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && my_isdigit(mysqld_charset, argument[0]))
-    {
-      my_bind_addr = (ulong) inet_addr(argument);
-    }
-    else
+    if (!argument || (my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
       if (argument || argument[0])
