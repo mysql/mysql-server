@@ -52,7 +52,7 @@ enum AbortOption {
   TryCommit = 0,                ///< <i>Missing explanation</i>
 #endif
   AbortOnError = 0,             ///< Abort transaction on failed operation
-  AO_IgnoreError = 2               ///< Transaction continues on failed operation
+  AO_IgnoreError = 2            ///< Transaction continues on failed operation
 };
   
 typedef AbortOption CommitType;
@@ -76,33 +76,35 @@ enum ExecType {
  * @brief Represents a transaction.
  *
  * A transaction (represented by an NdbTransaction object) 
- * belongs to an Ndb object and is typically created using 
- * Ndb::startTransaction.
+ * belongs to an Ndb object and is created using 
+ * Ndb::startTransaction().
  * A transaction consists of a list of operations 
- * (represented by NdbOperation objects). 
+ * (represented by NdbOperation, NdbScanOperation, NdbIndexOperation,
+ *  and NdbIndexScanOperation objects). 
  * Each operation access exactly one table.
  *
  * After getting the NdbTransaction object, 
- * the first step is to get (allocate) an operation given the table name. 
+ * the first step is to get (allocate) an operation given the table name using
+ * one of the methods getNdbOperation(), getNdbScanOperation(),
+ * getNdbIndexOperation(), or getNdbIndexScanOperation().
  * Then the operation is defined. 
- * Several operations can be defined in parallel on the same 
- * NdbTransaction object. 
- * When all operations are defined, the NdbTransaction::execute
- * method sends them to the NDB kernel for execution. 
+ * Several operations can be defined on the same 
+ * NdbTransaction object, they will in that case be executed in parallell.
+ * When all operations are defined, the execute()
+ * method sends them to the NDB kernel for execution.
  *
- * The NdbTransaction::execute method returns when the NDB kernel has 
+ * The execute() method returns when the NDB kernel has 
  * completed execution of all operations defined before the call to 
- * NdbTransaction::execute. 
- * All allocated operations should be properly defined 
- * before calling NdbTransaction::execute.
+ * execute(). All allocated operations should be properly defined 
+ * before calling execute().
  *
- * A call to NdbTransaction::execute uses one out of three types of execution:
+ * A call to execute() uses one out of three types of execution:
  *  -# ExecType::NoCommit  Executes operations without committing them.
  *  -# ExecType::Commit	   Executes remaining operation and commits the 
  *        	           complete transaction
  *  -# ExecType::Rollback  Rollbacks the entire transaction.
  *
- * NdbTransaction::execute is equipped with an extra error handling parameter 
+ * execute() is equipped with an extra error handling parameter. 
  * There are two alternatives:
  * -# AbortOption::AbortOnError (default).
  *    The transaction is aborted if there are any error during the
@@ -345,6 +347,8 @@ public:
 
   /**
    * Close transaction
+   *
+   * @note Equivalent to to calling Ndb::closeTransaction()
    */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -415,10 +419,7 @@ public:
   Uint64	getTransactionId();
 
   /**
-   * Returns the commit status of the transaction.
-   *
-   * @return  The commit status of the transaction, i.e. one of
-   *          { NotStarted, Started, TimeOut, Committed, Aborted, NeedAbort } 
+   * The commit status of the transaction.
    */
   enum CommitStatusType { 
     NotStarted,                   ///< Transaction not yet started
@@ -428,6 +429,11 @@ public:
     NeedAbort                     ///< <i>Missing explanation</i>
   };
 
+  /**
+   * Get the commit status of the transaction.
+   *
+   * @return  The commit status of the transaction
+   */
   CommitStatusType commitStatus();
 
   /** @} *********************************************************************/
@@ -449,7 +455,7 @@ public:
    * This method is used on the NdbTransaction object to find the
    * NdbOperation causing an error.  
    * To find more information about the
-   * actual error, use method NdbOperation::getNdbError 
+   * actual error, use method NdbOperation::getNdbError()
    * on the returned NdbOperation object.
    *
    * @return The NdbOperation causing the latest error.

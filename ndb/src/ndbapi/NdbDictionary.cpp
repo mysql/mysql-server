@@ -177,12 +177,12 @@ NdbDictionary::Column::getPrimaryKey() const {
 }
 
 void 
-NdbDictionary::Column::setDistributionKey(bool val){
+NdbDictionary::Column::setPartitionKey(bool val){
   m_impl.m_distributionKey = val;
 }
 
 bool 
-NdbDictionary::Column::getDistributionKey() const{
+NdbDictionary::Column::getPartitionKey() const{
   return m_impl.m_distributionKey;
 }
 
