@@ -112,7 +112,7 @@ DbUtil::DbUtil(const Configuration & conf) :
   addRecSignal(GSN_UTIL_RELEASE_CONF, &DbUtil::execUTIL_RELEASE_CONF);
   addRecSignal(GSN_UTIL_RELEASE_REF,  &DbUtil::execUTIL_RELEASE_REF);
 
-  c_pagePool.setSize(100);
+  c_pagePool.setSize(10);
   c_preparePool.setSize(1);            // one parallel prepare at a time
   c_preparedOperationPool.setSize(5);  // three hardcoded, two for test
   c_operationPool.setSize(64);         // 64 parallel operations
