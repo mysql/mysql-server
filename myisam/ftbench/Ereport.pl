@@ -41,11 +41,7 @@ sub Favg { my $a=shift; $Pavg*$Ravg ? 1/($a/$Pavg+(1-$a)/$Ravg) : 0; }
   $Ravg/=$B*$A if $B;
   $Pavg/=$B    if $B;
 
-  write;
-format=
-@##### @#.#######
-$qid, Favg(0.5)
-.
+  printf "%5d %1.12f\n", $qid, Favg(0.5);
 }
 
 exit 0;
