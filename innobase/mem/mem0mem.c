@@ -14,8 +14,9 @@ Created 6/9/1994 Heikki Tuuri
 
 #include "mach0data.h"
 #include "buf0buf.h"
-#include "mem0dbg.c"
 #include "btr0sea.h"
+#include "srv0srv.h"
+#include "mem0dbg.c"
 
 /*
 			THE MEMORY MANAGEMENT
@@ -85,18 +86,12 @@ mem_alloc_func_noninline(
 /*=====================*/
 				/* out, own: free storage, NULL if did not
 				succeed */
-	ulint   n              	/* in: desired number of bytes */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,	/* in: file name where created */
+	ulint   n,              /* in: desired number of bytes */
+	char*  	file_name,	/* in: file name where created */
 	ulint   line		/* in: line where created */
-	#endif
 	)
 {
-	return(mem_alloc_func(n
-#ifdef UNIV_MEM_DEBUG
-				, file_name, line
-#endif
-	));	
+	return(mem_alloc_func(n, file_name, line));	
 }
 
 /*******************************************************************
@@ -113,8 +108,10 @@ mem_heap_create_block(
 			if init_block is not NULL, its size in bytes */
 	void*	init_block, /* in: init block in fast create, type must be
 			MEM_HEAP_DYNAMIC */
-	ulint 	type)	/* in: type of heap: MEM_HEAP_DYNAMIC, or
+	ulint 	type,	/* in: type of heap: MEM_HEAP_DYNAMIC, or
 			MEM_HEAP_BUFFER possibly ORed to MEM_HEAP_BTR_SEARCH */
+	char*  	file_name,/* in: file name where created */
+	ulint 	line)   /* in: line where created */
 {
 	mem_block_t*	block;
 	ulint		len;
@@ -164,7 +161,11 @@ mem_heap_create_block(
 	}
 
 	block->magic_n = MEM_BLOCK_MAGIC_N;
-
+	ut_memcpy(&(block->file_name), file_name + ut_strlen(file_name) - 7,
+									7);
+	block->file_name[7]='\0';
+	block->line = line;
+	
 	mem_block_set_len(block, len);
 	mem_block_set_type(block, type);
 	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
@@ -223,8 +224,8 @@ mem_heap_add_block(
 		new_size = n;
 	}
 	
-	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type);
-
+	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type,
+					heap->file_name, heap->line);
 	if (new_block == NULL) {
 
 		return(NULL);
@@ -255,7 +256,8 @@ mem_heap_block_free(
 	type = heap->type;
 	len = block->len;
 	init_block = block->init_block;
-
+	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
+	
 	#ifdef UNIV_MEM_DEBUG
 	/* In the debug version we set the memory to a random combination
 	of hex 0xDE and 0xAD. */

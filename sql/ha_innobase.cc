@@ -21,7 +21,7 @@ InnoDB */
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
- 
+   
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -111,6 +111,36 @@ static void free_share(INNOBASE_SHARE *share);
 static void innobase_print_error(const char* db_errpfx, char* buffer);
 
 /* General functions */
+
+/**********************************************************************
+Releases possible search latch, auto inc lock, and InnoDB thread FIFO ticket.
+These should be released at each SQL statement end. */
+static
+void
+innobase_release_stat_resources(
+/*============================*/
+	trx_t*	trx)	/* in: transaction object */
+{
+	if (trx->has_search_latch) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	if (trx->auto_inc_lock) {
+		  	
+		/* If we had reserved the auto-inc lock for
+		some table in this SQL statement, we release it now */
+		  	
+		srv_conc_enter_innodb(trx);
+		row_unlock_table_autoinc_for_mysql(trx);
+		srv_conc_exit_innodb(trx);
+	}
+
+	if (trx->declared_to_be_inside_innodb) {
+		/* Release our possible ticket in the FIFO */
+
+		srv_conc_force_exit_innodb(trx);
+	}
+}
 
 /************************************************************************
 Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
@@ -708,13 +738,13 @@ innobase_commit(
 	trx = check_trx_exists(thd);
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
-		srv_conc_enter_innodb(trx);
 
 		trx_commit_for_mysql(trx);
-
-		srv_conc_exit_innodb();
 	}
 
+	/* Release possible statement level resources */
+	innobase_release_stat_resources(trx);
+	
 	trx_mark_sql_stat_end(trx);
 
 #ifndef DBUG_OFF
@@ -739,16 +769,21 @@ transaction inside InnoDB. */
 int
 innobase_report_binlog_offset_and_commit(
 /*=====================================*/
-				/* out: 0 or error code */
+                                /* out: 0 or error code */
         THD*    thd,            /* in: user thread */
-	void*	trx_handle,     /* in: InnoDB trx handle */
+        void*   trx_handle,     /* in: InnoDB trx handle */
         char*   log_file_name,  /* in: latest binlog file name */
         my_off_t end_offset)    /* in: the offset in the binlog file
-				   up to which we wrote */
+                                   up to which we wrote */
 {
-  /* Currently does nothing ! */
+	trx_t*	trx;
 
-  return(0);
+	trx = (trx_t*)trx_handle;
+
+	trx->mysql_log_file_name = log_file_name;  	
+	trx->mysql_log_offset = (ib_longlong)end_offset;
+	
+  	return(innobase_commit(thd, trx_handle));
 }
 
 /*********************************************************************
@@ -778,8 +813,11 @@ innobase_rollback(
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
 
-	srv_conc_exit_innodb();
-	
+	srv_conc_exit_innodb(trx);
+
+	/* Release possible statement level resources */
+	innobase_release_stat_resources(trx);
+
 	trx_mark_sql_stat_end(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error));
@@ -1451,6 +1489,8 @@ ha_innobase::write_row(
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
+
+		innobase_release_stat_resources(prebuilt->trx);
 	}
 
   	if (table->next_number_field && record == table->record[0]) {
@@ -1501,7 +1541,7 @@ ha_innobase::write_row(
 
 			srv_conc_enter_innodb(prebuilt->trx);
 			error = row_lock_table_autoinc_for_mysql(prebuilt);
-			srv_conc_exit_innodb();
+			srv_conc_exit_innodb(prebuilt->trx);
 
 			if (error != DB_SUCCESS) {
 			
@@ -1518,7 +1558,7 @@ ha_innobase::write_row(
 				error = row_lock_table_autoinc_for_mysql(
 								prebuilt);
 				if (error != DB_SUCCESS) {
-					srv_conc_exit_innodb();
+					srv_conc_exit_innodb(prebuilt->trx);
 			
 					error = convert_error_code_to_mysql(
 								error);
@@ -1527,7 +1567,7 @@ ha_innobase::write_row(
 			}	
 
 			auto_inc = dict_table_autoinc_get(prebuilt->table);
-			srv_conc_exit_innodb();
+			srv_conc_exit_innodb(prebuilt->trx);
 
 			/* If auto_inc is now != 0 the autoinc counter
 			was already initialized for the table: we can give
@@ -1554,7 +1594,7 @@ ha_innobase::write_row(
 
 			srv_conc_enter_innodb(prebuilt->trx);
 			error = row_lock_table_autoinc_for_mysql(prebuilt);
-			srv_conc_exit_innodb();
+			srv_conc_exit_innodb(prebuilt->trx);
 
 			if (error != DB_SUCCESS) {
 			
@@ -1594,7 +1634,7 @@ ha_innobase::write_row(
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
-	srv_conc_exit_innodb();
+	srv_conc_exit_innodb(prebuilt->trx);
 
 	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
@@ -1789,6 +1829,8 @@ ha_innobase::update_row(
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
+
+		innobase_release_stat_resources(prebuilt->trx);
 	}
 
 	if (prebuilt->upd_node) {
@@ -1813,7 +1855,7 @@ ha_innobase::update_row(
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
-	srv_conc_exit_innodb();
+	srv_conc_exit_innodb(prebuilt->trx);
 
 	error = convert_error_code_to_mysql(error);
 
@@ -1842,6 +1884,8 @@ ha_innobase::delete_row(
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
+
+		innobase_release_stat_resources(prebuilt->trx);
 	}
 
 	if (!prebuilt->upd_node) {
@@ -1857,7 +1901,7 @@ ha_innobase::delete_row(
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
-	srv_conc_exit_innodb();
+	srv_conc_exit_innodb(prebuilt->trx);
 
 	error = convert_error_code_to_mysql(error);
 
@@ -1956,6 +2000,8 @@ ha_innobase::index_read(
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
+
+		innobase_release_stat_resources(prebuilt->trx);
 	}
 
 	index = prebuilt->index;
@@ -2001,7 +2047,7 @@ ha_innobase::index_read(
 
 	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
 
-	srv_conc_exit_innodb();
+	srv_conc_exit_innodb(prebuilt->trx);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -2127,7 +2173,7 @@ ha_innobase::general_fetch(
 	
 	ret = row_search_for_mysql((byte*)buf, 0, prebuilt, match_mode,
 								direction);
-	srv_conc_exit_innodb();
+	srv_conc_exit_innodb(prebuilt->trx);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -2427,89 +2473,6 @@ int ha_innobase::reset(void)
   	return(0);
 }
 
-/**********************************************************************
-As MySQL will execute an external lock for every new table it uses when it
-starts to process an SQL statement, we can use this function to store the
-pointer to the THD in the handle. We will also use this function to communicate
-to InnoDB that a new SQL statement has started and that we must store a
-savepoint to our transaction handle, so that we are able to roll back
-the SQL statement in case of an error. */
-
-int
-ha_innobase::external_lock(
-/*=======================*/
-	THD*	thd,		/* in: handle to the user thread */
-	int 	lock_type)	/* in: lock type */
-{
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-	int 		error = 0;
-	trx_t*		trx;
-
-  	DBUG_ENTER("ha_innobase::external_lock");
-
-	update_thd(thd);
-
-	trx = prebuilt->trx;
-
-	prebuilt->sql_stat_start = TRUE;
-	prebuilt->in_update_remember_pos = TRUE;
-
-	prebuilt->read_just_key = 0;
-
-	if (lock_type == F_WRLCK) {
-
-		/* If this is a SELECT, then it is in UPDATE TABLE ...
-		or SELECT ... FOR UPDATE */
-		prebuilt->select_lock_type = LOCK_X;
-	}
-
-	if (lock_type != F_UNLCK) {
-		if (trx->n_mysql_tables_in_use == 0) {
-			trx_mark_sql_stat_end(trx);
-		}
-
-		thd->transaction.all.innodb_active_trans = 1;
-		trx->n_mysql_tables_in_use++;
-
-		if (prebuilt->select_lock_type != LOCK_NONE) {
-
-		  	trx->mysql_n_tables_locked++;
-		}
-	} else {
-		trx->n_mysql_tables_in_use--;
-		auto_inc_counter_for_this_stat = 0;
-
-		if (trx->n_mysql_tables_in_use == 0) {
-
-		  	trx->mysql_n_tables_locked = 0;
-
-		  	if (trx->has_search_latch) {
-
-		    		trx_search_latch_release_if_reserved(trx);
-		  	}
-
-		  	if (trx->auto_inc_lock) {
-		  	
-		  		/* If we had reserved the auto-inc lock for
-				some table in this SQL statement, we release
-				it now */
-		  	
-				srv_conc_enter_innodb(trx);
-				row_unlock_table_autoinc_for_mysql(trx);
-				srv_conc_exit_innodb();
-			}
-
-		  	if (!(thd->options
-				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
-
-		    		innobase_commit(thd, trx);
-		  	}
-		}
-	}
-
-	DBUG_RETURN(error);
-}
-
 /*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
@@ -2685,7 +2648,7 @@ ha_innobase::create(
 
   	/* Create the table definition in InnoDB */
 
-  	if ((error = create_table_def(trx, form, norm_name))) {
+  	if (error = create_table_def(trx, form, norm_name)) {
 
 		trx_commit_for_mysql(trx);
 
@@ -3263,6 +3226,78 @@ ha_innobase::update_table_comment(
   	dict_print_info_on_foreign_keys(pos, 500, prebuilt->table);
   
   	return(str);
+}
+
+/**********************************************************************
+As MySQL will execute an external lock for every new table it uses when it
+starts to process an SQL statement, we can use this function to store the
+pointer to the THD in the handle. We will also use this function to communicate
+to InnoDB that a new SQL statement has started and that we must store a
+savepoint to our transaction handle, so that we are able to roll back
+the SQL statement in case of an error. */
+
+int
+ha_innobase::external_lock(
+/*=======================*/
+	THD*	thd,		/* in: handle to the user thread */
+	int 	lock_type)	/* in: lock type */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	int 		error = 0;
+	trx_t*		trx;
+
+  	DBUG_ENTER("ha_innobase::external_lock");
+
+	update_thd(thd);
+
+	trx = prebuilt->trx;
+
+	prebuilt->sql_stat_start = TRUE;
+	prebuilt->in_update_remember_pos = TRUE;
+
+	prebuilt->read_just_key = 0;
+
+	if (lock_type == F_WRLCK) {
+
+		/* If this is a SELECT, then it is in UPDATE TABLE ...
+		or SELECT ... FOR UPDATE */
+		prebuilt->select_lock_type = LOCK_X;
+	}
+
+	if (lock_type != F_UNLCK) {
+		if (trx->n_mysql_tables_in_use == 0) {
+			trx_mark_sql_stat_end(trx);
+		}
+
+		thd->transaction.all.innodb_active_trans = 1;
+		trx->n_mysql_tables_in_use++;
+
+		if (prebuilt->select_lock_type != LOCK_NONE) {
+
+		  	trx->mysql_n_tables_locked++;
+		}
+	} else {
+		trx->n_mysql_tables_in_use--;
+		auto_inc_counter_for_this_stat = 0;
+
+		if (trx->n_mysql_tables_in_use == 0) {
+
+		  	trx->mysql_n_tables_locked = 0;
+
+			/* Here we release the search latch, auto_inc_lock,
+			and InnoDB thread FIFO ticket if they were reserved. */
+
+			innobase_release_stat_resources(trx);
+
+		  	if (!(thd->options
+				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+
+		    		innobase_commit(thd, trx);
+		  	}
+		}
+	}
+
+	DBUG_RETURN(error);
 }
 
 /****************************************************************************

@@ -913,6 +913,17 @@ sync_array_print_long_waits(void)
 
 			noticed = TRUE;
                 }
+
+                if (cell->wait_object != NULL
+		    && difftime(time(NULL), cell->reservation_time) > 420) {
+
+		    	fprintf(stderr,
+"InnoDB: Error: semaphore wait has lasted > 420 seconds\n"
+"InnoDB: We intentionally crash the server, because it appears to be hung.\n"
+		    	);
+
+		    	ut_a(0);
+                }
        	}
 
 	if (noticed) {

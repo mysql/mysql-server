@@ -242,9 +242,13 @@ row_create_prebuilt(
 	ulint		ref_len;
 	ulint		i;
 	
+	dict_table_increment_handle_count(table);
+
 	heap = mem_heap_create(128);
 
 	prebuilt = mem_heap_alloc(heap, sizeof(row_prebuilt_t));
+
+	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 
 	prebuilt->table = table;
 
@@ -294,7 +298,7 @@ row_create_prebuilt(
 	prebuilt->blob_heap = NULL;
 
 	prebuilt->old_vers_heap = NULL;
-	
+
 	return(prebuilt);
 }
 
@@ -307,6 +311,19 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt)	/* in, own: prebuilt struct */
 {
 	ulint	i;
+
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to free a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
+	prebuilt->magic_n = ROW_PREBUILT_FREED;
 
 	btr_pcur_free_for_mysql(prebuilt->pcur);
 	btr_pcur_free_for_mysql(prebuilt->clust_pcur);
@@ -341,6 +358,8 @@ row_prebuilt_free(
 		}
 	}
 
+	dict_table_decrement_handle_count(prebuilt->table);
+
 	mem_heap_free(prebuilt->heap);
 }
 
@@ -356,6 +375,28 @@ row_update_prebuilt_trx(
 					handle */
 	trx_t*		trx)		/* in: transaction handle */
 {	
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to free a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to use a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
 	prebuilt->trx = trx;
 
 	if (prebuilt->ins_graph) {
@@ -563,6 +604,17 @@ row_insert_for_mysql(
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to free a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
 	if (srv_created_new_raw || srv_force_recovery) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
@@ -748,6 +800,17 @@ row_update_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 	
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to free a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
 	if (srv_created_new_raw || srv_force_recovery) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
@@ -782,38 +845,6 @@ row_update_for_mysql(
 	generated for the table: MySQL does not know anything about
 	the row id used as the clustered index key */
 
-#ifdef notdefined
-	/* We have to search for the correct cursor position */
-
-	ref_len = dict_index_get_n_unique(clust_index);
-
-	heap = mem_heap_create(450);
-
-	row_tuple = dtuple_create(heap, dict_table_get_n_cols(table));
-	dict_table_copy_types(row_tuple, table);
-
-	if (prebuilt->ins_upd_rec_buff == NULL) {
-		prebuilt->ins_upd_rec_buff = mem_heap_alloc(prebuilt->heap,
-						prebuilt->mysql_row_len);
-	}
-		
-	row_mysql_convert_row_to_innobase(row_tuple, prebuilt, mysql_rec);
-
-	search_tuple = dtuple_create(heap, ref_len);
-
-	row_build_row_ref_from_row(search_tuple, table, row_tuple);
-
-	mtr_start(&mtr);
-	
-	btr_pcur_open_with_no_init(clust_index, search_tuple, PAGE_CUR_LE,
-					BTR_SEARCH_LEAF, node->pcur, 0, &mtr);	
-
-	btr_pcur_store_position(node->pcur, &mtr);
-	
-	mtr_commit(&mtr);
-
-	mem_heap_free(heap);
-#endif
 	savept = trx_savept_take(trx);
 	
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
@@ -923,6 +954,50 @@ row_get_mysql_key_number_for_index(
 }
 
 /*************************************************************************
+Recovers an orphaned tmp table inside InnoDB by renaming it. In the table
+name #sql becomes rsql, and "_recover_innodb_tmp_table" is catenated to
+the end of name. table->name should be of the form
+"dbname/rsql..._recover_innodb_tmp_table". This renames a table whose
+name is "#sql..." */
+static
+int
+row_mysql_recover_tmp_table(
+/*========================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table definition */
+	trx_t*		trx)	/* in: transaction handle */
+{
+	char*	ptr;
+	char	old_name[1000];
+
+	ut_memcpy(old_name, table->name, ut_strlen(table->name) + 1);
+
+	ptr = old_name;
+
+	for (;;) {
+		if (ptr >= old_name + ut_strlen(table->name) - 6) {
+			trx_commit_for_mysql(trx);
+
+			return(DB_ERROR);
+		}
+
+		if (0 == ut_memcmp(ptr, "/rsql", 5)) {
+			ptr++;
+			*ptr = '#';
+
+			break;
+		}
+
+		ptr++;
+	}
+
+	old_name[ut_strlen(table->name)
+			- ut_strlen("_recover_innodb_tmp_table")] = '\0';
+
+	return(row_rename_table_for_mysql(old_name, table->name, trx));
+}
+
+/*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
 printing of monitor output by the master thread. */
@@ -973,6 +1048,24 @@ row_create_table_for_mysql(
 	}
 
 	trx_start_if_not_started(trx);
+
+	namelen = ut_strlen(table->name);
+
+	keywordlen = ut_strlen("_recover_innodb_tmp_table");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
+ 				"_recover_innodb_tmp_table", keywordlen)) {
+
+		/* MySQL prevents accessing of tables whose name begins
+		with #sql, that is temporary tables. If mysqld crashes in
+		the middle of an ALTER TABLE, we may get an orphaned
+		#sql-table in the tablespace. We have here a special
+		mechanism to recover such tables by renaming them to
+		rsql... */
+ 				
+		return(row_mysql_recover_tmp_table(table, trx));
+	}
 
 	namelen = ut_strlen(table->name);
 
@@ -1118,6 +1211,8 @@ row_create_index_for_mysql(
 	ind_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
+	ulint		namelen;
+	ulint		keywordlen;
 	ulint		err;
 	
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1125,6 +1220,18 @@ row_create_index_for_mysql(
 	trx->op_info = "creating index";
 
 	trx_start_if_not_started(trx);
+
+	namelen = ut_strlen(index->table_name);
+
+	keywordlen = ut_strlen("_recover_innodb_tmp_table");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(
+				index->table_name + namelen - keywordlen,
+ 				"_recover_innodb_tmp_table", keywordlen)) {
+
+		return(DB_SUCCESS);
+	}
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1189,6 +1296,8 @@ row_table_add_foreign_constraints(
 	char*	name)		/* in: table full name in the normalized form
 				database_name/table_name */
 {
+	ulint	namelen;
+	ulint	keywordlen;
 	ulint	err;
 
 	ut_a(sql_string);
@@ -1196,6 +1305,18 @@ row_table_add_foreign_constraints(
 	trx->op_info = "adding foreign keys";
 
 	trx_start_if_not_started(trx);
+
+	namelen = ut_strlen(name);
+
+	keywordlen = ut_strlen("_recover_innodb_tmp_table");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(
+				name + namelen - keywordlen,
+ 				"_recover_innodb_tmp_table", keywordlen)) {
+
+		return(DB_SUCCESS);
+	}
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1251,6 +1372,7 @@ row_drop_table_for_mysql(
 	ulint		len;
 	ulint		namelen;
 	ulint		keywordlen;
+	ulint		rounds	= 0;
 	char		buf[10000];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1427,11 +1549,38 @@ row_drop_table_for_mysql(
 	/* Remove any locks there are on the table or its records */
 	
 	lock_reset_all_on_table(table);
+loop:
+	if (table->n_mysql_handles_opened > 0) {
+		rw_lock_s_unlock(&(purge_sys->purge_is_running));
 
-	/* TODO: check that MySQL prevents users from accessing the table
-	after this function row_drop_table_for_mysql has been called:
-	otherwise anyone with an open handle to the table could, for example,
-	come to read the table! Monty said that it prevents. */
+		rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+
+		mutex_exit(&(dict_sys->mutex));
+
+		if (rounds > 60) {
+			fprintf(stderr,
+	"InnoDB: waiting for queries to table %s to end before dropping it\n",
+								name);
+		}
+		
+		os_thread_sleep(1000000);
+
+		mutex_enter(&(dict_sys->mutex));
+		
+		rw_lock_x_lock(&(dict_foreign_key_check_lock));
+
+		rw_lock_s_lock(&(purge_sys->purge_is_running));
+
+		rounds++;
+
+		if (rounds > 120) {
+			fprintf(stderr,
+"InnoDB: Warning: queries to table %s have not ended but we continue anyway\n",
+								name);
+		} else {
+			goto loop;
+		}
+	}
 
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;

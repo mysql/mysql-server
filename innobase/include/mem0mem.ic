@@ -24,8 +24,10 @@ mem_heap_create_block(
 			if init_block is not NULL, its size in bytes */
 	void*	init_block, /* in: init block in fast create, type must be
 			MEM_HEAP_DYNAMIC */
-	ulint 	type);	/* in: type of heap: MEM_HEAP_DYNAMIC or
+	ulint 	type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
 			MEM_HEAP_BUFFER */
+	char*  	file_name,/* in: file name where created */
+	ulint 	line);   /* in: line where created */
 /**********************************************************************
 Frees a block from a memory heap. */
 
@@ -392,21 +394,20 @@ mem_heap_create_func(
 				block is not unintentionally erased
 				(if allocated in the stack), before
 				the memory heap is explicitly freed. */
-	ulint	type		/* in: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUFFER
+	ulint	type,		/* in: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUFFER
 				possibly ORed to MEM_HEAP_BTR_SEARCH */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,	/* in: file name where created */
+	char*  	file_name,	/* in: file name where created */
 	ulint	line		/* in: line where created */
-	#endif
 	)
 {
 	mem_block_t*   block; 
 
 	if (n > 0) {
-		block = mem_heap_create_block(NULL, n, init_block, type);
+		block = mem_heap_create_block(NULL, n, init_block, type,
+							file_name, line);
 	} else {
 		block = mem_heap_create_block(NULL, MEM_BLOCK_START_SIZE, 
-							init_block, type);
+					init_block, type, file_name, line);
 	}
 
 	ut_ad(block);
@@ -438,11 +439,9 @@ UNIV_INLINE
 void
 mem_heap_free_func(
 /*===============*/
-	mem_heap_t*   	heap  		/* in, own: heap to be freed */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  	file_name,	/* in: file name where freed */
+	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
+	char*  		file_name,	/* in: file name where freed */
 	ulint    	line		/* in: line where freed */
-	#endif
 	)
 {
 	mem_block_t*	block;
@@ -488,14 +487,12 @@ mem_alloc_func(
 /*===========*/
 				/* out, own: free storage, NULL if did not
 				succeed */
-	ulint   n              	/* in: desired number of bytes */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,	/* in: file name where created */
+	ulint   n,              /* in: desired number of bytes */
+	char*  	file_name,	/* in: file name where created */
 	ulint   line		/* in: line where created */
-	#endif
 	)
 {
-	#ifndef UNIV_MEM_DEBUG
+#ifdef notdefined
 	void* buf;
 
 	buf = mem_area_alloc(n, mem_comm_pool);
@@ -505,7 +502,7 @@ mem_alloc_func(
 #endif
 	return(buf);
 	
-	#else
+#else
 	
 	mem_heap_t*   	heap; 
 	void*           buf;
@@ -524,11 +521,11 @@ mem_alloc_func(
 
 	buf = mem_heap_alloc(heap, n);
 
-	ut_ad((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
+	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
 					- MEM_FIELD_HEADER_SIZE);
 	return(buf);
 
-	#endif
+#endif
 }
 
 /*******************************************************************
@@ -539,26 +536,22 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
-	void*   ptr             /* in, own: buffer to be freed */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,      /* in: file name where created */
+	void*   ptr,       	/* in, own: buffer to be freed */
+	char*  	file_name,      /* in: file name where created */
 	ulint   line            /* in: line where created */
-	#endif
 	)
 {
-	#ifndef UNIV_MEM_DEBUG
+#ifdef notdefined
 
 	mem_area_free(ptr, mem_comm_pool);
        
-	#else
-	
+#else
 	mem_heap_t*   heap; 
 
 	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
 				 		- MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
-	
-	#endif
+#endif
 }
 
 /*********************************************************************
@@ -567,7 +560,7 @@ UNIV_INLINE
 ulint
 mem_heap_get_size(
 /*==============*/
-	mem_heap_t*   heap)  	/* in: heap */
+	mem_heap_t*   	heap)  	/* in: heap */
 {
 	mem_block_t*  	block;
 	ulint           size	= 0;
@@ -597,9 +590,11 @@ mem_realloc(
 /*========*/
 			/* out, own: free storage, NULL if did not succeed */
 	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n)	/* in: desired number of bytes */
+	ulint   n,	/* in: desired number of bytes */
+	char*  	file_name,/* in: file name where called */
+	ulint 	line)  	/* in: line where called */
 {
 	mem_free(buf);
 
-	return(mem_alloc(n));
+	return(mem_alloc_func(n, file_name, line));
 }
