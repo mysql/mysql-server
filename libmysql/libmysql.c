@@ -1394,10 +1394,18 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!mysql->charset)
   {
     net->last_errno=CR_CANT_READ_CHARSET;
-    sprintf(net->last_error,ER(net->last_errno),
-	    charset_name ? charset_name : "unknown",
-	    mysql->options.charset_dir ? mysql->options.charset_dir :
-	    "default");
+    if (mysql->options.charset_dir)
+      sprintf(net->last_error,ER(net->last_errno),
+              charset_name ? charset_name : "unknown",
+              mysql->options.charset_dir);
+    else
+    {
+      char cs_dir_name[FN_REFLEN];
+      get_charsets_dir(cs_dir_name);
+      sprintf(net->last_error,ER(net->last_errno),
+              charset_name ? charset_name : "unknown",
+              cs_dir_name);
+    }
     goto error;
   }
 
