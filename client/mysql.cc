@@ -2602,32 +2602,31 @@ com_use(String *buffer __attribute__((unused)), char *line)
     put_info("USE must be followed by a database name", INFO_ERROR);
     return 0;
   }
-
-  /* 
-     We need to recheck the current database, because it may change
-     under our feet, for example if DROP DATABASE or RENAME DATABASE
-     (latter one not yet available by the time the comment was written)
+  /*
+    We need to recheck the current database, because it may change
+    under our feet, for example if DROP DATABASE or RENAME DATABASE
+    (latter one not yet available by the time the comment was written)
   */
-  current_db= 0; // Let's reset current_db, assume it's gone
-  /* 
-     We don't care about in case of an error below because current_db
-     was just set to 0.
+  /*  Let's reset current_db, assume it's gone */
+  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  current_db= 0;
+  /*
+    We don't care about in case of an error below because current_db
+    was just set to 0.
   */
   if (!mysql_query(&mysql, "SELECT DATABASE()") &&
       (res= mysql_use_result(&mysql)))
   {
     row= mysql_fetch_row(res);
-    if (row[0] &&
-	(!current_db || cmp_database(charset_info, current_db, row[0])))
+    if (row[0])
     {
-      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
       current_db= my_strdup(row[0], MYF(MY_WME));
     }
-    (void) mysql_fetch_row(res);		// Read eof
+    (void) mysql_fetch_row(res);               // Read eof
     mysql_free_result(res);
   }
-    
-  if (!current_db || cmp_database(charset_info, current_db, tmp))
+
+  if (!current_db || cmp_database(current_db,tmp))
   {
     if (one_database)
       skip_updates= 1;

@@ -977,7 +977,7 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error,actual_error= 0;
-  thd->db= (char*) rewrite_db(db);
+  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -995,6 +995,11 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
+    /*
+      We cannot use db_len from event to fill thd->db_length, because
+      rewrite_db() may have changed db.
+    */ 
+    thd->db_length= thd->db ? strlen(thd->db) : 0;
     thd->query_length= q_len;
     thd->query = (char*)query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1082,7 +1087,7 @@ end:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
-  thd->query_length= 0;
+  thd->query_length= thd->db_length =0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -1693,7 +1698,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   char *load_data_query= 0;
-  thd->db= (char*) rewrite_db(db);
+  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -1728,6 +1733,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
+    thd->db_length= thd->db ? strlen(thd->db) : 0;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1854,7 +1860,7 @@ Slave: load data infile on table '%s' at log position %s in log \
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;
   thd->query= 0;
-  thd->query_length= 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
   if (load_data_query)
