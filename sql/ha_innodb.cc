@@ -231,7 +231,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
-    		return(HA_ERR_WRONG_TABLE_DEF);
+    		return(HA_ERR_CRASHED);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
