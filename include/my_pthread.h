@@ -133,16 +133,17 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #define pthread_equal(A,B) ((A) == (B))
 #ifdef OS2
-int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *);
-int pthread_mutex_lock (pthread_mutex_t *);
-int pthread_mutex_unlock (pthread_mutex_t *);
-int pthread_mutex_destroy (pthread_mutex_t *);
+extern int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *);
+extern int pthread_mutex_lock (pthread_mutex_t *);
+extern int pthread_mutex_unlock (pthread_mutex_t *);
+extern int pthread_mutex_destroy (pthread_mutex_t *);
 #define my_pthread_setprio(A,B)  DosSetPriority(PRTYS_THREAD,PRTYC_NOCHANGE, B, A)
 #define pthread_kill(A,B) raise(B)
 #define pthread_exit(A) pthread_dummy()
 #else
 #define pthread_mutex_init(A,B)  InitializeCriticalSection(A)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
+#define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
@@ -430,11 +431,14 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 
 #if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #undef pthread_cond_timedwait
-#undef pthread_mutex_trylock
 #define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
-#define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime);
+#endif
+
+#if defined(HAVE_POSIX1003_4a_MUTEX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#undef pthread_mutex_trylock
+#define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif
 
@@ -468,6 +472,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #undef pthread_mutex_t
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
+#undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B))
 #define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
@@ -476,6 +481,9 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
 #define pthread_mutex_trylock(A) pthread_mutex_lock(A)
 #define pthread_mutex_t safe_mutex_t
+#define safe_mutex_assert_owner(mp) DBUG_ASSERT((mp)->count > 0 && pthread_equal(pthread_self(),(mp)->thread))
+#else
+#define safe_mutex_assert_owner(mp)
 #endif /* SAFE_MUTEX */
 
 	/* READ-WRITE thread locking */
@@ -486,6 +494,8 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define my_rwlock_init(A,B) pthread_mutex_init((A),(B))
 #define rw_rdlock(A) pthread_mutex_lock((A))
 #define rw_wrlock(A) pthread_mutex_lock((A))
+#define rw_tryrdlock(A) pthread_mutex_trylock((A))
+#define rw_trywrlock(A) pthread_mutex_trylock((A))
 #define rw_unlock(A) pthread_mutex_unlock((A))
 #define rwlock_destroy(A) pthread_mutex_destroy((A))
 #elif defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
@@ -493,6 +503,8 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define my_rwlock_init(A,B) pthread_rwlock_init((A),(B))
 #define rw_rdlock(A) pthread_rwlock_rdlock(A)
 #define rw_wrlock(A) pthread_rwlock_wrlock(A)
+#define rw_tryrdlock(A) pthread_rwlock_tryrdlock((A))
+#define rw_trywrlock(A) pthread_rwlock_trywrlock((A))
 #define rw_unlock(A) pthread_rwlock_unlock(A)
 #define rwlock_destroy(A) pthread_rwlock_destroy(A)
 #elif defined(HAVE_RWLOCK_INIT)
@@ -513,14 +525,18 @@ typedef struct _my_rw_lock_t {
 #define rw_lock_t my_rw_lock_t
 #define rw_rdlock(A) my_rw_rdlock((A))
 #define rw_wrlock(A) my_rw_wrlock((A))
+#define rw_tryrdlock(A) my_rw_tryrdlock((A))
+#define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rwlock_destroy((A))
 
-extern	int	my_rwlock_init( my_rw_lock_t *, void * );
-extern	int	my_rwlock_destroy( my_rw_lock_t * );
-extern	int	my_rw_rdlock( my_rw_lock_t * );
-extern	int	my_rw_wrlock( my_rw_lock_t * );
-extern	int	my_rw_unlock( my_rw_lock_t * );
+extern int my_rwlock_init(my_rw_lock_t *, void *);
+extern int my_rwlock_destroy(my_rw_lock_t *);
+extern int my_rw_rdlock(my_rw_lock_t *);
+extern int my_rw_wrlock(my_rw_lock_t *);
+extern int my_rw_unlock(my_rw_lock_t *);
+extern int my_rw_tryrdlock(my_rw_lock_t *);
+extern int my_rw_trywrlock(my_rw_lock_t *);
 #endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
