@@ -53,8 +53,22 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
     {
       const char *pos= start;
       uint var_len;
+      int mblen= 1;
 
-      for (; pos != end && *pos != field_separator; pos++) ;
+      if (cs && cs->mbminlen > 1)
+      {
+        for ( ; pos < end; pos+= mblen)
+        {
+          my_wc_t wc;
+          if ((mblen= cs->cset->mb_wc(cs, &wc, (const uchar *) pos, 
+                                               (const uchar *) end)) < 1)
+            mblen= 1; // Not to hang on a wrong multibyte sequence
+          if (wc == (my_wc_t) field_separator)
+            break;
+        }
+      }
+      else
+        for (; pos != end && *pos != field_separator; pos++) ;
       var_len= (uint) (pos - start);
       uint find= cs ? find_type2(lib, start, var_len, cs) :
                       find_type(lib, start, var_len, (bool) 0);
@@ -66,9 +80,9 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
       }
       else
         found|= ((longlong) 1 << (find - 1));
-      if (pos == end)
+      if (pos >= end)
         break;
-      start= pos + 1;
+      start= pos + mblen;
     }
   }
   return found;

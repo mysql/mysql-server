@@ -730,7 +730,7 @@ Ndbfs::scanIPC(Signal* signal)
       jam();
       report(request, signal);
       theRequestPool->put(request);
-      return &request;
+      return true;
    }
    return false;
 }
@@ -1010,7 +1010,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
 
 
-BLOCK_FUNCTIONS(Ndbfs);
+BLOCK_FUNCTIONS(Ndbfs)
 
 template class Vector<AsyncFile*>;
 template class Vector<OpenFiles::OpenFileItem>;

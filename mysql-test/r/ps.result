@@ -471,6 +471,17 @@ select @var is null, @var is not null, @var;
 execute stmt using @var, @var, @var;
 ? is null	? is not null	?
 1	0	NULL
+create table t1 (pnum char(3));
+create table t2 (pnum char(3));
+prepare stmt from "select pnum from t2 having pnum in (select 'p1' from t1)";
+execute stmt;
+pnum
+execute stmt;
+pnum
+execute stmt;
+pnum
+deallocate prepare stmt;
+drop table t1, t2;
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
 prepare stmt FROM 'SELECT char_length (a) FROM t1';

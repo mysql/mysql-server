@@ -410,7 +410,6 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
-#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -430,7 +429,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 bool mysql_multi_update_prepare(THD *thd);
 bool mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
-bool insert_select_precheck(THD *thd, TABLE_LIST *tables);
 bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
@@ -438,6 +436,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
+#include "sql_acl.h"
+#include "tztime.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -637,7 +637,8 @@ bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
-                          List<Item> &update_values, enum_duplicates duplic);
+                          List<Item> &update_values, enum_duplicates duplic,
+                          COND **where, bool select_insert);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag);
@@ -720,10 +721,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type,
-		pthread_mutex_t *mutex,
-		struct system_status_var *status_var);
 int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
@@ -1320,6 +1317,23 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+}
+
+
+/*
+  SYNOPSYS
+    hexchar_to_int()
+    convert a hex digit into number
+*/
+
+inline int hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
 }
 
 

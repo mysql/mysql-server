@@ -615,6 +615,9 @@ TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
    * After the restart the node is up again and the Ndb object 
    * might not have noticed the failure.
    */
+
+  DBUG_ENTER("TransporterFacade::ReportNodeFailureComplete");
+  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
   Uint32 sz = m_threads.m_statusNext.size();
   for (Uint32 i = 0; i < sz ; i ++) {
     if (m_threads.getInUse(i)){
@@ -623,6 +626,7 @@ TransporterFacade::ReportNodeFailureComplete(NodeId tNodeId)
       (*RegPC) (obj, tNodeId, false, true);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 void

@@ -19,6 +19,7 @@
 #include <File.hpp>
 
 #include <NdbOut.hpp>
+#include <my_dir.h>
 
 //
 // PUBLIC
@@ -28,9 +29,12 @@ bool
 File_class::exists(const char* aFileName)
 {
   bool rc = true;
-  
+#ifdef USE_MY_STAT_STRUCT
+  struct my_stat stmp;
+#else
   struct stat stmp;
-  if (::stat(aFileName, &stmp) != 0)
+#endif
+  if (my_stat(aFileName, &stmp, MYF(0)) != 0)
   {
     rc = false;
   }
