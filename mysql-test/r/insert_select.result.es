@@ -633,3 +633,15 @@ No	Field	Count
 0	1	100
 0	2	100
 drop table t1, t2;
+CREATE TABLE t1 (
+ID           int(11) NOT NULL auto_increment,
+NO           int(11) NOT NULL default '0',
+SEQ          int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+KEY t1$NO    (SEQ,NO)
+) ENGINE=MyISAM;
+INSERT INTO t1 (SEQ, NO) SELECT "1" AS SEQ, IF(MAX(NO) IS NULL, 0, MAX(NO)) + 1 AS NO FROM t1 WHERE (SEQ = 1);
+select SQL_BUFFER_RESULT * from t1 WHERE (SEQ = 1);
+ID	NO	SEQ
+1	1	1
+drop table t1;
