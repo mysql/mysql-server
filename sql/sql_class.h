@@ -321,14 +321,14 @@ public:
 typedef struct st_prep_stmt
 {
   THD *thd;
-  Item_param *param;
+  Item_param **param;
   Item *free_list;
   MEM_ROOT mem_root;
   ulong stmt_id;
   uint param_count;
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
-  bool error_in_prepare, long_data_used, param_inited;
+  bool error_in_prepare, long_data_used;
 } PREP_STMT;
 
 
