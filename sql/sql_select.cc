@@ -4897,8 +4897,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   if (tab->on_expr && !table->null_row)
   {
     if ((table->null_row= test(tab->on_expr->val_int() == 0)))
-      empty_record(table);
-    }
+      mark_as_null_row(table);  
+  }
   if (!table->null_row)
     table->maybe_null=0;
   DBUG_RETURN(0);
