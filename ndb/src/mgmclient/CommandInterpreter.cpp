@@ -19,6 +19,7 @@
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
 #include <version.h>
+#include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
@@ -692,6 +693,79 @@ CommandInterpreter::executeShutdown(char* parameters)
  * SHOW
  *****************************************************************************/
 
+
+static
+const char *status_string(ndb_mgm_node_status status)
+{
+  switch(status){
+  case NDB_MGM_NODE_STATUS_NO_CONTACT:
+    return "not connected";
+  case NDB_MGM_NODE_STATUS_NOT_STARTED:
+    return "not started";
+  case NDB_MGM_NODE_STATUS_STARTING:
+    return "starting";
+  case NDB_MGM_NODE_STATUS_STARTED:
+    return "started";
+  case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
+    return "shutting down";
+  case NDB_MGM_NODE_STATUS_RESTARTING:
+    return "restarting";
+  case NDB_MGM_NODE_STATUS_SINGLEUSER:
+    return "single user mode";
+  default:
+    return "unknown state";
+  }
+}
+
+static void
+print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
+	    const char *proc_name, int no_proc, ndb_mgm_node_type type, int master_id)
+{ 
+  int i;
+  ndbout << "[" << proc_name
+	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t" << no_proc << " node(s)" << endl;
+  for(i=0; i < state->no_of_nodes; i++) {
+    struct ndb_mgm_node_state *node_state= &(state->node_states[i]);
+    if(node_state->node_type == type) {
+      int node_id= node_state->node_id;
+      ndbout << "id=" << node_id;
+      if(node_state->version != 0) {
+	const char *hostname= node_state->connect_address;
+	if (hostname == 0 || strlen(hostname) == 0 || strcmp(hostname,"0.0.0.0") == 0)
+	  ndbout << " ";
+	else
+	  ndbout << "\t@" << hostname;
+	ndbout << "  (Version: "
+	       << getMajor(node_state->version) << "."
+	       << getMinor(node_state->version) << "."
+	       << getBuild(node_state->version);
+	if (type == NDB_MGM_NODE_TYPE_NDB) {
+	  if (node_state->node_status != NDB_MGM_NODE_STATUS_STARTED) {
+	    ndbout << ", " << status_string(node_state->node_status);
+	  }
+	  if (node_state->node_group >= 0) {
+	    ndbout << ", Nodegroup: " << node_state->node_group;
+	    if (node_state->dynamic_id == master_id)
+	      ndbout << ", Master";
+	  }
+	}
+	ndbout << ")" << endl;
+      } else {
+	if(ndb_mgm_find(it, CFG_NODE_ID, node_id) != 0){
+	  ndbout_c("Unable to find node with id: %d", node_id);
+	  return;
+	}
+	const char *config_hostname= 0;
+	ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
+	if (config_hostname == 0 || config_hostname[0] == 0)
+	  config_hostname= "any host";
+	ndbout << " (not connected, accepting connect from " << config_hostname << ")" << endl;
+      }
+    }
+  }
+  ndbout << endl;
+}
+
 void
 CommandInterpreter::executeShow(char* parameters) 
 { 
@@ -707,6 +781,22 @@ CommandInterpreter::executeShow(char* parameters)
       printError();
       return;
     }
+
+    ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_mgmsrv,0);
+    if(conf == 0){
+      ndbout_c("Could not get configuration");
+      printError();
+      return;
+    }
+
+    ndb_mgm_configuration_iterator * it;
+    it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
+
+    if(it == 0){
+      ndbout_c("Unable to create config iterator");
+      return;
+    }
+    NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
 
     int
       master_id= 0,
@@ -741,73 +831,9 @@ CommandInterpreter::executeShow(char* parameters)
       }
     }
 
-    ndbout << ndb_nodes
-	   << " [ndbd] node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB) {
-	ndbout << "[ndbd]\t\tid=" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ","
-		 << " Nodegroup: " << state->node_states[i].node_group;
-	  if (state->node_states[i].dynamic_id == master_id)
-	    ndbout << ", Master";
-	  ndbout << ")" << endl;
-	} else
-	  {
-	    ndbout << "  (not connected) " << endl;
-	  }
-
-      }
-    }
-    ndbout << endl;
-    
-    ndbout << mgm_nodes
-	   << " [ndb_mgmd] node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM) {
-	ndbout << "[ndb_mgmd]\tid=" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
-	} else
-	  {
-	    ndbout << "  (no version information available) " << endl;
-	  }
-      }
-    }
-    ndbout << endl;
-
-    ndbout << api_nodes
-	   << " [mysqld] node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
-	ndbout << "[mysqld]\tid=" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
-	} else
-	  {
-	    ndbout << "  (not connected) " << endl;
-	  }
-      }
-    }
-    ndbout << endl;
-    
+    print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
+    print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
+    print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
     //    ndbout << helpTextShow;
     return;
   } else if (strcmp(parameters, "PROPERTIES") == 0 ||
@@ -1184,33 +1210,15 @@ CommandInterpreter::executeStatus(int processId,
   startPhase = cl->node_states[i].start_phase;
   version = cl->node_states[i].version;
 
-  ndbout << "Node " << processId << ": ";
+  ndbout << "Node " << processId << ": " << status_string(status);
   switch(status){
-  case NDB_MGM_NODE_STATUS_NO_CONTACT:
-    ndbout << "No contact" << endl;
-    break;
-  case NDB_MGM_NODE_STATUS_NOT_STARTED:
-    ndbout << "Not started" ;
-    break;
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << "Starting (Start phase " << startPhase << ")" ;
-    break;
-  case NDB_MGM_NODE_STATUS_STARTED:
-    ndbout << "Started" ;
+    ndbout << " (Phase " << startPhase << ")" ;
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-    ndbout << "Shutting down " << (system == false ? "node" : "system")
-	   << " (Phase " << startPhase << ")"
-	   ;
-    break;
-  case NDB_MGM_NODE_STATUS_RESTARTING:
-    ndbout << "Restarting" ;
-    break;
-  case NDB_MGM_NODE_STATUS_SINGLEUSER:
-    ndbout << "Single user mode" ;
+    ndbout << " (Phase " << startPhase << ")";
     break;
   default:
-    ndbout << "Unknown state" ;
     break;
   }
   if(status != NDB_MGM_NODE_STATUS_NO_CONTACT)
