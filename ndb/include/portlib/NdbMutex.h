@@ -31,13 +31,11 @@ extern "C" {
 #if defined NDB_OSE || defined NDB_SOFTOSE
 #include <ose.h>
 typedef SEMAPHORE NdbMutex;
-#define NDB_MUTEX_INITIALIZER { 1, 0, 0 }
 #elif defined NDB_WIN32
 typedef CRITICAL_SECTION NdbMutex;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t NdbMutex;
-#define NDB_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 #endif
 
 /**
