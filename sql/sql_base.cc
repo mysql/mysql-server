@@ -426,22 +426,22 @@ void close_temporary_tables(THD *thd)
   char* query, *p;
   LINT_INIT(p);
   query_buf_size = init_query_buf_size;
-  
+
   for (table=thd->temporary_tables ; table ; table=table->next)
   {
     query_buf_size += table->key_length;
-    
+
   }
 
   if(query_buf_size == init_query_buf_size)
     return; // no tables to close
-  
+
   if((query = alloc_root(&thd->mem_root, query_buf_size)))
     {
       memcpy(query, "drop table ", init_query_buf_size);
       p = query + init_query_buf_size;
     }
-  
+
   for (table=thd->temporary_tables ; table ; table=next)
   {
     if(query) // we might be out of memory, but this is not fatal
@@ -475,7 +475,7 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
 
   int4store(key+key_length,thd->slave_proxy_id);
   key_length += 4;
-  
+
   prev= &thd->temporary_tables;
   for (table=thd->temporary_tables ; table ; table=table->next)
   {
@@ -623,7 +623,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);
     }
-  
+
   table->key_length=key_length;
   table->version=0;
   table->flush_version=0;
@@ -640,7 +640,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->outer_join=table->null_row=table->maybe_null=0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
-  DBUG_RETURN(table);  
+  DBUG_RETURN(table);
 }
 
 
@@ -669,7 +669,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   int4store(key + key_length, thd->slave_proxy_id);
-  
+
   for (table=thd->temporary_tables; table ; table=table->next)
   {
     if (table->key_length == key_length+4 &&
@@ -740,6 +740,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     }
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
+    table->file->reset();
   }
   else
   {
@@ -1086,7 +1087,7 @@ bool wait_for_tables(THD *thd)
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
     if (!table_is_used(thd->open_tables,1))
       break;
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);    
+    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
   }
   if (thd->killed)
     result= 1;					// aborted
@@ -1206,7 +1207,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			 HA_TRY_READ_ONLY),
 		READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 		ha_open_options | HA_OPEN_FOR_REPAIR,
-		entry) || ! entry->file || 
+		entry) || ! entry->file ||
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       /* Give right error message */
@@ -1383,7 +1384,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 {
   TABLE *tmp_table;
   DBUG_ENTER("open_temporary_table");
-  
+
   // the extra size in my_malloc() is for table_cache_key
   //  4 bytes for master thread id if we are in the slave
   //  1 byte to terminate db
@@ -1414,7 +1415,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
 	    thd->slave_proxy_id);
   tmp_table->key_length += 4;
-  
+
   if (link_in_list)
   {
     tmp_table->next=thd->temporary_tables;
