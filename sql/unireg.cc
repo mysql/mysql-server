@@ -246,7 +246,7 @@ static uchar * pack_screens(List<create_field> &create_fields,
 static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
 {
   uint key_parts,length;
-  uchar *pos,*keyname_pos;
+  uchar *pos, *keyname_pos, *key_alg_pos;
   KEY *key,*end;
   KEY_PART_INFO *key_part,*key_part_end;
   DBUG_ENTER("pack_keys");
@@ -290,11 +290,18 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
   }
   *(pos++)=0;
 
+  /* For MySQL 4.0;  Store key algoritms last */
+  key_alg_pos= pos;
+  for (key=keyinfo ; key != end ; key++)
+  {
+    *(pos++)= (uchar) key->algorithm;
+  }
+
   keybuff[0]=(uchar) key_count;
   keybuff[1]=(uchar) key_parts;
   length=(uint) (keyname_pos-keybuff);
   int2store(keybuff+2,length);
-  length=(uint) (pos-keyname_pos);
+  length=(uint) (key_alg_pos-keyname_pos);
   int2store(keybuff+4,length);
   DBUG_RETURN((uint) (pos-keybuff));
 } /* pack_keys */
