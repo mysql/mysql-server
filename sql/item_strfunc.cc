@@ -2576,7 +2576,15 @@ longlong Item_func_uncompressed_length::val_int()
   }
   null_value=0;
   if (res->is_empty()) return 0;
-  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
+
+  /*
+    res->ptr() using is safe because we have tested that string is not empty,
+    res->c_ptr() is not used because:
+      - we do not need \0 terminated string to get first 4 bytes
+      - c_ptr() tests simbol after string end (uninitialiozed memory) which
+        confuse valgrind
+  */
+  return uint4korr(res->ptr()) & 0x3FFFFFFF;
 }
 
 longlong Item_func_crc32::val_int()
@@ -2622,10 +2630,12 @@ String *Item_func_compress::val_str(String *str)
   ulong new_size= (ulong)((res->length()*120)/100)+12;
 
   buffer.realloc((uint32)new_size + 4 + 1);
-  Byte *body= ((Byte*)buffer.c_ptr()) + 4;
+  Byte *body= ((Byte*)buffer.ptr()) + 4;
 
+
+  // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,
-		     (const Bytef*)res->c_ptr(), res->length())) != Z_OK)
+		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
     push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
@@ -2633,7 +2643,7 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  char *tmp= buffer.c_ptr();	// int4store is a macro; avoid side effects
+  char *tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
   int4store(tmp, res->length() & 0x3FFFFFFF);
 
   /* This is for the stupid char fields which trim ' ': */
