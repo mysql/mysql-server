@@ -32,6 +32,8 @@
 #include <ndb_types.h>
 
 class Ndb;
+struct charset_info_st;
+typedef struct charset_info_st CHARSET_INFO;
 
 /**
  * @class NdbDictionary
@@ -304,6 +306,14 @@ public:
      * Array length for column or max length for variable length arrays.
      */
     int getLength() const;
+
+    /**
+     * For Char or Varchar or Text, set or get MySQL CHARSET_INFO.  This
+     * specifies both character set and collation.  See get_charset()
+     * etc in MySQL.  (The cs is not "const" in MySQL).
+     */
+    void setCharset(CHARSET_INFO* cs);
+    CHARSET_INFO* getCharset() const;
 
     /**
      * For blob, set or get "inline size" i.e. number of initial bytes
