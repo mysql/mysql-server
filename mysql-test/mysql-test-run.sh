@@ -211,9 +211,9 @@ while test $# -gt 0; do
       ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/master.trace"
+       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/slave.trace"
+       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     -- )  shift; break ;;

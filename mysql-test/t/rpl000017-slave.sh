@@ -3,7 +3,7 @@ master-bin.001
 4
 127.0.0.1
 replicate
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaab
 9306
 1
 0

@@ -17,7 +17,7 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.6"
+#define PERROR_VERSION "2.7"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -71,6 +71,18 @@ static HA_ERRORS ha_errlist[]=
   { 147,"Lock table is full;  Restart program with a larger locktable"},
   { 148,"Updates are not allowed under a read only transactions"},
   { 149,"Lock deadlock; Retry transaction"},
+  { -30999, "DB_INCOMPLETE: Sync didn't finish"},
+  { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
+  { -30997, "DB_KEYEXIST: The key/data pair already exists"},
+  { -30996, "DB_LOCK_DEADLOCK: Deadlock"},
+  { -30995, "DB_LOCK_NOTGRANTED: Lock unavailable"},
+  { -30994, "DB_NOSERVER: Server panic return"},
+  { -30993, "DB_NOSERVER_HOME: Bad home sent to server"},
+  { -30992, "DB_NOSERVER_ID: Bad ID sent to server"},
+  { -30991, "DB_NOTFOUND: Key/data pair not found (EOF)"},
+  { -30990, "DB_OLD_VERSION: Out-of-date version"},
+  { -30989, "DB_RUNRECOVERY: Panic return"},
+  { -30988, "DB_VERIFY_BAD: Verify failed; bad format"},
   { 0,NullS },
 };
 
@@ -85,7 +97,8 @@ static void usage(void)
 {
   print_version();
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  printf("Print a description for a system error code or a error code from\na MyISAM/ISAM table handler\n");
+  printf("Print a description for a system error code or a error code from\na MyISAM/ISAM/BDB table handler.\n");
+  printf("If you want to get the error for a negative error code, you should use\n-- before the first error code to tell perror that there was no more options.\n\n");
   printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);
   printf("\n\
    -?, --help     Displays this help and exits.\n\
