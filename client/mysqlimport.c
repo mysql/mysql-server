@@ -471,9 +471,15 @@ int main(int argc, char **argv)
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))
+  {
+    free_defaults(argv_to_free);
     return(1);
+  }
   if (!(sock= db_connect(current_host,current_db,current_user,opt_password)))
+  {
+    free_defaults(argv_to_free);
     return(1); /* purecov: deadcode */
+  }
   if (lock_tables)
     lock_table(sock, argc, argv);
   for (; *argv != NULL; argv++)

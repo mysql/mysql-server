@@ -477,13 +477,12 @@ public:
   }
   inline void close_active_vio()
   {
-    pthread_mutex_lock(&LOCK_delete);
+    safe_mutex_assert_owner(&LOCK_delete); 
     if (active_vio)
     {
       vio_close(active_vio);
       active_vio = 0;
     }
-    pthread_mutex_unlock(&LOCK_delete);
   }
 #endif  
   void awake(bool prepare_to_die);
