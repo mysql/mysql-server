@@ -617,7 +617,6 @@ void close_server_sock()
   {
     DBUG_PRINT("info",("calling shutdown on unix socket"));
     VOID(shutdown(unix_sock,2));
-    DBUG_PRINT("info",("calling closesocket on unix socket"));
     VOID(unlink(mysql_unix_port));
     unix_sock=INVALID_SOCKET;
   }
