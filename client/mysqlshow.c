@@ -85,6 +85,9 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
+  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
+      opt_ssl_cipher)
+    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
@@ -218,7 +221,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_mysql_unix_port=MYSQL_NAMEDPIPE;
 #endif
     break;
-#include "sslopt-case.h"
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;

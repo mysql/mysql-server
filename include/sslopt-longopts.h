@@ -34,7 +34,7 @@
    "CA directory (check OpenSSL docs, implies --ssl)",
    (gptr*) &opt_ssl_capath, (gptr*) &opt_ssl_capath, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"ssl-cipher", OPT_SSL_CAPATH, "SSL cipher to use (implies --ssl)",
+  {"ssl-cipher", OPT_SSL_CIPHER, "SSL cipher to use (implies --ssl)",
    (gptr*) &opt_ssl_cipher, (gptr*) &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 
