@@ -105,7 +105,7 @@ test_dir: test_dir.c $(LIBRARIES)
 test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
-charset2html: charset2html.c $(LIBRARIES)
+charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)
