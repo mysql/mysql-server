@@ -22277,7 +22277,7 @@ is automatically enlarged, up to @code{max_allowed_packet} bytes.)
 @item @code{net_read_timeout}
 Number of seconds to wait for more data from a connection before aborting
 the read.  Note that when we don't expect data from a connection, the timeout
-is defined by @code{write_timeout}.
+is defined by @code{write_timeout}. See also @code{slave_read_timeout}.
 
 @item @code{net_retry_count}
 If a read on a communication port is interrupted, retry this many times
@@ -22334,6 +22334,10 @@ This prevents people from doing @code{SHOW DATABASES} if they don't have
 the @code{PROCESS_PRIV} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_databases}.
+
+@item @code{slave_read_timeout}
+Number of seconds to wait for more data from a master/slave connection
+before aborting the read.
 
 @item @code{slow_launch_time}
 If creating the thread takes longer than this value (in seconds), the
@@ -29379,7 +29383,6 @@ times, once for each table.(Example:
 @code{replicate-ignore-table=foo%.bar%} - will not upates to tables in all databases that start with foo and whose table names
 start with bar)
 
-
 @item @code{replicate-ignore-db=database_name} @tab
 Tells the slave thread to not replicate to the specified database. To
 specify more than one database to ignore, use the directive multiple
@@ -29400,7 +29403,6 @@ you have 3.23.28 or later, and use
 @code{replicate-wild-do-table=db_name.%}
 (Example: @code{replicate-do-db=some_db})
 
-
 @item @code{log-slave-updates} @tab
 Tells the slave to log the updates from the slave thread to the binary
 log. Off by default. You will need to turn it on if you plan to
@@ -29413,6 +29415,10 @@ Updates to a database with a different name than the original (Example:
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
+
+@item @code{slave_read_timeout=#}
+Number of seconds to wait for more data from the master before aborting
+the read.
 @end multitable
 
 @cindex SQL commands, replication
@@ -45716,6 +45722,8 @@ not yet 100% confident in this code.
 @node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
+@item
+Added @code{slave_wait_timeout} for replication.
 @item
 Fixed problem with @code{UPDATE} and BDB tables.
 @item
