@@ -37,7 +37,10 @@ static int mysql_find_files(THD *thd,List<char> *files, const char *db,
                             const char *path, const char *wild, bool dir);
 
 static int
-store_create_info(THD *thd, TABLE *table, String* packet);
+store_create_info(THD *thd, TABLE *table, String *packet);
+
+static void
+append_identifier(THD *thd, String *packet, const char *name);
 
 /****************************************************************************
 ** Send list of databases
@@ -668,8 +671,23 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
+static void
+append_identifier(THD *thd, String *packet, const char *name)
+{
+  if (thd->options & OPTION_QUOTE_SHOW_CREATE)
+  {
+    packet->append("`", 1);
+    packet->append(name);
+    packet->append("`", 1);
+  }
+  else
+  {
+    packet->append(name);
+  }
+}
+
 static int
-store_create_info(THD *thd, TABLE *table, String* packet)
+store_create_info(THD *thd, TABLE *table, String *packet)
 {
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
@@ -680,7 +698,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
   char tmp[MAX_FIELD_WIDTH];
   String type(tmp, sizeof(tmp));
   packet->append("CREATE TABLE ", 13);
-  packet->append(table->real_name);
+  append_identifier(thd,packet,table->real_name);
   packet->append(" (\n", 3);
 
   Field **ptr,*field;
@@ -691,7 +709,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
 
     uint flags = field->flags;
     packet->append("  ", 2);
-    packet->append(field->field_name);
+    append_identifier(thd,packet,field->field_name);
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if(type.ptr() != tmp)
@@ -746,7 +764,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
     packet->append("KEY ", 4);
 
     if(i != primary_key)
-     packet->append(key_info->name);
+     append_identifier(thd,packet,key_info->name);
 
     packet->append('(');
 
@@ -756,7 +774,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
         packet->append(',');
 
       if (key_part->field)
-        packet->append(key_part->field->field_name);
+        append_identifier(thd,packet,key_part->field->field_name);
       if (!key_part->field ||
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
