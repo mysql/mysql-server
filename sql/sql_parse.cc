@@ -89,8 +89,8 @@ static void  test_signal(int sig_ptr)
   MessageBox(NULL,"Test signal","DBUG",MB_OK);
 #endif
 #if defined(OS2)
-  fprintf( stderr, "Test signal %d\n", sig_ptr);
-  fflush( stderr);
+  fprintf(stderr, "Test signal %d\n", sig_ptr);
+  fflush(stderr);
 #endif
 }
 static void init_signals(void)

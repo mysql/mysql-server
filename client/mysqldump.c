@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.19"
+#define DUMP_VERSION "8.20"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -101,6 +101,7 @@ static struct option long_options[] =
   {"debug",		optional_argument,	0, '#'},
   {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
   {"delayed-insert",	no_argument,    0,	OPT_DELAYED},
+  {"disable-keys",	no_argument,    0,	'K'},
   {"extended-insert",   no_argument,    0,	'e'},
   {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
   {"fields-enclosed-by", required_argument,	0, (int) OPT_ENC},
@@ -118,7 +119,6 @@ static struct option long_options[] =
   {"no-create-db",      no_argument,    0,      'n'},
   {"no-create-info",	no_argument,    0,	't'},
   {"no-data",		no_argument,    0,	'd'},
-  {"no-disable-keys",   no_argument,    0,	'K'},
   {"opt",		no_argument,    0,	OPT_OPTIMIZE},
   {"password",          optional_argument,	0, 'p'},
 #ifdef __WIN__
@@ -154,7 +154,7 @@ CHANGEABLE_VAR md_changeable_vars[] = {
 };
 
 static void safe_exit(int error);
-static void write_heder(FILE *sql_file, char *db_name);
+static void write_header(FILE *sql_file, char *db_name);
 static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 			const char *prefix,const char *name,
 			int string_value);
@@ -215,9 +215,9 @@ static void usage(void)
 puts("\
   -l, --lock-tables     Lock all tables for read.\n\
   --no-autocommit       Wrap tables with autocommit/commit statements.\n\
-  -K, --no-disable-keys '/*!40000 ALTER TABLE tb_name DISABLE KEYS */;\n\
+  -K, --disable-keys   '/*!40000 ALTER TABLE tb_name DISABLE KEYS */;\n\
                         and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */;\n\
-                        will not be put in the output.\n\
+                        will be put in the output.\n\
   -n, --no-create-db    'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'\n\
                         will not be put in the output. The above line will\n\
                         be added otherwise, if --databases or\n\
@@ -226,8 +226,8 @@ puts("\
   -d, --no-data		No row information.\n\
   -O, --set-variable var=option\n\
                         give a variable a value. --help lists variables\n\
-  --opt			Same as --add-drop-table --add-locks --all\n\
-                        --extended-insert --quick --lock-tables\n\
+  --opt			Same as --add-drop-table --add-locks --all --quick\n\
+                        --extended-insert --lock-tables --disable-keys\n\
   -p, --password[=...]	Password to use when connecting to server.\n\
                         If password is not given it's solicited on the tty.\n");
 #ifdef __WIN__
@@ -282,7 +282,7 @@ puts("\
 } /* usage */
 
 
-static void write_heder(FILE *sql_file, char *db_name)
+static void write_header(FILE *sql_file, char *db_name)
 {
   if (opt_xml)
     fprintf(sql_file,"<?xml version=\"1.0\"?>\n");
@@ -297,7 +297,7 @@ static void write_heder(FILE *sql_file, char *db_name)
 	    mysql_get_server_info(&mysql_connection));
   }
   return;
-} /* write_heder */
+} /* write_header */
 
 
 static int get_options(int *argc,char ***argv)
@@ -394,6 +394,7 @@ static int get_options(int *argc,char ***argv)
       break;
     case 'T':
       path= optarg;
+      opt_disable_keys=0;
       break;
     case 'B':
       opt_databases = 1;
@@ -415,7 +416,10 @@ static int get_options(int *argc,char ***argv)
     case 'w':
       where=optarg;
       break;
-    case 'X': opt_xml = 1; opt_disable_keys=1; break;
+    case 'X':
+      opt_xml = 1;
+      opt_disable_keys=0;
+      break;
     case 'x':
       opt_first_slave=1;
       break;
@@ -451,7 +455,8 @@ static int get_options(int *argc,char ***argv)
       opt_lock=1;
       break;
     case (int) OPT_OPTIMIZE:
-      extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=1;
+      extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=
+	opt_disable_keys=1;
       break;
     case (int) OPT_DELAYED:
       opt_delayed=1;
@@ -666,7 +671,7 @@ static uint getTableStructure(char *table, char* db)
 	  safe_exit(EX_MYSQLERR);
 	  DBUG_RETURN(0);
         }
-        write_heder(sql_file, db);
+        write_header(sql_file, db);
       }
       if (!opt_xml)
 	fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",
@@ -685,6 +690,8 @@ static uint getTableStructure(char *table, char* db)
     {
       fprintf(stderr, "%s: Can't get info about table: '%s'\nerror: %s\n",
 		    my_progname, table, mysql_error(sock));
+      if (path)
+	my_fclose(sql_file, MYF(MY_WME));
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(0);
     }
@@ -738,10 +745,10 @@ static uint getTableStructure(char *table, char* db)
 				 O_WRONLY, MYF(MY_WME));
         if (!sql_file)			/* If file couldn't be opened */
         {
-		safe_exit(EX_MYSQLERR);
-		DBUG_RETURN(0);
+	  safe_exit(EX_MYSQLERR);
+	  DBUG_RETURN(0);
         }
-        write_heder(sql_file, db);
+        write_header(sql_file, db);
       }
       if (!opt_xml)
 	fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",
@@ -804,7 +811,7 @@ static uint getTableStructure(char *table, char* db)
       {
         fprintf(stderr, "%s: Can't get keys for table '%s' (%s)\n",
 		my_progname, table, mysql_error(sock));
-        if (sql_file != stdout)
+        if (path)
 	  my_fclose(sql_file, MYF(MY_WME));
         safe_exit(EX_MYSQLERR);
         DBUG_RETURN(0);
@@ -890,7 +897,7 @@ static uint getTableStructure(char *table, char* db)
       fputs(";\n", sql_file);
     }
   }
-  if (!opt_disable_keys)
+  if (opt_disable_keys)
     fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
   if (cFlag)
   {
@@ -898,6 +905,8 @@ static uint getTableStructure(char *table, char* db)
     if (!extended_insert)
       strpos=strmov(strpos,"(");
   }
+  if (sql_file != md_result_file)
+    my_fclose(sql_file, MYF(MY_WME));
   DBUG_RETURN(numFields);
 } /* getTableStructure */
 
@@ -1198,7 +1207,7 @@ static void dumpTable(uint numFields, char *table)
       safe_exit(EX_CONSCHECK);
       return;
     }
-    if (!opt_disable_keys)
+    if (opt_disable_keys)
       fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
                                             quote_name(table,table_buff));
     if (opt_lock)
@@ -1447,19 +1456,19 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
   if (!path)
-    write_heder(md_result_file, *argv);
+    write_header(md_result_file, *argv);
 
-   if (opt_first_slave)
-   {
-     lock_tables=0;				/* No other locks needed */
-     if (mysql_query(sock, "FLUSH TABLES WITH READ LOCK"))
-     {
-       my_printf_error(0, "Error: Couldn't execute 'FLUSH TABLES WITH READ LOCK': %s",
-		       MYF(0), mysql_error(sock));
-       my_end(0);
-       return(first_error);
-     }
-   }
+  if (opt_first_slave)
+  {
+    lock_tables=0;				/* No other locks needed */
+    if (mysql_query(sock, "FLUSH TABLES WITH READ LOCK"))
+    {
+      my_printf_error(0, "Error: Couldn't execute 'FLUSH TABLES WITH READ LOCK': %s",
+                      MYF(0), mysql_error(sock));
+      my_end(0);
+      return(first_error);
+    }
+  }
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */

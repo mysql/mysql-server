@@ -72,8 +72,8 @@ a	int(11)		PRI	0		select,insert,update,references
 b	int(11)		MUL	0		select,insert,update,references
 c	int(11)			0		select,insert,update,references
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
-t1	0	PRIMARY	1	a	A	4	NULL	NULL	
-t1	1	b	1	b	A	1	NULL	NULL	
-t1	1	b	2	c	A	4	NULL	NULL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE	
+t1	1	b	1	b	A	1	NULL	NULL		BTREE	
+t1	1	b	2	c	A	4	NULL	NULL		BTREE	
 drop table t1,t2;

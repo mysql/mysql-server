@@ -91,6 +91,7 @@ class ha_innobase: public handler
   	~ha_innobase() {}
 
   	const char* table_type() const { return("InnoDB");}
+	const char *index_type(uint key_number) { return "BTREE"; }
   	const char** bas_ext() const;
  	ulong option_flag() const { return int_option_flag; }
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
@@ -100,8 +101,11 @@ class ha_innobase: public handler
 				a secondary key record must also contain the
 				primary key value:
 				max key length is therefore set to slightly
-				less than 1 / 4 of page size which is 16 kB */
-  	uint max_key_length()    const { return 3500; }
+				less than 1 / 4 of page size which is 16 kB;
+				but currently MySQL does not work with keys
+				whose size is > MAX_KEY_LENGTH */
+  	uint max_key_length() const { return((MAX_KEY_LENGTH <= 3500) ?
+					  MAX_KEY_LENGTH : 3500);}
   	bool fast_key_read()	 { return 1;}
 	key_map keys_to_use_for_scanning() { return ~(key_map) 0; }
   	bool has_transactions()  { return 1;}

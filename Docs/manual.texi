@@ -1763,7 +1763,7 @@ Many embedded MySQL users will benefit from the @emph{dual licensing}
 scheme of the MySQL software, where besides the GPL license also commercial
 licensing is available for those not wishing to be bound by the GPL.
 The embedded MySQL library uses the same interface as the normal
-client library, so it is convenient and easy to use.
+client library, so it is convenient and easy to use. @xref{libmysqld}.
 
 
 @node Nutshell Other features, Nutshell Future features, Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
@@ -8063,6 +8063,11 @@ version 4.0;
 
 @itemize @bullet
 @item
+@code{SHOW INDEX} has 2 columns more (@code{Null} and @code{Index_type})
+than it had in 3.23.
+@item
+@code{SIGNED} is a reserved word.
+@item
 To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
 you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @strong{even} if they are of @code{MyISAM} type.
@@ -14172,7 +14177,6 @@ MySQL reads default options from the following files on Windows:
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{windows-system-directory\my.ini} @tab Global options
 @item @code{C:\my.cnf} @tab Global options
-@item @code{C:\mysql\data\my.cnf} @tab Server-specific options
 @end multitable
 
 Note that on Windows, you should specify all paths with @code{/} instead of
@@ -18916,13 +18920,16 @@ are returned:
 @item @code{Sub_part}            @tab Number of indexed characters if the 
                                       column is only partly indexed. 
                                       @code{NULL} if the entire key is indexed.
+@item @code{Null}		 $tab Contains 'YES' if the column may contain @code{NULL}.
+@item @code{Index_type}		 @tab Index method used.
 @item @code{Comment}             @tab Various remarks.  For now, it tells 
-                                      whether index is FULLTEXT or not.
+in MySQL < 4.0.2 whether index is @code{FULLTEXT} or not.
 @end multitable
 
 Note that as the @code{Cardinality} is counted based on statistics
 stored as integers, it's not necessarily accurate for small tables.
 
+The @code{Null} and @code{Index_type} column was added in MySQL 4.0.2.
 
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
 @subsubsection @code{SHOW TABLE STATUS}
@@ -19759,7 +19766,7 @@ subsystem)
 @cindex threads, display
 @cindex processes, display
 
-@code{SHOW PROCESSLIST} shows you which threads are running.  You can
+@code{SHOW [FULL] PROCESSLIST} shows you which threads are running.  You can
 also get this information using the @code{mysqladmin processlist}
 command.  If you have the @strong{process} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
@@ -21164,7 +21171,7 @@ the following configure options:
 You can find the MySQL-max binaries at
 @uref{http://www.mysql.com/downloads/mysql-max-3.23.html}.
 
-The Windows MySQL 3.23 binary distribution includes both the
+The Windows MySQL binary distributions includes both the
 standard @code{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 @xref{Windows installation}.
@@ -30678,6 +30685,7 @@ make string comparison even more flexible.
 @menu
 * Arithmetic functions::        Arithmetic Operations
 * Mathematical functions::      Mathematical Functions
+* Numerical casts::             
 @end menu
 
 
@@ -30746,7 +30754,7 @@ in a context where its result is converted to an integer!
 @end table
 
 
-@node Mathematical functions,  , Arithmetic functions, Numeric Functions
+@node Mathematical functions, Numerical casts, Arithmetic functions, Numeric Functions
 @subsubsection Mathematical Functions
 All mathematical functions return @code{NULL} in case of an error.
 
@@ -31143,6 +31151,35 @@ The above happens because 10.28 is actually stored as something like
 10.2799999999999999.
 @end table
 
+@node Numerical casts,  , Mathematical functions, Numeric Functions
+@subsubsection Casting numbers to signed / unsigned
+
+@cindex casts, SIGNED
+@cindex casts, UNSIGNED
+
+To cast a string to a numeric value, you don't have to do anything; Just
+use the string value as it would be a number:
+
+@example
+mysql> select 1+'1';
+        -> 2
+@end example
+
+MySQL support arithmetic with both signed and unsigned 64 bit values.
+If you are using an numerical operations (like @code{+}) and one of the
+operands are @code{unsigned}, then the result will be unsigned.  You can
+override this by using the @code{SIGNED} and @code{UNSIGNED} cast
+operators, which will cast the operation to signed respective unsigned
+64 bit integer.
+
+@example
+mysql> select UNSIGNED 1-2;
+        -> 18446744073709551615
+mysql  select SIGNED (UNSIGNED 1-2);
+        -> -1
+@end example
+
+@code{SIGNED} and @code{UNSIGNED} where added in MySQL 4.0.2.
 
 @node Date and time functions, Other Functions, Numeric Functions, Functions
 @subsection Date and Time Functions
@@ -31621,10 +31658,11 @@ mysql> select NOW() + 0;
 @item UNIX_TIMESTAMP()
 @itemx UNIX_TIMESTAMP(date)
 If called with no argument, returns a Unix timestamp (seconds since
-@code{'1970-01-01 00:00:00'} GMT). If @code{UNIX_TIMESTAMP()} is called with
-a @code{date} argument, it returns the value of the argument as seconds since
-@code{'1970-01-01 00:00:00'} GMT.  @code{date} may be a @code{DATE} string,
-a @code{DATETIME} string, a @code{TIMESTAMP}, or a number in the format
+@code{'1970-01-01 00:00:00'} GMT) as an unsigned integer. If
+@code{UNIX_TIMESTAMP()} is called with a @code{date} argument, it
+returns the value of the argument as seconds since @code{'1970-01-01
+00:00:00'} GMT.  @code{date} may be a @code{DATE} string, a
+@code{DATETIME} string, a @code{TIMESTAMP}, or a number in the format
 @code{YYMMDD} or @code{YYYYMMDD} in local time:
 
 @example
@@ -31635,10 +31673,13 @@ mysql> select UNIX_TIMESTAMP('1997-10-04 22:23:00');
 @end example
 
 When @code{UNIX_TIMESTAMP} is used on a @code{TIMESTAMP} column, the function
-will receive the value directly, with no implicit
+will return the internal timestamp value directly, with no implicit
 ``string-to-unix-timestamp'' conversion.
 If you give @code{UNIX_TIMESTAMP()} a wrong or out-of-range date, it will
 return 0.
+
+If you want to subtract @code{UNIX_TIMESTAMP()} columns,
+@xref{Numerical casts}.
 
 @findex FROM_UNIXTIME()
 @item FROM_UNIXTIME(unix_timestamp)
@@ -43189,6 +43230,11 @@ No UDF functions.
 No stack trace on core dump.
 @item
 No internal RAID support.
+@item
+You can set this up as a server or a master (no replication).
+@item
+You can't connect to the embedded server from an outside process with
+sockets or TCP/IP.
 @end itemize
 
 Some of these limitations can be changed by editing the @file{mysql_embed.h}
@@ -43196,6 +43242,8 @@ include file and recompiling MySQL.
 
 @node libmysqld options, libmysqld TODO, libmysqld restrictions, libmysqld
 @subsubsection Using Option Files with the Embedded Server
+
+@cindex defaults, embedded
 
 The following is the recommended way to use option files to make it easy
 to switch between a client/server application and one where MySQL is
@@ -43930,7 +43978,7 @@ is not the case, you should run the script
 
 @menu
 * UDF calling::                 UDF Calling Sequences
-* UDF aggr. calling::           UDF Calling Sequences for aggregate functions
+* UDF aggr. calling ::          
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
@@ -47893,11 +47941,24 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @menu
+* News-4.0.2::                  Changes in release 4.0.2
 * News-4.0.1::                  Changes in release 4.0.1
 * News-4.0.0::                  Changes in release 4.0.0
 @end menu
 
-@node News-4.0.1, News-4.0.0, News-4.0.x, News-4.0.x
+@node News-4.0.2, News-4.0.1, News-4.0.x, News-4.0.x
+@appendixsubsec Changes in release 4.0.2
+
+@itemize @bullet
+@item
+Added cast functions @code{SIGNED} and @code{UNSIGNED}.
+@item
+Changed order of how keys are created in tables.
+@item
+Added a new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}.
+@end itemize
+
+@node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
@@ -48180,15 +48241,18 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Fixed in when using the following construct:
+@code{SELECT ... WHERE key=@@var_name OR $key=@@var_name2}
+@item
+Restrict InnoDB keys to 500 bytes.
+@item
 InnoDB now supports @code{NULL} in keys.
 @item
 Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
 @item
-Added 'DO expression' command.
-@item
 Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
 @item
-Added new statement DO expression,[expression].
+Added new command: @code{DO expression,[expression]}
 @item
 Added @code{slave-skip-errors} option
 @item

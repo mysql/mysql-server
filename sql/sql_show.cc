@@ -652,6 +652,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Packed",10));
   item->maybe_null=1;
+  field_list.push_back(new Item_empty_string("Null",3));
+  field_list.push_back(new Item_empty_string("Index_type",16));
   field_list.push_back(new Item_empty_string("Comment",255));
   item->maybe_null=1;
 
@@ -691,6 +693,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       }
       else
         net_store_null(packet);
+
+      /* Check if we have a key part that only uses part of the field */
       if (!key_part->field ||
           key_part->length !=
           table->field[key_part->fieldnr-1]->key_length())
@@ -701,8 +705,14 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       else
         net_store_null(packet);
       net_store_null(packet);                   // No pack_information yet
-      net_store_data(packet,convert,
-		     key_info->flags & HA_FULLTEXT ? "FULLTEXT":"");
+
+      /* Null flag */
+      uint flags= key_part->field ? key_part->field->flags : 0;
+      char *pos=(byte*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
+      net_store_data(packet,convert,(const char*) pos);
+      net_store_data(packet,convert,table->file->index_type(i));
+      /* Comment */
+      net_store_data(packet,convert,"");
       if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
         DBUG_RETURN(1); /* purecov: inspected */
     }

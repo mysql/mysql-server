@@ -23,7 +23,8 @@ EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ @libmysqld_dirs@ scripts tests man \
+			@sql_server_dirs@ @libmysqld_dirs@ scripts man \
+			tests BUILD \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean
