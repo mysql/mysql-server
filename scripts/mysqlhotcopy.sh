@@ -821,7 +821,10 @@ sub get_list_of_tables {
     ## Remove quotes around table names
     my $quote = $dbh->get_info(29); # SQL_IDENTIFIER_QUOTE_CHAR
     if ($quote) {
-      foreach (@dbh_tables) { s/^$quote(.*)$quote$/$1/; }
+      foreach (@dbh_tables) {
+        s/^$quote(.*)$quote$/$1/;
+        s/$quote$quote/$quote/g;
+      }
     }
 
     $dbh->disconnect();
