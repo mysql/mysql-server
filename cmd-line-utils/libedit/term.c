@@ -67,10 +67,6 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 
 #include "el.h"
 
-/* Solaris's term.h does horrid things. */
-#if (defined(HAVE_TERM_H) && !defined(SUNOS))
-#include <term.h>
-#endif
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -1079,32 +1075,32 @@ term_reset_arrow(EditLine *el)
 	static const char stOH[] = {033, 'O', 'H', '\0'};
 	static const char stOF[] = {033, 'O', 'F', '\0'};
 
-	key_add(el, strA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-	key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-	key_add(el, strC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-	key_add(el, strD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-	key_add(el, strH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-	key_add(el, strF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
-	key_add(el, stOA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-	key_add(el, stOB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-	key_add(el, stOC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-	key_add(el, stOD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-	key_add(el, stOH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-	key_add(el, stOF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+	el_key_add(el, strA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+	el_key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+	el_key_add(el, strC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+	el_key_add(el, strD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	el_key_add(el, strH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	el_key_add(el, strF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+	el_key_add(el, stOA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+	el_key_add(el, stOB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+	el_key_add(el, stOC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+	el_key_add(el, stOD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	el_key_add(el, stOH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	el_key_add(el, stOF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 
 	if (el->el_map.type == MAP_VI) {
-		key_add(el, &strA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-		key_add(el, &strB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-		key_add(el, &strC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-		key_add(el, &strD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-		key_add(el, &strH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-		key_add(el, &strF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
-		key_add(el, &stOA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-		key_add(el, &stOB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-		key_add(el, &stOC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-		key_add(el, &stOD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-		key_add(el, &stOH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-		key_add(el, &stOF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+		el_key_add(el, &strA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+		el_key_add(el, &strB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+		el_key_add(el, &strC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+		el_key_add(el, &strD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+		el_key_add(el, &strH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+		el_key_add(el, &strF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+		el_key_add(el, &stOA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+		el_key_add(el, &stOB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+		el_key_add(el, &stOC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+		el_key_add(el, &stOD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+		el_key_add(el, &stOH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+		el_key_add(el, &stOF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 	}
 }
 
@@ -1158,7 +1154,7 @@ term_print_arrow(EditLine *el, const char *name)
 	for (i = 0; i < A_K_NKEYS; i++)
 		if (*name == '\0' || strcmp(name, arrow[i].name) == 0)
 			if (arrow[i].type != XK_NOD)
-				key_kprint(el, arrow[i].name, &arrow[i].fun,
+				el_key_kprint(el, arrow[i].name, &arrow[i].fun,
 				    arrow[i].type);
 }
 
@@ -1199,20 +1195,20 @@ term_bind_arrow(EditLine *el)
 			 *    unassigned key.
 		         */
 			if (arrow[i].type == XK_NOD)
-				key_clear(el, map, p);
+				el_key_clear(el, map, p);
 			else {
 				if (p[1] && (dmap[j] == map[j] ||
 					map[j] == ED_SEQUENCE_LEAD_IN)) {
-					key_add(el, p, &arrow[i].fun,
+					el_key_add(el, p, &arrow[i].fun,
 					    arrow[i].type);
 					map[j] = ED_SEQUENCE_LEAD_IN;
 				} else if (map[j] == ED_UNASSIGNED) {
-					key_clear(el, map, p);
+					el_key_clear(el, map, p);
 					if (arrow[i].type == XK_CMD)
 						map[j] = arrow[i].fun.cmd;
 					else
-						key_add(el, p, &arrow[i].fun,
-						    arrow[i].type);
+						el_key_add(el, p, &arrow[i].fun,
+						           arrow[i].type);
 				}
 			}
 		}
@@ -1245,6 +1241,8 @@ term__flush(void)
 /* term_telltc():
  *	Print the current termcap characteristics
  */
+char		*el_key__decode_str(const char *, char *, const char *);
+
 protected int
 /*ARGSUSED*/
 term_telltc(EditLine *el, int argc __attribute__((unused)),
@@ -1272,7 +1270,7 @@ term_telltc(EditLine *el, int argc __attribute__((unused)),
 		(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n",
 		    t->long_name,
 		    t->name, *ts && **ts ?
-		    key__decode_str(*ts, upbuf, "") : "(empty)");
+		    el_key__decode_str(*ts, upbuf, "") : "(empty)");
 	(void) fputc('\n', el->el_outfile);
 	return (0);
 }
