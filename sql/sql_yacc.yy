@@ -2522,7 +2522,7 @@ join_table:
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
                 add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
-				  lex->lock_option,(List<String> *)0,
+				  TL_READ,(List<String> *)0,
 	                          (List<String> *)0)))
 
 	    YYABORT;

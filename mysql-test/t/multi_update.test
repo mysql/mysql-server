@@ -213,7 +213,7 @@ insert into t2 values(1,10),(1,20);
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 select * from t1;
 select * from t2;
-UPDATE t1 a ,t2 b SET t1.d=t2.d,t2.d=30 WHERE a.n=b.n;
+UPDATE t1 a ,t2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
 select * from t1;
 select * from t2;
 DELETE t1, t2  FROM t1 a,t2 b where a.n=b.n;

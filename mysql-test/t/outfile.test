@@ -21,3 +21,8 @@
 #select * into dumpfile "/tmp/select-test.99" from t1;
 #select load_file("/tmp/select-test.not-exist");
 #drop table t1;
+#drop table if exists t;
+#CREATE TABLE t (  t timestamp NOT NULL,  c char(200) character set latin1 NOT NULL default '',  KEY t (t)) TYPE=MyISAM;
+#INSERT INTO t VALUES ('2002-12-20 12:01:20','');
+#select * from t into outfile "fdg";
+#drop table if exists t;
