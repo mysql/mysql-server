@@ -396,6 +396,7 @@ libmysqld/gstream.cc
 libmysqld/ha_archive.cc
 libmysqld/ha_berkeley.cc
 libmysqld/ha_example.cc
+libmysqld/ha_federated.cc
 libmysqld/ha_heap.cc
 libmysqld/ha_innobase.cc
 libmysqld/ha_innodb.cc
@@ -1036,6 +1037,7 @@ test/tools/verify_index
 test_xml
 tests/client_test
 tests/connect_test
+tests/mysql_client_test
 thread_test
 tmp/*
 tools/my_vsnprintf.c

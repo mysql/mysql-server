@@ -2610,18 +2610,19 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   init_abort_pos_wait= abort_pos_wait;
 
   /*
-    We'll need to 
+    We'll need to
     handle all possible log names comparisons (e.g. 999 vs 1000).
-    We use ulong for string->number conversion ; this is no 
+    We use ulong for string->number conversion ; this is no
     stronger limitation than in find_uniq_filename in sql/log.cc
   */
   ulong log_name_extension;
   char log_name_tmp[FN_REFLEN]; //make a char[] from String
-  char *end= strmake(log_name_tmp, log_name->ptr(), min(log_name->length(),
-							FN_REFLEN-1));
+
+  strmake(log_name_tmp, log_name->ptr(), min(log_name->length(), FN_REFLEN-1));
+
   char *p= fn_ext(log_name_tmp);
   char *p_end;
-  if (!*p || log_pos<0)   
+  if (!*p || log_pos<0)
   {
     error= -2; //means improper arguments
     goto err;

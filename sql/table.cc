@@ -342,12 +342,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
     goto err;
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
       goto err;                                 // Wrong password
   }
+#endif
 
   share->fields= uint2korr(head+258);
   pos= uint2korr(head+260);			/* Length of all screens */
@@ -375,12 +377,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) disk_buff,read_length);
     delete crypted;
     crypted=0;
   }
+#endif
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);

@@ -4473,9 +4473,15 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    x = used key parts (1 <= x <= c)
 		  */
 		  double rec_per_key;
+#if 0
 		  if (!(rec_per_key=(double)
 			keyinfo->rec_per_key[keyinfo->key_parts-1]))
 		    rec_per_key=(double) s->records/rec+1;
+#else
+                  rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1] ?
+		    (double) keyinfo->rec_per_key[keyinfo->key_parts-1] :
+		    (double) s->records/rec+1;   
+#endif
 
 		  if (!s->records)
 		    tmp=0;
@@ -10768,13 +10774,14 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
       field_count++;
   }
 
-  if (!field_count)
-  {						// only const items
+  if (!field_count && !(join->select_options & OPTION_FOUND_ROWS)) 
+  {                    // only const items with no OPTION_FOUND_ROWS
     join->unit->select_limit_cnt= 1;		// Only send first row
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->s->fields - field_count;
-  offset=entry->field[entry->s->fields - field_count]->offset();
+  offset= field_count ? 
+          entry->field[entry->s->fields - field_count]->offset() : 0;
   reclength=entry->s->reclength-offset;
 
   free_io_cache(entry);				// Safety
@@ -12958,7 +12965,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)
-      str->append(" left join ", 11); // MySQL converg right to left joins
+      str->append(" left join ", 11); // MySQL converts right to left joins
     else if (curr->straight)
       str->append(" straight_join ", 15);
     else
