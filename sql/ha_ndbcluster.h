@@ -76,6 +76,11 @@ class ha_ndbcluster: public handler
   int rnd_next(byte *buf);
   int rnd_pos(byte *buf, byte *pos);
   void position(const byte *record);
+  int read_range_first(const key_range *start_key,
+		       const key_range *end_key,
+		       bool sorted);
+  int read_range_next(bool eq_range);
+
 
   void info(uint);
   int extra(enum ha_extra_function operation);
@@ -147,9 +152,9 @@ class ha_ndbcluster: public handler
 	      byte *buf);
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
-  int ordered_index_scan(const byte *key, uint key_len, 
-			 byte *buf,
-			 enum ha_rkey_function find_flag);
+  int ordered_index_scan(const key_range *start_key,
+			 const key_range *end_key,
+			 bool sorted, byte* buf);
   int full_table_scan(byte * buf);
   int next_result(byte *buf); 
 #if 0
@@ -172,6 +177,8 @@ class ha_ndbcluster: public handler
   int get_ndb_value(NdbOperation*, uint fieldnr, byte *field_ptr);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
+  int set_bounds(NdbOperation *ndb_op, const key_range *key,
+		 int bound);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
 
