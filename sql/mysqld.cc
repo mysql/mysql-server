@@ -468,6 +468,7 @@ Query_cache query_cache;
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
 bool opt_enable_shared_memory;
+HANDLE event_connect_request= 0;
 #endif
 
 #include "sslopt-vars.h"
@@ -743,6 +744,15 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
+#ifdef HAVE_SMEM
+    /*
+     Send event to event_connect_request for aborting
+    */
+    if (!SetEvent(event_connect_request))
+    {
+      DBUG_PRINT("error",("Got error: %ld from SetEvent of event_connect_request",GetLastError()));
+    }
+#endif  
 #endif
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
@@ -3707,7 +3717,6 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   /* file-mapping object, use for create shared memory */
   HANDLE handle_connect_file_map= 0;
   char  *handle_connect_map= 0;  		// pointer on shared memory
-  HANDLE event_connect_request= 0;		// for start connection actions
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;
@@ -3760,6 +3769,12 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   {
     /* Wait a request from client */
     WaitForSingleObject(event_connect_request,INFINITE);
+
+    /*
+       it can be after shutdown command
+    */
+    if (abort_loop) 
+      goto error;
 
     HANDLE handle_client_file_map= 0;
     char  *handle_client_map= 0;
