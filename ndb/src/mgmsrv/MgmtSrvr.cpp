@@ -61,6 +61,8 @@
 #define DEBUG(x)
 #endif
 
+extern int global_flag_send_heartbeat_now;
+
 static
 void
 CmdBackupCallback(const MgmtSrvr::BackupEvent & event)
@@ -2415,7 +2417,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 #endif
     return true;
   }
-
+  global_flag_send_heartbeat_now= 1;
   BaseString type_string, type_c_string;
   {
     const char *alias, *str;
