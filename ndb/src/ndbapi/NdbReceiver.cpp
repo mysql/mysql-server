@@ -92,7 +92,7 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
   return 0;
 }
 
-#define KEY_ATTR_ID (~0)
+#define KEY_ATTR_ID (~(Uint32)0)
 
 void
 NdbReceiver::calculate_batch_size(Uint32 key_size,

@@ -3559,7 +3559,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	  {
 	    unsigned c= 0;
 	    p_db_hosts.get(str.c_str(),&c);
-	    if (c+1 == (1 << (replicas-1))) // all nodes on same machine
+	    if (c+1 == (1u << (replicas-1))) // all nodes on same machine
 	      node_group_warning.append(".\n    Host failure will "
 					"cause complete cluster shutdown.");
 	    else if (c > 0)
