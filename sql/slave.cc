@@ -38,7 +38,7 @@ HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
-bool table_rules_on = 0;
+bool table_rules_on= 0, replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /*
@@ -1999,6 +1999,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     error= -2; //means improper arguments
     goto err;
   }
+  // Convert 0-3 to 4
+  log_pos= max(log_pos, BIN_LOG_HEADER_SIZE);
   /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*
@@ -2019,7 +2021,18 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
-    DBUG_ASSERT(*master_log_name || master_log_pos == 0);
+    /*
+      master_log_name can be "", if we are just after a fresh replication start
+      or after a CHANGE MASTER TO MASTER_HOST/PORT (before we have executed one
+      Rotate event from the master) or (rare) if the user is doing a weird
+      slave setup (see next paragraph).
+      If master_log_name is "", we assume we don't have enough info to do the
+      comparison yet, so we just wait until more data. In this case
+      master_log_pos is always 0 except if somebody (wrongly) sets this slave
+      to be a slave of itself without using --replicate-same-server-id (an
+      unsupported configuration which does nothing), then master_log_pos will
+      grow and master_log_name will stay "".
+    */
     if (*master_log_name)
     {
       char *basename= master_log_name + dirname_length(master_log_name);
@@ -2039,14 +2052,15 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       char *q_end;
       ulong master_log_name_extension= strtoul(q, &q_end, 10);
       if (master_log_name_extension < log_name_extension)
-        cmp_result = -1 ;
+        cmp_result= -1 ;
       else
         cmp_result= (master_log_name_extension > log_name_extension) ? 1 : 0 ;
+
+      pos_reached= ((!cmp_result && master_log_pos >= (ulonglong)log_pos) ||
+                    cmp_result > 0);
+      if (pos_reached || thd->killed)
+        break;
     }
-    pos_reached = ((!cmp_result && master_log_pos >= (ulonglong)log_pos) ||
-                   cmp_result > 0);
-    if (pos_reached || thd->killed)
-      break;
 
     //wait for master update, with optional timeout.
     
@@ -2351,7 +2365,12 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       log files themselves.
     */
 
-    if (ev->server_id == (uint32) ::server_id ||
+    /*
+      TODO: when this is merged into 4.1, one needs to update queue_event() to
+      add a similar test for replicate_same_server_id, because in 4.1 the I/O
+      thread is also filtering events based on the server id.
+    */
+    if ((ev->server_id == (uint32) ::server_id && !replicate_same_server_id) ||
 	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
     {
       /* TODO: I/O thread should not even log events with the same server id */
