@@ -6130,22 +6130,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       the slow query log, and the relay log (if it exists).
     */
 
-    /* 
+    /*
      Writing this command to the binlog may result in infinite loops when doing
      mysqlbinlog|mysql, and anyway it does not really make sense to log it
      automatically (would cause more trouble to users than it would help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);
-    mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
+    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
 #ifdef HAVE_REPLICATION
-    if (mysql_bin_log.is_open() && expire_logs_days)
-    {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-	mysql_bin_log.purge_logs_before_date(purge_time);
-    }
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -6159,7 +6153,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
-    options &= ~REFRESH_QUERY_CACHE; 	// Don't flush cache, just free memory
+    options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {

@@ -152,3 +152,28 @@ unlock tables;
 connection master;
 drop table if exists t1,t2,t3,t4;
 sync_slave_with_master;
+
+#
+# now the same in a transaction
+#
+slave stop; # we don't need it anymore
+connection master;
+reset master;
+let $1=100;
+
+--disable_warnings
+create table t1 (n int) engine=innodb;
+--enable_warnings
+begin;
+--disable_query_log
+while ($1)
+{
+ eval insert into t1 values($1 + 4);
+ dec $1;
+}
+--enable_query_log
+commit;
+drop table t1;
+show binlog events in 'master-bin.000001';
+show binlog events in 'master-bin.000002';
+
