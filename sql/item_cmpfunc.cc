@@ -2047,7 +2047,8 @@ int cmp_item_row::compare(cmp_item *c)
 void cmp_item_decimal::store_value(Item *item)
 {
   my_decimal *val= item->val_decimal(&value);
-  if (val != &value)
+  /* val may be zero if item is nnull */
+  if (val && val != &value)
     my_decimal2decimal(val, &value);
 }
 
@@ -2061,9 +2062,9 @@ int cmp_item_decimal::cmp(Item *arg)
 }
 
 
-int cmp_item_decimal::compare(cmp_item *c)
+int cmp_item_decimal::compare(cmp_item *arg)
 {
-  cmp_item_decimal *cmp= (cmp_item_decimal *)c;
+  cmp_item_decimal *cmp= (cmp_item_decimal*) arg;
   return my_decimal_cmp(&value, &cmp->value);
 }
 
