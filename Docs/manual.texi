@@ -230,11 +230,11 @@ MySQL, see @ref{MySQL-Books}.
 @menu
 * MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
 * MySQL AB Logos and Trademarks::  MySQL AB Logos and Trademarks
-* MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
-* MySQL Information Sources::   MySQL Information Sources
 * Licensing and Support::       MySQL Support and Licensing
 * MySQL AB business model and services::  The Business Model and Services of MySQL AB
 * MySQL server licenses::       MySQL Server Licenses
+* MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
+* MySQL Information Sources::   MySQL Information Sources
 * Compatibility::               How Standards-compatible Is MySQL?
 * Comparisons::                 How MySQL Compares to Other Databases
 * TODO::                        MySQL and the future (The TODO)
@@ -1167,7 +1167,7 @@ values).
 
 @c FIX: Start new by AGL - Erik's text on logos and trademarks
 
-@node MySQL AB Logos and Trademarks, MySQL 4.0 In A Nutshell, MySQL and MySQL AB, Introduction
+@node MySQL AB Logos and Trademarks, Licensing and Support, MySQL and MySQL AB, Introduction
 @section MySQL AB Logos and Trademarks
 
 Many users of the MySQL database want to display the MySQL AB dolphin logo
@@ -1296,14 +1296,520 @@ details.
 Use of the word @code{MySQL} in product or company names or in Internet
 domain names is not allowed without written permission from MySQL AB.
 
+
 @c FIX: End new by AGL - Erik's text on logos and trademarks
+
+
+@node Licensing and Support, MySQL AB business model and services, MySQL AB Logos and Trademarks, Introduction
+@section MySQL Support and Licensing
+
+@cindex licensing terms
+@cindex support terms
+
+@menu
+* Support::                     Support offered by MySQL AB
+* Copyright::                   Copyrights used by MySQL
+* Licensing policy::            MySQL licensing policy
+* Licensing examples::          Example licensing situations
+@end menu
+
+This section describes MySQL support and licensing arrangements:
+
+@itemize @bullet
+
+@item Support costs and benefits
+(@pxref{Support})
+
+@item The copyrights under which MySQL is distributed
+(@pxref{Copyright})
+
+@item When and why you should license MySQL
+(@pxref{Licensing policy})
+
+@item Sample situations illustrating when a license is required
+(@pxref{Licensing examples})
+
+@end itemize
+
+
+@node Support, Copyright, Licensing and Support, Licensing and Support
+@subsection Support offered by MySQL AB
+
+@cindex support, types
+@cindex types, of support
+@cindex commercial support, types
+@cindex costs, licensing and support
+@cindex licensing costs
+@cindex support costs
+@cindex prices, licensing and support
+
+Technical support from MySQL AB means individualized answers to your
+unique problems direct from the software engineers who code the MySQL
+database engine.
+
+We try to take a broad and inclusive view of technical support. Almost
+any problem involving MySQL is important to us if it's important to you.
+Typically customers seek help on how to get different commands and
+utilities to work, remove performance bottlenecks, restore crashed
+systems, understand operating system or networking impacts on MySQL,
+set-up best practises for backup and recovery, utilize APIs, etc.
+Our support covers only the MySQL server and our own utilities, not
+third-party products that access MySQL, though we try to help with
+these where we can.
+
+Detailed information about our different support options is given at
+@uref{http://www.mysql.com/support/}.
+Support contracts can also be ordered online at
+@uref{https://order.mysql.com/}.
+If you have restricted access to the Internet, contact our sales
+staff at @email{sales@@mysql.com}.
+
+Technical support is like life insurance. You can live happily
+without it for years, but when your hour arrives it becomes
+critically important, yet it's too late to buy it!
+If you use MySQL for important applications and encounter sudden
+troubles,  it might take too long to figure out all the answers
+yourself. You may need immediate access to the most experienced
+MySQL troubleshooters available, those employed by MySQL AB.
+
+@node Copyright, Licensing policy, Support, Licensing and Support
+@subsection Copyrights Used by MySQL
+
+@cindex copyrights
+
+@menu
+* Copyright changes::           Possible future copyright changes
+@end menu
+
+There are several different copyrights on the MySQL distribution:
+
+@enumerate
+@item
+The MySQL-specific source needed to build the @code{mysqlclient}
+library is licensed under the @code{LGPL} and the programs in the
+@file{client} directory are under the @code{GPL}. Each file states at
+the beginning which license it is under.
+
+@item The client library, and the GNU @code{getopt} library, are covered
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
+
+@item Some parts of the source (the @code{regexp} library) are covered
+by a Berkeley-style copyright.
+
+@item
+All the source in the server, and the GNU @code{readline} library,
+are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
+This is also available as the file @file{COPYING} in the distributions.
+
+@end enumerate
+
+The SQL client library should be free enough that it is
+possible to add MySQL support into commercial products
+without a license.  For this reason, we chose the LGPL license for the
+client code.
+@cindex licensing, free
+@cindex free licensing
+
+This means that you can use MySQL for free with any program that uses
+any of the free software licenses.  MySQL is also free for any end
+user for personal or company usage.
+
+However, if you use MySQL for something important to you, you may
+want to help secure its development by purchasing licenses or a support
+contract.  @xref{Support}.
+
+
+@node Copyright changes,  , Copyright, Copyright
+@subsubsection Copyright Changes
+
+Version 3.22 of MySQL (old) is subject to a more strict license.  
+See the documentation for that version for more information.
+
+
+@node Licensing policy, Licensing examples, Copyright, Licensing and Support
+@subsection MySQL Licensing Policy
+
+@cindex licensing policy
+@cindex technical support, licensing
+@cindex support, licensing
+@cindex General Public License, MySQL
+
+The formal terms of the GPL license can be found at @ref{GPL license}.
+For pricing and ordering information, see
+@uref{https://order.mysql.com/}.
+
+Basically, our licensing policy and interpretation of the GPL is as follows:
+
+For normal internal use, MySQL costs nothing.  You do not have
+to pay us if you do not want to.
+
+A license is required if:
+
+@itemize @minus
+@item
+You link a program, that is not free software, with code from the
+MySQL server or clients that has the GPL copyright. This
+happens for example when you use MySQL as an embedded server
+in your applications or when you add not free extensions to the
+MySQL server.  In this case your application/code would also
+become GPL through the GPL license that acts as a virus.  By licensing
+MySQL server from MySQL AB under a commercial
+license you will avoid this problem.
+See @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
+@item
+You have a commercial application that ONLY works with MySQL
+and ships the application with the MySQL server.  This is
+because we view this as linking even if it is done over the network.
+
+@item
+You have a distribution of MySQL and you don't provide the
+source code for your copy of the MySQL server, as defined in
+the GPL license.
+@end itemize
+
+A license is @strong{not} required if:
+
+@itemize @minus
+
+@item
+You include the MySQL client code in a commercial
+program.  The client part of MySQL is licensed under the
+LGPL @code{GNU Library General Public License}.  The @code{mysql} command-line
+client does include code from the @code{readline} library that is under
+the @code{GPL}, however.
+
+@end itemize
+
+If your use of MySQL does not require a license, but you
+like MySQL and want to encourage further development, you are
+certainly welcome to purchase a license or MySQL support anyway.
+@xref{Support}.
+
+If you use MySQL in a commercial context such that you profit by 
+its use, we ask that you further the development of MySQL by 
+purchasing some level of support.  We feel that if MySQL helps 
+your business, it is reasonable to ask that you help MySQL.  
+(Otherwise, if you ask us support questions, you are not only using for 
+free something into which we've put a lot a work, you're asking us to 
+provide free support, too.)
+
+Note that older versions of MySQL are subject to a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+See the documentation for the specific version for more information.
+
+For circumstances under which a MySQL license is required, you
+need a license per machine that runs the @code{mysqld} server.  However,
+a multiple-CPU machine counts as a single machine, and there is no
+restriction on the number of MySQL servers that run on one
+machine, or on the number of clients concurrently connected to a server
+running on that machine.
+
+If you have any questions as to whether or not a license is required for
+your particular use of MySQL, please read this again and then
+contact us.  @xref{Contact information}.
+
+If you require a MySQL license, the easiest way to pay for it
+is to use the license form on MySQL's secure server at
+@uref{https://order.mysql.com/}.
+You can also get the latest pricing and ordering information by sending
+an e-mail to @email{sales@@mysql.com}.
+
+
+@node Licensing examples,  , Licensing policy, Licensing and Support
+@subsection Example Licensing Situations
+
+@menu
+* Products that use MySQL::     Selling products that use MySQL
+* ISP::                         ISP MySQL services
+* Web server::                  Running a web server using MySQL.
+@end menu
+
+@cindex licensing, examples
+@cindex selling products
+@cindex products, selling
+
+This section describes some situations illustrating whether or not you
+must license the MySQL server.  Generally these examples
+involve providing MySQL as an integral part of a product.
+
+Note that a single MySQL license covers any number of CPUs and
+@code{mysqld} servers on a machine!  There is no artificial limit on the
+number of clients that connect to the server in any way.
+
+
+@node Products that use MySQL, ISP, Licensing examples, Licensing examples
+@subsubsection Selling Products that use MySQL
+
+To determine whether or not you need a MySQL license when
+selling your application, you should ask whether the proper functioning
+of your application is dependent on the use of MySQL and
+whether you include the MySQL server with your product.  There
+are several cases to consider:
+
+@itemize @bullet
+@item
+Does your application require MySQL to function properly?
+
+@item
+If your product requires MySQL, you need a license for any
+machine that runs the @code{mysqld} server.  For example, if you've
+designed your application around MySQL, then you've really made
+a commercial product that requires the engine, so you need a license.
+
+@item
+If your application does not require MySQL, you do not need to obtain
+a license.  For example, if using MySQL just adds some new optional
+features to your product (such as adding logging to a database if
+MySQL is used rather than logging to a text file), it should
+fall within normal use, and a license would not be required.
+
+@item
+In other words, you need a license if you sell a product designed
+specifically for use with MySQL or that requires the
+MySQL server to function at all.  This is true whether or not
+you provide MySQL for your client as part of your product
+distribution.
+
+@item
+It also depends on what you're doing for the client.  Do you plan to
+provide your client with detailed instructions on installing
+MySQL with your software?  Then your product may be contingent
+on the use of MySQL; if so, you need to buy a license.  If you
+are simply tying into a database that you expect already to have been
+installed by the time your software is purchased, then you probably
+don't need a license.
+
+@end itemize
+
+
+@node ISP, Web server, Products that use MySQL, Licensing examples
+@subsubsection ISP MySQL Services
+
+@cindex ISP services
+@cindex services, ISP
+@cindex services, web
+@cindex Internet Service Providers
+
+Internet Service Providers (ISPs) often host MySQL servers for
+their customers.  With the GPL license this does not require a license.
+
+On the other hand, we do encourage people to use ISPs that have
+MySQL support, as this will give them the confidence that if
+they have some problem with their MySQL installation, their ISP
+will be able to solve the problem for them (in some cases with the help
+from the MySQL development team).
+
+All ISPs that want to keep themselves up-to-date should subscribe
+to our @code{announce} mailing list so that they can be aware of critical issues
+that may be relevant for their MySQL installations.
+
+Note that if the ISP doesn't have a license for MySQL,
+it should give its customers at least read access to the source of
+the MySQL installation so that its customers can verify that
+it is patched correctly.
+
+
+@node Web server,  , ISP, Licensing examples
+@subsubsection Running a Web Server Using MySQL
+
+@cindex web server, running
+@cindex running, a web server
+
+If you use MySQL in conjunction with a Web server, you
+do not have to pay for a license.
+
+This is true even if you run a commercial Web server that uses
+MySQL, because you are not selling an embedded MySQL
+version yourself.  However, in this case we would like you to purchase
+MySQL support, because MySQL is helping your enterprise.
+
+
+@c FIX: Start new by AGL - Erik's text on business model and services
+
+@node MySQL AB business model and services, MySQL server licenses, Licensing and Support, Introduction
+@section The Business Model and Services of MySQL AB
+
+MySQL AB is the company of the MySQL founders and main developers behind
+the MySQL database and this manual. One of the most common questions we
+encounter is: ``
+@emph{How can you make a living from something you give away for free?}''
+This is how.
+
+@menu
+* Business Services Support::   Support
+* Business Services Training::  Training
+* Business Services Consulting::  Consulting
+* Business Services Commercial licenses::  Commercial Licenses
+* Business Services Royalties::  Royalties
+@end menu
+
+
+@node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
+@subsection Support
+MySQL AB is run and owned by the founders and main developers of the MySQL
+database. The developers are committed to giving support to customers and
+other users in order to stay in touch with their needs and problems. All
+our support is given by qualified developers, not through call centers or
+dedicated support staff. Really tricky questions are even answered by
+Michael @code{Monty} Widenius himself, the author of the MySQL server.
+
+To order support at different levels, please visit the order section at
+@uref{http://www.mysql.com/support/}. If you have restricted access to the
+Internet, please contact our sales staff at @email{sales@@mysql.com}.
+
+
+@node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
+@subsection Training
+MySQL AB offers training on different levels all over the world.
+The trainers are backed by the development team to guarantee quality and
+continous development and also that no questions raised during the courses
+remain unanswered.
+
+If you're interested in participating in our courses, please visit the
+training section at @uref{http://www.mysql.com/training/}. If you have
+restricted access to the Internet, please contact our sales staff at
+@email{training@@mysql.com}.
+
+
+@node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
+@subsection Consulting
+MySQL AB offers consulting all over the world on different levels.
+Consulting covers all questions affecting database performance such as
+database design, table design, query constructions, parameter tuning,
+hardware tuning, migration issues, replication, transactions etc.
+Our consultants are backed by the development team to guarantee quality
+work.
+
+If you're interested in consulting, please visit the consulting section
+at @uref{http://www.mysql.com/consulting/}. If you have restricted access
+to the Internet, please contact our sales staff at
+@email{consulting@@mysql.com}.
+
+
+@node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
+@subsection Commercial Licenses
+The MySQL database is released under the GNU General Public License (GPL).
+This means that anybody can use it for free under the GPL rules. However
+if a company wishes to embed the database in a product, they have to buy
+commercial licenses of MySQL or else release their product under GPL too.
+Since MySQL AB owns the copyright of the MySQL server, we are able to sell
+commercial licenses. This does not in any way affect the Open Source
+commitment of MySQL AB. We also aim to offer commercial license packages
+covering both the MySQL database and closely connected third party
+software. Currently we have such an arrangement with the author of the
+InnoDB transaction handler.
+
+To buy commercial licenses, please visit the order section of
+@uref{https://order.mysql.com/}.
+
+
+@node Business Services Royalties,  , Business Services Commercial licenses, MySQL AB business model and services
+@subsection Royalties
+The word @code{MySQL} and the MySQL dolphin logo are trademarks of
+MySQL AB. These trademarks represent a significant value that the MySQL
+founders have built over the years. We think it's fair that companies
+wanting to get the benefit of these trademarks in their marketing
+contributes to the development of the MySQL database by paying some
+royalty. Also special versions of the trademarks are used as proofs
+of certification in our partner programmes.
+
+If you are interested in becoming a MySQL AB partner, please mail to
+@email{partner@@mysql.com}.
+
+
+@c FIX: End new by AGL - Erik's text on business model and services
+
+
+
+@c FIX: Start new by AGL - Erik's text on MySQL server licenses
+
+
+@node MySQL server licenses, MySQL 4.0 In A Nutshell, MySQL AB business model and services, Introduction
+@section MySQL Server Licenses
+
+The MySQL server is released under the GNU General Public License (GPL),
+which probably is the best known Open Source license. Please visit
+@uref{http://www.gnu.org} to read the terms of this license.
+
+Since the MySQL server is released under the GPL, it may often be used
+for free, but for certain uses you need to buy commercial licenses from
+MySQL AB at @uref{http://www.mysql.com/}.
+
+
+@menu
+* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
+* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
+@end menu
+
+@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
+@subsection Using the MySQL Server Under a Commercial License
+
+The GPL license is contagious in the sense that when a program is linked
+to a GPL program the resulting product must also be released under GPL
+lest you break the license terms and forfeit your right to use the GPL
+program altogether.
+
+You need a commercial license:
+
+@itemize @bullet
+@item
+When you link a program with code from the MySQL server or from GPL
+released clients and don't want the resulting product to be GPL, maybe
+because you want to build a commercial product or keep the added non-GPL
+code closed source for other reasons. When purchasing commercial licenses,
+you are not using the MySQL server under GPL even though it's the same
+code. You need one license per installation of the MySQL server.
+
+@item
+When you distribute a non-GPL application that ONLY works with the MySQL
+server and ships it with MySQL. This type of solution is actually
+considered to be linking even if it's done over a network.
+
+@item
+When you distribute copies of the MySQL server without providing the
+source code as required under the GPL license.
+
+@item
+When you want to support the further development of the MySQL database
+even if you don't formally need a commercial license. Another good way
+of contributing to the MySQL development while getting something useful
+ in return, is to purchase support directly from MySQL AB.
+@end itemize
+
+For buying commercial licenses and support, please visit the order section
+at @uref{https://order.mysql.com/}.
+
+@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
+@subsection Using the MySQL Server for Free Under GPL
+
+You can use the MySQL server for free under GPL:
+
+@itemize @bullet
+@item
+When you link a program with code from the MYSQL server and releases the
+resulting product under GPL
+
+@item
+When you distribute the MySQL server source code bundled with other
+programs that are not linked to or dependant on MySQL for their
+functionality even if you sell the distribution commercially
+
+@item
+When using the MySQL server internally in your company.
+@end itemize
+
+Please note that use of the MySQL server under commercial license or GPL
+does not automatically give you the right to use MySQL AB trademarks.
+
+
+@c FIX: End new by AGL - Erik's text on MySQL server licenses
 
 
 
 @c FIX: Start new by AGL - Kaj's text MySQL 4.0 in a Nutshell
 
 
-@node MySQL 4.0 In A Nutshell, MySQL Information Sources, MySQL AB Logos and Trademarks, Introduction
+@node MySQL 4.0 In A Nutshell, MySQL Information Sources, MySQL server licenses, Introduction
 @section MySQL 4.0 In A Nutshell
 
 Dateline: 16 October 2001, Uppsala, Sweden
@@ -1319,7 +1825,7 @@ Other new features target the users of embedded databases.
 
 @menu
 * 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
-* 4.0 Nutshell Development use possible immediately::  Development Use Possible Immediately
+* 4.0 Nutshell Ready for immediate development use::  Ready for immediate development use
 * 4.0 Nutshell Embedded MySQL::  Embedded MySQL
 * 4.0 Nutshell Other features::  Other Features Available From MySQL 4.0.0
 * 4.0 Nutshell Future features::  Future MySQL 4.0 Features
@@ -1327,7 +1833,7 @@ Other new features target the users of embedded databases.
 @end menu
 
 
-@node 4.0 NutShell Stepwise Rollout, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
+@node 4.0 NutShell Stepwise Rollout, 4.0 Nutshell Ready for immediate development use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
 @subsection Stepwise Rollout
 
 The rollout of MySQL 4.0 will come in several steps, with
@@ -1335,12 +1841,12 @@ the first version labelled 4.0.0 already containing most of the
 new features. Additional features will be incorporated into
 MySQL 4.0.1, 4.0.2 onwards; very probably within two months,
 MySQL 4.0 will be labelled beta. Further new features will then
-be added in MySQL 4.1, which is targetted for alpha release
+be added in MySQL 4.1, which is targeted for alpha release
 in December/January.
 
 
-@node 4.0 Nutshell Development use possible immediately, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
-@subsection Development Use Possible Immediately
+@node 4.0 Nutshell Ready for immediate development use, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
+@subsection Ready for immediate development use
 
 Users are not recommended to switch their production systems
 to MySQL 4.0 until it is released in beta version later Q4/2001.
@@ -1353,11 +1859,11 @@ reach stable state before the deployment of user applications
 now under development.
 
 
-@node 4.0 Nutshell Embedded MySQL, 4.0 Nutshell Other features, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell
+@node 4.0 Nutshell Embedded MySQL, 4.0 Nutshell Other features, 4.0 Nutshell Ready for immediate development use, MySQL 4.0 In A Nutshell
 @subsection Embedded MySQL
 
-With @code{libmysqld}, the realm of applications suitable for MySQL
-expands vastly. Using the embedded MySQL server library, one can
+@code{libmysqld} makes MySQL suitable for a vastly expanded realm of
+applications. Using the embedded MySQL server library, one can
 embed MySQL into various applications and electronics devices, where
 the end user has no knowledge of there actually being an underlying
 database. Embedded MySQL is ideal for use behind
@@ -1488,7 +1994,7 @@ checklist of very demanding buyers.
 
 
 
-@node MySQL Information Sources, Licensing and Support, MySQL 4.0 In A Nutshell, Introduction
+@node MySQL Information Sources, Compatibility, MySQL 4.0 In A Nutshell, Introduction
 @section MySQL Information Sources
 
 @cindex manuals, about MySQL
@@ -2912,508 +3418,7 @@ Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
 
 
-@node Licensing and Support, MySQL AB business model and services, MySQL Information Sources, Introduction
-@section MySQL Support and Licensing
-
-@cindex licensing terms
-@cindex support terms
-
-@menu
-* Support::                     Support offered by MySQL AB
-* Copyright::                   Copyrights used by MySQL
-* Licensing policy::            MySQL licensing policy
-* Licensing examples::          Example licensing situations
-@end menu
-
-This section describes MySQL support and licensing arrangements:
-
-@itemize @bullet
-
-@item Support costs and benefits
-(@pxref{Support})
-
-@item The copyrights under which MySQL is distributed
-(@pxref{Copyright})
-
-@item When and why you should license MySQL
-(@pxref{Licensing policy})
-
-@item Sample situations illustrating when a license is required
-(@pxref{Licensing examples})
-
-@end itemize
-
-
-@node Support, Copyright, Licensing and Support, Licensing and Support
-@subsection Support offered by MySQL AB
-
-@cindex support, types
-@cindex types, of support
-@cindex commercial support, types
-@cindex costs, licensing and support
-@cindex licensing costs
-@cindex support costs
-@cindex prices, licensing and support
-
-MySQL AB offers several commercial support options.  A description
-of what each level of support includes is given at
-@uref{https://order.mysql.com}.  If you have restricted access to the
-Internet, contact our sales staff at @email{sales@@mysql.com}.
-
-Technical support from MySQL AB means personal answers to your
-personal problems direct from the software engineers who code the
-MySQL database engine.  It is often very helpful to receive
-quick, personally prepared answers tailored to your exact needs.
-This is what MySQL AB paid technical support offers. Our pricing
-model ensures that basic support is affordable even for those on
-limited budgets.
-
-We try to take a broad and inclusive view of technical support.
-Almost any problem involving MySQL is important to us if it's
-important to you.  Typically customers seek help on how to get
-different commands and utilities to work, remove performance
-bottlenecks, restore crashed systems, understand operating system
-or networking impacts on MySQL, establish best practices for backup
-and recovery, utilize APIs, etc.
-
-
-@node Copyright, Licensing policy, Support, Licensing and Support
-@subsection Copyrights Used by MySQL
-
-@cindex copyrights
-
-@menu
-* Copyright changes::           Possible future copyright changes
-@end menu
-
-There are several different copyrights on the MySQL distribution:
-
-@enumerate
-@item
-The MySQL-specific source needed to build the @code{mysqlclient}
-library is licensed under the @code{LGPL} and the programs in the
-@file{client} directory are under the @code{GPL}. Each file states at
-the beginning which license it is under.
-
-@item The client library, and the GNU @code{getopt} library, are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
-
-@item Some parts of the source (the @code{regexp} library) are covered
-by a Berkeley-style copyright.
-
-@item
-All the source in the server, and the GNU @code{readline} library,
-are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
-This is also available as the file @file{COPYING} in the distributions.
-
-@end enumerate
-
-The SQL client library should be free enough that it is
-possible to add MySQL support into commercial products
-without a license.  For this reason, we chose the LGPL license for the
-client code.
-@cindex licensing, free
-@cindex free licensing
-
-This means that you can use MySQL for free with any program that uses
-any of the free software licenses.  MySQL is also free for any end
-user for personal or company usage.
-
-However, if you use MySQL for something important to you, you may
-want to help secure its development by purchasing licenses or a support
-contract.  @xref{Support}.
-
-
-@node Copyright changes,  , Copyright, Copyright
-@subsubsection Copyright Changes
-
-Version 3.22 of MySQL is still using a more strict license.  
-See the documentation for that version for more information.
-
-
-@node Licensing policy, Licensing examples, Copyright, Licensing and Support
-@subsection MySQL Licensing Policy
-
-@cindex licensing policy
-@cindex technical support, licensing
-@cindex support, licensing
-@cindex General Public License, MySQL
-
-The formal terms of the GPL license can be found at @ref{GPL license}.
-For pricing and ordering information, see
-@uref{https://order.mysql.com/}.
-
-Basically, our licensing policy and interpretation of the GPL is as follows:
-
-For normal internal use, MySQL costs nothing.  You do not have
-to pay us if you do not want to.
-
-A license is required if:
-
-@itemize @minus
-@item
-You link a program, that is not free software, with code from the
-MySQL server or clients that has the GPL copyright. This
-happens for example when you use MySQL as an embedded server
-in your applications or when you add not free extensions to the
-MySQL server.  In this case your application/code would also
-become GPL through the GPL license that acts as a virus.  By licensing
-MySQL server from MySQL AB under a commercial
-license you will avoid this problem.
-See @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
-@item
-You have a commercial application that ONLY works with MySQL
-and ships the application with the MySQL server.  This is
-because we view this as linking even if it is done over the network.
-
-@item
-You have a distribution of MySQL and you don't provide the
-source code for your copy of the MySQL server, as defined in
-the GPL license.
-@end itemize
-
-A license is @strong{not} required if:
-
-@itemize @minus
-
-@item
-You include the MySQL client code in a commercial
-program.  The client part of MySQL is licensed under the
-LGPL @code{GNU Library General Public License}.  The @code{mysql} command-line
-client does include code from the @code{readline} library that is under
-the @code{GPL}, however.
-
-@end itemize
-
-If your use of MySQL does not require a license, but you
-like MySQL and want to encourage further development, you are
-certainly welcome to purchase a license or MySQL support anyway.
-@xref{Support}.
-
-If you use MySQL in a commercial context such that you profit by 
-its use, we ask that you further the development of MySQL by 
-purchasing some level of support.  We feel that if MySQL helps 
-your business, it is reasonable to ask that you help MySQL.  
-(Otherwise, if you ask us support questions, you are not only using for 
-free something into which we've put a lot a work, you're asking us to 
-provide free support, too.)
-
-Note that older versions of MySQL are still using a more
-@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
-See the documentation for the specific version for more
-information.
-
-For circumstances under which a MySQL license is required, you
-need a license per machine that runs the @code{mysqld} server.  However,
-a multiple-CPU machine counts as a single machine, and there is no
-restriction on the number of MySQL servers that run on one
-machine, or on the number of clients concurrently connected to a server
-running on that machine.
-
-If you have any questions as to whether or not a license is required for
-your particular use of MySQL, please read this again and then
-contact us.  @xref{Contact information}.
-
-If you require a MySQL license, the easiest way to pay for it
-is to use the license form on MySQL's secure server at
-@uref{https://order.mysql.com/}.
-You can also get the latest pricing and ordering information by sending
-an e-mail to @email{sales@@mysql.com}.
-
-
-@node Licensing examples,  , Licensing policy, Licensing and Support
-@subsection Example Licensing Situations
-
-@menu
-* Products that use MySQL::     Selling products that use MySQL
-* ISP::                         ISP MySQL services
-* Web server::                  Running a web server using MySQL.
-@end menu
-
-@cindex licensing, examples
-@cindex selling products
-@cindex products, selling
-
-This section describes some situations illustrating whether or not you
-must license the MySQL server.  Generally these examples
-involve providing MySQL as an integral part of a product.
-
-Note that a single MySQL license covers any number of CPUs and
-@code{mysqld} servers on a machine!  There is no artificial limit on the
-number of clients that connect to the server in any way.
-
-
-@node Products that use MySQL, ISP, Licensing examples, Licensing examples
-@subsubsection Selling Products that use MySQL
-
-To determine whether or not you need a MySQL license when
-selling your application, you should ask whether the proper functioning
-of your application is dependent on the use of MySQL and
-whether you include the MySQL server with your product.  There
-are several cases to consider:
-
-@itemize @bullet
-@item
-Does your application require MySQL to function properly?
-
-@item
-If your product requires MySQL, you need a license for any
-machine that runs the @code{mysqld} server.  For example, if you've
-designed your application around MySQL, then you've really made
-a commercial product that requires the engine, so you need a license.
-
-@item
-If your application does not require MySQL, you do not need to obtain
-a license.  For example, if using MySQL just adds some new optional
-features to your product (such as adding logging to a database if
-MySQL is used rather than logging to a text file), it should
-fall within normal use, and a license would not be required.
-
-@item
-In other words, you need a license if you sell a product designed
-specifically for use with MySQL or that requires the
-MySQL server to function at all.  This is true whether or not
-you provide MySQL for your client as part of your product
-distribution.
-
-@item
-It also depends on what you're doing for the client.  Do you plan to
-provide your client with detailed instructions on installing
-MySQL with your software?  Then your product may be contingent
-on the use of MySQL; if so, you need to buy a license.  If you
-are simply tying into a database that you expect already to have been
-installed by the time your software is purchased, then you probably
-don't need a license.
-
-@end itemize
-
-
-@node ISP, Web server, Products that use MySQL, Licensing examples
-@subsubsection ISP MySQL Services
-
-@cindex ISP services
-@cindex services, ISP
-@cindex services, web
-@cindex Internet Service Providers
-
-Internet Service Providers (ISPs) often host MySQL servers for
-their customers.  With the GPL license this does not require a license.
-
-On the other hand, we do encourage people to use ISPs that have
-MySQL support, as this will give them the confidence that if
-they have some problem with their MySQL installation, their ISP
-will be able to solve the problem for them (in some cases with the help
-from the MySQL development team).
-
-All ISPs that want to keep themselves up-to-date should subscribe
-to our @code{announce} mailing list so that they can be aware of critical issues
-that may be relevant for their MySQL installations.
-
-Note that if the ISP doesn't have a license for MySQL,
-it should give its customers at least read access to the source of
-the MySQL installation so that its customers can verify that
-it is patched correctly.
-
-
-@node Web server,  , ISP, Licensing examples
-@subsubsection Running a Web Server Using MySQL
-
-@cindex web server, running
-@cindex running, a web server
-
-If you use MySQL in conjunction with a Web server, you
-do not have to pay for a license.
-
-This is true even if you run a commercial Web server that uses
-MySQL, because you are not selling an embedded MySQL
-version yourself.  However, in this case we would like you to purchase
-MySQL support, because MySQL is helping your enterprise.
-
-
-
-@c FIX: Start new by AGL - Erik's text on business model and services
-
-@node MySQL AB business model and services, MySQL server licenses, Licensing and Support, Introduction
-@section The Business Model and Services of MySQL AB
-
-MySQL AB is the company of the MySQL founders and main developers behind
-the MySQL database and this manual. One of the most common questions we
-encounter is: ``
-@emph{How can you make a living from something you give away for free?}''
-This is how.
-
-@menu
-* Business Services Support::   Support
-* Business Services Training::  Training
-* Business Services Consulting::  Consulting
-* Business Services Commercial licenses::  Commercial Licenses
-* Business Services Royalties::  Royalties
-@end menu
-
-
-@node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
-@subsection Support
-MySQL AB is run and owned by the founders and main developers of the MySQL
-database. The developers are committed to giving support to customers and
-other users in order to stay in touch with their needs and problems. All
-our support is given by qualified developers, not through call centers or
-dedicated support staff. Really tricky questions are even answered by
-Michael @code{Monty} Widenius himself, the author of the MySQL server.
-
-To order support at different levels, please visit the order section at
-@uref{http://www.mysql.com/support/}. If you have restricted access to the
-Internet, please contact our sales staff at @email{sales@@mysql.com}.
-
-
-@node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
-@subsection Training
-MySQL AB offers training on different levels all over the world.
-The trainers are backed by the development team to guarantee quality and
-continous development and also that no questions raised during the courses
-remain unanswered.
-
-If you're interested in participating in our courses, please visit the
-training section at @uref{http://www.mysql.com/training/}. If you have
-restricted access to the Internet, please contact our sales staff at
-@email{training@@mysql.com}.
-
-
-@node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
-@subsection Consulting
-MySQL AB offers consulting all over the world on different levels.
-Consulting covers all questions affecting database performance such as
-database design, table design, query constructions, parameter tuning,
-hardware tuning, migration issues, replication, transactions etc.
-Our consultants are backed by the development team to guarantee quality
-work.
-
-If you're interested in consulting, please visit the consulting section
-at @uref{http://www.mysql.com/consulting/}. If you have restricted access
-to the Internet, please contact our sales staff at
-@email{consulting@@mysql.com}.
-
-
-@node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
-@subsection Commercial Licenses
-The MySQL database is released under the GNU General Public License (GPL).
-This means that anybody can use it for free under the GPL rules. However
-if a company wishes to embed the database in a product, they have to buy
-commercial licenses of MySQL or else release their product under GPL too.
-Since MySQL AB owns the copyright of the MySQL server, we are able to sell
-commercial licenses. This does not in any way affect the Open Source
-commitment of MySQL AB. We also aim to offer commercial license packages
-covering both the MySQL database and closely connected third party
-software. Currently we have such an arrangement with the author of the
-InnoDB transaction handler.
-
-To buy commercial licenses, please visit the order section of
-@uref{https://order.mysql.com/}.
-
-
-@node Business Services Royalties,  , Business Services Commercial licenses, MySQL AB business model and services
-@subsection Royalties
-The word @code{MySQL} and the MySQL dolphin logo are trademarks of
-MySQL AB. These trademarks represent a significant value that the MySQL
-founders have built over the years. We think it's fair that companies
-wanting to get the benefit of these trademarks in their marketing
-contributes to the development of the MySQL database by paying some
-royalty. Also special versions of the trademarks are used as proofs
-of certification in our partner programmes.
-
-If you are interested in becoming a MySQL AB partner, please mail to
-@email{partner@@mysql.com}.
-
-
-@c FIX: End new by AGL - Erik's text on business model and services
-
-
-
-@c FIX: Start new by AGL - Erik's text on MySQL server licenses
-
-
-@node MySQL server licenses, Compatibility, MySQL AB business model and services, Introduction
-@section MySQL Server Licenses
-
-The MySQL server is released under the GNU General Public License (GPL),
-which probably is the best known Open Source license. Please visit
-@uref{http://www.gnu.org} to read the terms of this license.
-
-Since the MySQL server is released under the GPL, it may often be used
-for free, but for certain uses you need to buy commercial licenses from
-MySQL AB at @uref{http://www.mysql.com/}.
-
-
-@menu
-* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
-* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
-@end menu
-
-@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
-@subsection Using the MySQL Server Under a Commercial License
-
-The GPL license is contagious in the sense that when a program is linked
-to a GPL program the resulting product must also be released under GPL
-lest you break the license terms and forfeit your right to use the GPL
-program altogether.
-
-You need a commercial license:
-
-@itemize @bullet
-@item
-When you link a program with code from the MySQL server or from GPL
-released clients and don't want the resulting product to be GPL, maybe
-because you want to build a commercial product or keep the added non-GPL
-code closed source for other reasons. When purchasing commercial licenses,
-you are not using the MySQL server under GPL even though it's the same
-code. You need one license per installation of the MySQL server.
-
-@item
-When you distribute a non-GPL application that ONLY works with the MySQL
-server and ships it with MySQL. This type of solution is actually
-considered to be linking even if it's done over a network.
-
-@item
-When you distribute copies of the MySQL server without providing the
-source code as required under the GPL license.
-
-@item
-When you want to support the further development of the MySQL database
-even if you don't formally need a commercial license. Another good way
-of contributing to the MySQL development while getting something useful
- in return, is to purchase support directly from MySQL AB.
-@end itemize
-
-For buying commercial licenses and support, please visit the order section
-at @uref{https://order.mysql.com/}.
-
-@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
-@subsection Using the MySQL Server for Free Under GPL
-
-You can use the MySQL server for free under GPL:
-
-@itemize @bullet
-@item
-When you link a program with code from the MYSQL server and releases the
-resulting product under GPL
-
-@item
-When you distribute the MySQL server source code bundled with other
-programs that are not linked to or dependant on MySQL for their
-functionality even if you sell the distribution commercially
-
-@item
-When using the MySQL server internally in your company.
-@end itemize
-
-Please note that use of the MySQL server under commercial license or GPL
-does not automatically give you the right to use MySQL AB trademarks.
-
-
-@c FIX: End new by AGL - Erik's text on MySQL server licenses
-
-
-
-@node Compatibility, Comparisons, MySQL server licenses, Introduction
+@node Compatibility, Comparisons, MySQL Information Sources, Introduction
 @section How Standards-compatible Is MySQL?
 
 @cindex compatibility, with ANSI SQL
