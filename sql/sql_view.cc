@@ -183,8 +183,15 @@ int mysql_create_view(THD *thd,
 
   // prepare select to resolve all fields
   lex->view_prepare_mode= 1;
-  if ((res= unit->prepare(thd, 0, 0)))
+  if (unit->prepare(thd, 0, 0))
+  {
+    /*
+      some errors from prepare are reported to user, if is not then
+      it will be checked after err: label
+    */
+    res= 1;
     goto err;
+  }
 
   /* view list (list of view fields names) */
   if (lex->view_list.elements)

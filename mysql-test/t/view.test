@@ -973,3 +973,10 @@ select * from t1;
 
 drop view v1;
 drop table t1;
+
+#
+# error on preparation
+#
+-- error 1096
+CREATE VIEW v02 AS SELECT * FROM DUAL;
+SHOW TABLES;
