@@ -27,7 +27,7 @@
 #define misc_word_char(X)	((X)=='\'')
 #define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
 
-#define FT_MAX_WORD_LEN_FOR_SORT 20
+#define FT_MAX_WORD_LEN_FOR_SORT 31
 
 #define COMPILE_STOPWORDS_IN
 

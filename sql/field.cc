@@ -46,6 +46,8 @@ template class List_iterator<create_field>;
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
+#define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE 320
+
 /*****************************************************************************
   Static help functions
 *****************************************************************************/
@@ -876,7 +878,7 @@ int Field_decimal::store(double nr)
 
   reg4 uint i,length;
   char fyllchar,*to;
-  char buff[320];
+  char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
 #ifdef HAVE_SNPRINTF
@@ -1758,6 +1760,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   len-= tmp;
   from+= tmp;
   my_errno=0;
+
   if (unsigned_flag)
   {
     if (!len || *from == '-')
@@ -1774,6 +1777,34 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error ||
       (from+len != end && table->in_use->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
+    error= 1;
+#if SIZEOF_LONG > 4
+  if (unsigned_flag)
+  {
+    if ((ulong) tmp > UINT_MAX32)
+    {
+      tmp= UINT_MAX32;
+      error= 1;
+      my_errno=ERANGE;
+    }
+  }
+  else
+  {
+    if (tmp > INT_MAX32)
+    {
+      tmp= INT_MAX32;
+      error= 1;
+      my_errno=ERANGE;
+    }
+    else if (tmp < INT_MIN32)
+    {
+      tmp= INT_MIN32;
+      error= 1;
+      my_errno=ERANGE;
+    }
+  }
+#endif
+  if (error)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
     error= 1;
@@ -2695,7 +2726,7 @@ String *Field_double::val_str(String *val_buffer,
 #endif
     doubleget(nr,ptr);
 
-  uint to_length=max(field_length,320);
+  uint to_length=max(field_length, DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE);
   val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
 
@@ -2707,7 +2738,8 @@ String *Field_double::val_str(String *val_buffer,
   else
   {
 #ifdef HAVE_FCONVERT
-    char buff[320],*pos=buff;
+    char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+    char *pos= buff;
     int decpt,sign,tmp_dec=dec;
 
     VOID(fconvert(nr,tmp_dec,&decpt,&sign,buff));
@@ -2877,7 +2909,8 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
   :Field_str(ptr_arg, 19, (uchar*) 0,0,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
-  flags|=ZEROFILL_FLAG; /* 4.0 MYD compatibility */
+  /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
   if (table && !table->timestamp_field && 
       unireg_check != NONE)
   {
@@ -4231,13 +4264,40 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 }
 
 
-int Field_string::store(double nr)
+/*
+  Store double value in Field_string or Field_varstring.
+
+  SYNOPSIS
+    store(double nr)
+    nr            number
+
+  DESCRIPTION
+    Pretty prints double number into field_length characters buffer.
+*/
+
+int Field_str::store(double nr)
 {
-  char buff[MAX_FIELD_WIDTH],*end;
-  int width=min(field_length,DBL_DIG+5);
-  sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
-  end=strcend(buff,' ');
-  return Field_string::store(buff,(uint) (end - buff), &my_charset_bin);
+  char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+  uint length;
+  bool use_scientific_notation= TRUE;
+  use_scientific_notation= TRUE;
+if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+    use_scientific_notation= FALSE;
+  length= (uint) my_sprintf(buff, (buff, "%-.*g",
+                                   (use_scientific_notation ?
+                                    max(0, (int)field_length-5) :
+                                    field_length),
+                                   nr));
+  /*
+    +1 below is because "precision" in %g above means the
+    max. number of significant digits, not the output width.
+    Thus the width can be larger than number of significant digits by 1
+    (for decimal point)
+    the test for field_length < 5 is for extreme cases,
+    like inserting 500.0 in char(1)
+  */
+  DBUG_ASSERT(field_length < 5 || length <= field_length+1);
+  return store((const char *)buff, min(length, field_length), charset());
 }
 
 
@@ -4313,7 +4373,7 @@ void Field_string::sql_type(String &res) const
 			    (field_length > 3 &&
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
-			      (has_charset() ? "varchar" : "varbinary") : 
+			      (has_charset() ? "varchar" : "varbinary") :
 			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
@@ -4328,6 +4388,21 @@ char *Field_string::pack(char *to, const char *from, uint max_length)
     end--;
   *to= length=(uchar) (end-from);
   memcpy(to+1, from, (int) length);
+  return to+1+length;
+}
+
+
+char *Field_string::pack_key(char *to, const char *from, uint max_length)
+{
+  uint length=      min(field_length,max_length);
+  uint char_length= max_length/field_charset->mbmaxlen;
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
+  while (length && from[length-1] == ' ')
+    length--;
+  *to= (uchar)length;
+  memcpy(to+1, from, length);
   return to+1+length;
 }
 
@@ -4406,16 +4481,6 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   memcpy(ptr+HA_KEY_BLOB_LENGTH,from,length);
   int2store(ptr, length);
   return error;
-}
-
-
-int Field_varstring::store(double nr)
-{
-  char buff[MAX_FIELD_WIDTH],*end;
-  int width=min(field_length,DBL_DIG+5);
-  sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
-  end=strcend(buff,' ');
-  return Field_varstring::store(buff,(uint) (end - buff), &my_charset_bin);
 }
 
 
@@ -4501,6 +4566,24 @@ char *Field_varstring::pack(char *to, const char *from, uint max_length)
     *to++= (char) (length >> 8);
   if (length)
     memcpy(to, from+HA_KEY_BLOB_LENGTH, length);
+  return to+length;
+}
+
+
+char *Field_varstring::pack_key(char *to, const char *from, uint max_length)
+{
+  uint length=uint2korr(from);
+  uint char_length= (field_charset->mbmaxlen > 1) ?
+              max_length/field_charset->mbmaxlen : max_length;
+  from+=HA_KEY_BLOB_LENGTH;
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
+  *to++= (char) (length & 255);
+  if (max_length > 255)
+    *to++= (char) (length >> 8);
+  if (length)
+    memcpy(to, from, length);
   return to+length;
 }
 
@@ -5080,16 +5163,17 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
   char *save=ptr;
   ptr=(char*) from;
   uint32 length=get_length();			// Length of from string
-  if (length > max_length)
-    length=max_length;
+  uint char_length= (field_charset->mbmaxlen > 1) ?
+              max_length/field_charset->mbmaxlen : max_length;
+  if (length)
+    get_ptr((char**) &from);
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
   *to++= (uchar) length;
   if (max_length > 255)				// 2 byte length
     *to++= (uchar) (length >> 8);
-  if (length)
-  {
-    get_ptr((char**) &from);
-    memcpy(to, from, length);
-  }
+  memcpy(to, from, length);
   ptr=save;					// Restore org row pointer
   return to+length;
 }
@@ -5665,6 +5749,10 @@ void create_field::create_length_to_internal_length(void)
       length*= charset->mbmaxlen;
       pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
 				    FIELD_TYPE_STRING : sql_type, length);
+      break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+      length*= charset->mbmaxlen;
       break;
     default:
       /* do nothing */

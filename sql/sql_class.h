@@ -454,12 +454,28 @@ public:
   */
   Item *free_list;
   MEM_ROOT mem_root;
+  enum enum_state 
+  {
+    INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
+    ERROR= -1
+  };
   
+  enum_state state;
+
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
+  };
+
   Item_arena(THD *thd);
   Item_arena();
   Item_arena(bool init_mem_root);
-  ~Item_arena();
+  virtual Type type() const;
+  virtual ~Item_arena();
 
+  inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -549,12 +565,6 @@ public:
   Cursor *cursor;
 
 public:
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT,
-    PREPARED_STATEMENT
-  };
 
   /*
     This constructor is called when statement is a subobject of THD:
@@ -567,9 +577,16 @@ public:
 
   /* Assign execution context (note: not all members) of given stmt to self */
   void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
 
+  /*
+    Cleanup statement parse state (parse tree, lex) after execution of
+    a non-prepared SQL statement.
+  */
+  void end_statement();
 };
 
 
@@ -862,7 +879,7 @@ public:
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table;
+  uint	     current_tablenr,tmp_table,global_read_lock;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -881,7 +898,7 @@ public:
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     time_zone_used;
-  bool	     in_lock_tables,global_read_lock;
+  bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
 
   enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
@@ -951,6 +968,12 @@ public:
   void close_active_vio();
 #endif  
   void awake(THD::killed_state state_to_set);
+  /*
+    For enter_cond() / exit_cond() to work the mutex must be got before
+    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
+    then released by exit_cond(). Use must be:
+    lock mutex; enter_cond(); your code; exit_cond().
+  */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
@@ -962,6 +985,13 @@ public:
   }
   inline void exit_cond(const char* old_msg)
   {
+    /*
+      Putting the mutex unlock in exit_cond() ensures that
+      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      locked (if that would not be the case, you'll get a deadlock if someone
+      does a THD::awake() on you).
+    */
+    pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
@@ -1001,6 +1031,10 @@ public:
     return 0;
 #endif
   }
+  inline bool only_prepare()
+  {
+    return command == COM_PREPARE;
+  }
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
@@ -1036,38 +1070,6 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
-
-  inline void allocate_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_arena!=0);
-    /*
-      We do not want to have in PS memory all that junk,
-      which will be created by preparation => substitute memory
-      from original thread pool.
-
-      We know that PS memory pool is now copied to THD, we move it back
-      to allow some code use it.
-    */
-    current_arena->set_item_arena(this);
-    init_sql_alloc(&mem_root,
-		   variables.query_alloc_block_size,
-		   variables.query_prealloc_size);
-    free_list= 0;
-  }
-  inline void free_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_arena!=0);
-    cleanup_items(current_arena->free_list);
-    /* no need to reset free_list as it won't be used anymore */
-    free_items(free_list);
-    close_thread_tables(this); // to close derived tables
-    free_root(&mem_root, MYF(0));
-    set_item_arena(current_arena);
-  }
-  inline bool only_prepare()
-  {
-    return command == COM_PREPARE;
-  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1076,9 +1078,32 @@ public:
 #define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
+  Disables binary logging for one thread, and resets it back to what it was
+  before being disabled. 
+  Some functions (like the internal mysql_create_table() when it's called by
+  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
+  at a later stage of the command already, and must be, for locking reasons);
+  so we internally disable it temporarily by creating the Disable_binlog
+  object and reset the state by destroying the object (don't forget that! or
+  write code so that the object gets automatically destroyed when leaving a
+  block, see example in sql_table.cc).
+*/
+class Disable_binlog {
+private:
+  THD *thd;
+  ulong save_options;
+public:
+  Disable_binlog(THD *thd_arg);
+  ~Disable_binlog();
+};
+
+
+/*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+  XXX: We never call destructor for objects of this class.
 */
+
 class sql_exchange :public Sql_alloc
 {
 public:
@@ -1088,7 +1113,6 @@ public:
   bool dumpfile;
   ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
-  ~sql_exchange() {}
 };
 
 #include "log_event.h"
@@ -1119,6 +1143,11 @@ public:
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
+  /*
+    Cleanup instance of this class for next execution of a prepared
+    statement/stored procedure.
+  */
+  virtual void cleanup();
 };
 
 
@@ -1145,6 +1174,8 @@ public:
   ~select_to_file();
   bool send_fields(List<Item> &list, uint flags) { return 0; }
   void send_error(uint errcode,const char *err);
+  bool send_eof();
+  void cleanup();
 };
 
 
@@ -1157,7 +1188,6 @@ public:
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1166,7 +1196,6 @@ public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1194,6 +1223,8 @@ class select_insert :public select_result {
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  /* not implemented: select_insert is never re-used in prepared statements */
+  void cleanup();
 };
 
 
@@ -1520,4 +1551,5 @@ public:
   bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
+  void cleanup();
 };

@@ -98,11 +98,11 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Mediumint,
-    NULL // cmpMediumint
+    cmpMediumint
   },
   {
     Type::Mediumunsigned,
-    NULL // cmpMediumunsigned
+    cmpMediumunsigned
   },
   {
     Type::Int,
@@ -130,7 +130,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Decimal,
-    NULL // cmpDecimal
+    NULL  // cmpDecimal
   },
   {
     Type::Char,
@@ -142,11 +142,11 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Binary,
-    NULL // cmpBinary
+    cmpBinary
   },
   {
     Type::Varbinary,
-    NULL // cmpVarbinary
+    cmpVarbinary
   },
   {
     Type::Datetime,
@@ -154,15 +154,15 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Timespec,
-    NULL // cmpTimespec
+    cmpTimespec
   },
   {
     Type::Blob,
-    NULL // cmpDatetime
+    cmpBlob
   },
   {
-    Type::Clob,
-    cmpClob
+    Type::Text,
+    cmpText
   }
 };
 
@@ -299,9 +299,9 @@ NdbSqlUtil::cmpBlob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size
 }
 
 int
-NdbSqlUtil::cmpClob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpText(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Clob, p1, p2, full, size);
+  return cmp(Type::Text, p1, p2, full, size);
 }
 
 #ifdef NDB_SQL_UTIL_TEST

@@ -32,6 +32,7 @@ static
 dtuple_t*
 dict_create_sys_tables_tuple(
 /*=========================*/
+				/* out: the tuple which should be inserted */
 	dict_table_t*	table, 	/* in: table */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory for
 				the built tuple is allocated */

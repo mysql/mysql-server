@@ -21,11 +21,14 @@
 extern "C" {
 #endif
 
-const char* NdbConfig_HomePath(char* buf, int buflen);
-
-const char* NdbConfig_NdbCfgName(char* buf, int buflen, int with_ndb_home);
-const char* NdbConfig_ErrorFileName(char* buf, int buflen);
-const char* NdbConfig_ClusterLogFileName(char* buf, int buflen);
+char* NdbConfig_NdbCfgName(int with_ndb_home);
+char* NdbConfig_ErrorFileName(int node_id);
+char* NdbConfig_ClusterLogFileName(int node_id);
+char* NdbConfig_SignalLogFileName(int node_id);
+char* NdbConfig_TraceFileName(int node_id, int file_no);
+char* NdbConfig_NextTraceFileName(int node_id);
+char* NdbConfig_PidFileName(int node_id);
+char* NdbConfig_StdoutFileName(int node_id);
 
 #ifdef	__cplusplus
 }

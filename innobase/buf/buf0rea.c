@@ -629,6 +629,8 @@ buf_read_ibuf_merge_pages(
 		}
 	}
 	
+	os_aio_simulated_wake_handler_threads();
+
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 

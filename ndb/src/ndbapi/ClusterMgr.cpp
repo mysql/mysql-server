@@ -295,6 +295,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
 }
 
 int global_mgmt_server_check = 0; // set to one in mgmtsrvr main;
+
 void
 ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
@@ -309,6 +310,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   Node & node = theNodes[nodeId];
   assert(node.defined == true);
   assert(node.connected == true);
+
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
     if (global_mgmt_server_check == 1)

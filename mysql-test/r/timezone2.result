@@ -244,3 +244,10 @@ NULL
 select convert_tz( NULL, 'MET', 'UTC');
 convert_tz( NULL, 'MET', 'UTC')
 NULL
+create table t1 (ts timestamp);
+set timestamp=1000000000;
+insert into t1 (ts) values (now());
+select convert_tz(ts, @@time_zone, 'Japan') from t1;
+convert_tz(ts, @@time_zone, 'Japan')
+2001-09-09 10:46:40
+drop table t1;

@@ -34,6 +34,7 @@ Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
 
 bool
 BackupFile::Twiddle(const AttributeDesc* attr_desc, AttributeData* attr_data, Uint32 arraySize){
+  Uint32 i;
 
   if(m_hostByteOrder)
     return true;
@@ -47,17 +48,17 @@ BackupFile::Twiddle(const AttributeDesc* attr_desc, AttributeData* attr_data, Ui
     
     return true;
   case 16:
-    for(unsigned i = 0; i<arraySize; i++){
+    for(i = 0; i<arraySize; i++){
       attr_data->u_int16_value[i] = Twiddle16(attr_data->u_int16_value[i]);
     }
     return true;
   case 32:
-    for(unsigned i = 0; i<arraySize; i++){
+    for(i = 0; i<arraySize; i++){
       attr_data->u_int32_value[i] = Twiddle32(attr_data->u_int32_value[i]);
     }
     return true;
   case 64:
-    for(unsigned i = 0; i<arraySize; i++){
+    for(i = 0; i<arraySize; i++){
       attr_data->u_int64_value[i] = Twiddle64(attr_data->u_int64_value[i]);
     }
     return true;
@@ -333,8 +334,8 @@ RestoreDataIterator::getNextTuple(int  & res)
   
   Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
-
-  for(Uint32 i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
+  Uint32 i;
+  for(i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
     assert(ptr < buf_ptr + dataLength);
  
     const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
@@ -355,7 +356,7 @@ RestoreDataIterator::getNextTuple(int  & res)
     ptr += sz;
   }
 
-  for(Uint32 i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
+  for(i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
     assert(ptr < buf_ptr + dataLength);
 
     const Uint32 attrId = m_currentTable->m_fixedAttribs[i]->attrId;
@@ -377,7 +378,7 @@ RestoreDataIterator::getNextTuple(int  & res)
     ptr += sz;
   }
 
-  for(Uint32 i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
+  for(i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
 
     AttributeData * attr_data = m_tuple.getData(attrId);
@@ -936,3 +937,8 @@ operator<<(NdbOut& ndbout, const TableS & table){
   } // for
   return ndbout;
 }
+
+template class Vector<TableS*>;
+template class Vector<AttributeS*>;
+template class Vector<AttributeDesc*>;
+

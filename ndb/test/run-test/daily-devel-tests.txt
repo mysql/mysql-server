@@ -1,0 +1,204 @@
+#
+# INDEX
+#
+max-time: 1500
+cmd: testIndex
+args: -n CreateAll T1 T6 T13
+
+#-m 7200 1: testIndex -n InsertDeleteGentle T7
+max-time: 3600
+cmd: testIndex
+args: -n InsertDelete T1 T10 
+
+#-m 3600 1: testIndex -n CreateLoadDropGentle T7
+max-time: 3600
+cmd: testIndex
+args: -n CreateLoadDrop T1 T10 
+
+#
+# BACKUP
+#
+max-time: 600
+cmd: testBackup
+args: -n BackupOne T1 T6 T3 I3
+
+#max-time: 600
+#cmd: testBackup
+#args: -n BackupBank T6 
+#
+#
+# MGMAPI AND MGSRV
+#
+max-time: 1800
+cmd: testMgm
+args: -n SingleUserMode T1 
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T8 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR3 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR4 T6 
+
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_FULLDB T1 
+
+#
+# NODE RESTARTS
+#
+max-time: 2500
+cmd: testNodeRestart
+args: -n NoLoad T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n PkRead T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n PkReadPkUpdate 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n ReadUpdateScan 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n Terror T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FullDb T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -l 1 -n RestartNFDuringNR T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T8 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n RestartNodeDuringLCP T6 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodes T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T8 T13 
+
+#max-time: 500
+#cmd: testNodeRestart
+#args: -n StopOnError T1 
+#
+#
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR3 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring T6 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR3_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1_O T6 T13 
+
+max-time: 500
+cmd: testIndex
+args: -n MixedTransaction T1 
+
+max-time: 2500
+cmd: testDict
+args: -n NF1 T1 T6 T13 
+
+max-time: 2500
+cmd: test_event
+args: -n BasicEventOperation T1 T6 
+

@@ -59,9 +59,15 @@ concat("-",a,"-",b,"-")
 -hello-hello-
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
+-hello-hello-
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 concat("-",a,"-",b,"-")
+-hello-hello-
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
+select concat("-",a,"-",b,"-") from t1;
+concat("-",a,"-",b,"-")
+-hello-hello-
+-hello2-hello2-
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
 -hello-hello-
@@ -105,8 +111,26 @@ a	b
 aaa	bbb
 select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
 charset(a)	charset(b)	charset(binary 'ccc')
-latin1	binary	latin1
+latin1	binary	binary
 select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
 collation(a)	collation(b)	collation(binary 'ccc')
-latin1_bin	binary	latin1_bin
+latin1_bin	binary	binary
+drop table t1;
+create table t1( firstname char(20), lastname char(20));
+insert into t1 values ("john","doe"),("John","Doe");
+select * from t1 where firstname='john' and firstname like binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and binary 'john' = firstname;
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and firstname = binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='John' and firstname like binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and firstname like binary 'John';
+firstname	lastname
+John	Doe
 drop table t1;

@@ -4,7 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3;
-drop database if exists test_$1;
+drop database if exists mysqltest;
 --enable_warnings
 
 create table t1 (b char(0));
@@ -69,14 +69,14 @@ drop table 1ea10;
 create table t1 (t1.index int);
 drop table t1;
 # Test that we get warning for this
-drop database if exists test_$1;
-create database test_$1;
-create table test_$1.$test1 (a$1 int, $b int, c$ int);
-insert into test_$1.$test1 values (1,2,3);
-select a$1, $b, c$ from test_$1.$test1;
-create table test_$1.test2$ (a int);
-drop table test_$1.test2$;
-drop database test_$1;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.$test1 (a$1 int, $b int, c$ int);
+insert into mysqltest.$test1 values (1,2,3);
+select a$1, $b, c$ from mysqltest.$test1;
+create table mysqltest.test2$ (a int);
+drop table mysqltest.test2$;
+drop database mysqltest;
 
 --error 1103
 create table `` (a int);
@@ -281,16 +281,16 @@ drop table t3;
 show create table t3;
 select * from t3;
 drop table t2, t3;
-create database test_$1;
-create table test_$1.t3 like t1;
-create temporary table t3 like test_$1.t3;
+create database mysqltest;
+create table mysqltest.t3 like t1;
+create temporary table t3 like mysqltest.t3;
 show create table t3;
 create table t2 like t3;
 show create table t2;
 select * from t2;
 create table t3 like t1;
 --error 1050
-create table t3 like test_$1.t3;
+create table t3 like mysqltest.t3;
 --error 1044,1
 create table non_existing_database.t1 like t1;
 --error 1051
@@ -301,7 +301,7 @@ create temporary table t3 like t1;
 create table t3 like `a/a`;
 drop table t1, t2, t3;
 drop table t3;
-drop database test_$1;
+drop database mysqltest;
 
 #
 # Test default table type
@@ -393,10 +393,10 @@ drop table t1, t2, t3;
 # Bug #1209
 #
 
-create database test_$1;
-use test_$1;
+create database mysqltest;
+use mysqltest;
 select database();
-drop database test_$1;
+drop database mysqltest;
 select database();
 
 # Connect without a database

@@ -262,6 +262,7 @@ sp_head::sp_head()
 {
   DBUG_ENTER("sp_head::sp_head");
 
+  state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
   DBUG_VOID_RETURN;
@@ -494,8 +495,7 @@ sp_head::execute(THD *thd)
     }
   } while (ret == 0 && !thd->killed && !thd->query_error);
 
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
+  cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
 
  done:
@@ -941,7 +941,9 @@ sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
-  set_item_arena(thd);          // Get new fre_list and mem_root
+  set_item_arena(thd);          // Get new free_list and mem_root
+  state= INITIALIZED;
+
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   thd->free_list= flist;	// Restore the old one
