@@ -1036,7 +1036,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 			      inchar == '-' && pos[1] == '-' &&
 			      my_isspace(system_charset_info,pos[2]))))
       break;					// comment to end of line
-    else if (!*in_string && inchar == '/' && *(pos+1) == '*')
+    else if (!*in_string && inchar == '/' && *(pos+1) == '*' && *(pos+2) != '!')
     {
       pos++;
       *ml_comment= 1;
