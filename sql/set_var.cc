@@ -2703,13 +2703,18 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   while ((var=it++))
   {
     if ((error=var->check(thd)))
-      DBUG_RETURN(error);
+      goto err;
   }
-  if (thd->net.report_error)
-    DBUG_RETURN(1);
-  it.rewind();
-  while ((var=it++))
-    error|= var->update(thd);			// Returns 0, -1 or 1
+  if (!thd->net.report_error)
+  {
+    it.rewind();
+    while ((var= it++))
+      error|= var->update(thd);         // Returns 0, -1 or 1
+  }
+  else
+    error= 1;
+err:
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
