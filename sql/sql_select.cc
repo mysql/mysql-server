@@ -292,7 +292,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(ref_pointer_array, all_fields);
+      having->split_sum_func(thd, ref_pointer_array, all_fields);
   }
 
   // Is it subselect
