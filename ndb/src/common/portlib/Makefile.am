@@ -1,3 +1,5 @@
 SUBDIRS = unix
 
-noinst_DATA = gcc.cpp
+noinst_HEADERS = gcc.cpp
+
+EXTRA_PROGRAMS = 
