@@ -1574,8 +1574,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #endif
   {
     /*
-      Win32 and InnoDB can't rename an open table, so we must close
-      the original table at before doing the rename
+      Win32 and InnoDB can't drop a table that is in use, so we must
+      close all the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
     if (close_cached_table(thd,table))
