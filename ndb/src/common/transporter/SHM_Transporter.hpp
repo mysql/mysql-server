@@ -38,7 +38,6 @@ public:
 		  int r_port,
 		  NodeId lNodeId,
 		  NodeId rNodeId, 
-		  bool compression, 
 		  bool checksum, 
 		  bool signalId,
 		  key_t shmKey,
@@ -62,12 +61,12 @@ public:
     writer->updateWritePtr(lenBytes);
   }
   
-  void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
-    reader->getReadPtr(* ptr, * eod);
+  void getReceivePtr(Uint32 ** ptr, Uint32 sz){
+    sz = reader->getReadPtr(* ptr);
   }
   
-  void updateReceivePtr(Uint32 * ptr){
-    reader->updateReadPtr(ptr);
+  void updateReceivePtr(Uint32 sz){
+    reader->updateReadPtr(sz);
   }
   
 protected:
@@ -127,6 +126,7 @@ protected:
 private:
   bool _shmSegCreated;
   bool _attached;
+  bool m_connected;
     
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
