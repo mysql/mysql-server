@@ -530,7 +530,7 @@ extern gptr mi_get_rec_buff_ptr(MI_INFO *, byte *);
               &((INFO)->rec_buff), &((INFO)->alloced_rec_buff_length))
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
-extern my_bool _mi_rec_check(MI_INFO *info,const char *from);
+extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
 extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 my_off_t next_filepos,byte **record,
 				 ulong *reclength,int *flag);
