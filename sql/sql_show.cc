@@ -879,6 +879,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
              table_list->real_name, "VIEW");
     DBUG_RETURN(-1);
   }
+
   table= table_list->table;
 
   if ((table_list->view ?
@@ -887,10 +888,19 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
 
   List<Item> field_list;
-  field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  // 1024 is for not to confuse old clients
-  field_list.push_back(new Item_empty_string("Create Table",
-					     max(buffer.length(),1024)));
+  if (table_list->view)
+  {
+    field_list.push_back(new Item_empty_string("View",NAME_LEN));
+    field_list.push_back(new Item_empty_string("Create View",
+                                               max(buffer.length(),1024)));
+  }
+  else
+  {
+    field_list.push_back(new Item_empty_string("Table",NAME_LEN));
+    // 1024 is for not to confuse old clients
+    field_list.push_back(new Item_empty_string("Create Table",
+                                               max(buffer.length(),1024)));
+  }
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
