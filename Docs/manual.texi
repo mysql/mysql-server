@@ -1245,7 +1245,7 @@ owns the copyright to the @strong{MySQL} server source code and the
 @strong{MySQL} trademark.  A significant amount of revenues from our
 services goes to developing @strong{MySQL}. @xref{What-is}.
 
-@strong{MySQL AB} has been profitable providing MySQL AB from the start.
+@strong{MySQL AB} has been profitable providing @strong{MySQL AB} from the start.
 We don't get any outside funding, but have earned all our money ourselves.
 
 We are searching after partners that would like to support our
@@ -1280,7 +1280,7 @@ under a normal commercial copyright.  If you are interested in this you can
 buy @strong{MySQL} licenses at @uref{https://order.mysql.com/} or contact
 us at @email{licensing@@mysql.com}.
 @item
-Advertising; @uref{http://www.mysql.com} is a very popular web site with
+Advertising; @uref{http://www.mysql.com/} is a very popular web site with
 more than 10,000,000 page views per months (January 2001).  By putting a
 banner on this you are guaranteed to reach a lot of potential customers
 in the Open source, Linux and database community. If you are interested
@@ -1289,7 +1289,7 @@ in this email @email{advertising@@mysql.com}.
 We are building a partner program to be able to provide @strong{MySQL}
 services in every country.  If you are interested in becomming a partner
 of @strong{MySQL AB} please visit
-@uref{http://ww.mysql.com/information/partners.html} or email
+@uref{http://www.mysql.com/information/partners.html} or email
 @email{partner@@mysql.com}.
 @item
 We provide @strong{MySQL} training through our partner programs. For more
@@ -8567,36 +8567,39 @@ and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @subsection Connecting to a Remote MySQL from Windows with SSH
 
 Here is a note about how to connect to get a secure connection to remote MySQL
-server with SSH (by David Carlson):
+server with SSH (by David Carlson @email{dcarlson@@mplcomm.com}):
 
 @itemize @bullet
 @item
-Install SSH client on your windows machine - I used a free SSH client
-from @uref{http://www.doc.ic.ac.uk/~ci2/ssh/}.
-Other useful links:
-@uref{http://www.npaci.edu/Security/npaci_security_software.html} and
-@uref{http://www.npaci.edu/Security/samples/ssh32_windows/index.html}.
+Install an SSH client on your windows machine - As a user, the best non-free
+one I've found is from @code{secureCRT} from @uref{http://www.vandyke.com/}.
+Another option is @code{f-secure} from @uref{http://www.f-secure.com/}. You
+can also find some free ones on @strong{Google} at
+@uref{http://directory.google.com/Top/Computers/Security/Products_and_Tools/Cryptography/SSH/Clients/Windows/}.
+
 @item
-Start SSH. Set Host Name = yourmysqlserver name or IP address. Set
-userid=your userid to log in to your server.
+Start your windows SSH client. Set @code{Host_Name = yourmysqlserver_URL_or_IP}. Set
+@code{userid=your_userid} to log in to your server (probably not the same as your @strong{MySQL} login/ password.
+
 @item
-Click on "local forwards". Set @code{local port: 3306},
-@code{host: localhost}, @code{remote port: 3306}.
+Set up port forwarding. Either do a remote forward (Set @code{local_port: 3306}, @code{remote_host: yourmysqlservername_or_ip}, @code{remote_port: 3306} )
+or a local forward (Set @code{port: 3306},  @code{host: localhost}, @code{remote port: 3306}).
+
 @item
 Save everything, otherwise you'll have to redo it the next time.
+
 @item
-Log in to your server with SSH.
+Log in to your server with SSH session you just created.
+
 @item
-Start some ODBC application (for example Access).
+Start some ODBC application on your windows machine (for example Access).
+
 @item
-Create a new file and link to mySQL using the ODBC driver the same way
-you normally do except for server, user "localhost".
+Create a new file in windows and link to @strong{MySQL} using the ODBC driver the same way
+you normally do, EXCEPT type in @code{localhost} for the @strong{MySQL} host server - not @code{yourmysqlservername}.
 @end itemize
 
-That's it. It works very well with a direct Internet connection. I'm
-having problems with SSH conflicting with my Win95 network and Wingate -
-but that'll be the topic of a posting on another software company's
-usegroup!
+You should now have your ODBC connection to @strong{MySQL} encrypted using SSH. 
 
 @cindex symbolic links
 @cindex using multiple disks to start data
@@ -9576,6 +9579,7 @@ uses:
 
 @findex command-line options
 @cindex options, command-line
+@cindex mysqld options
 @node Command-line options, Option files, Automatic start, Post-installation
 @subsection Command-line Options
 
@@ -11519,6 +11523,11 @@ in the grant tables.  In principle, the @code{--secure} option to
 @code{mysqld} should make hostnames safe.  In any case, you should be very
 careful about creating grant table entries using hostname values that
 contain wild cards!
+
+@item
+If you want to restrict the number of connections for a single user, you
+can do this by setting the @code{max_user_connections} variable in
+@code{mysqld}.
 @end itemize
 
 @node Privileges options, What Privileges, Security, Privilege system
@@ -21044,6 +21053,9 @@ millions of rows.
 The number of bytes to use when sorting @code{BLOB} or @code{TEXT}
 values (only the first @code{max_sort_length} bytes of each value
 are used; the rest are ignored).
+
+@item @code{max_user_connections}
+The maximum number of active connections for a single user (0 = no limit).
 
 @item @code{max_tmp_tables}
 (This option doesn't yet do anything.)
@@ -41582,6 +41594,11 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Added option @code{max_user_connections} to @code{mysqld}.
+@item
+Limit query length for replication by max_allowed_packet, not the arbitrary
+limit of 4 MB
+@item
 Allow space around @code{=} in argument to @code{--set-variable}.
 @item
 Fixed problem in automatic repair that could let some threads in state
@@ -41603,7 +41620,7 @@ Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
 This ensures that on gets same values for date functions like @code{NOW()}
 when using @code{mysqlbinlog} to pipe the queries to another server.
 @item
-Allow one to use @code{--skip-gemeni}, @code{--skip-bdb} and
+Allow one to use @code{--skip-gemini}, @code{--skip-bdb} and
 @code{--skip-innobase} to @code{mysqld} even if these databases are not
 compiled in @code{mysqld}.
 @item

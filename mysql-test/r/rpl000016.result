@@ -21,5 +21,9 @@ Log_name
 master-bin.003
 master-bin.004
 master-bin.005
+File	Position	Binlog_do_db	Binlog_ignore_db
+master-bin.005	1504		
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
+127.0.0.1	root	9306	60	master-bin.005	1504	Yes			0		0
 count(*)
 100

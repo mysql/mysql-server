@@ -85,10 +85,11 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     return file->error > 0 ? LOG_READ_TRUNC: LOG_READ_IO;
   }
   data_len = uint4korr(buf + EVENT_LEN_OFFSET);
-  if (data_len < LOG_EVENT_HEADER_LEN || data_len > MAX_EVENT_LEN)
+  if (data_len < LOG_EVENT_HEADER_LEN || data_len > max_allowed_packet)
   {
     if (log_lock) pthread_mutex_unlock(log_lock);
-    return LOG_READ_BOGUS;
+    return (data_len < LOG_EVENT_HEADER_LEN) ? LOG_READ_BOGUS :
+      LOG_READ_TOO_LARGE;
   }
   packet->append(buf, sizeof(buf));
   data_len -= LOG_EVENT_HEADER_LEN;
