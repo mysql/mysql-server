@@ -31,8 +31,18 @@ File my_create_with_symlink(const char *linkname, const char *filename,
   File file;
   int tmp_errno;
   /* Test if we should create a link */
-  int create_link=(linkname && strcmp(linkname,filename));
+  int create_link;
   DBUG_ENTER("my_create_with_symlink");
+
+  if (my_disable_symlinks)
+  {
+    /* Create only the file, not the link and file */
+    create_link= 0;
+    if (linkname)
+      filename= linkname;
+  }
+  else
+    create_link= (linkname && strcmp(linkname,filename));    
 
   if (!(MyFlags & MY_DELETE_OLD))
   {

@@ -94,6 +94,25 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
 
+
+/*
+  Initialize the MySQL client library
+
+  SYNOPSIS
+    mysql_server_init()
+
+  NOTES
+    Should be called before doing any other calls to the MySQL
+    client library to initialize thread specific variables etc.
+    It's called by mysql_init() to ensure that things will work for
+    old not threaded applications that doesn't call mysql_server_init()
+    directly.
+
+  RETURN
+    0  ok
+    1  could not initialize environment (out of memory or thread keys)
+*/
+
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
   int result= 0;
@@ -101,7 +120,8 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   {
     mysql_client_init=1;
     org_my_init_done=my_init_done;
-    my_init();					/* Will init threads */
+    if (my_init())				/* Will init threads */
+      return 1;
     init_client_errs();
     if (!mysql_port)
     {
@@ -140,6 +160,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 #endif
   return result;
 }
+
 
 void STDCALL mysql_server_end()
 {

@@ -659,25 +659,31 @@ public:
   void fix_length_and_dec();
 };
 
+/* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
 
-class Item_func_bit_or :public Item_int_func
+class Item_func_bit: public Item_int_func
 {
 public:
-  Item_func_bit_or(Item *a,Item *b) :Item_int_func(a,b) {}
-  longlong val_int();
-  const char *func_name() const { return "|"; }
-  void fix_length_and_dec() { unsigned_flag=1; }
+  Item_func_bit(Item *a, Item *b) :Item_int_func(a, b) {}
+  Item_func_bit(Item *a) :Item_int_func(a) {}
+  void fix_length_and_dec() { unsigned_flag= 1; }
   void print(String *str) { print_op(str); }
 };
 
-class Item_func_bit_and :public Item_int_func
+class Item_func_bit_or :public Item_func_bit
 {
 public:
-  Item_func_bit_and(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_func_bit_or(Item *a, Item *b) :Item_func_bit(a, b) {}
+  longlong val_int();
+  const char *func_name() const { return "|"; }
+};
+
+class Item_func_bit_and :public Item_func_bit
+{
+public:
+  Item_func_bit_and(Item *a, Item *b) :Item_func_bit(a, b) {}
   longlong val_int();
   const char *func_name() const { return "&"; }
-  void fix_length_and_dec() { unsigned_flag=1; }
-  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_count :public Item_int_func
@@ -689,33 +695,31 @@ public:
   void fix_length_and_dec() { max_length=2; }
 };
 
-class Item_func_shift_left :public Item_int_func
+class Item_func_shift_left :public Item_func_bit
 {
 public:
-  Item_func_shift_left(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_func_shift_left(Item *a, Item *b) :Item_func_bit(a, b) {}
   longlong val_int();
   const char *func_name() const { return "<<"; }
-  void fix_length_and_dec() { unsigned_flag=1; }
-  void print(String *str) { print_op(str); }
 };
 
-class Item_func_shift_right :public Item_int_func
+class Item_func_shift_right :public Item_func_bit
 {
 public:
-  Item_func_shift_right(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_func_shift_right(Item *a, Item *b) :Item_func_bit(a, b) {}
   longlong val_int();
   const char *func_name() const { return ">>"; }
-  void print(String *str) { print_op(str); }
 };
 
-class Item_func_bit_neg :public Item_int_func
+class Item_func_bit_neg :public Item_func_bit
 {
 public:
-  Item_func_bit_neg(Item *a) :Item_int_func(a) {}
+  Item_func_bit_neg(Item *a) :Item_func_bit(a) {}
   longlong val_int();
   const char *func_name() const { return "~"; }
-  void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { Item_func::print(str); }
 };
+
 
 class Item_func_set_last_insert_id :public Item_int_func
 {
@@ -1021,14 +1025,12 @@ public:
 };
 
 
-class Item_func_bit_xor : public Item_int_func
+class Item_func_bit_xor : public Item_func_bit
 {
 public:
-  Item_func_bit_xor(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_func_bit_xor(Item *a, Item *b) :Item_func_bit(a, b) {}
   longlong val_int();
   const char *func_name() const { return "^"; }
-  void fix_length_xor_dec() { unsigned_flag=1; }
-  void print(String *str) { print_op(str); }
 };
 
 class Item_func_is_free_lock :public Item_int_func

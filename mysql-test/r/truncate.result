@@ -23,3 +23,12 @@ n
 drop table t1;
 truncate non_existing_table;
 ERROR 42S02: Table 'test.non_existing_table' doesn't exist
+create table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+a
+1
+2
+drop table t1;

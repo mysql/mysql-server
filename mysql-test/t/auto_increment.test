@@ -74,6 +74,25 @@ check table t1;
 drop table t1;
 
 #
+# Test negative values (Bug #1366)
+#
+
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values (NULL);
+insert into t1 values (-1);
+select last_insert_id();
+insert into t1 values (NULL);
+select * from t1;
+drop table t1;
+
+create table t1 (a int not null auto_increment primary key) /*!41002 type=heap */;
+insert into t1 values (NULL);
+insert into t1 values (-1);
+select last_insert_id();
+insert into t1 values (NULL);
+select * from t1;
+drop table t1;
+#
 # last_insert_id() madness
 #
 create table t1 (i tinyint unsigned not null auto_increment primary key);
