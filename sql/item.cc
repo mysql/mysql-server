@@ -538,8 +538,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select; 
       // Prevent using outer fields in subselects, that is not supported now
       if (cursel->linkage != DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl= (cursel->get_master()->linkage == GLOBAL_OPTIONS_TYPE && 
-			      cursel->get_master()->order_list.elements) ?  cursel->select_lex() 
+	for (SELECT_LEX *sl= (cursel->get_master()->order_list.elements) ?  
+	       cursel->select_lex() 
 	       : cursel->outer_select();
 	     sl;
 	     sl= sl->outer_select())
