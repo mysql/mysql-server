@@ -140,6 +140,7 @@ int main()
 		eventTableName,
 		eventColumnName,
 		noEventColumnName);
+
   int j= 0;
   while (j < 5) {
 
@@ -238,8 +239,10 @@ int myCreateEvent(Ndb* myNdb,
   NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
   if (!myDict) APIERROR(myNdb->getNdbError());
 
-  NdbDictionary::Event myEvent(eventName);
-  myEvent.setTable(eventTableName);
+  const NdbDictionary::Table *table= myDict->getTable(eventTableName);
+  if (!table) APIERROR(myDict->getNdbError());
+
+  NdbDictionary::Event myEvent(eventName, *table);
   myEvent.addTableEvent(NdbDictionary::Event::TE_ALL); 
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_INSERT); 
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_UPDATE); 

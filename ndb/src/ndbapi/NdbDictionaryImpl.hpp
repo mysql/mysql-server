@@ -195,11 +195,14 @@ public:
 
   void setName(const char * name);
   const char * getName() const;
+  void setTable(const NdbDictionary::Table& table);
   void setTable(const char * table);
-  const char * getTable() const;
+  const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
-  void setDurability(const NdbDictionary::Event::EventDurability d);
+  void setDurability(NdbDictionary::Event::EventDurability d);
+  NdbDictionary::Event::EventDurability  getDurability() const;
   void addEventColumn(const NdbColumnImpl &c);
+  int getNoOfEventColumns() const;
 
   void print() {
     ndbout_c("NdbEventImpl: id=%d, key=%d",
