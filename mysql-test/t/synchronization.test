@@ -1,4 +1,4 @@
--- source include/have_crypt.inc
+-- source include/have_debug.inc
 
 #
 # Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination table
