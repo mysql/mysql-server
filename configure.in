@@ -768,7 +768,7 @@ AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
 case $SYSTEM_TYPE in
-  *netware*)
+  *netware* | *modesto*)
     AC_DEFINE(HAVE_COMPRESS)
     ;;
   *)
