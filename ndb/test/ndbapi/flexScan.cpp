@@ -297,6 +297,7 @@ static int checkThreadResults(ThreadNdb *threadArrayP, char *action)
 
 NDB_COMMAND(flexScan, "flexScan", "flexScan", "flexScan", 65535)
 {
+  ndb_init();
   ThreadNdb*		pThreads = NULL;
   Ndb*			pMyNdb = NULL;	
   int                   tLoops = 0;
@@ -712,7 +713,7 @@ static int setAttrNames()
   int  retVal = 0;
   
   for (i = 0; i < MAXATTR ; i++) {
-    retVal = snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+    retVal = BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
     if (retVal < 0) {
       return(-1);
     } // if
@@ -732,11 +733,11 @@ static int setTableNames()
   for (i = 0; i < MAXTABLES ; i++) {
 
     if (theStdTableNameFlag == 0) {
-      retVal = snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
     } // if 
     else {
-      retVal = snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     } // if else
 
     if (retVal < 0) {

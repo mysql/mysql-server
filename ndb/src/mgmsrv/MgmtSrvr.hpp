@@ -28,8 +28,8 @@
 #include <signaldata/ManagementServer.hpp>
 #include "SignalQueue.hpp"
 #include <ndb_version.h>
-
-#include "NodeLogLevelList.hpp"
+#include <EventLogger.hpp>
+#include <signaldata/EventSubscribeReq.hpp>
 
 /**
  * @desc Block number for Management server.
@@ -42,6 +42,29 @@ class NdbApiSignal;
 class Config;
 class SetLogLevelOrd;
 class SocketServer;
+
+class MgmStatService : public EventLoggerBase 
+{
+  friend class MgmtSrvr;
+public:
+  struct StatListener : public EventLoggerBase {
+    NDB_SOCKET_TYPE m_socket;
+  };
+  
+private:  
+  class MgmtSrvr * m_mgmsrv;
+  MutexVector<StatListener> m_clients;
+public:
+  MgmStatService(class MgmtSrvr * m) : m_clients(5) {
+    m_mgmsrv = m;
+  }
+  
+  void add_listener(const StatListener&);
+  
+  void log(int eventType, const Uint32* theData, NodeId nodeId);
+  
+  void stopSessions();
+};
 
 /**
  * @class MgmtSrvr
@@ -63,11 +86,6 @@ class SocketServer;
 class MgmtSrvr {
   
 public:
-  class StatisticsListner {
-  public:
-    virtual void println_statistics(const BaseString &s) = 0;
-  };
-
   // some compilers need all of this
   class Allocated_resources;
   friend class Allocated_resources;
@@ -83,11 +101,7 @@ public:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
   };
-
-  /**
-   * Set a reference to the socket server.
-   */
-  void setStatisticsListner(StatisticsListner* listner);
+  NdbMutex *m_node_id_mutex;
 
   /**
    * Start/initate the event log.
@@ -151,15 +165,6 @@ public:
   
   STATIC_CONST( NO_CONTACT_WITH_DB_NODES = 5030 );
   /**
-   * This class holds all statistical variables fetched with 
-   * the getStatistics methods.
-   */
-  class Statistics { // TODO, Real statistic data to be added
-  public:
-    int _test1;
-  };
-  
-  /**
    *   This enum specifies the different signal loggig modes possible to set 
    *   with the setSignalLoggingMode method.
    */
@@ -169,7 +174,7 @@ public:
 
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
 	   const BaseString &config_filename,      /* Where to save config */
-	   const BaseString &ndb_config_filename,  /* Ndb.cfg filename */
+	   LocalConfig &local_config,  /* Ndb.cfg filename */
 	   Config * config); 
   NodeId getOwnNodeId() const {return _ownNodeId;};
 
@@ -179,7 +184,7 @@ public:
    *   @return true if succeeded, otherwise false
    */
   bool check_start(); // may be run before start to check that some things are ok
-  bool start();
+  bool start(BaseString &error_string);
 
   ~MgmtSrvr();
 
@@ -206,7 +211,7 @@ public:
   typedef void (* EnterSingleCallback)(int nodeId, void * anyData, 
 				       int errorCode);
   typedef void (* ExitSingleCallback)(int nodeId, void * anyData, 
-				       int errorCode);
+				      int errorCode);
 
   /**
    * Lock configuration
@@ -313,13 +318,6 @@ public:
 	      bool abort = false,
 	      int * stopCount = 0, StopCallback = 0, void * anyData = 0);
   
-  int setEventReportingLevel(int processId, 
-			     const class SetLogLevelOrd & logLevel, 
-			     bool isResend = false);
-
-  int startStatisticEventReporting(int level = 5);
-
-  
   struct BackupEvent {
     enum Event {
       BackupStarted = 1,
@@ -356,8 +354,6 @@ public:
   /**
    * Backup functionallity
    */
-  typedef void (* BackupCallback)(const BackupEvent& Event);
-  BackupCallback setCallback(BackupCallback);
   int startBackup(Uint32& backupId, bool waitCompleted = false);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
@@ -377,22 +373,8 @@ public:
   //  INVALID_LEVEL
   //**************************************************************************
 
-  /**
-   * Sets the Node's log level, i.e., its local event reporting.
-   *
-   * @param processId the DB node id.
-   * @param logLevel the log level.
-   * @param isResend Flag to indicate for resending log levels
-   *                 during node restart
-
-   * @return 0 if successful or NO_CONTACT_WITH_PROCESS, 
-   *                            SEND_OR_RECEIVE_FAILED,
-   *                            COULD_NOT_ALLOCATE_MEMORY
-   */
-  int setNodeLogLevel(int processId, 
-		      const class SetLogLevelOrd & logLevel, 
-		      bool isResend = false);
-
+  int setEventReportingLevelImpl(int processId, const EventSubscribeReq& ll);
+  int setNodeLogLevelImpl(int processId, const SetLogLevelOrd & ll);
 
   /**
    *   Insert an error in a DB process.
@@ -467,7 +449,8 @@ public:
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len);
+		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len,
+		     BaseString &error_string);
   
   /**
    *
@@ -508,11 +491,6 @@ public:
   NodeId getPrimaryNode() const;
 
   /**
-   * Returns the statistics port number.
-   * @return statistic port number.
-   */
-  int getStatPort() const;
-  /**
    * Returns the port number.
    * @return port number.
    */
@@ -520,14 +498,12 @@ public:
 
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   
+  const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
   //**************************************************************************
 private:
   //**************************************************************************
 
-  int setEventReportingLevelImpl(int processId, 
-				 const class SetLogLevelOrd & logLevel, 
-				 bool isResend = false);
-
+  int setEventReportingLevel(int processId, LogLevel::EventCategory, Uint32); 
   
   /**
    *   Check if it is possible to send a signal to a (DB) process
@@ -553,16 +529,13 @@ private:
   NdbMutex *m_configMutex;
   const Config * _config;
   Config * m_newConfig;
+  LocalConfig &m_local_config;
   BaseString m_configFilename;
-  BaseString m_localNdbConfigFilename;
   Uint32 m_nextConfigGenerationNumber;
   
   NodeBitmask m_reserved_nodes;
   Allocated_resources m_allocated_resources;
-
-  int _setVarReqResult; // The result of the SET_VAR_REQ response
-  Statistics _statistics; // handleSTATISTICS_CONF store the result here, 
-                          // and getStatistics reads it.
+  struct in_addr m_connect_address[MAX_NODES];
 
   //**************************************************************************
   // Specific signal handling methods
@@ -595,14 +568,6 @@ private:
   // Returns: -
   //**************************************************************************
 
-  int handleSTATISTICS_CONF(NdbApiSignal* signal);
-  //**************************************************************************
-  // Description: Handle reception of signal STATISTICS_CONF
-  // Parameters:
-  //  signal: The recieved signal
-  // Returns: TODO, to be defined
-  //**************************************************************************
-
   void handle_MGM_LOCK_CONFIG_REQ(NdbApiSignal *signal);
   void handle_MGM_UNLOCK_CONFIG_REQ(NdbApiSignal *signal);
 
@@ -628,7 +593,6 @@ private:
    */
   enum WaitSignalType { 
     NO_WAIT,			// We don't expect to receive any signal
-    WAIT_STATISTICS,		// Accept STATISTICS_CONF
     WAIT_SET_VAR,		// Accept SET_VAR_CONF and SET_VAR_REF
     WAIT_SUBSCRIBE_CONF,	// Accept event subscription confirmation
     WAIT_STOP,
@@ -699,7 +663,7 @@ private:
    *                       shall receive the notification.
    *   @param  processId:  Id of the dead process.
    */
-  static void nodeStatusNotification(void* mgmSrv, NodeId nodeId, 
+  static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				     bool alive, bool nfCompleted);
   
   /**
@@ -712,7 +676,7 @@ private:
   //**************************************************************************
   // General signal handling data
 
-  static const unsigned int WAIT_FOR_RESPONSE_TIMEOUT = 300000; // Milliseconds
+  STATIC_CONST( WAIT_FOR_RESPONSE_TIMEOUT = 300000 ); // Milliseconds
   // Max time to wait for a signal to arrive
 
   NdbApiSignal* theSignalIdleList;
@@ -730,14 +694,6 @@ private:
 
   class SignalQueue m_signalRecvQueue;
 
-  enum ndb_mgm_node_type nodeTypes[MAX_NODES];
-
-  int theConfCount; // The number of expected conf signals
-
-  StatisticsListner * m_statisticsListner; // Used for sending statistics info
-  bool _isStatPortActive;
-  bool _isClusterLogStatActive;
-  
   struct StopRecord {
     StopRecord(){ inUse = false; callback = 0; singleUserMode = false;}
     bool inUse;
@@ -762,10 +718,16 @@ private:
 
   void handleStopReply(NodeId nodeId, Uint32 errCode);
   int translateStopRef(Uint32 errCode);
-
+  
   bool _isStopThread;
   int _logLevelThreadSleep;
-  int _startedNodeId;
+  MutexVector<NodeId> m_started_nodes;
+  MutexVector<EventSubscribeReq> m_log_level_requests;
+  LogLevel m_nodeLogLevel[MAX_NODES];
+  enum ndb_mgm_node_type nodeTypes[MAX_NODES];
+  friend class MgmApiSession;
+  friend class MgmStatService;
+  MgmStatService m_statisticsListner;
   
   /**
    * Handles the thread wich upon a 'Node is started' event will
@@ -779,15 +741,12 @@ private:
   static void *signalRecvThread_C(void *);
   void signalRecvThreadRun();
   
-  NodeLogLevelList* _nodeLogLevelList;
-  NodeLogLevelList* _clusterLogLevelList;
-  
   void backupCallback(BackupEvent &);
-  BackupCallback m_backupCallback;
   BackupEvent m_lastBackupEvent;
 
   Config *_props;
 
+  int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
 public:
   /**
    * This method does not exist

@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.7"
+#define DUMP_VERSION "10.8"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -81,7 +81,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
                 opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_charset,
 		opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
-		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
+		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
+		opt_hex_blob=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
@@ -318,6 +319,8 @@ static struct my_option my_long_options[] =
   {"comments", 'i', "Write additional information.",
    (gptr*) &opt_comments, (gptr*) &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
+  {"hex-blob", OPT_HEXBLOB, "Dump BLOBs in HEX. this mode does not work with extended-insert",
+   (gptr*) &opt_hex_blob, (gptr*) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -490,6 +493,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password=1;
@@ -1526,6 +1530,7 @@ static void dumpTable(uint numFields, char *table)
 
       for (i = 0; i < mysql_num_fields(res); i++)
       {
+        int is_blob;
 	if (!(field = mysql_fetch_field(res)))
 	{
 	  sprintf(query,"%s: Not enough fields from table %s! Aborting.\n",
@@ -1534,6 +1539,17 @@ static void dumpTable(uint numFields, char *table)
 	  error= EX_CONSCHECK;
 	  goto err;
 	}
+	
+	/*
+	   63 is my_charset_bin. If charsetnr is not 63,
+	   we have not a BLOB but a TEXT column. 
+	   we'll dump it in hex only BLOB columns.
+	*/
+        is_blob= (opt_hex_blob && field->charsetnr == 63 &&
+                  (field->type == FIELD_TYPE_BLOB ||
+                   field->type == FIELD_TYPE_LONG_BLOB ||
+                   field->type == FIELD_TYPE_MEDIUM_BLOB ||
+                   field->type == FIELD_TYPE_TINY_BLOB)) ? 1 : 0;
 	if (extended_insert)
 	{
 	  ulong length = lengths[i];
@@ -1554,12 +1570,28 @@ static void dumpTable(uint numFields, char *table)
 		  error= EX_EOM;
 		  goto err;
 		}
-		dynstr_append(&extended_row,"'");
-		extended_row.length +=
-		  mysql_real_escape_string(&mysql_connection,
-					   &extended_row.str[extended_row.length],row[i],length);
-		extended_row.str[extended_row.length]='\0';
-		dynstr_append(&extended_row,"'");
+                if (opt_hex_blob && is_blob)
+                {
+                  ulong counter;
+                  unsigned char *ptr= row[i];
+                  dynstr_append(&extended_row, "0x");
+                  for (counter = 0; counter < lengths[i]; counter++)
+                  {
+                    char xx[3];
+                    sprintf(xx, "%02X", ptr[counter]);
+                    dynstr_append(&extended_row, xx);
+                  }
+                }
+                else
+                {
+                  dynstr_append(&extended_row,"'");
+                  extended_row.length +=
+                  mysql_real_escape_string(&mysql_connection,
+                                           &extended_row.str[extended_row.length],
+                                           row[i],length);
+                  extended_row.str[extended_row.length]='\0';
+                  dynstr_append(&extended_row,"'");
+                }
 	      }
 	      else
 	      {
@@ -1610,8 +1642,20 @@ static void dumpTable(uint numFields, char *table)
 		print_quoted_xml(md_result_file, row[i], lengths[i]);
 		fputs("</field>\n", md_result_file);
 	      }
-	      else
-		unescape(md_result_file, row[i], lengths[i]);
+	      else if (opt_hex_blob && is_blob)
+              { /* sakaik got this idea. */
+                ulong counter;
+                char xx[4];
+                unsigned char *ptr= row[i];
+                fputs("0x", md_result_file);
+                for (counter = 0; counter < lengths[i]; counter++)
+                {
+                  sprintf(xx, "%02X", ptr[counter]);
+                  fputs(xx, md_result_file);
+                }
+              }
+              else
+                unescape(md_result_file, row[i], lengths[i]);
 	    }
 	    else
 	    {
@@ -1825,7 +1869,7 @@ static int init_dumping(char *database)
     if (opt_databases || opt_alldbs)
     {
       /*
-	length of table name * 2 (if name contain quotas), 2 quotas and 0
+	length of table name * 2 (if name contains quotes), 2 quotes and 0
       */
       char quoted_database_buf[64*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);

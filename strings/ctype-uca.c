@@ -6658,6 +6658,42 @@ static const char roman[]= /* i.e. Classical Latin */
     "& V << u <<< U ";
 
 /*
+  Persian collation support was provided by 
+  Jody McIntyre <mysql@modernduck.com>
+  
+  To: internals@lists.mysql.com
+  Subject: Persian UTF8 collation support
+  Date: 17.08.2004
+  
+  Contraction is not implemented.  Some implementations do perform
+  contraction but others do not, and it is able to sort all my test
+  strings correctly.
+  
+  Jody.
+*/
+static const char persian[]=
+    "& \\u066D < \\u064E < \\uFE76 < \\uFE77 < \\u0650 < \\uFE7A < \\uFE7B"
+             " < \\u064F < \\uFE78 < \\uFE79 < \\u064B < \\uFE70 < \\uFE71"
+             " < \\u064D < \\uFE74 < \\u064C < \\uFE72"
+    "& \\uFE7F < \\u0653 < \\u0654 < \\u0655 < \\u0670"
+    "& \\u0669 < \\u0622 < \\u0627 < \\u0671 < \\u0621 < \\u0623 < \\u0625"
+             " < \\u0624 < \\u0626"
+    "& \\u0642 < \\u06A9 < \\u0643"
+    "& \\u0648 < \\u0647 < \\u0629 < \\u06C0 < \\u06CC < \\u0649 < \\u064A"
+    "& \\uFE80 < \\uFE81 < \\uFE82 < \\uFE8D < \\uFE8E < \\uFB50 < \\uFB51"
+             " < \\uFE80 < \\uFE83 < \\uFE84 < \\uFE87 < \\uFE88 < \\uFE85"
+             " < \\uFE86 < \\u0689 < \\u068A"
+    "& \\uFEAE < \\uFDFC"
+    "& \\uFED8 < \\uFB8E < \\uFB8F < \\uFB90 < \\uFB91 < \\uFED9 < \\uFEDA"
+             " < \\uFEDB < \\uFEDC"
+    "& \\uFEEE < \\uFEE9 < \\uFEEA < \\uFEEB < \\uFEEC < \\uFE93 < \\uFE94"
+             " < \\uFBA4 < \\uFBA5 < \\uFBFC < \\uFBFD < \\uFBFE < \\uFBFF"
+             " < \\uFEEF < \\uFEF0 < \\uFEF1 < \\uFEF2 < \\uFEF3 < \\uFEF4"
+             " < \\uFEF5 < \\uFEF6 < \\uFEF7 < \\uFEF8 < \\uFEF9 < \\uFEFA"
+             " < \\uFEFB < \\uFEFC";
+
+
+/*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
   for consequent scan of collations
@@ -6876,7 +6912,8 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     int mblen;
     
     if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
-                                          scanner->sbeg, scanner->send)) < 0))
+                                          scanner->sbeg,
+                                          scanner->send)) <= 0))
       return -1;
     
     scanner->page= wc >> 8;
@@ -7015,6 +7052,28 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
   NOTES:
     Works exactly the same with my_strnncoll_uca(),
     but ignores trailing spaces.
+
+    In the while() comparison these situations are possible:
+    1. (s_res>0) and (t_res>0) and (s_res == t_res)
+       Weights are the same so far, continue comparison
+    2. (s_res>0) and (t_res>0) and (s_res!=t_res)
+       A difference has been found, return.
+    3. (s_res>0) and (t_res<0)
+       We have reached the end of the second string, or found
+       an illegal multibyte sequence in the second string.
+       Compare the first string to an infinite array of
+       space characters until difference is found, or until
+       the end of the first string.
+    4. (s_res<0) and (t_res>0)   
+       We have reached the end of the first string, or found
+       an illegal multibyte sequence in the first string.
+       Compare the second string to an infinite array of
+       space characters until difference is found or until
+       the end of the second steing.
+    5. (s_res<0) and (t_res<0)
+       Both scanners returned -1. It means we have riched
+       the end-of-string of illegal-sequence in both strings
+       at the same time. Return 0, strings are equal.
   
   RETURN
     Difference between two strings, according to the collation:
@@ -7033,9 +7092,6 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
   int s_res;
   int t_res;
   
-  slen= cs->cset->lengthsp(cs, (char*) s, slen);
-  tlen= cs->cset->lengthsp(cs, (char*) t, tlen);
-  
   scanner_handler->init(&sscanner, cs, s, slen);
   scanner_handler->init(&tscanner, cs, t, tlen);
   
@@ -7044,6 +7100,36 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
     s_res= scanner_handler->next(&sscanner);
     t_res= scanner_handler->next(&tscanner);
   } while ( s_res == t_res && s_res >0);
+
+  if (s_res > 0 && t_res < 0)
+  { 
+    /* Calculate weight for SPACE character */
+    t_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
+      
+    /* compare the first string to spaces */
+    do
+    {
+      if (s_res != t_res)
+        return (s_res - t_res);
+      s_res= scanner_handler->next(&sscanner);
+    } while (s_res > 0);
+    return 0;
+  }
+    
+  if (s_res < 0 && t_res > 0)
+  {
+    /* Calculate weight for SPACE character */
+    s_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
+      
+    /* compare the second string to spaces */
+    do
+    {
+      if (s_res != t_res)
+        return (s_res - t_res);
+      t_res= scanner_handler->next(&tscanner);
+    } while (t_res > 0);
+    return 0;
+  }
   
   return ( s_res - t_res );
 }
@@ -7670,7 +7756,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   return (size_t) nitems;
 }
 
-#define MY_MAX_COLL_RULE 64
+#define MY_MAX_COLL_RULE 128
 
 /*
   This function copies an UCS2 collation from
@@ -7918,7 +8004,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
     my_strnncoll_ucs2_uca,
     my_strnncollsp_ucs2_uca,
     my_strnxfrm_ucs2_uca,
-    my_like_range_simple,
+    my_like_range_ucs2,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
@@ -8359,6 +8445,35 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
+
+CHARSET_INFO my_charset_ucs2_persian_uca_ci=
+{
+    144,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_persian_ci",	/* name         */
+    "",			/* comment      */
+    persian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -8369,7 +8484,7 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
     my_strnncoll_any_uca,
     my_strnncollsp_any_uca,
     my_strnxfrm_any_uca,
-    my_like_range_simple,
+    my_like_range_mb,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
@@ -8837,4 +8952,32 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler
 };
+
+CHARSET_INFO my_charset_utf8_persian_uca_ci=
+{
+    208,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",		/* cs name    */
+    "utf8_persian_ci",	/* name         */
+    "",			/* comment      */
+    persian,		/* tailoring    */
+    ctype_utf8,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
 #endif

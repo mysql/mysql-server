@@ -122,7 +122,10 @@ insert into t2 values (2,"t2:2"), (3,"t2:3");
 --error 1062
 insert into t1 select * from t2;
 select * from t1;
+# REPLACE .. SELECT is not yet supported by PS
+--disable_ps_protocol
 replace into t1 select * from t2;
+--enable_ps_protocol
 select * from t1;
 drop table t1,t2;
 

@@ -5,6 +5,8 @@
 # connection in a separate thread.
 #
 --source include/not_embedded.inc
+# PS causes different statistics
+--disable_ps_protocol
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);

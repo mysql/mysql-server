@@ -35,7 +35,7 @@ class Ndb;
 class NdbApiSignal;
 
 typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, NodeId, bool nodeAlive, bool nfComplete);
+typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
 
 extern "C" {
   void* runSendRequest_C(void*);
@@ -55,9 +55,7 @@ public:
   bool init(Uint32, const ndb_mgm_configuration *);
 
   static TransporterFacade* instance();
-  static TransporterFacade* start_instance(int, const ndb_mgm_configuration*);
-  static TransporterFacade* start_instance(const char *connectString);
-  static void close_configuration();
+  int start_instance(int, const ndb_mgm_configuration*);
   static void stop_instance();
   
   /**
@@ -67,7 +65,7 @@ public:
   int open(void* objRef, ExecuteFunction, NodeStatusFunction);
   
   // Close this block number
-  int close(BlockNumber blockNumber);
+  int close(BlockNumber blockNumber, Uint64 trans_id);
 
   // Only sends to nodes which are alive
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
@@ -93,6 +91,8 @@ public:
   // My own processor id
   NodeId ownId() const;
 
+  void connected();
+
   void doConnect(int NodeId);
   void reportConnected(int NodeId);
   void doDisconnect(int NodeId);
@@ -113,6 +113,11 @@ public:
   // Close this block number
   int close_local(BlockNumber blockNumber);
 
+  // Scan batch configuration parameters
+  Uint32 get_scan_batch_size();
+  Uint32 get_batch_byte_size();
+  Uint32 get_batch_size();
+
 private:
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)
@@ -125,6 +130,7 @@ private:
   friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
   friend class GrepSS;
   friend class Ndb;
+  friend class Ndb_cluster_connection;
 
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 
@@ -132,6 +138,7 @@ private:
   void doStop();
   
   TransporterRegistry* theTransporterRegistry;
+  SocketServer m_socket_server;
   int sendPerformedLastInterval;
   int theOwnId;
 
@@ -145,6 +152,11 @@ private:
   Uint32 currentSendLimit;
   
   void calculateSendLimit();
+
+  // Scan batch configuration parameters
+  Uint32 m_scan_batch_size;
+  Uint32 m_batch_byte_size;
+  Uint32 m_batch_size;
 
   // Declarations for the receive and send thread
   int  theStopReceive;
@@ -162,13 +174,13 @@ private:
    * Block number handling
    */
 public:
-  static const unsigned MAX_NO_THREADS = 4711;
+  STATIC_CONST( MAX_NO_THREADS = 4711 );
 private:
 
   struct ThreadData {
-    static const Uint32 ACTIVE = (1 << 16) | 1;
-    static const Uint32 INACTIVE = (1 << 16);
-    static const Uint32 END_OF_LIST = MAX_NO_THREADS + 1;
+    STATIC_CONST( ACTIVE = (1 << 16) | 1 );
+    STATIC_CONST( INACTIVE = (1 << 16) );
+    STATIC_CONST( END_OF_LIST = MAX_NO_THREADS + 1 );
     
     ThreadData(Uint32 initialSize = 32);
     
@@ -210,9 +222,9 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-
-  Uint32 m_open_count;
-
+  
+  Uint32 m_max_trans_id;
+  
   /**
    * execute function
    */
@@ -224,7 +236,6 @@ public:
   NdbMutex* theMutexPtr;
 private:
   static TransporterFacade* theFacadeInstance;
-  static ConfigRetriever *s_config_retriever;
 
 public:
   GlobalDictCache m_globalDictCache;
@@ -327,5 +338,25 @@ Uint32
 TransporterFacade::getNodeSequence(NodeId n) const {
   return theClusterMgr->getNodeInfo(n).m_info.m_connectCount;
 }
+
+inline
+Uint32
+TransporterFacade::get_scan_batch_size() {
+  return m_scan_batch_size;
+}
+
+inline
+Uint32
+TransporterFacade::get_batch_byte_size() {
+  return m_batch_byte_size;
+}
+
+inline
+Uint32
+TransporterFacade::get_batch_size() {
+  return m_batch_size;
+}
+
+
 
 #endif // TransporterFacade_H

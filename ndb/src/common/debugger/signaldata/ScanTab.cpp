@@ -27,38 +27,26 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   
   const UintR requestInfo = sig->requestInfo;
 
-  fprintf(output, " apiConnectPtr: H\'%.8x\n", 
+  fprintf(output, " apiConnectPtr: H\'%.8x", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Holdlock: %u, RangeScan: %u\n",
+  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Keyinfo: %u Holdlock: %u, RangeScan: %u\n",
 	  sig->getParallelism(requestInfo), 
 	  sig->getScanBatch(requestInfo), 
 	  sig->getLockMode(requestInfo), 
 	  sig->getHoldLockFlag(requestInfo), 
-	  sig->getRangeScanFlag(requestInfo));
+	  sig->getRangeScanFlag(requestInfo),
+	  sig->getKeyinfoFlag(requestInfo));
   
-  fprintf(output, " attrLen: %d, tableId: %d, tableSchemaVer: %d\n",
-	  sig->attrLen, sig->tableId, sig->tableSchemaVersion);
+  Uint32 keyLen = (sig->attrLenKeyLen >> 16);
+  Uint32 attrLen = (sig->attrLenKeyLen & 0xFFFF);
+  fprintf(output, " attrLen: %d, keyLen: %d tableId: %d, tableSchemaVer: %d\n",
+	  attrLen, keyLen, sig->tableId, sig->tableSchemaVersion);
     
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x) storedProcId: H\'%.8x\n",
 	  sig->transId1, sig->transId2, sig->storedProcId);
-  
-  fprintf(output, " OperationPtr(s):\n  ");
-  Uint32 restLen = (len - 9);
-  const Uint32 * rest = &sig->apiOperationPtr[0];
-  while(restLen >= 7){
-    fprintf(output, 
-	    " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
-	    rest[0], rest[1], rest[2], rest[3], 
-	    rest[4], rest[5], rest[6]);
-    restLen -= 7;
-    rest += 7;
-  }
-  if(restLen > 0){
-    for(Uint32 i = 0; i<restLen; i++)
-      fprintf(output, " H\'%.8x", rest[i]);
-    fprintf(output, "\n");
-  }
+  fprintf(output, " batch_byte_size: %d, first_batch_size: %d\n",
+          sig->batch_byte_size, sig->first_batch_size);
   return false;
 }
 
@@ -82,7 +70,7 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
     fprintf(output, " Operation(s) [api tc rows len]:\n");
     ScanTabConf::OpData * op = (ScanTabConf::OpData*)
       (theData + ScanTabConf::SignalLength);
-    for(int i = 0; i<op_count; i++){
+    for(size_t i = 0; i<op_count; i++){
       if(op->info != ScanTabConf::EndOfData)
 	fprintf(output, " [0x%x 0x%x %d %d]",
 		op->apiPtrI, op->tcPtrI,

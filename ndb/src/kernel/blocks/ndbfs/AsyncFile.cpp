@@ -108,8 +108,10 @@ AsyncFile::AsyncFile() :
 }
 
 void
-AsyncFile::doStart(Uint32 nodeId, const char * filesystemPath) {
-  theFileName.init(nodeId, filesystemPath);
+AsyncFile::doStart(Uint32 nodeId,
+		   const char * filesystemPath,
+		   const char * backup_path) {
+  theFileName.init(nodeId, filesystemPath, backup_path);
 
   // Stacksize for filesystem threads
   // An 8k stack should be enough
@@ -117,7 +119,7 @@ AsyncFile::doStart(Uint32 nodeId, const char * filesystemPath) {
 
   char buf[16];
   numAsyncFiles++;
-  snprintf(buf, sizeof(buf), "AsyncFile%d", numAsyncFiles);
+  BaseString::snprintf(buf, sizeof(buf), "AsyncFile%d", numAsyncFiles);
 
   theStartMutexPtr = NdbMutex_Create();
   theStartConditionPtr = NdbCondition_Create();
@@ -510,7 +512,7 @@ AsyncFile::extendfile(Request* request) {
   DEBUG(ndbout_c("extendfile: maxOffset=%d, size=%d", maxOffset, maxSize));
 
   // Allocate a buffer and fill it with zeros
-  void* pbuf = malloc(maxSize);
+  void* pbuf = NdbMem_Allocate(maxSize);
   memset(pbuf, 0, maxSize);
   for (int p = 0; p <= maxOffset; p = p + maxSize) {
     int return_value;
@@ -814,7 +816,7 @@ AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
   struct dirent * dp;
   while ((dp = readdir(dirp)) != NULL){
     if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
-      snprintf(path_add, (size_t)path_max_copy, "%s%s",
+      BaseString::snprintf(path_add, (size_t)path_max_copy, "%s%s",
 	       DIR_SEPARATOR, dp->d_name);
       if(remove((const char*)path) == 0){
         path[path_len] = 0;

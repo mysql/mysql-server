@@ -103,7 +103,7 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
     }
     
     Uint64 now = NdbTick_CurrentMillisecond();
-    if(c_start.m_startFailureTimeout > now){
+    if(now > c_start.m_startFailureTimeout){
       ndbrequire(false);
     }
     
@@ -135,42 +135,42 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   jamEntry();
   switch (sysErr->errorCode){
   case SystemError::StartInProgressError:    
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "master start in progress error",     
 	     killingNode);
     break;
 
   case SystemError::GCPStopDetected:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "GCP stop was detected",     
 	     killingNode);
     break;
 
   case SystemError::ScanfragTimeout:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "a fragment scan timed out and could not be stopped",     
 	     killingNode);
     break;
 
   case SystemError::ScanfragStateError:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "the state of a fragment scan was out of sync.",     
 	     killingNode);
     break;
 
   case SystemError::CopyFragRefError:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "it could not copy a fragment during node restart",     
 	     killingNode);
     break;
 
   default:
-    snprintf(buf, sizeof(buf), "System error %d, "
+    BaseString::snprintf(buf, sizeof(buf), "System error %d, "
 	     " this node was killed by node %d", 
 	     sysErr->errorCode, killingNode);
     break;
@@ -446,13 +446,17 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT, &to_2);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT, &to_3);
   
+  c_start.m_startTime = NdbTick_CurrentMillisecond();
   c_start.m_startPartialTimeout = setTimeout(c_start.m_startTime, to_1);
   c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
   c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
-
+  
   UpgradeStartup::sendCmAppChg(* this, signal, 0); // ADD
   
   sendCntrStartReq(signal);
+
+  signal->theData[0] = ZSTARTUP;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
   
   return;
 }

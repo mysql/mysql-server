@@ -23,24 +23,33 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-class Item_func_geometry_from_text: public Item_str_func
+class Item_geometry_func: public Item_str_func
 {
 public:
-  Item_func_geometry_from_text(Item *a) :Item_str_func(a) {}
-  Item_func_geometry_from_text(Item *a, Item *srid) :Item_str_func(a, srid) {}
-  const char *func_name() const { return "geometryfromtext"; }
-  String *val_str(String *);
+  Item_geometry_func() :Item_str_func() {}
+  Item_geometry_func(Item *a) :Item_str_func(a) {}
+  Item_geometry_func(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_geometry_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_geometry_func(List<Item> &list) :Item_str_func(list) {}
   void fix_length_and_dec();
 };
 
-class Item_func_geometry_from_wkb: public Item_str_func
+class Item_func_geometry_from_text: public Item_geometry_func
 {
 public:
-  Item_func_geometry_from_wkb(Item *a): Item_str_func(a) {}
-  Item_func_geometry_from_wkb(Item *a, Item *srid): Item_str_func(a, srid) {}
+  Item_func_geometry_from_text(Item *a) :Item_geometry_func(a) {}
+  Item_func_geometry_from_text(Item *a, Item *srid) :Item_geometry_func(a, srid) {}
+  const char *func_name() const { return "geometryfromtext"; }
+  String *val_str(String *);
+};
+
+class Item_func_geometry_from_wkb: public Item_geometry_func
+{
+public:
+  Item_func_geometry_from_wkb(Item *a): Item_geometry_func(a) {}
+  Item_func_geometry_from_wkb(Item *a, Item *srid): Item_geometry_func(a, srid) {}
   const char *func_name() const { return "geometryfromwkb"; }
   String *val_str(String *);
-  void fix_length_and_dec();
 };
 
 class Item_func_as_wkt: public Item_str_func
@@ -52,13 +61,12 @@ public:
   void fix_length_and_dec();
 };
 
-class Item_func_as_wkb: public Item_str_func
+class Item_func_as_wkb: public Item_geometry_func
 {
 public:
-  Item_func_as_wkb(Item *a): Item_str_func(a) {}
+  Item_func_as_wkb(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "aswkb"; }
   String *val_str(String *);
-  void fix_length_and_dec();
 };
 
 class Item_func_geometry_type: public Item_str_func
@@ -73,40 +81,37 @@ public:
   };
 };
 
-class Item_func_centroid: public Item_str_func
+class Item_func_centroid: public Item_geometry_func
 {
 public:
-  Item_func_centroid(Item *a): Item_str_func(a) {}
+  Item_func_centroid(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "centroid"; }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
 };
 
-class Item_func_envelope: public Item_str_func
+class Item_func_envelope: public Item_geometry_func
 {
 public:
-  Item_func_envelope(Item *a): Item_str_func(a) {}
+  Item_func_envelope(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "envelope"; }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
 };
 
-class Item_func_point: public Item_str_func
+class Item_func_point: public Item_geometry_func
 {
 public:
-  Item_func_point(Item *a, Item *b): Item_str_func(a, b) {}
-  Item_func_point(Item *a, Item *b, Item *srid): Item_str_func(a, b, srid) {}
+  Item_func_point(Item *a, Item *b): Item_geometry_func(a, b) {}
+  Item_func_point(Item *a, Item *b, Item *srid): Item_geometry_func(a, b, srid) {}
   const char *func_name() const { return "point"; }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
 };
 
-class Item_func_spatial_decomp: public Item_str_func
+class Item_func_spatial_decomp: public Item_geometry_func
 {
   enum Functype decomp_func;
 public:
   Item_func_spatial_decomp(Item *a, Item_func::Functype ft) :
-  	Item_str_func(a) { decomp_func = ft; }
+  	Item_geometry_func(a) { decomp_func = ft; }
   const char *func_name() const 
   { 
     switch (decomp_func)
@@ -123,15 +128,14 @@ public:
     }
   }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
 };
 
-class Item_func_spatial_decomp_n: public Item_str_func
+class Item_func_spatial_decomp_n: public Item_geometry_func
 {
   enum Functype decomp_func_n;
 public:
   Item_func_spatial_decomp_n(Item *a, Item *b, Item_func::Functype ft):
-  	Item_str_func(a, b) { decomp_func_n = ft; }
+  	Item_geometry_func(a, b) { decomp_func_n = ft; }
   const char *func_name() const 
   { 
     switch (decomp_func_n)
@@ -148,10 +152,9 @@ public:
     }
   }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
 };
 
-class Item_func_spatial_collection: public Item_str_func
+class Item_func_spatial_collection: public Item_geometry_func
 {
   String tmp_value;
   enum Geometry::wkbType coll_type; 
@@ -159,13 +162,12 @@ class Item_func_spatial_collection: public Item_str_func
 public:
   Item_func_spatial_collection(
      List<Item> &list, enum Geometry::wkbType ct, enum Geometry::wkbType it):
-  Item_str_func(list)
+  Item_geometry_func(list)
   {
     coll_type=ct;
     item_type=it;
   }
   String *val_str(String *);
-  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
   const char *func_name() const { return "multipoint"; }
 };
 

@@ -32,6 +32,8 @@
 #include <ndb_types.h>
 
 class Ndb;
+struct charset_info_st;
+typedef struct charset_info_st CHARSET_INFO;
 
 /**
  * @class NdbDictionary
@@ -257,6 +259,10 @@ public:
     /**
      * Set type of column
      * @param  type  Type of column
+     *
+     * @note setType resets <em>all</em> column attributes
+     *       to (type dependent) defaults and should be the first
+     *       method to call.  Default type is Unsigned.
      */
     void setType(Type type);
 
@@ -302,27 +308,35 @@ public:
     int getLength() const;
 
     /**
+     * For Char or Varchar or Text, set or get MySQL CHARSET_INFO.  This
+     * specifies both character set and collation.  See get_charset()
+     * etc in MySQL.  (The cs is not "const" in MySQL).
+     */
+    void setCharset(CHARSET_INFO* cs);
+    CHARSET_INFO* getCharset() const;
+
+    /**
      * For blob, set or get "inline size" i.e. number of initial bytes
      * to store in table's blob attribute.  This part is normally in
      * main memory and can be indexed and interpreted.
      */
-    void setInlineSize(int size) { setPrecision(size); }
-    int getInlineSize() const { return getPrecision(); }
+    void setInlineSize(int size);
+    int getInlineSize() const;
 
     /**
      * For blob, set or get "part size" i.e. number of bytes to store in
      * each tuple of the "blob table".  Can be set to zero to omit parts
      * and to allow only inline bytes ("tinyblob").
      */
-    void setPartSize(int size) { setScale(size); }
-    int getPartSize() const { return getScale(); }
+    void setPartSize(int size);
+    int getPartSize() const;
 
     /**
      * For blob, set or get "stripe size" i.e. number of consecutive
      * <em>parts</em> to store in each node group.
      */
-    void setStripeSize(int size) { setLength(size); }
-    int getStripeSize() const { return getLength(); }
+    void setStripeSize(int size);
+    int getStripeSize() const;
 
     /**
      * Get size of element
@@ -379,6 +393,10 @@ public:
     void setDefaultValue(const char*);   
     const char* getDefaultValue() const;
     /** @} *******************************************************************/
+
+    static const Column * FRAGMENT;
+    static const Column * ROW_COUNT;
+    static const Column * COMMIT_COUNT;
 #endif
     
   private:
@@ -1062,6 +1080,9 @@ public:
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 
 				const char * tableName);
+  public:
+    const Table * getTable(const char * name, void **data);
+    void set_local_table_data_size(unsigned sz);
   };
 };
 

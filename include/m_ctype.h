@@ -184,7 +184,8 @@ typedef struct my_charset_handler_st
 			 int base, char **e, int *err);
   double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e,
 			 int *err);
-  
+  longlong (*my_strtoll10)(struct charset_info_st *cs,
+                           const char *nptr, char **endptr, int *error);
   ulong        (*scan)(struct charset_info_st *, const char *b, const char *e,
 		       int sq);
 } MY_CHARSET_HANDLER;
@@ -303,6 +304,11 @@ int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
 int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
 			      longlong val);
 
+longlong my_strtoll10_8bit(CHARSET_INFO *cs,
+                           const char *nptr, char **endptr, int *error);
+longlong my_strtoll10_ucs2(CHARSET_INFO *cs, 
+                           const char *nptr, char **endptr, int *error);
+
 void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
@@ -311,6 +317,13 @@ my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      uint res_length,
 			      char *min_str, char *max_str,
 			      uint *min_length, uint *max_length);
+
+my_bool  my_like_range_mb(CHARSET_INFO *cs,
+			  const char *ptr, uint ptr_length,
+			  pbool escape, pbool w_one, pbool w_many,
+			  uint res_length,
+			  char *min_str, char *max_str,
+			  uint *min_length, uint *max_length);
 
 my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
 			    const char *ptr, uint ptr_length,
@@ -352,6 +365,11 @@ uint my_instr_mb(struct charset_info_st *,
                  const char *s, uint s_length,
                  my_match_t *match, uint nmatch);
 
+int my_wildcmp_unicode(CHARSET_INFO *cs,
+                       const char *str, const char *str_end,
+                       const char *wildstr, const char *wildend,
+                       int escape, int w_one, int w_many,
+                       MY_UNICASE_INFO **weights);
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));

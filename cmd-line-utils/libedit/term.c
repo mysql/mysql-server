@@ -67,6 +67,9 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 
 #include "el.h"
 
+#if !defined(HAVE_TERMCAP_H) && defined(HAVE_TERM_H)
+#include <term.h>
+#endif
 #include <sys/types.h>
 #include <sys/ioctl.h>
 

@@ -289,7 +289,8 @@ String *Item_func_concat::val_str(String *str)
 	  str->copy(*res);
 	  str->append(*res2);
 	}
-	res=str;
+        res= str;
+        use_as_buff= &tmp_value;
       }
       else if (res == &tmp_value)
       {
@@ -531,7 +532,7 @@ String *Item_func_concat_ws::val_str(String *str)
   uint i;
 
   null_value=0;
-  if (!(sep_str= separator->val_str(&tmp_sep_str)))
+  if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
     goto null;
 
   use_as_buff= &tmp_value;
@@ -540,7 +541,7 @@ String *Item_func_concat_ws::val_str(String *str)
 
   // Skip until non-null argument is found.
   // If not, return the empty string
-  for (i=0; i < arg_count; i++)
+  for (i=1; i < arg_count; i++)
     if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
@@ -634,67 +635,25 @@ null:
   return 0;
 }
 
-void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
-					 List<Item> &fields)
-{
-  if (separator->with_sum_func && separator->type() != SUM_FUNC_ITEM)
-    separator->split_sum_func(ref_pointer_array, fields);
-  else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(separator);
-    ref_pointer_array[el]= separator;
-    separator= new Item_ref(ref_pointer_array + el,
-			    &separator, 0, separator->name);
-  }
-  Item_str_func::split_sum_func(ref_pointer_array, fields);
-}
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  collation.set(separator->collation);
-  max_length=separator->max_length*(arg_count-1);
-  for (uint i=0 ; i < arg_count ; i++)
-  {
-    DTCollation tmp(collation.collation, collation.derivation);
+  max_length=0;
+
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+
+  max_length= arg_count > 1 ? args[0]->max_length * (arg_count - 2) : 0;
+  for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      collation.set(tmp); // Restore the previous value
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  used_tables_cache|=     separator->used_tables();
-  not_null_tables_cache&= separator->not_null_tables();
-  const_item_cache&=	  separator->const_item();
-  with_sum_func=	  with_sum_func || separator->with_sum_func;
 }
 
-void Item_func_concat_ws::update_used_tables()
-{
-  Item_func::update_used_tables();
-  separator->update_used_tables();
-  used_tables_cache|=separator->used_tables();
-  const_item_cache&=separator->const_item();
-}
-
-void Item_func_concat_ws::print(String *str)
-{
-  str->append("concat_ws(", 10);
-  separator->print(str);
-  if (arg_count)
-  {
-    str->append(',');
-    print_args(str, 0);
-  }
-  str->append(')');
-}
 
 String *Item_func_reverse::val_str(String *str)
 {
@@ -1244,7 +1203,7 @@ String *Item_func_ltrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
     end-=remove_length;
-    while (ptr < end && !memcmp(ptr,r_ptr,remove_length))
+    while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
       ptr+=remove_length;
     end+=remove_length;
   }
@@ -1316,8 +1275,8 @@ String *Item_func_rtrim::val_str(String *str)
     else
 #endif /* USE_MB */
     {
-      while (ptr + remove_length < end &&
-	     !memcmp(end-remove_length,r_ptr,remove_length))
+      while (ptr + remove_length <= end &&
+	     !memcmp(end-remove_length, r_ptr, remove_length))
 	end-=remove_length;
     }
   }
@@ -1770,19 +1729,20 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
-void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
+void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
   if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
+    item->split_sum_func(thd, ref_pointer_array, fields);
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, &item, 0, item->name);
+    thd->change_item_tree(&item, new_item);
   }
-  Item_str_func::split_sum_func(ref_pointer_array, fields);
+  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
 
@@ -2424,14 +2384,22 @@ String *Item_load_file::val_str(String *str)
   String *file_name;
   File file;
   MY_STAT stat_info;
+  char path[FN_REFLEN];
   DBUG_ENTER("load_file");
 
-  if (!(file_name= args[0]->val_str(str)) ||
+  if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      !(current_thd->master_access & FILE_ACL) ||
+      || !(current_thd->master_access & FILE_ACL)
 #endif
-      !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
+      )
     goto err;
+
+  (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
+		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
+
+  if (!my_stat(path, &stat_info, MYF(MY_WME)))
+    goto err;
+
   if (!(stat_info.st_mode & S_IROTH))
   {
     /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
@@ -2711,35 +2679,40 @@ longlong Item_func_crc32::val_int()
 
 String *Item_func_compress::val_str(String *str)
 {
+  int err= Z_OK, code;
+  ulong new_size;
+  String *res;
+  Byte *body;
+  char *tmp, *last_char;
   DBUG_ASSERT(fixed == 1);
-  String *res= args[0]->val_str(str);
-  if (!res)
+
+  if (!(res= args[0]->val_str(str)))
   {
     null_value= 1;
     return 0;
   }
   if (res->is_empty()) return res;
 
-  int err= Z_OK;
-  int code;
-
   /*
-   citation from zlib.h (comment for compress function):
+    Citation from zlib.h (comment for compress function):
 
     Compresses the source buffer into the destination buffer.  sourceLen is
-   the byte length of the source buffer. Upon entry, destLen is the total
-   size of the destination buffer, which must be at least 0.1% larger than
-   sourceLen plus 12 bytes.
-
-   Proportion 120/100 founded by Sinisa with help of procedure
-   compress(compress(compress(...)))
-   I.e. zlib give number 'at least'..
+    the byte length of the source buffer. Upon entry, destLen is the total
+    size of the destination buffer, which must be at least 0.1% larger than
+    sourceLen plus 12 bytes.
+    We assume here that the buffer can't grow more than .25 %.
   */
-  ulong new_size= (ulong)((res->length()*120)/100)+12;
+  new_size= res->length() + res->length() / 5 + 12;
 
-  buffer.realloc((uint32)new_size + 4 + 1);
-  Byte *body= ((Byte*)buffer.ptr()) + 4;
+  // Check new_size overflow: new_size <= res->length()
+  if (((uint32) (new_size+5) <= res->length()) || 
+      buffer.realloc((uint32) new_size + 4 + 1))
+  {
+    null_value= 1;
+    return 0;
+  }
 
+  body= ((Byte*)buffer.ptr()) + 4;
 
   // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,
@@ -2751,11 +2724,11 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  char *tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
+  tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
   int4store(tmp, res->length() & 0x3FFFFFFF);
 
-  /* This is for the stupid char fields which trim ' ': */
-  char *last_char= ((char*)body)+new_size-1;
+  /* This is to ensure that things works for CHAR fields, which trim ' ': */
+  last_char= ((char*)body)+new_size-1;
   if (*last_char == ' ')
   {
     *++last_char= '.';

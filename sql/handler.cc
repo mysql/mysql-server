@@ -103,7 +103,7 @@ const char *tx_isolation_names[] =
 { "READ-UNCOMMITTED", "READ-COMMITTED", "REPEATABLE-READ", "SERIALIZABLE",
   NullS};
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
-			       tx_isolation_names};
+			       tx_isolation_names, NULL};
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
@@ -157,12 +157,11 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
-  return 
-    DB_TYPE_UNKNOWN != (enum db_type) thd->variables.table_type ?
-    (enum db_type) thd->variables.table_type :
-    DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
-    (enum db_type) global_system_variables.table_type :
-    DB_TYPE_MYISAM;
+  return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
+          (enum db_type) thd->variables.table_type :
+          (enum db_type) global_system_variables.table_type !=
+          DB_TYPE_UNKNOWN ?
+          (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM);
 } /* ha_checktype */
 
 
@@ -555,7 +554,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       query_cache.invalidate(thd->transaction.changed_tables);
 #endif /*HAVE_QUERY_CACHE*/
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
-      sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
+      sql_print_error("Got error during commit;  Binlog is not up to date!");
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
@@ -784,10 +783,14 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
+  handler *file;
   char tmp_path[FN_REFLEN];
-  handler *file=(table_type== DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, table_type));
-  if (!file)
+
+  /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
+  if (table_type == DB_TYPE_UNKNOWN ||
+      ! (file=get_new_handler((TABLE*) 0, table_type)))
     return ENOENT;
+
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
   {
     /* Ensure that table handler get path in lower case */
@@ -936,23 +939,6 @@ int handler::read_first_row(byte * buf, uint primary_key)
     (void) ha_index_end();
   }
   DBUG_RETURN(error);
-}
-
-
-/* Set a timestamp in record */
-
-void handler::update_timestamp(byte *record)
-{
-  long skr= (long) table->in_use->query_start();
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    int4store(record,skr);
-  }
-  else
-#endif
-  longstore(record,skr);
-  return;
 }
 
 
@@ -1240,6 +1226,21 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_NO_REFERENCED_ROW:
     textno=ER_NO_REFERENCED_ROW;
     break;
+  case HA_ERR_NO_SUCH_TABLE:
+  {
+    /*
+      We have to use path to find database name instead of using
+      table->table_cache_key because if the table didn't exist, then
+      table_cache_key was not set up
+    */
+    char *db;
+    char buff[FN_REFLEN];
+    uint length=dirname_part(buff,table->path);
+    buff[length-1]=0;
+    db=buff+dirname_length(buff);
+    my_error(ER_NO_SUCH_TABLE,MYF(0),db,table->table_name);
+    break;
+  }
   default:
     {
       /* The error was "unknown" to this function.
@@ -1320,14 +1321,15 @@ int handler::rename_table(const char * from, const char * to)
 }
 
 /*
-  Tell the handler to turn on or off logging to the handler's recovery log
+  Tell the handler to turn on or off transaction in the handler
 */
 
-int ha_recovery_logging(THD *thd, bool on)
+int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
 
-  DBUG_ENTER("ha_recovery_logging");
+  DBUG_ENTER("ha_enable_transaction");
+  thd->transaction.on= on;
   DBUG_RETURN(error);
 }
 
@@ -1383,6 +1385,71 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (error)
     my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
   DBUG_RETURN(error != 0);
+}
+
+/*
+  Try to discover table from engine and 
+  if found, write the frm file to disk.
+  
+  RETURN VALUES:
+   0 : Table existed in engine and created 
+       on disk if so requested
+   1 : Table does not exist
+  >1 : error
+
+*/
+
+int ha_create_table_from_engine(THD* thd, 
+				const char *db, 
+				const char *name,
+				bool create_if_found)
+{
+  int error;
+  const void *frmblob;
+  uint frmlen;
+  char path[FN_REFLEN];
+  HA_CREATE_INFO create_info;
+  TABLE table;
+  DBUG_ENTER("ha_create_table_from_engine");
+  DBUG_PRINT("enter", ("name '%s'.'%s'  create_if_found: %d",
+                       db, name, create_if_found));
+
+  bzero((char*) &create_info,sizeof(create_info));
+
+  if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
+    DBUG_RETURN(error); 
+  /*
+    Table exists in handler
+    frmblob and frmlen are set
+  */
+
+  if (create_if_found)
+  {
+    (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
+    // Save the frm file    
+    if ((error = writefrm(path, frmblob, frmlen)))
+      goto err_end;
+
+    if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
+      DBUG_RETURN(1);
+
+    update_create_info_from_table(&create_info, &table);
+    create_info.table_options|= HA_CREATE_FROM_ENGINE;
+
+    if (lower_case_table_names == 2 &&
+	!(table.file->table_flags() & HA_FILE_BASED))
+    {
+      /* Ensure that handler gets name in lower case */
+      my_casedn_str(files_charset_info, path);
+    }
+    
+    error=table.file->create(path,&table,&create_info);
+    VOID(closefrm(&table));
+  }
+
+err_end:
+  my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
+  DBUG_RETURN(error);  
 }
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
@@ -1490,22 +1557,75 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 
 /*
   Try to discover one table from handler(s)
+
+  RETURN
+    0  ok. In this case *frmblob and *frmlen are set
+    1  error.  frmblob and frmlen may not be set
 */
 
-int ha_discover(const char* dbname, const char* name,
-               const void** frmblob, uint* frmlen)
+int ha_discover(THD *thd, const char *db, const char *name,
+		const void **frmblob, uint *frmlen)
 {
   int error= 1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
-  DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name));
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_discover(dbname, name, frmblob, frmlen);
+    error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
 #endif
   if (!error)
     statistic_increment(ha_discover_count,&LOCK_status);
   DBUG_RETURN(error);
 }
+
+
+/*
+  Call this function in order to give the handler the possiblity 
+  to ask engine if there are any new tables that should be written to disk 
+  or any dropped tables that need to be removed from disk
+*/
+
+int
+ha_find_files(THD *thd,const char *db,const char *path,
+	      const char *wild, bool dir, List<char> *files)
+{
+  int error= 0;
+  DBUG_ENTER("ha_find_files");
+  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
+		       db, path, wild, dir));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_find_files(thd, db, path, wild, dir, files);
+#endif
+  DBUG_RETURN(error);
+  
+  
+}
+
+#ifdef NOT_YET_USED
+
+/*
+  Ask handler if the table exists in engine
+
+  RETURN
+    0                   Table does not exist
+    1                   Table exists
+    #                   Error code
+
+ */
+int ha_table_exists(THD* thd, const char* db, const char* name)
+{
+  int error= 2;
+  DBUG_ENTER("ha_table_exists");
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_table_exists(thd, db, name);
+#endif
+  DBUG_RETURN(error);
+}
+
+#endif
 
 
 /*
@@ -1554,9 +1674,9 @@ int handler::read_range_first(const key_range *start_key,
 		       start_key->length,
 		       start_key->flag);
   if (result)
-    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND ||
-		 result == HA_ERR_END_OF_FILE) ? HA_ERR_END_OF_FILE :
-		result);
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
+		? HA_ERR_END_OF_FILE
+		: result);
 
   DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
 }

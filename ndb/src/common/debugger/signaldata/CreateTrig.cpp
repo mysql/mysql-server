@@ -28,51 +28,51 @@ bool printCREATE_TRIG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uin
   //sig->getTriggerName((char *) &triggerName);
   switch (sig->getTriggerType()) {
   case(TriggerType::SECONDARY_INDEX): 
-    snprintf(triggerType, sizeof(triggerType), "SECONDARY_INDEX");
+    BaseString::snprintf(triggerType, sizeof(triggerType), "SECONDARY_INDEX");
     break;
   case(TriggerType::SUBSCRIPTION):
-    snprintf(triggerType, sizeof(triggerType), "SUBSCRIPTION");
+    BaseString::snprintf(triggerType, sizeof(triggerType), "SUBSCRIPTION");
     break;
   case(TriggerType::ORDERED_INDEX): 
-    snprintf(triggerType, sizeof(triggerType), "ORDERED_INDEX");
+    BaseString::snprintf(triggerType, sizeof(triggerType), "ORDERED_INDEX");
     break;
   default:
-    snprintf(triggerType, sizeof(triggerType), "UNKNOWN [%d]", (int)sig->getTriggerType());
+    BaseString::snprintf(triggerType, sizeof(triggerType), "UNKNOWN [%d]", (int)sig->getTriggerType());
     break;
   }
   switch (sig->getTriggerActionTime()) {
   case (TriggerActionTime::TA_BEFORE):
-    snprintf(triggerActionTime, sizeof(triggerActionTime), "BEFORE");
+    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "BEFORE");
     break;
   case(TriggerActionTime::TA_AFTER):
-    snprintf(triggerActionTime, sizeof(triggerActionTime), "AFTER");
+    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "AFTER");
     break;
   case (TriggerActionTime::TA_DEFERRED):
-    snprintf(triggerActionTime, sizeof(triggerActionTime), "DEFERRED");
+    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "DEFERRED");
     break;
   case (TriggerActionTime::TA_DETACHED):
-    snprintf(triggerActionTime, sizeof(triggerActionTime), "DETACHED");
+    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "DETACHED");
     break;
   default:
-    snprintf(triggerActionTime, sizeof(triggerActionTime),
+    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime),
 	     "UNKNOWN [%d]", (int)sig->getTriggerActionTime());
     break;
   }
   switch (sig->getTriggerEvent()) {
   case (TriggerEvent::TE_INSERT):
-    snprintf(triggerEvent, sizeof(triggerEvent), "INSERT");
+    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "INSERT");
     break;
   case(TriggerEvent::TE_DELETE):
-    snprintf(triggerEvent, sizeof(triggerEvent), "DELETE");
+    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "DELETE");
     break;
   case(TriggerEvent::TE_UPDATE):
-    snprintf(triggerEvent, sizeof(triggerEvent), "UPDATE");
+    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "UPDATE");
     break;
   case(TriggerEvent::TE_CUSTOM):
-    snprintf(triggerEvent, sizeof(triggerEvent), "CUSTOM");
+    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "CUSTOM");
     break;
   default:
-    snprintf(triggerEvent, sizeof(triggerEvent), "UNKNOWN [%d]", (int)sig->getTriggerEvent());
+    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "UNKNOWN [%d]", (int)sig->getTriggerEvent());
     break;
   }
   

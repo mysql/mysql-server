@@ -24,15 +24,18 @@ bar@bar.udmsearch.izhnet.ru
 bar@deer.(none)
 bar@gw.udmsearch.izhnet.ru
 bar@mysql.com
+bar@noter.intranet.mysql.r18.ru
 bell@laptop.sanja.is.com.ua
 bell@sanja.is.com.ua
 bk@admin.bk
 bk@mysql.r18.ru
 brian@avenger.(none)
 brian@brian-akers-computer.local
+brian@private-client-ip-101.oz.net
 carsten@tsort.bitbybit.dk
 cps@silver_beast.(none)
 davida@isil.mysql.com
+dellis@goetia.(none)
 dlenev@brandersnatch.localdomain
 dlenev@build.mysql.com
 dlenev@jabberwock.localdomain
@@ -50,6 +53,7 @@ gweir@build.mysql.com
 gweir@work.mysql.com
 harrison@mysql.com
 harry@corona.lordblink.com
+hartmut@mysql.com
 heikki@donna.mysql.fi
 heikki@hundin.mysql.fi
 heikki@rescue.
@@ -63,7 +67,10 @@ igor@hundin.mysql.fi
 igor@rurik.mysql.com
 ingo@mysql.com
 jan@hundin.mysql.fi
+jani@a193-229-222-105.elisa-laajakaista.fi
+jani@a193-229-222-2.elisa-laajakaista.fi
 jani@a80-186-24-72.elisa-laajakaista.fi
+jani@a80-186-41-201.elisa-laajakaista.fi
 jani@a80-186-8-224.elisa-laajakaista.fi
 jani@dsl-jkl1657.dial.inet.fi
 jani@dsl-kpogw4gb5.dial.inet.fi
@@ -94,7 +101,9 @@ kostja@oak.local
 lenz@kallisto.mysql.com
 lenz@mysql.com
 magnus@neptunus.(none)
+magnus@shellback.(none)
 marko@hundin.mysql.fi
+matt@mysql.com
 miguel@hegel.(none)
 miguel@hegel.br
 miguel@hegel.local
@@ -103,8 +112,10 @@ miguel@hegel.txg.br
 miguel@light.
 miguel@light.local
 miguel@sartre.local
+mikael@mc04.(none)
 mikron@c-fb0ae253.1238-1-64736c10.cust.bredbandsbolaget.se
 mikron@mikael-ronstr-ms-dator.local
+mleich@mysql.com
 mmatthew@markslaptop.
 monty@bitch.mysql.fi
 monty@butch.
@@ -122,6 +133,7 @@ monty@tik.
 monty@tik.mysql.fi
 monty@tramp.mysql.fi
 monty@work.mysql.com
+mronstrom@build.mysql.com
 mronstrom@mysql.com
 mskold@mysql.com
 msvensson@build.mysql.com
@@ -131,6 +143,7 @@ mwagner@here.mwagner.org
 mwagner@work.mysql.com
 mydev@mysql.com
 mysql@home.(none)
+mysql@mc04.(none)
 mysqldev@build.mysql2.com
 mysqldev@melody.local
 mysqldev@mysql.com
@@ -165,6 +178,7 @@ ram@ram.(none)
 ranger@regul.home.lan
 rburnett@build.mysql.com
 root@home.(none)
+root@mc04.(none)
 root@x3.internalnet
 salle@banica.(none)
 salle@geopard.(none)
