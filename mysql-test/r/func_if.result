@@ -32,4 +32,4 @@ a
 aa
 aaa
 sum(if(num is null,0.00,num))
-nan
+144.54
