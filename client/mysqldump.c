@@ -1438,8 +1438,8 @@ int main(int argc, char **argv)
   else if (opt_single_transaction) /* Just to make it beautiful enough */
   {
     /*
-    In case we were locking all tables, we did not start transaction
-    so there is no need to commit it.
+      In case we were locking all tables, we did not start transaction
+      so there is no need to commit it.
     */
 
     /* This should just free locks as we did not change anything */

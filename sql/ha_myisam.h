@@ -45,7 +45,6 @@ class ha_myisam: public handler
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
     int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		    HA_HAVE_KEY_READ_ONLY |
 		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
 		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
     enable_activate_all_index(1)
@@ -55,6 +54,12 @@ class ha_myisam: public handler
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulong table_flags() const { return int_table_flags; }
+  ulong index_flags(uint inx) const
+  {
+    ulong flags=(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
+    return (flags | ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+		     0 : HA_KEY_READ_ONLY));
+  }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }

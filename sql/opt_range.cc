@@ -682,27 +682,27 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	{
 	  ha_rows found_records;
 	  double found_read_time;
-
 	  if (*key)
 	  {
+	    uint keynr= param.real_keynr[idx];
 	    if ((*key)->type == SEL_ARG::MAYBE_KEY ||
 		(*key)->maybe_flag)
-	      needed_reg|= (key_map) 1 << param.real_keynr[idx];
+	      needed_reg|= (key_map) 1 << keynr;
 
-	    found_records=check_quick_select(&param,idx, *key);
+	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
-		head->used_keys & ((table_map) 1 << param.real_keynr[idx]) &&
-		(head->file->table_flags() & HA_HAVE_KEY_READ_ONLY))
+		head->used_keys & ((table_map) 1 << keynr) &&
+		(head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
 	    {
 	      /*
-	      ** We can resolve this by only reading through this key
-	      ** Assume that we will read trough the whole key range
-	      ** and that all key blocks are half full (normally things are
-	      ** much better)
+		We can resolve this by only reading through this key.
+		Assume that we will read trough the whole key range
+		and that all key blocks are half full (normally things are
+		much better).
 	      */
-	      uint keys_per_block= head->file->block_size/2/
-		(head->key_info[param.real_keynr[idx]].key_length+
-		 head->file->ref_length) + 1;
+	      uint keys_per_block= (head->file->block_size/2/
+				    (head->key_info[keynr].key_length+
+				     head->file->ref_length) + 1);
 	      found_read_time=((double) (found_records+keys_per_block-1)/
 			       (double) keys_per_block);
 	    }

@@ -61,7 +61,8 @@ struct st_table {
   uint uniques;
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
-  key_map keys_in_use, keys_in_use_for_query;
+  key_map keys_in_use, keys_for_keyread;
+  key_map quick_keys, used_keys, keys_in_use_for_query;
   KEY  *key_info;			/* data of keys in database */
   TYPELIB keynames;			/* Pointers to keynames */
   ha_rows max_rows;			/* create information */
@@ -119,7 +120,6 @@ struct st_table {
   byte		*record_pointers;		/* If sorted in memory */
   ha_rows	found_records;			/* How many records in sort */
   ORDER		*group;
-  key_map	quick_keys, used_keys;
   ha_rows	quick_rows[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];

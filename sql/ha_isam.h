@@ -26,21 +26,20 @@
 class ha_isam: public handler
 {
   N_INFO *file;
-  uint    int_table_flags;
 
  public:
-  ha_isam(TABLE *table): handler(table), file(0),
-    int_table_flags(HA_READ_RND_SAME |
-		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		    HA_HAVE_KEY_READ_ONLY |
-		    HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
-		    HA_NOT_DELETE_WITH_CACHE)
-    {}
+  ha_isam(TABLE *table): handler(table), file(0)
+  {}
   ~ha_isam() {}
   const char *table_type() const { return "ISAM"; }
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
-  ulong table_flags() const { return int_table_flags; }
+  ulong table_flags() const
+  {
+    return (HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+	    HA_KEY_READ_WRONG_STR | HA_DUPP_POS | HA_NOT_DELETE_WITH_CACHE |
+	    ((table->db_record_offset) ? 0 : HA_REC_NOT_IN_SEQ));
+  }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return N_MAXKEY; }
   uint max_key_parts()     const { return N_MAXKEY_SEG; }
@@ -80,5 +79,4 @@ class ha_isam: public handler
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-
 };

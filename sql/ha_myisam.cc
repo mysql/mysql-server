@@ -885,7 +885,8 @@ void ha_myisam::info(uint flag)
     ref_length=info.reflength;
     table->db_options_in_use    = info.options;
     block_size=myisam_block_size;
-    table->keys_in_use &= info.key_map;
+    table->keys_in_use&=      info.key_map;
+    table->keys_for_keyread&= info.key_map;
     table->db_record_offset=info.record_offset;
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,

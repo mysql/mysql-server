@@ -153,15 +153,15 @@ String *Item_func_aes_encrypt::val_str(String *str)
     null_value=0;
     aes_length=my_aes_get_size(sptr->length()); // calculate result length
     
-    if ( !str->alloc(aes_length) )  // Ensure that memory is free
+    if (!str->alloc(aes_length))  // Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
-      if (my_aes_encrypt(sptr->ptr(),sptr->length(),str->ptr(),key->ptr(),
-                     key->length()) == aes_length)
+      if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str->ptr(),
+			 key->ptr(), key->length()) == aes_length)
       {		     
-       // we have to get expected result length
-       str->length((uint) aes_length);
-       return str;
+	// We got the expected result length
+	str->length((uint) aes_length);
+	return str;
       }
     }
   }
@@ -169,9 +169,10 @@ String *Item_func_aes_encrypt::val_str(String *str)
   return 0;
 }
 
+
 void Item_func_aes_encrypt::fix_length_and_dec()
 {
-   max_length=my_aes_get_size(args[0]->max_length);
+  max_length=my_aes_get_size(args[0]->max_length);
 }
 
 
@@ -184,12 +185,12 @@ String *Item_func_aes_decrypt::val_str(String *str)
   if (sptr && key)  // Need to have both arguments not NULL
   {
     null_value=0;
-    if ( !str->alloc(sptr->length()) )  // Ensure that memory is free
+    if (!str->alloc(sptr->length()))  // Ensure that memory is free
     {
-      // finally decencrypt directly to allocated buffer.
-      length=my_aes_decrypt(sptr->ptr(),sptr->length(),str->ptr(),
-                            key->ptr(),key->length());
-      if (length>=0)  // if we got correct data data
+      // finally decrypt directly to allocated buffer.
+      length=my_aes_decrypt(sptr->ptr(), sptr->length(), (char*) str->ptr(),
+                            key->ptr(), key->length());
+      if (length >= 0)  // if we got correct data data
       {      
         str->length((uint) length);
         return str;
@@ -208,9 +209,9 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 
 
 /*
-** Concatinate args with the following premissess
-** If only one arg which is ok, return value of arg
-** Don't reallocate val_str() if not absolute necessary.
+  Concatenate args with the following premises:
+  If only one arg (which is ok), return value of arg
+  Don't reallocate val_str() if not absolute necessary.
 */
 
 String *Item_func_concat::val_str(String *str)

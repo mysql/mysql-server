@@ -77,7 +77,6 @@ class ha_innobase: public handler
   	ha_innobase(TABLE *table): handler(table),
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
 			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-			  HA_HAVE_KEY_READ_ONLY |
 			  HA_NULL_KEY |
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
@@ -98,7 +97,7 @@ class ha_innobase: public handler
 	ulong index_flags(uint idx) const
 	{
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-		  HA_NOT_READ_PREFIX_LAST);
+		  HA_NOT_READ_PREFIX_LAST | HA_KEY_READ_ONLY);
 	}
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }

@@ -133,7 +133,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (read_string(file,(gptr*) &disk_buff,key_info_length))
     goto err_not_open; /* purecov: inspected */
   outparam->keys=keys=   disk_buff[0];
-  outparam->keys_in_use= set_bits(key_map, keys);
+  outparam->keys_for_keyread= outparam->keys_in_use= set_bits(key_map, keys);
 
   outparam->key_parts=key_parts=disk_buff[1];
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
@@ -199,6 +199,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     for (i=0 ; i < keys ; i++, keyinfo++)
       keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
   }
+
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     outparam->system=1;				/* one-record-database */
@@ -386,7 +387,17 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     for (uint key=0 ; key < outparam->keys ; key++,keyinfo++)
     {
       uint usable_parts=0;
+      ulong index_flags;
       keyinfo->name=(char*) outparam->keynames.type_names[key];
+      /* Fix fulltext keys for old .frm files */
+      if (outparam->key_info[key].flags & HA_FULLTEXT)
+	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
+
+      /* This has to be done after the above fulltext correction */
+      index_flags=outparam->file->index_flags(key);
+      if (!(index_flags & HA_KEY_READ_ONLY))
+	outparam->keys_for_keyread&= ~((key_map) 1 << key);
+
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
 	/*
@@ -444,7 +455,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
-	  if ((ha_option & HA_HAVE_KEY_READ_ONLY) &&
+	  if ((index_flags & HA_KEY_READ_ONLY) &&
 	      field->key_length() == key_part->length &&
 	      field->type() != FIELD_TYPE_BLOB)
 	  {
@@ -454,8 +465,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	      field->part_of_key|= ((key_map) 1 << key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
 		 !(keyinfo->flags & HA_FULLTEXT)) &&
-		!(outparam->file->index_flags(key) &
-		  HA_WRONG_ASCII_ORDER))
+		!(index_flags & HA_WRONG_ASCII_ORDER))
 	      field->part_of_sortkey|= ((key_map) 1 << key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&

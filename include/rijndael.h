@@ -4,45 +4,39 @@
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation; either version 2 of the License, or
  (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
- 
- 
+
+
 /*
- rijndael-alg-fst.h
- 
- @version 3.0 (December 2000)
- Optimised ANSI C code for the Rijndael cipher (now AES)
- @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
- @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
- @author Paulo Barreto <paulo.barreto@terra.com.br>
- 
- This code is hereby placed in the public domain.
- 
- Modified by Peter Zaitsev to fit MySQL coding style.
- 
+  rijndael-alg-fst.h
+
+  @version 3.0 (December 2000)
+  Optimised ANSI C code for the Rijndael cipher (now AES)
+  @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
+  @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
+  @author Paulo Barreto <paulo.barreto@terra.com.br>
+
+  This code is hereby placed in the public domain.
+  Modified by Peter Zaitsev to fit MySQL coding style.
  */
-#ifndef __RIJNDAEL_ALG_FST_H
-#define __RIJNDAEL_ALG_FST_H
 
-#define MAXKC	(256/32)
-#define MAXKB	(256/8)
-#define MAXNR	14
+#define AES_MAXKC	(256/32)
+#define AES_MAXKB	(256/8)
+#define AES_MAXNR	14
 
-int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[], 
-                        int keyBits);
+int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
+			int keyBits);
 int rijndaelKeySetupDec(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
-                        int keyBits);
+			int keyBits);
 void rijndaelEncrypt(const uint32 rk[/*4*(Nr + 1)*/], int Nr,
-                     const uint8 pt[16], uint8 ct[16]);
+		     const uint8 pt[16], uint8 ct[16]);
 void rijndaelDecrypt(const uint32 rk[/*4*(Nr + 1)*/], int Nr,
-                     const uint8 ct[16], uint8 pt[16]);
-
-#endif /* __RIJNDAEL_ALG_FST_H */
+		     const uint8 ct[16], uint8 pt[16]);
