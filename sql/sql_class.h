@@ -975,8 +975,7 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
-  CHARSET_INFO *var_charset;
-  enum Item::coercion var_coercibility;
+  DTCollation collation;
 };
 
 /* Class for unique (removing of duplicates) */
