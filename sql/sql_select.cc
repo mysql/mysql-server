@@ -5305,7 +5305,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
 	  if (current_thd->variables.engine_condition_pushdown)
-	    tab->table->file->cond_push(tmp); // Push condition to handler
+          {
+            tab->table->file->pushed_cond= NULL;
+	    /* Push condition to handler */
+            if (!tab->table->file->cond_push(tmp))
+              tab->table->file->pushed_cond= tmp;
+          }
         }
         else
           tab->select_cond= sel->cond= NULL;
@@ -5428,8 +5433,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
 	      if (current_thd->variables.engine_condition_pushdown &&
-		  (tmp != tab->select_cond))
-		tab->table->file->cond_push(tmp); // Push condition to handler
+		  (!tab->table->file->pushed_cond))
+              {
+		/* Push condition to handler */
+		if (!tab->table->file->cond_push(tmp))
+                  tab->table->file->pushed_cond= tmp;
+              }
 	    }
 	  }
 	}

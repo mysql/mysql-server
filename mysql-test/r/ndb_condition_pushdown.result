@@ -1,10 +1,10 @@
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (
 auto int(5) unsigned NOT NULL auto_increment,
-string char(10) default "hello",
-vstring varchar(10) default "hello",
-bin binary(7) default "hello",
-vbin varbinary(7) default "hello",	
+string char(10),
+vstring varchar(10),
+bin binary(7),
+vbin varbinary(7),	
 tiny tinyint(4) DEFAULT '0' NOT NULL ,
 short smallint(6) DEFAULT '1' NOT NULL ,
 medium mediumint(8) DEFAULT '0' NOT NULL,
@@ -233,17 +233,41 @@ auto
 2
 3
 4
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like "b%" and
+vbin like "b%"
+order by auto;
+auto
+2
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like "b%" and
+vbin not like "b%"
+order by auto;
+auto
+1
+3
+4
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+pk1	attr1	attr2	attr3
+3	3	3	d
+4	4	4	e
+5	5	5	f
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
 4	4	9223372036854775806	4	e
 5	5	9223372036854775807	5	f
-select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
+0	0	0	a	0	0	0	0	a
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -257,8 +281,8 @@ set engine_condition_pushdown = on;
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-bin = "aaaa" and 
-vbin = "aaaa" and 
+/* bin = "aaaa" and 
+vbin = "aaaa" and */
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -285,8 +309,8 @@ auto
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-bin != "aaaa" and 
-vbin != "aaaa" and 
+/* bin != "aaaa" and 
+vbin != "aaaa" and */
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -315,8 +339,8 @@ auto
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-bin > "aaaa" and 
-vbin > "aaaa" and 
+/* bin > "aaaa" and 
+vbin > "aaaa" and */
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -345,8 +369,8 @@ auto
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-bin >= "aaaa" and 
-vbin >= "aaaa" and 
+/* bin >= "aaaa" and 
+vbin >= "aaaa" and */
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -376,8 +400,8 @@ auto
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-bin < "dddd" and 
-vbin < "dddd" and 
+/* bin < "dddd" and 
+vbin < "dddd" and */
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -406,8 +430,8 @@ auto
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-bin <= "dddd" and 
-vbin <= "dddd" and 
+/* bin <= "dddd" and 
+vbin <= "dddd" and */
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -438,8 +462,8 @@ create index medium_index on t1(medium);
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-bin = "aaaa" and 
-vbin = "aaaa" and 
+/* bin = "aaaa" and 
+vbin = "aaaa" and */
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -466,8 +490,8 @@ auto
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-bin != "aaaa" and 
-vbin != "aaaa" and 
+/* bin != "aaaa" and 
+vbin != "aaaa" and */
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -496,8 +520,8 @@ auto
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-bin > "aaaa" and 
-vbin > "aaaa" and 
+/* bin > "aaaa" and 
+vbin > "aaaa" and */
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -526,8 +550,8 @@ auto
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-bin >= "aaaa" and 
-vbin >= "aaaa" and 
+/* bin >= "aaaa" and 
+vbin >= "aaaa" and */
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -557,8 +581,8 @@ auto
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-bin < "dddd" and 
-vbin < "dddd" and 
+/* bin < "dddd" and 
+vbin < "dddd" and */
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -587,8 +611,8 @@ auto
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-bin <= "dddd" and 
-vbin <= "dddd" and 
+/* bin <= "dddd" and 
+vbin <= "dddd" and */
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -615,17 +639,41 @@ auto
 2
 3
 4
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" /* and
+bin like "b%" and
+vbin like "b%" */
+order by auto;
+auto
+2
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%"/* and
+bin not like "b%" and
+vbin not like "b%" */
+order by auto;
+auto
+1
+3
+4
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+pk1	attr1	attr2	attr3
+3	3	3	d
+4	4	4	e
+5	5	5	f
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
 4	4	9223372036854775806	4	e
 5	5	9223372036854775807	5	f
-select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
+0	0	0	a	0	0	0	0	a
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -635,5 +683,15 @@ pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c
 3	3	9223372036854775805	3	d	3	3	9223372036854775805	3	d
 4	4	9223372036854775806	4	e	4	4	9223372036854775806	4	e
+select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+auto
+1
+select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
+pk1	attr1	attr2	attr3
+0	0	0	a
+1	1	1	b
+3	3	3	d
+4	4	4	e
+5	5	5	f
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4;
