@@ -180,26 +180,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ex->file_name+=dirname_length(ex->file_name);
 #endif
     if (!dirname_length(ex->file_name) &&
-	strlen(ex->file_name)+strlen(mysql_data_home)+strlen(tdb)+3 <
+	strlen(ex->file_name)+strlen(mysql_real_data_home)+strlen(tdb)+3 <
 	FN_REFLEN)
     {
-      (void) sprintf(name,"%s/%s/%s",mysql_data_home,tdb,ex->file_name);
+      (void) sprintf(name,"%s%s/%s",mysql_real_data_home,tdb,ex->file_name);
       unpack_filename(name,name);		/* Convert to system format */
     }
     else
     {
-#ifdef EMBEDDED_LIBRARY
-      char *chk_name= ex->file_name;
-      while ((*chk_name == ' ') || (*chk_name == 't'))
-	chk_name++;
-      if (*chk_name == FN_CURLIB)
-      {
-	sprintf(name, "%s%s", mysql_data_home, ex->file_name);
-	unpack_filename(name, name);
-      }
-      else
-#endif /*EMBEDDED_LIBRARY*/
-      unpack_filename(name,ex->file_name);
+      my_load_path(name, ex->file_name, mysql_real_data_home);
+      unpack_filename(name, name);
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
