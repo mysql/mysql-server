@@ -14,7 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Defines for netware compatible with MySQL */
+/* Header for NetWare compatible with MySQL */
+
+#ifndef _config_netware_h
+#define _config_netware_h
 
 /* required headers */
 #include <unistd.h>
@@ -32,17 +35,27 @@
 #include <pthread.h>
 #include <termios.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* required adjustments */
 #undef HAVE_READDIR_R
 #undef HAVE_RWLOCK_INIT
 #undef HAVE_SCHED_H
 #undef HAVE_SYS_MMAN_H
 #undef HAVE_SYNCH_H
-#undef HAVE_CRYPT
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #define HAVE_PTHREAD_SIGMASK 1
 #define HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #define HAVE_BROKEN_REALPATH 1
+
+/* no libc crypt() function */
+#ifdef HAVE_OPENSSL
+  #define HAVE_CRYPT 1
+#else
+  #undef HAVE_CRYPT
+#endif /* HAVE_OPENSSL */
 
 /* include the old function apis */
 #define USE_OLD_FUNCTIONS 1
@@ -58,6 +71,9 @@
 
 /* signal by closing the sockets */
 #define SIGNAL_WITH_VIO_CLOSE 1
+
+/* On NetWare, stack grows towards lower address*/
+#define STACK_DIRECTION -1
 
 /* default directory information */
 #define	DEFAULT_MYSQL_HOME    "sys:/mysql"
@@ -80,6 +96,20 @@
 /* do not use the extended time in LibC sys\stat.h */
 #define _POSIX_SOURCE
 
+/* Kernel call on NetWare that will only yield if our time slice is up */
+void kYieldIfTimeSliceUp(void);
+
 /* Some macros for portability */
 
-#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=(SEC); (ABSTIME).tv_nsec=0; }
+#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time(NULL)+(SEC); (ABSTIME).tv_nsec=0; }
+
+/* extra protection against CPU Hogs on NetWare */
+#define NETWARE_YIELD kYieldIfTimeSliceUp()
+/* Screen mode for help texts */
+#define NETWARE_SET_SCREEN_MODE(A) setscreenmode(A)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _config_netware_h */

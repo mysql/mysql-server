@@ -134,12 +134,14 @@ static struct my_option my_long_options[] =
 
 static const char *load_default_groups[]= { "mysqlimport","client",0 };
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n" ,my_progname,
 	  IMPORT_VERSION, MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
-
 
 
 static void usage(void)
@@ -160,6 +162,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
   my_print_variables(my_long_options);
 }
 
+#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
