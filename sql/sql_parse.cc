@@ -760,7 +760,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->set_time();
-  thd->lex.options=0;				// We store status here
+  thd->lex.select_lex.options=0;				// We store status here
   switch (command) {
   case COM_INIT_DB:
     if (!mysql_change_db(thd,packet))
@@ -1027,7 +1027,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->proc_info="logging slow query";
 
     if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
-	((thd->lex.options &
+	((thd->lex.select_lex.options &
 	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
     {
@@ -1058,7 +1058,8 @@ mysql_execute_command(void)
   int	res=0;
   THD	*thd=current_thd;
   LEX	*lex= &thd->lex;
-  TABLE_LIST *tables=(TABLE_LIST*) lex->table_list.first;
+  TABLE_LIST *tables=(TABLE_LIST*) lex->select->table_list.first;
+  SELECT_LEX *Select = lex->select;
   DBUG_ENTER("mysql_execute_command");
 
   if(table_rules_on && thd->slave_thread && tables && !tables_ok(thd,tables))
@@ -1070,7 +1071,7 @@ mysql_execute_command(void)
   case SQLCOM_SELECT:
   {
     select_result *result;
-    if (lex->options & SELECT_DESCRIBE)
+    if (Select->options & SELECT_DESCRIBE)
       lex->exchange=0;
     if (tables)
     {
@@ -1088,12 +1089,12 @@ mysql_execute_command(void)
       break;					// Error message is given
     }
 
-    thd->offset_limit=lex->offset_limit;
-    thd->select_limit=lex->select_limit+lex->offset_limit;
-    if (thd->select_limit < lex->select_limit)
+    thd->offset_limit=Select->offset_limit;
+    thd->select_limit=Select->select_limit+Select->offset_limit;
+    if (thd->select_limit < Select->select_limit)
       thd->select_limit= HA_POS_ERROR;		// no limit
     if (thd->select_limit == HA_POS_ERROR)
-      lex->options&= ~OPTION_FOUND_ROWS;
+      Select->options&= ~OPTION_FOUND_ROWS;
 
     if (lex->exchange)
     {
@@ -1118,8 +1119,8 @@ mysql_execute_command(void)
     {
       res= -1;
 #ifdef DELETE_ITEMS
-      delete lex->having;
-      delete lex->where;
+      delete Select->having;
+      delete Select->where;
 #endif
       break;
     }
@@ -1137,22 +1138,22 @@ mysql_execute_command(void)
 
     if (!(res=open_and_lock_tables(thd,tables)))
     {
-      res=mysql_select(thd,tables,lex->item_list,
-		       lex->where,
-                       lex->ftfunc_list,
-		       (ORDER*) lex->order_list.first,
-		       (ORDER*) lex->group_list.first,
-		       lex->having,
+      res=mysql_select(thd,tables,Select->item_list,
+		       Select->where,
+                       Select->ftfunc_list,
+		       (ORDER*) Select->order_list.first,
+		       (ORDER*) Select->group_list.first,
+		       Select->having,
 		       (ORDER*) lex->proc_list.first,
-		       lex->options | thd->options,
+		       Select->options | thd->options,
 		       result);
       if (res)
 	result->abort();
     }
     delete result;
 #ifdef DELETE_ITEMS
-    delete lex->having;
-    delete lex->where;
+    delete Select->having;
+    delete Select->where;
 #endif
     break;
   }
@@ -1271,7 +1272,7 @@ mysql_execute_command(void)
       res=0;
       break;
     }
-    if (lex->item_list.elements)		// With select
+    if (Select->item_list.elements)		// With select
     {
       select_result *result;
 
@@ -1289,9 +1290,9 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
-      thd->offset_limit=lex->offset_limit;
-      thd->select_limit=lex->select_limit+lex->offset_limit;
-      if (thd->select_limit < lex->select_limit)
+      thd->offset_limit=Select->offset_limit;
+      thd->select_limit=Select->select_limit+Select->offset_limit;
+      if (thd->select_limit < Select->select_limit)
 	thd->select_limit= HA_POS_ERROR;		// No limit
 
       if (!(res=open_and_lock_tables(thd,tables->next)))
@@ -1300,16 +1301,16 @@ mysql_execute_command(void)
 				      tables->real_name, &lex->create_info,
 				      lex->create_list,
 				      lex->key_list,
-				      lex->item_list,lex->duplicates)))
+				      Select->item_list,lex->duplicates)))
 	{
-	  res=mysql_select(thd,tables->next,lex->item_list,
-			   lex->where,
-                           lex->ftfunc_list,
-			   (ORDER*) lex->order_list.first,
-			   (ORDER*) lex->group_list.first,
-			   lex->having,
+	  res=mysql_select(thd,tables->next,Select->item_list,
+			   Select->where,
+                           Select->ftfunc_list,
+			   (ORDER*) Select->order_list.first,
+			   (ORDER*) Select->group_list.first,
+			   Select->having,
 			   (ORDER*) lex->proc_list.first,
-			   lex->options | thd->options,
+			   Select->options | thd->options,
 			   result);
 	  if (res)
 	    result->abort();
@@ -1364,10 +1365,10 @@ mysql_execute_command(void)
       }
       if (!tables->db)
 	tables->db=thd->db;
-      if (!lex->db)
-	lex->db=tables->db;
+      if (!Select->db)
+	Select->db=tables->db;
       if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege) ||
-	  check_access(thd,INSERT_ACL | CREATE_ACL,lex->db,&priv) ||
+	  check_access(thd,INSERT_ACL | CREATE_ACL,Select->db,&priv) ||
 	  check_merge_table_access(thd, tables->db, 
 				   (TABLE_LIST *)
 				   lex->create_info.merge_list.first))
@@ -1383,7 +1384,7 @@ mysql_execute_command(void)
 	  TABLE_LIST tmp_table;
 	  bzero((char*) &tmp_table,sizeof(tmp_table));
 	  tmp_table.real_name=lex->name;
-	  tmp_table.db=lex->db;
+	  tmp_table.db=Select->db;
 	  tmp_table.grant.privilege=priv;
 	  if (check_grant(thd,INSERT_ACL | CREATE_ACL,tables))
 	    goto error;
@@ -1393,11 +1394,11 @@ mysql_execute_command(void)
       if (end_active_trans(thd))
 	res= -1;
       else
-	res= mysql_alter_table(thd, lex->db, lex->name,
+	res= mysql_alter_table(thd, Select->db, lex->name,
 			       &lex->create_info,
 			       tables, lex->create_list,
 			       lex->key_list, lex->drop_list, lex->alter_list,
-                               (ORDER *) lex->order_list.first,
+                               (ORDER *) Select->order_list.first,
 			       lex->drop_primary, lex->duplicates,
 			       lex->alter_keys_onoff, lex->simple_alter);
       break;
@@ -1517,22 +1518,22 @@ mysql_execute_command(void)
       goto error;
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
-    if (lex->item_list.elements != lex->value_list.elements)
+    if (Select->item_list.elements != lex->value_list.elements)
     {
       send_error(&thd->net,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
     res = mysql_update(thd,tables,
-		       lex->item_list,
+		       Select->item_list,
 		       lex->value_list,
-		       lex->where,
-                       (ORDER *) lex->order_list.first,
-		       lex->select_limit,
+		       Select->where,
+                       (ORDER *) Select->order_list.first,
+		       Select->select_limit,
 		       lex->duplicates,
 		       lex->lock_option);
 
 #ifdef DELETE_ITEMS
-    delete lex->where;
+    delete Select->where;
 #endif
     break;
   case SQLCOM_INSERT:
@@ -1576,9 +1577,9 @@ mysql_execute_command(void)
     }
 
     select_result *result;
-    thd->offset_limit=lex->offset_limit;
-    thd->select_limit=lex->select_limit+lex->offset_limit;
-    if (thd->select_limit < lex->select_limit)
+    thd->offset_limit=Select->offset_limit;
+    thd->select_limit=Select->select_limit+Select->offset_limit;
+    if (thd->select_limit < Select->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
     if (check_dup(thd,tables->db,tables->real_name,tables->next))
@@ -1598,14 +1599,14 @@ mysql_execute_command(void)
 				    lex->sql_command == SQLCOM_REPLACE_SELECT ?
 				    DUP_REPLACE : DUP_IGNORE)))
       {
-	res=mysql_select(thd,tables->next,lex->item_list,
-			 lex->where,
-                         lex->ftfunc_list,
-			 (ORDER*) lex->order_list.first,
-			 (ORDER*) lex->group_list.first,
-			 lex->having,
+	res=mysql_select(thd,tables->next,Select->item_list,
+			 Select->where,
+                         Select->ftfunc_list,
+			 (ORDER*) Select->order_list.first,
+			 (ORDER*) Select->group_list.first,
+			 Select->having,
 			 (ORDER*) lex->proc_list.first,
-			 lex->options | thd->options,
+			 Select->options | thd->options,
 			 result);
 	delete result;
       }
@@ -1613,14 +1614,14 @@ mysql_execute_command(void)
 	res= -1;
     }
 #ifdef DELETE_ITEMS
-    delete lex->having;
-    delete lex->where;
+    delete Select->having;
+    delete Select->where;
 #endif
     break;
   }
   case SQLCOM_TRUNCATE:
-    lex->where=0;
-    lex->select_limit=HA_POS_ERROR;
+    Select->where=0;
+    Select->select_limit=HA_POS_ERROR;
     /* Fall through */
   case SQLCOM_DELETE:
   {
@@ -1634,10 +1635,103 @@ mysql_execute_command(void)
     if (lex->sql_command == SQLCOM_TRUNCATE && end_active_trans(thd))
       res= -1;
     else
-      res = mysql_delete(thd,tables, lex->where, (ORDER*)lex->order_list.first,
-                         lex->select_limit, lex->lock_option, lex->options);
+      res = mysql_delete(thd,tables, Select->where, (ORDER*)Select->order_list.first,
+                         Select->select_limit, lex->lock_option, Select->options);
     break;
   }
+   case SQLCOM_MULTI_DELETE:
+   {
+     TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex.auxilliary_table_list.first;
+     multi_delete *result;
+ 
+     if (!tables || !aux_tables || 
+ 	check_table_access(thd,SELECT_ACL, tables) || 
+ 	check_table_access(thd,DELETE_ACL,aux_tables))
+     {
+       res=-1;
+       goto error;
+     }
+     if (!tables->db)
+       tables->db=thd->db;
+     if (!aux_tables->db)
+       aux_tables->db=thd->db;
+     if ((thd->options & OPTION_SAFE_UPDATES) && !Select->where)
+     {		
+       send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+       res=1; goto error;
+     }
+     uint howmuch=0; TABLE_LIST *walk, *auxi;
+     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next, howmuch++)
+     {
+       if (!auxi->db)
+ 	auxi->db=thd->db;
+       if (!auxi->real_name)
+ 	auxi->real_name=auxi->name;
+       for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
+       {
+ 	if (!walk->db) walk->db=thd->db; 
+ 	if (!strcmp(auxi->real_name,walk->real_name) && !strcmp(walk->db,auxi->db))
+ 	  break;
+       }
+       if (!walk)
+       {
+ 	net_printf(&thd->net,ER_NONUNIQ_TABLE,auxi->real_name);
+ 	res=-2; goto error;
+       }
+       else
+ 	auxi->lock_type=walk->lock_type=TL_WRITE;
+       TABLE form;  char path[FN_REFLEN];
+       (void)sprintf(path,"%s/%s/%s",mysql_data_home,auxi->db,auxi->name);
+       if (openfrm(path,auxi->name,(uint)HA_TRY_READ_ONLY,COMPUTE_TYPES,0,&form))
+       {
+ 	res=-1; goto error;
+       }
+       char *field_name=sql_strdup(form.fieldnames.type_names[0]); VOID(closefrm(&form));
+       if (add_item_to_list(new Item_field(auxi->db,auxi->name,field_name)))
+       {
+ 	net_printf(&thd->net,ER_WRONG_TABLE_NAME,auxi->name);
+ 	res=-1; goto error;
+       }
+     }
+     if (!howmuch--)
+     {
+       my_error(ER_NO_TABLES_USED, MYF(0));
+       res=-2; goto error;
+     }
+     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+     thd->proc_info="init";
+     if (open_and_lock_tables(thd,tables))
+     {
+       res=-1; goto error;
+     }
+     /* This double loop definitely looks like it could have been merged up. But not !!
+      * Problmes are that we have to first set lock for tables to be deleted to write
+      * and then to get auxi->table from tables, like below .....
+      */
+     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
+     {
+       for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
+       {
+ 	if (!strcmp(auxi->real_name,walk->real_name) && !strcmp(walk->db,auxi->db))
+ 	  break;
+       }
+       auxi->table = walk->table;
+     }
+     if ((result=new multi_delete(aux_tables,lex->lock_option,howmuch)))
+     {
+       res=mysql_select(thd,tables,Select->item_list,
+ 		       Select->where,Select->ftfunc_list,
+ 		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+ 		       (ORDER *)NULL,
+ 		       Select->options | thd->options,
+ 		       result);
+       delete result;
+     }
+     else	
+       res= -1;
+     close_thread_tables(thd);
+     break;
+   }
   case SQLCOM_DROP_TABLE:
     {
       if (check_table_access(thd,DROP_ACL,tables))
@@ -1703,7 +1797,7 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     {
-      char *db=lex->db ? lex->db : thd->db;
+      char *db=Select->db ? Select->db : thd->db;
       if (!db)
       {
 	send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
@@ -1718,7 +1812,7 @@ mysql_execute_command(void)
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       /* grant is checked in mysqld_show_tables */
-      if (lex->options & SELECT_DESCRIBE)
+      if (Select->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
@@ -1783,7 +1877,7 @@ mysql_execute_command(void)
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    mysql_change_db(thd,lex->db);
+    mysql_change_db(thd,Select->db);
     break;
   case SQLCOM_LOAD:
   {
@@ -1807,10 +1901,10 @@ mysql_execute_command(void)
   case SQLCOM_SET_OPTION:
   {
     uint org_options=thd->options;
-    thd->options=lex->options;
+    thd->options=Select->options;
     thd->update_lock_default= ((thd->options & OPTION_LOW_PRIORITY_UPDATES) ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
-    thd->default_select_limit=lex->select_limit;
+    thd->default_select_limit=Select->select_limit;
     thd->tx_isolation=lex->tx_isolation;
     if (thd->gemini_spin_retries != lex->gemini_spin_retries)
     {
@@ -1821,7 +1915,7 @@ mysql_execute_command(void)
 		       thd->options,(long) thd->default_select_limit));
 
     /* Check if auto_commit mode changed */
-    if ((org_options ^ lex->options) & OPTION_NOT_AUTO_COMMIT)
+    if ((org_options ^ Select->options) & OPTION_NOT_AUTO_COMMIT)
     {
       if ((org_options & OPTION_NOT_AUTO_COMMIT))
       {
@@ -1868,6 +1962,8 @@ mysql_execute_command(void)
       close_thread_tables(thd);
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
+      goto error;
+    if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables))
       goto error;
     thd->in_lock_tables=1;
     if (!(res=open_and_lock_tables(thd,tables)))
@@ -1929,7 +2025,7 @@ mysql_execute_command(void)
      if (tables && !tables->db)
        tables->db=thd->db;
      if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
-		      tables && tables->db ? tables->db : lex->db,
+		      tables && tables->db ? tables->db : Select->db,
 		      tables ? &tables->grant.privilege : 0,
 		      tables ? 0 : 1))
        goto error;
@@ -1981,7 +2077,7 @@ mysql_execute_command(void)
 	 res=1;
        }
        else
-	 res = mysql_grant(thd, lex->db, lex->users_list, lex->grant,
+	 res = mysql_grant(thd, Select->db, lex->users_list, lex->grant,
 			   lex->sql_command == SQLCOM_REVOKE);
        if(!res)
        {
@@ -2029,8 +2125,8 @@ mysql_execute_command(void)
     if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
-                    lex->insert_list, lex->ha_rkey_mode, lex->where,
-	            lex->select_limit, lex->offset_limit);
+                    lex->insert_list, lex->ha_rkey_mode, Select->where,
+	            Select->select_limit, Select->offset_limit);
     break;
 
   case SQLCOM_BEGIN:
@@ -2291,13 +2387,13 @@ static void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
-  thd->lex.item_list.empty();
+  thd->lex.select_lex.item_list.empty();
   thd->lex.value_list.empty();
-  thd->lex.table_list.elements=0;
+  thd->lex.select_lex.table_list.elements=0;
   thd->free_list=0;
-
-  thd->lex.table_list.first=0;
-  thd->lex.table_list.next= (byte**) &thd->lex.table_list.first;
+  thd->lex.select = &thd->lex.select_lex;
+  thd->lex.select_lex.table_list.first=0;
+  thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
@@ -2307,17 +2403,19 @@ mysql_init_query(THD *thd)
 void
 mysql_init_select(LEX *lex)
 {
-  lex->where=lex->having=0;
-  lex->select_limit=current_thd->default_select_limit;
-  lex->offset_limit=0L;
-  lex->options=0;
-  lex->exchange = 0;
+  SELECT_LEX *Select = lex->select;
+  Select->where=Select->having=0;
+  Select->select_limit=current_thd->default_select_limit;
+  Select->offset_limit=0L;
+  Select->options=0; Select->linkage=UNSPECIFIED_TYPE;
+  Select->select_number = 0;  lex->exchange = 0;
   lex->proc_list.first=0;
-  lex->order_list.elements=lex->group_list.elements=0;
-  lex->order_list.first=0;
-  lex->order_list.next= (byte**) &lex->order_list.first;
-  lex->group_list.first=0;
-  lex->group_list.next= (byte**) &lex->group_list.first;
+  Select->order_list.elements=Select->group_list.elements=0;
+  Select->order_list.first=0;
+  Select->order_list.next= (byte**) &Select->order_list.first;
+  Select->group_list.first=0;
+  Select->group_list.next= (byte**) &Select->group_list.first;
+  Select->next = (SELECT_LEX *)NULL; 
 }
 
 
@@ -2737,7 +2835,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 
   if (flags != TL_IGNORE)
   {
-    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.table_list.first ; tables ;
+    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select->table_list.first ; tables ;
 	 tables=tables->next)
     {
       if (!strcmp(alias_str,tables->name) &&
@@ -2749,7 +2847,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
       }
     }
   }
-  link_in_list(&thd->lex.table_list,(byte*) ptr,(byte**) &ptr->next);
+  link_in_list(&thd->lex.select->table_list,(byte*) ptr,(byte**) &ptr->next);
   DBUG_RETURN(ptr);
 }
 

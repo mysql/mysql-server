@@ -883,7 +883,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
     tmp_table_param->cleanup();
   }
   if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-			       0, 0, current_lex->options | thd->options)))
+			       0, 0, current_lex->select->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;

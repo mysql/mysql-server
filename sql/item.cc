@@ -561,7 +561,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   if (!ref)
   {
-    if (!(ref=find_item_in_list(this,thd->lex.item_list)))
+    if (!(ref=find_item_in_list(this,thd->lex.select->item_list)))
       return 1;
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;

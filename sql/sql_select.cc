@@ -2478,7 +2478,7 @@ make_join_readinfo(JOIN *join,uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
-	join->thd->lex.options|=QUERY_NO_GOOD_INDEX_USED;
+	join->thd->lex.select_lex.options|=QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -2493,7 +2493,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
+	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -2505,7 +2505,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
+	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -3920,7 +3920,7 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   thd->proc_info="converting HEAP to MyISAM";
 
   if (create_myisam_tmp_table(&new_table,param,
-			      thd->lex.options | thd->options))
+			      thd->lex.select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -6647,7 +6647,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   DBUG_ENTER("select_describe");
 
   /* Don't log this into the slow query log */
-  join->thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  join->thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("table",NAME_LEN));
   field_list.push_back(new Item_empty_string("type",10));
   field_list.push_back(item=new Item_empty_string("possible_keys",
@@ -6806,7 +6806,7 @@ static void describe_info(THD *thd, const char *info)
   String *packet= &thd->packet;
 
   /* Don't log this into the slow query log */
-  thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("Comment",80));
   if (send_fields(thd,field_list,1))
     return; /* purecov: inspected */
