@@ -6802,7 +6802,8 @@ implicit:
 
 static int my_strnncoll_uca(CHARSET_INFO *cs, 
 			    const uchar *s, uint slen,
-			    const uchar *t, uint tlen)
+                            const uchar *t, uint tlen,
+                            my_bool t_is_prefix)
 {
   my_uca_scanner sscanner;
   my_uca_scanner tscanner;
@@ -6818,7 +6819,7 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
     t_res= my_uca_scanner_next(&tscanner);
   } while ( s_res == t_res && s_res >0);
   
-  return ( s_res - t_res );
+  return  (t_is_prefix && t_res < 0) ? 0 : (s_res - t_res);
 }
 
 
