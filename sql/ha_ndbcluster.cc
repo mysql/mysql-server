@@ -113,7 +113,6 @@ static const err_code_mapping err_map[]=
   { 4244, HA_ERR_TABLE_EXIST, 1 },
 
   { 709, HA_ERR_NO_SUCH_TABLE, 1 },
-  { 284, HA_ERR_NO_SUCH_TABLE, 1 },
 
   { 266, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
   { 274, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
@@ -363,7 +362,7 @@ void ha_ndbcluster::invalidateDictionaryCache()
 int ha_ndbcluster::ndb_err(NdbConnection *trans)
 {
   int res;
-  const NdbError err= trans->getNdbError();
+  NdbError err= trans->getNdbError();
   DBUG_ENTER("ndb_err");
   
   ERR_PRINT(err);
@@ -371,6 +370,33 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   case NdbError::SchemaError:
   {
     invalidateDictionaryCache();
+
+    if (err.code==284)
+    {
+      /*
+         Check if the table is _really_ gone or if the table has
+         been alterend and thus changed table id
+       */
+      NDBDICT *dict= get_ndb()->getDictionary();
+      DBUG_PRINT("info", ("Check if table %s is really gone", m_tabname));
+      if (!(dict->getTable(m_tabname)))
+      {
+        err= dict->getNdbError();
+        DBUG_PRINT("info", ("Table not found, error: %d", err.code));
+        if (err.code != 709)
+          DBUG_RETURN(1);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("Table exist but must have changed"));
+        /* In 5.0, this should be replaced with a mapping to a mysql error */
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "Table definition has changed, "\
+                        "please retry transaction",
+                        MYF(0));
+        DBUG_RETURN(1);
+      }
+    }
     break;
   }
   default:

@@ -40,5 +40,7 @@ show status like 'handler_discover%';
 show tables;
 
 drop table t1, t2, t3, t4;
+connection server2;
+drop table t1, t3, t4;
 
 
