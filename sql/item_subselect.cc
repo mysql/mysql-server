@@ -576,6 +576,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(isnull));
       }
+      item->name= (char *)in_additional_cond;
       join->conds= and_items(join->conds, item);
       if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
 	DBUG_RETURN(RES_ERROR);
@@ -971,6 +972,7 @@ int subselect_indexin_engine::exec()
 {
   DBUG_ENTER("subselect_indexin_engine::exec");
   int error;
+  bool null_finding= 0;
   TABLE *table= tab->table;
 
   ((Item_in_subselect *) item)->value= 0;
@@ -1002,28 +1004,29 @@ int subselect_indexin_engine::exec()
 	{
 	  if (!cond || cond->val_int())
 	  {
-	    if (check_null && *tab->null_ref_key)
+	    if (null_finding)
 	      ((Item_in_subselect *) item)->was_null= 1;
 	    else
 	      ((Item_in_subselect *) item)->value= 1;
 	    goto finish;
 	  }
+	  error= table->file->index_next_same(table->record[0],
+					      tab->ref.key_buff,
+					      tab->ref.key_length);
+	  if (error && error != HA_ERR_END_OF_FILE)
+	  {
+	    error= report_error(table, error);
+	    goto finish;
+	  }
 	}
 	else
 	{
-	  if (!check_null || *tab->null_ref_key)
+	  if (!check_null || null_finding)
 	    goto finish;
 	  *tab->null_ref_key= 1;
+	  null_finding= 1;
 	  if (safe_index_read(tab))
 	    goto finish;
-	}
-	error= table->file->index_next_same(table->record[0],
-					    tab->ref.key_buff,
-					    tab->ref.key_length);
-	if (error && error != HA_ERR_KEY_NOT_FOUND)
-	{
-	  error= report_error(table, error);
-	  goto finish;
 	}
       }
     }
