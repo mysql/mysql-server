@@ -83,6 +83,11 @@ case "$mode" in
       # be overwritten at next upgrade.
       $bindir/safe_mysqld \
 	--datadir=$datadir --pid-file=$pid_file &
+    # Make lock for RedHat / SuSE
+    if test -d /var/lock/subsys
+    then
+      touch /var/lock/subsys/mysql
+    fi
     else
       echo "Can't execute $bindir/safe_mysqld"
     fi
@@ -108,6 +113,11 @@ case "$mode" in
          then echo " gave up waiting!"
       elif [ -n "$flags" ]
          then echo " done"
+      fi
+      # delete lock for RedHat / SuSE
+      if test -d /var/lock/subsys
+      then
+        rm /var/lock/subsys/mysql
       fi
     else
       echo "No mysqld pid file found. Looked for $pid_file."

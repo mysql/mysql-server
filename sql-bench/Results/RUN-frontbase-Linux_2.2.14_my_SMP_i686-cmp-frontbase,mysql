@@ -1,0 +1,41 @@
+Benchmark DBD suite: 2.9
+Date of test:        2000-11-24 15:36:25
+Running tests on:    Linux 2.2.14-my-SMP i686
+Arguments:           --tcpip
+Comments:            
+Limits from:         frontbase,mysql
+Server version:      2.1
+
+ATIS: Estimated total time: 1461 wallclock secs ( 6.81 usr  4.27 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+alter-table: Total time: 1033 wallclock secs ( 1.13 usr  0.72 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+big-tables: Total time: 49 wallclock secs ( 2.66 usr  1.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+connect: Total time: 16 wallclock secs ( 3.38 usr  3.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+create: Failed (output/create-frontbase-Linux_2.2.14_my_SMP_i686-cmp-frontbase,mysql)
+insert: Failed (output/insert-frontbase-Linux_2.2.14_my_SMP_i686-cmp-frontbase,mysql)
+select: Failed (output/select-frontbase-Linux_2.2.14_my_SMP_i686-cmp-frontbase,mysql)
+wisconsin: Failed (output/wisconsin-frontbase-Linux_2.2.14_my_SMP_i686-cmp-frontbase,mysql)
+
+Of 8 tests, 4 tests didn't work
+Tests with estimated time have a + at end of line
+Tests with didn't return the correct result have a ? at end of line
+
+Totals per operation:
+Operation             seconds     usr     sys     cpu   tests
+alter_table_add                     1018.00    0.71    0.41    0.00     992 
+connect                                4.00    0.87    0.74    0.00    1000 
+connect+select_1_row                   7.00    1.37    1.41    0.00    1000 
+create_index                           5.00    0.00    0.01    0.00       8 
+create_table                           1.00    0.03    0.02    0.00      28 
+drop_index                             0.00    0.00    0.01    0.00       8 
+drop_table                             7.00    0.01    0.02    0.00      28 
+insert                                33.00    3.61    2.85    0.00    9768 
+insert_many_fields                    37.00    0.69    0.74    0.00    2000 
+select_1_row                           2.00    0.37    0.28    0.00    1000 
+select_2_rows                          1.00    0.41    0.35    0.00    1000 
+select_column+column                   2.00    0.35    0.31    0.00    1000 
+select_distinct                      936.00    1.20    0.31    0.00     800 +
+select_group                         359.00    1.35    0.82    0.00    2200 ?
+select_join                           97.00    0.25    0.08    0.00     200 ?
+select_many_fields                    11.00    1.97    0.34    0.00    1000 
+select_simple_join                    28.00    0.35    0.17    0.00     500 ?
+TOTALS                              2548.00   13.54    8.87    0.00   22532 +???

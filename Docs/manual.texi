@@ -9401,6 +9401,11 @@ password=my_password
 
 [mysql]
 no-auto-rehash
+set-variable = connect_timeout=2
+
+[mysql-hot-copy]
+interactive-timeout
+
 @end example
 
 @tindex .my.cnf file
@@ -16971,6 +16976,7 @@ mysql> select CONNECTION_ID();
         -> 1
 @end example
 
+@cindex timeout
 @findex GET_LOCK()
 @item GET_LOCK(str,timeout)
 Tries to obtain a lock with a name given by the string @code{str}, with a
@@ -18009,6 +18015,8 @@ exist.
 @code{RESTRICT} and @code{CASCADE} are allowed to make porting easier.
 For the moment they don't do anything.
 
+@cindex tables, defragment
+@cindex tables, fragmentation
 @findex OPTIMIZE TABLE
 @node OPTIMIZE TABLE, CHECK TABLE, DROP TABLE, Reference
 @section @code{OPTIMIZE TABLE} Syntax
@@ -18022,7 +18030,7 @@ table or if you have made many changes to a table with variable-length rows
 (tables that have @code{VARCHAR}, @code{BLOB}, or @code{TEXT} columns).
 Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
-reclaim the unused space.
+reclaim the unused space and to defragment the data file.
 
 For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM}
 tables.  You can get optimize table to work on other table types by
@@ -18892,6 +18900,8 @@ After every @code{delayed_insert_limit} rows are written, the handler checks
 whether or not any @code{SELECT} statements are still pending.  If so, it
 allows these to execute before continuing.
 
+@cindex delayed_insert_limit
+@cindex timeout
 @item
 When the handler has no more rows in its queue, the table is unlocked.  If no
 new @code{INSERT DELAYED} commands are received within
@@ -18962,7 +18972,8 @@ the old record is deleted before the new record is inserted.
 @xref{INSERT, , @code{INSERT}}.
 
 In other words, you can't access the values of the old row from a
-@code{REPLACE} statement.
+@code{REPLACE} statement.  In some old @strong{MySQL} version it looked
+like you could do this, but that was a bug that has been corrected.
 
 @findex LOAD DATA INFILE
 @node LOAD DATA, UPDATE, REPLACE, Reference
@@ -20019,6 +20030,7 @@ on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
 on them.  You can turn this option off by starting mysqld with @code{--safe}
 or @code{--skip-new}.
 
+@cindex timeout
 @item @code{connect_timeout}
 The number of seconds the @code{mysqld} server is waiting for a connect
 packet before responding with @code{Bad handshake}.
@@ -21837,6 +21849,7 @@ This format is a litte more complex because each row has to have a header
 that says how long it is. One record can also end up at more than one
 location when it is made longer at an update.
 
+@cindex tables, defragment
 You can use @code{OPTIMIZE table} or @code{myisamchk} to defragment a
 table. If you have static data that you access/change a lot in the same
 table as some @code{VARCHAR} or @code{BLOB} columns, it might be a good
@@ -21938,10 +21951,10 @@ Can be uncompressed with @code{myisamchk}.
 @node MERGE, ISAM, MyISAM, Table types
 @section MERGE Tables
 
-@code{MERGE} tables are new in @strong{MySQL} Version 3.23.25. The code is still
-in alpha, but should stabilize soon!  The one thing that is currently
-missing is a way for the SQL prompt to say which tables are part of the
-@code{MERGE} table.
+@code{MERGE} tables are new in @strong{MySQL} Version 3.23.25. The code
+is still in alpha, but should stabilize soon!  The one thing that is
+currently missing is a way for the SQL prompt to say which tables are
+part of the @code{MERGE} table.
 
 A @code{MERGE} table is a collection of identical @code{MyISAM} tables
 that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
@@ -28092,6 +28105,19 @@ Output version information and exit.
 Wait and retry if connection is down instead of aborting.
 @end table
 
+You can also set the following variables with @code{-O} or
+@code{--set-variable}:
+
+@cindex timeout
+@multitable @columnfractions .3 .2 .5
+@item Variablename @tab Default @tab Description
+@item connect_timeout @tab 0 @tab Number of seconds before timeout connection.
+@item max_allowed_packet @tab 16777216 @tab Max packetlength to send/receive from to server
+@item net_buffer_length @tab 16384 @tab Buffer for TCP/IP and socket communication
+@item select_limit @tab 1000 @tab Automatic limit for SELECT when using --i-am-a-dummy
+@item max_join_size @tab 1000000 @tab Automatic limit for rows in a join when using --i-am-a-dummy.
+@end multitable
+
 If you type 'help' on the command line, @code{mysql} will print out the
 commands that it supports:
 
@@ -29068,9 +29094,9 @@ to start using the new table.
 @node Table maintenance, Maintenance regimen, Maintenance, Maintenance
 @section Using @code{myisamchk} for table maintenance and crash recovery
 
-Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM tables with the
-@code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
-with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
+Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
+tables with the @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can
+repair tables with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
 To check/repair MyISAM tables (@code{.MYI} and @code{.MYD}) you should
 use the @code{myisamchk} utility. To check/repair ISAM tables
@@ -29144,6 +29170,13 @@ with the path to the @strong{MySQL} data directory:
 
 @example
 shell> myisamchk /path/to/datadir/*/*.MYI
+@end example
+
+The recommended way to quickly check all tables is:
+
+@example
+myisamchk --fast --silent /path/to/datadir/*/*.MYI
+isamchk --silent /path/to/datadir/*/*.ISM
 @end example
 
 @code{myisamchk} supports the following options:
@@ -29405,18 +29438,18 @@ If you have a problem with disk space during repair, you can try to use
 @node Maintenance regimen, Table-info, Table maintenance, Maintenance
 @section Setting up a table maintenance regimen
 
-Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM tables with the
-@code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
-with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
+Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
+tables with the @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can
+repair tables with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
 It is a good idea to perform table checks on a regular basis rather than
 waiting for problems to occur.  For maintenance purposes, you can use
-@code{myisamchk -s} to check tables.  The @code{-s} option causes
-@code{myisamchk} to run in silent mode, printing messages only when errors
-occur.
+@code{myisamchk -s} to check tables.  The @code{-s} option (short for
+@code{--silent}) causes @code{myisamchk} to run in silent mode, printing
+messages only when errors occur.
 
 @tindex .pid (process ID) file
-It's a good idea to check tables when the server starts up.
+It's also a good idea to check tables when the server starts up.
 For example, whenever the machine has done a reboot in the middle of an
 update, you usually need to check all the tables that could have been
 affected. (This is an ``expected crashed table''.) You could add a test to
@@ -29435,7 +29468,7 @@ operation.  At MySQL AB, we run a @code{cron} job to check all our important
 tables once a week, using a line like this in a @file{crontab} file:
 
 @example
-35 0 * * 0 /path/to/myisamchk -s /path/to/datadir/*/*.MYI
+35 0 * * 0 /path/to/myisamchk --fast --silent /path/to/datadir/*/*.MYI
 @end example
 
 This prints out information about crashed tables so we can examine and repair
@@ -29450,6 +29483,21 @@ We recommend that to start with, you execute @code{myisamchk -s} each
 night on all tables that have been updated during the last 24 hours,
 until you come to trust @strong{MySQL} as much as we do.
 
+@cindex tables, defragment
+Normally you don't need to maintain MySQL tables that much.  If you are
+changing tables with dynamic size rows (tables with @code{VARCHAR},
+@code{BLOB} or @code{TEXT} columns) or have tables with many deleted rows
+you may want to from time to time (once a month?) defragment/reclaim space
+from the tables.
+
+You can do this by using @code{OPTIMIZE TABLE} on the tables in question or
+if you can take the @code{mysqld} server down for a while do:
+
+@example
+isamchk -r --silent --sort-index -O sort_buffer_size=16M */*.ISM
+myisamchk -r --silent --sort-index  -O sort_buffer_size=16M */*.MYI
+@end example
+
 @cindex tables, information
 @node Table-info, Crash recovery, Maintenance regimen, Maintenance
 @section Getting information about a table
@@ -29459,11 +29507,12 @@ below. We explain some of the information in more detail later.
 
 @table @code
 @item myisamchk -d tbl_name
-Runs @code{myisamchk} in ``describe mode'' to produce a description of your
-table. If you start the @strong{MySQL} server using the @code{--skip-locking}
-option, @code{myisamchk} may report an error for a table that is updated while
-it runs.  However, because @code{myisamchk} doesn't change the table in describe
-mode, there isn't any risk of destroying data.
+Runs @code{myisamchk} in ``describe mode'' to produce a description of
+your table. If you start the @strong{MySQL} server using the
+@code{--skip-locking} option, @code{myisamchk} may report an error for a
+table that is updated while it runs.  However, because @code{myisamchk}
+doesn't change the table in describe mode, there isn't any risk of
+destroying data.
 
 @item myisamchk -d -v tbl_name
 To produce more information about what @code{myisamchk} is doing, add @code{-v}
@@ -29482,9 +29531,9 @@ This is like @code{-eis}, but tells you what is being done.
 Example of @code{myisamchk -d} output:
 @example
 MyISAM file:     company.MYI
-Record format:       Fixed length
-Data records:           1403698  Deleted blocks:         0
-Recordlength:               226
+Record format:   Fixed length
+Data records:    1403698  Deleted blocks:         0
+Recordlength:    226
 
 table description:
 Key Start Len Index   Type
@@ -35032,6 +35081,7 @@ Note that the group @code{client} is always read if you use
 The specified group in the option file may contain the following options:
 
 @multitable @columnfractions .3 .7
+@item @code{connect_timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
 @item @code{compress} @tab Use the compressed client/server protocol.
 @item @code{database} @tab Connect to this database if no database was specified in the connect command.
 @item @code{debug} @tab Debug options.
@@ -35044,10 +35094,11 @@ The specified group in the option file may contain the following options:
 @item @code{return-found-rows} @tab Tell @code{mysql_info()} to return found rows instead of updated rows when using @code{UPDATE}.
 @item @code{socket} @tab Default socket number.
 @item
-@code{timeout} @tab Connect timeout in seconds. On Linux this timeout also
-is used for waiting for the first answer from the server.
 @item @code{user} @tab Default user.
 @end multitable
+
+Note that @code{timeout} has been replaced by @code{connect_timeout}, but
+@code{timeout} will still work for a while.
 
 For more information about option files, see @ref{Option files}.
 
@@ -35268,8 +35319,8 @@ Failed to wait for a named pipe on Windows.
 Failed to get a pipe handler on Windows.
 
 @item CR_SERVER_LOST
-If @code{timeout} > 0 and it took longer then @code{timeout} seconds to
-connect to the server or if the server died while executing the
+If @code{connect_timeout} > 0 and it took longer then @code{connect_timeout}
+seconds to connect to the server or if the server died while executing the
 @code{init-command}.
 
 @end table
@@ -38846,6 +38897,11 @@ If you do a @code{ROLLBACK} when you have updated a non-transactional table
 you will get an error as a warning.
 @item
 Reset status variable which could cause problem if one used @code{--slow-log}.
+@item
+Added variable @code{connect_timeout} to @code{mysql} and @code{mysqladmin}.
+@item
+Added @code{connect_timeout} as an alias for @code{timeout} for config files
+read by @code{mysql_options()}.
 @end itemize
 
 @node News-3.23.28, News-3.23.27, News-3.23.29, News-3.23.x
@@ -38864,7 +38920,7 @@ Fixed a major performance bug in the table locking code when one
 constantly had a LOT of @code{SELECT}, @code{UPDATE} and @code{INSERT}
 statements running. The symptom was that the @code{UPDATE} and
 @code{INSERT} queries was locked a long time while new @code{SELECT}
-statements where executed without locks.
+statements where executed before the updates.
 @item
 When reading options_files with @code{mysql_options()} the
 @code{return-found-rows} option was ignored.
@@ -38874,9 +38930,10 @@ is read by @code{mysql_options()}. This makes it possible to force
 programs that runs for a long time (like @code{mysqlhotcopy}) to use
 @code{interactive_timeout} instead of @code{wait_timeout}.
 @item
-We now always print when the query was made and who made it in the 'slow
-query log'.  If you are using @code{--log-long-format} then also queries
-that are not using indexes are printed.
+Added to the slow query log the time and the user name for each logged
+query. If you are using @code{--log-long-format} then also queries that
+are not using indexes are logged, even the query takes less than
+@code{long_query_time} seconds.
 @item
 Fixed problem in @code{LEFT JOIN} which caused all columns in reference
 table to be NULL.

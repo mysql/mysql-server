@@ -1,0 +1,16 @@
+Testing server '2.1' at 2000-11-23 17:15:31
+
+Testing of some unusual tables
+All tests are done 1000 times with 150 fields
+
+Testing table with 150 fields
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 11 wallclock secs ( 1.97 usr  0.34 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 14 wallclock secs ( 0.35 usr  0.38 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 23 wallclock secs ( 0.34 usr  0.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 49 wallclock secs ( 2.66 usr  1.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -1,0 +1,14 @@
+Testing server '2.1' at 2000-11-23 16:22:34
+
+Testing of ALTER TABLE
+Testing with 1000 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 4 wallclock secs ( 0.42 usr  0.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for alter_table_add (992): 1018 wallclock secs ( 0.71 usr  0.41 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for create_index (8):  5 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for drop_index (8):  0 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 1033 wallclock secs ( 1.13 usr  0.72 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

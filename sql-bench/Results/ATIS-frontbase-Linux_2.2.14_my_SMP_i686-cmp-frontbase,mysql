@@ -1,0 +1,27 @@
+Testing server '2.1' at 2000-11-23 16:03:39
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  1 wallclock secs ( 0.03 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Inserting data
+Time to insert (9768): 33 wallclock secs ( 3.61 usr  2.85 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data
+Warning: Query 'select flight.flight_code,aircraft.aircraft_type from flight,aircraft where flight.aircraft_code=aircraft.aircraft_code' returned 100 rows when it should have returned 579 rows
+Time for select_simple_join (500): 28 wallclock secs ( 0.35 usr  0.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Warning: Query 'select airline.airline_name,aircraft.aircraft_type from aircraft,airline,flight where flight.aircraft_code=aircraft.aircraft_code and flight.airline_code=airline.airline_code' returned 100 rows when it should have returned 579 rows
+Warning: Query 'select fare.fare_code from restrict_carrier,airline,fare where restrict_carrier.airline_code=airline.airline_code and fare.restrict_code=restrict_carrier.restrict_code' returned 100 rows when it should have returned 5692 rows
+Time for select_join (200): 97 wallclock secs ( 0.25 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+520 queries in 65 loops of 100 loops took 609 seconds
+Estimated time for select_distinct (800): 936 wallclock secs ( 1.20 usr  0.31 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Warning: Query 'select flight_number,range_miles,fare_class FROM aircraft,flight,flight_class WHERE flight.flight_code=flight_class.flight_code AND flight.aircraft_code=aircraft.aircraft_code AND range_miles<>0 AND (stops=1 OR stops=2) GROUP BY flight_number,range_miles,fare_class' returned 100 rows when it should have returned 150 rows
+Warning: Query 'select from_airport,to_airport,range_miles,time_elapsed FROM aircraft,flight WHERE aircraft.aircraft_code=flight.aircraft_code AND to_airport NOT LIKE from_airport AND range_miles<>0 AND time_elapsed<>0 GROUP BY from_airport,to_airport,range_miles,time_elapsed' returned 100 rows when it should have returned 409 rows
+Time for select_group (2200): 359 wallclock secs ( 1.35 usr  0.82 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Removing tables
+Time to drop_table (28):  7 wallclock secs ( 0.01 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Estimated total time: 1461 wallclock secs ( 6.81 usr  4.27 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
