@@ -184,6 +184,7 @@ class ha_innobase: public handler
 	longlong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         bool primary_key_is_clustered() { return true; }
+        int cmp_ref(const byte *ref1, const byte *ref2);
 };
 
 extern uint innobase_init_flags, innobase_lock_type;
