@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libpage.a
+noinst_LIBRARIES =	libpage.a
 
 libpage_a_SOURCES =	page0page.c page0cur.c
 

@@ -33,8 +33,49 @@ set-variable	= table_cache=64
 set-variable	= sort_buffer=512K
 set-variable	= net_buffer_length=8K
 set-variable	= myisam_sort_buffer_size=8M
+
+# Don't listen on a TCP/IP port at all. This can be a security enhancement,
+# if all processes that need to connect to mysqld run on the same host.
+# All interaction with mysqld must be made via Unix sockets or named pipes.
+# Note that using this option without enabling named pipes on Windows
+# (via the "pipe" option) will render mysqld useless!
+# 
+#skip-networking
+
+# Replication Master Server (default)
+# binary logging is required for replication
 log-bin
+
+# required unique id between 1 and 2^32 - 1
+# defaults to 1 if master-host is not set
+# but will not function as a master if omitted
 server-id	= 1
+
+# Replication Slave Server (comment out master section to use this)
+#
+# required unique id between 2 and 2^32 - 1
+# (and different from the master)
+# defaults to 2 if master-host is set
+# but will not function as a slave if omitted
+#server-id       = 2
+#
+# The replication master for this slave - required
+#master-host     =   <hostname>
+#
+# The username the slave will use for authentication when connecting
+# to the master - required
+#master-user     =   <username>
+#
+# The password the slave will authenticate with when connecting to
+# the master - required
+#master-password =   <password>
+#
+# The port the master is listening on.
+# optional - defaults to 3306
+#master-port     =  <port>
+#
+# binary logging - not required for slaves, but recommended
+#log-bin
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		

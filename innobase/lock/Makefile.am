@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	liblock.a
+noinst_LIBRARIES =	liblock.a
 
 liblock_a_SOURCES =	lock0lock.c
 
