@@ -192,7 +192,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   OperationType tOperationType = theOperationType;
   Uint32 tTupKeyLen = theTupKeyLen;
   Uint8 abortOption =
-    m_abortOption != (Int8)-1 ? m_abortOption : theNdbCon->m_abortOption;
+    m_abortOption != -1 ? m_abortOption : theNdbCon->m_abortOption;
 
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
@@ -543,7 +543,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   }//if
 
   AbortOption ao = (AbortOption)
-    (m_abortOption != (Int8)-1 ? m_abortOption : theNdbCon->m_abortOption);
+    (m_abortOption != -1 ? m_abortOption : theNdbCon->m_abortOption);
   theReceiver.m_received_result_length = ~0;
 
   theStatus = Finished;
