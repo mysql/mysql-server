@@ -456,11 +456,30 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val)
   return val_decimal_from_real(val);
 }
 
+/***************************************************************************/
 
-/* Item_sum_sum_distinct */
+C_MODE_START
 
-Item_sum_sum_distinct::Item_sum_sum_distinct(Item *item)
-  :Item_sum_sum(item), tree(0)
+/* Declarations for auxilary C-callbacks */
+
+static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
+{
+    return memcmp(key1, key2, *(uint *) arg);
+}
+
+
+static int item_sum_distinct_walk(void *element, element_count num_of_dups,
+                                  void *item)
+{
+    return ((Item_sum_distinct*) (item))->unique_walk_function(element);
+}
+
+C_MODE_END
+
+/* Item_sum_distinct */
+
+Item_sum_distinct::Item_sum_distinct(Item *item_arg)
+  :Item_sum_num(item_arg), tree(0)
 {
   /*
     quick_group is an optimizer hint, which means that GROUP BY can be
@@ -472,239 +491,254 @@ Item_sum_sum_distinct::Item_sum_sum_distinct(Item *item)
 }
 
 
-Item_sum_sum_distinct::Item_sum_sum_distinct(THD *thd,
-                                             Item_sum_sum_distinct *original)
-  :Item_sum_sum(thd, original), tree(0), dec_bin_buff(original->dec_bin_buff)
+Item_sum_distinct::Item_sum_distinct(THD *thd, Item_sum_distinct *original)
+  :Item_sum_num(thd, original), val(original->val), tree(0),
+  table_field_type(original->table_field_type)
 {
   quick_group= 0;
 }
 
 
-void Item_sum_sum_distinct::fix_length_and_dec()
+/*
+  Behaves like an Integer except to fix_length_and_dec().
+  Additionally div() converts val with this traits to a val with true
+  decimal traits along with conversion of integer value to decimal value.
+  This is to speedup SUM/AVG(DISTINCT) evaluation for 8-32 bit integer
+  values.
+*/
+
+struct Hybrid_type_traits_fast_decimal: public
+       Hybrid_type_traits_integer
 {
-  Item_sum_sum::fix_length_and_dec();
-  if (hybrid_type == DECIMAL_RESULT)
+  virtual Item_result type() const { return DECIMAL_RESULT; }
+  virtual void fix_length_and_dec(Item *item, Item *arg) const
+  { Hybrid_type_traits_decimal::instance()->fix_length_and_dec(item, arg); }
+
+  virtual void div(Hybrid_type *val, ulonglong u) const
   {
-    dec_bin_buff= (byte *)
-      sql_alloc(my_decimal_get_binary_size(args[0]->max_length,
-                                           args[0]->decimals));
+    int2my_decimal(E_DEC_FATAL_ERROR, val->integer, 0, val->dec_buf);
+    val->used_dec_buf_no= 0;
+    val->traits= Hybrid_type_traits_decimal::instance();
+    val->traits->div(val, u);
   }
+  static const Hybrid_type_traits_fast_decimal *instance()
+  {
+    static const Hybrid_type_traits_fast_decimal fast_decimal_traits;
+    return &fast_decimal_traits;
+  }
+};
+
+
+void Item_sum_distinct::fix_length_and_dec()
+{
+  DBUG_ASSERT(args[0]->fixed);
+
+  table_field_type= args[0]->field_type();
+
+  /* Adjust tmp table type according to the chosen aggregation type */
+  switch (args[0]->result_type()) {
+  case STRING_RESULT:
+  case REAL_RESULT:
+    val.traits= Hybrid_type_traits::instance();
+    if (table_field_type != MYSQL_TYPE_FLOAT)
+      table_field_type= MYSQL_TYPE_DOUBLE;
+    break;
+  case INT_RESULT:
+  /*
+    Preserving int8, int16, int32 field types gives ~10% performance boost
+    as the size of result tree becomes significantly smaller.
+    Another speed up we gain by using longlong for intermediate
+    calculations. The range of int64 is enough to hold sum 2^32 distinct
+    integers each <= 2^32.
+  */
+  if (table_field_type == MYSQL_TYPE_INT24 ||
+      table_field_type >= MYSQL_TYPE_TINY &&
+      table_field_type <= MYSQL_TYPE_LONG)
+  {
+    val.traits= Hybrid_type_traits_fast_decimal::instance();
+    break;
+  }
+  table_field_type= MYSQL_TYPE_LONGLONG;
+  /* fallthrough */
+  case DECIMAL_RESULT:
+    val.traits= Hybrid_type_traits_decimal::instance();
+    if (table_field_type != MYSQL_TYPE_LONGLONG)
+      table_field_type= MYSQL_TYPE_NEWDECIMAL;
+    break;
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0);
+  }
+  val.traits->fix_length_and_dec(this, args[0]);
 }
 
 
-Item *
-Item_sum_sum_distinct::copy_or_same(THD *thd)
+bool Item_sum_distinct::setup(THD *thd)
 {
-  return new (thd->mem_root) Item_sum_sum_distinct(thd, this);
-}
+  List<create_field> field_list;
+  create_field field_def;                              /* field definition */
 
-C_MODE_START
-
-static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
-{
-  return memcmp(key1, key2, *(uint *) arg);
-}
-
-C_MODE_END
-
-
-bool Item_sum_sum_distinct::setup(THD *thd)
-{
-  DBUG_ENTER("Item_sum_sum_distinct::setup");
-  SELECT_LEX *select_lex= thd->lex->current_select;
-  /* what does it mean??? */
-  if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
-    DBUG_RETURN(1);
+  DBUG_ENTER("Item_sum_distinct::setup");
 
   DBUG_ASSERT(tree == 0);                 /* setup can not be called twice */
 
   /*
-    Uniques handles all unique elements in a tree until they can't fit in.
-    Then thee tree is dumped to the temporary file.
-    See class Unique for details.
+    Virtual table and the tree are created anew on each re-execution of
+    PS/SP. Hence all further allocations are performed in the runtime
+    mem_root.
   */
+  if (field_list.push_back(&field_def))
+    return TRUE;
+
   null_value= maybe_null= 1;
-  /*
-    TODO: if underlying item result fits in 4 bytes we can take advantage
-    of it and have tree of long/ulong. It gives 10% performance boost
-  */
+  quick_group= 0;
+
+  DBUG_ASSERT(args[0]->fixed);
+
+  field_def.init_for_tmp_table(table_field_type, args[0]->max_length,
+                               args[0]->decimals, args[0]->maybe_null,
+                               args[0]->unsigned_flag);
+
+  if (! (table= create_virtual_tmp_table(thd, field_list)))
+      return TRUE;
+
+  /* XXX: check that the case of CHAR(0) works OK */
+  tree_key_length= table->s->reclength - table->s->null_bytes;
 
   /*
-    It's safe to use key_length here as even if we do copy_or_same()
-    the new item will just share the old items key_length, which will not
-    change or disappear during the life time of this item.
+    Unique handles all unique elements in a tree until they can't fit
+    in.  Then the tree is dumped to the temporary file. We can use
+    simple_raw_key_cmp because the table contains numbers only; decimals
+    are converted to binary representation as well.
   */
-  key_length= ((hybrid_type == DECIMAL_RESULT) ?
-               my_decimal_get_binary_size(args[0]->max_length,
-                                          args[0]->decimals) :
-               sizeof(double));
-  tree= new Unique(simple_raw_key_cmp, &key_length, key_length,
+  tree= new Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
                    thd->variables.max_heap_table_size);
-  DBUG_PRINT("info", ("tree 0x%lx, key length %d", (ulong)tree,
-                      key_length));
+
   DBUG_RETURN(tree == 0);
 }
 
-void Item_sum_sum_distinct::clear()
+
+bool Item_sum_distinct::add()
 {
-  DBUG_ENTER("Item_sum_sum_distinct::clear");
+  args[0]->save_in_field(table->field[0], FALSE);
+  if (!table->field[0]->is_null())
+  {
+    DBUG_ASSERT(tree);
+    null_value= 0;
+    /*
+      '0' values are also stored in the tree. This doesn't matter
+      for SUM(DISTINCT), but is important for AVG(DISTINCT)
+    */
+    return tree->unique_add(table->field[0]->ptr);
+  }
+  return 0;
+}
+
+
+bool Item_sum_distinct::unique_walk_function(void *element)
+{
+  memcpy(table->field[0]->ptr, element, tree_key_length);
+  ++count;
+  val.traits->add(&val, table->field[0]);
+  return 0;
+}
+
+
+void Item_sum_distinct::clear()
+{
+  DBUG_ENTER("Item_sum_distinct::clear");
   DBUG_ASSERT(tree != 0);                        /* we always have a tree */
-  null_value= 1; 
+  null_value= 1;
   tree->reset();
   DBUG_VOID_RETURN;
 }
 
-void Item_sum_sum_distinct::cleanup()
+void Item_sum_distinct::cleanup()
 {
   Item_sum_num::cleanup();
   delete tree;
   tree= 0;
+  table= 0;
 }
 
-
-bool Item_sum_sum_distinct::add()
+Item_sum_distinct::~Item_sum_distinct()
 {
-  DBUG_ENTER("Item_sum_sum_distinct::add");
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal value, *val= args[0]->val_decimal(&value);
-    if (!args[0]->null_value)
-    {
-      DBUG_ASSERT(tree != 0);
-      null_value= 0;
-      my_decimal2binary(E_DEC_FATAL_ERROR, val, (char *) dec_bin_buff,
-                        args[0]->max_length, args[0]->decimals);
-      DBUG_RETURN(tree->unique_add(dec_bin_buff));
-    }
-  }
-  else
-  {
-    /* args[0]->val() may reset args[0]->null_value */
-    double val= args[0]->val_real();
-    if (!args[0]->null_value)
-    {
-      DBUG_ASSERT(tree != 0);
-      null_value= 0;
-      DBUG_PRINT("info", ("real: %lg, tree 0x%lx", val, (ulong)tree));
-      if (val)
-        DBUG_RETURN(tree->unique_add(&val));
-    }
-    else
-      DBUG_PRINT("info", ("real: NULL"));
-  }
-  DBUG_RETURN(0);
+  delete tree;
+  /* no need to free the table */
 }
 
 
-void Item_sum_sum_distinct::add_real(double val)
+void Item_sum_distinct::calculate_val_and_count()
 {
-  DBUG_ENTER("Item_sum_sum_distinct::add_real");
-  sum+= val;
-  DBUG_PRINT("info", ("sum %lg, val %lg", sum, val));
-  DBUG_VOID_RETURN;
-}
-
-
-void Item_sum_sum_distinct::add_decimal(byte *val)
-{
-  binary2my_decimal(E_DEC_FATAL_ERROR, (char *) val, &tmp_dec,
-                    args[0]->max_length, args[0]->decimals);
-  my_decimal_add(E_DEC_FATAL_ERROR, dec_buffs + (curr_dec_buff^1),
-                 &tmp_dec, dec_buffs + curr_dec_buff);
-  curr_dec_buff^= 1;
-}
-
-C_MODE_START
-
-static int sum_sum_distinct_real(void *element, element_count num_of_dups,
-                                 void *item_sum_sum_distinct)
-{ 
-  ((Item_sum_sum_distinct *)
-   (item_sum_sum_distinct))->add_real(* (double *) element);
-  return 0;
-}
-
-static int sum_sum_distinct_decimal(void *element, element_count num_of_dups,
-                                    void *item_sum_sum_distinct)
-{ 
-  ((Item_sum_sum_distinct *)
-   (item_sum_sum_distinct))->add_decimal((byte *)element);
-  return 0;
-}
-
-C_MODE_END
-
-
-double Item_sum_sum_distinct::val_real()
-{
-  DBUG_ENTER("Item_sum_sum_distinct::val");
+  count= 0;
+  val.traits->set_zero(&val);
   /*
     We don't have a tree only if 'setup()' hasn't been called;
     this is the case of sql_select.cc:return_zero_rows.
   */
-  if (hybrid_type == DECIMAL_RESULT)
+  if (tree)
   {
-    /* Item_sum_sum_distinct::val_decimal do not use argument */
-    my_decimal *val= val_decimal(0);
-    if (!null_value)
-      my_decimal2double(E_DEC_FATAL_ERROR, val, &sum);
+    table->field[0]->set_notnull();
+    tree->walk(item_sum_distinct_walk, (void*) this);
   }
-  else
-  {
-    sum= 0.0;
-    DBUG_PRINT("info", ("tree 0x%lx", (ulong)tree));
-    if (tree) 
-      tree->walk(sum_sum_distinct_real, (void *) this);
-  }
-  DBUG_RETURN(sum);
 }
 
 
-my_decimal *Item_sum_sum_distinct::val_decimal(my_decimal *fake)
+double Item_sum_distinct::val_real()
 {
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    my_decimal_set_zero(dec_buffs);
-    curr_dec_buff= 0;
-    if (tree)
-      tree->walk(sum_sum_distinct_decimal, (void *)this);
-  }
-  else
-  {
-    double real= val_real();
-    curr_dec_buff= 0;
-    double2my_decimal(E_DEC_FATAL_ERROR, real, dec_buffs);
-  }
-  return(dec_buffs + curr_dec_buff);
+  calculate_val_and_count();
+  return val.traits->val_real(&val);
 }
 
 
-longlong Item_sum_sum_distinct::val_int()
+my_decimal *Item_sum_distinct::val_decimal(my_decimal *to)
 {
-  longlong result;
-  if (hybrid_type == DECIMAL_RESULT)
-  {
-    /* Item_sum_sum_distinct::val_decimal do not use argument */
-    my_decimal *val= val_decimal(0);
-    if (!null_value)
-      my_decimal2int(E_DEC_FATAL_ERROR, val, unsigned_flag, &result);
-  }
-  else
-    result= (longlong) val_real();
-  return result;
+  calculate_val_and_count();
+  if (null_value)
+    return 0;
+  return val.traits->val_decimal(&val, to);
 }
 
 
-String *Item_sum_sum_distinct::val_str(String *str)
+longlong Item_sum_distinct::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
-  if (hybrid_type == DECIMAL_RESULT)
-    return val_string_from_decimal(str);
-  return val_string_from_real(str);
+  calculate_val_and_count();
+  return val.traits->val_int(&val, unsigned_flag);
 }
 
 
-/* end of Item_sum_sum_distinct */
+String *Item_sum_distinct::val_str(String *str)
+{
+  calculate_val_and_count();
+  if (null_value)
+    return 0;
+  return val.traits->val_str(&val, str, decimals);
+}
+
+/* end of Item_sum_distinct */
+
+/* Item_sum_avg_distinct */
+
+void
+Item_sum_avg_distinct::fix_length_and_dec()
+{
+  Item_sum_distinct::fix_length_and_dec();
+  /*
+    AVG() will divide val by count. We need to reserve digits
+    after decimal point as the result can be fractional.
+  */
+  decimals+= 4;
+}
+
+
+void
+Item_sum_avg_distinct::calculate_val_and_count()
+{
+  Item_sum_distinct::calculate_val_and_count();
+  if (count)
+    val.traits->div(&val, count);
+}
+
 
 Item *Item_sum_count::copy_or_same(THD* thd)
 {
@@ -2093,12 +2127,8 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
 
 int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
-  CHARSET_INFO *cs=item->key_charset;
-  uint len=item->key_length;
-  return cs->coll->strnncollsp(cs, 
-			       (const uchar*) key1, len, 
-			       (const uchar*) key2, len, 0);
+  Field *f= (Field*) arg;
+  return f->cmp(key1, key2);
 }
 
 /*
@@ -2127,54 +2157,42 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
   return 0;
 }
 
-/*
-  helper function for walking the tree when we dump it to MyISAM -
-  tree_walk will call it for each leaf
-*/
 
-int dump_leaf(byte* key, uint32 count __attribute__((unused)),
-		     Item_sum_count_distinct* item)
+C_MODE_START
+
+static int count_distinct_walk(void *elem, unsigned int count, void *arg)
 {
-  byte* buf = item->table->record[0];
-  int error;
-  /*
-    The first item->rec_offset bytes are taken care of with
-    restore_record(table,default_values) in setup()
-  */
-  memcpy(buf + item->rec_offset, key, item->tree->size_of_element);
-  if ((error = item->table->file->write_row(buf)))
-  {
-    if (error != HA_ERR_FOUND_DUPP_KEY &&
-	error != HA_ERR_FOUND_DUPP_UNIQUE)
-      return 1;
-  }
+  (*((ulonglong*)arg))++;
   return 0;
 }
+
+C_MODE_END
 
 
 void Item_sum_count_distinct::cleanup()
 {
   DBUG_ENTER("Item_sum_count_distinct::cleanup");
   Item_sum_int::cleanup();
-  /*
-    Free table and tree if they belong to this item (if item have not pointer
-    to original item from which was made copy => it own its objects )
-  */
+
+  /* Free objects only if we own them. */
   if (!original)
   {
+    /*
+      We need to delete the table and the tree in cleanup() as
+      they were allocated in the runtime memroot. Using the runtime
+      memroot reduces memory footprint for PS/SP and simplifies setup().
+    */
+    delete tree;
+    tree= 0;
     if (table)
     {
-      free_tmp_table(current_thd, table);
+      free_tmp_table(table->in_use, table);
       table= 0;
     }
     delete tmp_table_param;
     tmp_table_param= 0;
-    if (use_tree)
-    {
-      delete_tree(tree);
-      use_tree= 0;
-    }
   }
+  always_null= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -2185,8 +2203,15 @@ void Item_sum_count_distinct::make_unique()
 {
   table=0;
   original= 0;
-  use_tree= 0; // to prevent delete_tree call on uninitialized tree
-  tree= &tree_base;
+  tree= 0;
+  tmp_table_param= 0;
+  always_null= FALSE;
+}
+
+
+Item_sum_count_distinct::~Item_sum_count_distinct()
+{
+  cleanup();
 }
 
 
@@ -2194,9 +2219,14 @@ bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select;
-  if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
-    return 1;
-    
+
+  /*
+    Setup can be called twice for ROLLUP items. This is a bug.
+    Please add DBUG_ASSERT(tree == 0) here when it's fixed.
+  */
+  if (tree || table || tmp_table_param)
+    return FALSE;
+
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
 
@@ -2216,11 +2246,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (always_null)
     return 0;
   count_field_types(tmp_table_param,list,0);
-  if (table)
-  {
-    free_tmp_table(thd, table);
-    tmp_table_param->cleanup();
-  }
+  DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				select_lex->options | thd->options,
@@ -2229,123 +2255,77 @@ bool Item_sum_count_distinct::setup(THD *thd)
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
 
-
-  // no blobs, otherwise it would be MyISAM
   if (table->s->db_type == DB_TYPE_HEAP)
   {
+    /*
+      No blobs, otherwise it would have been MyISAM: set up a compare
+      function and its arguments to use with Unique.
+    */
     qsort_cmp2 compare_key;
     void* cmp_arg;
+    Field **field= table->field;
+    Field **field_end= field + table->s->fields;
+    bool all_binary= TRUE;
 
-    // to make things easier for dump_leaf if we ever have to dump to MyISAM
-    restore_record(table,s->default_values);
-
-    if (table->s->fields == 1)
+    for (tree_key_length= 0; field < field_end; ++field)
     {
-      /*
-	If we have only one field, which is the most common use of
-	count(distinct), it is much faster to use a simpler key
-	compare method that can take advantage of not having to worry
-	about other fields
-      */
-      Field* field = table->field[0];
-      switch (field->type()) {
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_VAR_STRING:
-	if (field->binary())
-	{
-	  compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	  cmp_arg = (void*) &key_length;
-	}
-	else
-	{
-	  /*
-	    If we have a string, we must take care of charsets and case
-	    sensitivity
-	  */
-	  compare_key = (qsort_cmp2)simple_str_key_cmp;
-	  cmp_arg = (void*) this;
-	}
-	break;
-      default:
-	/*
-	  Since at this point we cannot have blobs anything else can
-	  be compared with memcmp
-	*/
-	compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	cmp_arg = (void*) &key_length;
-	break;
+      Field *f= *field;
+      enum enum_field_types type= f->type();
+      tree_key_length+= f->pack_length();
+      if (!f->binary() && (type == MYSQL_TYPE_STRING ||
+                           type == MYSQL_TYPE_VAR_STRING ||
+                           type == MYSQL_TYPE_VARCHAR))
+      {
+        all_binary= FALSE;
+        break;
       }
-      key_charset = field->charset();
-      key_length  = field->pack_length();
-      rec_offset  = 1;
     }
-    else // too bad, cannot cheat - there is more than one field
+    if (all_binary)
     {
-      bool all_binary = 1;
-      Field** field, **field_end;
-      field_end = (field = table->field) + table->s->fields;
-      uint32 *lengths;
-      if (!(field_lengths= 
-	    (uint32*) thd->alloc(sizeof(uint32) * table->s->fields)))
-	return 1;
-
-      for (key_length = 0, lengths=field_lengths; field < field_end; ++field)
+      cmp_arg= (void*) &tree_key_length;
+      compare_key= (qsort_cmp2) simple_raw_key_cmp;
+    }
+    else
+    {
+      if (table->s->fields == 1)
       {
-	uint32 length= (*field)->pack_length();
-	key_length += length;
-	*lengths++ = length;
-	if (!(*field)->binary())
-	  all_binary = 0;			// Can't break loop here
-      }
-      rec_offset= table->s->reclength - key_length;
-      if (all_binary)
-      {
-	compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	cmp_arg = (void*) &key_length;
+        /*
+          If we have only one field, which is the most common use of
+          count(distinct), it is much faster to use a simpler key
+          compare method that can take advantage of not having to worry
+          about other fields.
+        */
+        compare_key= (qsort_cmp2) simple_str_key_cmp;
+        cmp_arg= (void*) table->field[0];
+        /* tree_key_length has been set already */
       }
       else
       {
-	compare_key = (qsort_cmp2) composite_key_cmp ;
-	cmp_arg = (void*) this;
+        uint32 *length;
+        compare_key= (qsort_cmp2) composite_key_cmp;
+        cmp_arg= (void*) this;
+        field_lengths= (uint32*) thd->alloc(table->s->fields * sizeof(uint32));
+        for (tree_key_length= 0, length= field_lengths, field= table->field;
+             field < field_end; ++field, ++length)
+        {
+          *length= (*field)->pack_length();
+          tree_key_length+= *length;
+        }
       }
     }
-
-    if (use_tree)
-      delete_tree(tree);
-    init_tree(tree, min(thd->variables.max_heap_table_size,
-			thd->variables.sortbuff_size/16), 0,
-	      key_length, compare_key, 0, NULL, cmp_arg);
-    use_tree = 1;
-
+    DBUG_ASSERT(tree == 0);
+    tree= new Unique(compare_key, cmp_arg, tree_key_length,
+                     thd->variables.max_heap_table_size);
     /*
-      The only time key_length could be 0 is if someone does
+      The only time tree_key_length could be 0 is if someone does
       count(distinct) on a char(0) field - stupid thing to do,
       but this has to be handled - otherwise someone can crash
       the server with a DoS attack
     */
-    max_elements_in_tree = ((key_length) ? 
-			    thd->variables.max_heap_table_size/key_length : 1);
-
+    if (! tree)
+      return TRUE;
   }
-  if (original)
-  {
-    original->table= table;
-    original->use_tree= use_tree;
-  }
-  return 0;
-}
-
-
-int Item_sum_count_distinct::tree_to_myisam()
-{
-  if (create_myisam_from_heap(current_thd, table, tmp_table_param,
-			      HA_ERR_RECORD_FILE_FULL, 1) ||
-      tree_walk(tree, (tree_walk_action)&dump_leaf, (void*)this,
-		left_root_right))
-    return 1;
-  delete_tree(tree);
-  use_tree = 0;
-  return 0;
+  return FALSE;
 }
 
 
@@ -2357,8 +2337,9 @@ Item *Item_sum_count_distinct::copy_or_same(THD* thd)
 
 void Item_sum_count_distinct::clear()
 {
-  if (use_tree)
-    reset_tree(tree);
+  /* tree and table can be both null only if always_null */
+  if (tree)
+    tree->reset();
   else if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);
@@ -2379,32 +2360,21 @@ bool Item_sum_count_distinct::add()
     if ((*field)->is_real_null(0))
       return 0;					// Don't count NULL
 
-  if (use_tree)
+  if (tree)
   {
     /*
-      If the tree got too big, convert to MyISAM, otherwise insert into the
-      tree.
+      The first few bytes of record (at least one) are just markers
+      for deleted and NULLs. We want to skip them since they will
+      bloat the tree without providing any valuable info. Besides,
+      key_length used to initialize the tree didn't include space for them.
     */
-    if (tree->elements_in_tree > max_elements_in_tree)
-    {
-      if (tree_to_myisam())
-	return 1;
-    }
-    else if (!tree_insert(tree, table->record[0] + rec_offset, 0,
-			  tree->custom_arg))
-      return 1;
+    return tree->unique_add(table->record[0] + table->s->null_bytes);
   }
-  else if ((error=table->file->write_row(table->record[0])))
-  {
-    if (error != HA_ERR_FOUND_DUPP_KEY &&
-	error != HA_ERR_FOUND_DUPP_UNIQUE)
-    {
-      if (create_myisam_from_heap(current_thd, table, tmp_table_param, error,
-				  1))
-	return 1;				// Not a table_is_full error
-    }
-  }
-  return 0;
+  if ((error= table->file->write_row(table->record[0])) &&
+      error != HA_ERR_FOUND_DUPP_KEY &&
+      error != HA_ERR_FOUND_DUPP_UNIQUE)
+    return TRUE;
+  return FALSE;
 }
 
 
@@ -2413,8 +2383,16 @@ longlong Item_sum_count_distinct::val_int()
   DBUG_ASSERT(fixed == 1);
   if (!table)					// Empty query
     return LL(0);
-  if (use_tree)
-    return tree->elements_in_tree;
+  if (tree)
+  {
+    ulonglong count;
+
+    if (tree->elements == 0)
+      return (longlong) tree->elements_in_tree(); // everything fits in memory
+    count= 0;
+    tree->walk(count_distinct_walk, (void*) &count);
+    return (longlong) count;
+  }
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return table->file->records;
 }

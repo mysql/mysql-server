@@ -650,6 +650,13 @@ select * from t1 natural left join t2 natural left join t3;
 i	i	i
 1	NULL	NULL
 2	2	2
+select * from t1 natural left join t2 where (t2.i is not null)=0;
+i	i
+1	NULL
+select * from t1 natural left join t2 where (t2.i is not null) is not null;
+i	i
+1	NULL
+2	2
 drop table t1,t2,t3;
 create table t1 (f1 integer,f2 integer,f3 integer);
 create table t2 (f2 integer,f4 integer);
@@ -910,4 +917,10 @@ a	b	a	b
 1	1	1	2
 2	1	2	2
 3	1	NULL	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE not(0+(t1.a=30 and t2.b=1));
+a	b	a	b
+1	1	1	2
+2	1	2	2
+3	1	NULL	NULL
+4	2	NULL	NULL
 DROP TABLE t1,t2;

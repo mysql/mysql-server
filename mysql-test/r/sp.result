@@ -2030,7 +2030,7 @@ bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int(11)
 return x || y
 show create function bug2564_4|
 Function	sql_mode	Create Function
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int(11)
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int(11)
 return x || y
 drop procedure bug2564_1|
 drop procedure bug2564_2|

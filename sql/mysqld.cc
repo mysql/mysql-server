@@ -366,7 +366,7 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *mysqld_user,*mysqld_chroot, *opt_init_file,
-     *opt_init_connect, *opt_init_slave,
+     *opt_init_connect, *opt_init_slave, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
@@ -457,7 +457,7 @@ static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
-static char *opt_slow_logname, *opt_tc_log_file, *opt_tc_heuristic_recover;
+static char *opt_slow_logname, *opt_tc_heuristic_recover;
 static char *mysql_home_ptr, *pidfile_name_ptr;
 static char **defaults_argv;
 static char *opt_bin_logname;
@@ -2800,6 +2800,11 @@ server.");
     unireg_abort(1);
   }
 
+  if (ha_recover(0))
+  {
+    unireg_abort(1);
+  }
+
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
                                         WRITE_CACHE, 0, max_binlog_size, 0))
       unireg_abort(1);
@@ -4211,6 +4216,7 @@ enum options_mysqld
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_INNODB_TABLE_LOCKS,
+  OPT_INNODB_SUPPORT_XA,
   OPT_INNODB_OPEN_FILES,
   OPT_INNODB_AUTOEXTEND_INCREMENT,
   OPT_INNODB_SYNC_SPIN_LOOPS,
@@ -4513,6 +4519,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Enable InnoDB locking in LOCK TABLES",
    (gptr*) &global_system_variables.innodb_table_locks,
    (gptr*) &global_system_variables.innodb_table_locks,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_support_xa", OPT_INNODB_SUPPORT_XA,
+   "Enable InnoDB support for the XA two-phase commit",
+   (gptr*) &global_system_variables.innodb_support_xa,
+   (gptr*) &global_system_variables.innodb_support_xa,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
