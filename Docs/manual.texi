@@ -48638,6 +48638,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in truncation operator for boolean fulltext search.
+@item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
 Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
