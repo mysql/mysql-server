@@ -315,28 +315,31 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
 {
   uint packet_len = my_net_read(net); // read create table statement
+  Vio* save_vio;
+  HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
-  int error = 0;
+  int error= 1;
+  handler *file;
   
-  if(packet_len == packet_error)
-    {
-      send_error(&thd->net, ER_MASTER_NET_READ);
-      return 1;
-    }
-  if(net->read_pos[0] == 255) // error from master
-    {
-      net->read_pos[packet_len] = 0;
-      net_printf(&thd->net, ER_MASTER, net->read_pos + 3);
-      return 1;
-    }
+  if (packet_len == packet_error)
+  {
+    send_error(&thd->net, ER_MASTER_NET_READ);
+    return 1;
+  }
+  if (net->read_pos[0] == 255) // error from master
+  {
+    net->read_pos[packet_len] = 0;
+    net_printf(&thd->net, ER_MASTER, net->read_pos + 3);
+    return 1;
+  }
   thd->command = COM_TABLE_DUMP;
   thd->query = sql_alloc(packet_len + 1);
-  if(!thd->query)
-    {
-      sql_print_error("create_table_from_dump: out of memory");
-      net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
-      return 1;
-    }
+  if (!thd->query)
+  {
+    sql_print_error("create_table_from_dump: out of memory");
+    net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
+    return 1;
+  }
   memcpy(thd->query, net->read_pos, packet_len);
   thd->query[packet_len] = 0;
   thd->current_tablenr = 0;
@@ -347,13 +350,10 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   char* save_db = thd->db;
   thd->db = (char*)db;
   mysql_parse(thd, thd->query, packet_len); // run create table
-  thd->db = save_db; // leave things the way the were before
+  thd->db = save_db;		// leave things the way the were before
   
-  if(thd->query_error)
-  {
-    close_thread_tables(thd); // mysql_parse takes care of the error send
-    return 1;
-  }
+  if (thd->query_error)
+    goto err;			// mysql_parse took care of the error send
 
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
@@ -362,41 +362,37 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Opening master dump table";
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
-    // open tables will send the error
+    send_error(&thd->net,0,0);			// Send error from open_ltable
     sql_print_error("create_table_from_dump: could not open created table");
-    close_thread_tables(thd);
-    return 1;
+    goto err;
   }
   
-  handler *file = tables.table->file;
+  file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
   if (file->net_read_dump(net))
   {
     net_printf(&thd->net, ER_MASTER_NET_READ);
     sql_print_error("create_table_from_dump::failed in\
  handler::net_read_dump()");
-    close_thread_tables(thd);
-    return 1;
+    goto err;
   }
 
-  HA_CHECK_OPT check_opt;
   check_opt.init();
   check_opt.flags|= T_VERY_SILENT;
   check_opt.quick = 1;
   thd->proc_info = "Rebuilding the index on master dump table";
-  Vio* save_vio = thd->net.vio;
   // we do not want repair() to spam us with messages
   // just send them to the error log, and report the failure in case of
   // problems
+  save_vio = thd->net.vio;
   thd->net.vio = 0;
-  if (file->repair(thd,&check_opt ))
-  {
-      net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name );
-      error = 1;
-  }
+  error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
+  if (error)
+    net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name);
+
+err:
   close_thread_tables(thd);
-  
   thd->net.no_send_ok = 0;
   return error; 
 }
@@ -407,16 +403,16 @@ int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
   int error = 1;
   int nx_errno = 0;
   bool called_connected = (mysql != NULL);
-  if(!called_connected && !(mysql = mc_mysql_init(NULL)))
-    {
-      sql_print_error("fetch_nx_table: Error in mysql_init()");
-      nx_errno = ER_GET_ERRNO;
-      goto err;
-    }
+  if (!called_connected && !(mysql = mc_mysql_init(NULL)))
+  { 
+    sql_print_error("fetch_nx_table: Error in mysql_init()");
+    nx_errno = ER_GET_ERRNO;
+    goto err;
+  }
 
-  if(!called_connected)
+  if (!called_connected)
   {
-    if(connect_to_master(thd, mysql, mi))
+    if (connect_to_master(thd, mysql, mi))
     {
       sql_print_error("Could not connect to master while fetching table\
  '%-64s.%-64s'", db_name, table_name);
@@ -424,21 +420,24 @@ int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
       goto err;
     }
   }
-  
-  if(request_table_dump(mysql, db_name, table_name))
-    {
-      nx_errno = ER_GET_ERRNO;
-      sql_print_error("fetch_nx_table: failed on table dump request ");
-      goto err;
-    }
+  safe_connect(thd, mysql, mi);
+  if (slave_killed(thd))
+    goto err;
 
-  if(create_table_from_dump(thd, &mysql->net, db_name,
+  if (request_table_dump(mysql, thd->last_nx_db, thd->last_nx_table))
+  {
+    nx_errno = ER_GET_ERRNO;
+    sql_print_error("fetch_nx_table: failed on table dump request ");
+    goto err;
+  }
+
+  if (create_table_from_dump(thd, &mysql->net, db_name,
 			    table_name))
-    {
-      // create_table_from_dump will have sent the error alread
-      sql_print_error("fetch_nx_table: failed on create table ");
-      goto err;
-    }
+  { 
+    // create_table_from_dump will have sent the error alread
+    sql_print_error("fetch_nx_table: failed on create table ");
+    goto err;
+  }
   
   error = 0;
 
@@ -447,6 +446,7 @@ int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
     mc_mysql_close(mysql);
   if (nx_errno && thd->net.vio)
     send_error(&thd->net, nx_errno, "Error in fetch_nx_table");
+  thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
   return error;
 }
 
