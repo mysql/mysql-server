@@ -1480,6 +1480,29 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   return 0;
 }
 
+
+ulong my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                   const char *str, const char *end, int sequence_type)
+{
+  const char *str0= str;
+  end--; /* for easier loop condition, because of two bytes per character */
+  
+  switch (sequence_type)
+  {
+  case MY_SEQ_SPACES:
+    for ( ; str < end; str+= 2)
+    {
+      if (str[0] != '\0' || str[1] != ' ')
+        break;
+    }
+    return str - str0;
+  default:
+    return 0;
+  }
+}
+
+
+
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     NULL,		/* init */
@@ -1534,7 +1557,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_strntoull_ucs2,
     my_strntod_ucs2,
     my_strtoll10_ucs2,
-    my_scan_8bit
+    my_scan_ucs2
 };
 
 
