@@ -1227,7 +1227,16 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
     packet->append(' ');
     packet->append(dir_type);
     packet->append(" DIRECTORY='", 12);
+#ifdef __WIN__
+    char *winfilename = strdup(filename);
+    for (uint i=0; i < length; i++)
+	    if (winfilename[i] == '\\')
+		    winfilename[i] = '/';
+    packet->append(winfilename, length);
+    free(winfilename);
+#else
     packet->append(filename, length);
+#endif
     packet->append('\'');
   }
 }
