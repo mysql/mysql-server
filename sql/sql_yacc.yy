@@ -1276,7 +1276,24 @@ opt_to:
 	| EQ		{}
 	| AS		{};
 
+/*
+ * The first two deprecate the last two--delete the last two for 4.1 release
+ */
 slave:
+	START_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+         |
+	STOP_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         }
+         |
 	SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
