@@ -21,7 +21,7 @@
 
 #define MAX_THREAD_NAME 16
 
-//#define USE_PTHREAD_EXTRAS
+/*#define USE_PTHREAD_EXTRAS*/
 
 struct NdbThread 
 { 
