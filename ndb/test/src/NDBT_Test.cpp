@@ -985,7 +985,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   }
 
 #ifndef DBUG_OFF
-  my_init();
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif

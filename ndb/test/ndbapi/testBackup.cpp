@@ -473,6 +473,7 @@ TESTCASE("FailSlave",
 NDBT_TESTSUITE_END(testBackup);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testBackup.execute(argc, argv);
 }
 

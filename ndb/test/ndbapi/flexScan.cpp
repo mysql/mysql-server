@@ -297,6 +297,7 @@ static int checkThreadResults(ThreadNdb *threadArrayP, char *action)
 
 NDB_COMMAND(flexScan, "flexScan", "flexScan", "flexScan", 65535)
 {
+  ndb_init();
   ThreadNdb*		pThreads = NULL;
   Ndb*			pMyNdb = NULL;	
   int                   tLoops = 0;

@@ -3201,6 +3201,7 @@ runtest(Par par)
 
 NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
 {
+  ndb_init();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (*arg != '-') {

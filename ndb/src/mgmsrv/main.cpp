@@ -129,6 +129,7 @@ int num_args = sizeof(args) / sizeof(args[0]);
  *  MAIN 
  */
 NDB_MAIN(mgmsrv){
+  ndb_init();
   /**
    * OSE specific. Enable shared ownership of file system resources. 
    * This is needed in order to use the cluster log since the events 
@@ -151,7 +152,6 @@ NDB_MAIN(mgmsrv){
     glob.daemon= 0;
   }
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);

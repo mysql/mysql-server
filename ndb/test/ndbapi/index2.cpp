@@ -608,6 +608,7 @@ static void dropIndex(Ndb &myNdb, unsigned int noOfIndexes)
 
 NDB_COMMAND(indexTest, "indexTest", "indexTest", "indexTest", 65535)
 {
+  ndb_init();
   bool createTableOp, createIndexOp, dropIndexOp, insertOp, updateOp, deleteOp, readOp, readIndexOp, updateIndexOp, deleteIndexOp, twoKey, longKey;
   unsigned int noOfTuples = 1;
   unsigned int noOfOperations = 1;

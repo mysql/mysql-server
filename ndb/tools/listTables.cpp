@@ -167,6 +167,7 @@ const char *debug_option= 0;
 #endif
 
 int main(int argc, const char** argv){
+  ndb_init();
   int _loops = 1;
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
@@ -209,7 +210,6 @@ int main(int argc, const char** argv){
   _tabname = argv[optind];
   
 #ifndef DBUG_OFF
-  my_init();
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif
