@@ -264,6 +264,18 @@ prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
 Tables_in_test (t2%)
 t2
+prepare stmt4 from ' show columns from t2 where field in (select ?) ';
+SET @arg00="a";
+execute stmt4 using @arg00;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI		
+SET @arg00="b";
+execute stmt4 using @arg00;
+Field	Type	Null	Key	Default	Extra
+b	char(10)	YES		NULL	
+SET @arg00=1;
+execute stmt4 using @arg00;
+Field	Type	Null	Key	Default	Extra
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
