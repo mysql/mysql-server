@@ -359,6 +359,16 @@ information_schema
 mysql
 test
 use test;
+drop database if exists test_only_ndb_tables;
+create database test_only_ndb_tables;
+use test_only_ndb_tables;
+create table t1 (a int primary key) engine=ndb;
+select * from t1;
+a
+select * from t1;
+ERROR HY000: Can't lock file (errno: 4009)
+use test;
+drop database test_only_ndb_tables;
 CREATE TABLE t9 (
 a int NOT NULL PRIMARY KEY,
 b int
