@@ -557,7 +557,8 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
 SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
 				  TABLE *table, int *error)
 {
-  cond->fix_fields(thd, tables, &cond);	// can never fail
+  if (!cond->fixed)
+    cond->fix_fields(thd, tables, &cond);	// can never fail
   SQL_SELECT *res= make_select(table,0,0,cond,error);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)))
   {

@@ -2799,7 +2799,8 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
+  if ((!value->fixed && 
+       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -2834,7 +2835,8 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+                value->check_cols(1)))
     return -1;
   return 0;
 }
