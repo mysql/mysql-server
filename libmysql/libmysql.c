@@ -1359,16 +1359,19 @@ static void mysql_once_init()
 #endif
 }
 
-#ifdef HAVE_OPENSSL
 /**************************************************************************
 ** Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
 ** NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************/
 
 int STDCALL
-mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
-              const char *ca, const char *capath)
+mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
+	const char *key __attribute__((unused)), 
+	const char *cert __attribute__((unused)),
+	const char *ca __attribute__((unused)), 
+	const char *capath __attribute__((unused)))
 {
+#ifdef HAVE_OPENSSL
   mysql->options.ssl_key = key==0 ? 0 : my_strdup(key,MYF(0));
   mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
   mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
@@ -1376,28 +1379,20 @@ mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
   mysql->options.use_ssl = TRUE;
   mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath);
   DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
-
+#endif
   return 0;
 }
 
-/**************************************************************************
-**************************************************************************
-
-char * STDCALL
-mysql_ssl_cipher(MYSQL *mysql)
-{
-  return (char *)mysql->net.vio->cipher_description();
-}
-
-
-**************************************************************************
+/*
+***************************************************************************
 ** Free strings in the SSL structure and clear 'use_ssl' flag.
 ** NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************
 */
 int STDCALL
-mysql_ssl_clear(MYSQL *mysql)
+mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
 {
+#ifdef HAVE_OPENSSL
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
@@ -1409,9 +1404,9 @@ mysql_ssl_clear(MYSQL *mysql)
   mysql->options.use_ssl = FALSE;
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->connector_fd = 0;
+#endif /* HAVE_OPENSSL */
   return 0;
 }
-#endif /* HAVE_OPENSSL */
 
 /**************************************************************************
 ** Connect to sql server

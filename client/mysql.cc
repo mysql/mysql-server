@@ -377,6 +377,9 @@ sig_handler mysql_end(int sig)
 {
   if (connected)
     mysql_close(&mysql);
+  else
+    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
+				even if connection was not made */
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
@@ -2204,6 +2207,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_close(&mysql);
     connected= 0;
   }
+  else
+    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
+				even if connection was not made */
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {

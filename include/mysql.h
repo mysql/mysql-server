@@ -256,13 +256,10 @@ unsigned long STDCALL mysql_thread_id(MYSQL *mysql);
 const char * STDCALL mysql_character_set_name(MYSQL *mysql);
 
 MYSQL *		STDCALL mysql_init(MYSQL *mysql);
-#ifdef HAVE_OPENSSL
 int		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
 				      const char *cert, const char *ca,
 				      const char *capath);
-char *		STDCALL mysql_ssl_cipher(MYSQL *mysql);
 int		STDCALL mysql_ssl_clear(MYSQL *mysql);
-#endif /* HAVE_OPENSSL */
 my_bool		STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 					  const char *passwd, const char *db);
 MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
