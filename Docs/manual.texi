@@ -4267,6 +4267,12 @@ Chile [PSINet] @
 @c @uref{http://mysql.freecode.com.cn, WWW}
 
 @item
+@c EMAIL: yusun@atwell.co.jp (yu sun)
+@c @image{Flags/china}
+China [linuxforum.net] @
+@uref{http://www2.linuxforum.net/mirror/mysql/, WWW}
+
+@item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
 @c @image{Flags/china}
 China [Hong Kong] @
@@ -4283,6 +4289,12 @@ China [Hong Kong] @
 @c EMAIL: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
 @c @image{Flags/south-korea} Korea [KREONet] @
 @c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
+
+@item
+@c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
+@c @image{Flags/south-korea}
+Korea [Webiiz] @
+@uref{http://mysql.webiiz.com/, WWW}
 
 @c @item
 @c ftp -> remove old files
