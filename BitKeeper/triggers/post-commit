@@ -35,12 +35,11 @@ EOF
 List-ID: <bk.mysql>
 From: $FROM
 To: $INTERNALS
-Subject: bk commit into 3.23 tree
+Subject: bk commit into 4.0 tree
 
 Below is the list of changes that have just been pushed into main
-3.23. repository. For information on how to access the repository
+4.0 repository. For information on how to access the repository
 see http://www.mysql.com/doc/I/n/Installing_source_tree.html
->>>>>>> BitKeeper/tmp/post-commit_sasha@1.8.1.3
 
 EOF
   bk changes -v -r+
