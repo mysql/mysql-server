@@ -9918,6 +9918,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_gbk,
   my_strnncollsp_gbk,
   my_strnxfrm_gbk,
@@ -9930,6 +9931,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_gbk,
   mbcharlen_gbk,
   my_numchars_mb,

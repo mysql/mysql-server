@@ -906,6 +906,7 @@ int my_wc_mb_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_tis620,
     my_strnncollsp_tis620,
     my_strnxfrm_tis620,
@@ -918,6 +919,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     NULL,		/* ismbchar  */
     my_mbcharlen_8bit,	/* mbcharlen */
     my_numchars_8bit,

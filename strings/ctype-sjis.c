@@ -4534,6 +4534,7 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_sjis,
   my_strnncollsp_sjis,
   my_strnxfrm_sjis,
@@ -4547,6 +4548,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_sjis,
   mbcharlen_sjis,
   my_numchars_mb,

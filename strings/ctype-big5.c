@@ -6269,6 +6269,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_big5,
   my_strnncollsp_big5,
   my_strnxfrm_big5,
@@ -6281,6 +6282,7 @@ static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_big5_handler=
 {
+  NULL,			/* init */
   ismbchar_big5,
   mbcharlen_big5,
   my_numchars_mb,

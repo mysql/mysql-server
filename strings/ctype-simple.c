@@ -1142,8 +1142,107 @@ skip:
 }
 
 
+typedef struct
+{
+  int		nchars;
+  MY_UNI_IDX	uidx;
+} uni_idx;
+
+#define PLANE_SIZE	0x100
+#define PLANE_NUM	0x100
+#define PLANE_NUMBER(x)	(((x)>>8) % PLANE_NUM)
+
+static int pcmp(const void * f, const void * s)
+{
+  const uni_idx *F= (const uni_idx*) f;
+  const uni_idx *S= (const uni_idx*) s;
+  int res;
+
+  if (!(res=((S->nchars)-(F->nchars))))
+    res=((F->uidx.from)-(S->uidx.to));
+  return res;
+}
+
+static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(uint))
+{
+  uni_idx	idx[PLANE_NUM];
+  int		i,n;
+  
+  /* Clear plane statistics */
+  bzero(idx,sizeof(idx));
+  
+  /* Count number of characters in each plane */
+  for (i=0; i< 0x100; i++)
+  {
+    uint16 wc=cs->tab_to_uni[i];
+    int pl= PLANE_NUMBER(wc);
+    
+    if (wc || !i)
+    {
+      if (!idx[pl].nchars)
+      {
+        idx[pl].uidx.from=wc;
+        idx[pl].uidx.to=wc;
+      }else
+      {
+        idx[pl].uidx.from=wc<idx[pl].uidx.from?wc:idx[pl].uidx.from;
+        idx[pl].uidx.to=wc>idx[pl].uidx.to?wc:idx[pl].uidx.to;
+      }
+      idx[pl].nchars++;
+    }
+  }
+  
+  /* Sort planes in descending order */
+  qsort(&idx,PLANE_NUM,sizeof(uni_idx),&pcmp);
+  
+  for (i=0; i < PLANE_NUM; i++)
+  {
+    int ch,numchars;
+    
+    /* Skip empty plane */
+    if (!idx[i].nchars)
+      break;
+    
+    numchars=idx[i].uidx.to-idx[i].uidx.from+1;
+    if (!(idx[i].uidx.tab=(uchar*) alloc(numchars * sizeof(*idx[i].uidx.tab))))
+      return TRUE;
+    
+    bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
+    
+    for (ch=1; ch < PLANE_SIZE; ch++)
+    {
+      uint16 wc=cs->tab_to_uni[ch];
+      if (wc >= idx[i].uidx.from && wc <= idx[i].uidx.to && wc)
+      {
+        int ofs= wc - idx[i].uidx.from;
+        idx[i].uidx.tab[ofs]= ch;
+      }
+    }
+  }
+  
+  /* Allocate and fill reverse table for each plane */
+  n=i;
+  if (!(cs->tab_from_uni= (MY_UNI_IDX*) alloc(sizeof(MY_UNI_IDX)*(n+1))))
+    return TRUE;
+
+  for (i=0; i< n; i++)
+    cs->tab_from_uni[i]= idx[i].uidx;
+  
+  /* Set end-of-list marker */
+  bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
+  return FALSE;
+}
+
+static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
+{
+  return create_fromuni(cs, alloc);
+}
+
+
+
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
+    my_cset_init_8bit,
     NULL,			/* ismbchar      */
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
@@ -1170,6 +1269,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
 
 MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_simple,
     my_strnncollsp_simple,
     my_strnxfrm_simple,

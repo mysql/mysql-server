@@ -572,6 +572,7 @@ static MY_UNI_IDX idx_uni_8859_2[]={
 
 static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_czech,
   my_strnncollsp_czech,
   my_strnxfrm_czech,

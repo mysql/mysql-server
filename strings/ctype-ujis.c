@@ -8423,6 +8423,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm     */
@@ -8435,14 +8436,15 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     ismbchar_ujis,
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
     my_well_formed_len_mb,
     my_lengthsp_8bit,
-    my_mb_wc_euc_jp,	 /* mb_wc       */
-    my_wc_mb_euc_jp,	 /* wc_mb       */
+    my_mb_wc_euc_jp,	/* mb_wc       */
+    my_wc_mb_euc_jp,	/* wc_mb       */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,

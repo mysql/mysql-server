@@ -1372,6 +1372,7 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_ucs2,
     my_strnncoll_ucs2,
     my_strnxfrm_ucs2,
@@ -1385,6 +1386,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 
 static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 {
+    NULL,		/* init */
     my_strnncoll_ucs2_bin,
     my_strnncoll_ucs2_bin,
     my_strnxfrm_ucs2_bin,
@@ -1398,6 +1400,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 
 MY_CHARSET_HANDLER my_charset_ucs2_handler=
 {
+    NULL,		/* init */
     my_ismbchar_ucs2,	/* ismbchar     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
@@ -1426,7 +1429,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
 CHARSET_INFO my_charset_ucs2_general_ci=
 {
     35,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */
@@ -1452,7 +1455,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
 CHARSET_INFO my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONTEXT,
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
     "ucs2_bin",		/* name         */
     "",			/* comment      */
