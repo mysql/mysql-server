@@ -43,7 +43,7 @@
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static TABLE *find_table_by_name(THD *thd, char *db, char *table_name);
+static TABLE **find_table_ptr_by_name(THD *thd, char *db, char *table_name);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
@@ -59,11 +59,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 
 int mysql_ha_close(THD *thd, TABLE_LIST *tables)
 {
-  /* Perhaps, we should close table here.
-     But it's not easy - *tables is a single-linked list, designed
-     to be closed at all once.
-     So, why bother ? All the tables will be closed at thread exit.
-   */
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->name);
+
+  if (*ptr)
+    close_thread_table(thd, ptr);
+  
   send_ok(&thd->net);
   return 0;
 }
@@ -77,7 +77,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
-  TABLE *table=find_table_by_name(thd, tables->db, tables->name);
+  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->name);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
@@ -231,19 +231,22 @@ err:
 /* Note: this function differs from find_locked_table() because we're looking
    here for alias, not real table name 
  */
-static TABLE *find_table_by_name(THD *thd, char *db, char *table_name)
+static TABLE **find_table_ptr_by_name(THD *thd, char *db, char *table_name)
 {
   int dblen;
+  TABLE **ptr;
   
   if (!db || ! *db) db=thd->db;
   if (!db || ! *db) db="";
   dblen=strlen(db);  
+  ptr=&(thd->handler_tables);
   
-  for (TABLE *table=thd->handler_tables; table ; table=table->next)
+  for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
         !my_strcasecmp(table->table_name,table_name))
-      return table;
+      break;
+    ptr=&(table->next);
   }
-  return(0);
+  return ptr;
 }

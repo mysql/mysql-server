@@ -421,40 +421,9 @@ void close_thread_tables(THD *thd, bool locked)
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
 
-  for (table=thd->open_tables ; table ; table=next)
-  {
-    next=table->next;
-    if (table->version != refresh_version ||
-	thd->version != refresh_version || !table->db_stat)
-    {
-      VOID(hash_delete(&open_cache,(byte*) table));
-      found_old_table=1;
-    }
-    else
-    {
-      if (table->flush_version != flush_version)
-      {
-	table->flush_version=flush_version;
-	table->file->extra(HA_EXTRA_FLUSH);
-      }
-      else
-      {
-	// Free memory and reset for next loop
-	table->file->extra(HA_EXTRA_RESET);
-      }
-      table->in_use=0;
-      if (unused_tables)
-      {
-	table->next=unused_tables;		/* Link in last */
-	table->prev=unused_tables->prev;
-	unused_tables->prev=table;
-	table->prev->next=table;
-      }
-      else
-	unused_tables=table->next=table->prev=table;
-    }
-  }
-  thd->open_tables=0;
+  while (thd->open_tables)
+    found_old_table|=close_thread_table(thd, &thd->open_tables);
+
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)
     VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -468,6 +437,48 @@ void close_thread_tables(THD *thd, bool locked)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
   DBUG_VOID_RETURN;
+}
+
+/* move one table to free list */
+
+bool close_thread_table(THD *thd, TABLE **table_ptr)
+{
+  DBUG_ENTER("close_thread_table");
+
+  bool found_old_table=0;
+  TABLE *table=*table_ptr;
+
+  *table_ptr=table->next;
+  if (table->version != refresh_version ||
+      thd->version != refresh_version || !table->db_stat)
+  {
+    VOID(hash_delete(&open_cache,(byte*) table));
+    found_old_table=1;
+  }
+  else
+  {
+    if (table->flush_version != flush_version)
+    {
+      table->flush_version=flush_version;
+      table->file->extra(HA_EXTRA_FLUSH);
+    }
+    else
+    {
+      // Free memory and reset for next loop
+      table->file->extra(HA_EXTRA_RESET);
+    }
+    table->in_use=0;
+    if (unused_tables)
+    {
+      table->next=unused_tables;		/* Link in last */
+      table->prev=unused_tables->prev;
+      unused_tables->prev=table;
+      table->prev->next=table;
+    }
+    else
+      unused_tables=table->next=table->prev=table;
+  }
+  DBUG_RETURN(found_old_table);
 }
 
 	/* Close and delete temporary tables */
