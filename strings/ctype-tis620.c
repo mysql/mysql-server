@@ -501,8 +501,6 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
       *pRight2++ = t_ctype[*p][1];
       *pRight3++ = t_ctype[*p][2];
 /*	*pRight4++ = t_ctype[*p][3]; */
-      if (!(len--))
-	break;
       p += 2;
     } else {
       *pRight1 = t_ctype[*p][0];
