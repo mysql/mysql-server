@@ -2393,17 +2393,7 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
-      /*
-        Is table which we are changing used somewhere in other parts
-        of query
-      */
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  find_table_in_global_list(select_tables, create_table->db,
-                                    create_table->real_name))
-      {
-	net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
-	goto create_error;
-      }
+
       if (select_tables &&
 	  check_table_access(thd, SELECT_ACL, select_tables, 0))
 	goto create_error;			// Error message is given
@@ -2412,6 +2402,17 @@ mysql_execute_command(THD *thd)
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
+        /*
+          Is table which we are changing used somewhere in other parts
+          of query
+        */
+        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+            unique_table(create_table, select_tables))
+        {
+          net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
+          goto create_error;
+        }
+
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
@@ -2767,16 +2768,18 @@ unsent_create_error:
     select_result *result;
     unit->set_limit(select_lex, select_lex);
 
-    // is table which we are changing used somewhere in other parts of query
-    if (find_table_in_global_list(all_tables->next_global,
-				first_table->db, first_table->real_name))
-    {
-      /* Using same table for INSERT and SELECT */
-      select_lex->options |= OPTION_BUFFER_RESULT;
-    }
-
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      /*
+        Is table which we are changing used somewhere in other parts of
+        query
+      */
+      if (unique_table(first_table, all_tables->next_independent()))
+      {
+        /* Using same table for INSERT and SELECT */
+        select_lex->options |= OPTION_BUFFER_RESULT;
+      }
+
       if ((res= mysql_insert_select_prepare(thd)))
         break;
       if ((result= new select_insert(first_table, first_table->table,

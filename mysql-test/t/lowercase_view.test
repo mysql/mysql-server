@@ -1,8 +1,12 @@
 --disable_warnings
+drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
+drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop database if exists MySQLTest;
 --enable_warnings
 
-
+#
+# different cases in VIEW
+#
 create database MySQLTest;
 use MySQLTest;
 create table TaB (Field int);
@@ -10,3 +14,21 @@ create view ViE as select * from TAb;
 show create table VIe;
 drop database MySQLTest;
 use test;
+
+#
+# test of updating and fetching from the same table check
+#
+create table t1Aa (col1 int);
+create table t2Aa (col1 int);
+create view v1Aa as select * from t1Aa;
+create view v2Aa as select * from v1Aa;
+-- error 1093
+update v2aA set col1 = (select max(col1) from v1aA);
+#update v2aA,t2aA set v2aA.col1 = (select max(col1) from v1aA) where v2aA.col1 = t2aA.col1;
+-- error 1093
+delete from v2aA where col1 = (select max(col1) from v1aA);
+#delete v2aA from v2aA,t2aA where (select max(col1) from v1aA) > 0 and v2aA.col1 = t2aA.col1;
+-- error 1093
+insert into v2aA values ((select max(col1) from v1aA));
+drop view v2Aa,v1Aa;
+drop table t1Aa,t2Aa;

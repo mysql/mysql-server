@@ -1230,3 +1230,21 @@ insert into v1 values (1) on duplicate key update s1 = 7;
 select * from t1;
 drop view v1;
 drop table t1;
+
+#
+# test of updating and fetching from the same table check
+#
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+-- error 1093
+update v2 set col1 = (select max(col1) from v1);
+#update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+delete from v2 where col1 = (select max(col1) from v1);
+#delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+insert into v2 values ((select max(col1) from v1));
+drop view v2,v1;
+drop table t1,t2;

@@ -496,8 +496,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (find_table_in_global_list(table_list->next_global, 
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
@@ -788,7 +787,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_table_in_global_list(update_tables, table_ref->db,
+	find_table_in_local_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache
   }
