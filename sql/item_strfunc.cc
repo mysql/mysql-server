@@ -2562,9 +2562,12 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     This function is very useful when you want to generate SQL statements
 
-    RETURN VALUES
+  NOTE
+    QUOTE(NULL) returns the string 'NULL' (4 letters, without quotes).
+
+  RETURN VALUES
     str		Quoted string
-    NULL	Argument to QUOTE() was NULL or out of memory.
+    NULL	Out of memory.
 */
 
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
@@ -2589,7 +2592,12 @@ String *Item_func_quote::val_str(String *str)
   String *arg= args[0]->val_str(str);
   uint arg_length, new_length;
   if (!arg)					// Null argument
-    goto null;
+  {
+    str->copy("NULL", 4);			// Return the string 'NULL'
+    null_value= 0;
+    return str;
+  }
+
   arg_length= arg->length();
   new_length= arg_length+2; /* for beginning and ending ' signs */
 
