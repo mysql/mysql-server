@@ -1715,5 +1715,65 @@ Innodb_row_lock_time_max	0
 show status like "Innodb_row_lock_time_avg";
 Variable_name	Value
 Innodb_row_lock_time_avg	0
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=1000;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	1000
+set global innodb_sync_spin_loops=0;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	0
+set global innodb_sync_spin_loops=20;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	8
+set global innodb_thread_concurrency=1000;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	1000
+set global innodb_thread_concurrency=0;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	1
+set global innodb_thread_concurrency=16;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	16
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	500
+set global innodb_concurrency_tickets=1000;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	1000
+set global innodb_concurrency_tickets=0;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	1
+set global innodb_concurrency_tickets=500;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	500
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	10000
+set global innodb_thread_sleep_delay=100000;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	100000
+set global innodb_thread_sleep_delay=0;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	0
+set global innodb_thread_sleep_delay=10000;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
