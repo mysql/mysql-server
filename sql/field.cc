@@ -4351,18 +4351,18 @@ uint32 Field_blob::get_length(const char *pos)
 }
 
 
-int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  if (!len)
+  if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
   }
   else
   {
-    Field_blob::store_length(len);
-    if (table->copy_blobs || len <= MAX_FIELD_WIDTH)
+    Field_blob::store_length(length);
+    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
-      value.copy(from,len,charset());
+      value.copy(from,length,charset());
       from=value.ptr();
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
