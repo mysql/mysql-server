@@ -20,7 +20,6 @@
 #include <errno.h>
 
 #include "stdarg.h"
-#include "assert.h"
 
 
 int my_strnxfrm_simple(CHARSET_INFO * cs, 

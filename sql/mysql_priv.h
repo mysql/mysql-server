@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include <assert.h>
 #include <mysql_version.h>
 #include <mysql_embed.h>
 #include <my_sys.h>
@@ -531,7 +530,8 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      ALTER_INFO *alter_info);
+		      ALTER_INFO *alter_info, bool do_send_ok=1);
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
@@ -858,7 +858,7 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
-extern ulong expire_logs_days;
+extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern my_bool relay_log_purge;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;

@@ -42,13 +42,6 @@ pthread_key(LEX*,THR_LEX);
 #define TOCK_NAME_LENGTH 24
 
 /*
-  Map to default keyword characters.  This is used to test if an identifer
-  is 'simple', in which case we don't have to do any character set conversions
-  on it
-*/
-uchar *bin_ident_map= my_charset_bin.ident_map;
-
-/*
   The following data is based on the latin1 character set, and is only
   used when comparing keywords
 */
@@ -566,13 +559,9 @@ int yylex(void *arg, void *yythd)
       else
 #endif
       {
-	result_state= bin_ident_map[c] ? IDENT : IDENT_QUOTED;
-        while (ident_map[c=yyGet()])
-	{
-	  /* If not simple character, mark that we must convert it */
-	  if (!bin_ident_map[c])
-	    result_state= IDENT_QUOTED;
-	}
+        for (result_state= c; ident_map[c= yyGet()]; result_state|= c);
+        /* If there were non-ASCII characters, mark that we must convert */
+        result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
@@ -674,12 +663,11 @@ int yylex(void *arg, void *yythd)
       }
       else
 #endif
-        while (ident_map[c = yyGet()])
-	{
-	  /* If not simple character, mark that we must convert it */
-	  if (!bin_ident_map[c])
-	    result_state= IDENT_QUOTED;
-	}
+      {
+        for (result_state=0; ident_map[c= yyGet()]; result_state|= c);
+        /* If there were non-ASCII characters, mark that we must convert */
+        result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
+      }
       if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
@@ -953,13 +941,11 @@ int yylex(void *arg, void *yythd)
 	We should now be able to handle:
 	[(global | local | session) .]variable_name
       */
-      result_state= IDENT;
-      while (ident_map[c=yyGet()])
-      {
-	/* If not simple character, mark that we must convert it */
-	if (!bin_ident_map[c])
-	  result_state= IDENT_QUOTED;
-      }
+      
+      for (result_state= 0; ident_map[c= yyGet()]; result_state|= c);
+      /* If there were non-ASCII characters, mark that we must convert */
+      result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
+      
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
