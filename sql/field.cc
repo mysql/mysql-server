@@ -3757,7 +3757,7 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
-  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= ltime->neg= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
