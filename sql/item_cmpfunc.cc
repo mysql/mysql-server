@@ -1119,6 +1119,9 @@ Item_func_nullif::fix_length_and_dec()
     max_length=args[0]->max_length;
     decimals=args[0]->decimals;
     agg_result_type(&cached_result_type, args, 2);
+    if (cached_result_type == STRING_RESULT &&
+        agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV))
+      return;
   }
 }
 
