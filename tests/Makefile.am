@@ -20,7 +20,7 @@
 EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			function.res function.tst lock_test.pl lock_test.res \
 			export.pl big_record.pl \
-			fork_test.pl fork2_test.pl fork3_test.pl \
+			fork2_test.pl fork_big.pl \
 			insert_and_repair.pl \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
