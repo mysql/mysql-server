@@ -3285,11 +3285,11 @@ for any usage.  Even if we don't have the resources to do development
 for every possible use, we are always willing to help and offer
 suggestions to people that is trying to use MySQL in new territories.
 
-One of our main goals with the product is to continue to work against
-getting to be ANSI 99 compliant, but without sacrificing speed or
-reliability.  We are not afraid to add extensions to SQL or support for
-non-SQL features if this greatly increase the usability of MySQL for a
-big part of our users.  (The new @code{HANDLER} interface in MySQL 4.0
+One of our main goals with the product is to continue to work towards
+ANSI 99 compliancy, but without sacrificing speed or reliability.
+We are not afraid to add extensions to SQL or support for non-SQL
+features if this greatly increase the usability of MySQL for a big
+part of our users.  (The new @code{HANDLER} interface in MySQL 4.0
 is an example of this strategy. @xref{HANDLER}.)
 
 We will continue to support transactional and not transactional
