@@ -1158,7 +1158,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type)
+		enum enum_var_type value_type,
+		pthread_mutex_t *mutex)
 {
   char buff[8192];
   String packet2(buff,sizeof(buff));
@@ -1171,8 +1172,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1); /* purecov: inspected */
 
-  /* pthread_mutex_lock(&THR_LOCK_keycache); */
-  pthread_mutex_lock(&LOCK_status);
+  pthread_mutex_lock(mutex);
   for (; variables->name; variables++)
   {
     if (!(wild && wild[0] && wild_case_compare(variables->name,wild)))
@@ -1413,14 +1413,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         goto err;                               /* purecov: inspected */
     }
   }
-  pthread_mutex_unlock(&LOCK_status);
-  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
+  pthread_mutex_unlock(&mutex);
   send_eof(&thd->net);
   DBUG_RETURN(0);
 
  err:
-  pthread_mutex_unlock(&LOCK_status);
-  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
+  pthread_mutex_unlock(&mutex);
   DBUG_RETURN(1);
 }
 
