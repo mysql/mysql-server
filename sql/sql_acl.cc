@@ -1642,17 +1642,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   }
   else
   {
-    /*
-      Check that the user isn't trying to change a password for another
-      user if he doesn't have UPDATE privilege to the MySQL database
-    */
-    DBUG_ASSERT(combo.host.str != 0);
-    if (thd->user && combo.password.str &&
-        (strcmp(thd->user,combo.user.str) ||
-         my_strcasecmp(system_charset_info,
-                       combo.host.str, thd->host_or_ip)) &&
-        check_access(thd, UPDATE_ACL, "mysql",0,1,0))
-      goto end;
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
