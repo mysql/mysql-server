@@ -46935,6 +46935,13 @@ Fixed reference to freed memory when doing complicated @code{GROUP BY
 @code{send_fields}.
 @item
 Allocate heap rows in smaller blocks to get better memory usage.
+@item
+Fixed memory allocation bug when storing BLOB values in internal
+temporary tables used for some (unlikely) @code{GROUP BY} queries.
+@item
+Fixed a bug in key optimizing handling where the expression
+@code{WHERE column_name = key_column_name} was calculated as true
+for @code{NULL} values.
 @end itemize
 
 @node News-3.23.53, News-3.23.52, News-3.23.54, News-3.23.x
