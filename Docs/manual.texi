@@ -38200,17 +38200,18 @@ Added variable @code{bdb_lock_max} to @code{mysqld}.
 @appendixsubsec Changes in release 3.23.27
 @itemize @bullet
 @item
-Fixed bug where the automatic repair of MyISAM tables failed sometimes
+Fixed bug where the automatic repair of MyISAM tables sometimes failed
 when the data file was corrupt.
 @item
-Fixed a bug in @code{SHOW CREATE} when using auto_increment columns.
+Fixed a bug in @code{SHOW CREATE} when using @code{AUTO_INCREMENT} columns.
 @item
-Changed BDB tables to use new compare function in Berkeley DB 3.2.3
+Changed BDB tables to use new compare function in Berkeley DB 3.2.3.
 @item
-You can now use Unix sockets with @code{mit-pthreads}
-Added the latin5 (turkish) character set
+You can now use Unix sockets with @code{mit-pthreads}.
 @item
-Small portability fixes
+Added the latin5 (turkish) character set.
+@item
+Small portability fixes.
 @end itemize
 
 @node News-3.23.26, News-3.23.25, News-3.23.27, News-3.23.x
