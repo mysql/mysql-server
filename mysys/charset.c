@@ -36,6 +36,7 @@ static int charset_initialized=0;
 #define TO_LOWER_TABLE_SIZE   256
 #define TO_UPPER_TABLE_SIZE   256
 #define SORT_ORDER_TABLE_SIZE 256
+#define TO_UNI_TABLE_SIZE     256
 
 struct simpleconfig_buf_st {
   FILE *f;
@@ -214,6 +215,21 @@ static my_bool fill_array(uchar *array, int sz, struct simpleconfig_buf_st *fb)
   return 0;
 }
 
+static my_bool fill_uint16_array(uint16 *array, int sz, struct simpleconfig_buf_st *fb)
+{
+  char buf[MAX_LINE];
+  while (sz--)
+  {
+    if (get_word(fb, buf))
+    {
+      DBUG_PRINT("error",("get_word failed, expecting %d more words", sz + 1));
+      return 1;
+    }
+    *array++ = (uint16) strtol(buf, NULL, 16);
+  }
+  return 0;
+}
+
 
 static void get_charset_conf_name(uint cs_number, char *buf)
 {
@@ -247,7 +263,8 @@ static my_bool read_charset_file(uint cs_number, CHARSET_INFO *set,
   if (fill_array(set->ctype,      CTYPE_TABLE_SIZE,      &fb) ||
       fill_array(set->to_lower,   TO_LOWER_TABLE_SIZE,   &fb) ||
       fill_array(set->to_upper,   TO_UPPER_TABLE_SIZE,   &fb) ||
-      fill_array(set->sort_order, SORT_ORDER_TABLE_SIZE, &fb))
+      fill_array(set->sort_order, SORT_ORDER_TABLE_SIZE, &fb) ||
+      fill_uint16_array(set->tab_to_uni,TO_UNI_TABLE_SIZE,&fb))
     result=TRUE;
 
   my_fclose(fb.f, MYF(0));
@@ -299,10 +316,11 @@ static CHARSET_INFO *find_charset_by_name(CHARSET_INFO **table,
 static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
 {
   CHARSET_INFO tmp_cs,*cs;
-  uchar tmp_ctype[CTYPE_TABLE_SIZE];
-  uchar tmp_to_lower[TO_LOWER_TABLE_SIZE];
-  uchar tmp_to_upper[TO_UPPER_TABLE_SIZE];
-  uchar tmp_sort_order[SORT_ORDER_TABLE_SIZE];
+  uchar  tmp_ctype[CTYPE_TABLE_SIZE];
+  uchar  tmp_to_lower[TO_LOWER_TABLE_SIZE];
+  uchar  tmp_to_upper[TO_UPPER_TABLE_SIZE];
+  uchar  tmp_sort_order[SORT_ORDER_TABLE_SIZE];
+  uint16 tmp_to_uni[TO_UNI_TABLE_SIZE];
 
   /* Don't allocate memory if we are not sure we can find the char set */
   cs= &tmp_cs;
@@ -311,6 +329,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->to_lower=tmp_to_lower;
   cs->to_upper=tmp_to_upper;
   cs->sort_order=tmp_sort_order;
+  cs->tab_to_uni=tmp_to_uni;
   if (read_charset_file(cs_number, cs, flags))
     return NULL;
 
@@ -322,6 +341,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
   cs->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
   cs->sort_order=(uchar*) my_once_alloc(SORT_ORDER_TABLE_SIZE, MYF(MY_WME));
+  cs->tab_to_uni=(uint16*)my_once_alloc(TO_UNI_TABLE_SIZE*sizeof(uint16), MYF(MY_WME));
   cs->number   = cs_number;
   memcpy((char*) cs->name,	 (char*) cs_name,	strlen(cs_name) + 1);
   memcpy((char*) cs->ctype,	 (char*) tmp_ctype,	sizeof(tmp_ctype));
@@ -329,6 +349,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   memcpy((char*) cs->to_upper, (char*) tmp_to_upper,	sizeof(tmp_to_upper));
   memcpy((char*) cs->sort_order, (char*) tmp_sort_order,
 	 sizeof(tmp_sort_order));
+  memcpy((char*) cs->tab_to_uni, (char*) tmp_to_uni, sizeof(tmp_to_uni));
 
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
@@ -336,6 +357,8 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->casedn      = my_casedn_8bit;
   cs->strcasecmp  = my_strcasecmp_8bit;
   cs->strncasecmp = my_strncasecmp_8bit;
+  cs->mb_wc       = my_mb_wc_8bit;
+  cs->wc_mb       = my_wc_mb_8bit;
   
   insert_dynamic(&cs_info_table, (gptr) &cs);
   return cs;
