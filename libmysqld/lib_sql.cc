@@ -609,9 +609,9 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
 
-    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog= strdup_root(field_alloc, "def");
     client_field->catalog_length= 3;
-    
+
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
