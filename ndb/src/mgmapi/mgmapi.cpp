@@ -1153,11 +1153,14 @@ ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, int* _args,
   CHECK_CONNECTED(handle, -1);
 
   char buf[256];
-  char buf2[6];
   buf[0] = 0;
   for (int i = 0; i < _num_args; i++){
-    snprintf(buf2, 6, "%d ",  _args[i]);
-    strncat(buf, buf2, 256);
+    unsigned n = strlen(buf);
+    if (n + 20 > sizeof(buf)) {
+      SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "arguments too long");
+      return -1;
+    }
+    sprintf(buf + n, "%s%d", i ? " " : "", _args[i]);
   }
 
   Properties args;
