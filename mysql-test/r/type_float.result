@@ -143,6 +143,15 @@ drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
+create table t1 (d1 double, d2 double unsigned);
+insert into t1 set d1 = -1.0;
+update t1 set d2 = d1;
+Warnings:
+Warning	1264	Data truncated; out of range for column 'd2' at row 1
+select * from t1;
+d1	d2
+-1	0
+drop table t1;
 create table t1 (f float(4,3));
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:
@@ -179,13 +188,6 @@ f
 9.999
 9.999
 drop table if exists t1;
-create table t1 (d1 double, d2 double unsigned);
-insert into t1 set d1 = -1.0;
-update t1 set d2 = d1;
-select * from t1;
-d1	d2
--1	0
-drop table t1;
 create table t1 (c char(20));
 insert into t1 values (5e-28);
 select * from t1;
