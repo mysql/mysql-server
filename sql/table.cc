@@ -999,10 +999,7 @@ void append_unescaped(String *res,const char *pos)
 
   for (; *pos ; )
   {
-#ifdef USE_MB
-    /*
-      Note, there is no needs to propagate this code into 4.1.
-    */
+#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
     uint mblen;
     if (use_mb(default_charset_info) &&
         (mblen= my_ismbchar(default_charset_info, pos, end)))
