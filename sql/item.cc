@@ -745,6 +745,8 @@ longlong Item_param::val_int()
 String *Item_param::val_str(String* str) 
 { 
   DBUG_ASSERT(value_is_set == 1);
+  if (null_value)
+    return NULL;
   switch (item_result_type) {
   case INT_RESULT:
     str->set(int_value, &my_charset_bin);
