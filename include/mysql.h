@@ -501,16 +501,16 @@ int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 			      unsigned long len);
 MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 
 
 /* new status messages */
-#define MYSQL_SUCCESS    0
-#define MYSQL_WARNING    1
-#define MYSQL_STATUS_ERROR 2
-#define MYSQL_NO_DATA   100
-#define MYSQL_NEED_DATA  99 
-#define MYSQL_NULL_DATA (-1)
-#define MYSQL_LONG_DATA (-2)
+#define MYSQL_SUCCESS      0
+#define MYSQL_STATUS_ERROR 1
+#define MYSQL_NO_DATA      100
+#define MYSQL_NEED_DATA    99 
+#define MYSQL_NULL_DATA    (-1)
+#define MYSQL_LONG_DATA    (-2)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

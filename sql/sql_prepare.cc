@@ -321,9 +321,12 @@ static bool setup_params_data(PREP_STMT *stmt)
     if (!param->long_data_supplied)
     {
       if (IS_PARAM_NULL(pos,param_no))
-        param->maybe_null=param->null_value=1;
+        param->maybe_null= param->null_value= 1;
       else
+      {
+        param->maybe_null= param->null_value= 0;
         param->setup_param_func(param,&read_pos);
+      }
     }
     param_no++;
   }

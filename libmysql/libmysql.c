@@ -4097,7 +4097,8 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %d", param->buffer_type,
     param->buffer ? param->buffer : "0", *param->length));
   
-  if (param->is_null || *param->length == MYSQL_NULL_DATA)
+  if (param->buffer_type == MYSQL_TYPE_NULL || 
+      *param->length == MYSQL_NULL_DATA)
     store_param_null(net, param);
   else
   {
@@ -4189,7 +4190,7 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     for (param= stmt->params; param < param_end; param++)
     {
       /* Check for long data which has not been propery given/terminated */
-      if (param->is_long_data || *param->length == MYSQL_LONG_DATA)
+      if (*param->length == MYSQL_LONG_DATA)
       {
         if (!param->long_ended)
           DBUG_RETURN(MYSQL_NEED_DATA);
@@ -4224,6 +4225,14 @@ ulong STDCALL mysql_param_count(MYSQL_STMT * stmt)
   DBUG_RETURN(stmt->param_count);
 }
 
+/*
+  Return total affected rows from the last statement
+*/
+
+my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
+{
+  return stmt->mysql->last_used_con->affected_rows;
+}
 
 /*
   Setup the parameter data buffers from application
@@ -4257,7 +4266,7 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
        param++)
   {
     param->param_number= count++;
-    if (param->is_long_data &&
+    if (param->length && *param->length == MYSQL_LONG_DATA &&
 	(param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
 	 param->buffer_type > MYSQL_TYPE_STRING))
     {
@@ -4280,7 +4289,7 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_NULL:
-      param->is_null= 1;
+      param->bind_length= MYSQL_NULL_DATA;
       break;
     case MYSQL_TYPE_TINY:
       param->bind_length= 1;
@@ -4688,7 +4697,7 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
       */      
       sprintf(stmt->last_error, 
               ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	            param->buffer_type, param->param_number);
+	      param->buffer_type, param->param_number);
       return 1;
     }
     arg_length= 0;
@@ -4788,6 +4797,11 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   DBUG_ASSERT(stmt != 0);
 
 #ifdef CHECK_EXTRA_ARGUMENTS
+  if (stmt->state == MY_ST_UNKNOWN)
+  {
+    set_stmt_error(stmt, CR_NO_PREPARE_STMT);
+    DBUG_RETURN(1);
+  }
   if (!bind)
   {
     set_stmt_error(stmt, CR_NULL_POINTER);
@@ -4914,9 +4928,9 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
   mysql->status= MYSQL_STATUS_READY;
   if (res < 0)				/* Network error */
   {
-	  set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
-	                  mysql->net.last_errno);
-	  DBUG_RETURN(MYSQL_STATUS_ERROR);
+    set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
+                    mysql->net.last_errno);
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("info", ("end of data"));    
   DBUG_RETURN(MYSQL_NO_DATA); /* no more data */
