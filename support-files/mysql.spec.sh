@@ -160,6 +160,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	./configure \
  	    $* \
 	    --enable-assembler \
+	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
