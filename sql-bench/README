@@ -1,8 +1,6 @@
 The MySQL Benchmarks
 
-These tests require a MySQL version of at least 3.20.28 or 3.21.10.  NOTE:
-With MySQL 3.20.x, you must use the --skip-in option, because MySQL 3.20
-does not support the IN() operator.
+These tests require a MySQL version of at least 3.20.28 or 3.21.10.
 
 Currently the following servers are supported:
 MySQL 3.20 and 3.21, PostgreSQL 6.#, mSQL 2.# and Solid Server 2.2
@@ -41,8 +39,6 @@ Data/ATIS		Contains data for 29 related tables used in the ATIS tests.
 Data/Wisconsin		Contains data for the Wisconsin benchmark.
 Results			Contains old benchmark results.
 Makefile.am		Automake Makefile
-Overview-paper		A paper nicked from the net about database bench-
-			marking.
 README			This file.
 test-ATIS.sh		Creation of 29 tables and a lot of selects on them.
 test-connect.sh		Test how fast a connection to the server is.
@@ -69,11 +65,9 @@ Useful options to all test-scripts (and run-all-tests):
 --db=#		Database to use (default: test)
 --fast		Allow use of any non-standard SQL extension to
 		get things done faster.
---skip-in	Don't do test with the IN() operator (if the SQL server
-		hasn't implemented this, for example mSQL and MySQL 3.20).
 --lock-tables	Use table locking to get more speed.
 
-From a text at http://www.mgt.ncu.edu.tw/CSIM/Paper/sixth/11.html
+From a text at http://www.mgt.ncu.edu.tw/CSIM/Paper/sixth/11.html:
 
 The Wisconsin Benchmark
 
