@@ -17275,6 +17275,10 @@ For string types other than @code{ENUM}, the default value is the empty string.
 For @code{ENUM}, the default is the first enumeration value.
 @end itemize
 
+Default values must be constants. This means, for example, that you cannot
+set the default for a date column to be the value of a function such as
+@code{NOW()} or @code{CURRENT_DATE}.
+
 @item
 @code{KEY} is a synonym for @code{INDEX}.
 
@@ -21493,7 +21497,7 @@ with @code{myisamchk -ed}. All links may be removed with @code{myisamchk -r}.
 @node Compressed format,  , Dynamic format, MyISAM table formats
 @subsubsection Compressed table characteristics
 
-This is a read only type that is generated with the optional
+This is a read-only type that is generated with the optional
 @code{myisampack} tool (@code{pack_isam} for @code{ISAM} tables).
 
 @itemize @bullet
@@ -28012,7 +28016,7 @@ falls back to normal read/write file usage if @code{mmap()} doesn't work.
 There are currently two limitations with @code{myisampack}:
 @itemize @bullet
 @item
-After packing, the table is read only.
+After packing, the table is read-only.
 @item
 @code{myisampack} can also pack @code{BLOB} or @code{TEXT} columns. The
 older @code{pack_isam} could not do this.
@@ -37949,34 +37953,35 @@ use @code{TYPE=} but this usage is deprecated).
 Fixed mutex bug in the binary replication log - long update queries could
 be read only in part by the slave if it did it at the wrong time, which
 was not fatal, but resulted in a performance-degrading reconnect and
-a scary message in the error log
+a scary message in the error log.
 @item
 Changed the format of the binary log - added magic number, server
-version, binlog version. Added server id and query error code for each query event
+version, binlog version. Added server id and query error code for each
+query event.
 @item
-Replication thread from the slave will now kill all the stale threads
-from the same server
+Replication thread from the slave now will kill all the stale threads
+from the same server.
 @item
-Long replication user names were not being handled properly
+Long replication user names were not being handled properly.
 @item
-Added --replicate-rewrite-db
+Added @code{--replicate-rewrite-db} option to @code{mysqld}.
 @item
-Added --skip-slave-start
+Added @code{--skip-slave-start} option to @code{mysqld}.
 @item
-Updates that generated an error code ( such as INSERT INTO foo(some_key)
-values (1),(1);) erroneously terminated the slave thread
+Updates that generated an error code ( such as @code{INSERT INTO foo(some_key)
+values (1),(1)}) erroneously terminated the slave thread.
 @item
 Added optimization of queries where @code{DISTINCT} is only used on columns
 from some of the tables.
 @item
-Allow floating point numbers where there are no sign after the exponent
+Allow floating point numbers where there is no sign after the exponent
 (like 1e1).
 @item
 @code{SHOW GRANTS} didn't always show all column grants.
 @item
 Added @code{--default-extra-file=#} to all @strong{MySQL} clients.
 @item
-Columns referenced in @code{INSERT} are are now properly initialized.
+Columns referenced in @code{INSERT} statements now are initialized properly.
 @item
 @code{UPDATE} didn't always work when used with a range on a timestamp that
 was part of the key that was used to find rows.
@@ -38092,7 +38097,7 @@ be repaired!
 Fixed small memory leak introduced from 3.23.22 when creating a
 temporary table.
 @item
-Fixed problem with BDB tables and reading on unique (not primary) key.
+Fixed problem with BDB tables and reading on a unique (not primary) key.
 @item
 Restored the win1251 character set (it's now only marked deprecated).
 @end itemize
