@@ -1556,7 +1556,13 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->key_item()->type() == Item::FIELD_ITEM)
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->key_item()))->field, 0,
+#ifndef TO_BE_REMOVED_IN_4_1
+                    /* special treatment for IN. Not necessary in 4.1 */
+                    cond_func->arguments()      + (cond_func->functype() != Item_func::IN_FUNC),
+                    cond_func->argument_count() - (cond_func->functype() != Item_func::IN_FUNC),
+#else
                     cond_func->arguments()+1, cond_func->argument_count()-1,
+#endif
                     usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
