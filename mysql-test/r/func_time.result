@@ -24,6 +24,12 @@ now()-curdate()*1000000-curtime()
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))
 0
+select strcmp(localtime(),concat(current_date()," ",current_time()));
+strcmp(localtime(),concat(current_date()," ",current_time()))
+0
+select strcmp(localtimestamp(),concat(current_date()," ",current_time()));
+strcmp(localtimestamp(),concat(current_date()," ",current_time()))
+0
 select date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w");
 date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")
 January Thursday 2nd 1997 97 01 02 03 04 05 4

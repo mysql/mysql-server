@@ -1,0 +1,20 @@
+drop table if exists t1;
+create table t1 (id integer, x integer) type=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+id	x
+0	0
+set autocommit=0;
+update t1 set x=2 where id = 0;
+update t1 set x=1 where id = 0;
+select * from t1;
+id	x
+0	1
+commit;
+commit;
+select * from t1;
+id	x
+0	2
+commit;
+drop table t1;

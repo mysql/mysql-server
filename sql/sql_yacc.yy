@@ -991,7 +991,7 @@ field_list:
 
 
 field_list_item:
-	  field_spec
+	  field_spec check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
@@ -1013,10 +1013,16 @@ field_list_item:
 				    lex->fk_match_option));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint CHECK_SYM '(' expr ')'
+	| opt_constraint check_constraint
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
-	  };
+	  }
+	;
+
+check_constraint:
+	/* empty */
+	| CHECK_SYM expr
+	;
 
 opt_constraint:
 	/* empty */
@@ -1110,6 +1116,12 @@ type:
 	    $$=FIELD_TYPE_SET;
 	  }
 	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| SERIAL_SYM
+	  {
+	    $$=FIELD_TYPE_LONGLONG;
+	    Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
+		         UNIQUE_FLAG);
+	  }
 	;
 
 char:
@@ -1184,11 +1196,12 @@ attribute:
 	| DEFAULT literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
-	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
-	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
+	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
+	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
+
 
 charset_name:
 	BINARY
@@ -1226,6 +1239,11 @@ opt_binary:
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
+
+
+opt_primary:
+	/* empty */
+	| PRIMARY_SYM
 
 references:
 	REFERENCES table_ident
@@ -2258,13 +2276,15 @@ in_sum_expr:
 
 cast_type:
 	BINARY 			{ $$=ITEM_CAST_BINARY; }
+	| CHAR_SYM		{ $$=ITEM_CAST_CHAR; }
 	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
 	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
 	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
 	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
 	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
 	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; };
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	;
 
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }
@@ -2801,7 +2821,7 @@ table_name:
 	{ if (!Select->add_table_to_list($1, NULL, 1)) YYABORT; };
 
 if_exists:
-	/* empty */ { $$=0; }
+	/* empty */ { $$= 0; }
 	| IF EXISTS { $$= 1; }
 	;
 
@@ -2882,6 +2902,7 @@ fields:
 
 insert_values:
 	VALUES	values_list  {}
+	| VALUE_SYM values_list  {}
 	| SELECT_SYM
 	  {
 	    LEX *lex=Lex;
@@ -3574,7 +3595,6 @@ keyword:
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
-	| CHECK_SYM		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
