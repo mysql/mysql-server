@@ -823,6 +823,7 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
     }
     Count-=length;
     Buffer+=length;
+    info->end_of_file+=length;
   }
 
 end:
