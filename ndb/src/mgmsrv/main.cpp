@@ -101,22 +101,7 @@ static char *opt_connect_str= 0;
 
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
-  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
-#endif
-  { "usage", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "help", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "connect-string", 1023,
-    "Set connect string for connecting to ndb_mgmd. "
-    "<constr>=\"host=<hostname:port>[;nodeid=<id>]\". "
-    "Overides specifying entries in NDB_CONNECTSTRING and config file",
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  NDB_STD_OPTS("ndb_mgm"),
   { "config-file", 'f', "Specify cluster configuration file",
     (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -135,11 +120,6 @@ static struct my_option my_long_options[] =
   { "nodaemon", 258, "Don't run as daemon, but don't read from stdin",
     (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "config-file", 'c',
-    "-c provided for backwards compatability, will be removed in 5.0."
-    " Use -f instead",
-    (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void short_usage_sub(void)
@@ -168,9 +148,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
-  case 'c':
-    printf("Warning: -c will be removed in 5.0, use -f instead\n");
-    break;
   case '?':
     usage();
     exit(0);
