@@ -6,7 +6,7 @@
 This file lists all of the available character sets.
 To make maintaining easier please:
  - keep records sorted by collation number.
- - change charset-list.max-id when adding a new collation.
+ - change charsets.max-id when adding a new collation.
 </description>
 
 <charset name="big5">
