@@ -804,8 +804,13 @@ my_bool my_gethwaddr(uchar *to);
 #endif
 
 #define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
+#ifdef HAVE_GETPAGESIZE
 #define my_getpagesize()        getpagesize()
-#define my_munmap(a,b)          munmap(a,b)
+#else
+/* qnx ? */
+#define my_getpagesize()        8192
+#endif
+#define my_munmap(a,b)          munmap((char*)(a),(b))
 
 #else
 /* not a complete set of mmap() flags, but only those that nesessary */

@@ -336,6 +336,11 @@ innobase_release_temporary_latches(
 /*===============================*/
         THD *thd)
 {
+	if (!innodb_inited) {
+		
+		return;
+	}
+
   trx_t *trx= (trx_t*) thd->ha_data[innobase_hton.slot];
   if (trx)
         innobase_release_stat_resources(trx);
@@ -1341,14 +1346,14 @@ innobase_commit_low(
                 return;
         }
 
-#ifdef HAVE_REPLICATION
+#ifdef DISABLE_HAVE_REPLICATION
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
                 trx->mysql_master_log_pos= ((ib_longlong)
-                   			    active_mi->rli.future_group_master_log_pos);
+                                            active_mi->rli.future_group_master_log_pos);
         }
 #endif /* HAVE_REPLICATION */
 
@@ -1693,7 +1698,9 @@ innobase_rollback_to_savepoint(
 	innobase_release_stat_resources(trx);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
         error = trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
@@ -1719,7 +1726,9 @@ innobase_release_savepoint(
 	trx = check_trx_exists(thd);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
 	error = trx_release_savepoint_for_mysql(trx, name);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
@@ -1758,7 +1767,9 @@ innobase_savepoint(
         DBUG_ASSERT(trx->active_trans);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
         error = trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));

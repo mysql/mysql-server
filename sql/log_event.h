@@ -1077,7 +1077,7 @@ class Rand_log_event: public Log_event
 
  ****************************************************************************/
 #ifdef MYSQL_CLIENT
-typedef ulong my_xid;
+typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
 class Xid_log_event: public Log_event

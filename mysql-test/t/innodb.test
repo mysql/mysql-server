@@ -141,6 +141,10 @@ release savepoint `my_savepoint`;
 select n from t1;
 -- error 1305
 rollback to savepoint `my_savepoint`;
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
 set autocommit=1;
 # nop
 rollback;
@@ -1278,3 +1282,7 @@ show variables like "innodb_thread_sleep_delay";
 # InnoDB specific varchar tests
 --error 1074
 create table t1 (v varchar(16384)) engine=innodb;
+
+# The following should be moved to type_bit.test when innodb will support it
+--error 1178                                                                    
+create table t1 (a bit, key(a)) engine=innodb;                                  

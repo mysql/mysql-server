@@ -272,6 +272,10 @@ n
 7
 rollback to savepoint `my_savepoint`;
 ERROR 42000: SAVEPOINT my_savepoint does not exist
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
 set autocommit=1;
 rollback;
 drop table t1;
@@ -1717,7 +1721,7 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31708
+Innodb_rows_inserted	31709
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
@@ -1798,3 +1802,5 @@ Variable_name	Value
 innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
+create table t1 (a bit, key(a)) engine=innodb;
+ERROR 42000: The storage engine for the table doesn't support BIT FIELD

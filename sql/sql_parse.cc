@@ -60,6 +60,7 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+static void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 #endif
@@ -70,6 +71,7 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static void log_slow_query(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -127,13 +129,13 @@ static bool end_active_trans(THD *thd)
 		      OPTION_TABLE_LOCK))
   {
     DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
   }
   DBUG_RETURN(error);
 }
@@ -486,6 +488,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     error=1;
     goto end;
   }
+  time_out_user_resource_limits(thd, uc);
   if (uc->user_resources.user_conn &&
       uc->user_resources.user_conn < uc->connections)
   {
@@ -604,36 +607,56 @@ bool is_update_query(enum enum_sql_command command)
 }
 
 /*
-  Check if maximum queries per hour limit has been reached
-  returns 0 if OK.
+  Reset per-hour user resource limits when it has been more than
+  an hour since they were last checked
 
-  In theory we would need a mutex in the USER_CONN structure for this to
-  be 100 % safe, but as the worst scenario is that we would miss counting
-  a couple of queries, this isn't critical.
+  SYNOPSIS:
+    time_out_user_resource_limits()
+    thd			Thread handler
+    uc			User connection details
+
+  NOTE:
+    This assumes that the LOCK_user_conn mutex has been acquired, so it is
+    safe to test and modify members of the USER_CONN structure.
 */
 
+static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
+{
+  bool error= 0;
+  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
+  DBUG_ENTER("time_out_user_resource_limits");
+
+  /* If more than a hour since last check, reset resource checking */
+  if (check_time  - uc->intime >= 3600)
+  {
+    uc->questions=1;
+    uc->updates=0;
+    uc->conn_per_hour=0;
+    uc->intime=check_time;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check if maximum queries per hour limit has been reached
+  returns 0 if OK.
+*/
 
 static bool check_mqh(THD *thd, uint check_command)
 {
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return(0);
-#else
-  bool error=0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-  /* If more than a hour since last check, reset resource checking */
-  if (check_time  - uc->intime >= 3600)
-  {
-    (void) pthread_mutex_lock(&LOCK_user_conn);
-    uc->questions=1;
-    uc->updates=0;
-    uc->conn_per_hour=0;
-    uc->intime=check_time;
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
-  }
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
+  time_out_user_resource_limits(thd, uc);
+
   /* Check that we have not done too many questions / hour */
   if (uc->user_resources.questions &&
       uc->questions++ >= uc->user_resources.questions)
@@ -656,7 +679,10 @@ static bool check_mqh(THD *thd, uint check_command)
     }
   }
 end:
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
+#else
+  return (0);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
@@ -1311,9 +1337,9 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
      even if there is a problem with the OPTION_AUTO_COMMIT flag
      (Which of course should never happen...)
     */
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -1630,6 +1656,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
       ulong length= (ulong)(packet_end-packet);
 
+      log_slow_query(thd);
+
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
       {
@@ -1640,6 +1668,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_length= length;
       thd->query= packet;
       thd->query_id= next_query_id();
+      thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
@@ -1775,8 +1804,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
-                       0, 0);
+      mysql_rm_db(thd, db, 0, 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -1969,6 +1997,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->net.report_error)
     net_send_error(thd);
 
+  log_slow_query(thd);
+
+  thd->proc_info="cleaning up";
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
+  thd->proc_info=0;
+  thd->command=COM_SLEEP;
+  thd->query=0;
+  thd->query_length=0;
+  thread_running--;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  DBUG_RETURN(error);
+}
+
+
+static void log_slow_query(THD *thd)
+{
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
 
@@ -1987,18 +2033,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
-  thd->proc_info="cleaning up";
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd->proc_info=0;
-  thd->command=COM_SLEEP;
-  thd->query=0;
-  thd->query_length=0;
-  thread_running--;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
-
-  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  DBUG_RETURN(error);
 }
 
 
@@ -3223,8 +3257,6 @@ unsent_create_error:
       /* revert changes for SP */
       lex->select_lex.table_list.first= (byte*) first_table;
     }
-    else
-      res= TRUE;
 
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
@@ -3309,7 +3341,7 @@ unsent_create_error:
       delete result;
     }
     else
-      res= TRUE;
+      res= TRUE;                                // Error
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -3535,8 +3567,7 @@ unsent_create_error:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res=mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : lex->name),
-                    lex->drop_if_exists, 0);
+    res= mysql_rm_db(thd, lex->name, lex->drop_if_exists, 0);
     break;
   }
   case SQLCOM_ALTER_DB:
@@ -3873,10 +3904,7 @@ unsent_create_error:
       *sv=(*sv)->prev;
     }
     else
-    {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
-      res= TRUE;
-    }
     break;
   }
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -3905,10 +3933,7 @@ unsent_create_error:
       *sv=(*sv)->prev;
     }
     else
-    {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
-      res= TRUE;
-    }
     break;
   }
   case SQLCOM_SAVEPOINT:
@@ -3935,7 +3960,6 @@ unsent_create_error:
                                                savepoint_alloc_size)) == 0)
       {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        res= TRUE;
         break;
       }
       newsv->name=strmake_root(&thd->transaction.mem_root,
@@ -4341,7 +4365,6 @@ unsent_create_error:
       }
       thd->transaction.xa_state=XA_ACTIVE;
       send_ok(thd);
-      res=TRUE;
       break;
     }
     if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
@@ -4367,7 +4390,6 @@ unsent_create_error:
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
-    res=TRUE;
     break;
   case SQLCOM_XA_END:
     /* fake it */
@@ -4389,7 +4411,6 @@ unsent_create_error:
     }
     thd->transaction.xa_state=XA_IDLE;
     send_ok(thd);
-    res=TRUE;
     break;
   case SQLCOM_XA_PREPARE:
     if (thd->transaction.xa_state != XA_IDLE)
@@ -4409,7 +4430,6 @@ unsent_create_error:
       thd->transaction.xa_state=XA_NOTR;
       break;
     }
-    res=TRUE;
     thd->transaction.xa_state=XA_PREPARED;
     send_ok(thd);
     break;
@@ -4428,7 +4448,6 @@ unsent_create_error:
       else
       {
         send_ok(thd);
-        res= TRUE;
       }
     }
     else
@@ -4439,7 +4458,6 @@ unsent_create_error:
       else
       {
         send_ok(thd);
-        res= TRUE;
       }
     }
     else
@@ -4469,16 +4487,13 @@ unsent_create_error:
     if (ha_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
-    {
       send_ok(thd);
-      res= TRUE;
-    }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
-    res= !mysql_xa_recover(thd);
+    res= mysql_xa_recover(thd);
     break;
   default:
     DBUG_ASSERT(0);                             /* Impossible */
@@ -6130,22 +6145,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       the slow query log, and the relay log (if it exists).
     */
 
-    /* 
+    /*
      Writing this command to the binlog may result in infinite loops when doing
      mysqlbinlog|mysql, and anyway it does not really make sense to log it
      automatically (would cause more trouble to users than it would help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);
-    mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
+    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
 #ifdef HAVE_REPLICATION
-    if (mysql_bin_log.is_open() && expire_logs_days)
-    {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-	mysql_bin_log.purge_logs_before_date(purge_time);
-    }
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -6159,7 +6168,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
-    options &= ~REFRESH_QUERY_CACHE; 	// Don't flush cache, just free memory
+    options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {
