@@ -7012,16 +7012,16 @@ You will need GNU @code{autoconf 2.52}, @code{automake 1.4},
 
 @code{automake} (1.5) doesn't yet work.
 
-If you get some strange error during this stage, check that you really
-have @code{libtool} installed!
-
 @example
-shell> cd mysql
-shell> bk -r edit
+shell> cd mysql-4.0
+shell> bk -r get -Sq
 shell> aclocal; autoheader; autoconf;  automake;
 shell> ./configure  # Add your favorite options here
 shell> make
 @end example
+
+If you get some strange error during this stage, check that you really
+have @code{libtool} installed!
 
 A collection of our standard configure scripts is located in the
 @file{BUILD/} subdirectory.  If you are lazy, you can use
