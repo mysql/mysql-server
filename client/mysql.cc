@@ -839,7 +839,9 @@ static int get_options(int argc, char **argv)
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-  if (!(charset_info= get_charset_by_csname(default_charset, 
+  
+  if (strcmp(default_charset, charset_info->csname) &&
+      !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
   if (argc > 1)
