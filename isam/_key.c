@@ -56,7 +56,8 @@ uint _nisam_make_key(register N_INFO *info, uint keynr, uchar *key, const char *
       if (!use_strnxfrm(default_charset_info))
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  my_tosort(default_charset_info,(byte*) key,length);
+	  my_strnxfrm(default_charset_info,(uchar*) key, length,
+	  				   (uchar*) key, length);
       }
       key+=length;
     }
@@ -67,7 +68,10 @@ uint _nisam_make_key(register N_INFO *info, uint keynr, uchar *key, const char *
       if (!use_strnxfrm(default_charset_info))
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  my_tosort(default_charset_info,(byte*) key,(uint) keyseg->base.length);
+	  my_strnxfrm(default_charset_info,(uchar*) key,
+	  				 (uint) keyseg->base.length,
+	  				 (uchar*) key,
+	  				 (uint) keyseg->base.length);
       }
 #ifdef NAN_TEST
       else if (type == HA_KEYTYPE_FLOAT)
@@ -148,7 +152,8 @@ uint _nisam_pack_key(register N_INFO *info, uint keynr, uchar *key, uchar *old, 
       if (!use_strnxfrm(default_charset_info))
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  my_tosort(default_charset_info,(byte*) key,length);
+	  my_strnxfrm(default_charset_info,(uchar*) key,length,
+	  				 (uchar*) key,length);
       }
       key+= length;
   }

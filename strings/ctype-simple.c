@@ -28,13 +28,22 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
-  const uchar *end;
   DBUG_ASSERT(len >= srclen);
-  
   len= min(len,srclen);
-  for ( end=src+len; src < end ;  )
-    *dest++= map[*src++];
-  return len;
+  if (dest != src)
+  {
+    const uchar *end;
+    for ( end=src+len; src < end ;  )
+      *dest++= map[*src++];
+    return len;
+  }
+  else
+  {
+    const uchar *end;
+    for ( end=dest+len; dest < end ; dest++)
+      *dest= (char) map[(uchar) *dest];
+    return len;
+  }
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
@@ -94,13 +103,6 @@ void my_caseup_8bit(CHARSET_INFO * cs, char *str, uint length)
 void my_casedn_8bit(CHARSET_INFO * cs, char *str, uint length)
 {
   register uchar *map=cs->to_lower;
-  for ( ; length>0 ; length--, str++)
-    *str= (char) map[(uchar) *str];
-}
-
-void my_tosort_8bit(CHARSET_INFO *cs, char *str, uint length)
-{
-  register uchar *map=cs->sort_order;
   for ( ; length>0 ; length--, str++)
     *str= (char) map[(uchar) *str];
 }
@@ -174,41 +176,6 @@ int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 
-
-#ifndef NEW_HASH_FUNCTION
-
-	/* Calc hashvalue for a key, case indepenently */
-
-uint my_hash_caseup_simple(CHARSET_INFO *cs, const byte *key, uint length)
-{
-  register uint nr=1, nr2=4;
-  register uchar *map=cs->to_upper;
-  
-  while (length--)
-  {
-    nr^= (((nr & 63)+nr2)*
-         ((uint) (uchar) map[(uchar)*key++])) + (nr << 8);
-    nr2+=3;
-  }
-  return((uint) nr);
-}
-
-#else
-
-uint my_hash_caseup_simple(CHARSET_INFO *cs, const byte *key, uint len)
-{
-  const byte *end=key+len;
-  uint hash;
-  for (hash = 0; key < end; key++)
-  {
-    hash *= 16777619;
-    hash ^= (uint) (uchar) my_toupper(cs,*key);
-  }
-  return (hash);
-}
-
-#endif
-				  
 void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, uint len,
 				ulong *nr1, ulong *nr2)

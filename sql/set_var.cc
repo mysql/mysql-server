@@ -1465,7 +1465,7 @@ void set_var_init()
 
   hash_init(&system_variable_hash, system_charset_info,
 	    array_elements(sys_variables),0,0,
-	    (hash_get_key) get_sys_var_length,0, HASH_CASE_INSENSITIVE);
+	    (hash_get_key) get_sys_var_length,0,0);
   sys_var **var, **end;
   for (var= sys_variables, end= sys_variables+array_elements(sys_variables) ;
        var < end;

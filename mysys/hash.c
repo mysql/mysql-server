@@ -31,9 +31,14 @@
 
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
-static uint calc_hashnr(CHARSET_INFO *cs,const byte *key,uint length);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 
+static uint calc_hash(HASH *hash,const byte *key,uint length)
+{
+  ulong nr1=1, nr2=4;
+  hash->charset->hash_sort(hash->charset,key,length,&nr1,&nr2);
+  return nr1;
+}
 
 my_bool
 _hash_init(HASH *hash,CHARSET_INFO *charset,
@@ -58,10 +63,6 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   hash->free=free_element;
   hash->flags=flags;
   hash->charset=charset;
-  if (flags & HASH_CASE_INSENSITIVE)
-    hash->calc_hashnr=charset->hash_caseup;
-  else
-    hash->calc_hashnr=calc_hashnr;
   DBUG_RETURN(0);
 }
 
@@ -111,54 +112,9 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 {
   uint length;
   byte *key= (byte*) hash_key(hash,pos->data,&length,0);
-  return hash_mask((*hash->calc_hashnr)(hash->charset,key,length),
-  		   buffmax,maxlength);
+  return hash_mask(calc_hash(hash,key,length),buffmax,maxlength);
 }
 
-#ifndef NEW_HASH_FUNCTION
-
-	/* Calc hashvalue for a key */
-
-static uint calc_hashnr(CHARSET_INFO *cs __attribute__((unused)), 
-			const byte *key,uint length)
-{
-  register uint nr=1, nr2=4;
-  while (length--)
-  {
-    nr^= (((nr & 63)+nr2)*((uint) (uchar) *key++))+ (nr << 8);
-    nr2+=3;
-  }
-  return((uint) nr);
-}
-
-#else
-
-/*
- * Fowler/Noll/Vo hash
- *
- * The basis of the hash algorithm was taken from an idea sent by email to the
- * IEEE Posix P1003.2 mailing list from Phong Vo (kpv@research.att.com) and
- * Glenn Fowler (gsf@research.att.com).  Landon Curt Noll (chongo@toad.com)
- * later improved on their algorithm.
- *
- * The magic is in the interesting relationship between the special prime
- * 16777619 (2^24 + 403) and 2^32 and 2^8.
- * This works well on both numbers and strings.
- */
-
-uint calc_hashnr(CHARSET_INFO *cs, const byte *key, uint len)
-{
-  const byte *end=key+len;
-  uint hash;
-  for (hash = 0; key < end; key++)
-  {
-    hash *= 16777619;
-    hash ^= (uint) *(uchar*) key;
-  }
-  return (hash);
-}
-
-#endif
 
 
 #ifndef __SUNPRO_C				/* SUNPRO can't handle this */
@@ -168,7 +124,7 @@ unsigned int rec_hashnr(HASH *hash,const byte *record)
 {
   uint length;
   byte *key= (byte*) hash_key(hash,record,&length,0);
-  return (*hash->calc_hashnr)(hash->charset,key,length);
+  return calc_hash(hash,key,length);
 }
 
 
@@ -184,8 +140,7 @@ gptr hash_search(HASH *hash,const byte *key,uint length)
   flag=1;
   if (hash->records)
   {
-    idx=hash_mask((*hash->calc_hashnr)(hash->charset,key,length ? length :
-					 hash->key_length),
+    idx=hash_mask(calc_hash(hash,key,length ? length : hash->key_length),
 		    hash->blength,hash->records);
     do
     {
@@ -256,9 +211,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
   uint rec_keylength;
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
   return (length && length != rec_keylength) ||
-    (hash->flags & HASH_CASE_INSENSITIVE ?
-     my_strncasecmp(hash->charset, rec_key,key,rec_keylength) :
-     memcmp(rec_key,key,rec_keylength));
+     my_strncasecmp(hash->charset, rec_key,key,rec_keylength);
 }
 
 
@@ -497,7 +450,7 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
 
   /* Search after record with key */
 
-  idx=hash_mask((*hash->calc_hashnr)(hash->charset, old_key,(old_key_length ?
+  idx=hash_mask(calc_hash(hash, old_key,(old_key_length ?
 					      old_key_length :
 					      hash->key_length)),
 		  blength,records);
