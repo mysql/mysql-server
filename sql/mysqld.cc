@@ -273,7 +273,7 @@ I_List<i_string> replicate_do_db, replicate_ignore_db;
 I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 /* if we guessed server_id , we need to know about it */
-uint32 server_id = 0;
+ulong server_id = 0;
 bool server_id_supplied = 0;
 
 uint mysql_port;
@@ -3162,7 +3162,7 @@ struct show_var_st init_vars[]= {
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
-  {"server_id",               (char*) &server_id,		    SHOW_INT},
+  {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
@@ -3966,7 +3966,7 @@ static void get_options(int argc,char **argv)
       break;
     }
     case OPT_SERVER_ID:
-      server_id = atoi(optarg);
+      server_id = atol(optarg);
       server_id_supplied = 1;
       break;
     case OPT_DELAY_KEY_WRITE:

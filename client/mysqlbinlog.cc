@@ -33,7 +33,7 @@ extern "C"
 #endif
 
 char server_version[SERVER_VERSION_LENGTH];
-uint32 server_id = 0;
+ulong server_id = 0;
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
