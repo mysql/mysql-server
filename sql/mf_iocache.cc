@@ -37,6 +37,7 @@
 #include <errno.h>
 static void my_aiowait(my_aio_result *result);
 #endif
+#include <assert.h>
 
 extern "C" {
 
@@ -233,24 +234,28 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 
 
 
-	/* Read buffered. Returns 1 if can't read requested characters */
-	/* Returns 0 if record read */
+	/*
+	  Read buffered. Returns 1 if can't read requested characters
+	  This function is only called from the my_b_read() macro
+	  when there isn't enough characters in the buffer to
+	  satisfy the request.
+	  Returns 0 we succeeded in reading all data
+	*/
 
 int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   uint length,diff_length,left_length;
   my_off_t max_length, pos_in_file;
   
-  if((left_length=(uint) (info->rc_end-info->rc_pos)))
+  if ((left_length=(uint) (info->rc_end-info->rc_pos)))
   {
-    if(Count < left_length)
-      left_length = Count;
-    memcpy(Buffer,info->rc_pos,
-	   (size_t) (left_length));
+    dbug_assert(Count >= left_length);	/* User is not using my_b_read() */
+    memcpy(Buffer,info->rc_pos, (size_t) (left_length));
     Buffer+=left_length;
     Count-=left_length;
   }
-  pos_in_file=info->pos_in_file+ left_length;
+  /* pos_in_file always point on where info->buffer was read */
+  pos_in_file=info->pos_in_file+(uint) (info->rc_end - info->buffer);
   if (info->seek_not_done)
   {					/* File touched, do seek */
     VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));

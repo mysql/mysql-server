@@ -171,7 +171,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
 #endif
     end=strmov(strend(buff),"Time                 Id Command    Argument\n");
-    if (my_b_write(&log_file,buff,(uint) (end-buff)) ||
+    if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
   }
@@ -188,7 +188,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	    tm_tmp.tm_hour,
 	    tm_tmp.tm_min,
 	    tm_tmp.tm_sec);
-    if (my_b_write(&log_file,buff,(uint) strlen(buff)) ||
+    if (my_b_write(&log_file, (byte*) buff,(uint) strlen(buff)) ||
 	flush_io_cache(&log_file))
       goto err;
   }
@@ -212,9 +212,9 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     s.write(&log_file);
     flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
-    error=(my_write(index_file, log_file_name,strlen(log_file_name),
+    error=(my_write(index_file, (byte*) log_file_name, strlen(log_file_name),
 		    MYF(MY_NABP | MY_WME)) ||
-	   my_write(index_file, "\n", 1, MYF(MY_NABP | MY_WME)));
+	   my_write(index_file, (byte*) "\n", 1, MYF(MY_NABP | MY_WME)));
     pthread_mutex_unlock(&LOCK_index);
     if (error)
     {
@@ -444,8 +444,8 @@ during log purge for write");
   {
     char* l;
     get_dynamic(&logs_to_keep, (gptr)&l, i);
-    if (my_write(index_file, l, strlen(l), MYF(MY_WME|MY_NABP)) ||
-	my_write(index_file, "\n", 1, MYF(MY_WME|MY_NABP)))
+    if (my_write(index_file, (byte*) l, strlen(l), MYF(MY_WME|MY_NABP)) ||
+	my_write(index_file, (byte*) "\n", 1, MYF(MY_WME|MY_NABP)))
     {
       error = LOG_INFO_FATAL;
       goto err;
@@ -571,21 +571,21 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		start->tm_hour,
 		start->tm_min,
 		start->tm_sec);
-	if (my_b_write(&log_file,buff,16))
+	if (my_b_write(&log_file, (byte*) buff,16))
 	  error=errno;
       }
-      else if (my_b_write(&log_file,"\t\t",2) < 0)
+      else if (my_b_write(&log_file, (byte*) "\t\t",2) < 0)
 	error=errno;
       sprintf(buff,"%7ld %-10.10s", id,command_name[(uint) command]);
-      if (my_b_write(&log_file,buff,strlen(buff)))
+      if (my_b_write(&log_file, (byte*) buff,strlen(buff)))
 	error=errno;
       if (format)
       {
-	if (my_b_write(&log_file," ",1) ||
+	if (my_b_write(&log_file, (byte*) " ",1) ||
 	    my_b_vprintf(&log_file,format,args) == (uint) -1)
 	  error=errno;
       }
-      if (my_b_write(&log_file,"\n",1) ||
+      if (my_b_write(&log_file, (byte*) "\n",1) ||
 	  flush_io_cache(&log_file))
 	error=errno;
       if (error && ! write_error)
@@ -711,7 +711,6 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	  last_time=current_time;
 	  struct tm tm_tmp;
 	  struct tm *start;
-	  char buff[32];
 	  localtime_r(&current_time,&tm_tmp);
 	  start=&tm_tmp;
 	  /* Note that my_b_write() assumes it knows the length for this */
@@ -722,7 +721,7 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 		  start->tm_hour,
 		  start->tm_min,
 		  start->tm_sec);
-	  if (my_b_write(&log_file,buff,24))
+	  if (my_b_write(&log_file, (byte*) buff,24))
 	    error=errno;
 	}
 	if (my_b_printf(&log_file, "# User@Host: %s [%s] @ %s [%s]\n",
@@ -778,8 +777,8 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	*end++=';';
 	*end++='\n';
 	*end=0;
-	if (my_b_write(&log_file,"SET ",4) ||
-	    my_b_write(&log_file,buff+1,(uint) (end-buff)-1))
+	if (my_b_write(&log_file, (byte*) "SET ",4) ||
+	    my_b_write(&log_file, (byte*) buff+1,(uint) (end-buff)-1))
 	  error=errno;
       }
       if (!query)
@@ -787,8 +786,8 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	query="#adminstrator command";
 	query_length=21;
       }
-      if (my_b_write(&log_file,(byte*) query,query_length) ||
-	  my_b_write(&log_file,";\n",2) ||
+      if (my_b_write(&log_file, (byte*) query,query_length) ||
+	  my_b_write(&log_file, (byte*) ";\n",2) ||
 	  flush_io_cache(&log_file))
 	error=errno;
       if (error && ! write_error)

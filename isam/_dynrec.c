@@ -104,7 +104,8 @@ int _nisam_delete_dynamic_record(N_INFO *info)
 
 	/* Write record to data-file */
 
-static int write_dynamic_record(N_INFO *info, const byte *record, uint reclength)
+static int write_dynamic_record(N_INFO *info, const byte *record,
+				uint reclength)
 {
   int flag;
   uint length;
@@ -142,8 +143,9 @@ static int _nisam_find_writepos(N_INFO *info,
     *filepos=info->s->state.dellink;
     block_info.second_read=0;
     info->rec_cache.seek_not_done=1;
-    if (!(_nisam_get_block_info(&block_info,info->dfile,info->s->state.dellink) &
-	   BLOCK_DELETED))
+
+    if (!(_nisam_get_block_info(&block_info,info->dfile,
+				info->s->state.dellink) & BLOCK_DELETED))
     {
       my_errno=HA_ERR_WRONG_IN_RECORD;
       DBUG_RETURN(-1);
@@ -213,7 +215,7 @@ int _nisam_write_part_record(N_INFO *info,
       extra_length++;				/* One empty */
     }
   }
-  else if (length-long_block < *reclength+5)
+  else if (length-long_block*2 < *reclength+5)
   {						/* To short block */
     if (next_filepos == NI_POS_ERROR)
       next_filepos=info->s->state.dellink != NI_POS_ERROR ?
