@@ -18,10 +18,9 @@
 # in the /etc/my.cnf or other configuration files.
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-
 export PATH
 
-mode=$1
+mode=$1    # start or stop
 
 parse_arguments() {
   for arg do
@@ -33,7 +32,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cfg file, group [mysqld]
+# Get arguments from the my.cfg file, groups [mysqld] and [mysql_server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -44,7 +43,31 @@ elif test -x @bindir@/mysql_print_defaults
 then
   print_defaults="@bindir@/mysql_print_defaults"
 else
-  print_defaults="my_print_defaults"
+  # Try to find basedir in /etc/my.cnf
+  conf=/etc/my.cnf
+  print_defaults=
+  if test -r $conf
+  then
+    subpat='^[^=]*basedir[^=]*=\(.*\)$'
+    dirs=`sed -e "/$subpat/!d" -e 's//\1/' $conf`
+    for d in $dirs
+    do
+      d=`echo $d | sed -e 's/[ 	]//g'`
+      if test -x "$d/bin/my_print_defaults"
+      then
+        print_defaults="$d/bin/my_print_defaults"
+        break
+      fi
+      if test -x "$d/bin/mysql_print_defaults"
+      then
+        print_defaults="$d/bin/mysql_print_defaults"
+        break
+      fi
+    done
+  fi
+
+  # Hope it's in the PATH ... but I doubt it
+  test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
 datadir=@localstatedir@
@@ -61,7 +84,7 @@ else
 fi
 if test -z "$pid_file"
 then
-  pid_file=$datadir/mysqld.pid
+  pid_file=$datadir/`@HOSTNAME@`.pid
 else
   case "$pid_file" in
     /* ) ;;
@@ -103,9 +126,10 @@ case "$mode" in
 
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
-	do  [ -z "$flags" ] && echo "Wait for mysqld to exit\c" || echo ".\c"
-	    flags=a$flags
-	    sleep 1
+      do
+        [ -z "$flags" ] && echo "Wait for mysqld to exit\c" || echo ".\c"
+        flags=a$flags
+        sleep 1
       done
       if [ -s $pid_file ]
          then echo " gave up waiting!"
