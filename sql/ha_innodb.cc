@@ -40,16 +40,11 @@ InnoDB */
 
 #include "ha_innodb.h"
 
-/* We must declare this here because we undef SAFE_MUTEX below */
 pthread_mutex_t innobase_mutex;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char */
 typedef byte	mysql_byte;
-
-#ifdef SAFE_MUTEX
-#undef pthread_mutex_t
-#endif
 
 #define INSIDE_HA_INNOBASE_CC
 
