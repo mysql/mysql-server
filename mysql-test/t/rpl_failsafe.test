@@ -1,5 +1,11 @@
 source include/master-slave.inc;
+connect (slave_sec,localhost,root,,test,0,slave.sock-1); 
+connect (slave_ter,localhost,root,,test,0,slave.sock-2); 
 connection master;
 show variables like 'rpl_recovery_rank';
 connection slave;
+show variables like 'rpl_recovery_rank';
+connection slave_sec;
+show variables like 'rpl_recovery_rank';
+connection slave_ter;
 show variables like 'rpl_recovery_rank';

@@ -9,3 +9,9 @@ rpl_recovery_rank	1
 show variables like 'rpl_recovery_rank';
 Variable_name	Value
 rpl_recovery_rank	2
+show variables like 'rpl_recovery_rank';
+Variable_name	Value
+rpl_recovery_rank	3
+show variables like 'rpl_recovery_rank';
+Variable_name	Value
+rpl_recovery_rank	4
