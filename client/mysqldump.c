@@ -36,7 +36,7 @@
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
-#define DUMP_VERSION "9.07"
+#define DUMP_VERSION "9.08"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -77,7 +77,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
-                tty_password=0,opt_single_transaction=0;
+	        opt_delete_master_logs=0, tty_password=0,
+		opt_single_transaction=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -129,6 +130,9 @@ static struct my_option my_long_options[] =
   {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
    (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
+   "Delete logs on master after backup. This will automagically enable --first-slave.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
    (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -318,13 +322,18 @@ static void write_footer(FILE *sql_file)
   fputs("\n", sql_file);
 } /* write_footer */
 
+
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch(optid) {
+  switch (optid) {
   case OPT_MASTER_DATA:
     opt_master_data=1;
+    opt_first_slave=1;
+    break;
+  case OPT_DELETE_MASTER_LOGS:
+    opt_delete_master_logs=1;
     opt_first_slave=1;
     break;
   case 'p':
@@ -1431,6 +1440,11 @@ int main(int argc, char **argv)
 
   if (opt_first_slave)
   {
+    if (opt_delete_master_logs && mysql_query(sock, "FLUSH MASTER"))
+    {
+      my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
+		      MYF(0), mysql_error(sock));
+    }
     if (opt_master_data)
     {
       if (mysql_query(sock, "SHOW MASTER STATUS") ||
@@ -1452,9 +1466,6 @@ int main(int argc, char **argv)
 	mysql_free_result(master);
       }
     }
-    if (mysql_query(sock, "FLUSH MASTER"))
-      my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
-		      MYF(0), mysql_error(sock));
     if (mysql_query(sock, "UNLOCK TABLES"))
       my_printf_error(0, "Error: Couldn't execute 'UNLOCK TABLES': %s",
 		      MYF(0), mysql_error(sock));
