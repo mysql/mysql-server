@@ -65,8 +65,9 @@ public:
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
 
-  virtual uint cols() { return arg_count; }
-  virtual Item* el(uint i) { return items[i]; }
-  virtual Item** addr(uint i) { return items + i; }
-  virtual bool check_cols(uint c);
+  uint cols() { return arg_count; }
+  Item* el(uint i) { return items[i]; }
+  Item** addr(uint i) { return items + i; }
+  bool check_cols(uint c);
+  bool null_inside();
 };

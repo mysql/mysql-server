@@ -72,7 +72,6 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
-  virtual bool is_null_result() { return is_null(); }
   virtual table_map used_tables() const { return (table_map) 0L; }
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
@@ -100,6 +99,8 @@ public:
   virtual Item* el(uint i) { return this; }
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
+  // It is not row => null inside is impossible
+  virtual bool null_inside() { return 0; };
 };
 
 
@@ -124,13 +125,20 @@ public:
   bool check_cols(uint col)      { return item->check_cols(col); }
   bool eq(const Item *item, bool binary_cmp) const
   { return item->eq(item, binary_cmp); }
-  bool is_null() { return item->is_null_result(); }
+  bool is_null() 
+  {
+    item->val_int();
+    return item->null_value;
+  }
   bool get_date(TIME *ltime, bool fuzzydate)
   {  
     return (null_value=item->get_date(ltime, fuzzydate));
   }
   bool send(THD *thd, String *tmp)	{ return item->send(thd, tmp); }
-  int  save_in_field(Field *field)	{ return item->save_in_field(field); }
+  int  save_in_field(Field *field, bool no_conversions)
+  {
+    return item->save_in_field(field, no_conversions);
+  }
   void save_org_in_field(Field *field)	{ item->save_org_in_field(field); }
   enum Item_result result_type () const { return item->result_type(); }
   table_map used_tables() const		{ return item->used_tables(); }  
@@ -187,7 +195,6 @@ public:
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
-  bool is_null_result() { return result_field->is_null(); }
   bool send(THD *thd, String *str_arg)
   {
     return result_field->send(thd,str_arg);
@@ -473,25 +480,25 @@ public:
   double val()
   {
     double tmp=(*ref)->val_result();
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   longlong val_int()
   {
     longlong tmp=(*ref)->val_int_result();
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   String *val_str(String* tmp)
   {
     tmp=(*ref)->str_result(tmp);
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   bool is_null()
   {
     (void) (*ref)->val_int_result();
-    return (*ref)->is_null_result();
+    return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,bool fuzzydate)
   {  

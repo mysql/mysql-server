@@ -933,7 +933,7 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     calculate value on it & determinate "is it NULL?".
   */
   it->real_value= val_item->val_result();
-  if ((it->null_value= val_item->is_null_result()))
+  if ((it->null_value= val_item->null_value))
   {
     it->reset();
   } 

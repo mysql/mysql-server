@@ -537,19 +537,19 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
 double Item_ref_null_helper::val()
 {
   double tmp= (*ref)->val_result();
-  owner->was_null|= null_value= (*ref)->is_null_result();
+  owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
 longlong Item_ref_null_helper::val_int()
 {
   longlong tmp= (*ref)->val_int_result();
-  owner->was_null|= null_value= (*ref)->is_null_result();
+  owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
 String* Item_ref_null_helper::val_str(String* s)
 {
   String* tmp= (*ref)->str_result(s);
-  owner->was_null|= null_value= (*ref)->is_null_result();
+  owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
 bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
