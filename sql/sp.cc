@@ -115,6 +115,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   uint length;
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
+  ulong sql_mode;
 
   ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
   if (ret != SP_OK)
@@ -153,6 +154,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   if (ptr[0] == 'N')
     suid= 0;
 
+  sql_mode= table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
+
   table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
   ptr= 0;
@@ -168,6 +171,11 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   {
     LEX *oldlex= thd->lex;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
+    ulong old_sql_mode= thd->variables.sql_mode;
+    ha_rows select_limit= thd->variables.select_limit;
+
+    thd->variables.sql_mode= sql_mode;
+    thd->variables.select_limit= HA_POS_ERROR;
 
     lex_start(thd, (uchar*)defstr, strlen(defstr));
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
@@ -192,6 +200,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
 			ptr, length);
     }
     thd->lex->sql_command= oldcmd;
+    thd->variables.sql_mode= old_sql_mode;
+    thd->variables.select_limit= select_limit;
   }
 
  done:
