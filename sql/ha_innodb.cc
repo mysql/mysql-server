@@ -1562,14 +1562,7 @@ normalize_table_name(
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
 #ifdef __WIN__
-	/* Put to lower case */
-
-	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 }
 
