@@ -17,7 +17,7 @@
 "Ne peut obtenir le status de '%-.64s' (Errcode: %d)",
 "Ne peut obtenir le répertoire de travail (Errcode: %d)",
 "Ne peut verrouiller le fichier (Errcode: %d)",
-"Ne peut ouvrir le fichier: '%-.64s'. (Errcode: %d)",
+"Ne peut ouvrir le fichier: '%-.64s' (Errcode: %d)",
 "Ne peut trouver le fichier: '%-.64s' (Errcode: %d)",
 "Ne peut lire le répertoire de '%-.64s' (Errcode: %d)",
 "Ne peut changer le répertoire pour '%-.64s' (Errcode: %d)",
