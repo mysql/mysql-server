@@ -245,12 +245,26 @@ int main(int argc, char** argv)
     delete mapi;
     goto error_end;
   }
-  
+
+  char connect_str[20];
+  if(!opt_connect_str) {
+    snprintf(connect_str,20,"localhost:%u",glob.mgmObject->getPort());
+    opt_connect_str= connect_str;
+  }
+  glob.mgmObject->set_connect_string(connect_str);
+
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
     goto error_end;
   }
+
+  /* 
+   * Connect back to ourselves so we can use mgmapi to fetch
+   * config info
+   */
+  DBUG_PRINT("info",("CONNECT RESULT: %d",glob.mgmObject->get_config_retriever()->do_connect(0,0,0)));
+  
 
   if (glob.daemon) {
     // Become a daemon
