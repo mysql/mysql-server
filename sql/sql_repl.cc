@@ -602,16 +602,13 @@ int stop_slave(THD* thd, bool net_report )
   if (slave_running)
   {
     abort_slave = 1;
-    thr_alarm_kill(slave_real_id);
-#ifdef SIGNAL_WITH_VIO_CLOSE
-    slave_thd->close_active_vio();
-#endif    
+    KICK_SLAVE;
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
     while(slave_running)
     {
-      /* there is a small change that slave thread might miss the first
+      /* there is a small chance that slave thread might miss the first
 	 alarm. To protect againts it, resend the signal until it reacts
       */
 	 
@@ -630,7 +627,7 @@ int stop_slave(THD* thd, bool net_report )
 #endif
       pthread_cond_timedwait(&COND_slave_stopped, &LOCK_slave, &abstime);
       if (slave_running)
-        thr_alarm_kill(slave_real_id);
+        KICK_SLAVE;
     }
   }
   else
@@ -716,7 +713,7 @@ int change_master(THD* thd)
   if((slave_was_running = slave_running))
     {
       abort_slave = 1;
-      thr_alarm_kill(slave_real_id);
+      KICK_SLAVE;
       thd->proc_info = "waiting for slave to die";
       while(slave_running)
        pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
