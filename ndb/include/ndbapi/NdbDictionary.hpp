@@ -56,7 +56,7 @@ typedef struct charset_info_st CHARSET_INFO;
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
  *
- * See @ref ndbapi_example4.cpp for details of usage.
+ * See @ref ndbapi_simple_index.cpp for details of usage.
  */
 class NdbDictionary {
 public:
