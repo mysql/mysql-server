@@ -1025,7 +1025,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Check if we have a key part that only uses part of the field */
       if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
           key_part->length != table->field[key_part->fieldnr-1]->key_length()))
-        protocol->store_tiny((longlong) key_part->length);
+        protocol->store_tiny((longlong) key_part->length / 
+                             key_part->field->charset()->mbmaxlen);
       else
         protocol->store_null();
       protocol->store_null();                   // No pack_information yet
@@ -2066,7 +2067,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
       case SHOW_KEY_CACHE_CONST_LONG:
-	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
+	value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;
       case SHOW_UNDEF:				// Show never happen
