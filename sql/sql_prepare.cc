@@ -1771,8 +1771,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
   if (error && thd->lex->sphead)
   {
-    if (lex != thd->lex)
-      thd->lex->sphead->restore_lex(thd);
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
   }
