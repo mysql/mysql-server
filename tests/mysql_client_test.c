@@ -12782,6 +12782,72 @@ static void test_bug8722()
 }
 
 
+MYSQL_STMT *open_cursor(char *query)
+{
+  int rc;
+  const ulong type= (ulong)CURSOR_TYPE_READ_ONLY;
+
+  MYSQL_STMT *stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
+  return stmt;
+}
+
+
+static void test_bug8880()
+{
+  MYSQL_STMT *stmt_list[2], **stmt;
+  MYSQL_STMT **stmt_list_end= (MYSQL_STMT**) stmt_list + 2;
+  int rc;
+
+  myheader("test_bug8880");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a int not null primary key, b int)");
+  rc= mysql_query(mysql, "insert into t1 values (1,1)");
+  myquery(rc);                                  /* one check is enough */
+  /*
+    when inserting 2 rows everything works well
+    mysql_query(mysql, "INSERT INTO t1 VALUES (1,1),(2,2)");
+  */
+  for (stmt= stmt_list; stmt < stmt_list_end; stmt++)
+    *stmt= open_cursor("select a from t1");
+  for (stmt= stmt_list; stmt < stmt_list_end; stmt++)
+  {
+    rc= mysql_stmt_execute(*stmt);
+    check_execute(*stmt, rc);
+  }
+  for (stmt= stmt_list; stmt < stmt_list_end; stmt++)
+    mysql_stmt_close(*stmt);
+}
+
+
+static void test_bug9159()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text= "select a, b from t1";
+  const unsigned long type= CURSOR_TYPE_READ_ONLY;
+
+  myheader("test_bug9159");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a int not null primary key, b int)");
+  rc= mysql_query(mysql, "insert into t1 values (1,1)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void *)&type);
+
+  mysql_stmt_execute(stmt);
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -13005,6 +13071,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
   { "test_bug8722", test_bug8722 },
+  { "test_bug8880", test_bug8880 },
+  { "test_bug9159", test_bug9159 },
   { 0, 0 }
 };
 
