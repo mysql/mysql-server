@@ -13,6 +13,12 @@ case "$1" in
       IN_RPM="1"; shift
       ;;
 esac
+windows=0
+case "$1" in
+    -WINDOWS)
+      windows="1"; shift
+      ;;
+esac
 defaults=
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
@@ -94,7 +100,7 @@ fi
 
 mdata=$ldata/mysql
 
-if test ! -x $execdir/mysqld
+if test "$windows" -eq 0 -a ! -x $execdir/mysqld
 then
   if test "$IN_RPM" -eq 1
   then
@@ -110,7 +116,7 @@ fi
 hostname=`@HOSTNAME@`		# Install this too in the user table
 
 # Check if hostname is valid
-if test "$IN_RPM" -eq 0 -a $force -eq 0
+if test "$windows" -eq 0 -a "$IN_RPM" -eq 0 -a $force -eq 0
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -134,7 +140,7 @@ then
 fi
 
 # Create database directories mysql & test
-if test "$IN_RPM" -eq 0
+if test "$IN_RPM" -eq 0 || "$windows" -eq 0
 then
   if test ! -d $ldata; then mkdir $ldata; chmod 700 $ldata ; fi
   if test ! -d $ldata/mysql; then mkdir $ldata/mysql;  chmod 700 $ldata/mysql ; fi
@@ -247,13 +253,19 @@ then
   c_u="$c_u comment='Users and global privileges';"
 
   i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
   
   REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  
+  INSERT INTO user (host,user) values ('localhost','');"
+
+  if test "$windows" -eq 0
+  then
+    i_u="$i_u INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  
   REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
   
-  INSERT INTO user (host,user) values ('localhost','');
   INSERT INTO user (host,user) values ('$hostname','');"
+  fi
 fi
 
 if test ! -f $mdata/func.frm
@@ -330,7 +342,7 @@ END_OF_DATA
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
   echo ""
-  if test "$IN_RPM" -eq 0
+  if test "$IN_RPM" -eq 0 || "$windows" -eq 0
   then
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
     echo "to the right place for your system"
@@ -351,7 +363,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$IN_RPM" -eq 0
+  if test "$IN_RPM" -eq 0 -a "$windows" -eq 0
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
