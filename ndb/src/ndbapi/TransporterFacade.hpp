@@ -209,6 +209,8 @@ private:
     }
   } m_threads;
 
+  Uint32 m_open_count;
+
   /**
    * execute function
    */
