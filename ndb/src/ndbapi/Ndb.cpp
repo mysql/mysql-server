@@ -788,7 +788,7 @@ Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase )
     {
       // We have a cache sequence
       if (val <= theFirstTupleId[aTableId]+1)
-	return true;
+	return false;
       if (val <= theLastTupleId[aTableId])
       {
 	theFirstTupleId[aTableId] = val - 1;
@@ -811,7 +811,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
   NdbOperation*      tOperation;
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
-
+  int                result;
   Uint64 ret;
 
   CHECK_STATUS_MACRO_ZERO;
@@ -865,8 +865,8 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       if (tConnection->execute( Commit ) == -1 )
         goto error_handler;
 
-      theFirstTupleId[aTableId] = ~0;
-      theLastTupleId[aTableId]  = ~0;
+      theFirstTupleId[aTableId] = ~(Uint64)0;
+      theLastTupleId[aTableId]  = ~(Uint64)0;
       ret = opValue;
       break;
     case 2:
@@ -876,15 +876,20 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       tOperation->read_attr("NEXTID", 2);
       tOperation->branch_le(2, 1, 0);
       tOperation->write_attr("NEXTID", 1);
-      tOperation->def_label(0);
       tOperation->interpret_exit_ok();
+      tOperation->def_label(0);
+      tOperation->interpret_exit_nok(9999);
       
       if (tConnection->execute( Commit ) == -1 )
         goto error_handler;
-
-      theFirstTupleId[aTableId] = ~0;
-      theLastTupleId[aTableId]  = ~0;
-      ret = opValue;
+      
+      if (result == 9999)
+        ret = ~(Uint64)0;
+      else
+      {
+        theFirstTupleId[aTableId] = theLastTupleId[aTableId] = opValue - 1;
+	ret = opValue;
+      }
       break;
     default:
       goto error_handler;
