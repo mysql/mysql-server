@@ -38,7 +38,7 @@ for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
 done
 
@@ -130,14 +130,14 @@ AC_PROG_CPP
 CC_VERSION=`$CC --version`
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C Compiler version of $CC");
-  AC_MSG_RESULT($CC_VERSION)
+  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_RESULT("$CC $CC_VERSION")
 fi
 CXX_VERSION=`$CXX --version`
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C++ compiler version of $CXX");
-  AC_MSG_RESULT($CXX_VERSION)
+  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_RESULT("$CXX $CXX_VERSION")
 fi
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
