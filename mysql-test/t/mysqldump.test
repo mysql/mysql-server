@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS t1, `"t"1`;
 
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --disable-quote --skip-all --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -16,7 +16,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a decimal(240, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --disable-quote --skip-comments test t1
 DROP TABLE t1;
 
 #
@@ -28,12 +28,12 @@ INSERT INTO t1 VALUES (-9e999999);
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --disable-quote --skip-comments test t1
 DROP TABLE t1;
 
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --disable-quote --skip-all --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -42,7 +42,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --disable-quote --skip-all --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -51,5 +51,5 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --disable-quote --skip-comments test t1
 DROP TABLE t1;
