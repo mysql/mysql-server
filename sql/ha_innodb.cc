@@ -3666,6 +3666,8 @@ ha_innobase::start_stmt(
 	prebuilt->select_lock_type = LOCK_NONE;
 
 	thd->transaction.all.innodb_active_trans = 1;
+
+	return(0);
 }
 
 /**********************************************************************
