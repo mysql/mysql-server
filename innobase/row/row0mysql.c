@@ -1585,7 +1585,7 @@ row_create_table_for_mysql(
      "InnoDB: See the Restrictions section of the InnoDB manual.\n"
      "InnoDB: You can drop the orphaned table inside InnoDB by\n"
      "InnoDB: creating an InnoDB table with the same name in another\n"
-     "InnoDB: database and moving the .frm file to the current database.\n"
+     "InnoDB: database and copying the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
      "InnoDB: You can look for further help from\n"
@@ -2243,14 +2243,17 @@ row_drop_table_for_mysql(
 	ulint		err;
 	const char*	table_name;
 	ulint		namelen;
+	char*		dir_path_of_temp_table	= NULL;
 	ibool		success;
 	ibool		locked_dictionary	= FALSE;
 	char*		quoted_name;
 	char*		sql;
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
+
 	static const char str1[] =
 	"PROCEDURE DROP_TABLE_PROC () IS\n"
 	"table_name CHAR;\n"
@@ -2509,7 +2512,21 @@ row_drop_table_for_mysql(
 
 		ut_error;
 	} else {
+		ibool		is_path;
+		const char*	name_or_path;
+
 		space_id = table->space;
+		
+		if (table->dir_path_of_temp_table != NULL) {
+			dir_path_of_temp_table =
+				mem_strdup(table->dir_path_of_temp_table);
+			is_path = TRUE;
+			name_or_path = dir_path_of_temp_table;
+		} else {
+			is_path = FALSE;
+			name_or_path = name;
+		}
+
 		dict_table_remove_from_cache(table);
 
 		if (dict_load_table(name) != NULL) {
@@ -2525,9 +2542,17 @@ row_drop_table_for_mysql(
 		wrong: we do not want to delete valuable data of the user */
 
 		if (err == DB_SUCCESS && space_id > 0) {
-			if (!fil_space_for_table_exists_in_mem(space_id, name,
+			if (!fil_space_for_table_exists_in_mem(space_id,
+								name_or_path,
+								is_path,
 								FALSE, TRUE)) {
-				err = DB_ERROR;
+				err = DB_SUCCESS;
+
+				fprintf(stderr,
+"InnoDB: We removed now the InnoDB internal data dictionary entry\n"
+"InnoDB: of table ");	
+				ut_print_name(stderr, trx, name);
+				fprintf(stderr, ".\n");
 
 				goto funct_exit;
 			}
@@ -2535,6 +2560,12 @@ row_drop_table_for_mysql(
 			success = fil_delete_tablespace(space_id);
 
 			if (!success) {
+				fprintf(stderr,
+"InnoDB: We removed now the InnoDB internal data dictionary entry\n"
+"InnoDB: of table ");	
+				ut_print_name(stderr, trx, name);
+				fprintf(stderr, ".\n");
+
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 "  InnoDB: Error: not able to delete tablespace %lu of table ",
@@ -2549,6 +2580,10 @@ funct_exit:
 
 	if (locked_dictionary) {
 		row_mysql_unlock_data_dictionary(trx);	
+	}
+
+	if (dir_path_of_temp_table) {
+		mem_free(dir_path_of_temp_table);
 	}
 
 	que_graph_free(graph);
@@ -2970,7 +3005,7 @@ row_rename_table_for_mysql(
      "InnoDB: dropped automatically when the queries end.\n"
      "InnoDB: You can drop the orphaned table inside InnoDB by\n"
      "InnoDB: creating an InnoDB table with the same name in another\n"
-     "InnoDB: database and moving the .frm file to the current database.\n"
+     "InnoDB: database and copying the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n", stderr);
 		}

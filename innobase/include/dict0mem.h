@@ -305,6 +305,12 @@ struct dict_table_struct{
 	ulint		type;	/* DICT_TABLE_ORDINARY, ... */
 	mem_heap_t*	heap;	/* memory heap */
 	const char*	name;	/* table name */
+	const char*	dir_path_of_temp_table;/* NULL or the directory path
+				where a TEMPORARY table that was explicitly
+				created by a user should be placed if
+				innodb_file_per_table is defined in my.cnf;
+				in Unix this is usually /tmp/..., in Windows
+				\temp\... */
 	ulint		space;	/* space where the clustered index of the
 				table is placed */
 	ibool		ibd_file_missing;/* TRUE if this is in a single-table

@@ -4056,6 +4056,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     thd->proc_info="freeing items";
     thd->end_statement();
+    DBUG_ASSERT(thd->change_list.is_empty());
   }
   DBUG_VOID_RETURN;
 }

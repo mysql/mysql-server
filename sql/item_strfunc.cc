@@ -635,20 +635,20 @@ null:
   return 0;
 }
 
-void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
+void Item_func_concat_ws::split_sum_func(THD *thd, Item **ref_pointer_array,
 					 List<Item> &fields)
 {
   if (separator->with_sum_func && separator->type() != SUM_FUNC_ITEM)
-    separator->split_sum_func(ref_pointer_array, fields);
+    separator->split_sum_func(thd, ref_pointer_array, fields);
   else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, separator->name);
     fields.push_front(separator);
     ref_pointer_array[el]= separator;
-    separator= new Item_ref(ref_pointer_array + el,
-			    &separator, 0, separator->name);
+    thd->change_item_tree(&separator, new_item);
   }
-  Item_str_func::split_sum_func(ref_pointer_array, fields);
+  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
 void Item_func_concat_ws::fix_length_and_dec()
@@ -1771,19 +1771,20 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
-void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
+void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
   if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
+    item->split_sum_func(thd, ref_pointer_array, fields);
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, &item, 0, item->name);
+    thd->change_item_tree(&item, new_item);
   }
-  Item_str_func::split_sum_func(ref_pointer_array, fields);
+  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
 

@@ -292,7 +292,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(ref_pointer_array, all_fields);
+      having->split_sum_func(thd, ref_pointer_array, all_fields);
   }
 
   // Is it subselect
@@ -4171,8 +4171,9 @@ template class List_iterator<Item_func_match>;
 */
 
 static void
-change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
-			 Item *cond, Item *field, Item *value)
+change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
+                         Item *and_father, Item *cond,
+                         Item *field, Item *value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -4181,7 +4182,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     while ((item=li++))
-      change_cond_ref_to_const(save_list,and_level ? cond : item, item,
+      change_cond_ref_to_const(thd, save_list,and_level ? cond : item, item,
 			       field, value);
     return;
   }
@@ -4189,8 +4190,9 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     return;					// Not a boolean function
 
   Item_bool_func2 *func=  (Item_bool_func2*) cond;
-  Item *left_item=  func->arguments()[0];
-  Item *right_item= func->arguments()[1];
+  Item **args= func->arguments();
+  Item *left_item=  args[0];
+  Item *right_item= args[1];
   Item_func::Functype functype=  func->functype();
 
   if (right_item->eq(field,0) && left_item != value &&
@@ -4201,7 +4203,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      func->arguments()[1] = tmp;
+      thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !left_item->const_item())
@@ -4222,13 +4224,14 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      func->arguments()[0] = value = tmp;
+      thd->change_item_tree(args, tmp);
+      value= tmp;
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !right_item->const_item())
       {
-	func->arguments()[0] = func->arguments()[1]; // For easy check
-	func->arguments()[1] = value;
+        args[0]= args[1];                       // For easy check
+        thd->change_item_tree(args + 1, value);
 	cond->marker=1;
 	COND_CMP *tmp2;
 	if ((tmp2=new COND_CMP(and_father,func)))
@@ -4274,8 +4277,8 @@ static Item *remove_additional_cond(Item* conds)
 }
 
 static void
-propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
-			 COND *cond)
+propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
+                         COND *and_father, COND *cond)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -4286,18 +4289,19 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
     I_List<COND_CMP> save;
     while ((item=li++))
     {
-      propagate_cond_constants(&save,and_level ? cond : item, item);
+      propagate_cond_constants(thd, &save,and_level ? cond : item, item);
     }
     if (and_level)
     {						// Handle other found items
       I_List_iterator<COND_CMP> cond_itr(save);
       COND_CMP *cond_cmp;
       while ((cond_cmp=cond_itr++))
-	if (!cond_cmp->cmp_func->arguments()[0]->const_item())
-	  change_cond_ref_to_const(&save,cond_cmp->and_level,
-				   cond_cmp->and_level,
-				   cond_cmp->cmp_func->arguments()[0],
-				   cond_cmp->cmp_func->arguments()[1]);
+      {
+        Item **args= cond_cmp->cmp_func->arguments();
+        if (!args[0]->const_item())
+          change_cond_ref_to_const(thd, &save,cond_cmp->and_level,
+                                   cond_cmp->and_level, args[0], args[1]);
+      }
     }
   }
   else if (and_father != cond && !cond->marker)		// In a AND group
@@ -4307,29 +4311,25 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 	 ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC))
     {
       Item_func_eq *func=(Item_func_eq*) cond;
-      bool left_const= func->arguments()[0]->const_item();
-      bool right_const=func->arguments()[1]->const_item();
+      Item **args= func->arguments();
+      bool left_const= args[0]->const_item();
+      bool right_const= args[1]->const_item();
       if (!(left_const && right_const) &&
-	  (func->arguments()[0]->result_type() ==
-	   (func->arguments()[1]->result_type())))
+          args[0]->result_type() == args[1]->result_type())
       {
 	if (right_const)
 	{
-	  func->arguments()[1]=resolve_const_item(func->arguments()[1],
-						  func->arguments()[0]);
+          resolve_const_item(thd, &args[1], args[0]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_father,and_father,
-				   func->arguments()[0],
-				   func->arguments()[1]);
+          change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                   args[0], args[1]);
 	}
 	else if (left_const)
 	{
-	  func->arguments()[0]=resolve_const_item(func->arguments()[0],
-						  func->arguments()[1]);
+          resolve_const_item(thd, &args[0], args[1]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_father,and_father,
-				   func->arguments()[1],
-				   func->arguments()[0]);
+          change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                   args[1], args[0]);
 	}
       }
     }
@@ -4346,7 +4346,7 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
   {
     DBUG_EXECUTE("where", print_where(conds, "original"););
     /* change field = field to field = const for each found field = const */
-    propagate_cond_constants((I_List<COND_CMP> *) 0, conds, conds);
+    propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
     /*
       Remove all instances of item == item
       Remove all and-levels where CONST item != CONST item
@@ -4940,7 +4940,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       ((Item_sum*) item)->result_field=0;
       for (i=0 ; i < ((Item_sum*) item)->arg_count ; i++)
       {
-	Item *arg= ((Item_sum*) item)->args[i];
+	Item **argp= ((Item_sum*) item)->args + i;
+	Item *arg= *argp;
 	if (!arg->const_item())
 	{
 	  Field *new_field=
@@ -4956,7 +4957,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+          thd->change_item_tree(argp, new Item_field(new_field));
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -4964,7 +4965,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            ((Item_sum*) item)->args[i]->maybe_null=1;
+            (*argp)->maybe_null=1;
           }
 	}
       }

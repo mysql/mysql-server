@@ -205,6 +205,8 @@ dict_build_table_def_step(
 	dict_table_t*	cluster_table;
 	dtuple_t*	row;
 	ulint		error;
+	const char*	path_or_name;
+	ibool		is_path;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -245,8 +247,19 @@ dict_build_table_def_step(
 	
 		table->space = 0;	/* reset to zero for the call below */
 
+		if (table->dir_path_of_temp_table) {
+			/* We place tables created with CREATE TEMPORARY
+			TABLE in the tmp dir of mysqld server */
+
+			path_or_name = table->dir_path_of_temp_table;
+			is_path = TRUE;
+		} else {
+			path_or_name = table->name;
+			is_path = FALSE;
+		}
+
 		error = fil_create_new_single_table_tablespace(
-					&(table->space), table->name,
+					&(table->space), path_or_name, is_path,
 					FIL_IBD_FILE_INITIAL_SIZE);
 		if (error != DB_SUCCESS) {
 

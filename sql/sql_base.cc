@@ -2384,7 +2384,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
-      item->split_sum_func(ref_pointer_array, *sum_func_list);
+      item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|=item->used_tables();
   }
   DBUG_RETURN(test(thd->net.report_error));
