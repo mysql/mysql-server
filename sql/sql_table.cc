@@ -1734,6 +1734,12 @@ end:
 }
 
 
+/*
+  RETURN VALUES
+    0   Message sent to net (admin operation went ok)
+   -1   Message should be sent by caller 
+        (admin operation or network communication failed)
+*/
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
 			     const char *operator_name,
