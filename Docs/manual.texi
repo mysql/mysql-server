@@ -3001,7 +3001,7 @@ Note that older versions of @strong{MySQL} are still using a more strict
 license. See the documentation for that version for more information.
 If you need a commercial @strong{MySQL} license, because the GPL license
 doesn't suit your application, you can buy one at
-https://order.mysql.com/license.htmy.
+@uref{https://order.mysql.com/license.htmy}.
 
 For normal internal use, @strong{MySQL} costs nothing.  You do not have
 to pay us if you do not want to.
@@ -3067,7 +3067,7 @@ contact us. @xref{Contact information}.
 
 If you require a @strong{MySQL} license, the easiest way to pay for it
 is to use the license form on @strong{MySQL}'s secure server at
-https://order.mysql.com/license.htmy. Other forms of payment are
+@uref{https://order.mysql.com/license.htmy}. Other forms of payment are
 discussed in @ref{Payment information}.
 
 @cindex copyrights
