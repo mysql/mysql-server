@@ -234,9 +234,24 @@ struct sql_ex_info
 /* these are codes, not offsets; not more than 256 values (1 byte). */
 #define Q_FLAGS2_CODE           0
 #define Q_SQL_MODE_CODE         1
+#ifndef TO_BE_DELETED
+/*
+  Q_CATALOG_CODE is catalog with end zero stored; it is used only by MySQL
+  5.0.x where 0<=x<=3.
+*/
 #define Q_CATALOG_CODE          2
+#endif
 #define Q_AUTO_INCREMENT	3
 #define Q_CHARSET_CODE          4
+#define Q_TIME_ZONE_CODE        5
+/*
+  Q_CATALOG_NZ_CODE is catalog withOUT end zero stored; it is used by MySQL
+  5.0.x where x>=4. Saves one byte in every Query_log_event in binlog,
+  compared to Q_CATALOG_CODE. The reason we didn't simply re-use
+  Q_CATALOG_CODE is that then a 5.0.3 slave of this 5.0.x (x>=4) master would
+  crash (segfault etc) because it would expect a 0 when there is none.
+*/
+#define Q_CATALOG_NZ_CODE       6
 
 /* Intvar event post-header */
 
@@ -448,6 +463,7 @@ typedef struct st_last_event_info
   ulong auto_increment_increment, auto_increment_offset;
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
+  char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   st_last_event_info()
     :flags2_inited(0), sql_mode_inited(0),
      auto_increment_increment(1),auto_increment_offset(1), charset_inited(0)
@@ -459,6 +475,7 @@ typedef struct st_last_event_info
       */
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
+      bzero(time_zone_str, sizeof(time_zone_str));
     }
 } LAST_EVENT_INFO;
 #endif
@@ -583,6 +600,7 @@ public:
     my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
 
+#ifndef MYSQL_CLIENT
   bool write_header(IO_CACHE* file, ulong data_length);
   virtual bool write(IO_CACHE* file)
   {
@@ -590,13 +608,14 @@ public:
             write_data_header(file) ||
             write_data_body(file));
   }
-  virtual bool is_artificial_event() { return 0; }
   virtual bool write_data_header(IO_CACHE* file)
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
+#endif
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
+  virtual bool is_artificial_event() { return 0; }
   inline bool get_cache_stmt() { return cache_stmt; }
   Log_event(const char* buf, const Format_description_log_event* description_event);
   virtual ~Log_event() { free_temp_buf();}
@@ -672,7 +691,7 @@ public:
     concerned) from here.
   */
 
-  int catalog_len;			// <= 255 char; -1 means uninited
+  uint catalog_len;			// <= 255 char; 0 means uninited
 
   /*
     We want to be able to store a variable number of N-bit status vars:
@@ -714,6 +733,8 @@ public:
   ulong sql_mode;
   ulong auto_increment_increment, auto_increment_offset;
   char charset[6];
+  uint time_zone_len; /* 0 means uninited */
+  const char *time_zone_str;
 
 #ifndef MYSQL_CLIENT
 
@@ -737,12 +758,13 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-    {
       my_free((gptr) data_buf, MYF(0));
-    }
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+#endif
   bool is_valid() const { return query != 0; }
 
   /*
@@ -751,7 +773,6 @@ public:
   */
   virtual ulong get_post_header_size_for_derived() { return 0; }
   /* Writes derived event-specific part of post header. */
-  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
 };
 
 #ifdef HAVE_REPLICATION
@@ -790,7 +811,9 @@ public:
   int get_data_size();
   bool is_valid() const { return master_host != 0; }
   Log_event_type get_type_code() { return SLAVE_EVENT; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
 };
 
 #endif /* HAVE_REPLICATION */
@@ -885,8 +908,10 @@ public:
   {
     return sql_ex.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
   }
+#ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
   bool write_data_body(IO_CACHE* file);
+#endif
   bool is_valid() const { return table_name != 0; }
   int get_data_size()
   {
@@ -962,7 +987,9 @@ public:
                      const Format_description_log_event* description_event);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const { return 1; }
   int get_data_size()
   {
@@ -1004,7 +1031,9 @@ public:
                                const Format_description_log_event* description_event);
   ~Format_description_log_event() { my_free((gptr)post_header_len, MYF(0)); }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const
   {
     return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
@@ -1054,7 +1083,9 @@ public:
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
   int get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const { return 1; }
 };
 
@@ -1092,7 +1123,9 @@ class Rand_log_event: public Log_event
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
   int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const { return 1; }
 };
 
@@ -1127,7 +1160,9 @@ class Xid_log_event: public Log_event
   ~Xid_log_event() {}
   Log_event_type get_type_code() { return XID_EVENT;}
   int get_data_size() { return sizeof(xid); }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const { return 1; }
 };
 
@@ -1169,7 +1204,9 @@ public:
   User_var_log_event(const char* buf, const Format_description_log_event* description_event);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   bool is_valid() const { return 1; }
 };
 
@@ -1239,7 +1276,9 @@ public:
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   bool is_valid() const { return new_log_ident != 0; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
 };
 
 
@@ -1299,6 +1338,7 @@ public:
 	    4 + 1 + block_len);
   }
   bool is_valid() const { return inited_from_old || block != 0; }
+#ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
   bool write_data_body(IO_CACHE* file);
   /*
@@ -1306,6 +1346,7 @@ public:
     write it as Load event - used on the slave
   */
   bool write_base(IO_CACHE* file);
+#endif
 };
 
 
@@ -1340,7 +1381,7 @@ public:
 #ifdef HAVE_REPLICATION
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(Protocol* protocol);
-  virtual int get_open_mode() const;
+  virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
@@ -1352,7 +1393,9 @@ public:
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   int get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
   bool is_valid() const { return block != 0; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   const char* get_db() { return db; }
 };
 
@@ -1386,7 +1429,9 @@ public:
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
   int get_data_size() { return DELETE_FILE_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   const char* get_db() { return db; }
 };
 
@@ -1419,7 +1464,9 @@ public:
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
   int get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
+#ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+#endif
   const char* get_db() { return db; }
 };
 
@@ -1442,7 +1489,7 @@ public:
                              bool using_trans);
 #ifdef HAVE_REPLICATION
   Begin_load_query_log_event(THD* thd);
-  int get_open_mode() const;
+  int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,
@@ -1507,7 +1554,9 @@ public:
   bool is_valid() const { return Query_log_event::is_valid() && file_id != 0; }
 
   ulong get_post_header_size_for_derived();
+#ifndef MYSQL_CLIENT
   bool write_post_header_for_derived(IO_CACHE* file);
+#endif
  };
 
 

@@ -295,7 +295,14 @@ typedef struct st_relay_log_info
   } until_log_names_cmp_result;
 
   char cached_charset[6];
-  ulong trans_retries;
+  /*
+    trans_retries varies between 0 to slave_transaction_retries and counts how
+    many times the slave has retried the present transaction; gets reset to 0
+    when the transaction finally succeeds. retried_trans is a cumulative
+    counter: how many times the slave has retried a transaction (any) since
+    slave started.
+  */
+  ulong trans_retries, retried_trans;
 
   st_relay_log_info();
   ~st_relay_log_info();
@@ -537,6 +544,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
 void set_slave_thread_options(THD* thd);
+void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli);
 void rotate_relay_log(MASTER_INFO* mi);
 
 extern "C" pthread_handler_decl(handle_slave_io,arg);

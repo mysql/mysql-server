@@ -414,3 +414,12 @@ CREATE TABLE t1 (Field1 int(10) unsigned default '0');
 INSERT INTO t1 VALUES ('-1');
 DROP TABLE t1;
 SET NAMES latin1;
+
+#
+# Conversion from an UCS2 string to a decimal column
+#
+CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
+INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
+update t1 set b=a;
+SELECT * FROM t1;
+DROP TABLE t1;

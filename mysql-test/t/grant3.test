@@ -1,0 +1,33 @@
+# Test of GRANT commands
+
+SET NAMES binary;
+connect (master,localhost,root,,);
+connection master;
+
+# Cleanup
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+create user mysqltest_1@localhost;
+grant create user on *.* to mysqltest_1@localhost;
+grant select on `my\_1`.* to mysqltest_1@localhost with grant option;
+connect (user_a,localhost,mysqltest_1,,);
+connection user_a;
+--error 1410
+grant select on `my\_1`.* to mysqltest_2@localhost;
+create user mysqltest_2@localhost;
+disconnect user_a;
+connection default;
+
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;

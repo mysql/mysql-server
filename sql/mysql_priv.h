@@ -44,6 +44,13 @@ typedef ulonglong table_map;          /* Used for table bits in join */
 typedef Bitmap<64> key_map;           /* Used for finding keys */
 typedef ulong key_part_map;           /* Used for finding key parts */
 
+/* query_id */
+typedef ulonglong query_id_t;
+extern query_id_t query_id;
+
+/* increment query_id and return it.  */
+inline query_id_t next_query_id() { return query_id++; }
+
 /* useful constants */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
@@ -256,6 +263,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_SCHEMA_TABLE             (1L << 29)
 /* Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (1L << 30)
+
+/* 
+  Maximum length of time zone name that we support 
+  (Time zone name is char(64) in db). mysqlbinlog needs it.
+*/
+#define MAX_TIME_ZONE_NAME_LENGTH 72
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -1141,6 +1154,7 @@ extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_blackhole_db;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -1298,14 +1312,6 @@ SQL_CRYPT *get_crypt_for_frm(void);
 #endif
 
 #include "sql_view.h"
-
-/* query_id */
-
-typedef ulonglong query_id_t;
-extern query_id_t query_id;
-
-/* increment query_id and return it.  */
-inline query_id_t next_query_id() { return query_id++; }
 
 /* Some inline functions for more speed */
 

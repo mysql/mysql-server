@@ -118,8 +118,8 @@ t2
 t3
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	MyISAM	9	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-t3	MyISAM	9	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t3	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
 v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 show full columns from t3 like "a%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -432,7 +432,6 @@ information_schema.tables) union select version from
 information_schema.tables;
 s1
 0
-9
 10
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
@@ -442,7 +441,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8 MAX_ROWS=1818
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
@@ -451,7 +450,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8 MAX_ROWS=1818
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1";
@@ -652,6 +651,8 @@ drop table t1, t2;
 CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
+count(*)
+100
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from

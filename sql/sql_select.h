@@ -351,7 +351,7 @@ class Cursor: public Sql_alloc, public Item_arena
   MYSQL_LOCK *lock;
   TABLE *derived_tables;
   /* List of items created during execution */
-  ulong query_id;
+  query_id_t query_id;
 public:
   select_send result;
 
@@ -370,7 +370,7 @@ public:
   void close();
 
   void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
-  Cursor() :join(0), unit(0) {}
+  Cursor() :Item_arena(TRUE), join(0), unit(0) {}
   ~Cursor();
 };
 
@@ -402,10 +402,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-				   Item *item, TABLE *table,
-				   bool modify_item,
-				   uint convert_blob_length);
-
+                                   const char *name, TABLE *table,
+                                   Item_field *item, uint convert_blob_length);
+                                                                      
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);

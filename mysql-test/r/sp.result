@@ -2185,6 +2185,7 @@ Create	Databases,Tables,Indexes	To create new databases and tables
 Create routine	Functions,Procedures	To use CREATE FUNCTION/PROCEDURE
 Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
 Create view	Tables	To create new views
+Create user	Server Admin	To create new users
 Delete	Tables	To delete existing rows
 Drop	Databases,Tables	To drop databases, tables, and views
 Execute	Functions,Procedures	To execute stored routines
@@ -2238,6 +2239,7 @@ Create	Databases,Tables,Indexes	To create new databases and tables
 Create routine	Functions,Procedures	To use CREATE FUNCTION/PROCEDURE
 Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
 Create view	Tables	To create new views
+Create user	Server Admin	To create new users
 Delete	Tables	To delete existing rows
 Drop	Databases,Tables	To drop databases, tables, and views
 Execute	Functions,Procedures	To execute stored routines
@@ -2777,23 +2779,4 @@ a
 3.2000
 drop procedure bug8937|
 delete from t1|
-drop procedure if exists bug6600|
-drop table if exists t3|
-drop view if exists v1|
-create table t3 (s1 decimal(31,30))|
-create view v1 as select * from t3|
-create procedure bug6600()
-check table v1|
-call bug6600()|
-Table	Op	Msg_type	Msg_text
-test.v1	check	status	OK
-call bug6600()|
-Table	Op	Msg_type	Msg_text
-test.v1	check	status	OK
-call bug6600()|
-Table	Op	Msg_type	Msg_text
-test.v1	check	status	OK
-drop procedure bug6600|
-drop view v1|
-drop table t3|
 drop table t1,t2;
