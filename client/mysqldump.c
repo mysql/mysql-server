@@ -1271,10 +1271,13 @@ static int init_dumping(char *database)
   {
     if (opt_databases || opt_alldbs)
     {
+      /* length of table name * 2 (if name contain quotas), 2 quotas and 0 */
+      char quoted_database_buf[64*2+3];
+      char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
       fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
       if (!opt_create_db)
 	fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
-		database);
+		qdatabase);
       fprintf(md_result_file,"\nUSE %s;\n", database);
     }
   }
