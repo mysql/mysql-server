@@ -325,9 +325,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     file->extra(HA_EXTRA_CACHE);	/* Quicker reads */
   }
 
-  if (quick_select)
-    error=select->quick->init();
-
   if (!error)
   for (;;)
   {

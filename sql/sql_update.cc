@@ -20,6 +20,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 
+#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1));
+
 /* Return 0 if row hasn't changed */
 
 static bool compare_record(TABLE *table)
@@ -76,15 +78,11 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       table->timestamp_field->query_id == thd->query_id)
     table->time_stamp=0;
 
-  /* Reset the query_id string so that ->used_keys is based on the WHERE */
-
+  /* Change query_id so that ->used_keys is based on the WHERE */
   table->used_keys=table->keys_in_use;
   table->quick_keys=0;
-  reg2 Item *item;
-  List_iterator<Item> it(fields);  
-  ulong query_id=thd->query_id-1;
-  while ((item=it++))
-    ((Item_field*) item)->field->query_id=query_id;
+  ulong query_id=thd->query_id;
+  thd->query_id^= MAX_ULONG_BIT;
   if (setup_fields(thd,table_list,values,0,0) ||
       setup_conds(thd,table_list,&conds))
   {
@@ -92,6 +90,13 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
   old_used_keys=table->used_keys;
+  /* Restore query_id for compare_record */
+  thd->query_id=query_id;
+  List_iterator<Item> it(fields);  
+  Item *item;
+  while ((item=it++))
+    ((Item_field*) item)->field->query_id=query_id;
+
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
