@@ -214,7 +214,6 @@ Optional MySQL server binary that supports additional features like:
  - CSV Storage Engine
  - Example Storage Engine
  - Federated Storage Engine
- - MyISAM RAID
  - User Defined Functions (UDFs).
 
 To activate this binary, just install this package in addition to
@@ -328,7 +327,6 @@ BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
-		--with-raid \
 		--with-archive \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
@@ -694,9 +692,14 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Mar 18 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Disabled RAID in the Max binaries once and for all (it has finally been
+  removed from the source tree)
+
 * Sun Feb 20 2005 Petr Chardin <petr@mysql.com>
 
-- Install MySQL Instance Manager together with mysqld, toch mysqlmanager
+- Install MySQL Instance Manager together with mysqld, touch mysqlmanager
   password file
 
 * Mon Feb 14 2005 Lenz Grimmer <lenz@mysql.com>
