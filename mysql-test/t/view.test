@@ -1106,3 +1106,13 @@ select * from v3;
 show create view v3;
 drop view v3, v2, v1;
 drop table t2, t1;
+
+#
+# VIEW based on functions with  complex names
+#
+create function `f``1` () returns int return 5;
+create view v1 as select test.`f``1` ();
+show create view v1;
+select * from v1;
+drop view v1;
+drop function `f``1`;
