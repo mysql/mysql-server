@@ -121,7 +121,7 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
   int cnt, id1, id2;
   char buf[256];
   if((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", buf, buf, &id1, &id2)) == 4){
-    snprintf(buf, sizeof(buf), "NDB$BLOB_%d_%d", m_new_tables[id1]->getTableId(), id2);
+    BaseString::snprintf(buf, sizeof(buf), "NDB$BLOB_%d_%d", m_new_tables[id1]->getTableId(), id2);
     m_cache.m_new_table = m_ndb->getDictionary()->getTable(buf);
   } else {
     m_cache.m_new_table = m_new_tables[tab->getTableId()];

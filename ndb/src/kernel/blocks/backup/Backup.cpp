@@ -1307,7 +1307,7 @@ Backup::sendCreateTrig(Signal* signal,
   
   for (int i=0; i < 3; i++) {
     req->setTriggerEvent(triggerEventValues[i]);
-    snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
+    BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
 	     ptr.p->backupId, tabPtr.p->tableId);
     w.reset();
     w.add(CreateTrigReq::TriggerNameKey, triggerName);
@@ -1945,7 +1945,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
       sendSignal(DBDICT_REF, GSN_DROP_TRIG_REQ, 
 		 signal, DropTrigReq::SignalLength, JBB);
     } else {
-      snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
+      BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
 	       ptr.p->backupId, tabPtr.p->tableId);
       w.reset();
       w.add(CreateTrigReq::TriggerNameKey, triggerName);

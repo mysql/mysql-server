@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <BaseString.hpp>
 
 #include "DebuggerNames.hpp"
 
@@ -131,7 +132,7 @@ getBlockName(unsigned short blockNo, const char * ret){
     return localBlockNames[blockNo-MIN_BLOCK_NO];
   if (ret == 0) {
     static char buf[20];
-    snprintf(buf, sizeof(buf), "BLOCK#%d", (int)blockNo);
+    BaseString::snprintf(buf, sizeof(buf), "BLOCK#%d", (int)blockNo);
     return buf;
   }
   return ret;

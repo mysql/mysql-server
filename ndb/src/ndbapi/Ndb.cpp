@@ -1158,10 +1158,10 @@ const char * Ndb::getCatalogName() const
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
   if (a_catalog_name) {
-    snprintf(theDataBase, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
              a_catalog_name ? a_catalog_name : "");
     
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
     prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
@@ -1177,10 +1177,10 @@ const char * Ndb::getSchemaName() const
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
              a_schema_name ? a_schema_name : "");
 
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
     prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 

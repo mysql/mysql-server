@@ -358,7 +358,7 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
   for(int i = 0; i<sz; i++){
     if(!db.get(tmp[i].attrib, tmp[i].storage)){
       char buf[255];
-      snprintf(buf, sizeof(buf), "%s not found", tmp[i].attrib);
+      BaseString::snprintf(buf, sizeof(buf), "%s not found", tmp[i].attrib);
       ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
     }
   }
@@ -406,7 +406,7 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
       for(unsigned j = 0; j<nodeNo; j++){
 	if(cd.nodeData[j].nodeId == nodeId){
 	  char buf[255];
-	  snprintf(buf, sizeof(buf), "Two node can not have the same node id");
+	  BaseString::snprintf(buf, sizeof(buf), "Two node can not have the same node id");
 	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
 	}
       }
@@ -429,12 +429,12 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
 	
 	if(nodeId > MAX_NDB_NODES){
 	  char buf[255];
-	  snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", MAX_NDB_NODES);
+	  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", MAX_NDB_NODES);
 	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
 	}
 	if(cd.SizeAltData.noOfNDBNodes > MAX_NDB_NODES){
 	  char buf[255];
-	  snprintf(buf, sizeof(buf),
+	  BaseString::snprintf(buf, sizeof(buf),
 		   "Maximum %d ndb nodes is allowed in the cluster", 
 		  MAX_NDB_NODES);
 	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);

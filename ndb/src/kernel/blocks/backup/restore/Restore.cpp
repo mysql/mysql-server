@@ -515,7 +515,7 @@ BackupFile::setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path){
   m_expectedFileHeader.FileType = BackupFormat::CTL_FILE;
 
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d.%d.ctl", backupId, nodeId);  
+  BaseString::snprintf(name, sz, "BACKUP-%d.%d.ctl", backupId, nodeId);  
   setName(path, name);
 }
 
@@ -526,7 +526,7 @@ BackupFile::setDataFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::DATA_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d-%d.%d.Data", 
+  BaseString::snprintf(name, sz, "BACKUP-%d-%d.%d.Data", 
 	   m_expectedFileHeader.BackupId, no, m_nodeId);
   setName(bf.m_path, name);
 }
@@ -538,7 +538,7 @@ BackupFile::setLogFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::LOG_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d.%d.log", 
+  BaseString::snprintf(name, sz, "BACKUP-%d.%d.log", 
 	   m_expectedFileHeader.BackupId, m_nodeId);
   setName(bf.m_path, name);
 }
@@ -548,15 +548,15 @@ BackupFile::setName(const char * p, const char * n){
   const Uint32 sz = sizeof(m_path);
   if(p != 0 && strlen(p) > 0){
     if(p[strlen(p)-1] == '/'){
-      snprintf(m_path, sz, "%s", p);
+      BaseString::snprintf(m_path, sz, "%s", p);
     } else {
-      snprintf(m_path, sz, "%s%s", p, "/");
+      BaseString::snprintf(m_path, sz, "%s%s", p, "/");
     }
   } else {
     m_path[0] = 0;
   }
 
-  snprintf(m_fileName, sizeof(m_fileName), "%s%s", m_path, n);
+  BaseString::snprintf(m_fileName, sizeof(m_fileName), "%s%s", m_path, n);
   debug << "Filename = " << m_fileName << endl;
 }
 

@@ -1438,7 +1438,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 	continue;
       }
       char buf[255];
-      snprintf(buf, sizeof(buf), 
+      BaseString::snprintf(buf, sizeof(buf), 
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of storage nodes (node %d)", i);
@@ -3500,7 +3500,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
     Uint32 count = node_groups[nodePtr.i];
     if(count != 0 && count != cnoReplicas){
       char buf[255];
-      snprintf(buf, sizeof(buf), 
+      BaseString::snprintf(buf, sizeof(buf), 
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of replicas (%d != %d)", 
@@ -8634,7 +8634,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     /*   POSSIBLE TO RESTORE THE SYSTEM.                                     */
     /* --------------------------------------------------------------------- */
     char buf[100];
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Unable to find restorable replica for "
 	     "table: %d fragment: %d gci: %d",
 	     tableId, fragId, SYSFILE->newestRestorableGCI);
@@ -12942,7 +12942,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
-	  snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
+	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
 	  strcat(buf, tmp);
 	}
 	infoEvent(buf);
@@ -13158,12 +13158,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	replicaPtr.i = fragPtr.p->storedReplicas;
 	do {
 	  ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-	  snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
+	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
 		   buf, num, 
 		   replicaPtr.p->procNode, 
 		   replicaPtr.p->lcpIdStarted,
 		   replicaPtr.p->lcpOngoingFlag ? "Ongoing" : "Idle");
-	  snprintf(buf, sizeof(buf), "%s", buf2);
+	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
 	  
 	  num++;
 	  replicaPtr.i = replicaPtr.p->nextReplica;
