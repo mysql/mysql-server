@@ -2310,3 +2310,19 @@ String *Item_func_str_to_date::val_str(String *str)
     return str;
   return 0;
 }
+
+
+String *Item_func_last_day::val_str(String *str)
+{
+  TIME ltime;
+  if (!get_arg0_date(&ltime,0))
+  {
+    uint month_idx= ltime.month-1;
+    ltime.day= days_in_month[month_idx];
+    if ( month_idx == 1 && calc_days_in_year(ltime.year) == 366)
+      ltime.day+= 1;
+    if (!make_datetime(DATE_ONLY, &ltime, str))
+      return str;      
+  }
+  return 0;
+}
