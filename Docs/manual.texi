@@ -137,8 +137,10 @@ distribution for that version.
 MySQL is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
 
-MySQL is free software.  It is licensed with the @strong{GNU
-GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
+You can use MySQL free of charge under the
+@strong{GNU GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
+You can also purchase commercial MySQL licenses from MySQL AB if you
+do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
 
 @uref{http://www.mysql.com/, The MySQL website}
@@ -256,6 +258,8 @@ manual, please send them to the manual team at @email{docs@@mysql.com}.
 This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
 contributors, see @ref{Credits}.
+
+The copyright is owned by @code{MySQL AB}. @xref{What is MySQL AB}.
 
 @menu
 * Manual conventions::          Conventions Used in This Manual
@@ -2730,7 +2734,9 @@ something similar.
 @end menu
 
 This section introduces you to the MySQL mailing lists, and gives
-some guidelines as to how to use them.
+some guidelines as to how to use them. By subscribing to a mailing
+list, you will receive as emails all other postings on the list,
+and you will be able to send in your own questions and answers.
 
 
 @node Mailing-list, Asking questions, Questions, Questions
@@ -3254,6 +3260,48 @@ Many users don't read mail with a browser!
 @cindex extensions, to ANSI SQL
 @cindex ANSI SQL92, extensions to
 
+This section describes how MySQL relates to the ANSI SQL standards.
+MySQL has many extensions to the ANSI SQL standards, and here you
+will find out what they are, and how to use them.  You will also find 
+information about functionality missing from MySQL, and how to work 
+around some differences.
+
+Our goal is to not, without a very good reason, restrict MySQL usability
+for any usage.  Even if we don't have the resources to do development
+for every possible use, we are always willing to help and offer
+suggestions to people that is trying to use MySQL in new territories.
+
+One of our main goals with the product is to continue to work against
+getting to be ANSI 99 compliant, but without sacrificing speed or
+reliability.  We are not afraid to add extensions to SQL or support for
+non-SQL features if this greatly increase the usability of MySQL for a
+big part of our users.  (The new @code{HANDLER} interface in MySQL 4.0
+is an example of this strategy. @xref{HANDLER}.)
+
+We will continue to support transactional and not transactional
+databases to satisfy both heavy web/logging usage and mission critical
+24/7 usage.
+
+MySQL was from the start designed to work with medium large databases
+(10-100 million rows / about 100 MB per table) on small computer
+systems.  We will continue to extend MySQL to both work even better
+with terrabyte size data but we are also doing work to make it possible
+to compile a reduced MySQL version that is more suitable for hand held
+devices and embedded usage.  The compact design of MySQL makes both of
+these directions possible without any conflicts in the source tree.
+
+We are currently not targeting real time support or clustered databases
+(even if you can already do a lot of things with our replication
+services).
+
+We don't believe that one should have native XML support in the
+database, but will instead add the XML support our users request from
+us on the client side.  We think its better to keep the main server
+code as 'lean and clean' possible and instead develop libraries to
+solve the complexity on the client side.  This is part of the above
+mentioned strategy of not sacrificing speed or reliability in the
+server.
+
 @menu
 * Extensions to ANSI::          MySQL extensions to ANSI SQL92
 * Differences from ANSI::       MySQL differences compared to ANSI SQL92
@@ -3263,12 +3311,6 @@ Many users don't read mail with a browser!
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 * Bugs::                        Known errors and design deficiencies in MySQL
 @end menu
-
-This section describes how MySQL relates to the ANSI SQL standards.
-MySQL has many extensions to the ANSI SQL standards, and here you
-will find out what they are, and how to use them.  You will also find 
-information about functionality missing from MySQL, and how to work 
-around some differences.  
 
 
 @node Extensions to ANSI, Differences from ANSI, Compatibility, Compatibility
@@ -4384,7 +4426,7 @@ the error value 'empty string', with numeric value 0.
 
 @item
 If you set an @code{SET} column to an unsupported value, the value will
-be ignored. @xref{Bugs}.
+be ignored.
 
 @end itemize
 
