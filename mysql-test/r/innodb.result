@@ -1225,12 +1225,6 @@ insert into t1 (a) select b from t2;
 select count(*) from t1;
 count(*)
 29267
-explain select a from t1 where a between 1 and 10000;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	range	PRIMARY	PRIMARY	4	NULL	14745	Using where; Using index
-explain select * from t1 where a between 1 and 10000;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	range	PRIMARY	PRIMARY	4	NULL	14745	Using where
 explain select * from t1 where c between 1 and 10000;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	c	c	5	NULL	1	Using where
