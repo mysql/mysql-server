@@ -1570,3 +1570,61 @@ select * from t1;
 s1
 drop view v2, v1;
 drop table t1;
+create table t1 (a int, b char(10));
+create view v1 as select * from t1 where a != 0 with check option;
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+select * from v1;
+a	b
+1	row 1
+2	row 2
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 3
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1264	Out of range value adjusted for column 'a' at row 4
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+select * from v1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+drop view v1;
+drop table t1;
+create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1261	Row 2 doesn't contain data for all columns
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop view v1;
+drop table t1;
