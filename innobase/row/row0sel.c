@@ -2341,6 +2341,65 @@ row_sel_push_cache_row_for_mysql(
 	prebuilt->n_fetch_cached++;
 }
 	
+/*************************************************************************
+Tries to do a shortcut to fetch a clustered index record with a unique key,
+using the hash index if possible (not always). We assume that the search
+mode is PAGE_CUR_GE, it is a consistent read, trx has already a read view,
+btr search latch has been locked in S-mode. */
+static
+ulint
+row_sel_try_search_shortcut_for_mysql(
+/*==================================*/
+				/* out: SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
+	rec_t**		out_rec,/* out: record if found */
+	row_prebuilt_t*	prebuilt,/* in: prebuilt struct */
+	mtr_t*		mtr)	/* in: started mtr */
+{
+	dict_index_t*	index		= prebuilt->index;
+	dtuple_t*	search_tuple	= prebuilt->search_tuple;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
+	trx_t*		trx		= prebuilt->trx;
+	rec_t*		rec;
+	
+	ut_ad(index->type & DICT_CLUSTERED);
+
+	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
+					BTR_SEARCH_LEAF, pcur,
+					RW_S_LATCH, mtr);
+	rec = btr_pcur_get_rec(pcur);
+	
+	if (!page_rec_is_user_rec(rec)) {
+
+		return(SEL_RETRY);
+	}
+
+	/* As the cursor is now placed on a user record after a search with
+	the mode PAGE_CUR_GE, the up_match field in the cursor tells how many
+	fields in the user record matched to the search tuple */ 
+
+	if (btr_pcur_get_up_match(pcur) < dtuple_get_n_fields(search_tuple)) {
+
+		return(SEL_EXHAUSTED);
+	}
+
+	/* This is a non-locking consistent read: if necessary, fetch
+	a previous version of the record */
+			
+	if (!lock_clust_rec_cons_read_sees(rec, index, trx->read_view)) {
+
+		return(SEL_RETRY);
+	}
+
+	if (rec_get_deleted_flag(rec)) {
+
+		return(SEL_EXHAUSTED);
+	}
+
+	*out_rec = rec;
+	
+	return(SEL_FOUND);
+}
+
 /************************************************************************
 Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
@@ -2387,6 +2446,7 @@ row_search_for_mysql(
 	ibool		cons_read_requires_clust_rec;
 	ibool		was_lock_wait;
 	ulint		ret;
+	ulint		shortcut;
 	ibool		unique_search_from_clust_index	= FALSE;
 	ibool		mtr_has_extra_clust_latch 	= FALSE;
 	ibool		moves_up 			= FALSE;
@@ -2452,6 +2512,8 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
+	mtr_start(&mtr);
+
 	if (match_mode == ROW_SEL_EXACT && index->type & DICT_UNIQUE
 		&& index->type & DICT_CLUSTERED
 		&& dtuple_get_n_fields(search_tuple)
@@ -2464,6 +2526,8 @@ row_search_for_mysql(
 			restore cursor position, and must return
  			immediately */
 
+ 			mtr_commit(&mtr);
+
 			return(DB_RECORD_NOT_FOUND);
 		}
 
@@ -2472,8 +2536,51 @@ row_search_for_mysql(
 		mode = PAGE_CUR_GE;
 
 		unique_search_from_clust_index = TRUE;
+
+		if (trx->mysql_n_tables_locked == 0
+					&& !prebuilt->sql_stat_start) {
+
+			/* This is a SELECT query done as a consistent read,
+			and the read view has already been allocated:
+			let us try a search shortcut through the hash
+			index */
+			
+			if (!trx->has_search_latch) {
+				rw_lock_s_lock(&btr_search_latch);
+				trx->has_search_latch = TRUE;
+
+			} else if (btr_search_latch.writer_is_wait_ex) {
+			        /* There is an x-latch request waiting:
+				release the s-latch for a moment to reduce
+				starvation */
+
+			        rw_lock_s_unlock(&btr_search_latch);
+			        rw_lock_s_lock(&btr_search_latch);
+			}
+
+			shortcut = row_sel_try_search_shortcut_for_mysql(&rec,
+							prebuilt, &mtr);
+			if (shortcut == SEL_FOUND) {
+				row_sel_store_mysql_rec(buf, prebuilt, rec);
+	
+ 				mtr_commit(&mtr);
+
+				return(DB_SUCCESS);
+			
+			} else if (shortcut == SEL_EXHAUSTED) {
+
+ 				mtr_commit(&mtr);
+
+				return(DB_RECORD_NOT_FOUND);
+			}
+		}
 	}
 	
+	if (trx->has_search_latch) {
+		rw_lock_s_unlock(&btr_search_latch);
+		trx->has_search_latch = FALSE;
+	}			
+
 	/* Note that if the search mode was GE or G, then the cursor
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
@@ -2485,8 +2592,6 @@ row_search_for_mysql(
 	} else if (direction == ROW_SEL_NEXT) {
 		moves_up = TRUE;
 	}
-		
-	mtr_start(&mtr);
 
 	thr = que_fork_get_first_thr(prebuilt->sel_graph);
 
@@ -2711,7 +2816,9 @@ rec_loop:
 	if (prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD
 			&& !prebuilt->templ_contains_blob
 			&& prebuilt->select_lock_type == LOCK_NONE
-			&& !prebuilt->clust_index_was_generated) {
+			&& !prebuilt->clust_index_was_generated
+	                && prebuilt->template_type
+	                                 != ROW_MYSQL_DUMMY_TEMPLATE) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
@@ -2726,7 +2833,13 @@ rec_loop:
 
 		goto next_rec;
 	} else {
-		row_sel_store_mysql_rec(buf, prebuilt, rec);
+		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+			ut_memcpy(buf + 4, rec - rec_get_extra_size(rec),
+						rec_get_size(rec));
+			mach_write_to_4(buf, rec_get_extra_size(rec) + 4);
+		} else {
+			row_sel_store_mysql_rec(buf, prebuilt, rec);
+		}
 
 		if (prebuilt->clust_index_was_generated) {
 			row_sel_store_row_id_to_prebuilt(prebuilt, index_rec,

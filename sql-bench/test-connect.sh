@@ -266,7 +266,7 @@ for ($i=0 ; $i < $opt_loop_count ; $i++)
 }
 
 $end_time=new Benchmark;
-print "Time to select_big ($opt_loop_count): " .
+print "Time to select_big_str ($opt_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'})

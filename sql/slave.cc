@@ -314,28 +314,31 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
 {
   uint packet_len = my_net_read(net); // read create table statement
+  Vio* save_vio;
+  HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
-  int error = 0;
+  int error= 1;
+  handler *file;
   
-  if(packet_len == packet_error)
-    {
-      send_error(&thd->net, ER_MASTER_NET_READ);
-      return 1;
-    }
-  if(net->read_pos[0] == 255) // error from master
-    {
-      net->read_pos[packet_len] = 0;
-      net_printf(&thd->net, ER_MASTER, net->read_pos + 3);
-      return 1;
-    }
+  if (packet_len == packet_error)
+  {
+    send_error(&thd->net, ER_MASTER_NET_READ);
+    return 1;
+  }
+  if (net->read_pos[0] == 255) // error from master
+  {
+    net->read_pos[packet_len] = 0;
+    net_printf(&thd->net, ER_MASTER, net->read_pos + 3);
+    return 1;
+  }
   thd->command = COM_TABLE_DUMP;
   thd->query = sql_alloc(packet_len + 1);
-  if(!thd->query)
-    {
-      sql_print_error("create_table_from_dump: out of memory");
-      net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
-      return 1;
-    }
+  if (!thd->query)
+  {
+    sql_print_error("create_table_from_dump: out of memory");
+    net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
+    return 1;
+  }
   memcpy(thd->query, net->read_pos, packet_len);
   thd->query[packet_len] = 0;
   thd->current_tablenr = 0;
@@ -346,13 +349,10 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   char* save_db = thd->db;
   thd->db = thd->last_nx_db;
   mysql_parse(thd, thd->query, packet_len); // run create table
-  thd->db = save_db; // leave things the way the were before
+  thd->db = save_db;		// leave things the way the were before
   
-  if(thd->query_error)
-  {
-    close_thread_tables(thd); // mysql_parse takes care of the error send
-    return 1;
-  }
+  if (thd->query_error)
+    goto err;			// mysql_parse took care of the error send
 
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
@@ -361,41 +361,37 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Opening master dump table";
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
-    // open tables will send the error
+    send_error(&thd->net,0,0);			// Send error from open_ltable
     sql_print_error("create_table_from_dump: could not open created table");
-    close_thread_tables(thd);
-    return 1;
+    goto err;
   }
   
-  handler *file = tables.table->file;
+  file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
   if (file->net_read_dump(net))
   {
     net_printf(&thd->net, ER_MASTER_NET_READ);
     sql_print_error("create_table_from_dump::failed in\
  handler::net_read_dump()");
-    close_thread_tables(thd);
-    return 1;
+    goto err;
   }
 
-  HA_CHECK_OPT check_opt;
   check_opt.init();
   check_opt.flags|= T_VERY_SILENT;
   check_opt.quick = 1;
   thd->proc_info = "Rebuilding the index on master dump table";
-  Vio* save_vio = thd->net.vio;
   // we do not want repair() to spam us with messages
   // just send them to the error log, and report the failure in case of
   // problems
+  save_vio = thd->net.vio;
   thd->net.vio = 0;
-  if (file->repair(thd,&check_opt ))
-  {
-      net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name );
-      error = 1;
-  }
+  error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
+  if (error)
+    net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name);
+
+err:
   close_thread_tables(thd);
-  
   thd->net.no_send_ok = 0;
   return error; 
 }
@@ -405,31 +401,31 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   MYSQL* mysql = mc_mysql_init(NULL);
   int error = 1;
   int nx_errno = 0;
-  if(!mysql)
-    {
-      sql_print_error("fetch_nx_table: Error in mysql_init()");
-      nx_errno = ER_GET_ERRNO;
-      goto err;
-    }
+  if (!mysql)
+  {
+    sql_print_error("fetch_nx_table: Error in mysql_init()");
+    nx_errno = ER_GET_ERRNO;
+    goto err;
+  }
 
   safe_connect(thd, mysql, mi);
-  if(slave_killed(thd))
+  if (slave_killed(thd))
     goto err;
 
-  if(request_table_dump(mysql, thd->last_nx_db, thd->last_nx_table))
-    {
-      nx_errno = ER_GET_ERRNO;
-      sql_print_error("fetch_nx_table: failed on table dump request ");
-      goto err;
-    }
+  if (request_table_dump(mysql, thd->last_nx_db, thd->last_nx_table))
+  {
+    nx_errno = ER_GET_ERRNO;
+    sql_print_error("fetch_nx_table: failed on table dump request ");
+    goto err;
+  }
 
-  if(create_table_from_dump(thd, &mysql->net, thd->last_nx_db,
-			    thd->last_nx_table))
-    {
-      // create_table_from_dump will have sent the error alread
-      sql_print_error("fetch_nx_table: failed on create table ");
-      goto err;
-    }
+  if (create_table_from_dump(thd, &mysql->net, thd->last_nx_db,
+			     thd->last_nx_table))
+  {
+    // create_table_from_dump will have sent the error alread
+    sql_print_error("fetch_nx_table: failed on create table ");
+    goto err;
+  }
   
   error = 0;
 
@@ -438,6 +434,7 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
     mc_mysql_close(mysql);
   if (nx_errno && thd->net.vio)
     send_error(&thd->net, nx_errno, "Error in fetch_nx_table");
+  thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
   return error;
 }
 
@@ -909,36 +906,37 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	
 	// sanity check to make sure the master did not get a really bad
 	// error on the query
-	if(!check_expected_error(thd, (expected_error = qev->error_code)))
+	if (!check_expected_error(thd, (expected_error = qev->error_code)))
+	{
+	  mysql_parse(thd, thd->query, q_len);
+	  if (expected_error !=
+	      (actual_error = thd->net.last_errno) && expected_error)
 	  {
-	    mysql_parse(thd, thd->query, q_len);
-	    if (expected_error !=
-		(actual_error = thd->net.last_errno) && expected_error)
-	      {
-		const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s', got '%s'"; 
-		sql_print_error(errmsg, ER(expected_error),
-				actual_error ? thd->net.last_error:"no error"
-				);
-		thd->query_error = 1;
-	      }
-	    else if (expected_error == actual_error)
-	      {
-		thd->query_error = 0;
-		*last_slave_error = 0;
-		last_slave_errno = 0;
-	      }
+	    const char* errmsg = "Slave: did not get the expected error\
+ running query from master - expected: '%s'(%d), got '%s'(%d)"; 
+	    sql_print_error(errmsg, ER_SAFE(expected_error),
+			    expected_error,
+			    actual_error ? thd->net.last_error:"no error",
+			    actual_error);
+	    thd->query_error = 1;
 	  }
-	else // master could be inconsistent, abort and tell DBA to
-	  //    check/fix it
+	  else if (expected_error == actual_error)
 	  {
-	    thd->db = thd->query = 0;
-	    thd->convert_set = 0;
-	    close_thread_tables(thd);
-            free_root(&thd->mem_root,0);
-	    delete ev;
-	    return 1;
+	    thd->query_error = 0;
+	    *last_slave_error = 0;
+	    last_slave_errno = 0;
 	  }
+	}
+	else
+	{
+	  // master could be inconsistent, abort and tell DBA to check/fix it
+	  thd->db = thd->query = 0;
+	  thd->convert_set = 0;
+	  close_thread_tables(thd);
+	  free_root(&thd->mem_root,0);
+	  delete ev;
+	  return 1;
+	}
       }
       thd->db = 0;				// prevent db from being freed
       thd->query = 0;				// just to be sure

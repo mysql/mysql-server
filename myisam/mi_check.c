@@ -110,9 +110,14 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 			   "Table is marked as crashed");
   if (share->state.open_count != (uint) (info->s->global_changed ? 1 : 0))
   {
+    /* Don't count this as a real warning, as check can correct this ! */
+    uint save=param->warning_printed;
     mi_check_print_warning(param,
 			   "%d clients is using or hasn't closed the table properly",
 			   share->state.open_count);
+    /* If this will be fixed by the check, forget the warning */
+    if (param->testflag & T_UPDATE_STATE)
+      param->warning_printed=save;
   }
   return 0;
 }

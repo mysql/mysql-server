@@ -144,7 +144,7 @@ test.t1	optimize	error	The handler for the table doesn't support check/repair
 a
 2
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	The handler for the table doesn't support check/repair
+test.t1	check	status	OK
 a	b
 2	testing
 Table	Op	Msg_type	Msg_text
