@@ -290,9 +290,9 @@ if test ! -f $mdata/proc.frm
 then
   c_p="$c_p CREATE TABLE proc ("
   c_p="$c_p   db                char(64) binary DEFAULT '' NOT NULL,"
-  c_p="$c_p   name              char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   name              char(64) DEFAULT '' NOT NULL,"
   c_p="$c_p   type              enum('FUNCTION','PROCEDURE') NOT NULL,"
-  c_p="$c_p   specific_name     char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   specific_name     char(64) DEFAULT '' NOT NULL,"
   c_p="$c_p   language          enum('SQL') DEFAULT 'SQL' NOT NULL,"
   c_p="$c_p   sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,"
   c_p="$c_p   is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,"

@@ -794,6 +794,7 @@ int acl_getroot_no_password(THD *thd)
 {
   ulong user_access= NO_ACCESS;
   int res= 1;
+  uint i;
   ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot_no_password");
 
@@ -810,13 +811,16 @@ int acl_getroot_no_password(THD *thd)
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
+  thd->master_access= 0;
+  thd->db_access= 0;
+
   /*
      Find acl entry in user database.
      This is specially tailored to suit the check we do for CALL of
      a stored procedure; thd->user is set to what is actually a
      priv_user, which can be ''.
   */
-  for (uint i=0 ; i < acl_users.elements ; i++)
+  for (i=0 ; i < acl_users.elements ; i++)
   {
     acl_user= dynamic_element(&acl_users,i,ACL_USER*);
     if ((!acl_user->user && (!thd->user || !thd->user[0])) ||
@@ -832,6 +836,22 @@ int acl_getroot_no_password(THD *thd)
 
   if (acl_user)
   {
+    for (i=0 ; i < acl_dbs.elements ; i++)
+    {
+      ACL_DB *acl_db= dynamic_element(&acl_dbs, i, ACL_DB*);
+      if (!acl_db->user ||
+	  (thd->user && thd->user[0] && !strcmp(thd->user, acl_db->user)))
+      {
+	if (compare_hostname(&acl_db->host, thd->host, thd->ip))
+	{
+	  if (!acl_db->db || (thd->db && !strcmp(acl_db->db, thd->db)))
+	  {
+	    thd->db_access= acl_db->access;
+	    break;
+	  }
+	}
+      }
+    }
     thd->master_access= acl_user->access;
     thd->priv_user= acl_user->user ? thd->user : (char *) "";
 

@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sp.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #ifdef __WIN__
@@ -386,6 +387,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
 exit:
+  (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
   start_waiting_global_read_lock(thd);
   /*
     If this database was the client's selected database, we silently change the

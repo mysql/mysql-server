@@ -92,6 +92,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   chooser_compare_func_creator boolfunc2creator;
   struct sp_cond_type *spcondtype;
   struct { int vars, conds, hndlrs, curs; } spblock;
+  sp_name *spname;
   struct st_lex *lex;
 }
 
@@ -568,17 +569,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SECOND_SYM
 %token	SECOND_MICROSECOND_SYM
 %token	SHARE_SYM
-%token  SP_FUNC
 %token	SUBDATE_SYM
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
-%token	UDA_CHAR_SUM
-%token	UDA_FLOAT_SUM
-%token	UDA_INT_SUM
-%token	UDF_CHAR_FUNC
-%token	UDF_FLOAT_FUNC
-%token	UDF_INT_FUNC
 %token	UNIQUE_USERS
 %token	UNIX_TIMESTAMP
 %token	USER
@@ -640,7 +634,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        SP_FUNC ident_or_spfunc sp_opt_label
+        sp_opt_label
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -683,7 +677,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	simple_ident_nospvar simple_ident_q
 
 %type <item_list>
-	expr_list sp_expr_list udf_expr_list udf_expr_list2 when_list
+	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg
 
 %type <key_type>
@@ -700,10 +694,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <table_list>
 	join_table_list  join_table
-
-%type <udf>
-	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
-	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -782,6 +772,7 @@ END_OF_INPUT
 %type <spcondtype> sp_cond sp_hcond
 %type <spblock> sp_decls sp_decl
 %type <lex> sp_cursor_stmt
+%type <spname> sp_name
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -1030,15 +1021,15 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type FUNCTION_SYM ident_or_spfunc
+	| CREATE udf_func_type FUNCTION_SYM sp_name
 	  {
 	    LEX *lex=Lex;
-	    lex->udf.name = $4;
+	    lex->spname= $4;
 	    lex->udf.type= $2;
 	  }
 	  create_function_tail
 	  {}
-	| CREATE PROCEDURE ident
+	| CREATE PROCEDURE sp_name
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp;
@@ -1089,7 +1080,7 @@ create:
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sphead->init_strings(YYTHD, lex, &$3);
+	    lex->sphead->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
@@ -1098,9 +1089,16 @@ create:
 	  } 
 	;
 
-ident_or_spfunc:
-	  IDENT_sys { $$= $1; }
-	| SP_FUNC { $$= $1; }
+sp_name:
+	  IDENT_sys '.' IDENT_sys
+	  {
+	    $$= new sp_name($1, $3);
+	    $$->init_qname(YYTHD);
+	  }
+	| IDENT_sys
+	  {
+	    $$= sp_name_current_db_new(YYTHD, $1);
+	  }
 	;
 
 create_function_tail:
@@ -1108,6 +1106,7 @@ create_function_tail:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.name = lex->spname->m_name;
 	    lex->udf.returns=(Item_result) $2;
 	    lex->udf.dl=$4.str;
 	  }
@@ -1169,7 +1168,7 @@ create_function_tail:
 	    sp_head *sp= lex->sphead;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex, &lex->udf.name);
+	    sp->init_strings(YYTHD, lex, lex->spname);
 	    /* Restore flag if it was cleared above */
 	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
@@ -1219,12 +1218,12 @@ sp_suid:
 	;
 
 call:
-	  CALL_SYM ident_or_spfunc
+	  CALL_SYM sp_name
 	  {
 	    LEX *lex = Lex;
 
 	    lex->sql_command= SQLCOM_CALL;
-	    lex->udf.name= $2;
+	    lex->spname= $2;
 	    lex->value_list.empty();
 	  }
           '(' sp_cparam_list ')' {}
@@ -1583,6 +1582,11 @@ sp_proc_stmt:
 	    {
 	      /* We maybe have one or more SELECT without INTO */
 	      lex->sphead->m_multi_results= TRUE;
+	    }
+	    if (lex->sql_command == SQLCOM_CHANGE_DB)
+	    { /* "USE db" doesn't work in a procedure */
+	      send_error(YYTHD, ER_SP_NO_USE);
+	      YYABORT;
 	    }
 	    /* Don't add an instruction for empty SET statements.
 	    ** (This happens if the SET only contained local variables,
@@ -2739,7 +2743,7 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	  }
-	| ALTER PROCEDURE ident
+	| ALTER PROCEDURE sp_name
 	  {
 	    LEX *lex= Lex;
 
@@ -2752,9 +2756,9 @@ alter:
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
-	    lex->udf.name= $3;
+	    lex->spname= $3;
 	  }
-	| ALTER FUNCTION_SYM ident
+	| ALTER FUNCTION_SYM sp_name
 	  {
 	    LEX *lex= Lex;
 
@@ -2767,7 +2771,7 @@ alter:
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
-	    lex->udf.name= $3;
+	    lex->spname= $3;
 	  }
 	;
 
@@ -3919,56 +3923,90 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| SP_FUNC '(' sp_expr_list ')'
+	| ident '.' ident '(' udf_expr_list ')'
 	  {
-	    sp_add_fun_to_lex(Lex, $1);
-	    if ($3)
-	      $$= new Item_func_sp($1, *$3);
+	    LEX *lex= Lex;
+	    sp_name *name= new sp_name($1, $3);
+
+	    name->init_qname(YYTHD);
+	    sp_add_fun_to_lex(Lex, name);
+	    if ($5)
+	      $$= new Item_func_sp(name, *$5);
 	    else
-	      $$= new Item_func_sp($1);
+	      $$= new Item_func_sp(name);
 	  }
-	| UDA_CHAR_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_str($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_str($1);
-	  }
-	| UDA_FLOAT_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_float($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_float($1);
-	  }
-	| UDA_INT_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_int($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_int($1);
-	  }
-	| UDF_CHAR_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_str($1, *$3);
-	    else
-	      $$ = new Item_func_udf_str($1);
-	  }
-	| UDF_FLOAT_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_float($1, *$3);
-	    else
-	      $$ = new Item_func_udf_float($1);
-	  }
-	| UDF_INT_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_int($1, *$3);
-	    else
-	      $$ = new Item_func_udf_int($1);
-	  }
+	| IDENT_sys '(' udf_expr_list ')'
+          {
+#ifdef HAVE_DLOPEN
+            udf_func *udf;
+
+            if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+            {
+              switch (udf->returns) {
+              case STRING_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_str(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_str(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_str(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_str(udf);
+                }
+                break;
+              case REAL_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_float(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_float(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_float(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_float(udf);
+                }
+                break;
+              case INT_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_int(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_int(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_int(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_int(udf);
+                }
+                break;
+              default:
+                YYABORT;
+              }
+            }
+            else
+#endif /* HAVE_DLOPEN */
+            {
+              sp_name *name= sp_name_current_db_new(YYTHD, $1);
+
+              sp_add_fun_to_lex(Lex, name);
+              if ($3)
+                $$= new Item_func_sp(name, *$3);
+              else
+                $$= new Item_func_sp(name);
+	    }
+          }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
             $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
@@ -4074,10 +4112,6 @@ fulltext_options:
         | WITH QUERY_SYM EXPANSION_SYM  { $$= FT_NL | FT_EXPAND; }
         | IN_SYM BOOLEAN_SYM MODE_SYM   { $$= FT_BOOL; }
         ;
-
-sp_expr_list:
-	/* empty */	{ $$= NULL; }
-	| expr_list	{ $$= $1;};
 
 udf_expr_list:
 	/* empty */	 { $$= NULL; }
@@ -4825,19 +4859,19 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP FUNCTION_SYM if_exists IDENT_sys opt_restrict
+	| DROP FUNCTION_SYM if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->drop_if_exists= $3;
-	    lex->udf.name= $4;
+	    lex->spname= $4;
 	  }
-	| DROP PROCEDURE if_exists IDENT_sys opt_restrict
+	| DROP PROCEDURE if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
 	    lex->drop_if_exists= $3;
-	    lex->udf.name= $4;
+	    lex->spname= $4;
 	  }
 	| DROP USER
 	  {
@@ -5316,15 +5350,19 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
-	| CREATE PROCEDURE ident
+	| CREATE PROCEDURE sp_name
 	  {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
-	    Lex->udf.name= $3;
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
+	    lex->spname= $3;
 	  }
-	| CREATE FUNCTION_SYM ident
+	| CREATE FUNCTION_SYM sp_name
 	  {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
-	    Lex->udf.name= $3;
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
+	    lex->spname= $3;
 	  }
 	| PROCEDURE STATUS_SYM wild
 	  {

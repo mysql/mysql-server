@@ -141,9 +141,9 @@ unique index (name)
 
 CREATE TABLE IF NOT EXISTS proc (
   db                char(64) binary DEFAULT '' NOT NULL,
-  name              char(64) binary DEFAULT '' NOT NULL,
+  name              char(64) DEFAULT '' NOT NULL,
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
-  specific_name     char(64) binary DEFAULT '' NOT NULL,
+  specific_name     char(64) DEFAULT '' NOT NULL,
   language          enum('SQL') DEFAULT 'SQL' NOT NULL,
   sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
   is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
@@ -179,3 +179,7 @@ CREATE TABLE IF NOT EXISTS proc (
   comment           char(64) binary DEFAULT '' NOT NULL,
   PRIMARY KEY (db,name,type)
 ) comment='Stored Procedures';
+
+# Correct the name fields to not binary
+ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
+                 MODIFY specific_name char(64) DEFAULT '' NOT NULL;

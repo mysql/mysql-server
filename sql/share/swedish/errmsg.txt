@@ -326,3 +326,4 @@ character-set=latin1
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
 "Subselect value not supported"
+"USE is not allowed in a stored procedure"

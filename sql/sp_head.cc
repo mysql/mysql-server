@@ -130,6 +130,52 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   DBUG_RETURN(it);
 }
 
+
+/*
+ *
+ *  sp_name
+ *
+ */
+
+void
+sp_name::init_qname(THD *thd)
+{
+  m_qname.length= m_db.length+m_name.length+1;
+  m_qname.str= alloc_root(&thd->mem_root, m_qname.length+1);
+  sprintf(m_qname.str, "%*s.%*s",
+	  m_db.length, (m_db.length ? m_db.str : ""),
+	  m_name.length, m_name.str);
+}
+
+sp_name *
+sp_name_current_db_new(THD *thd, LEX_STRING name)
+{
+  sp_name *qname;
+
+  if (! thd->db)
+    qname= new sp_name(name);
+  else
+  {
+    LEX_STRING db;
+
+    db.length= strlen(thd->db);
+    db.str= thd->strmake(thd->db, db.length);
+    qname= new sp_name(db, name);
+  }
+  qname->init_qname(thd);
+  return qname;
+}
+
+
+/* ------------------------------------------------------------------ */
+
+
+/*
+ *
+ *  sp_head
+ *
+ */
+
 void *
 sp_head::operator new(size_t size)
 {
@@ -178,22 +224,42 @@ sp_head::init(LEX *lex)
   lex->spcont= m_pcont= new sp_pcontext();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
-  m_name.str= m_params.str= m_retstr.str= m_body.str= m_defstr.str= 0;
-  m_name.length= m_params.length= m_retstr.length= m_body.length=
-    m_defstr.length= 0;
+  m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
+    m_body.str= m_defstr.str= 0;
+  m_qname.length= m_db.length= m_name.length= m_params.length=
+    m_retstr.length= m_body.length= m_defstr.length= 0;
   DBUG_VOID_RETURN;
 }
 
 void
-sp_head::init_strings(THD *thd, LEX *lex, LEX_STRING *name)
+sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= &thd->mem_root;
 
-  DBUG_PRINT("info", ("name: %*s", name->length, name->str));
-  m_name.length= name->length;
-  m_name.str= strmake_root(root, name->str, name->length);
+  DBUG_PRINT("info", ("name: %*.s%*s",
+		      name->m_db.length, name->m_db.str,
+		      name->m_name.length, name->m_name.str));
+  /* We have to copy strings to get them into the right memroot */
+  if (name->m_db.length == 0)
+  {
+    m_db.length= (thd->db ? strlen(thd->db) : 0);
+    m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
+  }
+  else
+  {
+    m_db.length= name->m_db.length;
+    m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+  }
+  m_name.length= name->m_name.length;
+  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+
+  if (name->m_qname.length == 0)
+    name->init_qname(thd);
+  m_qname.length= name->m_qname.length;
+  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
+
   m_params.length= m_param_end- m_param_begin;
   m_params.str= strmake_root(root,
 			     (char *)m_param_begin, m_params.length);
@@ -271,30 +337,22 @@ int
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char olddbname[128];
-  char *olddbptr= thd->db;
+  char olddb[128];
+  char *olddbptr;
   sp_rcontext *ctx= thd->spcont;
   int ret= 0;
   uint ip= 0;
 
 #ifndef EMBEDDED_LIBRARY
-  if (check_stack_overrun(thd, olddbptr))
+  if (check_stack_overrun(thd, olddb))
   {
     DBUG_RETURN(-1);
   }
 #endif
-  if (olddbptr)
-  {
-    uint i= 0;
-    char *p= olddbptr;
 
-    /* Fast inline strncpy without padding... */
-    while (*p && i < sizeof(olddbname))
-      olddbname[i++]= *p++;
-    if (i == sizeof(olddbname))
-      i-= 1;			// QQ Error or warning for truncate?
-    olddbname[i]= '\0';
-  }
+  olddbptr= thd->db;
+  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0)))
+    goto done;
 
   if (ctx)
     ctx->clear_handler();
@@ -331,20 +389,20 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed && !thd->query_error);
+  } while (ret == 0 && !thd->killed && !thd->query_error &&
+	   !thd->net.report_error);
 
+ done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
-  if (thd->killed || thd->query_error)
+  if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
-  if (olddbptr && olddbptr != thd->db)
+  if (olddbptr != thd->db)
   {
-    /* QQ Maybe we should issue some special error message or warning here,
-       if this fails?? */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddbname);
+      ret= sp_change_db(thd, olddb, 0);
   }
   DBUG_RETURN(ret);
 }
@@ -496,7 +554,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   ret= execute(thd);
 
   // Don't copy back OUT values if we got an error
-  if (ret == 0 && csize > 0)
+  if (ret)
+  {
+    if (thd->net.report_error)
+      send_error(thd, 0, NullS);
+  }
+  else if (csize > 0)
   {
     List_iterator_fast<Item> li(*args);
     Item *it;
@@ -711,6 +774,32 @@ sp_head::set_info(char *definer, uint definerlen,
 					  m_chistics->comment.length);
 }
 
+void
+sp_head::reset_thd_mem_root(THD *thd)
+{
+  m_thd_root= thd->mem_root;
+  thd->mem_root= m_mem_root;
+  m_free_list= thd->free_list; // Keep the old list
+  thd->free_list= NULL;	// Start a new one
+  /* Copy the db, since substatements will point to it */
+  m_thd_db= thd->db;
+  thd->db= strmake_root(&thd->mem_root, thd->db, thd->db_length);
+  m_thd= thd;
+}
+
+void
+sp_head::restore_thd_mem_root(THD *thd)
+{
+  Item *flist= m_free_list;	// The old list
+  m_free_list= thd->free_list; // Get the new one
+  thd->free_list= flist;	// Restore the old one
+  thd->db= m_thd_db;		// Restore the original db pointer
+  m_mem_root= thd->mem_root;
+  thd->mem_root= m_thd_root;
+  m_thd= NULL;
+}
+
+
 int
 sp_head::show_create_procedure(THD *thd)
 {
@@ -796,7 +885,10 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   thd->lex->unit.thd= thd;	// QQ Not reentrant
   freelist= thd->free_list;
   thd->free_list= NULL;
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= query_id++;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   // Copy WHERE clause pointers to avoid damaging by optimisation
   // Also clear ref_pointer_arrays.
@@ -1089,10 +1181,13 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+/* ------------------------------------------------------------------ */
+
 
 //
 // Security context swapping
 //
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
 sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
@@ -1105,8 +1200,6 @@ sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
   {
     ctxp->master_access= thd->master_access;
     ctxp->db_access= thd->db_access;
-    ctxp->db= thd->db;
-    ctxp->db_length= thd->db_length;
     ctxp->priv_user= thd->priv_user;
     strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
     ctxp->user= thd->user;
@@ -1122,8 +1215,6 @@ sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
       ctxp->changed= FALSE;
       thd->master_access= ctxp->master_access;
       thd->db_access= ctxp->db_access;
-      thd->db= ctxp->db;
-      thd->db_length= ctxp->db_length;
       thd->priv_user= ctxp->priv_user;
       strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
     }
@@ -1143,8 +1234,6 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
     ctxp->changed= FALSE;
     thd->master_access= ctxp->master_access;
     thd->db_access= ctxp->db_access;
-    thd->db= ctxp->db;
-    thd->db_length= ctxp->db_length;
     thd->priv_user= ctxp->priv_user;
     strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
   }

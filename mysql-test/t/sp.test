@@ -31,21 +31,6 @@ delete from t1;
 drop procedure foo42;
 
 
-# USE test: Make sure we remain in the same DB.
-create procedure u()
-  use sptmp;
-
---disable_warnings
-drop database if exists sptmp;
---enable_warnings
-create database sptmp;
-use test;
-call u();
-select database();
-drop database sptmp;
-drop procedure u;
-
-
 # Single statement, two IN params.
 create procedure bar(x char(16), y int)
   insert into test.t1 values (x, y);
@@ -920,6 +905,32 @@ delete from t1|
 drop procedure modes|
 
 
+# Check that dropping a database without routines works.
+# (Dropping with routines is tested in sp-security.test)
+# First an empty db.
+create database sp_db1|
+drop database sp_db1|
+
+# Again, with a table.
+create database sp_db2|
+use sp_db2|
+# Just put something in here...
+create table t3 ( s char(4), t int )|
+insert into t3 values ("abcd", 42), ("dcba", 666)|
+use test|
+drop database sp_db2|
+
+# And yet again, with just a procedure.
+create database sp_db3|
+use sp_db3|
+create procedure dummy(out x int)
+  set x = 42|
+use test|
+drop database sp_db3|
+# Check that it's gone
+select type,db,name from mysql.proc where db = 'sp_db3'|
+
+
 #
 # Test cases for old bugs
 #
@@ -1094,9 +1105,9 @@ begin
   show create function fac;
 end|
 
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_1()|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_2()|
 call bug2267_3()|
 call bug2267_4()|
@@ -1138,6 +1149,35 @@ call bug2614()|
 drop table t3|
 drop procedure bug2614|
 
+#
+# BUG#2674
+#
+
+create function bug2674 () returns int
+  return @@sort_buffer_size|
+
+select bug2674()|
+drop function bug2674|
+
+#
+# BUG#3259
+#
+
+create procedure bug3259_1 () begin end|
+create procedure BUG3259_2 () begin end|
+create procedure Bug3259_3 () begin end|
+
+call BUG3259_1()|
+call BUG3259_1()|
+call bug3259_2()|
+call Bug3259_2()|
+call bug3259_3()|
+call bUG3259_3()|
+
+drop procedure bUg3259_1|
+drop procedure BuG3259_2|
+drop procedure BUG3259_3|
+
 
 #
 # Some "real" examples
@@ -1168,11 +1208,11 @@ end|
 call ifac(20)|
 select * from fac|
 drop table fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 
 
@@ -1249,7 +1289,7 @@ begin
   end while;
 end|
 show create procedure opp|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
@@ -1261,7 +1301,7 @@ select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 
@@ -1308,13 +1348,13 @@ drop procedure fib|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
 delimiter ;|
