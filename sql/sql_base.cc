@@ -1693,8 +1693,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants && !thd->master_access &&
-      check_grant_column(thd,table,name,length))
+  if (check_grants  && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1719,7 +1718,8 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
-					grant_option && !thd->master_access,1);
+					grant_option && 
+					tables->grant.want_privilege ,1);
 	if (find)
 	{
 	  if (find == WRONG_GRANT)
@@ -1758,8 +1758,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   for (; tables ; tables=tables->next)
   {
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option &&
-				     !thd->master_access, allow_rowid);
+				     grant_option && tables->grant.want_privilege ,allow_rowid);
     if (field)
     {
       if (field == WRONG_GRANT)

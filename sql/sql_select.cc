@@ -2527,6 +2527,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     {
       JOIN_TAB *tab=join->join_tab+i;
       table_map current_map= tab->table->map;
+      /*
+	Following force including random expression in last table condition.
+	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      if (i == join->tables-1)
+	current_map|= RAND_TABLE_BIT;
       bool use_quick_range=0;
       used_tables|=current_map;
 
