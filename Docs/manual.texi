@@ -20076,6 +20076,8 @@ have.
 @item @code{Select_scan} @tab Number of joins where we scanned the first table.
 @item @code{Select_range_check} @tab Number of joins without keys where we check for key usage after each row (Should be 0).
 @item @code{Questions} @tab Number of queries sent to the server.
+@item @code{Slave_open_temp_tables} @tab Number of temporary tables currently
+open by the slave thread
 @item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that have taken more than @code{long_query_time}. @xref{Slow query log}.
 @item @code{Sort_merge_passes} @tab Number of merges the sort has to do. If this value is large you should consider increasing @code{sort_buffer}.
@@ -25376,10 +25378,18 @@ propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
 Update queries that use user variables are not replication-safe (yet).
 @item
-Temporary tables will not work if the  table with the same name
- is used in more than one thread - we plan on fixing this soon. For
-now the only thing you can do is turn off logging of the trouble
-queries with @code{SET SQL_LOG_BIN=0}
+Temporary tables starting in 3.23.29 are replicated properly with the
+exception of the case when you shut down slave server ( not just slave thread),
+you have some temporary tables open, and the are used in subsequent updates.
+To deal with this problem, to shut down the slave, do @code{SLAVE STOP}, then
+check @code{Slave_open_temp_tables} variable to see if it is 0, then issue
+@code{mysqladmin shutdown}. If the number is not 0, restart the slave thread
+with @code{SLAVE START} and see
+if you have better luck next time. There will be a cleaner solution, but it
+has to wait until version 4.0.
+In earlier versions temporary tables are not being replicated properly - we
+recommend that you either upgrade, or execute @code{SET SQL_LOG_BIN=0} on
+your clients before all queries with temp tables.
 @item
 Starting in Version 3.23.26, it is safe to connect servers in a circular
 master-slave relationship with @code{log-slave-updates} enabled.
@@ -25450,8 +25460,9 @@ to get rid of old logs while the slave is running.
 @node Replication Options, Replication SQL, Replication Features, Replication
 @section Replication Options in my.cnf
 
-If you are using replication, we recommend you to use MySQL Version 3.23.27 or
-later.
+If you are using replication, we recommend you to use MySQL Version 3.23.28 or
+later. Older versions work, but they do have some bugs and are missing some
+features.
 
 On both master and slave you need to use the @code{server-id} option.
 This sets an unique replication id. You should pick a unique value in the
@@ -25534,19 +25545,56 @@ directory.  Sasha: The only reason I see for ever changing the default
 is the desire to be rebelious.  (Example:
 @code{master-info-file=master.info})
 
-@item @code{replicate-do-db=database_name} @tab
+@item @code{replicate-do-table=db_name.table_name} @tab
 Tells the slave thread to restrict replication to the specified database.
-To specify more than one database, use the directive multiple times,
-once for each database. Note that this will only work if you do not use
-cross-database queries such as @code{UPDATE some_db.some_table SET
-foo='bar'} while having selected a different or no database.
-(Example: @code{replicate-do-db=some_db})
+To specify more than one table, use the directive multiple times,
+once for each table. .
+(Example: @code{replicate-do-table=some_db.some_table})
+
+@item @code{replicate-ignore-table=db_name.table_name} @tab
+Tells the slave thread to not replicate to the specified table. To
+specify more than one table to ignore, use the directive multiple
+times, once for each table.(Example:
+@code{replicate-ignore-table=db_name.some_table})
+
+@item @code{replicate-wild-do-table=db_name.table_name} @tab
+Tells the slave thread to restrict replication to the tables that match the
+specified wildcard pattern. .
+To specify more than one table, use the directive multiple times,
+once for each table. .
+(Example: @code{replicate-do-table=foo%.bar%} will replicate only updates
+to tables in all databases that start with foo and whose table names
+start with bar)
+
+@item @code{replicate-wild-ignore-table=db_name.table_name} @tab
+Tells the slave thread to not replicate to the tables that match the given
+wild card pattern. To
+specify more than one table to ignore, use the directive multiple
+times, once for each table.(Example:
+@code{replicate-ignore-table=foo%.bar%} - will not upates to tables in all databases that start with foo and whose table names
+start with bar)
+
 
 @item @code{replicate-ignore-db=database_name} @tab
 Tells the slave thread to not replicate to the specified database. To
 specify more than one database to ignore, use the directive multiple
 times, once for each database. This option will not work if you use cross
-database updates. (Example: @code{replicate-ignore-db=some_db})
+database updates. If you need cross database updates to work, make sure
+you have 3.23.28 or later, and use
+@code{replicate-wild-ignore-table=db_name.%}(Example:
+@code{replicate-ignore-db=some_db})
+
+@item @code{replicate-do-db=database_name} @tab
+Tells the slave thread to restrict replication to the specified database.
+To specify more than one database, use the directive multiple times,
+once for each database. Note that this will only work if you do not use
+cross-database queries such as @code{UPDATE some_db.some_table SET
+foo='bar'} while having selected a different or no database. If you need
+cross database updates to work, make sure
+you have 3.23.28 or later, and use
+@code{replicate-wild-do-table=db_name.%}
+(Example: @code{replicate-do-db=some_db})
+
 
 @item @code{log-slave-updates} @tab
 Tells the slave to log the updates from the slave thread to the binary
@@ -32513,7 +32561,7 @@ If the last permission bit is @code{t}, the bit is set.
 @node Error Access denied, Changing MySQL user, Problems with mysql.sock, Problems
 @section @code{Access denied} Error
 
-@xref{Privileges} and especially see @ref{Access denied}.
+@xref{Privileges}, and especially see @xref{Access denied}.
 
 @cindex starting, @code{mysqld}
 @cindex @code{mysqld}, starting
@@ -33148,7 +33196,7 @@ you are making a copy of the files in the database directory. If you want to
 make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
 
 Another way to back up a database is to use the @code{mysqldump} program:
-@xref{mysqldump}:
+@xref{mysqldump}. :
 
 @enumerate
 @item
@@ -33175,7 +33223,7 @@ If you have to restore something, try to recover your tables using
 @code{myisamchk -r} first.  That should work in 99.9% of all cases.  If
 @code{myisamchk} fails, try the following procedure:
 (This will only work if you have started @strong{MySQL} with
-@code{--log-update}. @xref{Update log}):
+@code{--log-update}. @xref{Update log}.):
 
 @enumerate
 @item
@@ -33412,7 +33460,7 @@ when connecting to the @strong{MySQL} server.
 
 @item
 If your are using the @strong{MySQL} perl DBD module you can read the options
-from the @strong{MySQL} option files. @xref{Option files}:
+from the @strong{MySQL} option files. @xref{Option files}.:
 
 @example
 $dsn = "DBI:mysql:test;mysql_read_default_group=client;"
@@ -33672,7 +33720,7 @@ The number of decimals for numeric fields.
 
 The functions available in the C API are listed below and are described in
 greater detail in the next section.
-@xref{C API functions}:
+@xref{C API functions}.:
 
 @multitable @columnfractions .3 .7
 @item @strong{mysql_affected_rows()} @tab
@@ -39162,6 +39210,15 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Added @code{--abort-slave-event-count} and
+@code{--disconnect-slave-event-count} options to @code{mysqld} for
+debugging and testing of replication
+@item
+added @code{Slave_open_temp_tables} status variable.
+@item
+Fixed replication of temporary tables. Handles everything except
+slave server restart.
+@item
 @code{SHOW KEYS} now shows whether key is FULLTEXT or not.
 @item
 Added new script, mysql-multi.server.sh.  Thanks to
@@ -39268,6 +39325,9 @@ Fixed bug in @code{MyISAM} when running multiple updating processes on
 the same table.
 @item
 Allow one to use @code{FLUSH TABLE tablename}.
+@item
+Added @code{--replicate-ignore-table}, @code{--replicate-do-table},
+ @code{--replicate-wild-ignore-table}, @code{--replicate-wild-do-table}
 @item
 Changed all log files to use our own @code{IO_CACHE} mechanism instead of
 @code{FILE} to avoid OS problems when there are many files open.
