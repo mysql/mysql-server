@@ -295,6 +295,7 @@ void Item_func_interval::fix_length_and_dec()
   used_tables_cache|=     item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   with_sum_func= with_sum_func || item->with_sum_func;
+  const_item_cache&=item->const_item();
 }
 
 
