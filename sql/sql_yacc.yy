@@ -1424,6 +1424,7 @@ sp_proc_stmt:
 		                     $2, lex->sphead->m_returns);
 
 	      lex->sphead->add_instr(i);
+	      lex->sphead->m_has_return= TRUE;
 	    }
 	  }
 	| IF sp_if END IF {}

@@ -3226,6 +3226,13 @@ mysql_execute_command(THD *thd)
 	}
       }
 #endif
+      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
+	  !lex->sphead->m_has_return)
+      {
+	net_printf(thd, ER_SP_NORETURN, name);
+	goto error;
+      }
+
       res= lex->sphead->create(thd);
 
       switch (res)
