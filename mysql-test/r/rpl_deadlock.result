@@ -10,7 +10,7 @@ create table t3 (a int) engine=innodb;
 create table t4 (a int) engine=innodb;
 show variables like 'slave_transaction_retries';
 Variable_name	Value
-slave_transaction_retries	0
+slave_transaction_retries	10
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
