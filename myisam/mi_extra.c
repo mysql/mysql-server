@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "myisamdef.h"
-#ifdef HAVE_MMAP
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
