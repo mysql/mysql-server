@@ -874,8 +874,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   }
   else
   {
-    if (share->fulltext_index)
-      ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
+    if (share->state.header.fulltext_keys)
+      ft_init_stopwords(ft_precompiled_stopwords);
 
     if (!(param->testflag & T_READONLY))
       lock_type = F_WRLCK;			/* table is changed */

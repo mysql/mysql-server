@@ -91,7 +91,6 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   {
     if (((ulonglong) 1 << i) & share->state.key_map)
     {
-      /* The following code block is for text searching by SerG */
       if (share->keyinfo[i].flag & HA_FULLTEXT )
       {
 	if (_mi_ft_cmp(info,i,oldrec, newrec))
@@ -175,7 +174,6 @@ err:
     {
       if (((ulonglong) 1 << i) & changed)
       {
-	/* The following code block is for text searching by SerG */
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
 	  if ((flag++ && _mi_ft_del(info,i,(char*) new_key,newrec,pos)) ||

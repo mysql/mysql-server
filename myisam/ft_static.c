@@ -26,25 +26,21 @@ const char *ft_boolean_syntax="+ -><()~*:\"\"&|";
 const HA_KEYSEG ft_keysegs[FT_SEGS]={
 {
     HA_KEYTYPE_VARTEXT,               /* type */
-    7,                                /* language (will be overwritten) */
+    63,                               /* language (will be overwritten) */
     0, 0, 0,                          /* null_bit, bit_start, bit_end */
     HA_VAR_LENGTH | HA_PACK_KEY,      /* flag */
     HA_FT_MAXLEN,                     /* length */
-#ifdef EVAL_RUN
-    HA_FT_WLEN+1,                     /* start */
-#else /* EVAL_RUN */
     HA_FT_WLEN,                       /* start */
-#endif /* EVAL_RUN */
     0,                                /* null_pos */
     NULL                              /* charset  */
   },
-#ifdef EVAL_RUN
   {
-      HA_KEYTYPE_INT8, 7, 0, 0, 0, 0, 1, HA_FT_WLEN, 0, NULL
-  },
-#endif /* EVAL_RUN */
-  {
-      HA_FT_WTYPE, 7, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, 0, 0, NULL
+/*
+  Note, this (and the last HA_KEYTYPE_END) segment should NOT
+  be packed in any way, otherwise w_search() won't be able to
+  update key entry 'in vivo'
+*/
+      HA_FT_WTYPE, 63, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, 0, 0, NULL
   }
 };
 

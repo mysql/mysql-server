@@ -44,7 +44,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   uint fields,length,max_key_length,packed,pointer,
        key_length,info_length,key_segs,options,min_key_length_skipp,
        base_pos,varchar_count,long_varchar_count,varchar_length,
-       max_key_block_length,unique_key_parts,offset;
+       max_key_block_length,unique_key_parts,fulltext_keys,offset;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
@@ -223,6 +223,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     reclength+=long_varchar_count;	/* We need space for this! */
 
   max_key_length=0; tot_length=0 ; key_segs=0;
+  fulltext_keys=0;
   max_key_block_length=0;
   share.state.rec_per_key_part=rec_per_key_part;
   share.state.key_root=key_root;
@@ -242,14 +243,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (keydef->flag & HA_SPATIAL)
     {
       /* BAR TODO to support 3D and more dimensions in the future */
-      uint sp_segs=SPDIMS*2; 
+      uint sp_segs=SPDIMS*2;
       keydef->flag=HA_SPATIAL;
 
       if (flags & HA_DONT_TOUCH_DATA)
       {
-        /* 
+        /*
            called by myisamchk - i.e. table structure was taken from
-           MYI file and SPATIAL key *do has* additional sp_segs keysegs.
+           MYI file and SPATIAL key *does have* additional sp_segs keysegs.
            We'd better delete them now
         */
         keydef->keysegs-=sp_segs;
@@ -271,19 +272,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       min_key_length_skipp+=SPLEN*2*SPDIMS;
     }
     else
-    if (keydef->flag & HA_FULLTEXT)                                 /* SerG */
+    if (keydef->flag & HA_FULLTEXT)
     {
       keydef->flag=HA_FULLTEXT | HA_PACK_KEY | HA_VAR_LENGTH_KEY;
       options|=HA_OPTION_PACK_KEYS;             /* Using packed keys */
-
-      if (flags & HA_DONT_TOUCH_DATA)
-      {
-        /* called by myisamchk - i.e. table structure was taken from
-           MYI file and FULLTEXT key *do has* additional FT_SEGS keysegs.
-           We'd better delete them now
-        */
-        keydef->keysegs-=FT_SEGS;
-      }
 
       for (j=0, keyseg=keydef->seg ; (int) j < keydef->keysegs ;
 	   j++, keyseg++)
@@ -295,19 +287,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
           goto err;
         }
       }
-      keydef->keysegs+=FT_SEGS;
 
+      fulltext_keys++;
       key_length+= HA_FT_MAXLEN+HA_FT_WLEN;
-#ifdef EVAL_RUN
-      key_length++;
-#endif
-
       length++;                              /* At least one length byte */
       min_key_length_skipp+=HA_FT_MAXLEN;
-#if HA_FT_MAXLEN >= 255
-      min_key_length_skipp+=2;                  /* prefix may be 3 bytes */
-      length+=2;
-#endif
     }
     else
     {
@@ -473,8 +457,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     mi_get_pointer_length((tot_length + max_key_block_length * keys *
 			   MI_INDEX_BLOCK_MARGIN) / MI_MIN_KEY_BLOCK_LENGTH,
 			  3);
-  share.base.keys= share.state.header.keys = keys;
+  share.base.keys= share.state.header.keys= keys;
   share.state.header.uniques= uniques;
+  share.state.header.fulltext_keys= fulltext_keys;
   mi_int2store(share.state.header.key_parts,key_segs);
   mi_int2store(share.state.header.unique_key_parts,unique_key_parts);
 
@@ -566,7 +551,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	linkname_ptr=0;
 	create_flag=MY_DELETE_OLD;
       }
-      if ((dfile= 
+      if ((dfile=
 	   my_create_with_symlink(linkname_ptr, filename,
 				  0,O_RDWR | O_TRUNC,
 				  MYF(MY_WME | create_flag))) < 0)
@@ -590,21 +575,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   /* Write key and keyseg definitions */
   for (i=0 ; i < share.base.keys - uniques; i++)
   {
-    uint ft_segs=(keydefs[i].flag & HA_FULLTEXT) ? FT_SEGS : 0;
     uint sp_segs=(keydefs[i].flag & HA_SPATIAL) ? 2*SPDIMS : 0;
 
     if (mi_keydef_write(file, &keydefs[i]))
       goto err;
-    for (j=0 ; j < keydefs[i].keysegs-ft_segs-sp_segs ; j++)
+    for (j=0 ; j < keydefs[i].keysegs-sp_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
        goto err;
-    for (j=0 ; j < ft_segs ; j++)
-    {
-      HA_KEYSEG seg=ft_keysegs[j];
-      seg.language= keydefs[i].seg[0].language;
-      if (mi_keyseg_write(file, &seg))
-        goto err;
-    }
     for (j=0 ; j < sp_segs ; j++)
     {
       HA_KEYSEG sseg;

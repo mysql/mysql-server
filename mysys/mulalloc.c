@@ -19,16 +19,18 @@
 
 /*
   Malloc many pointers at the same time
+  Only ptr1 can be free'd, and doing this will free all
+  the memory allocated. ptr2, etc all point inside big allocated
+  memory area.
 
   SYNOPSIS
     my_multi_malloc()
-      myFlags	Flags
-      ... 	Multiple arguments terminated by null ptr
-
-	ptr, length
-	ptr, length
+      myFlags              Flags
+	ptr1, length1      Multiple arguments terminated by null ptr
+	ptr2, length2      ...
+        ...
 	NULL
-*/ 
+*/
 
 gptr my_multi_malloc(myf myFlags, ...)
 {
