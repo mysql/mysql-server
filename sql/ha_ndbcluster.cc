@@ -6487,7 +6487,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
         : (b->type == NDB_FIELD)? b
         : NULL;
       break;
-    deafult:
+    default:
       break;
     }
     switch((negated) ? 
