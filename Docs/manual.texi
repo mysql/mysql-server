@@ -12071,11 +12071,13 @@ not give your applications any more access privileges than they need.
 Users of PHP:
 @itemize @bullet
 @item Check out the @code{addslashes()} function.
+As of PHP 4.0.3, a @code{mysql_escape_string()} function is available
+that is based on the function of the same name in the @strong{MySQL} C API.
 @end itemize
 @item
 Users of @strong{MySQL} C API:
 @itemize @bullet
-@item Check out the @code{mysql_escape()} API call.
+@item Check out the @code{mysql_escape_string()} API call.
 @end itemize
 @item
 Users of @strong{MySQL}++:
@@ -12086,6 +12088,11 @@ Users of @strong{MySQL}++:
 Users of Perl DBI:
 @itemize @bullet
 @item Check out the @code{quote()} method or use placeholders.
+@end itemize
+@item
+Users of Java JDBC:
+@itemize @bullet
+@item Use a @code{PreparedStatement} object and placeholders.
 @end itemize
 @end itemize
 
