@@ -1069,6 +1069,30 @@ trx_purge(void)
 		}
 	}
 
+	/* Determine how much data manipulation language (DML) statements
+	need to be delayed in order to reduce the lagging of the purge
+	thread. */
+	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
+
+	/* If we cannot advance the 'purge view' because of an old
+	'consistent read view', then the DML statements cannot be delayed.
+	Also, srv_max_purge_lag <= 0 means 'infinity'. */
+	if (srv_max_purge_lag > 0
+			&& !UT_LIST_GET_LAST(trx_sys->view_list)) {
+		float	ratio = (float) trx_sys->rseg_history_len
+				/ srv_max_purge_lag;
+		if (ratio > ULINT_MAX / 10000) {
+			/* Avoid overflow: maximum delay is 4295 seconds */
+			srv_dml_needed_delay = ULINT_MAX;
+		} else if (ratio > 1) {
+			/* If the history list length exceeds the
+			innodb_max_purge_lag, the
+			data manipulation statements are delayed
+			by at least 5000 microseconds. */
+			srv_dml_needed_delay = (ulint) ((ratio - .5) * 10000);
+		}
+	}
+
 	purge_sys->view = read_view_oldest_copy_or_open_new(NULL,
 							purge_sys->heap);
 	mutex_exit(&kernel_mutex);	

@@ -1025,9 +1025,38 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   for (; block_table != block_table_end; block_table++)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    TABLE *tmptable;
 
     Query_cache_table *table = block_table->parent;
+
+    /*
+      Check that we have not temporary tables with same names of tables
+      of this query. If we have such tables, we will not send data from
+      query cache, because temporary tables hide real tables by which
+      query in query cache was made.
+    */
+    for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
+    {
+      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_len() &&
+          !memcmp(tmptable->table_cache_key, table->data(),
+                  table->key_len()))
+      {
+        DBUG_PRINT("qcache",
+                   ("Temporary table detected: '%s.%s'",
+                    table_list.db, table_list.alias));
+        STRUCT_UNLOCK(&structure_guard_mutex);
+        /*
+          We should not store result of this query because it contain
+          temporary tables => assign following variable to make check
+          faster.
+        */
+        thd->safe_to_cache_query=0;
+        BLOCK_UNLOCK_RD(query_block);
+        DBUG_RETURN(-1);
+      }
+    }
+
+    bzero((char*) &table_list,sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.real_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

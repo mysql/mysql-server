@@ -2471,7 +2471,7 @@ unsent_create_error:
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(thd, ER_WRONG_TABLE_NAME, lex->name);
-	res=0;
+	res= 1;
 	break;
       }
       if (!select_lex->db)
