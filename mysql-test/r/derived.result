@@ -105,6 +105,11 @@ a	b
 1	a
 2	b
 3	c
+explain select * from (select * from t1,t2 where t1.a=t2.a) t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1, t2;
 create table t1(a int not null, t char(8), index(a));
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
