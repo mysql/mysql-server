@@ -59,6 +59,8 @@ static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
 inline char* rewrite_db(char* db);
+static int check_expected_error(THD* thd, int expected_error);
+
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
   my_free((gptr) e, MYF(0));
@@ -834,6 +836,27 @@ server_errno=%d)",
   return len - 1;   
 }
 
+static int check_expected_error(THD* thd, int expected_error)
+{
+  switch(expected_error)
+    {
+    case ER_NET_READ_ERROR:
+    case ER_NET_ERROR_ON_WRITE:  
+    case ER_SERVER_SHUTDOWN:  
+    case ER_NEW_ABORTING_CONNECTION:
+      my_snprintf(last_slave_error, sizeof(last_slave_error), 
+		 "Slave: query '%s' partially completed on the master \
+and was aborted. There is a chance that your master is inconsistent at this \
+point. If you are sure that your master is ok, run this query manually on the\
+ slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
+ SLAVE START;", thd->query);
+      last_slave_errno = expected_error;
+      sql_print_error(last_slave_error);
+      return 1;
+    default:
+      return 0;
+    }
+}
 
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
@@ -883,22 +906,38 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->net.last_errno = 0;
 	thd->net.last_error[0] = 0;
 	thd->slave_proxy_id = qev->thread_id;	// for temp tables
-	mysql_parse(thd, thd->query, q_len);
-	if ((expected_error = qev->error_code) !=
-	    (actual_error = thd->net.last_errno) && expected_error)
-	{
-	  const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s', got '%s'"; 
-	  sql_print_error(errmsg, ER(expected_error),
-			  actual_error ? thd->net.last_error:"no error"
-			  );
-	  thd->query_error = 1;
-	}
-	else if (expected_error == actual_error)
+	
+	// sanity check to make sure the master did not get a really bad
+	// error on the query
+	if(!check_expected_error(thd, (expected_error = qev->error_code)))
 	  {
-	    thd->query_error = 0;
-	    *last_slave_error = 0;
-	    last_slave_errno = 0;
+	    mysql_parse(thd, thd->query, q_len);
+	    if (expected_error !=
+		(actual_error = thd->net.last_errno) && expected_error)
+	      {
+		const char* errmsg = "Slave: did not get the expected error\
+ running query from master - expected: '%s', got '%s'"; 
+		sql_print_error(errmsg, ER(expected_error),
+				actual_error ? thd->net.last_error:"no error"
+				);
+		thd->query_error = 1;
+	      }
+	    else if (expected_error == actual_error)
+	      {
+		thd->query_error = 0;
+		*last_slave_error = 0;
+		last_slave_errno = 0;
+	      }
+	  }
+	else // master could be inconsistent, abort and tell DBA to
+	  //    check/fix it
+	  {
+	    thd->db = thd->query = 0;
+	    thd->convert_set = 0;
+	    close_thread_tables(thd);
+            free_root(&thd->mem_root,0);
+	    delete ev;
+	    return 1;
 	  }
       }
       thd->db = 0;				// prevent db from being freed
