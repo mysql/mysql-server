@@ -433,7 +433,7 @@ void Field::store_time(TIME *ltime,timestamp_type type)
 
 bool Field::optimize_range(uint idx)
 {
-  return !test(table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER);
+  return test(table->file->index_flags(idx) & HA_READ_RANGE);
 }
 
 /****************************************************************************

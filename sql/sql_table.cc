@@ -531,7 +531,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       break;
     case FIELD_TYPE_GEOMETRY:
 #ifdef HAVE_SPATIAL
-      if (!(file->table_flags() & HA_HAS_GEOMETRY))
+      if (!(file->table_flags() & HA_CAN_GEOMETRY))
       {
 	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
 			MYF(0), "GEOMETRY");
@@ -669,7 +669,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       continue;
     }
     (*key_count)++;
-    tmp=max(file->max_key_parts(),MAX_REF_PARTS);
+    tmp=file->max_key_parts();
     if (key->columns.elements > tmp)
     {
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
@@ -721,7 +721,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
     }
   }
-  tmp=min(file->max_keys(), MAX_KEY);
+  tmp=file->max_keys();
   if (*key_count > tmp)
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
@@ -881,7 +881,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if (!(file->table_flags() & HA_BLOB_KEY))
+	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
 	    my_printf_error(ER_BLOB_USED_AS_KEY,ER(ER_BLOB_USED_AS_KEY),MYF(0),
 			    column->field_name);
@@ -918,7 +918,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	  else
 	     key_info->flags|= HA_NULL_PART_KEY;
-	  if (!(file->table_flags() & HA_NULL_KEY))
+	  if (!(file->table_flags() & HA_NULL_IN_KEY))
 	  {
 	    my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
 			    MYF(0),column->field_name);
@@ -1050,7 +1050,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
-    uint max_key_length= min(file->max_key_length(), MAX_KEY_LENGTH);
+    uint max_key_length= file->max_key_length();
     if (key_length > max_key_length && key->type != Key::FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
@@ -1142,12 +1142,21 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   alias= table_case_name(create_info, table_name);
   file=get_new_handler((TABLE*) 0, create_info->db_type);
 
+#ifdef NOT_USED
+  /*
+    if there is a technical reason for a handler not to have support
+    for temp. tables this code can be re-enabled.
+    Otherwise, if a handler author has a wish to prohibit usage of
+    temporary tables for his handler he should implement a check in
+    ::create() method
+  */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       (file->table_flags() & HA_NO_TEMP_TABLES))
   {
     my_error(ER_ILLEGAL_HA,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
+#endif
 
   if (mysql_prepare_table(thd, create_info, fields,
 			  keys, tmp_table, db_options, file,
@@ -3461,7 +3470,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	current query id */
 	t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
-	if (t->file->rnd_init(1))
+	if (t->file->ha_rnd_init(1))
 	  protocol->store_null();
 	else
 	{
@@ -3489,6 +3498,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	    crc+= row_crc;
 	  }
 	  protocol->store((ulonglong)crc);
+          t->file->ha_rnd_end();
 	}
       }
       thd->clear_error();
