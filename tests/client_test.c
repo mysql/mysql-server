@@ -166,7 +166,7 @@ static void client_connect()
   int  rc;
   myheader_r("client_connect");  
 
-  fprintf(stdout, "\n Establishig a connection ...");
+  fprintf(stdout, "\n Establishing a connection ...");
   
   if (!(mysql = mysql_init(NULL)))
   { 
@@ -5529,10 +5529,10 @@ static void test_ushort_bug()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   
-  fprintf(stdout,"\n ushort: %d (%ld)", short_value, s_length);
-  fprintf(stdout,"\n ulong : %ld (%ld)", long_value, l_length);
-  fprintf(stdout,"\n ulong : %lld (%ld)", longlong_value, ll_length);
-  fprintf(stdout,"\n ulong : %d   (%ld)", tiny_value, t_length);
+  fprintf(stdout,"\n ushort   : %d (%ld)", short_value, s_length);
+  fprintf(stdout,"\n ulong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout,"\n longlong : %lld (%ld)", longlong_value, ll_length);
+  fprintf(stdout,"\n tinyint  : %d   (%ld)", tiny_value, t_length);
   
   myassert(short_value == 35999);
   myassert(s_length == 2);
@@ -5544,6 +5544,174 @@ static void test_ushort_bug()
   myassert(ll_length == 8);
 
   myassert(tiny_value == 200);
+  myassert(t_length == 1);
+  
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+}
+
+/*
+  To test a misc smallint-signed conversion bug 
+*/
+static void test_sshort_bug()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[4];
+  short      short_value;
+  long       long_value;
+  ulong      s_length, l_length, ll_length, t_length;
+  ulonglong  longlong_value;
+  int        rc;
+  uchar      tiny_value;
+
+  myheader("test_sshort_bug");
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_sshort");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_sshort(a smallint signed, \
+                                                  b smallint signed, \
+                                                  c smallint unsigned, \
+                                                  d smallint unsigned)");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"INSERT INTO test_sshort VALUES(-5999, -5999, 35999, 200)");
+  myquery(rc);
+  
+  
+  stmt = mysql_prepare(mysql,"SELECT * FROM test_sshort",50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  bind[0].buffer_type= MYSQL_TYPE_SHORT;
+  bind[0].buffer= (char *)&short_value;
+  bind[0].is_null= 0;
+  bind[0].length= &s_length;
+  
+  bind[1].buffer_type= MYSQL_TYPE_LONG;
+  bind[1].buffer= (char *)&long_value;
+  bind[1].is_null= 0;
+  bind[1].length= &l_length;
+
+  bind[2].buffer_type= MYSQL_TYPE_LONGLONG;
+  bind[2].buffer= (char *)&longlong_value;
+  bind[2].is_null= 0;
+  bind[2].length= &ll_length;
+  
+  bind[3].buffer_type= MYSQL_TYPE_TINY;
+  bind[3].buffer= (char *)&tiny_value;
+  bind[3].is_null= 0;
+  bind[3].length= &t_length;
+  
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  
+  fprintf(stdout,"\n sshort   : %d (%ld)", short_value, s_length);
+  fprintf(stdout,"\n slong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout,"\n longlong : %lld (%ld)", longlong_value, ll_length);
+  fprintf(stdout,"\n tinyint  : %d   (%ld)", tiny_value, t_length);
+  
+  myassert(short_value == -5999);
+  myassert(s_length == 2);
+  
+  myassert(long_value == -5999);
+  myassert(l_length == 4);
+
+  myassert(longlong_value == 35999);
+  myassert(ll_length == 8);
+
+  myassert(tiny_value == 200);
+  myassert(t_length == 1);
+  
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+}
+
+/*
+  To test a misc tinyint-signed conversion bug 
+*/
+static void test_stiny_bug()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[4];
+  short      short_value;
+  long       long_value;
+  ulong      s_length, l_length, ll_length, t_length;
+  ulonglong  longlong_value;
+  int        rc;
+  uchar      tiny_value;
+
+  myheader("test_stiny_bug");
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_stiny");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_stiny(a tinyint signed, \
+                                                  b tinyint signed, \
+                                                  c tinyint unsigned, \
+                                                  d tinyint unsigned)");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"INSERT INTO test_stiny VALUES(-128, -127, 255, 0)");
+  myquery(rc);
+  
+  
+  stmt = mysql_prepare(mysql,"SELECT * FROM test_stiny",50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  bind[0].buffer_type= MYSQL_TYPE_SHORT;
+  bind[0].buffer= (char *)&short_value;
+  bind[0].is_null= 0;
+  bind[0].length= &s_length;
+  
+  bind[1].buffer_type= MYSQL_TYPE_LONG;
+  bind[1].buffer= (char *)&long_value;
+  bind[1].is_null= 0;
+  bind[1].length= &l_length;
+
+  bind[2].buffer_type= MYSQL_TYPE_LONGLONG;
+  bind[2].buffer= (char *)&longlong_value;
+  bind[2].is_null= 0;
+  bind[2].length= &ll_length;
+  
+  bind[3].buffer_type= MYSQL_TYPE_TINY;
+  bind[3].buffer= (char *)&tiny_value;
+  bind[3].is_null= 0;
+  bind[3].length= &t_length;
+  
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+  
+  fprintf(stdout,"\n sshort   : %d (%ld)", short_value, s_length);
+  fprintf(stdout,"\n slong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout,"\n longlong : %lld  (%ld)", longlong_value, ll_length);
+  fprintf(stdout,"\n tinyint  : %d    (%ld)", tiny_value, t_length);
+  
+  myassert(short_value == -128);
+  myassert(s_length == 2);
+  
+  myassert(long_value == -127);
+  myassert(l_length == 4);
+
+  myassert(longlong_value == 255);
+  myassert(ll_length == 8);
+
+  myassert(tiny_value == 0);
   myassert(t_length == 1);
   
   rc = mysql_fetch(stmt);
@@ -5767,6 +5935,8 @@ int main(int argc, char **argv)
     test_pure_coverage();   /* keep pure coverage happy */
     test_buffers();         /* misc buffer handling */
     test_ushort_bug();      /* test a simple conv bug from php */
+    test_sshort_bug();      /* test a simple conv bug from php */
+    test_stiny_bug();       /* test a simple conv bug from php */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

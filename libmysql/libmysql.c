@@ -163,11 +163,6 @@ void STDCALL mysql_thread_end()
 #define reset_sigpipe(mysql)
 #endif
 
-#define map_to_size(A,L) {\
-  char *tmp= (char *)&A;\
-  memset(tmp+L,0,8-L);\
-}
-
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -3967,6 +3962,7 @@ unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
     field->org_table= strdup_root(alloc,fields->org_table);
     field->name     = strdup_root(alloc,fields->name);
     field->org_name = strdup_root(alloc,fields->org_name);
+    field->charsetnr= fields->charsetnr;
     field->length   = fields->length;
     field->type     = fields->type;
     field->flags    = fields->flags;
@@ -4871,31 +4867,38 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
 
 
 /* Fetch data to buffers */
-static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
+static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row, 
+                          my_bool field_is_unsigned)
 {
   ulong length;
   
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
-    longlong value= (longlong) **row;
-    map_to_size(value,(length= 1));
-    send_data_long(param,value);
+    char value= (char) **row;
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned char) value:
+                                         (longlong) value;
+    send_data_long(param,data);
+    length= 1;
     break;
   }
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
   {
-    longlong value= (longlong)sint2korr(*row);
-    map_to_size(value,(length= 2));
-    send_data_long(param, value);
+    short value= sint2korr(*row);
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned short) value:
+                                         (longlong) value;
+    send_data_long(param,data);
+    length= 2;    
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    longlong value= (longlong)sint4korr(*row);
-    map_to_size(value,(length= 4));
-    send_data_long(param,value);
+    long value= sint4korr(*row);
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned long) value:
+                                         (longlong) value;
+    send_data_long(param,data);
+    length= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
@@ -5165,7 +5168,10 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else 
-        fetch_results(bind, field->type, &row);
+      {
+        my_bool field_is_unsigned= (field->flags & UNSIGNED_FLAG) ? 1: 0;
+        fetch_results(bind, field->type, &row, field_is_unsigned);
+      }
     }
     if (! ((bit<<=1) & 255))
     {
