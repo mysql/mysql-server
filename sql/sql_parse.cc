@@ -2423,7 +2423,6 @@ mysql_init_query(THD *thd)
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
-  thd->lex.sql_command=SQLCOM_SELECT;
   DBUG_VOID_RETURN;
 }
 
@@ -2860,13 +2859,17 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   if (!alias)					/* Alias is case sensitive */
     if (!(alias_str=thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
-  if (lower_case_table_names)
-    casedn_str(table->table.str);
+    
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   ptr->db= table->db.str ? table->db.str : (thd->db ? thd->db : (char*) "");
-  ptr->real_name=table->table.str;
   ptr->name=alias_str;
+  if (lower_case_table_names)
+  {
+    casedn_str(ptr->db);
+    casedn_str(table->table.str);
+  }
+  ptr->real_name=table->table.str;
   ptr->lock_type=flags;
   ptr->updating=updating;
   if (use_index)
@@ -2879,7 +2882,8 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   /* check that used name is unique */
   if (flags != TL_IGNORE)
   {
-    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select->table_list.first ; tables ;
+    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select->table_list.first ;
+	 tables ;
 	 tables=tables->next)
     {
       if (!strcmp(alias_str,tables->name) && !strcmp(ptr->db, tables->db))

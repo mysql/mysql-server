@@ -1,11 +1,11 @@
--- source include/have_innodb.inc
-
 #
 # Tests with query cache
 #
 
 # Reset query cache variables.
 
+flush query cache; # This crashed in some versions
+flush query cache; # This crashed in some versions
 reset query cache;
 flush status;
 drop table if exists t1,t2,t3;
@@ -72,17 +72,6 @@ show status like "Qcache_queries_in_cache";
 delete from t3 where a=10;
 show status like "Qcache_queries_in_cache";
 drop table t1, t2, t3;
-#
-# Without auto_commit.
-#
-set autocommit=0;
-create table t1 (a int not null) type=innodb;
-insert into t1 values (1),(2),(3);
-select * from t1;
-show status like "Qcache_queries_in_cache";
-drop table t1;
-commit;
-set autocommit=1;
 #
 # FLUSH QUERY CACHE
 #

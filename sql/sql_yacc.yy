@@ -1348,9 +1348,13 @@ table_to_table:
 
 
 select:
-	SELECT_SYM select_part2 { Select->braces=false; } union
+	select_init { Lex->sql_command=SQLCOM_SELECT; }
+
+select_init:
+	SELECT_SYM select_part2 { Select->braces=false;	} union
 	|
-	'(' SELECT_SYM 	select_part2 ')' {Select->braces=true;} union_opt
+	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt
+
 
 select_part2:
 	{
@@ -1643,10 +1647,14 @@ simple_expr:
 	  { $$= new Item_func_decode($3,$5.str); }
 	| ENCODE_SYM '(' expr ',' TEXT_STRING ')'
 	 { $$= new Item_func_encode($3,$5.str); }
-	| DES_DECRYPT '(' expr ',' expr ')'          
-	        { $$= new Item_func_des_decrypt($3,$5); }
-	| DES_ENCRYPT '(' expr ',' expr ')'          
-	        { $$= new Item_func_des_encrypt($3,$5); }
+	| DES_DECRYPT '(' expr ')'
+        { $$= new Item_func_des_decrypt($3); }
+	| DES_DECRYPT '(' expr ',' expr ')'
+        { $$= new Item_func_des_decrypt($3,$5); }
+	| DES_ENCRYPT '(' expr ')'
+        { $$= new Item_func_des_encrypt($3); }
+	| DES_ENCRYPT '(' expr ',' expr ')'
+        { $$= new Item_func_des_encrypt($3,$5); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ')'
 		{ $$= new Item_func_export_set($3, $5, $7); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ')'
@@ -3573,12 +3581,12 @@ union_list:
        net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
-    if (lex->select->linkage==NOT_A_SELECT)
+    if (lex->select->linkage == NOT_A_SELECT)
       YYABORT;
     mysql_new_select(lex);
     lex->select->linkage=UNION_TYPE;
   } 
-  select
+  select_init
 
 union_opt:
   union {}
