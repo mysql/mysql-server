@@ -1323,7 +1323,7 @@ void select_dumpvar::cleanup()
 
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1335,7 +1335,7 @@ Item_arena::Item_arena(THD* thd)
 
 Item_arena::Item_arena()
   :free_list(0),
-  state((int)CONVENTIONAL_EXECUTION)
+  state(CONVENTIONAL_EXECUTION)
 {
   clear_alloc_root(&mem_root);
 }
@@ -1343,7 +1343,7 @@ Item_arena::Item_arena()
 
 Item_arena::Item_arena(bool init_mem_root)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   if (init_mem_root)
     clear_alloc_root(&mem_root);
