@@ -190,8 +190,16 @@ static void free_string_array(DYNAMIC_ARRAY *a)
 void end_slave()
 {
   pthread_mutex_lock(&LOCK_slave);
-  while (slave_running)
-    pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+  if (slave_running)
+  {
+    abort_slave = 1;
+    thr_alarm_kill(slave_real_id);
+#ifdef SIGNAL_WITH_VIO_CLOSE
+    slave_thd->close_active_vio();
+#endif    
+    while (slave_running)
+      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+  }
   pthread_mutex_unlock(&LOCK_slave);
   
   end_master_info(&glob_mi);
