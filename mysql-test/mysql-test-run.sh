@@ -140,13 +140,13 @@ while test $# -gt 0; do
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-     --ssl-ca=../SSL/cacert.pem \
-     --ssl-cert=../SSL/server-cert.pem \
-     --ssl-key=../SSL/server-key.pem"
+     --ssl-ca=$BASEDIR/SSL/cacert.pem \
+     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
+     --ssl-key=$BASEDIR/SSL/server-key.pem"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-     --ssl-ca=../SSL/cacert.pem \
-     --ssl-cert=../SSL/server-cert.pem \
-     --ssl-key=../SSL/server-key.pem" ;;
+     --ssl-ca=$BASEDIR/SSL/cacert.pem \
+     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
+     --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -771,7 +771,7 @@ run_testcase ()
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
-    if [ -z "$DO_CLIENT_GDB" ] ; then
+     if [ -z "$DO_CLIENT_GDB" ] ; then
      mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
     else
      do_gdb_test "$mysql_test_args" "$tf"
