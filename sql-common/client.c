@@ -133,6 +133,7 @@ static void mysql_close_free(MYSQL *mysql);
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
+
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
