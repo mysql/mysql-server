@@ -2909,7 +2909,18 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 
 void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
 {
-  theFacade->get_registry()->connect_server(sockfd);
+  if (theFacade->get_registry()->connect_server(sockfd))
+  {
+    /**
+     * Force an update_connections() so that the
+     * ClusterMgr and TransporterFacade is up to date
+     * with the new connection.
+     * Important for correct node id reservation handling
+     */
+    NdbMutex_Lock(theFacade->theMutexPtr);
+    theFacade->get_registry()->update_connections();
+    NdbMutex_Unlock(theFacade->theMutexPtr);
+  }
 }
 
 int MgmtSrvr::set_connect_string(const char *str)
