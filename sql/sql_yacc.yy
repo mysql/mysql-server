@@ -1979,10 +1979,12 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
-	| '(' expr ',' expr_list ')'
+          /* Note: In SQL-99 "ROW" is optional, but not having it mandatory
+	     causes conflicts with the INTERVAL syntax. */
+	| ROW_SYM '(' expr ',' expr_list ')'
 	  {
-	    $4->push_front($2);
-	    $$= new Item_row(*$4);
+	    $5->push_front($3);
+	    $$= new Item_row(*$5);
 	  }
 	| EXISTS exists_subselect { $$= $2; }
 	| singleval_subselect   { $$= $1; }
