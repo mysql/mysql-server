@@ -53,7 +53,11 @@ public:
   bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
+#ifndef EMBEDDED_LIBRARY
   bool write();
+#else
+  virtual bool write();
+#endif
   inline  bool store(uint32 from)
   { return store_long((longlong) from); }
   inline  bool store(longlong from)
@@ -121,6 +125,9 @@ public:
   Protocol_prep(THD *thd) :Protocol(thd) {}
   virtual bool prepare_for_send(List<Item> *item_list);
   virtual void prepare_for_resend();
+#ifdef EMBEDDED_LIBRARY
+  virtual bool write();
+#endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);
@@ -170,3 +177,9 @@ char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);
 char *net_store_data(char *to,int32 from);
 char *net_store_data(char *to,longlong from);
+
+#ifdef EMBEDDED_LIBRARY
+bool setup_params_data(struct st_prep_stmt *stmt);
+bool setup_params_data_withlog(struct st_prep_stmt *stmt);
+#endif
+

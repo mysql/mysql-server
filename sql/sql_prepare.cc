@@ -77,7 +77,7 @@ Long data handling:
 #define STMT_QUERY_LOG_LENGTH 8192
 
 extern int yyparse(void *thd);
-static String null_string("NULL", 4, default_charset_info);
+String null_string("NULL", 4, default_charset_info);
 
 /*
   Find prepared statement in thd
@@ -353,7 +353,7 @@ static void setup_param_str(Item_param *param, uchar **pos)
   *pos+= len;        
 }
 
-static void setup_param_functions(Item_param *param, uchar param_type)
+void setup_param_functions(Item_param *param, uchar param_type)
 {
   switch (param_type) {
   case FIELD_TYPE_TINY:
@@ -399,6 +399,7 @@ static void setup_param_functions(Item_param *param, uchar param_type)
   }
 }
 
+#ifndef EMBEDDED_LIBRARY
 /*
   Update the parameter markers by reading data from client packet 
   and if binary/update log is set, generate the valid query.
@@ -484,11 +485,7 @@ static bool setup_params_data(PREP_STMT *stmt)
   Item_param *param;
   DBUG_ENTER("setup_params_data");
 
-#ifndef EMBEDDED_LIBRARY
   uchar *pos=(uchar*) thd->net.read_pos+1+MYSQL_STMT_HEADER; //skip header
-#else
-  uchar *pos= 0; //just to compile TODO code for embedded case
-#endif
   uchar *read_pos= pos+(stmt->param_count+7) / 8; //skip null bits   
 
   if (*read_pos++) //types supplied / first execute
@@ -507,6 +504,8 @@ static bool setup_params_data(PREP_STMT *stmt)
   stmt->setup_params(stmt,pos,read_pos);
   DBUG_RETURN(0);
 }
+
+#endif /*!EMBEDDED_LIBRARY*/
 
 /*
   Validate the following information for INSERT statement:                         
@@ -792,10 +791,18 @@ static bool init_param_items(PREP_STMT *stmt)
   if (mysql_bin_log.is_open() || mysql_update_log.is_open())
   {
     stmt->log_full_query= 1;
+#ifndef EMBEDDED_LIBRARY
     stmt->setup_params= insert_params_withlog;
+#else
+    stmt->setup_params_data= setup_params_data_withlog;
+#endif
   }
   else
+#ifndef EMBEDDED_LIBRARY
     stmt->setup_params= insert_params; // not fully qualified query
+#else
+    stmt->setup_params_data= setup_params_data;
+#endif
    
   if (!stmt->param_count)
     stmt->param= (Item_param **)0;
@@ -949,8 +956,13 @@ void mysql_stmt_execute(THD *thd, char *packet)
   }
   init_stmt_execute(stmt);
 
+#ifndef EMBEDDED_LIBRARY
   if (stmt->param_count && setup_params_data(stmt))
     DBUG_VOID_RETURN;
+#else
+  if (stmt->param_count && (*stmt->setup_params_data)(stmt))
+    DBUG_VOID_RETURN;
+#endif
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);  

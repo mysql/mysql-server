@@ -55,3 +55,4 @@ my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			  uint fields);
 int STDCALL cli_stmt_execute(MYSQL_STMT *stmt);
+MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt);

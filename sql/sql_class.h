@@ -341,7 +341,11 @@ typedef struct st_prep_stmt
   char last_error[MYSQL_ERRMSG_SIZE];
   bool error_in_prepare, long_data_used;
   bool log_full_query;
+#ifndef EMBEDDED_LIBRARY
   bool (*setup_params)(st_prep_stmt *stmt, uchar *pos, uchar *read_pos);
+#else
+  bool (*setup_params_data)(st_prep_stmt *stmt);
+#endif
 } PREP_STMT;
 
 
@@ -425,6 +429,7 @@ public:
   struct st_mysql_data *data;
   unsigned long	 client_stmt_id;
   unsigned long  client_param_count;
+  struct st_mysql_bind *client_params;
 #endif
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
