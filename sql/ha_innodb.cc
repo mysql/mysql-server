@@ -4115,7 +4115,7 @@ Gives an UPPER BOUND to the number of rows in a table. This is used in
 filesort.cc. */
 
 ha_rows
-ha_innobase::estimate_number_of_rows(void)
+ha_innobase::estimate_rows_upper_bound(void)
 /*======================================*/
 			/* out: upper bound of rows */
 {
@@ -4124,7 +4124,7 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
 
- 	DBUG_ENTER("estimate_number_of_rows");
+ 	DBUG_ENTER("estimate_rows_upper_bound");
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -4204,7 +4204,7 @@ ha_innobase::read_time(
 
 	time_for_scan = scan_time();
 
-	if ((total_rows = estimate_number_of_rows()) < rows)
+	if ((total_rows = estimate_rows_upper_bound()) < rows)
 	  return time_for_scan;
 
 	return (ranges + (double) rows / (double) total_rows * time_for_scan);
