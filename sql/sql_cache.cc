@@ -1073,7 +1073,8 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
-			      tables_used->table_name));
+			      tables_used->key+
+			      strlen(tables_used->key)+1));
       }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
@@ -1994,7 +1995,7 @@ Query_cache_block *
 Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
 			    my_bool under_guard)
 {
-  DBUG_ENTER("Query_cache::allocate_n_lock_block");
+  DBUG_ENTER("Query_cache::allocate_block");
   DBUG_PRINT("qcache", ("len %lu, not less %d, min %lu, uder_guard %d",
 		      len, not_less,min,under_guard));
 
@@ -3060,7 +3061,8 @@ my_bool Query_cache::check_integrity(bool not_locked)
     DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			  (ulong) block, (uint) block->type));  
     // Check allignment
-    if ((ulonglong)block % ALIGN_SIZE(1))
+    if ((((ulonglong)block) % (ulonglong)ALIGN_SIZE(1)) !=
+	(((ulonglong)first_block) % (ulonglong)ALIGN_SIZE(1)))
     {
       DBUG_PRINT("error",
 		 ("block 0x%lx do not aligned by %d", (ulong) block,

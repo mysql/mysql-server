@@ -2432,7 +2432,6 @@ mysql_execute_command(void)
     }
     else
       res= -1;
-    thd->transaction.cleanup();
     break;
   }
   case SQLCOM_ROLLBACK:
@@ -2447,7 +2446,6 @@ mysql_execute_command(void)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-    thd->transaction.cleanup();
     break;
   default:					/* Impossible */
     send_ok(&thd->net);
