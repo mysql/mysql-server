@@ -372,7 +372,7 @@ String *Item_exists_subselect::val_str(String *str)
     reset();
     return 0;
   }
-  str->set(value,thd_charset());
+  str->set(value,default_charset());
   return str;
 }
 
@@ -415,7 +415,7 @@ String *Item_in_subselect::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(value,thd_charset());
+  str->set(value,default_charset());
   return str;
 }
 

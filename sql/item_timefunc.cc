@@ -162,7 +162,7 @@ String* Item_func_monthname::val_str(String* str)
   null_value=0;
   
   String *m=&month_names[month-1];
-  str->copy(m->ptr(), m->length(), m->charset(), thd_charset());
+  str->copy(m->ptr(), m->length(), m->charset(), default_charset());
   return str;
 }
 
@@ -252,7 +252,7 @@ String* Item_func_dayname::val_str(String* str)
     return (String*) 0;
   
   String *d=&day_names[weekday];
-  str->copy(d->ptr(), d->length(), d->charset(), thd_charset());
+  str->copy(d->ptr(), d->length(), d->charset(), default_charset());
   return str;
 }
 
@@ -416,7 +416,7 @@ String *Item_date::val_str(String *str)
     return (String*) 0;
   if (!value)					// zero daynr
   {
-    str->copy("0000-00-00",10,&my_charset_latin1,thd_charset());
+    str->copy("0000-00-00",10,&my_charset_latin1,default_charset());
     return str;
   }
   
@@ -425,7 +425,7 @@ String *Item_date::val_str(String *str)
 	  (int) (value/10000L) % 10000,
 	  (int) (value/100)%100,
 	  (int) (value%100));
-  str->copy(tmpbuff,10,&my_charset_latin1,thd_charset());
+  str->copy(tmpbuff,10,&my_charset_latin1,default_charset());
   return str;
 }
 
@@ -463,9 +463,9 @@ void Item_func_curdate::fix_length_and_dec()
   struct tm tm_tmp,*start;
   time_t query_start=current_thd->query_start();
   
-  set_charset(thd_charset());
+  set_charset(default_charset());
   decimals=0; 
-  max_length=10*thd_charset()->mbmaxlen;
+  max_length=10*default_charset()->mbmaxlen;
   localtime_r(&query_start,&tm_tmp);
   start=&tm_tmp;
   value=(longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
@@ -492,7 +492,7 @@ bool Item_func_curdate::get_date(TIME *res,
 
 String *Item_func_curtime::val_str(String *str)
 { 
-  str_value.set(buff,buff_length,thd_charset());
+  str_value.set(buff,buff_length,default_charset());
   return &str_value;
 }
 
@@ -500,7 +500,7 @@ void Item_func_curtime::fix_length_and_dec()
 {
   struct tm tm_tmp,*start;
   time_t query_start=current_thd->query_start();
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=default_charset();
 
   decimals=0; 
   max_length=8*cs->mbmaxlen;
@@ -520,7 +520,7 @@ void Item_func_curtime::fix_length_and_dec()
 
 String *Item_func_now::val_str(String *str)
 {
-  str_value.set(buff,buff_length,thd_charset());
+  str_value.set(buff,buff_length,default_charset());
   return &str_value;
 }
 
@@ -595,7 +595,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   uint sec= (uint) ((ulonglong) seconds % 3600);
   length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 			   sec/60, sec % 60));
-  str->copy(buff, length, &my_charset_latin1, thd_charset());
+  str->copy(buff, length, &my_charset_latin1, default_charset());
   return str;
 }
 
@@ -940,7 +940,7 @@ String *Item_func_from_unixtime::val_str(String *str)
   struct tm tm_tmp,*start;
   time_t tmp=(time_t) args[0]->val_int();
   uint32 l;
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=default_charset();
   
   if ((null_value=args[0]->null_value))
     return 0;
@@ -1003,9 +1003,9 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
 void Item_date_add_interval::fix_length_and_dec()
 {
   enum_field_types arg0_field_type;
-  set_charset(thd_charset());
+  set_charset(default_charset());
   maybe_null=1;
-  max_length=19*thd_charset()->mbmaxlen;
+  max_length=19*default_charset()->mbmaxlen;
   value.alloc(32);
 
   /*
@@ -1124,7 +1124,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
 String *Item_date_add_interval::val_str(String *str)
 {
   TIME ltime;
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=default_charset();
   uint32 l;
 
   if (Item_date_add_interval::get_date(&ltime,0))

@@ -110,7 +110,7 @@ public:
 
   virtual bool binary() const
   { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
-  CHARSET_INFO *thd_charset() const;
+  CHARSET_INFO *default_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
   virtual void set_outer_resolving() {}
@@ -773,7 +773,7 @@ public:
   }
   double val() { return (double) value; }
   longlong val_int() { return value; }
-  String* val_str(String *str) { str->set(value, thd_charset()); return str; }
+  String* val_str(String *str) { str->set(value, default_charset()); return str; }
   enum Item_result result_type() const { return INT_RESULT; }
 };
 
@@ -792,7 +792,7 @@ public:
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
   String* val_str(String *str)
   {
-    str->set(value, decimals, thd_charset());
+    str->set(value, decimals, default_charset());
     return str;
   }
   enum Item_result result_type() const { return REAL_RESULT; }
