@@ -180,6 +180,7 @@ void Item_singlerow_subselect::fix_length_and_dec()
     engine->fix_length_and_dec(row);
     value= *row;
   }
+  maybe_null= engine->may_be_null();
 }
 
 uint Item_singlerow_subselect::cols()
@@ -663,7 +664,7 @@ int subselect_union_engine::prepare()
 }
 
 static Item_result set_row(SELECT_LEX *select_lex, Item * item,
-			   Item_cache **row)
+			   Item_cache **row, bool *maybe_null)
 {
   Item_result res_type= STRING_RESULT;
   Item *sel_item;
@@ -673,6 +674,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
     item->max_length= sel_item->max_length;
     res_type= sel_item->result_type();
     item->decimals= sel_item->decimals;
+    *maybe_null= sel_item->maybe_null;
     if (row)
     {
       if (!(row[i]= Item_cache::get_cache(res_type)))
@@ -692,7 +694,9 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
 void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
-  res_type= set_row(select_lex, item, row);
+  res_type= set_row(select_lex, item, row, &maybe_null);
+  if (cols() != 1)
+    maybe_null= 0;
 }
 
 void subselect_union_engine::fix_length_and_dec(Item_cache **row)
@@ -711,6 +715,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 	mlen= len;
       if (!sel_item)
 	sel_item= s_item;
+      maybe_null!= s_item->maybe_null;
     }
     item->max_length= mlen;
     res_type= sel_item->result_type();
@@ -729,7 +734,8 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   else
   {
     SELECT_LEX *sl= unit->first_select();
-    res_type= set_row(sl, item, row);
+    bool fake= 0;
+    res_type= set_row(sl, item, row, &fake);
     for(sl= sl->next_select(); sl; sl->next_select())
     {
       List_iterator_fast<Item> li(sl->item_list);
