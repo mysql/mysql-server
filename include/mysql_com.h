@@ -91,7 +91,6 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define CLIENT_ODBC		64	/* Odbc client */
 #define CLIENT_LOCAL_FILES	128	/* Can use LOAD DATA LOCAL */
 #define CLIENT_IGNORE_SPACE	256	/* Ignore spaces before '(' */
-#define CLIENT_CHANGE_USER	512	/* Support the mysql_change_user() */
 #define CLIENT_INTERACTIVE	1024	/* This is an interactive client */
 #define CLIENT_SSL              2048     /* Switch to SSL after handshake */
 #define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */

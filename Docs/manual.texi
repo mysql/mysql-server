@@ -33543,8 +33543,10 @@ If you want to use an @code{ORDER BY} for the total @code{UNION} result,
 you should use parentheses:
 
 @example
-(SELECT a FROM table_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10) UNION
-(SELECT a FROM table_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10) ORDER BY a;
+(SELECT a FROM table_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10)
+UNION
+(SELECT a FROM table_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10)
+ORDER BY a;
 @end example
 
 @findex HANDLER
@@ -33553,8 +33555,12 @@ you should use parentheses:
 
 @example
 HANDLER table OPEN [ AS alias ]
-HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
-HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )
+[ WHERE ... ] [LIMIT ... ]
+
+HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @}
+[ WHERE ... ] [LIMIT ... ]
+
 HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
 HANDLER table CLOSE
 @end example
