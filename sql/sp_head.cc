@@ -257,7 +257,7 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
-   m_simple_case(FALSE), m_multi_results(FALSE)
+   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -272,7 +272,7 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext();
+  lex->spcont= m_pcont= new sp_pcontext(NULL);
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
   m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
@@ -514,10 +514,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 {
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
-  uint csize = m_pcont->max_framesize();
-  uint params = m_pcont->params();
-  uint hmax = m_pcont->handlers();
-  uint cmax = m_pcont->cursors();
+  uint csize = m_pcont->max_pvars();
+  uint params = m_pcont->current_pvars();
+  uint hmax = m_pcont->max_handlers();
+  uint cmax = m_pcont->max_cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
@@ -594,10 +594,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret= 0;
-  uint csize = m_pcont->max_framesize();
-  uint params = m_pcont->params();
-  uint hmax = m_pcont->handlers();
-  uint cmax = m_pcont->cursors();
+  uint csize = m_pcont->max_pvars();
+  uint params = m_pcont->current_pvars();
+  uint hmax = m_pcont->max_handlers();
+  uint cmax = m_pcont->max_cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
@@ -851,12 +851,18 @@ sp_head::backpatch(sp_label_t *lab)
 	(bp->lab->type == SP_LAB_REF &&
 	 my_strcasecmp(system_charset_info, bp->lab->name, lab->name) == 0))
     {
-      sp_scope_t sdiff;
+      if (bp->lab->type != SP_LAB_REF)
+	bp->instr->backpatch(dest, lab->ctx);
+      else
+      {
+	sp_label_t *dstlab= bp->lab->ctx->find_label(lab->name);
 
-      if (bp->lab->type == SP_LAB_REF)
-	bp->lab= lab;
-      m_pcont->diff_scopes(0, &sdiff);
-      bp->instr->backpatch(dest, sdiff.hndlrs, sdiff.curs);
+	if (dstlab)
+	{
+	  bp->lab= lab;
+	  bp->instr->backpatch(dest, dstlab->ctx);
+	}
+      }
     }
   }
 }
@@ -1236,7 +1242,7 @@ sp_instr_jump::print(String *str)
 uint
 sp_instr_jump::opt_mark(sp_head *sp)
 {
-  m_dest= opt_shortcut_jump(sp);
+  m_dest= opt_shortcut_jump(sp, this);
   if (m_dest != m_ip+1)		/* Jumping to following instruction? */
     marked= 1;
   m_optdest= sp->get_instr(m_dest);
@@ -1244,15 +1250,18 @@ sp_instr_jump::opt_mark(sp_head *sp)
 }
 
 uint
-sp_instr_jump::opt_shortcut_jump(sp_head *sp)
+sp_instr_jump::opt_shortcut_jump(sp_head *sp, sp_instr *start)
 {
   uint dest= m_dest;
   sp_instr *i;
 
   while ((i= sp->get_instr(dest)))
   {
-    uint ndest= i->opt_shortcut_jump(sp);
+    uint ndest;
 
+    if (start == i)
+      break;
+    ndest= i->opt_shortcut_jump(sp, start);
     if (ndest == dest)
       break;
     dest= ndest;
@@ -1320,7 +1329,7 @@ sp_instr_jump_if::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1377,7 +1386,7 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1460,7 +1469,7 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1486,6 +1495,13 @@ sp_instr_hpop::print(String *str)
   str->append("hpop ");
   str->qs_append(m_count);
 }
+
+void
+sp_instr_hpop::backpatch(uint dest, sp_pcontext *dst_ctx)
+{
+  m_count= m_ctx->diff_handlers(dst_ctx);
+}
+
 
 //
 // sp_instr_hreturn
@@ -1549,6 +1565,12 @@ sp_instr_cpop::print(String *str)
   str->reserve(12);
   str->append("cpop ");
   str->qs_append(m_count);
+}
+
+void
+sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
+{
+  m_count= m_ctx->diff_cursors(dst_ctx);
 }
 
 //

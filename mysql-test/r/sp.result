@@ -1,4 +1,3 @@
-reset master;
 use test;
 drop table if exists t1;
 drop table if exists t2;
@@ -398,7 +397,7 @@ id	data
 i	3
 delete from t1|
 drop procedure i|
-create procedure j()
+create procedure goto1()
 begin
 declare y int;
 label a;
@@ -411,7 +410,7 @@ insert into t1 values ("j", y);
 goto a;
 label b;
 end|
-call j()|
+call goto1()|
 id	data
 id	data
 j	0
@@ -422,8 +421,8 @@ id	data
 j	0
 j	1
 j	2
-drop procedure j|
-create procedure k(a int)
+drop procedure goto1|
+create procedure goto2(a int)
 begin
 declare x int default 0;
 declare continue handler for sqlstate '42S98' set x = 1;
@@ -446,7 +445,7 @@ end;
 end while b;
 select * from t1;
 end|
-call k(0)|
+call goto2(0)|
 id	data
 j	0
 j	1
@@ -455,7 +454,7 @@ id	data
 j	0
 j	1
 j	2
-call k(1)|
+call goto2(1)|
 id	data
 j	0
 j	1
@@ -464,7 +463,7 @@ id	data
 j	0
 j	1
 j	2
-call k(2)|
+call goto2(2)|
 id	data
 j	0
 j	1
@@ -477,8 +476,60 @@ id	data
 j	0
 j	1
 j	2
-drop procedure k|
+drop procedure goto2|
 delete from t1|
+create procedure goto3()
+begin
+label L1;
+begin
+end;
+goto L1;
+end|
+drop procedure goto3|
+create procedure goto4()
+begin
+begin
+label lab1;
+begin
+goto lab1;
+end;
+end;
+end|
+drop procedure goto4|
+create procedure goto5()
+begin
+begin
+begin
+goto lab1;
+end;
+label lab1;
+end;
+end|
+drop procedure goto5|
+create procedure goto6()
+begin
+label L1;
+goto L5;
+begin
+label L2;
+goto L1;
+goto L5;
+begin
+label L3;
+goto L1;
+goto L2;
+goto L3;
+goto L4;
+goto L5;
+end;
+goto L2;
+goto L4;
+label L4;
+end;
+label L5;
+goto L1;
+end|
+drop procedure goto6|
 insert into t1 values ("foo", 3), ("bar", 19)|
 insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
 create procedure sel1()
@@ -1536,11 +1587,8 @@ show errors;
 show columns from t1;
 show grants for 'root'@'localhost';
 show keys from t1;
-show master status;
 show open tables like 'foo';
 show privileges;
-show slave hosts;
-show slave status;
 show status like 'foo';
 show tables like 'foo';
 show variables like 'foo';
@@ -1567,8 +1615,6 @@ data	int(11)			0
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22451		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1594,8 +1640,6 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Server_id	Host	Port	Rpl_recovery_rank	Master_id
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
 Tables_in_test (foo)	table_type
 Variable_name	Value
@@ -1621,8 +1665,6 @@ data	int(11)			0
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22451		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1648,8 +1690,6 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Server_id	Host	Port	Rpl_recovery_rank	Master_id
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
 Tables_in_test (foo)	table_type
 Variable_name	Value

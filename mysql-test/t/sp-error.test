@@ -103,6 +103,42 @@ create procedure foo()
 begin
   goto foo;
 end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  goto foo;
+end|
+--error 1307
+create procedure foo()
+begin
+  goto foo;
+  begin
+    label foo;
+  end;
+end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    goto foo;
+  end;
+  begin
+    label foo;
+  end;
+end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  begin
+    goto foo;
+  end;
+end|
 
 # Redefining label
 --error 1308
@@ -378,6 +414,18 @@ begin
   declare x int;
   declare continue handler for sqlstate '42S99' set x = 1;
   declare c cursor for select * from t1;
+end|
+
+--error 1357
+create procedure p()
+begin
+  declare continue handler for sqlexception
+    begin
+      goto L1;
+    end;
+
+  select field from t1;
+  label L1;
 end|
 
 #
