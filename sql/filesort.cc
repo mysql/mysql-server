@@ -151,8 +151,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=table->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
-  if (param.rec_length == param.ref_length && records > param.max_rows)
-    records=param.max_rows;			/* purecov: inspected */
 
   if (multi_byte_charset &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
@@ -182,7 +180,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		       DISK_BUFFER_SIZE, MYF(MY_WME)))
     goto err;
 
-  param.keys--;
+  param.keys--;  			/* TODO: check why we do this */
   param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
   if ((records=find_all_keys(&param,select,sort_keys, &buffpek_pointers,
@@ -408,16 +406,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
 	  DBUG_RETURN(HA_POS_ERROR);
 	idx=0;
-	if (param->ref_length == param->rec_length &&
-	    my_b_tell(tempfile)/param->rec_length >= param->max_rows)
-	{
-	  /*
-	    We are writing the result index file and have found all
-	    rows that we need.  Abort the sort and return the result.
-	  */
-	  error=HA_ERR_END_OF_FILE;
-	  break;			/* Found enough records */
-	}
 	indexpos++;
       }
       make_sortkey(param,sort_keys[idx++],ref_pos);

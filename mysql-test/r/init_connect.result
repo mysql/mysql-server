@@ -20,5 +20,5 @@ hex(a)
 616263
 set GLOBAL init_connect="adsfsdfsdfs";
 select @a;
-ERROR HY000: Lost connection to MySQL server during query
+Got one of the listed errors
 drop table t1;
