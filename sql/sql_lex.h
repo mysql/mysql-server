@@ -243,7 +243,7 @@ public:
   virtual List<Item>* get_item_list();
   virtual List<String>* get_use_index();
   virtual List<String>* get_ignore_index();
-  virtual ulong table_join_options();
+  virtual ulong get_table_join_options();
   virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
 					LEX_STRING *alias,
 					ulong table_options,
@@ -375,7 +375,7 @@ public:
   List<Item>* get_item_list();
   List<String>* get_use_index();
   List<String>* get_ignore_index();
-  ulong table_join_options();
+  ulong get_table_join_options();
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
 				ulong table_options,

@@ -3598,11 +3598,30 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 }
 
 
+/*
+  Add a table to list of used tables
+
+  SYNOPSIS
+    add_table_to_list()
+    table		Table to add
+    alias		alias for table (or null if no alias)
+    table_options	A set of the following bits:
+			TL_OPTION_UPDATING	Table will be updated
+			TL_OPTION_FORCE_INDEX	Force usage of index
+    lock_type		How table should be locked
+    use_index		List of indexed used in USE INDEX
+    ignore_index	List of indexed used in IGNORE INDEX
+
+    RETURN
+      0		Error
+      #		Pointer to TABLE_LIST element added to the total table list
+*/
+
 TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     Table_ident *table,
 					     LEX_STRING *alias,
-					     bool updating,
-					     thr_lock_type flags,
+					     ulong table_options,
+					     thr_lock_type lock_type,
 					     List<String> *use_index,
 					     List<String> *ignore_index)
 {
@@ -3659,8 +3678,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
-  ptr->lock_type=flags;
-  ptr->updating=updating;
+  ptr->lock_type= lock_type;
+  ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->derived= (SELECT_LEX_UNIT *) table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,

@@ -349,4 +349,6 @@ explain select * from t1,t2 where t1.b=t2.b;
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 explain select * from t1 where a=0 or a=2;
 explain select * from t1 force index (a) where a=0 or a=2;
+explain select * from t1 where c=1;
+explain select * from t1 use index() where c=1;
 drop table t1,t2;
