@@ -62,7 +62,8 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
+static bool create_total_list(THD *thd, LEX *lex,
+			      TABLE_LIST **result, bool skip_first);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1352,7 +1353,9 @@ mysql_execute_command(void)
 #endif
   }
   
-  if (lex->select_lex.next && create_total_list(thd,lex,&tables))
+  if (lex->select_lex.next &&
+      create_total_list(thd,lex,&tables,
+			(lex->sql_command == SQLCOM_CREATE_TABLE)))
     DBUG_VOID_RETURN;
   
   /*
@@ -3487,7 +3490,8 @@ void set_lock_for_tables(thr_lock_type lock_type)
 ** to the entries in this list.
 */
 
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
+static bool create_total_list(THD *thd, LEX *lex,
+			      TABLE_LIST **result, bool skip_first)
 {
   /* Handle the case when we are not using union */
   if (!lex->select_lex.next)
@@ -3497,8 +3501,6 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
   }
 
   /* We should skip first table if SQL command is SQLCOM_CREATE_TABLE */
-  bool skip_first= (lex->sql_command == SQLCOM_CREATE_TABLE);
-  bool first_added= 0;
   SELECT_LEX *sl;
   TABLE_LIST **new_table_list= result, *aux;
 
@@ -3516,7 +3518,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
       for (; aux; aux=next)
       {
 	TABLE_LIST *cursor= *result;
-	if (first_added && skip_first)
+	if (skip_first && cursor)
 	  cursor= cursor->next;
 	next= aux->next;
 	for ( ; cursor; cursor=cursor->next)
@@ -3536,7 +3538,6 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	  *new_table_list= cursor;
 	  new_table_list= &cursor->next;
 	  *new_table_list=0;			// end result list
-	  first_added= 1;
 	}
 	else
 	  aux->shared=1;			// Mark that it's used twice
