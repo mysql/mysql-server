@@ -28494,7 +28494,7 @@ variable in the @strong{MySQL} server is bigger than the
 @end table
 
 The most normal use of @code{mysqldump} is probably for making a backup of
-whole databases. @xref{Backup}:
+whole databases. @xref{Backup}.
 
 @example
 mysqldump --opt database > backup-file.sql
@@ -38908,7 +38908,7 @@ though, so Version 3.23 is not released as a stable version yet.
 @item
 Applied patches for OS2 by @code{Yuri Dario}.
 @item
-@code[FLUSH TABLES table_name} didn't always flush table properly to
+@code{FLUSH TABLES table_name} didn't always flush table properly to
 disk; One some cases the index tree wasn't completely written to disk.
 @item
 @code{--bootstrap} is now run in a separate thread. This fixes the problem
