@@ -14,7 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "IPCConfig.hpp"
+#include <ndb_global.h>
+#include <ndb_opt_defaults.h>
+#include <IPCConfig.hpp>
 #include <NdbOut.hpp>
 #include <NdbHost.h>
 
@@ -381,7 +383,12 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       
       if(iter.get(CFG_SHM_KEY, &conf.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shmSize)) break;
-      
+      {
+	Uint32 tmp;
+	if(iter.get(CFG_SHM_SIGNUM, &tmp)) break;
+	conf.signum= tmp;
+      }
+
       conf.port= server_port;
       conf.localHostName  = localHostName;
       conf.remoteHostName = remoteHostName;
