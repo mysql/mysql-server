@@ -867,9 +867,8 @@ void Item_func_min_max::fix_length_and_dec()
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
     if (i==0)
-      set_charset(*args[i]);
-    else if (set_charset(charset(), derivation(), 
-			args[i]->charset(), args[i]->derivation()))
+      collation.set(args[0]->collation);
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
