@@ -50064,6 +50064,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in query cache initialization with very small query cache size.
+@item
 Allow @code{DEFAULT} with @code{INSERT} statement.
 @item
 The startup parameters @code{myisam_max_extra_sort_file_size} and
