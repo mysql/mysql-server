@@ -17,8 +17,8 @@ INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
                -I$(top_srcdir)/ndb/src/mgmapi \
                -I$(top_srcdir)/ndb/src/common/mgmcommon
 
-LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la \
-	    $(top_srcdir)/ndb/src/common/editline/libeditline.a \
+LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
+	    $(top_builddir)/ndb/src/common/editline/libeditline.a \
 	    @TERMCAP_LIB@
 
 include $(top_srcdir)/ndb/config/common.mk.am

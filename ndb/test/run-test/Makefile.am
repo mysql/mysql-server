@@ -8,7 +8,7 @@ ndbtest_SCRIPTS = atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
 EXTRA_DIST = $(ndbtest_SCRIPTS)
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmclient
-LDADD_LOC = $(top_srcdir)/ndb/src/mgmclient/CpcClient.o $(top_srcdir)/ndb/src/libndbclient.la
+LDADD_LOC = $(top_builddir)/ndb/src/mgmclient/CpcClient.o $(top_builddir)/ndb/src/libndbclient.la
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_util.mk.am
