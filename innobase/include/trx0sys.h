@@ -24,6 +24,18 @@ Created 3/26/1996 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "read0types.h"
 
+/* Do NOT merge this to the 4.1 code base! */
+extern ibool		trx_sys_downgrading_from_4_1_1;
+
+/********************************************************************
+Do NOT merge this to the 4.1 code base!
+Marks the trx sys header when we have successfully downgraded from the >= 4.1.1
+multiple tablespace format back to the 4.0 format. */
+
+void
+trx_sys_mark_downgraded_from_4_1_1(void);
+/*====================================*/
+
 /* In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. We have successfully got the updates to InnoDB
 up to this position. If .._pos is -1, it means no crash recovery was needed,
@@ -354,8 +366,14 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 						sys header is half-written
 						to disk, we still may be able
 						to recover the information */
+#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
+						/* If this is set to
+						.._N, then we are
+						DOWNGRADING from >= 4.1.1 to
+						4.0 */
 /*-------------------------------------------------------------*/
 #define TRX_SYS_DOUBLEWRITE_MAGIC_N	536853855
+#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N 1783657386
 
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE	
 
