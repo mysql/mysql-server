@@ -258,7 +258,12 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest" # for --client-gdb to work
+ if [ -e "$BASEDIR/client/.libs/mysqltest" ] ; then
+   [ -e "$BASEDIR/client/.libs/lt-mysqltest" ] || $BASEDIR/client/mysqltest -V
+   MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
+ else
+   MYSQL_TEST="$BASEDIR/client/mysqltest"
+ fi
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
@@ -788,7 +793,10 @@ run_testcase ()
       $ECHO "$RES$RES_SPACE [ pass ]"
     else
       # why the following ``if'' ? That is why res==1 is special ?
-      if [ $res = 1 ]; then
+      if [ $res = 2 ]; then
+        skip_inc
+	$ECHO "$RES$RES_SPACE [ skipped ]"
+      else
 	total_inc
         fail_inc
 	$ECHO "$RES$RES_SPACE [ fail ]"
@@ -812,9 +820,6 @@ run_testcase ()
 	fi
 	$ECHO "Resuming Tests"
 	$ECHO ""
-      else
-        skip_inc
-	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi
   fi
