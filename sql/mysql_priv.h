@@ -422,7 +422,6 @@ bool mysql_rename_table(enum db_type base,
 			const char * old_name,
 			const char *new_db,
 			const char * new_name);
-bool close_cached_table(THD *thd,TABLE *table);
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
