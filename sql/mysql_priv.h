@@ -171,6 +171,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 #define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
+#define TEST_SYNCHRONIZATION	2048	/* get server to do sleep in some 
+                                                                       places */
 
 /* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		(1L << 0)
