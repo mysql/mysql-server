@@ -526,6 +526,21 @@ public:
 };
 
 
+/* For SET NAMES and SET CHARACTER SET */
+
+class set_var_client_collation: public set_var_base
+{
+  CHARSET_INFO *client_collation;
+  my_bool convert_result_charset;
+public:
+  set_var_client_collation(CHARSET_INFO *coll_arg ,my_bool conv_arg)
+    :client_collation(coll_arg), convert_result_charset(conv_arg)
+  {}
+  int check(THD *thd);
+  int update(THD *thd);
+};
+
+
 /*
   Prototypes for helper functions
 */
