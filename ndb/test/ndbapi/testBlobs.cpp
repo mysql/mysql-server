@@ -23,13 +23,14 @@
 #include <NdbOut.hpp>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
+#include <ndb/src/ndbapi/NdbBlobImpl.hpp>
 
 struct Bcol {
   bool m_nullable;
   unsigned m_inline;
   unsigned m_partsize;
   unsigned m_stripe;
-  char m_btname[NdbBlob::BlobTableNameSize];
+  char m_btname[NdbBlobImpl::BlobTableNameSize];
   Bcol(bool a, unsigned b, unsigned c, unsigned d) :
     m_nullable(a),
     m_inline(b),
