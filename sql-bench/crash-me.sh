@@ -2786,6 +2786,39 @@ sub check_constraint {
  print "$res\n";
 }
 
+sub make_time_r {
+  my $hour=shift;
+  my $minute=shift;
+  my $second=shift;
+  $_ = $limits{'time_format_inresult'};
+  return sprintf "%02d:%02d:%02d", ($hour%24),$minute,$second if (/^iso$/);
+  return sprintf "%02d.%02d.%02d", ($hour%24),$minute,$second if (/^euro/);
+  return sprintf "%02d:%02d %s", 
+        ($hour >= 13? ($hour-12) : $hour),$minute,($hour >=13 ? 'PM':'AM') 
+	                if (/^usa/);
+  return sprintf "%02d%02d%02d", ($hour%24),$minute,$second if (/^HHMMSS/);
+  return sprintf "%04d%02d%02d", ($hour%24),$minute,$second if (/^HHHHMMSS/);
+  return "UNKNOWN FORMAT";
+}
+
+sub make_time {
+  my $hour=shift;
+  my $minute=shift;
+  my $second=shift;
+  return sprintf "%02d:%02d:%02d", ($hour%24),$minute,$second 
+      if ($limits{'time_format_ISO'} eq "yes");
+  return sprintf "%02d.%02d.%02d", ($hour%24),$minute,$second 
+      if ($limits{'time_format_EUR'} eq "yes");
+  return sprintf "%02d:%02d %s", 
+        ($hour >= 13? ($hour-12) : $hour),$minute,($hour >=13 ? 'PM':'AM') 
+      if ($limits{'time_format_USA'} eq "yes");
+  return sprintf "%02d%02d%02d", ($hour%24),$minute,$second 
+      if ($limits{'time_format_HHMMSS'} eq "yes");
+  return sprintf "%04d%02d%02d", ($hour%24),$minute,$second 
+      if ($limits{'time_format_HHHHMMSS'} eq "yes");
+  return "UNKNOWN FORMAT";
+}
+
 sub make_date_r {
   my $year=shift;
   my $month=shift;
