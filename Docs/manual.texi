@@ -45748,8 +45748,9 @@ Fixed hard bug in BDB tables when using key parts.
 Fixed problem when using the @code{GRANT FILE ON database.* ...}; Previously
 we added the @code{DROP} privilege for the database.
 @item
-Fixed that @code{DELETE FROM table_name ... LIMIT 0} and
-@code{UPDATE FROM table_name ... LIMIT 0} doesn't delete/update anything.
+Fixed @code{DELETE FROM table_name ... LIMIT 0} and
+@code{UPDATE FROM table_name ... LIMIT 0} acted as though the @code{LIMIT}
+clause was not present (they deleted or updated all selected rows).
 @item
 @code{CHECK TABLE} now checks if an auto_increment column contains the value 0.
 @item
