@@ -150,6 +150,8 @@ mutex_reset_lock_word(
 				that our asm code resets eax: tell it
 				explicitly that after the third ':' */
 #else
+	mutex->lock_word = 0;
+
 	os_fast_mutex_unlock(&(mutex->os_fast_mutex));
 #endif
 }
