@@ -378,3 +378,4 @@ monty@donna.mysql.com|sql-bench/Results-linux/select-mysql_dbug-Linux_2.2.14_my_
 monty@donna.mysql.com|sql-bench/Results-linux/select-mysql_dbug_full-Linux_2.2.14_my_SMP_i686|20001218140918|07610|cffd7d282a90113a
 monty@donna.mysql.com|sql-bench/Results-linux/wisconsin-mysql_dbug-Linux_2.2.14_my_SMP_i686|20001218140918|10615|8dcd7271a9137341
 monty@donna.mysql.com|sql-bench/Results-linux/wisconsin-mysql_dbug_full-Linux_2.2.14_my_SMP_i686|20001218140918|13213|4398328883aa75da
+mwagner@evoq.home.mwagner.org|mysql-test/chew_on_this/select.res|20001014084759|41327|1295456b9394876
