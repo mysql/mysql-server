@@ -97,6 +97,11 @@ public:
   void close();
 
   /**
+   * Restart
+   */
+  int restart();
+  
+  /**
    * Transfer scan operation to an updating transaction. Use this function 
    * when a scan has found a record that you want to update. 
    * 1. Start a new transaction.
