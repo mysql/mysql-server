@@ -314,9 +314,9 @@ mutex_enter_nowait(
 
 	if (!mutex_test_and_set(mutex)) {
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
-		#endif
+#endif
 		
 		mutex->file_name = file_name;
 		mutex->line = line;
@@ -415,9 +415,9 @@ spin_loop:
         if (mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
-		#endif
+#endif
 
 		mutex->file_name = file_name;
 		mutex->line = line;
@@ -462,9 +462,9 @@ spin_loop:
 
                 sync_array_free_cell(sync_primary_wait_array, index);
                 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
-		#endif
+#endif
 
 		mutex->file_name = file_name;
 		mutex->line = line;
@@ -685,18 +685,18 @@ ibool
 sync_all_freed(void)
 /*================*/
 {
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	if (mutex_n_reserved() + rw_lock_n_locked() == 0) {
 
 		return(TRUE);
 	} else {
 		return(FALSE);
 	}	
-	#else
+#else
 	ut_error;
 
 	return(FALSE);
-	#endif
+#endif
 }
 
 /**********************************************************************
