@@ -854,7 +854,7 @@ JOIN::optimize()
     as in other cases the join is done before the sort.
   */
   if (const_tables != tables &&
-      (order || group_list) && 
+      (order || group_list) &&
       join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
       join_tab[const_tables].type != JT_REF_OR_NULL &&
@@ -868,9 +868,7 @@ JOIN::optimize()
       ((group_list && const_tables != tables &&
 	(!simple_group ||
 	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  unit->select_limit_cnt,
-				  0))) ||
-       select_distinct) &&
+				  unit->select_limit_cnt, 0))) || select_distinct) &&
       tmp_table_param.quick_group && !procedure)
   {
     need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
@@ -2069,7 +2067,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	}
 	else if (old->eq_func && new_fields->eq_func &&
 		 old->val->eq(new_fields->val, old->field->binary()))
-		 
+
 	{
 	  old->level= and_level;
 	  old->optimize= ((old->optimize & new_fields->optimize &
@@ -2128,7 +2126,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
-				Is NULL for BETWEEN and IN    
+                                Is NULL for BETWEEN and IN
     usable_tables		Tables which can be used for key optimization
 
   NOTES
@@ -2207,7 +2205,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	  (*value)->result_type() != STRING_RESULT &&
 	  field->cmp_type() != (*value)->result_type())
 	return;
-      
+
       /*
         We can't use indexes if the effective collation
         of the operation differ from the field collation.
@@ -2320,7 +2318,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       Item *tmp=new Item_null;
-      if (!tmp)					// Should never be true
+      if (unlikely(!tmp))                       // Should never be true
 	return;
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
@@ -2731,7 +2729,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  rec= keyuse->ref_table_rows;
 		/*
 		  If there is one 'key_column IS NULL' expression, we can
-		  use this ref_or_null optimsation of this field
+		  use this ref_or_null optimisation of this field
 		*/
 		found_ref_or_null|= (keyuse->optimize &
 				     KEY_OPTIMIZE_REF_OR_NULL);

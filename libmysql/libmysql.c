@@ -1994,7 +1994,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
   }
 
   /*
-    alloc_root will return valid address even in case param_count
+    alloc_root will return valid address even in case when param_count
     and field_count are zero. Thus we should never rely on stmt->bind
     or stmt->params when checking for existence of placeholders or
     result set.
@@ -2091,12 +2091,6 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
     mysql_stmt_result_metadata()
     stmt  statement handle
 
-  RETURN
-    NULL  statement contains no result set or out of memory.
-          In the latter case you can retreive error message
-          with mysql_stmt_error.
-   MYSQL_RES  a result set with no rows
-
   DESCRIPTION
     This function should be used after mysql_stmt_execute().
     You can safely check that prepared statement has a result set by calling
@@ -2110,6 +2104,12 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
       mysql_fetch_field_direct, mysql_fetch_fields, mysql_field_seek.
     - free returned MYSQL_RES structure with mysql_free_result.
     - proceed to binding of output parameters.
+
+  RETURN
+    NULL  statement contains no result set or out of memory.
+          In the latter case you can retreive error message
+          with mysql_stmt_error.
+    MYSQL_RES  a result set with no rows
 */
 
 MYSQL_RES * STDCALL
@@ -2194,11 +2194,11 @@ static void store_param_type(char **pos, MYSQL_BIND *param)
     param		MySQL bind param
 
   DESCRIPTION
-    These funtions are invoked from mysql_stmt_execute by
-    MYSQL_BIND::store_param_func pointer. This pointer is set once per many
-    executions in mysql_stmt_bind_param. The caller must ensure that network
-    buffer have enough capacity to store parameter (MYSQL_BIND::buffer_length
-    contains needed number of bytes).
+    These funtions are invoked from mysql_stmt_execute() by
+    MYSQL_BIND::store_param_func pointer. This pointer is set once per
+    many executions in mysql_stmt_bind_param(). The caller must ensure
+    that network buffer have enough capacity to store parameter
+    (MYSQL_BIND::buffer_length contains needed number of bytes).
 */
 
 static void store_param_tinyint(NET *net, MYSQL_BIND *param)
@@ -2701,7 +2701,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
           example a table used in the query was altered.
         Note, that now (4.1.3) we always send metadata in reply to
         COM_EXECUTE (even if it is not necessary), so either this or
-        previous always branch works.
+        previous branch always works.
         TODO: send metadata only when it's really necessary and add a warning
         'Metadata changed' when it's sent twice.
       */
@@ -2776,19 +2776,171 @@ static my_bool int_is_null_false= 0;
 
 
 /*
-  Setup the input parameter data buffers from application
+  Set up input data buffers for a statement.
 
   SYNOPSIS
     mysql_stmt_bind_param()
     stmt    statement handle
             The statement must be prepared with mysql_stmt_prepare().
     bind    Array of mysql_stmt_param_count() bind parameters.
+            This function doesn't check that size of this argument
+            is >= mysql_stmt_field_count(): it's user's responsibility.
+
+  DESCRIPTION
+    Use this call after mysql_stmt_prepare() to bind user variables to
+    placeholders.
+    Each element of bind array stands for a placeholder. Placeholders
+    are counted from 0.  For example statement
+    'INSERT INTO t (a, b) VALUES (?, ?)'
+    contains two placeholders, and for such statement you should supply
+    bind array of two elements (MYSQL_BIND bind[2]).
+
+    By properly initializing bind array you can bind virtually any
+    C language type to statement's placeholders:
+    First, it's strongly recommended to always zero-initialize entire
+    bind structure before setting it's members. This will both shorten
+    your application code and make it robust to future extensions of
+    MYSQL_BIND structure.
+    Then you need to assign typecode of your application buffer to
+    MYSQL_BIND::buffer_type. The following typecodes with their
+    correspondence to C language types are supported:
+    MYSQL_TYPE_TINY       for 8-bit integer variables. Normally it's
+                          'signed char' and 'unsigned char';
+    MYSQL_TYPE_SHORT      for 16-bit signed and unsigned variables. This
+                          is usually 'short' and 'unsigned short';
+    MYSQL_TYPE_LONG       for 32-bit signed and unsigned variables. It
+                          corresponds to 'int' and 'unsigned int' on
+                          vast majority of platforms. On IA-32 and some
+                          other 32-bit systems you can also use 'long'
+                          here;
+    MYSQL_TYPE_LONGLONG   64-bit signed or unsigned integer.  Stands for
+                          '[unsigned] long long' on most platforms;
+    MYSQL_TYPE_FLOAT      32-bit floating point type, 'float' on most
+                          systems;
+    MYSQL_TYPE_DOUBLE     64-bit floating point type, 'double' on most
+                          systems;
+    MYSQL_TYPE_TIME       broken-down time stored in MYSQL_TIME
+                          structure
+    MYSQL_TYPE_DATE       date stored in MYSQL_TIME structure
+    MYSQL_TYPE_DATETIME   datetime stored in MYSQL_TIME structure See
+                          more on how to use these types for sending
+                          dates and times below;
+    MYSQL_TYPE_STRING     character string, assumed to be in
+                          character-set-client. If character set of
+                          client is not equal to character set of
+                          column, value for this placeholder will be
+                          converted to destination character set before
+                          insert.
+    MYSQL_TYPE_BLOB       sequence of bytes. This sequence is assumed to
+                          be in binary character set (which is the same
+                          as no particular character set), and is never
+                          converted to any other character set. See also
+                          notes about supplying string/blob length
+                          below.
+    MYSQL_TYPE_NULL       special typecode for binding nulls.
+    These C/C++ types are not supported yet by the API: long double,
+    bool.
+
+    As you can see from the list above, it's responsibility of
+    application programmer to ensure that chosen typecode properly
+    corresponds to host language type. For example on all platforms
+    where we build MySQL packages (as of MySQL 4.1.4) int is a 32-bit
+    type. So for int you can always assume that proper typecode is
+    MYSQL_TYPE_LONG (however queer it sounds, the name is legacy of the
+    old MySQL API). In contrary sizeof(long) can be 4 or 8 8-bit bytes,
+    depending on platform.
+
+    TODO: provide client typedefs for each integer and floating point
+    typecode, i. e. int8, uint8, float32, etc.
+
+    Once typecode was set, it's necessary to assign MYSQL_BIND::buffer
+    to point to the buffer of given type. Finally, additional actions
+    may be taken for some types or use cases:
+
+      Binding integer types.
+    For integer types you might also need to set MYSQL_BIND::is_unsigned
+    member. Set it to TRUE when binding unsigned char, unsigned short,
+    unsigned int, unsigned long, unsigned long long.
+
+      Binding floating point types.
+    For floating point types you just need to set
+    MYSQL_BIND::buffer_type and MYSQL_BIND::buffer. The rest of the
+    members should be zero-initialized.
+
+      Binding NULLs.
+    You might have a column always NULL, never NULL, or sometimes NULL.
+    For an always NULL column set MYSQL_BIND::buffer_type to
+    MYSQL_TYPE_NULL.  The rest of the members just need to be
+    zero-initialized.  For never NULL columns set MYSQL_BIND::is_null to
+    0, or this has already been done if you zero-initialized the entire
+    structure.  If you set MYSQL_TYPE::is_null to point to an
+    application buffer of type 'my_bool', then this buffer will be
+    checked on each execution: this way you can set the buffer to TRUE,
+    or any non-0 value for NULLs, and to FALSE or 0 for not NULL data.
+
+      Binding text strings and sequences of bytes.
+    For strings, in addition to MYSQL_BIND::buffer_type and
+    MYSQL_BIND::buffer you need to set MYSQL_BIND::length or
+    MYSQL_BIND::buffer_length.
+    If 'length' is set, 'buffer_length' is ignored. 'buffer_length'
+    member should be used when size of string doesn't change between
+    executions. If you want to vary buffer length for each value, set
+    'length' to point to an application buffer of type 'unsigned long'
+    and set this long to length of the string before each
+    mysql_stmt_execute().
+
+      Binding dates and times.
+    For binding dates and times prepared statements API provides clients
+    with MYSQL_TIME structure. A pointer to instance of this structure
+    should be assigned to MYSQL_BIND::buffer whenever MYSQL_TYPE_TIME,
+    MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME typecodes are used.  When
+    typecode is MYSQL_TYPE_TIME, only members 'hour', 'minute', 'second'
+    and 'neg' (is time offset negative) are used. These members only
+    will be sent to the server.
+    MYSQL_TYPE_DATE implies use of 'year', 'month', 'day', 'neg'.
+    MYSQL_TYPE_DATETIME utilizes both parts of MYSQL_TIME structure.
+    You don't have to set MYSQL_TIME::time_type member: it's not used
+    when sending data to the server, typecode information is enough.
+    'second_part' member can hold microsecond precision of time value,
+    but now it's only supported on protocol level: you can't store
+    microsecond in a column, or use in temporal calculations. However,
+    if you send a time value with microsecond part for 'SELECT ?',
+    statement, you'll get it back unchanged from the server.
+
+      Data conversion.
+    If conversion from host language type to data representation,
+    corresponding to SQL type, is required it's done on the server.
+    Data truncation is possible when conversion is lossy. For example,
+    if you supply MYSQL_TYPE_DATETIME value out of valid SQL type
+    TIMESTAMP range, the same conversion will be applied as if this
+    value would have been sent as string in the old protocol.
+    TODO: document how the server will behave in case of truncation/data
+    loss.
+
+    After variables were bound, you can repeatedly set/change their
+    values and mysql_stmt_execute() the statement.
+
+    See also: mysql_stmt_send_long_data() for sending long text/blob
+    data in pieces, examples in tests/client_test.c.
+    Next steps you might want to make:
+    - execute statement with mysql_stmt_execute(),
+    - reset statement using mysql_stmt_reset() or reprepare it with
+      another query using mysql_stmt_prepare()
+    - close statement with mysql_stmt_close().
+
+  IMPLEMENTATION
+    The function copies given bind array to internal storage of the
+    statement, and sets up typecode-specific handlers to perform
+    serialization of bound data. This means that although you don't need
+    to call this routine after each assignment to bind buffers, you
+    need to call it each time you change parameter typecodes, or other
+    members of MYSQL_BIND array.
+    This is a pure local call. Data types of client buffers are sent
+    along with buffers' data at first execution of the statement.
 
   RETURN
     0  success
     1  error, can be retrieved with mysql_stmt_error.
-       Note, that this function doesn't check that size of MYSQL_BIND
-       array is >= mysql_stmt_field_count(),
 */
 
 my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
@@ -2971,10 +3123,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   if (param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
       param->buffer_type > MYSQL_TYPE_STRING)
   {
-    /*
-      Long data handling should be used only for string/binary
-      types only
-    */
+    /* Long data handling should be used only for string/binary types */
     strmov(stmt->sqlstate, unknown_sqlstate);
     sprintf(stmt->last_error, ER(stmt->last_errno= CR_INVALID_BUFFER_USE),
 	    param->param_number);
@@ -3277,7 +3426,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     char buff[22];                              /* Enough for longlong */
     char *end= longlong10_to_str(value, buff, field_is_unsigned ? 10: -10);
     /* Resort to string conversion which supports all typecodes */
-    return fetch_string_with_conversion(param, buff, end - buff);
+    fetch_string_with_conversion(param, buff, end - buff);
+    break;
   }
   }
 }
@@ -3349,10 +3499,11 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     }
     else
     {
-      sprintf(buff, "%.*f", field->decimals, value);
+      sprintf(buff, "%.*f", (int) field->decimals, value);
       end= strend(buff);
     }
-    return fetch_string_with_conversion(param, buff, end - buff);
+    fetch_string_with_conversion(param, buff, end - buff);
+    break;
   }
   }
 }
