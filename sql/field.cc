@@ -1035,7 +1035,9 @@ int Field_decimal::store(longlong nr)
 double Field_decimal::val_real(void)
 {
   int not_used;
-  return my_strntod(&my_charset_bin, ptr, field_length, NULL, &not_used);
+  char *end_not_used;
+  return my_strntod(&my_charset_bin, ptr, field_length, &end_not_used,
+                    &not_used);
 }
 
 longlong Field_decimal::val_int(void)
@@ -4432,16 +4434,18 @@ int Field_string::store(longlong nr)
 double Field_string::val_real(void)
 {
   int not_used;
-  CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
+  char *end_not_used;
+  CHARSET_INFO *cs= charset();
+  return my_strntod(cs,ptr,field_length,&end_not_used,&not_used);
 }
 
 
 longlong Field_string::val_int(void)
 {
   int not_used;
+  char *end_not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,10,NULL,&not_used);
+  return my_strntoll(cs,ptr,field_length,10,&end_not_used,&not_used);
 }
 
 
@@ -4740,8 +4744,9 @@ int Field_varstring::store(longlong nr)
 double Field_varstring::val_real(void)
 {
   int not_used;
+  char *end_not_used;
   uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
-  return my_strntod(field_charset, ptr+length_bytes, length, (char**) 0,
+  return my_strntod(field_charset, ptr+length_bytes, length, &end_not_used,
                     &not_used);
 }
 
@@ -4749,9 +4754,10 @@ double Field_varstring::val_real(void)
 longlong Field_varstring::val_int(void)
 {
   int not_used;
+  char *end_not_used;
   uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
-  return my_strntoll(field_charset, ptr+length_bytes, length, 10, NULL,
-                     &not_used);
+  return my_strntoll(field_charset, ptr+length_bytes, length, 10,
+                     &end_not_used, &not_used);
 }
 
 
@@ -5343,13 +5349,16 @@ int Field_blob::store(longlong nr)
 double Field_blob::val_real(void)
 {
   int not_used;
-  char *blob;
+  char *end_not_used, *blob;
+  uint32 length;
+  CHARSET_INFO *cs;
+
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
-  uint32 length=get_length(ptr);
-  CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0, &not_used);
+  length= get_length(ptr);
+  cs= charset();
+  return my_strntod(cs, blob, length, &end_not_used, &not_used);
 }
 
 
@@ -6353,11 +6362,13 @@ longlong Field_bit::val_int(void)
 String *Field_bit::val_str(String *val_buffer,
                            String *val_ptr __attribute__((unused)))
 {
+  char buff[sizeof(longlong)];
   uint length= min(pack_length(), sizeof(longlong));
   ulonglong bits= val_int();
+  mi_int8store(buff,bits);
 
   val_buffer->alloc(length);
-  memcpy_fixed((char*) val_buffer->ptr(), (char*) &bits, length);
+  memcpy_fixed((char*) val_buffer->ptr(), buff+8-length, length);
   val_buffer->length(length);
   val_buffer->set_charset(&my_charset_bin);
   return val_buffer;

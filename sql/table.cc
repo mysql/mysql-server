@@ -103,11 +103,11 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 		    O_RDONLY | O_SHARE,
 		    MYF(0)))
       < 0)
-    goto err_w_init;
+    goto err;
 
   error= 4;
   if (my_read(file,(byte*) head,64,MYF(MY_NABP)))
-    goto err_w_init;
+    goto err;
 
   if (memcmp(head, "TYPE=", 5) == 0)
   {
@@ -116,9 +116,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
     if (db_stat & NO_ERR_ON_NEW_FRM)
       DBUG_RETURN(5);
-
+    file= -1;
     // caller can't process new .frm
-    goto err_w_init;
+    goto err;
   }
 
   share->blob_ptr_size= sizeof(char*);
@@ -131,21 +131,21 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   share->path= strdup_root(&outparam->mem_root, name);
   outparam->alias= my_strdup(alias, MYF(MY_WME));
   if (!share->table_name || !share->path || !outparam->alias)
-    goto err_not_open;
+    goto err;
   *fn_ext(share->table_name)='\0';		// Remove extension
   *fn_ext(share->path)='\0';                    // Remove extension
 
   if (head[0] != (uchar) 254 || head[1] != 1 ||
       (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
        ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4)))
-    goto err_not_open;				/* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 17;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
-    goto err_not_open;				/* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
   share->frm_version= head[2];
@@ -181,7 +181,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   key_info_length= (uint) uint2korr(head+28);
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
   if (read_string(file,(gptr*) &disk_buff,key_info_length))
-    goto err_not_open; /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
   {
     share->keys=      keys=      (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
@@ -201,7 +201,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
   if (!(keyinfo = (KEY*) alloc_root(&outparam->mem_root,
 				    n_length+uint2korr(disk_buff+4))))
-    goto err_not_open; /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
   key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
@@ -210,7 +210,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   ulong *rec_per_key;
   if (!(rec_per_key= (ulong*) alloc_root(&outparam->mem_root,
 					 sizeof(ulong*)*key_parts)))
-    goto err_not_open;
+    goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
@@ -279,7 +279,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   /* Allocate handler */
   if (!(outparam->file= get_new_handler(outparam, share->db_type)))
-    goto err_not_open;
+    goto err;
 
   error=4;
   outparam->reginfo.lock_type= TL_UNLOCK;
@@ -296,14 +296,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   share->rec_buff_length= rec_buff_length;
   if (!(record= (char *) alloc_root(&outparam->mem_root,
                                     rec_buff_length * records)))
-    goto err_not_open;				/* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   share->default_values= record;
   if (my_pread(file,(byte*) record, (uint) share->reclength,
 	       (ulong) (uint2korr(head+6)+
                         ((uint2korr(head+14) == 0xffff ?
                             uint4korr(head+47) : uint2korr(head+14)))),
 	       MYF(MY_NABP)))
-    goto err_not_open; /* purecov: inspected */
+    goto err; /* purecov: inspected */
 
   if (records == 1)
   {
@@ -332,12 +332,13 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 #endif
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
-  if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
+  if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
+    goto err;
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
-      goto err_not_open;			// Wrong password
+      goto err;                                 // Wrong password
   }
 
   share->fields= uint2korr(head+258);
@@ -359,13 +360,13 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 			   (share->fields+interval_parts+
 			    keys+3)*sizeof(my_string)+
 			   (n_length+int_length+com_length)))))
-    goto err_not_open; /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
 
   outparam->field=field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
-    goto err_not_open; /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   if (crypted)
   {
     crypted->decode((char*) disk_buff,read_length);
@@ -398,7 +399,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       uint count= (uint) (interval->count + 1) * sizeof(uint);
       if (!(interval->type_lengths= (uint *) alloc_root(&outparam->mem_root,
                                                         count)))
-        goto err_not_open;
+        goto err;
       for (count= 0; count < interval->count; count++)
         interval->type_lengths[count]= strlen(interval->type_names[count]);
       interval->type_lengths[count]= 0;
@@ -459,7 +460,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	charset= &my_charset_bin;
 #else
 	error= 4;  // unsupported field type
-	goto err_not_open;
+	goto err;
 #endif
       }
       else
@@ -470,7 +471,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
         {
           error= 5; // Unknown or unavailable charset
           errarg= (int) strpos[14];
-          goto err_not_open;
+          goto err;
         }
       }
       if (!comment_length)
@@ -543,7 +544,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     if (!reg_field)				// Not supported field type
     {
       error= 4;
-      goto err_not_open;			/* purecov: inspected */
+      goto err;			/* purecov: inspected */
     }
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT)
@@ -616,7 +617,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 						(uint) key_part->length);
 #ifdef EXTRA_DEBUG
 	if (key_part->fieldnr > share->fields)
-	  goto err_not_open; // sanity check
+	  goto err;                             // sanity check
 #endif
 	if (key_part->fieldnr)
 	{					// Should always be true !
@@ -767,7 +768,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     if (!(share->blob_field= save=
 	  (uint*) alloc_root(&outparam->mem_root,
                              (uint) (share->blob_fields* sizeof(uint)))))
-      goto err_not_open;
+      goto err;
     for (i=0, ptr= outparam->field ; *ptr ; ptr++, i++)
     {
       if ((*ptr)->flags & BLOB_FLAG)
@@ -779,25 +780,25 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   error=2;
   if (db_stat)
   {
-    int err;
+    int ha_err;
     unpack_filename(index_file,index_file);
-    if ((err=(outparam->file->
-	      ha_open(index_file,
-		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-		       ((db_stat & HA_WAIT_IF_LOCKED) ||
-			(specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
-		       HA_OPEN_WAIT_IF_LOCKED :
-		       (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
-		       HA_OPEN_ABORT_IF_LOCKED :
-		       HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+    if ((ha_err= (outparam->file->
+                  ha_open(index_file,
+                          (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
+                          (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
+                           ((db_stat & HA_WAIT_IF_LOCKED) ||
+                            (specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
+                           HA_OPEN_WAIT_IF_LOCKED :
+                           (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
+                          HA_OPEN_ABORT_IF_LOCKED :
+                           HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
-      share->crashed= ((err == HA_ERR_CRASHED_ON_USAGE) &&
+      share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&
                        outparam->file->auto_repair() &&
                        !(ha_open_flags & HA_OPEN_FOR_REPAIR));
 
-      if (err == HA_ERR_NO_SUCH_TABLE)
+      if (ha_err == HA_ERR_NO_SUCH_TABLE)
       {
 	/* The table did not exists in storage engine, use same error message
 	   as if the .frm file didn't exist */
@@ -806,10 +807,10 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       }
       else
       {
-        outparam->file->print_error(err, MYF(0));
+        outparam->file->print_error(ha_err, MYF(0));
         error_reported= TRUE;
       }
-      goto err_not_open; /* purecov: inspected */
+      goto err;                                 /* purecov: inspected */
     }
   }
   share->db_low_byte_first= outparam->file->low_byte_first();
@@ -822,15 +823,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 #endif
   DBUG_RETURN (0);
 
- err_w_init:
-  /*
-    Avoid problem with uninitialized data
-    Note that we don't have to initialize outparam->s here becasue
-    the caller will check if the pointer exists in case of errors
-  */
-  bzero((char*) outparam,sizeof(*outparam));
-
- err_not_open:
+ err:
   x_free((gptr) disk_buff);
   if (file > 0)
     VOID(my_close(file,MYF(MY_WME)));
@@ -843,7 +836,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   outparam->file=0;				// For easier errorchecking
   outparam->db_stat=0;
   hash_free(&share->name_hash);
-  free_root(&outparam->mem_root, MYF(0));
+  free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
   my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
 } /* openfrm */

@@ -1290,11 +1290,12 @@ double Item_param::val_real()
     return (double) value.integer;
   case STRING_VALUE:
   case LONG_DATA_VALUE:
-    {
-      int dummy_err;
-      return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-                        str_value.length(), (char**) 0, &dummy_err);
-    }
+  {
+    int dummy_err;
+    char *end_not_used;
+    return my_strntod(str_value.charset(), (char*) str_value.ptr(),
+                      str_value.length(), &end_not_used, &dummy_err);
+  }
   case TIME_VALUE:
     /*
       This works for example when user says SELECT ?+0.0 and supplies
@@ -2545,8 +2546,9 @@ Item_num *Item_uint::neg()
 Item_real::Item_real(const char *str_arg, uint length)
 {
   int error;
-  char *end;
-  value= my_strntod(&my_charset_bin, (char*) str_arg, length, &end, &error);
+  char *end_not_used;
+  value= my_strntod(&my_charset_bin, (char*) str_arg, length, &end_not_used,
+                    &error);
   if (error)
   {
     /*
@@ -3522,12 +3524,12 @@ void Item_cache_str::store(Item *item)
 double Item_cache_str::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  int err;
+  int err_not_used;
+  char *end_not_used;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
-		      value->length(), (char**) 0, &err);
-  else
-    return (double)0;
+		      value->length(), &end_not_used, &err_not_used);
+  return (double) 0;
 }
 
 
