@@ -4583,21 +4583,28 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
     new_created field
 */
-static Field* create_tmp_field_from_field(THD *thd,
-					  Field* org_field,
-					  Item *item,
-					  TABLE *table,
-					  bool modify_item)
+
+static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
+                                          Item *item, TABLE *table,
+                                          bool modify_item,
+                                          uint convert_blob_length)
 {
   Field *new_field;
 
-  // The following should always be true
-  if ((new_field= org_field->new_field(&thd->mem_root,table)))
+  if (convert_blob_length && org_field->flags & BLOB_FLAG)
+    new_field= new Field_varstring(convert_blob_length, org_field->maybe_null(),
+                                   org_field->field_name, table,
+                                   org_field->charset());
+  else
+    new_field= org_field->new_field(&thd->mem_root, table);
+  if (new_field)
   {
     if (modify_item)
       ((Item_field *)item)->result_field= new_field;
@@ -4628,16 +4635,16 @@ static Field* create_tmp_field_from_field(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
     new_created field
 */
-static Field* create_tmp_field_from_item(THD *thd,
-					 Item *item,
-					 TABLE *table,
-					 Item ***copy_func,
-					 bool modify_item)
+static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
+                                         Item ***copy_func, bool modify_item,
+                                         uint convert_blob_length)
 {
   bool maybe_null=item->maybe_null;
   Field *new_field;
@@ -4654,13 +4661,18 @@ static Field* create_tmp_field_from_item(THD *thd,
     break;
   case STRING_RESULT:
     if (item->max_length > 255)
-      new_field=  new Field_blob(item->max_length, maybe_null,
-				 item->name, table,
-				 item->collation.collation);
+    {
+      if (convert_blob_length)
+        new_field= new Field_varstring(convert_blob_length, maybe_null,
+                                       item->name, table,
+                                       item->collation.collation);
+      else
+        new_field= new Field_blob(item->max_length, maybe_null, item->name,
+                                  table, item->collation.collation);
+    }
     else
-      new_field= new Field_string(item->max_length, maybe_null,
-				  item->name, table,
-				  item->collation.collation);
+      new_field= new Field_string(item->max_length, maybe_null, item->name, 
+                                  table, item->collation.collation);
     break;
   case ROW_RESULT: 
   default: 
@@ -4697,6 +4709,8 @@ static Field* create_tmp_field_from_item(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
@@ -4704,8 +4718,8 @@ static Field* create_tmp_field_from_item(THD *thd,
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item ***copy_func, Field **from_field,
-			bool group, bool modify_item)
+                        Item ***copy_func, Field **from_field,
+                        bool group, bool modify_item, uint convert_blob_length)
 {
   switch (type) {
   case Item::SUM_FUNC_ITEM:
@@ -4740,8 +4754,15 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
-	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->collation.collation);
+        {
+          if (convert_blob_length)
+            return new Field_varstring(convert_blob_length, maybe_null,
+                                       item->name, table,
+                                       item->collation.collation);
+          else
+            return new Field_blob(item_sum->max_length, maybe_null, item->name,
+                                  table, item->collation.collation);
+        }
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->collation.collation);
       case ROW_RESULT:
@@ -4758,8 +4779,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    return create_tmp_field_from_field(thd, (*from_field= field->field),
-				       item, table, modify_item);
+    return create_tmp_field_from_field(thd, (*from_field= field->field), item,
+                                       table, modify_item, convert_blob_length);
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -4774,14 +4795,16 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
-    return create_tmp_field_from_item(thd, item, table,
-				      copy_func, modify_item);
+    return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
+                                      convert_blob_length);
   case Item::TYPE_HOLDER:
   {
     Field *example= ((Item_type_holder *)item)->example();
     if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0);
+      return create_tmp_field_from_field(thd, example, item, table, 0,
+                                         convert_blob_length);
+    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
+                                      convert_blob_length);
   }
   default:					// Dosen't have to be stored
     return 0;
@@ -4945,8 +4968,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (!arg->const_item())
 	{
 	  Field *new_field=
-	    create_tmp_field(thd, table,arg,arg->type(),&copy_func,
-			     tmp_from_field, group != 0,not_all_columns);
+            create_tmp_field(thd, table, arg, arg->type(), &copy_func,
+                             tmp_from_field, group != 0,not_all_columns,
+                             param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
 	  tmp_from_field++;
@@ -4982,9 +5006,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	We here distinguish between UNION and multi-table-updates by the fact
 	that in the later case group is set to the row pointer.
       */
-      Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
-					tmp_from_field, group != 0,
-					not_all_columns || group !=0);
+      Field *new_field= create_tmp_field(thd, table, item, type, &copy_func,
+                                         tmp_from_field, group != 0,
+                                         not_all_columns || group !=0,
+                                         param->convert_blob_length);
       if (!new_field)
       {
 	if (thd->is_fatal_error)

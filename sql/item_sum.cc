@@ -1871,16 +1871,20 @@ bool Item_func_group_concat::add()
   }
 
   null_value= FALSE;
+
+  TREE_ELEMENT *el= 0;                          // Only for safety
   if (tree_mode)
-  {
-    if (!tree_insert(tree, table->record[0], 0, tree->custom_arg))
-      return 1;
-  }
-  else
-  {
-    if (result.length() <= group_concat_max_len && !warning_for_row)
-      dump_leaf_key(table->record[0], 1, this);
-  }
+    el= tree_insert(tree, table->record[0], 0, tree->custom_arg);
+  /*
+    If the row is not a duplicate (el->count == 1)
+    we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
+    instead of doing tree traverse later.
+  */
+  if (result.length() <= group_concat_max_len && 
+      !warning_for_row &&
+      (!tree_mode || (el->count == 1 && distinct && !arg_count_order)))
+    dump_leaf_key(table->record[0], 1, this);
+
   return 0;
 }
 
@@ -1926,6 +1930,8 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   thd->allow_sum_func= 1;			
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
+  /* We'll convert all blobs to varchar fields in the temporary table */
+  tmp_table_param->convert_blob_length= group_concat_max_len;
   tables_list= tables;
   fixed= 1;
   return 0;
@@ -2023,9 +2029,7 @@ bool Item_func_group_concat::setup(THD *thd)
     }
     else
     {
-       compare_key= NULL;
-      if (distinct)
-        compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
+      compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
     }
     /*
       Create a tree of sort. Tree is used for a sort and a remove double 
@@ -2068,18 +2072,18 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
+  if (count_cut_values && !warning_available)
+  {
+    warning_available= TRUE;
+    warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_CUT_VALUE_GROUP_CONCAT, NULL);
+  }
   if (result.length())
     return &result;
   if (tree_mode)
   {
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);
-  }
-  if (count_cut_values && !warning_available)
-  {
-    warning_available= TRUE;
-    warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_CUT_VALUE_GROUP_CONCAT, NULL);
   }
   return &result;
 }
