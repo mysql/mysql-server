@@ -55,7 +55,7 @@ LIST *list_delete(LIST *root, LIST *element)
 }
 
 
-void list_free(LIST *root, pbool free_data)
+void list_free(LIST *root, uint free_data)
 {
   LIST *next;
   while (root)
