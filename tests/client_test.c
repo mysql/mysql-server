@@ -4859,7 +4859,7 @@ static void test_multi_query()
   }
   if (!(mysql_real_connect(l_mysql,opt_host,opt_user,
 			   opt_password, current_db, opt_port,
-			   opt_unix_socket, CLIENT_MULTI_QUERIES))) /* enable multi queries */
+			   opt_unix_socket, CLIENT_MULTI_STATEMENTS))) /* enable multi queries */
   {
     fprintf(stdout,"\n connection failed(%s)", mysql_error(l_mysql));    
     exit(1);

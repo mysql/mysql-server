@@ -99,7 +99,7 @@ explain select a from t2;
 select a from t2;
 
 # Test some error conditions
---error 1287
+--error 1283
 cache index t1 in unknown_key_cache;
 cache index t1 keys (unknown_key) in keycache1;
 

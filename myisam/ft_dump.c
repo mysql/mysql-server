@@ -84,7 +84,6 @@ int main(int argc,char *argv[])
 
   if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
-  VOID(mi_extra(info, HA_EXTRA_SET_KEY_CACHE, dflt_keycache));
 
   inx=atoi(argv[1]);
   *buf2=0;
