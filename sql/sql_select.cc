@@ -7904,7 +7904,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s->keys_for_keyread.init();
   table->s->keys_in_use.init();
   /* For easier error reporting */
-  table->s->table_cache_key= (char*) table->s->db= "";
+  table->s->table_cache_key= (char*) (table->s->db= "");
 
 
   /* Calculate which type of fields we will store in the temporary table */
