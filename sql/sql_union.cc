@@ -112,6 +112,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
+  ORDER *tmp_order;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   /*
@@ -204,6 +205,19 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
 	  DBUG_RETURN(-1);
       }
+    }
+  }
+
+  for (tmp_order= (ORDER*) global_parameters->order_list.first;
+       tmp_order ;
+       tmp_order= tmp_order->next;
+  {
+    Item *item= *tmp_order->item;
+    if (((item->type() == Item::FIELD_ITEM) &&
+	 ((class Item_field*) item)->table_name))
+    {
+      my_error(ER_BAD_FIELD_ERROR,MYF(0),item->full_name(),"ORDER BY");
+      DBUG_RETURN(-1);
     }
   }
 
