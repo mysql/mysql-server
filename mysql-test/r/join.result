@@ -27,3 +27,7 @@ d	d
 0000-00-00	NULL
 d
 0000-00-00
+COUNT(t1.Title)
+1
+COUNT(t1.Title)
+1
