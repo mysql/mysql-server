@@ -88,7 +88,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
 {
   const char *dstr = (const char*)lex->buf;
 
-  m_mylex= lex;
+  m_call_lex= lex;
   m_name= new Item_string(name->str, name->length, default_charset_info);
   m_defstr= new Item_string(dstr, lex->end_of_query - lex->buf,
 			    default_charset_info);
@@ -112,7 +112,7 @@ sp_head::execute(THD *thd)
 {
   int ret= 0;
   sp_instr *p;
-  sp_pcontext *pctx = m_mylex->spcont;
+  sp_pcontext *pctx = m_call_lex->spcont;
   uint csize = pctx->max_framesize();
   uint params = pctx->params();
   sp_rcontext *octx = thd->spcont;
@@ -121,7 +121,7 @@ sp_head::execute(THD *thd)
   if (csize > 0)
   {
     uint i;
-    List_iterator_fast<Item> li(m_mylex->value_list);
+    List_iterator_fast<Item> li(m_call_lex->value_list);
     Item *it = li++;		// Skip first one, it's the procedure name
 
     nctx = new sp_rcontext(csize);
@@ -235,27 +235,51 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   m_lex.ptr= thd->lex.ptr;
   m_lex.next_state= thd->lex.next_state;
-  // Collect some data from the sub statement lex.
-  // We reuse some lists in lex instead of adding new ones to this already
-  // quite large structure.
 
-  // CALL puts the proc. name and parameters in value_list, so we might as
-  // collect called procedures there.
+  // Collect some data from the sub statement lex.
   if (thd->lex.sql_command == SQLCOM_CALL)
   {
-    // Assuming we will rarely have more than, say, 10 calls to other
-    // procedures, this is probably fastest.
-    Item *proc= thd->lex.value_list.head();
-    List_iterator_fast<Item> li(m_lex.value_list);
-    Item *it;
+    // We know they are Item_strings (since we put them there ourselves)
+    // It would be slightly faster to keep the list sorted, but we need
+    // an "insert before" method to do that.
+    Item_string *proc= static_cast<Item_string*>(thd->lex.value_list.head());
+    String *snew= proc->val_str(NULL);
+    List_iterator_fast<Item_string> li(m_calls);
+    Item_string *it;
 
     while ((it= li++))
-      if (proc->eq(it, FALSE))
+    {
+      String *sold= it->val_str(NULL);
+
+      if (stringcmp(snew, sold) == 0)
 	break;
+    }
     if (! it)
-      m_lex.value_list.push_back(proc); // Got a new one.
+      m_calls.push_back(proc);
+
   }
-  // QQ Copy select_lex.table_list.
+  // Merge used tables
+  // QQ ...or just open tables in thd->open_tables?
+  //    This is not entirerly clear at the moment, but for now, we collect
+  //    tables here.
+  for (SELECT_LEX *sl= thd->lex.all_selects_list ;
+       sl ;
+       sl= sl->next_select())
+  {
+    for (TABLE_LIST *tables= sl->get_table_list() ;
+	 tables ;
+	 tables= tables->next)
+    {
+      List_iterator_fast<char *> li(m_tables);
+      char **tb;
+
+      while ((tb= li++))
+	if (strcasecmp(tables->real_name, *tb) == 0)
+	  break;
+      if (! tb)
+	m_tables.push_back(&tables->real_name);
+    }
+  }
 
   memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Restore lex
 }
