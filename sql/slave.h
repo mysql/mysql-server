@@ -67,11 +67,16 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi);
 int show_master_info(THD* thd);
 int show_binlog_info(THD* thd);
 
+int tables_ok(THD* thd, TABLE_LIST* tables);
+// see if the query uses any tables that should not be replicated
+
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list );
 // check to see if the database is ok to operate on with respect to the
 // do and ignore lists - used in replication
 
+int add_table_rule(HASH* h, const char* table_spec);
+void init_table_rule_hash(HASH* h, bool* h_inited);
 
 int init_master_info(MASTER_INFO* mi);
 extern bool opt_log_slave_updates ;
@@ -81,7 +86,10 @@ extern bool slave_running;
 extern pthread_t slave_real_id;
 extern MASTER_INFO glob_mi;
 extern HASH replicate_do_table, replicate_ignore_table;
-extern bool do_table_inited, ignore_table_inited;
+extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
+extern bool do_table_inited, ignore_table_inited,
+	    wild_do_table_inited, wild_ignore_table_inited;
+extern bool table_rules_on;
 
 // the master variables are defaults read from my.cnf or command line
 extern uint master_port, master_connect_retry;
@@ -93,3 +101,5 @@ extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 
 #endif
+
+

@@ -67,8 +67,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
          error = 1;
 	 goto err;
 	}
-      while (global_read_lock && ! thd->killed ||
-	     thd->version != refresh_version)
+      while (global_read_lock && ! thd->killed)
       {
 	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
       }
@@ -156,7 +155,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   if (wrong_tables.length())
   {
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
-    DBUG_RETURN(-1);
+    error=1;
   }
   if(error)
     DBUG_RETURN(-1);

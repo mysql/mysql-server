@@ -295,7 +295,7 @@ Unfortunately, no sweepstakes today, adjusted position to 4\n");
 			len, net->read_pos[5]));
     Log_event * ev = Log_event::read_log_event(
 					  (const char*) net->read_pos + 1 ,
-					  len);
+					  len - 1);
     if(ev)
     {
       ev->print(stdout, short_form);
