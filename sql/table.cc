@@ -1505,6 +1505,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   List_iterator_fast<Item> it(select->item_list);
   uint i= 0;
   bool save_set_query_id= thd->set_query_id;
+  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
   if (ancestor->ancestor &&
@@ -1542,6 +1543,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
   /* prevent look up in SELECTs tree */
   thd->lex->current_select= &thd->lex->select_lex;
+  thd->lex->select_lex.no_wrap_view_item= 1;
+
   /*
     Resolve all view items against ancestor table.
 
@@ -1596,6 +1599,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   }
 
 ok:
+  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
   DBUG_RETURN(0);
@@ -1607,6 +1611,7 @@ err:
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
   }
+  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
   DBUG_RETURN(1);
