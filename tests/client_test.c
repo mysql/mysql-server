@@ -12481,6 +12481,30 @@ static void test_truncation_option()
   mysql_stmt_close(stmt);
 }
 
+
+/* Bug#6761 - mysql_list_fields doesn't work */
+
+static void test_bug6761(void)
+{
+  const char *stmt_text;
+  MYSQL_RES *res;
+  int rc;
+  myheader("test_bug6761");
+
+  stmt_text= "CREATE TABLE t1 (a int, b char(255), c decimal)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  res= mysql_list_fields(mysql, "t1", "%");
+  DIE_UNLESS(res && mysql_num_fields(res) == 3);
+  mysql_free_result(res);
+
+  stmt_text= "DROP TABLE t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -12687,6 +12711,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug4172", test_bug4172 },
   { "test_conversion", test_conversion },
   { "test_rewind", test_rewind },
+  { "test_bug6761", test_bug6761 },
   { "test_view", test_view },
   { "test_view_where", test_view_where },
   { "test_view_2where", test_view_2where },
