@@ -4208,23 +4208,23 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   switch (type) {
   case FIELD_TYPE_TINY:
-    if (!length) new_field->length=3+sign_len;
+    if (!length) new_field->length=MAX_TINYINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_SHORT:
-    if (!length) new_field->length=5+sign_len;
+    if (!length) new_field->length=MAX_SMALLINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_INT24:
-    if (!length) new_field->length=8+sign_len;
+    if (!length) new_field->length=MAX_MEDIUMINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_LONG:
-    if (!length) new_field->length=10+sign_len;
+    if (!length) new_field->length=MAX_INT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_LONGLONG:
-    if (!length) new_field->length=20;
+    if (!length) new_field->length=MAX_BIGINT_WIDTH;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_NULL:
