@@ -483,6 +483,7 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
 mysql-test/r/*.reject
+mysql-test/r/index_merge_load.result
 mysql-test/r/rpl000001.eval
 mysql-test/r/rpl000002.eval
 mysql-test/r/rpl000014.eval
@@ -493,9 +494,11 @@ mysql-test/r/slave-running.eval
 mysql-test/r/slave-stopped.eval
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
+mysql-test/t/index_merge.load
 mysql-test/var/*
 mysql.kdevprj
 mysql.proj
+mysql_priv.h
 mysqld.S
 mysqld.sym
 mysys/#mf_iocache.c#
@@ -647,4 +650,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-mysql_priv.h

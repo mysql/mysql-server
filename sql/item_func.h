@@ -40,7 +40,8 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,NOTLIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC, BETWEEN, IN_FUNC,
+		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC,
+                  BETWEEN, IN_FUNC, MULT_EQUAL_FUNC,
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
@@ -49,7 +50,8 @@ public:
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
 		  NOT_FUNC, NOT_ALL_FUNC,
                   GUSERVAR_FUNC};
-  enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
+  enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
+                       OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
   Item_func(void):
@@ -146,6 +148,8 @@ public:
   bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
 
   bool walk(Item_processor processor, byte *arg);
+  Item *traverse(Item_calculator calculator, byte *arg);
+  Item *equal_fields_propagator(byte *arg);
 };
 
 
