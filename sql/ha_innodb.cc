@@ -1536,7 +1536,7 @@ ha_innobase::open(
 	                fprintf(stderr,
 "InnoDB: Warning: table %s key_used_on_scan is %lu even though there is no\n"
 "InnoDB: primary key inside InnoDB.\n",
-				name, (ulint)key_used_on_scan);
+				name, (ulong)key_used_on_scan);
 		}
 	}
 
@@ -3216,7 +3216,7 @@ ha_innobase::position(
 	if (len != ref_length) {
 	        fprintf(stderr,
 	 "InnoDB: Error: stored ref len is %lu, but table ref len is %lu\n",
-		  (ulint)len, (ulint)ref_length);
+		  (ulong)len, (ulong)ref_length);
 	}
 }
 
@@ -4187,7 +4187,8 @@ ha_innobase::info(
 "InnoDB: .frm files from different installations? See section\n"
 "InnoDB: 15.1 at http://www.innodb.com/ibman.html\n",
 						index->name,
-						ib_table->name, index->n_uniq,
+						ib_table->name,
+						(unsigned long) index->n_uniq,
 						j + 1);
 				        break;
 				}
