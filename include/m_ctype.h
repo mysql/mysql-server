@@ -142,7 +142,6 @@ extern const char *compiled_charset_name(uint charset_number);
 #define MY_STRXFRM_MULTIPLY           (default_charset_info->strxfrm_multiply)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->strnxfrm((a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((a), (b), (c), (d)))
-#define my_strxfrm(s, a, b, c, d)     ((s)->strnxfrm((a), (b), (c)))
 #define my_strcoll(s, a, b)           ((s)->strcoll((a), (b)))
 #define my_like_range(s, a, b, c, d, e, f, g, h) \
                 ((s)->like_range((a), (b), (c), (d), (e), (f), (g), (h)))
