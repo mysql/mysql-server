@@ -77,3 +77,11 @@ SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pse
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
 drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t2 values (11),(12),(13),(14),(15);
+(select * from t1 limit 2) union (select * from t2 limit 3) limit 4;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+drop table t1,t2;
