@@ -3310,7 +3310,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 				item->name,table,item_sum->decimals);
       case INT_RESULT:
 	return new Field_longlong(item_sum->max_length,maybe_null,
-				  item->name,table);
+				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
@@ -3361,7 +3361,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
       break;
     case INT_RESULT:
       new_field=new Field_longlong(item->max_length,maybe_null,
-				   item->name,table);
+				   item->name,table, item->unsigned_flag);
       break;
     case STRING_RESULT:
       if (item->max_length > 255)

@@ -271,6 +271,7 @@ class Item_sum_hybrid :public Item_sum
  protected:
   String value,tmp_value;
   double sum;
+  longlong sum_int;
   Item_result hybrid_type;
   int cmp_sign;
   table_map used_table_cache;
@@ -286,12 +287,13 @@ class Item_sum_hybrid :public Item_sum
   void reset()
   {
     sum=0.0;
+    sum_int=0;
     value.length(0);
     null_value=1;
     add();
   }
   double val();
-  longlong val_int() { return (longlong) val(); } /* Real as default */
+  longlong val_int();
   void reset_field();
   String *val_str(String *);
   void make_const() { used_table_cache=0; }

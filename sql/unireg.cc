@@ -20,7 +20,7 @@
   struct.
   In the following functions FIELD * is an ordinary field-structure with
   the following exeptions:
-    sc_length,typepos,row,kol,dtype,regnr and field nead not to be set.
+    sc_length,typepos,row,kol,dtype,regnr and field need not to be set.
     str is a (long) to record position where 0 is the first position.
 */
 
@@ -391,8 +391,8 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
   int2store(forminfo+272,int_parts);
   int2store(forminfo+274,int_length);
   int2store(forminfo+276,time_stamp_pos);
-  int2store(forminfo+278,80);			/* Columns neaded */
-  int2store(forminfo+280,22);			/* Rows neaded */
+  int2store(forminfo+278,80);			/* Columns needed */
+  int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
   DBUG_RETURN(0);
 } /* pack_header */

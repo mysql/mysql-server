@@ -415,10 +415,11 @@ public:
 	       unireg_check_arg, field_name_arg, table_arg,
 	       0, zero_arg,unsigned_arg)
     {}
-  Field_longlong(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-		 struct st_table *table_arg)
+  Field_longlong(uint32 len_arg,bool maybe_null_arg,
+		 const char *field_name_arg,
+		 struct st_table *table_arg, bool unsigned_arg)
     :Field_num((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg,0,0,0)
+	       NONE, field_name_arg, table_arg,0,0,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_LONGLONG;}
