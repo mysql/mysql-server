@@ -1157,7 +1157,7 @@ founders have built over the years.
 
 @node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
 @subsubsection Advertising
-The MySQL web site (@uref{http://www.mysql.com/}) is immensely popular among
+The MySQL web site (@uref{http://www.mysql.com/}) is popular among
 developers and users. In October 2001, we served 10 million page views.
 Our visitors represent a group that makes purchase decisions and
 recommendations for both software and hardware. Twelve per cent of our
