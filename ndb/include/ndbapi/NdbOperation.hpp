@@ -265,21 +265,6 @@ public:
   int  equal(Uint32 anAttrId, Int64 aValue);	
   int  equal(Uint32 anAttrId, Uint64 aValue);
 	
-  /**
-   * Generate a tuple id and set it as search argument.
-   *
-   * The Tuple id has NDB$TID as attribute name and 0 as attribute id.
-   *
-   * The generated tuple id is returned by the method.
-   * If zero is returned there is an error.
-   *
-   * This is mostly used for tables without any primary key 
-   * attributes.
-   * 
-   * @return    Generated tuple id if successful, otherwise 0.
-   */
-  Uint64       setTupleId();			
-
   /** @} *********************************************************************/
   /** 
    * @name Specify Attribute Actions for Operations
@@ -708,6 +693,7 @@ public:
 
   /** @} *********************************************************************/
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Type of operation
    */
@@ -723,11 +709,16 @@ public:
     NotDefined2,                  ///< Internal for debugging
     NotDefined                    ///< Internal for debugging
   };
+#endif
 
+  /**
+   * Return lock mode for operation
+   */
   LockMode getLockMode() const { return theLockMode; }
-  void setAbortOption(Int8 ao) { m_abortOption = ao; }
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  void setAbortOption(Int8 ao) { m_abortOption = ao; }
+  
   /**
    * Set/get distribution/partition key
    */
@@ -758,8 +749,10 @@ protected:
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
 public:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
+#endif
 protected:
 
   enum OperationStatus
