@@ -987,15 +987,6 @@ else
 fi
 #---END:
 
-if test "$THREAD_SAFE_CLIENT" = "no"
-then
-  CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
-else
-  CLIENT_LIBS=$LIBS
-  AC_DEFINE(THREAD_SAFE_CLIENT)
-fi
-AC_SUBST(CLIENT_LIBS)
-
 # for user definable functions (must be checked after threads on AIX)
 AC_CHECK_LIB(dl,dlopen)
 
@@ -1769,6 +1760,19 @@ MYSQL_CHECK_BDB
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
 server_scripts=
+
+dnl This probably should be cleaned up more - for now the threaded
+dnl client is just using plain-old libs.
+sql_client_dirs="libmysql client"
+CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
+if test "$THREAD_SAFE_CLIENT" != "no"
+then
+  sql_client_dirs="libmysql_r $sql_client_dirs"
+  AC_DEFINE(THREAD_SAFE_CLIENT)
+fi
+AC_SUBST(CLIENT_LIBS)
+AC_SUBST(sql_client_dirs)
+
 if test "$with_server" = "yes"
 then
   AC_DEFINE(THREAD)
@@ -1840,7 +1844,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  myisam/Makefile myisammrg/Makefile \
  man/Makefile \
- readline/Makefile libmysql/Makefile client/Makefile \
+ readline/Makefile libmysql_r/Makefile libmysql/Makefile client/Makefile \
  sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile \
