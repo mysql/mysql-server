@@ -109,6 +109,7 @@ Warning	1263	Data truncated for column 'b' at row 10
 select @@warning_count;
 @@warning_count
 50
+drop table t1;
 create table t1 (id int) type=isam;
 Warnings:
 Warning	1264	Using storage engine MYISAM for table 't1'

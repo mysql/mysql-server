@@ -74,6 +74,7 @@ select @@warning_count;
 #
 # Test for handler type
 #
+drop table t1;
 create table t1 (id int) type=isam;
 alter table t1 type=isam;
 drop table t1;
