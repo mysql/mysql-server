@@ -3369,6 +3369,36 @@ String *Field_time::val_str(String *val_buffer,
 }
 
 
+/*
+  Normally we would not consider 'time' as a vaild date, but we allow
+  get_date() here to be able to do things like
+  DATE_FORMAT(time, "%l.%i %p")
+*/
+ 
+bool Field_time::get_date(TIME *ltime, uint fuzzydate)
+{
+  long tmp;
+  if (!fuzzydate)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    return 1;
+  }
+  tmp=(long) sint3korr(ptr);
+  ltime->neg=0;
+  if (tmp < 0)
+  {
+    ltime->neg= 1;
+    tmp=-tmp;
+  }
+  ltime->hour=tmp/10000;
+  tmp-=ltime->hour*10000;
+  ltime->minute=   tmp/100;
+  ltime->second= tmp % 100;
+  ltime->year= ltime->month= ltime->day= ltime->second_part= 0;
+  return 0;
+}
+
+
 bool Field_time::get_time(TIME *ltime)
 {
   long tmp=(long) sint3korr(ptr);
