@@ -230,5 +230,5 @@
 "Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Subselect return more than 1 field",
-"Subselect return more than 1 record",
+"Subselect returns more than 1 field",
+"Subselect returns more than 1 record",
