@@ -287,8 +287,11 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	out.println("%s: %s", name, val_s.c_str());
 	break;
       case PropertiesType_Properties:
+	DBUG_PRINT("info",("Ignoring PropertiesType_Properties."));
 	/* Ignore */
 	break;
+      default:
+	DBUG_PRINT("info",("Ignoring PropertiesType: %d.",t));
       }
     }
 #ifdef MGMAPI_LOG
