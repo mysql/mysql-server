@@ -1219,6 +1219,45 @@ longlong Item_cond_or::val_int()
   return 0;
 }
 
+/*
+  Create an AND expression from two expressions
+
+  SYNOPSIS
+   and_expressions()
+   a		expression or NULL
+   b    	expression.
+   org_item	Don't modify a if a == *org_item
+		If a == NULL, org_item is set to point at b,
+		to ensure that future calls will not modify b.
+
+  NOTES
+    This will not modify item pointed to by org_item or b
+    The idea is that one can call this in a loop and create and
+    'and' over all items without modifying any of the original items.
+
+  RETURN
+    NULL	Error
+    Item
+*/
+
+Item *and_expressions(Item *a, Item *b, Item **org_item)
+{
+  if (!a)
+    return (*org_item= (Item*) b);
+  if (a == *org_item)
+  {
+    Item_cond *res;
+    if ((res= new Item_cond_and(a, (Item*) b)))
+      res->used_tables_cache= a->used_tables() | b->used_tables();
+    return res;
+  }
+  if (((Item_cond_and*) a)->add((Item*) b))
+    return 0;
+  ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
+  return a;
+}
+
+
 longlong Item_func_isnull::val_int()
 {
   /*
