@@ -2454,7 +2454,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
     DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
                           hidden_col->getName(), rec->u_64_value()));
   } 
-  print_results();
+  //print_results();
 #endif
   DBUG_VOID_RETURN;
 }
@@ -5553,39 +5553,32 @@ void ndb_serialize_cond(const Item *item, void *arg)
 	      ? context->expecting_field_result(STRING_RESULT) : true) &&
 	     context->expecting_field_result(field->result_type()))
 	  {
-	    // Currently only support for unsigned int
-	    if (field->result_type() == INT_RESULT  &&
-		!(field->flags & UNSIGNED_FLAG))
-	      *context->supported_ptr= FALSE;  
-	    else
+	    const NDBCOL *col= tab->getColumn(field->field_name);
+	    DBUG_ASSERT(col);
+	    curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
+	    context->dont_expect(Item::FIELD_ITEM);
+	    context->expect_no_field_result();
+	    if (context->expect_mask)
 	    {
-	      const NDBCOL *col= tab->getColumn(field->field_name);
-	      DBUG_ASSERT(col);
-	      curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
-	      context->dont_expect(Item::FIELD_ITEM);
-	      context->expect_no_field_result();
-	      if (context->expect_mask)
-	      {
-		// We have not seen second argument yet
-		if (type == MYSQL_TYPE_DATE || type == MYSQL_TYPE_YEAR)
+	      // We have not seen second argument yet
+	      if (type == MYSQL_TYPE_DATE || type == MYSQL_TYPE_YEAR)
+		context->expect_only(Item::STRING_ITEM);
+	      else
+		switch(field->result_type()) {
+		case(STRING_RESULT):
 		  context->expect_only(Item::STRING_ITEM);
-		else
-		  switch(field->result_type()) {
-		  case(STRING_RESULT):
-		    context->expect_only(Item::STRING_ITEM);
-		    break;
-		  case(REAL_RESULT):
-		    context->expect_only(Item::REAL_ITEM);
-		    break;
-		  case(INT_RESULT):
-		    context->expect_only(Item::INT_ITEM);
-		    break;
-		  default:
-		      break;
-		  }
-	      }
-	      break;
+		  break;
+		case(REAL_RESULT):
+		  context->expect_only(Item::REAL_ITEM);
+		  break;
+		case(INT_RESULT):
+		  context->expect_only(Item::INT_ITEM);
+		  break;
+		default:
+		  break;
+		}
 	    }
+	    break;
 	  }
 	}
 	*context->supported_ptr= FALSE;
@@ -5907,11 +5900,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating LT filter")); 
       const void* value_ptr = value->get_value();
 
       if (a == field)
       {
+	DBUG_PRINT("info", ("Generating LT filter")); 
 	if (filter->cmp(NdbScanFilter::COND_LT, 
 			field->get_field_no(),
 			value_ptr,
@@ -5920,6 +5913,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       else
       {
+	DBUG_PRINT("info", ("Generating GT filter")); 
 	if (filter->cmp(NdbScanFilter::COND_GT, 
 			field->get_field_no(),
 			value_ptr,
@@ -5943,11 +5937,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating LE filter")); 
       const void* value_ptr = value->get_value();
 
       if (a == field)
       {
+	DBUG_PRINT("info", ("Generating LE filter")); 
 	if (filter->cmp(NdbScanFilter::COND_LE, 
 			field->get_field_no(),
 			value_ptr,
@@ -5956,6 +5950,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       else
       {
+	DBUG_PRINT("info", ("Generating GE filter")); 
 	if (filter->cmp(NdbScanFilter::COND_GE, 
 			field->get_field_no(),
 			value_ptr,
@@ -5979,11 +5974,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating GE filter")); 
       const void* value_ptr = value->get_value();
 
       if (a == field)
       {
+	DBUG_PRINT("info", ("Generating GE filter")); 
 	if (filter->cmp(NdbScanFilter::COND_GE, 
 			field->get_field_no(),
 			value_ptr,
@@ -5992,6 +5987,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       else
       {
+	DBUG_PRINT("info", ("Generating LE filter")); 
 	if (filter->cmp(NdbScanFilter::COND_LE, 
 			field->get_field_no(),
 			value_ptr,
@@ -6015,7 +6011,6 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating GT filter"));
       const void* value_ptr = value->get_value();
 
       if (!value)
@@ -6023,6 +6018,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 
       if (a == field)
       {
+	DBUG_PRINT("info", ("Generating GT filter"));
 	if (filter->cmp(NdbScanFilter::COND_GT, 
 			field->get_field_no(),
 			value_ptr,
@@ -6031,6 +6027,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       else
       {
+	DBUG_PRINT("info", ("Generating LT filter"));
 	if (filter->cmp(NdbScanFilter::COND_LT, 
 			field->get_field_no(),
 			value_ptr,
