@@ -1937,11 +1937,25 @@ int ha_ndbcluster::rnd_init(bool scan)
 int ha_ndbcluster::close_scan()
 {
   NdbResultSet *cursor= m_active_cursor;
+  NdbConnection *trans= m_active_trans;
   DBUG_ENTER("close_scan");
 
   if (!cursor)
     DBUG_RETURN(1);
 
+  
+  if (ops_pending)
+  {
+    /*
+      Take over any pending transactions to the 
+      deleteing/updating transaction before closing the scan    
+    */
+    DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
+    if (trans->execute(NoCommit) != 0)
+      DBUG_RETURN(ndb_err(trans));
+    ops_pending= 0;
+  }
+  
   cursor->close();
   m_active_cursor= NULL;
   DBUG_RETURN(0);
