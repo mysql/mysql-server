@@ -118,11 +118,18 @@ static HASH archive_open_tables;
 static int archive_init= 0;
 
 /* The file extension */
-#define ARZ ".ARZ"          // The data file
-#define ARN ".ARN"          // Files used during an optimize call
-#define ARM ".ARM"          // Meta file
-#define META_BUFFER_SIZE 24 // Size of the data used in the meta file
-#define CHECK_HEADER 254    // The number we use to determine corruption
+#define ARZ ".ARZ"               // The data file
+#define ARN ".ARN"               // Files used during an optimize call
+#define ARM ".ARM"               // Meta file
+/*
+  uchar + uchar + ulonglong + ulonglong + uchar
+*/
+#define META_BUFFER_SIZE 19      // Size of the data used in the meta file
+/*
+  uchar + uchar
+*/
+#define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
+#define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /*
   Used for hash table that tracks open tables.
@@ -139,19 +146,21 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 */
 int ha_archive::read_data_header(gzFile file_to_read)
 {
-  int check; // We use this to check the header
-
+  uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::read_data_header");
 
   if (gzrewind(file_to_read) == -1)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  if (gzread(file_to_read, &check, sizeof(int)) != sizeof(int))
+  if (gzread(file_to_read, data_buffer, DATA_BUFFER_SIZE) != DATA_BUFFER_SIZE)
     DBUG_RETURN(errno ? errno : -1);
-  if (check != CHECK_HEADER)
+  
+  DBUG_PRINT("ha_archive::read_data_header", ("Check %u", data_buffer[0]));
+  DBUG_PRINT("ha_archive::read_data_header", ("Version %u", data_buffer[1]));
+  
+  if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
+      (data_buffer[1] != (uchar)ARCHIVE_VERSION))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-  if (gzread(file_to_read, &version, sizeof(version)) != sizeof(version))
-    DBUG_RETURN(errno ? errno : -1);
 
   DBUG_RETURN(0);
 }
@@ -161,13 +170,17 @@ int ha_archive::read_data_header(gzFile file_to_read)
 */
 int ha_archive::write_data_header(gzFile file_to_write)
 {
-  int check= CHECK_HEADER;
+  uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::write_data_header");
 
-  if (gzwrite(file_to_write, &check, sizeof(int)) != sizeof(int))
+  data_buffer[0]= (uchar)ARCHIVE_CHECK_HEADER;
+  data_buffer[1]= (uchar)ARCHIVE_VERSION;
+
+  if (gzwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
+      sizeof(DATA_BUFFER_SIZE))
     goto error;
-  if (gzwrite(file_to_write, &version, sizeof(int)) != sizeof(version))
-    goto error;
+  DBUG_PRINT("ha_archive::write_data_header", ("Check %u", (uint)data_buffer[0]));
+  DBUG_PRINT("ha_archive::write_data_header", ("Version %u", (uint)data_buffer[1]));
 
   DBUG_RETURN(0);
 error:
@@ -180,36 +193,30 @@ error:
 */
 int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
 {
-  size_t size= sizeof(ulonglong) + sizeof(version) + sizeof(bool); // calculate
-  byte meta_buffer[META_BUFFER_SIZE];
-  bool dirty;
-  int check;
+  uchar meta_buffer[META_BUFFER_SIZE];
   ulonglong check_point;
 
   DBUG_ENTER("ha_archive::read_meta_file");
 
-  /* 
-    Format of the meta file is:
-    version
-    number of rows
-    byte showing if the file was stored
-  */
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
-  if (my_read(meta_file, meta_buffer, size, MYF(MY_WME | MY_NABP)))
+  if (my_read(meta_file, (byte*)meta_buffer, META_BUFFER_SIZE, 0) != META_BUFFER_SIZE)
     DBUG_RETURN(-1);
   
   /*
     Parse out the meta data, we ignore version at the moment
   */
-  memcpy(&check, meta_buffer + sizeof(int), sizeof(int));
-  longlongstore(rows, meta_buffer + sizeof(version) + sizeof(int));
-  longlongstore(&check_point, meta_buffer + sizeof(version) + sizeof(int) +
-                sizeof(ulonglong));
-  memcpy(&dirty, meta_buffer+sizeof(ulonglong) + sizeof(version) + 
-         sizeof(ulonglong) + sizeof(int), sizeof(bool));
+  *rows= uint8korr(meta_buffer + 2);
+  check_point= uint8korr(meta_buffer + 10);
 
-  if (dirty == TRUE)
-    DBUG_RETURN(-1);
+  DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Rows %lld", *rows));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %lld", check_point));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)meta_buffer[18]));
+
+  if ((meta_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) || 
+      ((bool)meta_buffer[18] == TRUE))
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   my_sync(meta_file, MYF(MY_WME));
 
@@ -224,26 +231,24 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
 */
 int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
 {
-  char meta_buffer[META_BUFFER_SIZE];
-  ulonglong check_port= 0;
-  size_t size= sizeof(ulonglong) + sizeof(version) + sizeof(bool) +
-    sizeof(ulonglong); // calculate length of data
+  uchar meta_buffer[META_BUFFER_SIZE];
+  ulonglong check_point= 0; //Reserved for the future
+
   DBUG_ENTER("ha_archive::write_meta_file");
 
-  /* 
-    Format of the meta file is:
-    version
-    number of rows
-    byte showing if the file was stored
-  */
-  version= ARCHIVE_VERSION;
-  memcpy(meta_buffer, &version, sizeof(version));
-  longlongstore(meta_buffer + sizeof(version), rows); // Position past version
-  longlongstore(meta_buffer + sizeof(version) + sizeof(ulonglong), check_port);
-  memcpy(meta_buffer+sizeof(ulonglong) + sizeof(version) + + sizeof(ulonglong), &dirty, sizeof(bool));
+  meta_buffer[0]= (uchar)ARCHIVE_CHECK_HEADER;
+  meta_buffer[1]= (uchar)ARCHIVE_VERSION;
+  int8store(meta_buffer + 2, rows); 
+  int8store(meta_buffer + 10, check_point); 
+  *(meta_buffer + 18)= (uchar)dirty;
+  DBUG_PRINT("ha_archive::write_meta_file", ("Check %d", (uint)ARCHIVE_CHECK_HEADER));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", (uint)ARCHIVE_VERSION));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
-  if (my_write(meta_file, meta_buffer, size, MYF(MY_WME | MY_NABP)))
+  if (my_write(meta_file, (byte *)meta_buffer, META_BUFFER_SIZE, 0) != META_BUFFER_SIZE)
     DBUG_RETURN(-1);
   
   my_sync(meta_file, MYF(MY_WME));
@@ -448,19 +453,12 @@ int ha_archive::close(void)
 
 
 /*
-  We create our data file here. The format is pretty simple. The first
-  bytes in any file are the version number. Currently we do nothing
-  with this, but in the future this gives us the ability to figure out
-  version if we change the format at all. After the version we
-  starting writing our rows. Unlike other storage engines we do not
-  "pack" our data. Since we are about to do a general compression,
-  packing would just be a waste of CPU time. If the table has blobs
-  they are written after the row in the order of creation.
-
-  So to read a row we:
-    Read the version
-    Read the record and copy it into buf
-    Loop through any blobs and read them
+  We create our data file here. The format is pretty simple. 
+  You can read about the format of the data file above.
+  Unlike other storage engines we do not "pack" our data. Since we 
+  are about to do a general compression, packing would just be a waste of 
+  CPU time. If the table has blobs they are written after the row in the order 
+  of creation.
 */
 
 int ha_archive::create(const char *name, TABLE *table_arg,
@@ -468,14 +466,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
 {
   File create_file;  // We use to create the datafile and the metafile
   char name_buff[FN_REFLEN];
-  size_t written;
   int error;
   DBUG_ENTER("ha_archive::create");
-
-  /*
-    Right now version for the meta file and the data file is the same.
-  */
-  version= ARCHIVE_VERSION;
 
   if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
                                         MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
@@ -538,10 +530,11 @@ int ha_archive::write_row(byte * buf)
   DBUG_ENTER("ha_archive::write_row");
 
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->timestamp_default_now)
-    update_timestamp(buf+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
   written= gzwrite(share->archive_write, buf, table->reclength);
+  DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", written, table->reclength));
   share->dirty= TRUE;
   if (written != table->reclength)
     goto error;
@@ -625,7 +618,7 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
   DBUG_ENTER("ha_archive::get_row");
 
   read= gzread(file_to_read, buf, table->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes", read));
+  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, table->reclength));
 
   if (read == Z_STREAM_ERROR)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -843,7 +836,8 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)
 {
-  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
+  {
     /* 
       Here is where we get into the guts of a row level lock.
       If TL_UNLOCK is set 
@@ -853,10 +847,8 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables
-        && !thd->tablespace_op) {
-
+        && !thd->tablespace_op)
       lock_type = TL_WRITE_ALLOW_WRITE;
-    }
 
     /* 
       In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
@@ -866,9 +858,8 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
       concurrent inserts to t2. 
     */
 
-    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) {
+    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) 
       lock_type = TL_READ;
-    }
 
     lock.type=lock_type;
   }
