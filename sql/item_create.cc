@@ -457,13 +457,16 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Item_cast cast_type)
+Item *create_func_cast(Item *a, Item_cast cast_type, CHARSET_INFO *cs)
 {
   Item *res;
   LINT_INIT(res);
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
-  case ITEM_CAST_CHAR:	 	res= new Item_char_typecast(a); break;
+  case ITEM_CAST_CHAR:
+    res= (cs == NULL) ? new Item_char_typecast(a) : 
+			new Item_func_conv_charset(a,cs);
+    break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
   case ITEM_CAST_UNSIGNED_INT:  res= new Item_func_unsigned(a); break;
   case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;
