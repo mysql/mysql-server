@@ -17,6 +17,10 @@
 #ifndef ODBC_COMMON_common_hpp
 #define ODBC_COMMON_common_hpp
 
+#define stpcpy stpcpy
+#include <ndb_global.h>
+#undef swap
+
 // misc defs
 
 #ifdef NDB_GCC // only for odbc
