@@ -66,9 +66,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #endif
 #endif
 
-extern CHARSET_INFO *system_charset_info;
-extern CHARSET_INFO *files_charset_info;
-extern CHARSET_INFO *national_charset_info;
+extern CHARSET_INFO *system_charset_info, *files_charset_info ;
+extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 /***************************************************************************
   Configuration parameters
@@ -208,7 +207,7 @@ extern CHARSET_INFO *national_charset_info;
 #define MODE_PIPES_AS_CONCAT    	2
 #define MODE_ANSI_QUOTES        	4
 #define MODE_IGNORE_SPACE		8
-#define MODE_SERIALIZABLE		16
+#define MODE_NOT_USED			16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
 #define MODE_POSTGRESQL			128
@@ -221,6 +220,7 @@ extern CHARSET_INFO *national_charset_info;
 #define MODE_NO_FIELD_OPTIONS          16384
 #define MODE_MYSQL323                  32768
 #define MODE_MYSQL40                   65536
+#define MODE_ANSI	               (MODE_MYSQL40*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -461,7 +461,6 @@ bool mysql_rename_table(enum db_type base,
 			const char * old_name,
 			const char *new_db,
 			const char * new_name);
-bool close_cached_table(THD *thd,TABLE *table);
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
@@ -501,6 +500,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
+#include <openssl/des.h>
 struct st_des_keyblock
 {
   des_cblock key1, key2, key3;
@@ -723,7 +723,7 @@ extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;
-extern ulong long_query_count, what_to_log,flush_time,opt_sql_mode;
+extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
@@ -837,7 +837,7 @@ uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
-long my_gmt_sec(TIME *);
+long my_gmt_sec(TIME *, long *current_timezone);
 time_t str_to_timestamp(const char *str,uint length);
 bool str_to_time(const char *str,uint length,TIME *l_time);
 longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);

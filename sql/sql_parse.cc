@@ -891,7 +891,11 @@ pthread_handler_decl(handle_one_connection,arg)
       send_error(thd,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
-
+    else if (thd->killed)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
+    }
+    
 end_thread:
     close_connection(thd, 0, 1);
     end_thread(thd,1);
@@ -1068,7 +1072,10 @@ bool do_command(THD *thd)
 		       vio_description(net->vio)));
     /* Check if we can continue without closing the connection */
     if (net->error != 3)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
+    }
     send_error(thd,net->last_errno,NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
@@ -2897,6 +2904,38 @@ mysql_execute_command(THD *thd)
     res= -1;
 #endif
     break;
+  case SQLCOM_DROP_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1))
+      break;
+    if (!(res= mysql_drop_user(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
+  case SQLCOM_REVOKE_ALL:
+  {
+    if (check_access(thd, GRANT_ACL ,"mysql",0,1))
+      break;
+    if (!(res = mysql_revoke_all(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {

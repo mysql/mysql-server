@@ -65,3 +65,12 @@ SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
 SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
 --error 1054
 select 1 from  (select 2) a order by 0;
+
+#
+# Test of explain (bug #251)
+#
+
+create table t1 (id int);
+insert into t1 values (1),(2),(3);
+describe select * from (select * from t1 group by id) bar;
+drop table t1;

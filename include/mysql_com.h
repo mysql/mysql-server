@@ -324,6 +324,7 @@ my_bool check_scramble(const char *, const char *message,
 		       unsigned long *salt,my_bool old_ver);
 char *get_tty_password(char *opt_message);
 void hash_password(unsigned long *result, const char *password);
+const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 

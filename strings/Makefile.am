@@ -73,7 +73,7 @@ if ASSEMBLER
 endif
 
 str_test: str_test.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/str_test.c $(LDADD) $(LIBS)
+	$(LINK) $(FLAGS) -DMAIN $INCLUDES $(srcdir)/str_test.c $(LDADD) $(LIBS) $(pkglib_LIBRARIES)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -106,8 +106,8 @@
 #define SPECIAL_SAFE_MODE	2048
 
 	/* Extern defines */
-#define store_record(A,B) bmove_allign((A)->B,(A)->record[0],(size_t) (A)->reclength)
-#define restore_record(A,B) bmove_allign((A)->record[0],(A)->B,(size_t) (A)->reclength)
+#define store_record(A,B) bmove_align((A)->B,(A)->record[0],(size_t) (A)->reclength)
+#define restore_record(A,B) bmove_align((A)->record[0],(A)->B,(size_t) (A)->reclength)
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->reclength)
 #define empty_record(A) { \
                           restore_record((A),default_values); \
@@ -141,10 +141,13 @@
  */
 #define MIN_TURBOBM_PATTERN_LEN 3
 
-/* Defines for binary logging */
+/* 
+   Defines for binary logging.
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
 
-#define BIN_LOG_HEADER_SIZE	4
-
+#define BIN_LOG_HEADER_SIZE    4 
 #define FLOATING_POINT_BUFFER 331
 
 	/* Include prototypes for unireg */

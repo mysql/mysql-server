@@ -100,5 +100,5 @@ min(a)
 -0.010
 drop table t1;
 create table t1 (f float(54));
-Incorrect column specifier for column 'f'
+ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;

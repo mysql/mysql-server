@@ -23,44 +23,53 @@
 #	Move a alligned, not overlapped, by (long) divided memory area
 #	Args: to,from,length
 
-.globl bmove_allign
-	.type	 bmove_allign,@function
-bmove_allign:	
+.globl bmove_align
+	.type	 bmove_align,@function
+bmove_align:	
 	movl	%edi,%edx
-	movl	%esi,%eax
+	push	%esi
 	movl	4(%esp),%edi		# to
 	movl	8(%esp),%esi		# from
 	movl	12(%esp),%ecx		# length
 	addw	$3,%cx			# fix if not divisible with long
 	shrw	$2,%cx
-	rep
-	movsl
-	movl	%eax,%esi
+	jz	.ba_20
+	.p2align 4,,7
+.ba_10:
+	movl	-4(%esi,%ecx),%eax
+	movl	 %eax,-4(%edi,%ecx)
+	decl	%ecx
+	jnz	.ba_10
+.ba_20:	pop	%esi
 	movl	%edx,%edi
 	ret
-.end:
-	.size	 bmove_allign,.end-bmove_allign
+	.size	 bmove_align,.end-bmove_align
 
 	# Move a string from higher to lower
-	# Arg from+1,to+1,length
+	# Arg from_end+1,to_end+1,length
 
 .globl bmove_upp
 	.type bmove_upp,@function
 bmove_upp:	
-	std				#  Work downward
-	movl	%edi,%edx
-	movl	%esi,%eax
-	movl	4(%esp),%edi		# p1
-	movl	8(%esp),%esi		# p2
-	movl	12(%esp),%ecx		# length
-	decl	%edi			#  Don't move last arg
-	decl	%esi
-	rep
-	movsb				#  One byte a time because overlap
-	cld				#  C library wants cld
-	movl	%eax,%esi
+	movl	%edi,%edx		# Remember %edi
+	push	%esi
+	movl	8(%esp),%edi		# dst
+	movl	16(%esp),%ecx		# length
+	movl	12(%esp),%esi		# source
+	test	%ecx,%ecx
+	jz	.bu_20
+	subl	%ecx,%esi		# To start of strings
+	subl	%ecx,%edi
+	
+	.p2align 4,,7
+.bu_10:	movb	-1(%esi,%ecx),%al
+	movb	 %al,-1(%edi,%ecx)
+	decl	%ecx
+	jnz	.bu_10
+.bu_20:	pop	%esi
 	movl	%edx,%edi
 	ret
+
 .bmove_upp_end:	
 	.size bmove_upp,.bmove_upp_end-bmove_upp
 
@@ -304,22 +313,23 @@ si_99:	popl	%ebp
 strmake:	
 	pushl	%edi
 	pushl	%esi
-	movl	12(%esp),%edi		#  dst
-	movl	16(%esp),%esi		#  src
-	movl	20(%esp),%ecx		#  Length of memory-area
-	clrb	%al			#  For test of end-null
-	jecxz	sm_90			#  Nothing to move, put zero at end.
-
-sm_10:	cmpb	(%esi),%al		#  Next char to move
-	movsb				#  move arg
-	jz	sm_99			#  last char, we are ready
-	loop	sm_10			#  Continue moving
-sm_90:	movb	%al,(%edi)		#  Set end pos
-	incl	%edi			#  Fix that di points at end null
-sm_99:	decl	%edi			#  di points now at end null
-	movl	%edi,%eax		#  Ret value.p $
-	popl	%esi
-	popl	%edi
+	mov	12(%esp),%edi		# dst
+	movl	$0,%edx
+	movl	20(%esp),%ecx		# length
+	movl	16(%esp),%esi		# src
+	cmpl	%edx,%ecx
+	jz	sm_90
+sm_00:	movb	(%esi,%edx),%al
+	cmpb	$0,%al
+	jz	sm_90
+	movb	%al,(%edi,%edx)
+	incl	%edx
+	cmpl	%edx,%ecx
+	jnz	sm_00
+sm_90:	movb	$0,(%edi,%edx)
+sm_99:	lea	(%edi,%edx),%eax	# Return pointer to end null
+	pop	%esi
+	pop	%edi
 	ret
 .strmake_end:	
 	.size strmake,.strmake_end-strmake

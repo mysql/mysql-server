@@ -36,7 +36,7 @@ select (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)));
 (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)))
 1
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
-Cardinality error (more/less than 2 columns)
+ERROR 21000: Cardinality error (more/less than 2 columns)
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))
 NULL
@@ -86,7 +86,7 @@ SELECT ROW('test',2,3.33)=ROW('test',2,3.33);
 ROW('test',2,3.33)=ROW('test',2,3.33)
 1
 SELECT ROW('test',2,3.33)=ROW('test',2,3.33,4);
-Cardinality error (more/less than 3 columns)
+ERROR 21000: Cardinality error (more/less than 3 columns)
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,33));
 ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,33))
 1
@@ -97,7 +97,7 @@ SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL));
 ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL))
 NULL
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,4);
-Cardinality error (more/less than 2 columns)
+ERROR 21000: Cardinality error (more/less than 2 columns)
 create table t1 ( a int, b int, c int);
 insert into t1 values (1,2,3), (2,3,1), (3,2,1), (1,2,NULL);
 select * from t1 where ROW(1,2,3)=ROW(a,b,c);
@@ -135,14 +135,14 @@ ROW(1,2,3) IN(row(a,b,c), row(1,2,3))
 1
 drop table t1;
 select ROW(1,1);
-Cardinality error (more/less than 1 columns)
+ERROR 21000: Cardinality error (more/less than 1 columns)
 create table t1 (i int);
 select 1 from t1 where ROW(1,1);
-Cardinality error (more/less than 1 columns)
+ERROR 21000: Cardinality error (more/less than 1 columns)
 select count(*) from t1 order by ROW(1,1);
-Cardinality error (more/less than 1 columns)
+ERROR 21000: Cardinality error (more/less than 1 columns)
 select count(*) from t1 having (1,1) order by i;
-Cardinality error (more/less than 1 columns)
+ERROR 21000: Cardinality error (more/less than 1 columns)
 drop table t1;
 create table t1 (a int, b int);
 insert into t1 values (1, 4);

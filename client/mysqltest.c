@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.27"
+#define MTEST_VERSION "1.28"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -523,8 +523,12 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 
   if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
-  if (!eval_result && stat_info.st_size != ds->length)
+  if (!eval_result && (uint) stat_info.st_size != ds->length)
+  {
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
+		       ds->length, stat_info.st_size));
     DBUG_RETURN(2);
+  }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
 
@@ -2147,6 +2151,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
+	    dynstr_append_mem(ds,"ERROR ",6);
+	    replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				      strlen(mysql_sqlstate(mysql)));
+	    dynstr_append_mem(ds,": ",2);
 	    replace_dynstr_append_mem(ds,mysql_error(mysql),
 				      strlen(mysql_error(mysql)));
 	    dynstr_append_mem(ds,"\n",1);
