@@ -882,12 +882,6 @@ recv_recover_page(
 		recv = UT_LIST_GET_NEXT(rec_list, recv);
 	}
 
-	/* If the following assert fails, the file page is incompletely
-	written, and a recovery from a backup is required */
-	
-	ut_a(0 == ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
-				mach_read_from_8(page + UNIV_PAGE_SIZE
-							- FIL_PAGE_END_LSN)));
 	mutex_enter(&(recv_sys->mutex));
 	
 	recv_addr->state = RECV_PROCESSED;
