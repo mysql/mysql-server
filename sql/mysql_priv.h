@@ -779,7 +779,8 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 
 extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[];
+	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
+            opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
