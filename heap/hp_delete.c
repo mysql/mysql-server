@@ -97,8 +97,8 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     flag		Is set if we want's to correct info->current_ptr
 
   RETURN
-    0	ok
-    #	error number
+    0      Ok
+    other  Error code
 */
 
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
