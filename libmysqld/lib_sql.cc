@@ -195,6 +195,26 @@ MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
   return emb_read_rows(stmt->mysql, 0, 0);
 }
 
+int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
+{
+  MYSQL_DATA *data= ((THD*)mysql->thd)->data;
+  if (!data || !data->data)
+  {
+    *row= NULL;
+    if (data)
+    {
+      free_rows(data);
+      ((THD*)mysql->thd)->data= NULL;
+    }
+  }
+  else
+  {
+    *row= (char *)data->data->data;
+    data->data= data->data->next;
+  }
+  return 0;
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -205,7 +225,8 @@ MYSQL_METHODS embedded_methods=
   emb_list_fields,
   emb_read_prepare_result,
   emb_stmt_execute,
-  emb_read_binary_rows
+  emb_read_binary_rows,
+  emb_unbuffered_fetch
 };
 
 C_MODE_END
@@ -561,9 +582,8 @@ bool Protocol_prep::write()
 
   *data->prev_ptr= cur;
   data->prev_ptr= &cur->next;
-  next_field=cur->data;
-  next_mysql_field= thd->mysql->fields;
-
+  cur->next= 0;
+  
   return false;
 }
 

@@ -2965,6 +2965,14 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   return 0;
 }
 
+int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row)
+{
+  if (packet_error == net_safe_read(mysql))
+    return 1;
+
+  *row= (mysql->net.read_pos[0] == 254) ? NULL : (mysql->net.read_pos+1);
+  return 0;
+}
 
 /*
   Fetch and return row data to bound buffers, if any
@@ -2994,20 +3002,20 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
   }
   else						/* un-buffered */
   {
-    if (packet_error == net_safe_read(mysql))
+    if((*mysql->methods->unbuffered_fetch)(mysql, ( char **)&row))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
 		      mysql->net.sqlstate);
       DBUG_RETURN(1);
     }
-    if (mysql->net.read_pos[0] == 254)
+    if (!row)
     {
       mysql->status= MYSQL_STATUS_READY;
       stmt->current_row= 0;
       goto no_data;
     }
-    row= mysql->net.read_pos+1;  
-  }  
+  }
+
   stmt->current_row= row;    
   DBUG_RETURN(stmt_fetch_row(stmt, row));
 

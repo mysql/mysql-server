@@ -557,10 +557,13 @@ typedef struct st_mysql_methods
   MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
   void (STDCALL *fetch_lengths)(unsigned long *to, 
 				MYSQL_ROW column, unsigned int field_count);
+#if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
   MYSQL_FIELD * (STDCALL *list_fields)(MYSQL *mysql);
   my_bool (STDCALL *read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (STDCALL *stmt_execute)(MYSQL_STMT *stmt);
   MYSQL_DATA *(STDCALL *read_binary_rows)(MYSQL_STMT *stmt);
+  int (STDCALL *unbuffered_fetch)(MYSQL *mysql, char **row);
+#endif
 
 } MYSQL_METHODS;
 
