@@ -1247,8 +1247,28 @@ static int init_dumping(char *database)
     {
       fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
       if (!opt_create_db)
-	fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
+      {
+        char qbuf[128];
+        MYSQL_ROW row;
+        MYSQL_RES *dbinfo;
+	
+        sprintf(qbuf,"SHOW CREATE DATABASE %s",database);
+        
+        if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
+        {
+          /* Old server version, dump generic CREATE DATABASE */
+	  fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
 		database);
+	}
+	else
+        {
+	  row = mysql_fetch_row(dbinfo);
+	  if (row[1])
+	  {
+	    fprintf(md_result_file,"\n%s;\n",row[1]);
+          }
+	}
+      }
       fprintf(md_result_file,"\nUSE %s;\n", database);
     }
   }
