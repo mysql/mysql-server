@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.13";
+const char *VER= "12.14";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -476,7 +476,8 @@ static struct my_option my_long_options[] =
   {"ignore-space", 'i', "Ignore space after function names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_local_infile,
+   (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"no-beep", 'b', "Turn off beep on error.", (gptr*) &opt_nobeep,
    (gptr*) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"host", 'h', "Connect to host.", (gptr*) &current_host,
@@ -609,7 +610,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOCAL_INFILE:
     using_opt_local_infile=1;
-    opt_local_infile= test(!argument || atoi(argument)>0);
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
