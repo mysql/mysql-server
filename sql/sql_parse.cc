@@ -349,63 +349,60 @@ static bool check_mqh(THD *thd, uint check_command)
   USER_CONN *uc=thd->user_connect;
   DBUG_ASSERT(uc != 0);
 
+  bool my_start = thd->start_time != 0;
+  time_t check_time = (my_start) ?  thd->start_time : time(NULL);
+    
+  if (check_time  - uc->intime >= 3600)
+  {
+    (void) pthread_mutex_lock(&LOCK_user_conn);
+    uc->questions=1;
+    uc->updates=0;
+    uc->conn_per_hour=0;
+    uc->intime=check_time;
+    (void) pthread_mutex_unlock(&LOCK_user_conn);
+  }
+  if (uc->user_resources.questions &&
+      uc->questions++ >= uc->user_resources.questions)
+  {
+    net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
+	       (long) uc->user_resources.questions);
+    error=1;
+    goto end;
+  }
   if (check_command < (uint) SQLCOM_END)
   {
     if (uc->user_resources.updates && uc_update_queries[check_command]  && 
 	++(uc->updates) > uc->user_resources.updates)
-    {
-      net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
-		 (long) uc->user_resources.updates);
-      error=1;
-      goto end;
-    }
-  }
-  else
-  {
-    bool my_start = thd->start_time != 0;
-    time_t check_time = (my_start) ?  thd->start_time : time(NULL);
-    
-    if (check_time  - uc->intime >= 3600)
-    {
-      (void) pthread_mutex_lock(&LOCK_user_conn);
-      uc->questions=1;
-      uc->updates=0;
-      uc->conn_per_hour=0;
-      uc->intime=check_time;
-      (void) pthread_mutex_unlock(&LOCK_user_conn);
-    }
-    else if (uc->user_resources.questions &&
-	     uc->questions++ >= uc->user_resources.questions)
-    {
-      net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
-		 (long) uc->user_resources.questions);
-      error=1;
-      goto end;
-    }
+      {
+	net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
+		   (long) uc->user_resources.updates);
+	error=1;
+	goto end;
+      }
   }
 end:
   DBUG_RETURN(error);
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, USER_RESOURCES  *mqh, bool get_them=false)
+static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them=false)
 {
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT 
   {
     USER_CONN *uc;
-    uint temp_len=lu->user.length+lu->host.length+2;
+    volatile uint temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
     if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(byte*) temp_user, temp_len-1)))
+						(byte*) temp_user, temp_len)))
     {
       uc->questions=0;
-      uc->user_resources=*mqh;
+      get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
       uc->updates=0;
       uc->conn_per_hour=0;
     }
@@ -2351,13 +2348,12 @@ mysql_execute_command(void)
 	  Query_log_event qinfo(thd, thd->query);
 	  mysql_bin_log.write(&qinfo);
 	}
-	if (mqh_used && lex->sql_command == SQLCOM_GRANT &&
-	    (lex->mqh.questions || lex->mqh.updates || lex->mqh.connections))
+	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
 	  while ((user=str_list++))
-	    reset_mqh(thd,user,&(lex->mqh));
+	    reset_mqh(thd,user);
 	}
       }
     }
@@ -3334,7 +3330,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     acl_reload();
     grant_reload();
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL, 0, true);
+      reset_mqh(thd,(LEX_USER *) NULL,true);
   }
   if (options & REFRESH_LOG)
   {
@@ -3389,7 +3385,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
    UNLOCK_ACTIVE_MI;
  }
  if (options & REFRESH_USER_RESOURCES)
-   reset_mqh(thd,(LEX_USER *) NULL, 0);
+   reset_mqh(thd,(LEX_USER *) NULL);
  return result;
 }
 
