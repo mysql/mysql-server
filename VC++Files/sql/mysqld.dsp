@@ -1137,6 +1137,10 @@ SOURCE=.\sql_show.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_state.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_string.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
