@@ -58,6 +58,13 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 256
+#endif
 
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
@@ -75,7 +82,7 @@
 #ifndef MYSQL_MANAGER_PORT
 #define MYSQL_MANAGER_PORT 23546
 #endif
-#define MAX_SERVER_ARGS 20
+#define MAX_SERVER_ARGS 64
 
 /*
   Sometimes in a test the client starts before
@@ -131,6 +138,13 @@ static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
 static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
+
+/* See the timer_output() definition for details */
+static char *timer_file = NULL;
+static ulonglong timer_start;
+static int got_end_timer= FALSE;
+static void timer_output(void);
+static ulonglong timer_now(void);
 
 static const char *embedded_server_groups[] = {
   "server",
@@ -230,6 +244,7 @@ Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
+Q_START_TIMER, Q_END_TIMER,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -308,6 +323,8 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
+  "start_timer",
+  "end_timer",
   0
 };
 
@@ -1986,6 +2003,8 @@ static struct my_option my_long_options[] =
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"timer-file", 'm', "File where the timing in micro seconds is stored.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
@@ -2045,6 +2064,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fn_format(buff, argument, "", "", 4);
       if (!(*++cur_file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
 	die("Could not open %s: errno = %d", argument, errno);
+      break;
+    }
+  case 'm':
+    {
+      static char buff[FN_REFLEN];
+      if (!test_if_hard_path(argument))
+      {
+	strxmov(buff, opt_basedir, argument, NullS);
+	argument= buff;
+      }
+      fn_format(buff, argument, "", "", 4);
+      timer_file= buff;
+      unlink(timer_file);	     /* Ignore error, may not exist */
       break;
     }
   case 'p':
@@ -2128,7 +2160,7 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  char buff[FN_REFLEN];
+  char buff[MAXPATHLEN];
   if (!test_if_hard_path(fname))
   {
     strxmov(buff, opt_basedir, fname, NullS);
@@ -2599,6 +2631,9 @@ int main(int argc, char **argv)
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
 
+  /* Use all time until exit if no explicit 'start_timer' */
+  timer_start= timer_now();
+
   save_file[0]=0;
   TMPDIR[0]=0;
   memset(cons, 0, sizeof(cons));
@@ -2813,6 +2848,15 @@ int main(int argc, char **argv)
       case Q_EXEC: 
 	(void) do_exec(q);
 	break;
+      case Q_START_TIMER:
+	/* Overwrite possible earlier start of timer */
+	timer_start= timer_now();
+	break;
+      case Q_END_TIMER:
+	/* End timer before ending mysqltest */
+	timer_output();
+	got_end_timer= TRUE;
+	break;
       default: processed = 0; break;
       }
     }
@@ -2847,6 +2891,8 @@ int main(int argc, char **argv)
       printf("ok\n");
   }
 
+  if (!got_end_timer)
+    timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
@@ -2898,6 +2944,45 @@ static int read_server_arguments(const char *name)
     return 1;
   }
   return 0;
+}
+
+/****************************************************************************\
+ *
+ *  A primitive timer that give results in milliseconds if the
+ *  --timer-file=<filename> is given. The timer result is written
+ *  to that file when the result is available. To not confuse
+ *  mysql-test-run with an old obsolete result, we remove the file
+ *  before executing any commands. The time we measure is
+ *
+ *    - If no explicit 'start_timer' or 'end_timer' is given in the
+ *      test case, the timer measure how long we execute in mysqltest.
+ *
+ *    - If only 'start_timer' is given we measure how long we execute
+ *      from that point until we terminate mysqltest.
+ *
+ *    - If only 'end_timer' is given we measure how long we execute
+ *      from that we enter mysqltest to the 'end_timer' is command is
+ *      executed.
+ *
+ *    - If both 'start_timer' and 'end_timer' are given we measure
+ *      the time between executing the two commands.
+ *
+\****************************************************************************/
+
+static void timer_output(void)
+{
+  if (timer_file)
+  {
+    char buf[1024];
+    ulonglong timer= timer_now() - timer_start;
+    sprintf(buf,"%llu",timer);
+    str_to_file(timer_file,buf,strlen(buf));
+  }
+}
+
+static ulonglong timer_now(void)
+{
+  return my_getsystime() / 10000;
 }
 
 /****************************************************************************

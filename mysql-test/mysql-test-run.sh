@@ -232,9 +232,13 @@ DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
+USE_EMBEDDED_SERVER=""
+RESULT_EXT=""
 
 while test $# -gt 0; do
   case "$1" in
+    --embedded-server) USE_EMBEDDED_SERVER=1 ; USE_MANAGER=0 ; NO_SLAVE=1 ; \
+      USE_RUNNING_SERVER="" RESULT_EXT=".es" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --verbose-manager)  MANAGER_QUIET_OPT="" ;;
@@ -458,18 +462,27 @@ fi
 
 if test ${COLUMNS:-0} -lt 80 ; then COLUMNS=80 ; fi
 E=`$EXPR $COLUMNS - 8`
-DASH72=`$ECHO '------------------------------------------'|$CUT -c 1-$E`
+DASH72=`$ECHO '-------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
- MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
- if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
-   MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
- elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
-   MYSQL_TEST="$BASEDIR/client/.libs/mysqltest"
+ if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
+   if [ -f "$BASEDIR/libmysqld/examples/mysqltest" ] ; then
+     MYSQL_TEST="$VALGRIND $BASEDIR/libmysqld/examples/mysqltest"
+   else
+     echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
+     exit 1
+   fi
  else
-   MYSQL_TEST="$BASEDIR/client/mysqltest"
+   MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
+   if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
+     MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
+   elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
+     MYSQL_TEST="$BASEDIR/client/.libs/mysqltest"
+   else
+     MYSQL_TEST="$BASEDIR/client/mysqltest"
+   fi
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -565,7 +578,8 @@ export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
- --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT $MYSQL_TEST_SSL_OPTS"
+ --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT --timer-file=$MY_LOG_DIR/timer \
+ $MYSQL_TEST_SSL_OPTS"
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -598,6 +612,13 @@ show_failed_diff ()
   reject_file=r/$1.reject
   result_file=r/$1.result
   eval_file=r/$1.eval
+
+  # If we have an special externsion for result files we use it if we are recording
+  # or a result file with that extension exists.
+  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ]
+  then
+    result_file="$result_file$RESULT_EXT"
+  fi
 
   if [ -f $eval_file ]
   then
@@ -880,6 +901,8 @@ EOF
  abort_if_failed "Could not execute manager command"
 }
 
+# The embedded server needs the cleanup so we do some of the start work
+# but stop before actually running mysqld or anything.
 
 start_master()
 {
@@ -948,6 +971,18 @@ start_master()
 
   CUR_MYERR=$MASTER_MYERR
   CUR_MYSOCK=$MASTER_MYSOCK
+
+  # For embedded server we collect the server flags and return
+  if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
+    # Add a -A to each argument to pass it to embedded server
+    EMBEDDED_SERVER_OPTS=""
+    for opt in $master_args
+    do
+      EMBEDDED_SERVER_OPTS="$EMBEDDED_SERVER_OPTS -A $opt"
+    done
+    EXTRA_MYSQL_TEST_OPT="$EMBEDDED_SERVER_OPTS"
+    return
+  fi
 
   if [ x$DO_DDD = x1 ]
   then
@@ -1159,22 +1194,26 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    pid=`$CAT $MASTER_MYPID`
-    manager_term $pid master
-    if [ $? != 0 ] && [ -f $MASTER_MYPID ]
-    then # try harder!
-      $ECHO "master not cooperating with mysqladmin, will try manual kill"
-      kill $pid
-      sleep_until_file_deleted $pid $MASTER_MYPID
-      if [ -f $MASTER_MYPID ] ; then
-        $ECHO "master refused to die. Sending SIGKILL"
-        kill -9 `$CAT $MASTER_MYPID`
-        $RM -f $MASTER_MYPID
+    # For embedded server we don't stop anyting but mark that
+    # MASTER_RUNNING=0 to get cleanup when calling start_master().
+    if [ x$USE_EMBEDDED_SERVER != x1 ] ; then
+      pid=`$CAT $MASTER_MYPID`
+      manager_term $pid master
+      if [ $? != 0 ] && [ -f $MASTER_MYPID ]
+      then # try harder!
+	$ECHO "master not cooperating with mysqladmin, will try manual kill"
+	kill $pid
+	sleep_until_file_deleted $pid $MASTER_MYPID
+	if [ -f $MASTER_MYPID ] ; then
+	  $ECHO "master refused to die. Sending SIGKILL"
+	  kill -9 `$CAT $MASTER_MYPID`
+	  $RM -f $MASTER_MYPID
+	else
+	  $ECHO "master responded to SIGTERM "
+	fi
       else
-        $ECHO "master responded to SIGTERM "
+	sleep $SLEEP_TIME_AFTER_RESTART
       fi
-    else
-      sleep $SLEEP_TIME_AFTER_RESTART
     fi
     MASTER_RUNNING=0
   fi
@@ -1217,9 +1256,13 @@ run_testcase ()
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname.slave-mi
- result_file=$tname
+ tsrcdir=$TESTDIR/$tname-src
+ result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
+   result_file="$result_file$RESULT_EXT"
+ fi
  if [ "$USE_MANAGER" = 1 ] ; then
    many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1249,11 +1292,46 @@ run_testcase ()
    return
  fi
 
- # Stop all slave threads, so that we don't have useless reconnection attempts
- # and error messages in case the slave and master servers restart.
- stop_slave_threads
- stop_slave_threads 1
- stop_slave_threads 2
+ if [ "x$USE_EMBEDDED_SERVER" != "x1" ] ; then
+   # Stop all slave threads, so that we don't have useless reconnection
+   #  attempts and error messages in case the slave and master servers restart.
+   stop_slave_threads
+   stop_slave_threads 1
+   stop_slave_threads 2
+ fi
+
+ # FIXME temporary solution, we will get a new C version of this
+ # script soon anyway so it is not worth it spending the time
+ if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
+   for t in \
+
+	"bdb-deadlock" \
+	"connect" \
+	"flush_block_commit" \
+	"grant2" \
+	"grant_cache" \
+	"grant" \
+	"init_connect" \
+	"innodb-deadlock" \
+	"innodb-lock" \
+	"mix_innodb_myisam_binlog" \
+	"mysqlbinlog2" \
+	"mysqlbinlog" \
+	"mysqldump" \
+	"mysql_protocols" \
+	"ps_1general" \
+	"rename" \
+	"show_check" \
+        "system_mysql_db_fix" \
+	"user_var" \
+	"variables"
+   do
+     if [ "$tname" = "$t" ] ; then
+       skip_test $tname
+       return
+     fi
+   done
+ fi
 
  if [ -z "$USE_RUNNING_SERVER" ] ;
  then
@@ -1269,6 +1347,10 @@ run_testcase ()
 	 ;;
        --result-file=*)
          result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
+         result_file="r/$result_file.result"
+         if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
+	   result_file="$result_file$RESULT_EXT"
+	 fi
 	 # Note that this must be set to space, not "" for test-reset to work
 	 EXTRA_MASTER_OPT=" "
          ;;
@@ -1278,7 +1360,11 @@ run_testcase ()
      start_master
      TZ=$MY_TZ; export TZ
    else
-     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
+     # If we had extra master opts to the previous run
+     # or there is no master running (FIXME strange.....)
+     # or there is a master init script
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || \
+	[ -f $master_init_script ]
      then
        EXTRA_MASTER_OPT=""
        stop_master
@@ -1289,47 +1375,50 @@ run_testcase ()
      fi
    fi
 
-   do_slave_restart=0
-   if [ -f $slave_opt_file ] ;
-   then
-     EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
-     do_slave_restart=1
-   else
-    if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
-    then
-      EXTRA_SLAVE_OPT=""
-      do_slave_restart=1
-    fi
-   fi
-
-   if [ -f $slave_master_info_file ] ; then
-     SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
-     do_slave_restart=1
-   else
-     if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
+   # We never start a slave if embedded server is used
+   if [ "x$USE_EMBEDDED_SERVER" != "x1" ] ; then
+     do_slave_restart=0
+     if [ -f $slave_opt_file ] ;
      then
-       SLAVE_MASTER_INFO=""
+       EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
        do_slave_restart=1
+     else
+      if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
+      then
+	EXTRA_SLAVE_OPT=""
+	do_slave_restart=1
+      fi
      fi
-   fi
 
-   if [ x$do_slave_restart = x1 ] ; then
-     stop_slave
-     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
-     start_slave
-   else
-     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
-   fi
-   if [ x$many_slaves = x1 ]; then
-    start_slave 1
-    start_slave 2
+     if [ -f $slave_master_info_file ] ; then
+       SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
+       do_slave_restart=1
+     else
+       if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
+       then
+	 SLAVE_MASTER_INFO=""
+	 do_slave_restart=1
+       fi
+     fi
+
+     if [ x$do_slave_restart = x1 ] ; then
+       stop_slave
+       echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
+       start_slave
+     else
+       echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
+     fi
+     if [ x$many_slaves = x1 ]; then
+      start_slave 1
+      start_slave 2
+     fi
    fi
  fi
  cd $MYSQL_TEST_DIR
 
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mysql_test_args="-R r/$result_file.result $EXTRA_MYSQL_TEST_OPT"
+    mysql_test_args="-R $result_file $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
       `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
@@ -1349,7 +1438,12 @@ run_testcase ()
     if [ $res = 0 ]; then
       total_inc
       pass_inc
-      $ECHO "$RES$RES_SPACE [ pass ]"
+      TIMER=""
+      if [ -f "$MY_LOG_DIR/timer" ]; then
+	TIMER=`cat $MY_LOG_DIR/timer`
+	TIMER=`$PRINTF "%13s" $TIMER`
+      fi
+      $ECHO "$RES$RES_SPACE [ pass ]   $TIMER"
     else
       # why the following ``if'' ? That is why res==1 is special ?
       if [ $res = 2 ]; then
@@ -1364,12 +1458,13 @@ run_testcase ()
 	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
-	show_failed_diff $result_file
+	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting: $tname failed. To continue, re-run with '--force'."
 	 $ECHO
-         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+	    [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	 then
 	   mysql_stop
 	   stop_manager
@@ -1377,7 +1472,8 @@ run_testcase ()
 	 exit 1
 	fi
 
-        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+	   [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	then
 	  mysql_restart
 	fi
@@ -1511,7 +1607,7 @@ then
 fi
 
 $ECHO
-$ECHO " TEST                           RESULT"
+$ECHO "TEST                            RESULT        TIME (ms)"
 $ECHO $DASH72
 
 if [ -z "$1" ] ;
