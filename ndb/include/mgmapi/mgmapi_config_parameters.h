@@ -81,6 +81,8 @@
 
 #define CFG_DB_BACKUP_DATADIR         158
 
+#define CFG_DB_MAX_OPEN_FILES         159
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 
