@@ -597,24 +597,23 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
 int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
 {
   const char *end;
+  int swap=0;
   /* First remove prefixes '0', ' ', and '-' */
   for (end=a_ptr+field_length;
        a_ptr != end &&
 	 (*a_ptr == *b_ptr ||
 	  ((isspace(*a_ptr)  || *a_ptr == '+' || *a_ptr == '0') &&
 	   (isspace(*b_ptr) || *b_ptr == '+' || *b_ptr == '0')));
-       a_ptr++,b_ptr++) ;
-
+       a_ptr++,b_ptr++)
+  {
+    if (*a_ptr == '-')				// If both numbers are negative
+      swap= -1 ^ 1;				// Swap result      
+  }
   if (a_ptr == end)
     return 0;
-  int swap=0;
   if (*a_ptr == '-')
-  {
-    if (*b_ptr != '-')
-      return -1;
-    swap= -1 ^ 1;				// Swap result
-    a_ptr++, b_ptr++;
-  } else if (*b_ptr == '-')
+    return -1;
+  else if (*b_ptr == '-')
     return 1;
 
   while (a_ptr != end)

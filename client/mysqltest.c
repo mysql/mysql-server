@@ -70,6 +70,7 @@
 #define INIT_Q_LINES	  1024
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
+#define MAX_EXPECTED_ERRORS 10
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -88,7 +89,7 @@ static char TMPDIR[FN_REFLEN];
 
 static int block_stack[BLOCK_STACK_DEPTH];
 static int *cur_block, *block_stack_end;
-static uint global_expected_errno=0;
+static uint global_expected_errno[MAX_EXPECTED_ERRORS];
 
 DYNAMIC_ARRAY q_lines;
 
@@ -132,7 +133,7 @@ struct st_query
   char *query, *first_argument;
   int first_word_len;
   my_bool abort_on_error, require_file;
-  uint expected_errno;
+  uint expected_errno[MAX_EXPECTED_ERRORS];
   char record_file[FN_REFLEN];
   /* Add new commands before Q_UNKNOWN */
   enum { Q_CONNECTION=1, Q_QUERY, Q_CONNECT,
@@ -542,17 +543,24 @@ static void get_file_name(char *filename, struct st_query* q)
 }
 
 
-static int get_int(struct st_query* q)
+static void get_ints(uint *to,struct st_query* q)
 {
   char* p=q->first_argument;
-  int res;
-  DBUG_ENTER("get_int");
+  long val;
+  DBUG_ENTER("get_ints");
+
   while (*p && isspace(*p)) p++;
   if (!*p)
     die("Missing argument in %s\n", q->query);
-  res=atoi(p);
-  DBUG_PRINT("result",("res: %d",res));
-  DBUG_RETURN(res);
+
+  for (; (p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val)) ; p++)
+  {
+    *to++= (uint) val;
+    if (*p != ',')
+      break;
+  }
+  *to++=0;					/* End of data */
+  DBUG_VOID_RETURN;
 }
 
 
@@ -918,9 +926,10 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0] = 0;
   q->require_file=0;
   q->first_word_len = 0;
-  q->expected_errno = global_expected_errno;
-  q->abort_on_error = global_expected_errno == 0;
-  global_expected_errno=0;
+  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
+	 sizeof(global_expected_errno));
+  q->abort_on_error = global_expected_errno[0] == 0;
+  bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
   q->type = Q_UNKNOWN;
   q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
@@ -947,7 +956,8 @@ int read_query(struct st_query** q_ptr)
 	p++;
 	for (;isdigit(*p);p++)
 	  expected_errno = expected_errno * 10 + *p - '0';
-	q->expected_errno = expected_errno;
+	q->expected_errno[0] = expected_errno;
+	q->expected_errno[1] = 0;
       }
     }
 
@@ -1178,15 +1188,17 @@ int run_query(MYSQL* mysql, struct st_query* q)
 	  mysql_errno(mysql), mysql_error(mysql));
     else
     {
-      if (q->expected_errno)
+      for (i=0 ; q->expected_errno[i] ; i++)
       {
-	error = (q->expected_errno != mysql_errno(mysql));
-	if (error)
-	  verbose_msg("query '%s' failed with wrong errno\
- %d instead of %d", q->query, mysql_errno(mysql), q->expected_errno);
+	if ((q->expected_errno[i] == mysql_errno(mysql)))
+	  goto end;				/* Ok */
+      }
+      if (i)
+      {
+	verbose_msg("query '%s' failed with wrong errno\
+ %d instead of %d...", q->query, mysql_errno(mysql), q->expected_errno[0]);
 	goto end;
       }
-
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
       /* if we do not abort on error, failure to run the query does
@@ -1196,11 +1208,11 @@ int run_query(MYSQL* mysql, struct st_query* q)
     }
   }
 
-  if (q->expected_errno)
+  if (q->expected_errno[0])
   {
     error = 1;
-    verbose_msg("query '%s' succeeded - should have failed with errno %d",
-		q->query, q->expected_errno);
+    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
+		q->query, q->expected_errno[0]);
     goto end;
   }
 
@@ -1373,7 +1385,7 @@ int main(int argc, char** argv)
 	require_file=0;
 	break;
       case Q_ERROR:
-	global_expected_errno=get_int(q);
+	get_ints(global_expected_errno,q);
 	break;
       case Q_REQUIRE:
 	get_file_name(save_file,q);

@@ -343,11 +343,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	if (TEST_IF_LASTREF(ref_pos,ref_length))
-	{
-	  error=HA_ERR_END_OF_FILE;
-	  break;
-	}
 	error=file->rnd_pos(sort_form->record[0],next_pos);
       }
       else

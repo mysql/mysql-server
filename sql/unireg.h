@@ -105,12 +105,6 @@ bmove_allign((A)->record[0],(A)->record[2],(size_t) (A)->reclength); \
 bfill((A)->null_flags,(A)->null_bytes,255);\
 }
 
-#if MAX_REFLENGTH == 4
-#define TEST_IF_LASTREF(A,B) ((long) *((int32*) (A)) == -1L)
-#else
-#define TEST_IF_LASTREF(A,B) (bcmp(A,last_ref,B) == 0)
-#endif
-
 	/* Defines for use with openfrm, openprt and openfrd */
 
 #define READ_ALL		1	/* openfrm: Read all parameters */

@@ -130,11 +130,23 @@ level	id	parent_id
 1	1005	101
 1	1006	101
 1	1007	101
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	id	A	39	NULL	NULL	
+t1	1	parent_id	1	parent_id	A	9	NULL	NULL	
+t1	1	level	1	level	A	3	NULL	NULL	
 gesuchnr	benutzer_id
 1	1
 2	1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
 a
 2
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	The handler for the table doesn't support check/repair
+a	b
+2	testing
 a	b
 a	1
 a	2
@@ -152,6 +164,8 @@ d	2
 d	5
 e	1
 k	1
+count(*)
+16
 n	after rollback
 n	after commit
 4	after commit
@@ -249,6 +263,12 @@ id	ggid	email	passwd
 1	test1		xxx
 id	ggid	email	passwd
 2	test2		yyy
+id	ggid	email	passwd
+1	this will work		
+3	test2		this will work
+id	ggid	email	passwd
+1	this will work		
+id	ggid	email	passwd
 user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
 user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1
 user_1	somepassword	Y	1	1	1	2000-09-07	23:06:59	2000-09-07 23:06:59	2
@@ -402,14 +422,50 @@ id	parent_id	level
 1180	105	2
 count(*)
 1
+count(*)
+1
+count(*)
+2
+count(*)
+1
+count(*)
+1
+count(*)
+1
+sca_pic
+NULL
+NULL
 a
 1
 2
 3
+a
+2
+3
+5
 b
 this is a blob
 b	i
 this is a blob	1
 b	i
 this is a blob	1
+	1
+	2
+	3
 b	i
+b	i
+NULL	NULL
+b	i
+updated	1
+NULL	-1
+NULL	NULL
+updated	1
+	2
+	3
+a	b
+world	2
+hello	1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	a	A	1	NULL	NULL	

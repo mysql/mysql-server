@@ -33,7 +33,8 @@ drop table if exists t1;
 !$1171 create table t1 (ordid int(8), primary key (ordid));
 !$1121 create table t1 (ordid int(8), unique (ordid)) type=isam;
 
-!$1044 create table not_existing_database.test (a int);
+-- error 1044,1
+create table not_existing_database.test (a int);
 !$1103 create table `a/a` (a int);
 !$1103 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
 !$1059 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
