@@ -699,7 +699,7 @@ private:
    *                       shall receive the notification.
    *   @param  processId:  Id of the dead process.
    */
-  static void nodeStatusNotification(void* mgmSrv, NodeId nodeId, 
+  static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				     bool alive, bool nfCompleted);
   
   /**
