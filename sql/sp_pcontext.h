@@ -39,11 +39,18 @@ typedef struct sp_pvar
   Item *dflt;
 } sp_pvar_t;
 
+
+#define SP_LAB_REF   0		// Unresolved reference (for goto)
+#define SP_LAB_GOTO  1		// Free goto label
+#define SP_LAB_BEGIN 2		// Label at BEGIN
+#define SP_LAB_ITER  3		// Label at iteration control
+
 typedef struct sp_label
 {
   char *name;
   uint ip;			// Instruction index
-  my_bool isbegin;		// For ITERATE error checking
+  int type;			// begin/iter or ref/free 
+  uint scopes;			// No. of scopes at label
 } sp_label_t;
 
 typedef struct sp_cond_type
@@ -61,7 +68,7 @@ typedef struct sp_cond
 
 typedef struct sp_scope
 {
-  uint vars, conds, curs;
+  uint vars, conds, hndlrs, curs, glab;
 } sp_scope_t;
 
 class sp_pcontext : public Sql_alloc
@@ -82,7 +89,18 @@ class sp_pcontext : public Sql_alloc
   push_scope();
 
   void
-  pop_scope();
+  pop_scope(sp_scope_t *sp = 0);
+
+  uint
+  scopes()
+  {
+    return m_scopes.elements;
+  }
+
+  // Sets '*diffs' to the differences between current scope index snew and sold
+  void
+  diff_scopes(uint sold, sp_scope_t *diffs);
+
 
   //
   // Parameters and variables
@@ -223,6 +241,18 @@ class sp_pcontext : public Sql_alloc
     return m_handlers;
   }
 
+  inline void
+  push_handlers(uint count)
+  {
+    m_hndlrlev+= count;
+  }
+
+  inline void
+  pop_handlers(uint count)
+  {
+    m_hndlrlev-= count;
+  }
+  
   //
   // Cursors
   //
@@ -246,17 +276,32 @@ class sp_pcontext : public Sql_alloc
     return m_cursmax;
   }
 
+  //
+  // GOTO labels
+  //
+
+  sp_label_t *
+  push_glabel(char *name, uint ip);
+
+  sp_label_t *
+  find_glabel(char *name);
+
+  void
+  pop_glabel(uint count);
+
 private:
 
   uint m_params;		// The number of parameters
   uint m_framesize;		// The maximum framesize
   uint m_handlers;		// The total number of handlers
   uint m_cursmax;		// The maximum number of cursors
+  uint m_hndlrlev;		// Current number of active handlers
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
   DYNAMIC_ARRAY m_cursor;	// Cursors
   DYNAMIC_ARRAY m_scopes;	// For error checking
+  DYNAMIC_ARRAY m_glabel;	// Goto labels
 
   List<sp_label_t> m_label;	// The label list
 

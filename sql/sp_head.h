@@ -182,6 +182,13 @@ public:
   void
   backpatch(struct sp_label *);
 
+  // Check that no unresolved references exist.
+  // If none found, 0 is returned, otherwise errors have been issued
+  // and -1 is returned.
+  // This is called by the parser at the end of a create procedure/function.
+  int
+  check_backpatch(THD *thd);
+
   char *name(uint *lenp = 0) const
   {
     if (lenp)
@@ -272,7 +279,7 @@ public:
 
   virtual void print(String *str) = 0;
 
-  virtual void set_destination(uint dest)
+  virtual void backpatch(uint dest, uint hpop, uint cpop)
   {}
 
   virtual uint opt_mark(sp_head *sp)
@@ -394,8 +401,7 @@ public:
 
   virtual void opt_move(uint dst, List<sp_instr> *ibp);
 
-  virtual void
-  set_destination(uint dest)
+  virtual void backpatch(uint dest, uint hpop, uint cpop)
   {
     if (m_dest == 0)		// Don't reset
       m_dest= dest;
@@ -575,6 +581,21 @@ public:
 
   virtual void print(String *str);
 
+  virtual void backpatch(uint dest, uint hpop, uint cpop)
+  {
+    if (hpop > m_count)
+      m_count= 0;
+    else
+      m_count-= hpop;
+  }
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    if (m_count)
+      marked= 1;
+    return m_ip+1;
+  }
+
 private:
 
   uint m_count;
@@ -654,6 +675,21 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual void backpatch(uint dest, uint hpop, uint cpop)
+  {
+    if (cpop > m_count)
+      m_count= 0;
+    else
+      m_count-= cpop;
+  }
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    if (m_count)
+      marked= 1;
+    return m_ip+1;
+  }
 
 private:
 

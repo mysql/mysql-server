@@ -398,6 +398,87 @@ id	data
 i	3
 delete from t1|
 drop procedure i|
+create procedure j()
+begin
+declare y int;
+label a;
+select * from t1;
+select count(*) into y from t1;
+if y > 2 then
+goto b;
+end if;
+insert into t1 values ("j", y);
+goto a;
+label b;
+end|
+call j()|
+id	data
+id	data
+j	0
+id	data
+j	0
+j	1
+id	data
+j	0
+j	1
+j	2
+drop procedure j|
+create procedure k(a int)
+begin
+declare x int default 0;
+declare continue handler for sqlstate '42S98' set x = 1;
+label a;
+select * from t1;
+b:
+while x < 2 do
+begin
+declare continue handler for sqlstate '42S99' set x = 2;
+if a = 0 then
+set x = x + 1;
+iterate b;
+elseif a = 1 then
+leave b;
+elseif a = 2 then
+set a = 1;
+goto a;
+end if;
+end;
+end while b;
+select * from t1;
+end|
+call k(0)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+call k(1)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+call k(2)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+drop procedure k|
+delete from t1|
 insert into t1 values ("foo", 3), ("bar", 19)|
 insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
 create procedure sel1()
@@ -1487,7 +1568,7 @@ Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22185		
+master-bin.000001	22451		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1541,7 +1622,7 @@ Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22185		
+master-bin.000001	22451		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1580,10 +1661,10 @@ show processlist;
 end|
 call bug4902_2()|
 Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	0	NULL	call bug4902_2()
+#	root	localhost	test	Query	#	NULL	call bug4902_2()
 call bug4902_2()|
 Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	0	NULL	call bug4902_2()
+#	root	localhost	test	Query	#	NULL	call bug4902_2()
 drop procedure bug4902_2|
 drop table if exists t3|
 create procedure bug4904()
