@@ -236,7 +236,8 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 			   uint num_of_tables_arg)
   : delete_tables(dt), thd(thd_arg), deleted(0),
     num_of_tables(num_of_tables_arg), error(0),
-    do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0)
+    do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0),
+    tempfiles_inited(0)
 {
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
 }
@@ -297,6 +298,7 @@ multi_delete::initialize_tables(JOIN *join)
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }
+  tempfiles_inited= 1;
   init_ftfuncs(thd,1);
   DBUG_RETURN(thd->fatal_error != 0);
 }
@@ -422,6 +424,8 @@ int multi_delete::do_deletes(bool from_send_error)
     table_being_deleted = delete_tables;
 
   do_delete= 0;
+  if (!tempfiles_inited)
+    DBUG_RETURN(0);
   for (table_being_deleted=table_being_deleted->next;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next, counter++)
