@@ -987,4 +987,6 @@ setup_hosts(atrt_config& config){
   return true;
 }
 
-template class Vector<const ParserRow<SimpleCpcClient::ParserDummy>*>;
+template class Vector<Vector<SimpleCpcClient::Process> >;
+template class Vector<atrt_host>;
+template class Vector<atrt_process>;

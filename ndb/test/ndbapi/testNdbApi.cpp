@@ -1010,4 +1010,5 @@ int main(int argc, const char** argv){
   return testNdbApi.execute(argc, argv);
 }
 
-
+template class Vector<Ndb*>;
+template class Vector<NdbConnection*>;

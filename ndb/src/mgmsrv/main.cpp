@@ -99,16 +99,16 @@ extern int global_mgmt_server_check;
 int _print_version = 0;
 
 struct getargs args[] = {
-  { "version", 0, arg_flag, &_print_version,
-    "Print versions"},
-  { NULL, 'c', arg_string, &glob.config_filename,
-    "Running cluster configuration file", "filename" },
-  { NULL, 'd', arg_flag, &glob.daemon,
-    "Daemon mode" },
+  { "version", 'v', arg_flag, &_print_version,
+    "Print ndb_mgmd version"},
+  { "config-file", 'c', arg_string, &glob.config_filename,
+    "Specify cluster configuration file", "filename" },
+  { "daemon", 'd', arg_flag, &glob.daemon,
+    "Run ndb_mgmd in daemon mode" },
   { NULL, 'l', arg_string, &glob.local_config_filename,
-    "Local configuration file (Ndb.cfg)",
+    "Specify configuration file connect string (will default use Ndb.cfg if available)",
     "filename" },
-  { NULL, 'n', arg_flag, &glob.non_interactive,
+  { "nodaemon", 'n', arg_flag, &glob.non_interactive,
     "Don't run as daemon, but don't read from stdin", "non-interactive" }
 };
 

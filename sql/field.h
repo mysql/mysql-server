@@ -352,12 +352,13 @@ public:
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
   int  store(double nr);
+  int  store(longlong nr)=0;
   int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
-  bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
+  bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_length() { return field_length; }
   friend class create_field;
 };
@@ -908,6 +909,7 @@ public:
   void reset(void) { charset()->cset->fill(charset(),ptr,field_length,' '); }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr);
+  int store(double nr) { return Field_str::store(nr); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -953,6 +955,7 @@ public:
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr);
+  int  store(double nr) { return Field_str::store(nr); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
