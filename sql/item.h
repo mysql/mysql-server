@@ -348,16 +348,7 @@ public:
   bool long_data_supplied;
   uint pos_in_query;
 
-  Item_param(uint position)
-  { 
-    name= (char*) "?";
-    pos_in_query= position;
-    item_type= STRING_ITEM;
-    item_result_type = STRING_RESULT;
-    item_is_time= false;
-    long_data_supplied= false;
-    value_is_set= 0;
-  }
+  Item_param(uint position);
   enum Type type() const { return item_type; }
   double val();
   longlong val_int();
@@ -374,11 +365,14 @@ public:
   void set_time(TIME *tm, timestamp_type type);
   bool get_time(TIME *tm);
   void reset() {}
-#ifndef EMBEDDED_LIBRARY
-  void (*set_param_func)(Item_param *param, uchar **pos);
-#else
-  void (*set_param_func)(Item_param *param, uchar **pos, ulong data_len);
-#endif
+  /*
+    Assign placeholder value from bind data.
+    Note, that 'len' has different semantics in embedded library (as we
+    don't need to check that packet is not broken there). See
+    sql_prepare.cc for details.
+  */
+  void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
+
   enum Item_result result_type () const
   { return item_result_type; }
   String *query_val_str(String *str);
