@@ -2101,23 +2101,29 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 
 
 /*
-  Mark item and SELECT_LEXs as dependent if it is not outer resolving
+  Mark item and SELECT_LEXs as dependent if item was resolved in outer SELECT
 
   SYNOPSIS
     mark_as_dependent()
     thd - thread handler
     last - select from which current item depend
     current  - current select
-    item - item which should be marked
+    resolved_item - item which was resolved in outer SELECT(for warning)
+    mark_item - item which should be marked (can be differ in case of
+                substitution)
 */
 
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
-			      Item_ident *item)
+			      Item_ident *resolved_item,
+                              Item_ident *mark_item)
 {
-  const char *db_name=    item->db_name ? item->db_name : "";
-  const char *table_name= item->table_name ? item->table_name : "";
+  const char *db_name= (resolved_item->db_name ?
+                        resolved_item->db_name : "");
+  const char *table_name= (resolved_item->table_name ?
+                           resolved_item->table_name : "");
   /* store pointer on SELECT_LEX from which item is dependent */
-  item->depended_from= last;
+  if (mark_item)
+    mark_item->depended_from= last;
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
@@ -2125,7 +2131,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
             db_name, (db_name[0] ? "." : ""),
             table_name, (table_name [0] ? "." : ""),
-            item->field_name,
+            resolved_item->field_name,
 	    current->select_number, last->select_number);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		 ER_WARN_FIELD_RESOLVED, warn_buff);
@@ -2464,10 +2470,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
               }
               else
               {
+                Item::Type type= (*reference)->type();
                 prev_subselect_item->used_tables_cache|=
                   (*reference)->used_tables();
                 prev_subselect_item->const_item_cache&=
                   (*reference)->const_item();
+                mark_as_dependent(thd, last, current_sel, this,
+                                  ((type == REF_ITEM || type == FIELD_ITEM) ?
+                                   (Item_ident*) (*reference) :
+                                   0));
+                /*
+                  view reference found, we substituted it instead of this
+                  Item (find_field_in_tables do it by assigning new value to
+                  *reference), so can quit
+                */
+                return FALSE;
               }
             }
 	    break;
@@ -2545,12 +2562,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
         if (rf->fix_fields(thd, tables, reference) || rf->check_cols(1))
 	  return TRUE;
 
-	mark_as_dependent(thd, last, current_sel, rf);
+	mark_as_dependent(thd, last, current_sel, this, rf);
 	return FALSE;
       }
       else
       {
-	mark_as_dependent(thd, last, current_sel, this);
+	mark_as_dependent(thd, last, current_sel, this, this);
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
@@ -2583,8 +2600,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
       Also we suppose that view can't be changed during PS/SP life.
     */
-    if (from_field != view_ref_found)
-      set_field(from_field);
+    if (from_field == view_ref_found)
+      return FALSE;
+
+    set_field(from_field);
   }
   else if (thd->set_query_id && field->query_id != thd->query_id)
   {
@@ -3596,10 +3615,21 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
               }
               else
               {
+                Item::Type type= (*reference)->type();
                 prev_subselect_item->used_tables_cache|=
                   (*reference)->used_tables();
                 prev_subselect_item->const_item_cache&=
                   (*reference)->const_item();
+                DBUG_ASSERT((*reference)->type() == REF_ITEM);
+                mark_as_dependent(thd, last, current_sel, this,
+                                  ((type == REF_ITEM || type == FIELD_ITEM) ?
+                                   (Item_ident*) (*reference) :
+                                   0));
+                /*
+                  view reference found, we substituted it instead of this
+                  Item, so can quit
+                */
+                return FALSE;
               }
               break;
             }
@@ -3638,7 +3668,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             if (!(fld= new Item_field(from_field)))
               return TRUE;
             thd->change_item_tree(reference, fld);
-            mark_as_dependent(thd, last, thd->lex->current_select, fld);
+            mark_as_dependent(thd, last, thd->lex->current_select, this, fld);
             return FALSE;
           }
           /*
@@ -3656,7 +3686,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
         {
           /* Should be checked in resolve_ref_in_select_and_group(). */
           DBUG_ASSERT(*ref && (*ref)->fixed);
-          mark_as_dependent(thd, last, current_sel, this);
+          mark_as_dependent(thd, last, current_sel, this, this);
         }
       }
       else
