@@ -117,6 +117,7 @@ sp_head::execute(THD *thd)
   uint params = pctx->params();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
+  my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
 
   if (csize > 0)
   {
@@ -125,6 +126,11 @@ sp_head::execute(THD *thd)
     Item *it = li++;		// Skip first one, it's the procedure name
 
     nctx = new sp_rcontext(csize);
+    if (! octx)
+    {				// Create a temporary old context
+      octx = new sp_rcontext(csize);
+      tmp_octx = TRUE;
+    }
     // QQ: No error checking whatsoever right now. Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
@@ -172,16 +178,44 @@ sp_head::execute(THD *thd)
   // Don't copy back OUT values if we got an error
   if (ret == 0 && csize > 0)
   {
-    // Copy back all OUT or INOUT values to the previous frame
-    for (uint i = 0 ; i < params ; i++)
+    List_iterator_fast<Item> li(m_call_lex->value_list);
+    Item *it = li++;		// Skip first one, it's the procedure name
+
+    // Copy back all OUT or INOUT values to the previous frame, or
+    // set global user variables
+    for (uint i = 0 ; (it= li++) && i < params ; i++)
     {
       int oi = nctx->get_oindex(i);
 
       if (oi >= 0)
-	octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
+      {
+	if (! tmp_octx)
+	  octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
+	else
+	{			// A global user variable
+#if 0
+	  // QQ This works if the parameter really is a user variable, but
+	  // for the moment we can't assure that, so it will crash if it's
+	  // something else. So for now, we just do nothing, to avoid a crash.
+	  // Note: This also assumes we have a get_name() method in
+	  //       the Item_func_get_user_var class.
+	  Item *item= nctx->get_item(i);
+	  Item_func_set_user_var *suv;
+	  Item_func_get_user_var *guv= static_cast<Item_func_get_user_var*>(it);
+
+	  suv= new Item_func_set_user_var(guv->get_name(), item);
+	  suv->fix_fields(thd, NULL, &item);
+	  suv->fix_length_and_dec();
+	  suv->update();
+#endif
+	}
+      }
     }
 
-    thd->spcont= octx;
+    if (tmp_octx)
+      thd->spcont= NULL;
+    else
+      thd->spcont= octx;
   }
 
   return ret;
