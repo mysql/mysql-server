@@ -43,6 +43,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
     
   switch (keyinfo->key_alg)
   {
+#ifdef HAVE_RTREE_KEYS
     case HA_KEY_ALG_RTREE:
       if ((error=rtree_find_next(info,inx,
 				 myisam_read_vec[info->last_key_func])))
@@ -53,6 +54,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 	break;
       }
       break;
+#endif
     case HA_KEY_ALG_BTREE:
     default:
       memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
