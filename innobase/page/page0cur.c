@@ -193,6 +193,11 @@ page_cur_search_with_match(
 	}
 /*#endif */
 #endif	
+
+	/* The following flag does not work for non-latin1 char sets because
+	cmp_full_field does not tell how many bytes matched */
+	ut_a(mode != PAGE_CUR_LE_OR_EXTENDS); 
+
 	/* If mode PAGE_CUR_G is specified, we are trying to position the
 	cursor to answer a query of the form "tuple < X", where tuple is
 	the input parameter, and X denotes an arbitrary physical record on
