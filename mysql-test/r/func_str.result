@@ -8,6 +8,9 @@ hellomonty
 select length('\n\t\r\b\0\_\%\\');
 length('\n\t\r\b\0\_\%\\')
 10
+select bit_length('\n\t\r\b\0\_\%\\');
+bit_length('\n\t\r\b\0\_\%\\')
+80
 select concat('monty',' was here ','again'),length('hello'),char(ascii('h'));
 concat('monty',' was here ','again')	length('hello')	char(ascii('h'))
 monty was here again	5	h

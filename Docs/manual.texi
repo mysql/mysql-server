@@ -30091,6 +30091,15 @@ mysql> select OCTET_LENGTH('text');
 Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted
 once.
 
+@findex BIT_LENGTH()
+@item BIT_LENGTH(str)
+Returns the length of the string @code{str} in bits:
+
+@example
+mysql> select BIT_LENGTH('text');
+        -> 32
+@end example
+
 @findex LOCATE()
 @findex POSITION()
 @item LOCATE(substr,str)
@@ -47995,6 +48004,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+ODBC compatibility: added @code{BIT_LENGTH()} function.
 @item
 Added @code{CAST()} and @code{CONVERT()} functions.
 @item
