@@ -28,6 +28,10 @@
 *								*
 *	As an extension if remove_garbage is set then all non-	*
 *	alpha characters are skipped				*
+*                                                               *
+*       Note, that this implementation corresponds to the       *
+*       original version of the algorithm, not to the more      *
+*       popular "enhanced" version, described by Knuth.         *
 ****************************************************************/
 
 #include "mysys_priv.h"
