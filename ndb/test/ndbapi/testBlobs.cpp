@@ -1232,6 +1232,13 @@ deleteScan(bool idx)
 
 // main
 
+// from here on print always
+#undef DBG
+#define DBG(x) \
+  do { \
+    ndbout << "line " << __LINE__ << " " << x << endl; \
+  } while (0)
+
 static int
 testmain()
 {
