@@ -48642,6 +48642,8 @@ Added derived tables
 @item
 Fixed UNION bug with braces
 @item
+Fixed UNION bug with limits
+@item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
 Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
