@@ -915,7 +915,7 @@ void kill_delayed_threads(void)
  * Create a new delayed insert thread
 */
 
-extern "C" static pthread_handler_decl(handle_delayed_insert,arg)
+extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 {
   delayed_insert *di=(delayed_insert*) arg;
   THD *thd= &di->thd;

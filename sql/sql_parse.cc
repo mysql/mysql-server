@@ -259,14 +259,14 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   started with corresponding variable that is greater then 0.
 */
 
-extern "C" static byte *get_key_conn(user_conn *buff, uint *length,
-				  my_bool not_used __attribute__((unused)))
+extern "C" byte *get_key_conn(user_conn *buff, uint *length,
+			      my_bool not_used __attribute__((unused)))
 {
   *length=buff->len;
   return (byte*) buff->user;
 }
 
-extern "C" static void free_user(struct user_conn *uc)
+extern "C" void free_user(struct user_conn *uc)
 {
   my_free((char*) uc,MYF(0));
 }

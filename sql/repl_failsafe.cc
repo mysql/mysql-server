@@ -188,7 +188,7 @@ err2:
   return 1;
 }
 
-extern "C" static uint32
+extern "C" uint32
 *slave_list_key(SLAVE_INFO* si, uint* len,
 		my_bool not_used __attribute__((unused)))
 {
@@ -196,7 +196,7 @@ extern "C" static uint32
   return &si->server_id;
 }
 
-extern "C" static void slave_info_free(void *s)
+extern "C" void slave_info_free(void *s)
 {
   my_free((gptr) s, MYF(MY_WME));
 }

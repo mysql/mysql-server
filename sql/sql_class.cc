@@ -59,14 +59,14 @@ template class List_iterator<Alter_column>;
 ** User variables
 ****************************************************************************/
 
-extern "C" static byte *get_var_key(user_var_entry *entry, uint *length,
-				    my_bool not_used __attribute__((unused)))
+extern "C" byte *get_var_key(user_var_entry *entry, uint *length,
+			     my_bool not_used __attribute__((unused)))
 {
   *length=(uint) entry->name.length;
   return (byte*) entry->name.str;
 }
 
-extern "C" static void free_var(user_var_entry *entry)
+extern "C" void free_user_var(user_var_entry *entry)
 {
   char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
   if (entry->value && entry->value != pos)
@@ -148,7 +148,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_var,0);
+	    (hash_free_key) free_user_var,0);
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
