@@ -208,6 +208,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
     case INT_RESULT:
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_INT_FUNC : UDA_INT_SUM;
     case ROW_RESULT:
+    default:
       // This case should never be choosen
       DBUG_ASSERT(0);
       return 0;
@@ -1098,10 +1099,11 @@ void st_select_lex_node::fast_exclude()
   {
     if ((*link_prev= link_next))
       link_next->link_prev= link_prev;
-    // Remove slave structure
-    for (; slave; slave= slave->next)
-      slave->fast_exclude();
   }
+  // Remove slave structure
+  for (; slave; slave= slave->next)
+    slave->fast_exclude();
+  
 }
 
 /*

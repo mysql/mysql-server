@@ -290,7 +290,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM),0,0},
   { "PARTIAL",		SYM(PARTIAL),0,0},
   { "PASSWORD",		SYM(PASSWORD),0,0},
-  { "POINT",		SYM(POINT),0,0},
+  { "POINT",		SYM(POINT_SYM),0,0},
   { "POLYGON",		SYM(POLYGON),0,0},
   { "PURGE",		SYM(PURGE),0,0},
   { "PRECISION",	SYM(PRECISION),0,0},

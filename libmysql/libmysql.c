@@ -774,7 +774,8 @@ char* getlogin(void);
 /* default to "root" on NetWare */
 static void read_user_name(char *name)
 {
-  (void)strmake(name,"root", USERNAME_LENGTH);
+  char *str=getenv("USER");
+  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
 }
 
 #elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
@@ -1776,7 +1777,7 @@ mysql_init(MYSQL *mysql)
     outside program.
 */
 
-void STDCALL mysql_once_init(void)
+void mysql_once_init(void)
 {
   if (!mysql_client_init)
   {
@@ -4373,7 +4374,6 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_NO_PREPARE_STMT);
     DBUG_RETURN(1);
   }
-  stmt->mysql->fields= stmt->fields;
   if (stmt->param_count)
   {
     NET        *net= &stmt->mysql->net;
@@ -5433,12 +5433,15 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 {
   MYSQL *mysql;
-  my_bool error= 0;
   DBUG_ENTER("mysql_stmt_close");
 
   DBUG_ASSERT(stmt != 0);
   
-  mysql= stmt->mysql;
+  if (!(mysql= stmt->mysql))
+  {
+    my_free((gptr) stmt, MYF(MY_WME));
+    DBUG_RETURN(0);
+  }
   if (mysql->status != MYSQL_STATUS_READY)
   {
     /* Clear the current execution status */
@@ -5457,18 +5460,20 @@ static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
   {
     char buff[4];
     int4store(buff, stmt->stmt_id);
-    error= simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1);
+    if (simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1))
+    {
+      set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno);
+      stmt->mysql= NULL; /* connection isn't valid anymore */
+      DBUG_RETURN(1);
+    }
   }
-  if (!error)
-  {
-    mysql_free_result(stmt->result);
-    free_root(&stmt->mem_root, MYF(0));
-    if (!skip_list)
-      mysql->stmts= list_delete(mysql->stmts, &stmt->list);
-    mysql->status= MYSQL_STATUS_READY;
-    my_free((gptr) stmt, MYF(MY_WME));
-  }
-  DBUG_RETURN(error);
+  mysql_free_result(stmt->result);
+  free_root(&stmt->mem_root, MYF(0));
+  if (!skip_list)
+    mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+  mysql->status= MYSQL_STATUS_READY;
+  my_free((gptr) stmt, MYF(MY_WME));
+  DBUG_RETURN(0);
 }
 
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)

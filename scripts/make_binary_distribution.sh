@@ -10,6 +10,7 @@ version=@VERSION@
 export machine system version
 SOURCE=`pwd` 
 CP="cp -p"
+MV="mv"
 
 STRIP=1
 DEBUG=0
@@ -58,7 +59,7 @@ case $system in
     MYSQL_SHARE=$BASE/share
     EXTRA_BIN_FILES="netware/mysqld_safe.nlm netware/mysql_install_db.nlm \
       netware/init_db.sql netware/test_db.sql netware/mysql_explain_log.nlm \
-      netware/mysqlhotcopy.nlm netware/libmysql.nlm"
+      netware/mysqlhotcopy.nlm netware/libmysql.nlm netware/init_secure_db.sql"
     ;;
 esac
 
@@ -122,7 +123,7 @@ do
 done
 
 if [ $BASE_SYSTEM = "netware" ] ; then
-    $CP -r netware/scripts/* $BASE/scripts
+    $CP -r netware/*.pl $BASE/scripts
 fi
 
 for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* libmysqld/libmysqld.a netware/libmysql.imp
@@ -148,12 +149,15 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   rm -f $BASE/include/config-netware.h
 fi
 
-if [ -d tests ] ; then
-  $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
+if [ $BASE_SYSTEM != "netware" ] ; then
+  if [ -d tests ] ; then
+    $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
+  fi
+  if [ -d man ] ; then
+    $CP man/*.1 $BASE/man/man1
+  fi
 fi
-if [ -d man ] ; then
-  $CP man/*.1 $BASE/man/man1
-fi
+
 $CP support-files/* $BASE/support-files
 
 if [ $BASE_SYSTEM = "netware" ] ; then

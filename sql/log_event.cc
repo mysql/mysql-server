@@ -2005,6 +2005,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
       buf[val_offset + val_len + 1]= '\'';
       break;
     case ROW_RESULT:
+    default:
       DBUG_ASSERT(1);
       return;
     }
@@ -2070,6 +2071,7 @@ int User_var_log_event::write_data(IO_CACHE* file)
       pos= val;
       break;
     case ROW_RESULT:
+    default:
       DBUG_ASSERT(1);
       return 0;
     }
@@ -2122,6 +2124,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
       fprintf(file, ":='%s';\n", val);
       break;
     case ROW_RESULT:
+    default:
       DBUG_ASSERT(1);
       return;
     }
@@ -2166,6 +2169,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
       it= new Item_string(val, val_len, charset);
       break;
     case ROW_RESULT:
+    default:
       DBUG_ASSERT(1);
       return 0;
     }

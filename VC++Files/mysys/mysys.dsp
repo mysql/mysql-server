@@ -410,6 +410,10 @@ SOURCE=.\my_seek.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_sleep.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_static.c
 # End Source File
 # Begin Source File

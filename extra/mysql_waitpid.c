@@ -16,6 +16,8 @@
 
 /* Wait until a program dies */
 
+#ifndef __NETWARE__
+
 #include <my_global.h>
 #include <m_string.h>
 #include <my_getopt.h>
@@ -101,3 +103,15 @@ void usage(void)
   my_print_help(my_long_options);
   exit(-1);
 }
+
+#else
+
+#include <stdio.h>
+
+main()
+{
+	fprintf(stderr,"This tool has not been ported to NetWare\n");
+	return 0;
+}
+
+#endif /* __NETWARE__ */

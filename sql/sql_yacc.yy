@@ -486,7 +486,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NOW_SYM
 %token	PASSWORD
 %token	POINTFROMTEXT
-%token	POINT
+%token	POINT_SYM
 %token	POLYFROMTEXT
 %token  POLYGON
 %token	POSITION_SYM
@@ -839,7 +839,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
+	  lex->create_info.table_charset= thd->db_charset;
 	  lex->name=0;
 	}
 	create2
@@ -1146,7 +1146,7 @@ type:
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
-	| POINT				{ Lex->charset=&my_charset_bin;
+	| POINT_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
@@ -1445,7 +1445,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
+	  lex->create_info.table_charset= thd->db_charset;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
@@ -2314,7 +2314,7 @@ simple_expr:
 	  { $$= new Item_func_password($3); }
         | PASSWORD '(' expr ',' expr ')'
           { $$= new Item_func_password($3,$5); }
-	| POINT '(' expr ',' expr ')'
+	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
@@ -4039,7 +4039,7 @@ keyword:
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
-	| POINT			{}
+	| POINT_SYM		{}
 	| POLYGON		{}
 	| PREV_SYM		{}
 	| PROCESS		{}

@@ -468,7 +468,6 @@ uint STDCALL mysql_warning_count(MYSQL *mysql)
 void Protocol_simple::prepare_for_resend()
 {
   MYSQL_ROWS               *cur;
-  ulong                    len;
   MYSQL_DATA               *result= thd->mysql->result->data;
 
   DBUG_ENTER("send_data");
