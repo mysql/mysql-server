@@ -1682,22 +1682,6 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 }
 
 
-Disable_binlog::Disable_binlog(THD *thd_arg) : 
-  thd(thd_arg),
-  save_options(thd_arg->options), save_master_access(thd_arg->master_access)
-{
-  thd_arg->options&= ~OPTION_BIN_LOG;
-  thd_arg->master_access|= SUPER_ACL; // unneeded in 4.1
-};
-
-
-Disable_binlog::~Disable_binlog()
-{
-  thd->options= save_options;
-  thd->master_access= save_master_access;
-}
-
-
 /*
   Check if a string is a valid number
 

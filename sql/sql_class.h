@@ -639,27 +639,6 @@ public:
 #define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
-  Disables binary logging for one thread, and resets it back to what it was
-  before being disabled. 
-  Some functions (like the internal mysql_create_table() when it's called by
-  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
-  at a later stage of the command already, and must be, for locking reasons);
-  so we internally disable it temporarily by creating the Disable_binlog
-  object and reset the state by destroying the object (don't forget that! or
-  write code so that the object gets automatically destroyed when leaving a
-  block, see example in sql_table.cc).
-*/
-class Disable_binlog {
-private:
-  THD *thd;
-  ulong save_options;
-  ulong save_master_access;
-public:
-  Disable_binlog(THD *thd_arg);
-  ~Disable_binlog();
-};
-
-/*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
 */
