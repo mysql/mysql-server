@@ -943,7 +943,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->db = thd->query = 0;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      thd->variables.convert_set = 0;
+      //thd->variables.convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
       return 1;
@@ -954,7 +954,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->query= 0;			// just to be sure
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
-  thd->variables.convert_set = 0;
+  //thd->variables.convert_set = 0;
   close_thread_tables(thd);
       
   if (thd->query_error || thd->is_fatal_error)

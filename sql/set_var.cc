@@ -105,7 +105,6 @@ sys_var_str		sys_charset("character_set",
 				    sys_update_charset,
 				    sys_set_default_charset);
 sys_var_client_collation sys_client_collation("client_collation");
-sys_var_thd_conv_charset sys_convert_charset("convert_character_set");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
@@ -337,7 +336,6 @@ sys_var *sys_variables[]=
   &sys_client_collation,
   &sys_concurrent_insert,
   &sys_connect_timeout,
-  &sys_convert_charset,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -445,7 +443,6 @@ struct show_var_st init_vars[]= {
   {sys_client_collation.name, (char*) &sys_client_collation,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
-  {sys_convert_charset.name,  (char*) &sys_convert_charset,	    SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
@@ -1131,55 +1128,37 @@ byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-bool sys_var_thd_conv_charset::check(THD *thd, set_var *var)
+typedef struct old_names_map_st {
+  const char *old_name;
+  const char *new_name;
+} my_old_conv;
+
+static my_old_conv old_conv[]= 
 {
-  CONVERT *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
+	{	"cp1251_koi8"		,	"cp1251"	},
+	{	"cp1250_latin2"		,	"cp1250"	},
+	{	"kam_latin2"		,	"keybcs2"	},
+	{	"mac_latin2"		,	"MacRoman"	},
+	{	"macce_latin2"		,	"MacCE"		},
+	{	"pc2_latin2"		,	"pclatin2"	},
+	{	"vga_latin2"		,	"pclatin1"	},
+	{	"koi8_cp1251"		,	"koi8r"		},
+	{	"win1251ukr_koi8_ukr"	,	"win1251ukr"	},
+	{	"koi8_ukr_win1251ukr"	,	"koi8u"		},
+	{	NULL			,	NULL		}
+};
 
-  if (!var->value)					// Default value
-  {
-    var->save_result.convert= (var->type != OPT_GLOBAL ?
-			       global_system_variables.convert_set
-			       : (CONVERT*) 0);
-    return 0;
-  }
-  if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
-
-  if (!(tmp=get_convert_set(res->c_ptr())))
-  {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-    return 1;
-  }
-  var->save_result.convert=tmp;			// Save for update
-  return 0;
-}
-
-
-bool sys_var_thd_conv_charset::update(THD *thd, set_var *var)
+static CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.convert_set= var->save_result.convert;
-  else
+  my_old_conv *c;
+ 
+  for (c= old_conv; c->old_name; c++)
   {
-    thd->lex.convert_set= thd->variables.convert_set=
-      var->save_result.convert;
-    thd->protocol_simple.init(thd);
-    thd->protocol_prep.init(thd);
+    if (!my_strcasecmp(&my_charset_latin1,name,c->old_name))
+      return get_charset_by_name(c->new_name,MYF(0));
   }
-  return 0;
+  return NULL;
 }
-
-
-byte *sys_var_thd_conv_charset::value_ptr(THD *thd, enum_var_type type)
-{
-  CONVERT *conv= ((type == OPT_GLOBAL) ?
-		  global_system_variables.convert_set :
-		  thd->variables.convert_set);
-  return conv ? (byte*) conv->name : (byte*) "";
-}
-
 
 bool sys_var_client_collation::check(THD *thd, set_var *var)
 {
@@ -1198,7 +1177,8 @@ bool sys_var_client_collation::check(THD *thd, set_var *var)
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
 
-  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))) &&
+      !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
     return 1;

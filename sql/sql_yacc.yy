@@ -4306,9 +4306,15 @@ option_value:
 	  }
 	| charset opt_equal set_expr_or_default
 	{
-	  LEX *lex=Lex;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  if (!$3)
+	  {
+	    CHARSET_INFO *cl= thd->db_charset;
+	    $3= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	  }
 	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("convert_character_set"),
+					      find_sys_var("client_collation"),
 					      $3));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate

@@ -979,8 +979,8 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  if (protocol->convert)
-    protocol->convert->convert((char*) packet->ptr(), packet->length());
+  //if (protocol->convert)
+  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())

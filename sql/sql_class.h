@@ -172,32 +172,6 @@ public:
 
 /* character conversion tables */
 
-class CONVERT;
-CONVERT *get_convert_set(const char *name_ptr);
-
-class CONVERT
-{
-  const uchar *from_map,*to_map;
-  void convert_array(const uchar *mapping,uchar *buff,uint length);
-public:
-  const char *name;
-  uint numb;
-  CONVERT(const char *name_par,uchar *from_par,uchar *to_par, uint number)
-    :from_map(from_par),to_map(to_par),name(name_par),numb(number) {}
-  friend CONVERT *get_convert_set(const char *name_ptr);
-  inline void convert(char *a,uint length)
-  {
-    convert_array(from_map, (uchar*) a,length);
-  }
-  char *store_dest(char *to, const char *from, uint length)
-  {
-    for (const char *end=from+length ; from != end ; from++)
-      *to++= to_map[(uchar) *from];
-    return to;
-  }
-  bool store(String *, const char *,uint);
-  inline uint number() { return numb; }
-};
 
 typedef struct st_copy_info {
   ha_rows records;
@@ -400,7 +374,6 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates; 
 
-  CONVERT	*convert_set;
   CHARSET_INFO 	*thd_charset;
 };
 

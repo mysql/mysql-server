@@ -43,11 +43,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
 }
-
-inline bool Protocol::convert_str(const char *from, uint length)
-{
-  return convert->store(packet, from, length);
-}
 #endif
 
 
@@ -472,7 +467,6 @@ char *net_store_data(char *to,longlong from)
 void Protocol::init(THD *thd_arg)
 {
   thd=thd_arg;
-  convert=thd->variables.convert_set;
   packet= &thd->packet;
 #ifndef DEBUG_OFF
   field_types= 0;
@@ -487,15 +481,12 @@ void Protocol::init(THD *thd_arg)
     send_fields()
     THD		Thread data object
     list	List of items to send to client
-    convert	object used to convertation to another character set
     flag	Bit mask with the following functions:
 		1 send number of rows
 		2 send default values
 
   DESCRIPTION
     Sum fields has table name empty and field_name.
-    Uses send_fields_convert() and send_fields() depending on
-    if we have an active character set convert or not.
 
   RETURN VALUES
     0	ok
@@ -712,8 +703,6 @@ bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (convert)
-    return convert_str(from, length);
   if (cs != this->thd->charset())
   {
     String tmp;
@@ -813,8 +802,6 @@ bool Protocol_simple::store(Field *field)
   char buff[MAX_FIELD_WIDTH];
   String tmp1(buff,sizeof(buff), &my_charset_bin);
   field->val_str(&tmp1,&tmp1);
-  if (convert)
-    return convert_str(tmp1.ptr(), tmp1.length());
   if (field->charset() != this->thd->charset())
   {
     String tmp;
@@ -929,8 +916,6 @@ bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
   field_pos++;
-  if (convert)
-    return convert_str(from, length);
   return net_store_data(from, length);
 }
 
