@@ -12,6 +12,7 @@ $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_su
 $opt_tmp=$opt_version_suffix="";
 $opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
 $opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$global_step="";
 
 GetOptions(
 	"bdb",
@@ -178,7 +179,8 @@ info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\
 info("LD_LIBRARY_PATH is $ENV{LD_LIBRARY_PATH}");
 info("PATH is $ENV{PATH}");
 
-log_timestamp();
+$global_step= "Check MD5, shutdown";
+log_timestamp("START");
 
 $md5_result= safe_system("perl $ENV{HOME}/my_md5sum -c ${opt_distribution}.md5");
 
@@ -206,9 +208,10 @@ kill_all("mysqlmanager");
 kill_all("$pwd/host/mysql");
 kill_all("$pwd/host/test");
 
+$global_step= "directory cleanup";
 if ($opt_stage == 0)
 {
-  log_timestamp();
+  log_timestamp("START");
   print "$host: Removing old distribution\n" if ($opt_debug);
   if (!$opt_use_old_distribution)
   {
@@ -254,10 +257,11 @@ safe_cd("$pwd/$host/$ver");
 #
 # Configure the sources
 #
+$global_step= "configure";
 if ($opt_stage <= 1)
 {
   # Fix files if this is in another timezone than the build host
-  log_timestamp();
+  log_timestamp("START");
   unlink("config.cache");
   unlink("bdb/build_unix/config.cache");
   unlink("innobase/config.cache");
@@ -310,29 +314,33 @@ if ($opt_stage <= 1)
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
   }
+  log_timestamp("DONE ");
 }
 
 #
 # Compile the binaries
 #
+$global_step= "compile + link";
 if ($opt_stage <= 2)
 {
   my ($command);
-  log_timestamp();
+  log_timestamp("START");
   unlink($opt_distribution) if ($opt_delete && !$opt_use_old_distribution);
   $command=$make;
   $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
   safe_system($command);
   print LOG "Do-compile: Build successful\n";
+  log_timestamp("DONE ");
 }
 
 #
 # Create the binary distribution
 #
+$global_step= "pack binary distribution";
 if ($opt_stage <= 3)
 {
+  log_timestamp("START");
   my $flags= "";
-  log_timestamp();
   log_system("rm -fr mysql-{3,4,5}* $pwd/$host/mysql*.t*gz");
   # No need to add the debug symbols, if the binaries are not stripped (saves space)
   unless ($opt_with_debug || $opt_no_strip)
@@ -353,6 +361,7 @@ if ($opt_stage <= 3)
     safe_system("cp client/mysqladmin $pwd/$host/bin");
   }  
   safe_system("$make clean") if ($opt_with_small_disk);
+  log_timestamp("DONE ");
 }
 
 $tar_file=<$pwd/$host/mysql*.t*gz>;
@@ -366,12 +375,14 @@ system("cd $pwd/$host; perl $ENV{HOME}/my_md5sum $tar_file_lite > ${tar_file_lit
 #
 # Unpack the binary distribution
 #
+$global_step= "extract binary distribution";
 if ($opt_stage <= 4 && !$opt_no_test)
 {
-  log_timestamp();
+  log_timestamp("START");
   rm_all(<$pwd/$host/test/*>);
   safe_cd("$pwd/$host/test");
   safe_system("gunzip < $tar_file | $tar xf -");
+  log_timestamp("DONE ");
 }
 
 $tar_file =~ /(mysql[^\/]*)\.(tar\.gz|tgz)/;
@@ -383,31 +394,37 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 #
 # Run the test suite
 #
+$global_step= "tests in default mode";
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  log_timestamp("START");
   my $flags= "";
   $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   $flags.= " --force" if (!$opt_one_error);
-  log_timestamp();
   info("Running test suite");
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
+  log_timestamp("DONE ");
 
+  $global_step= "tests using prepared statements";
   unless ($opt_skip_ps_test)
   {
-    log_timestamp();
+    log_timestamp("START");
     info("Running test suite using prepared statements");
     check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
+    log_timestamp("DONE ");
   }
   
+  $global_step= "tests using embedded server";
   unless ($opt_skip_embedded_test)
   {
-    log_timestamp();
+    log_timestamp("START");
     info("Running embedded server test suite");
     # Embedded server and NDB don't jive
     $flags=~ s/ --with-ndbcluster//;
     check_system("./mysql-test-run $flags --embedded-server --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
+    log_timestamp("DONE ");
   }
   # 'mysql-test-run' writes its own final message for log evaluation.
 }
@@ -439,10 +456,11 @@ if (!$opt_no_test && !$opt_no_benchmark)
 #
 # Compile and install the required Perl modules
 #
+$global_step= "installing Perl modules";
 if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test &&
     !$opt_no_benchmark)
 {
-  log_timestamp();
+  log_timestamp("START");
   safe_cd($test_dir);
   rm_all("perl");
   safe_system("mkdir perl");
@@ -471,25 +489,29 @@ if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test &&
     safe_system($opt_static_perl ? "perl Makefile.PL -static $options" : "perl Makefile.PL $options");
     safe_system("$make ; $sur $make install");
   }
+  log_timestamp("DONE ");
 }
 
 #
 # Run crash-me test
 #
+$global_step= "crash-me checks";
 if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 {
-  log_timestamp();
+  log_timestamp("START");
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
   safe_system("perl ./crash-me --force --batch-mode $connect_option");
+  log_timestamp("DONE ");
 }
 
 #
 # Run sql-bench Benchmarks
 #
+$global_step= "benchmarks";
 if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
 {
-  log_timestamp();
+  log_timestamp("START");
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
@@ -504,6 +526,7 @@ if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
   {
     check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-options=\"type=bdb\"","RUN-mysql");
   }
+  log_timestamp("DONE ");
 }
 
 rm_all($bench_tmpdir);
@@ -685,7 +708,7 @@ sub abort
   my($mail_header_file);
   print LOG "\n$message\n";
   print "$host: $message\n" if ($opt_debug);
-  print LOG "Aborting\n";
+  log_timestamp("ABORT");
   close LOG;
 
   if ($opt_user)
@@ -861,6 +884,7 @@ sub kill_all
   if (!open(PS, "$pscmd|"))
   {
     print "Warning: Can't run $pscmd: $!\n";
+    log_timestamp("ABORT");
     exit;
   }
 
@@ -899,8 +923,10 @@ sub killpid
 #
 sub log_timestamp
 {
+  my ($message) = @_;
   my @ta=localtime(time());
-  print LOG sprintf("%4d-%02d-%02d %02d:%02d:%02d\n",
-		    $ta[5]+1900, $ta[4]+1, $ta[3], $ta[2], $ta[1], $ta[0]);
+  print LOG sprintf("%4d-%02d-%02d %02d:%02d:%02d  %s %s\n",
+		    $ta[5]+1900, $ta[4]+1, $ta[3], $ta[2], $ta[1], $ta[0], 
+		    $message, $global_step);
 
 }
