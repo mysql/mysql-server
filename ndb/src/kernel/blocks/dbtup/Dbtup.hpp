@@ -622,7 +622,10 @@ struct Operationrec {
   Uint32 tcOpIndex;
   Uint32 gci;
   Uint32 noFiredTriggers;
-  Uint32 hashValue; // only used in TUP_COMMITREQ
+  union {
+    Uint32 hashValue; // only used in TUP_COMMITREQ
+    Uint32 lastRow;
+  };
   Bitmask<MAXNROFATTRIBUTESINWORDS> changeMask;
 };
 typedef Ptr<Operationrec> OperationrecPtr;
@@ -1623,6 +1626,7 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   bool nullFlagCheck(Uint32  attrDes2);
+  bool readRowcount(Uint32 userPtr, Uint32* outBuffer);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

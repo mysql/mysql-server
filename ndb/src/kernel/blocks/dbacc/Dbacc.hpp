@@ -926,6 +926,7 @@ private:
   void execACC_OVER_REC(Signal* signal);
   void execACC_SAVE_PAGES(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
+  void execREAD_ROWCOUNTREQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);
