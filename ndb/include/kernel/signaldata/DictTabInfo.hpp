@@ -384,7 +384,6 @@ public:
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
         return true;
       case DictTabInfo::ExtTime:
-        AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
         return true;

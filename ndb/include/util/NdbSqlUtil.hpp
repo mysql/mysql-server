@@ -83,7 +83,7 @@ public:
       Binary = NDB_TYPE_BINARY,
       Varbinary = NDB_TYPE_VARBINARY,
       Datetime = NDB_TYPE_DATETIME,
-      Timespec = NDB_TYPE_TIMESPEC,
+      Date = NDB_TYPE_DATE,
       Blob = NDB_TYPE_BLOB,
       Text = NDB_TYPE_TEXT,
       Bit = NDB_TYPE_BIT,
