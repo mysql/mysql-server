@@ -242,6 +242,12 @@ SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
 #endif
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+#if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
+#define GET_HA_ROWS GET_ULL
+#else
+#define GET_HA_ROWS GET_ULONG
+#endif
+
 
 /*
   Variables to store startup options
@@ -3562,7 +3568,7 @@ struct my_option my_long_options[] =
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Joins that are probably going to read more than max_join_size records return an error.",
    (gptr*) &global_system_variables.max_join_size,
-   (gptr*) &max_system_variables.max_join_size, 0, GET_ULONG, REQUIRED_ARG,
+   (gptr*) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
   {"max_sort_length", OPT_MAX_SORT_LENGTH,
    "The number of bytes to use when sorting BLOB or TEXT values (only the first max_sort_length bytes of each value are used; the rest are ignored).",
@@ -3949,10 +3955,10 @@ static void set_options(void)
   /* Set default values for some variables */
   global_system_variables.table_type=DB_TYPE_MYISAM;
   global_system_variables.tx_isolation=ISO_REPEATABLE_READ;
-  global_system_variables.select_limit= (ulong) HA_POS_ERROR;
-  max_system_variables.select_limit= (ulong) HA_POS_ERROR;
-  global_system_variables.max_join_size= (ulong) HA_POS_ERROR;
-  max_system_variables.max_join_size= (ulong) HA_POS_ERROR;
+  global_system_variables.select_limit= HA_POS_ERROR;
+  max_system_variables.select_limit=    HA_POS_ERROR;
+  global_system_variables.max_join_size= HA_POS_ERROR;
+  max_system_variables.max_join_size=    HA_POS_ERROR;
 
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */

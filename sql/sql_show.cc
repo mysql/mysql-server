@@ -1184,6 +1184,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_LONGLONG:
         net_store_data(&packet2,(longlong) *(longlong*) value);
         break;
+      case SHOW_HA_ROWS:
+        net_store_data(&packet2,(longlong) *(ha_rows*) value);
+        break;
       case SHOW_BOOL:
         net_store_data(&packet2,(ulong) *(bool*) value ? "ON" : "OFF");
         break;
