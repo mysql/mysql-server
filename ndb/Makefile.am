@@ -22,3 +22,6 @@ windoze:
 	for i in `find . -name 'Makefile.am'`; do make -C `dirname $$i` windoze-dsp; done
 
 windoze-dsp:
+
+all-windoze-dsp: windoze
+	tar cvfz ndb-win-dsp.tar.gz `find . -name '*.dsp'`
