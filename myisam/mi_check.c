@@ -601,7 +601,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       if (*keys != 1L)				/* not first_key */
       {
 	uint diff;
-	ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,SEARCH_FIND,
+	ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
+		   SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
 		   &diff);
 	param->unique_count[diff-1]++;
       }

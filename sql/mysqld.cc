@@ -491,6 +491,7 @@ extern "C" pthread_handler_decl(handle_slave,arg);
 static uint set_maximum_open_files(uint max_file_limit);
 #endif
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
+static void clean_up(bool print_message);
 
 /****************************************************************************
 ** Code to end mysqld
@@ -763,13 +764,13 @@ void kill_mysql(void)
 
 #if defined(OS2)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER return
+#define RETURN_FROM_KILL_SERVER DBUG_RETURN
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
-#define RETURN_FROM_KILL_SERVER return 0
+#define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER return
+#define RETURN_FROM_KILL_SERVER DBUG_RETURN
 #endif
 {
   int sig=(int) (long) sig_ptr;			// This is passed a int
@@ -848,7 +849,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 
 void unireg_end(void)
 {
-  clean_up();
+  clean_up(1);
   my_thread_end();
 #ifdef SIGNALS_DONT_BREAK_READ
   exit(0);
@@ -863,7 +864,7 @@ extern "C" void unireg_abort(int exit_code)
   DBUG_ENTER("unireg_abort");
   if (exit_code)
     sql_print_error("Aborting\n");
-  clean_up(); /* purecov: inspected */
+  clean_up(1); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   my_thread_end();
   exit(exit_code); /* purecov: inspected */
@@ -908,12 +909,12 @@ void clean_up(bool print_message)
   regex_end();
 #endif
 
+  if (print_message && errmesg)
+    sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
 #if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message && errmesg)
-    sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
@@ -923,6 +924,10 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  /*
+    The following lines may never be executed as the main thread may have
+    killed us
+  */
   DBUG_PRINT("quit", ("done with cleanup"));
 } /* clean_up */
 
@@ -1502,7 +1507,7 @@ static void init_signals(void)
     /* Change limits so that we will get a core file */
     struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl))
+    if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
       sql_print_error("Warning: setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
@@ -1571,8 +1576,11 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   my_thread_init();				// Init new thread
   DBUG_ENTER("signal_hand");
   SIGNAL_THD;
-  /* Setup alarm handler */
-  init_thr_alarm(max_connections+max_insert_delayed_threads);
+  /*
+    Setup alarm handler
+    The two extra handlers are for slave threads
+  */
+  init_thr_alarm(max_connections+max_insert_delayed_threads+2);
 #if SIGINT != THR_KILL_SIGNAL
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
   (void) sigaddset(&set,SIGINT);		// For debugging
@@ -1660,12 +1668,15 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      reload_acl_and_cache((THD*) 0,
-			   (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-			    REFRESH_STATUS | REFRESH_GRANT | REFRESH_THREADS |
-			    REFRESH_HOSTS),
-			   (TABLE_LIST*) 0); // Flush logs
-      mysql_print_status((THD*) 0);		// Send debug some info
+      if (!abort_loop)
+      {
+	reload_acl_and_cache((THD*) 0,
+			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+			      REFRESH_STATUS | REFRESH_GRANT |
+			      REFRESH_THREADS | REFRESH_HOSTS),
+			     (TABLE_LIST*) 0); // Flush logs
+	mysql_print_status((THD*) 0);		// Send debug some info
+      }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:
