@@ -463,3 +463,4 @@ mysql-test/r/rpl000001.eval
 Docs/safe-mysql.xml
 mysys/test_vsnprintf
 Docs/manual.de.log
+Docs/internals.info
