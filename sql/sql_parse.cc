@@ -5151,8 +5151,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lex->found_colon &&
-              (thd->query_length= (ulong)(lex->found_colon - thd->query)))
+          if (lex->found_semicolon &&
+              (thd->query_length= (ulong)(lex->found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
 	  mysql_execute_command(thd);
