@@ -606,6 +606,7 @@ drop table t2;
 prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
 create table t5 (a int) ;
 # rename must fail, t7 does not exist
+--replace_result \\ /
 --error 1017
 execute stmt1 ;
 create table t7 (a int) ;
