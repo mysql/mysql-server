@@ -124,6 +124,7 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
+#define MY_CS_TAILORING_SIZE	128
 
 typedef struct my_cs_file_info
 {
@@ -135,7 +136,8 @@ typedef struct my_cs_file_info
   uchar  sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
   uint16 tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
   char   comment[MY_CS_CSDESCR_SIZE];
-  size_t sort_order_length;
+  char   tailoring[MY_CS_TAILORING_SIZE];
+  size_t tailoring_length;
   CHARSET_INFO cs;
   int (*add_collation)(CHARSET_INFO *cs);
 } MY_CHARSET_LOADER;
@@ -186,7 +188,7 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
     bzero(&i->cs,sizeof(i->cs));
   
   if (s && (s->state == _CS_COLLATION))
-    i->sort_order_length= 0;
+    i->tailoring_length= 0;
 
   return MY_XML_OK;
 }
@@ -283,12 +285,12 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
       */
       char arg[16];
       const char *cmd[]= {"&","<","<<","<<<"};
-      i->cs.sort_order= i->sort_order;
+      i->cs.tailoring= i->tailoring;
       mstr(arg,attr,len,sizeof(arg)-1);
-      if (i->sort_order_length + 20 < sizeof(i->sort_order))
+      if (i->tailoring_length + 20 < sizeof(i->tailoring))
       {
-        char *dst= i->sort_order_length + i->sort_order;
-        i->sort_order_length+= sprintf(dst," %s %s",cmd[state-_CS_RESET],arg);
+        char *dst= i->tailoring_length + i->tailoring;
+        i->tailoring_length+= sprintf(dst," %s %s",cmd[state-_CS_RESET],arg);
       }
     }
   }
