@@ -20,5 +20,5 @@ then
   echo "Starting the mysqld server.  You can test that it is up and running"
   echo "with the command:"
   echo "./bin/mysqladmin version"
-  ./bin/safe_mysqld &
+  ./bin/mysqld_safe &
 fi

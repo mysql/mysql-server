@@ -137,7 +137,7 @@ Don't check the rows in the table if there isn't any delete blocks.
 Before a table is automaticly repaired, mysqld will add a note about this in the error log. If you want to be able to recover from most things without user intervention, you should use the options BACKUP,FORCE. This will force a repair of a table even if some rows would be deleted, but it will keep the old data file as a backup so that you can later examine what happened. 
 .TP 
 .BR \-\-pid\-file=\fP\fIpath \fP
-Path to pid file used by safe_mysqld. 
+Path to pid file used by mysqld_safe. 
 .TP 
 .BR \-P | \-\-port=... 
 Port number to listen for TCP/IP connections. 
@@ -215,7 +215,7 @@ mysqlshow (1),
 msql2mysql (1),
 perror (1),
 replace (1),
-safe_mysqld (1),
+mysqld_safe (1),
 which1 (1),
 zap (1),
 .SH AUTHOR
