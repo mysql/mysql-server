@@ -9,4 +9,12 @@ select * from t1 where a like "abc%";
 select * from t1 where a like "ABC%"; 
 select * from t1 where a like "test%"; 
 select * from t1 where a like "te_t"; 
+
+#
+# The following will test the boyer-more code
+#
+select * from t1 where a like "%a%";
+select * from t1 where a like "%abcd%";
+select * from t1 where a like "%abc\d%";
+
 drop table t1;
