@@ -135,12 +135,17 @@ public:
 
     //GREP
     GrepSubscriptionInfo = 52,
-    GrepSubscriptionAlert = 53
-  };
+    GrepSubscriptionAlert = 53,
 
+    //BACKUP
+    BackupStarted = 54,
+    BackupFailedToStart = 55,
+    BackupCompleted = 56,
+    BackupAborted = 57
+  };
+  
   void setEventType(EventType type);
   EventType getEventType() const;
-private:
   UintR eventType;    // DATA 0
 };
 

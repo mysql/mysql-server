@@ -218,6 +218,7 @@ NDBT_TESTSUITE_END(testOrderedIndex);
 int
 main(int argc, const char** argv)
 {
+  ndb_init();
   return testOrderedIndex.execute(argc, argv);
 }
 

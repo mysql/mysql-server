@@ -65,7 +65,7 @@ NdbDictionary::Column::getName() const {
 
 void
 NdbDictionary::Column::setType(Type t){
-  m_impl.m_type = t;
+  m_impl.init(t);
 }
 
 NdbDictionary::Column::Type 
@@ -100,6 +100,54 @@ NdbDictionary::Column::setLength(int length){
 
 int 
 NdbDictionary::Column::getLength() const{
+  return m_impl.m_length;
+}
+
+void
+NdbDictionary::Column::setInlineSize(int size)
+{
+  m_impl.m_precision = size;
+}
+
+void
+NdbDictionary::Column::setCharset(CHARSET_INFO* cs)
+{
+  m_impl.m_cs = cs;
+}
+
+CHARSET_INFO*
+NdbDictionary::Column::getCharset() const
+{
+  return m_impl.m_cs;
+}
+
+int
+NdbDictionary::Column::getInlineSize() const
+{
+  return m_impl.m_precision;
+}
+
+void
+NdbDictionary::Column::setPartSize(int size)
+{
+  m_impl.m_scale = size;
+}
+
+int
+NdbDictionary::Column::getPartSize() const
+{
+  return m_impl.m_scale;
+}
+
+void
+NdbDictionary::Column::setStripeSize(int size)
+{
+  m_impl.m_length = size;
+}
+
+int
+NdbDictionary::Column::getStripeSize() const
+{
   return m_impl.m_length;
 }
 
@@ -808,7 +856,12 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 {
-  return m_impl.listIndexes(list, tableName);
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
 }
 
 const struct NdbError & 
@@ -821,6 +874,8 @@ NdbDictionary::Dictionary::getNdbError() const {
 NdbOut&
 operator<<(NdbOut& out, const NdbDictionary::Column& col)
 {
+  const CHARSET_INFO *cs = col.getCharset();
+  const char *csname = cs ? cs->name : "?";
   out << col.getName() << " ";
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:
@@ -863,10 +918,10 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << "Decimal(" << col.getScale() << "," << col.getPrecision() << ")";
     break;
   case NdbDictionary::Column::Char:
-    out << "Char(" << col.getLength() << ")";
+    out << "Char(" << col.getLength() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Varchar:
-    out << "Varchar(" << col.getLength() << ")";
+    out << "Varchar(" << col.getLength() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Binary:
     out << "Binary(" << col.getLength() << ")";
@@ -886,7 +941,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << ";" << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";

@@ -52,7 +52,7 @@ public:
   NdbColumnImpl(NdbDictionary::Column &); // This is not a copy constructor
   ~NdbColumnImpl();
   NdbColumnImpl& operator=(const NdbColumnImpl&);
-  void init();
+  void init(Type t = Unsigned);
   
   int m_attrId;
   BaseString m_name;
@@ -60,6 +60,7 @@ public:
   int m_precision;
   int m_scale;
   int m_length;
+  CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
   bool m_tupleKey;
@@ -82,6 +83,7 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getCharType() const;
   bool getBlobType() const;
 
   /**
@@ -388,7 +390,7 @@ public:
   int stopSubscribeEvent(NdbEventImpl &);
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
-  int listIndexes(List& list, const char * tableName);
+  int listIndexes(List& list, Uint32 indexId);
   
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
   Ndb_local_table_info * get_local_table_info(const char * internalName);
@@ -446,6 +448,14 @@ NdbColumnImpl::getInterpretableType() const {
 	  m_type == NdbDictionary::Column::Bigunsigned);
 }
 
+inline
+bool 
+NdbColumnImpl::getCharType() const {
+  return (m_type == NdbDictionary::Column::Char ||
+          m_type == NdbDictionary::Column::Varchar ||
+          m_type == NdbDictionary::Column::Text);
+}
+   
 inline
 bool 
 NdbColumnImpl::getBlobType() const {
