@@ -2181,7 +2181,7 @@ void Query_cache::free_memory_block(Query_cache_block *block)
   block->type= Query_cache_block::FREE; // mark block as free in any case
   DBUG_PRINT("qcache",
 	     ("first_block 0x%lx, block 0x%lx, pnext 0x%lx pprev 0x%lx",
-	      (ulong) first_block, (ulong) block,block->pnext,
+	      (ulong) first_block, (ulong) block, (ulong) block->pnext,
 	      (ulong) block->pprev));
 
   if (block->pnext != first_block && block->pnext->is_free())
