@@ -169,18 +169,12 @@ SET @`a b`='hello';
 INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 insert into t1 values (@var1);
-create table t2 (c char(30)) charset=ucs2;
-set @v=convert('abc' using ucs2);
-insert into t2 values (@v);
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	79	User var	1	79	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
 master-bin.000001	120	Query	1	120	use `test`; INSERT INTO t1 VALUES(@`a b`)
 master-bin.000001	184	User var	1	184	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	226	Query	1	226	use `test`; insert into t1 values (@var1)
-master-bin.000001	290	Query	1	290	use `test`; create table t2 (c char(30)) charset=ucs2
-master-bin.000001	366	User var	1	366	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
-master-bin.000001	406	Query	1	406	use `test`; insert into t2 values (@v)
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci;
 use test;
@@ -189,12 +183,7 @@ INSERT INTO t1 VALUES(@`a b`);
 SET @`var1`:=_latin1 0x273B616161 COLLATE latin1_swedish_ci;
 SET TIMESTAMP=10000;
 insert into t1 values (@var1);
-SET TIMESTAMP=10000;
-create table t2 (c char(30)) charset=ucs2;
-SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
-SET TIMESTAMP=10000;
-insert into t2 values (@v);
-drop table t1, t2;
+drop table t1;
 set @var= NULL ;
 select FIELD( @var,'1it','Hit') as my_column;
 my_column

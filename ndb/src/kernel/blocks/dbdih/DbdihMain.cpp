@@ -7080,24 +7080,22 @@ void Dbdih::execDIGETPRIMREQ(Signal* signal)
   
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
   connectPtr.i = signal->theData[0];
-  if(connectPtr.i != RNIL){
+  if(connectPtr.i != RNIL)
+  {
     jam();
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-    ndbrequire(connectPtr.p->connectState == ConnectRecord::INUSE);
-    getFragstore(tabPtr.p, fragId, fragPtr);
-    connectPtr.p->nodeCount = extractNodeInfo(fragPtr.p, connectPtr.p->nodes);
     signal->theData[0] = connectPtr.p->userpointer;
-    signal->theData[1] = passThrough;
-    signal->theData[2] = connectPtr.p->nodes[0];
-    sendSignal(connectPtr.p->userblockref, GSN_DIGETPRIMCONF, signal, 3, JBB);
-    return;
-  }//if
-  //connectPtr.i == RNIL -> question without connect record
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = RNIL;
+  }
+  
   Uint32 nodes[MAX_REPLICAS];
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 count = extractNodeInfo(fragPtr.p, nodes);
   
-  signal->theData[0] = RNIL;
   signal->theData[1] = passThrough;
   signal->theData[2] = nodes[0];
   signal->theData[3] = nodes[1];

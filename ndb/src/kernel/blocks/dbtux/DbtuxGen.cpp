@@ -24,12 +24,7 @@ Dbtux::Dbtux(const Configuration& conf) :
 #ifdef VM_TRACE
   debugFile(0),
   debugOut(*new NullOutputStream()),
-  // until ndb_mgm supports dump
-#ifdef DBTUX_DEBUG_TREE
-  debugFlags(DebugTree),
-#else
   debugFlags(0),
-#endif
 #endif
   c_internalStartPhase(0),
   c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
@@ -86,7 +81,7 @@ Dbtux::execCONTINUEB(Signal* signal)
   jamEntry();
   const Uint32* data = signal->getDataPtr();
   switch (data[0]) {
-  case TuxContinueB::DropIndex:
+  case TuxContinueB::DropIndex: // currently unused
     {
       IndexPtr indexPtr;
       c_indexPool.getPtr(indexPtr, data[1]);
@@ -174,7 +169,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_ATTRIBUTE, &nAttribute));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
 
-  const Uint32 nDescPage = (nIndex + nAttribute + DescPageSize - 1) / DescPageSize;
+  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * DescAttrSize + DescPageSize - 1) / DescPageSize;
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
   
   c_indexPool.setSize(nIndex);
