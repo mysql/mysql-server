@@ -26,7 +26,7 @@ CFG=mysys - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=xicl6.exe
+CPP=cl.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysys - Win32 Release"
@@ -42,14 +42,14 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\mysys.lib"
 
@@ -66,14 +66,14 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /ZI /Od /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /ZI /Od /I "../include" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
 # SUBTRACT CPP /Fr
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysys.lib"
 
@@ -86,8 +86,8 @@ LIB32=xilink6.exe -lib
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "max"
-# PROP Intermediate_Dir "max"
+# PROP Output_Dir "mysys___Win32_Max"
+# PROP Intermediate_Dir "mysys___Win32_Max"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /YX
@@ -98,7 +98,7 @@ LIB32=xilink6.exe -lib
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_release\mysys.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\mysys-max.lib"
 
@@ -283,19 +283,6 @@ SOURCE=.\my_clock.c
 # Begin Source File
 
 SOURCE=.\my_compress.c
-
-!IF  "$(CFG)" == "mysys - Win32 Release"
-
-# ADD CPP /I "../zlib"
-
-!ELSEIF  "$(CFG)" == "mysys - Win32 Debug"
-
-# ADD CPP /I "../zlib"
-
-!ELSEIF  "$(CFG)" == "mysys - Win32 Max"
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
