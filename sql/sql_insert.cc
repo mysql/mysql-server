@@ -283,7 +283,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     to NULL.
   */
   thd->count_cuted_fields= ((values_list.elements == 1 &&
-                             duplic != DUP_IGNORE) ?
+                             !ignore) ?
 			    CHECK_FIELD_ERROR_FOR_NULL :
 			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
@@ -306,7 +306,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     table->file->start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
-  thd->abort_on_warning= (duplic != DUP_IGNORE &&
+  thd->abort_on_warning= (!ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
@@ -1758,7 +1758,8 @@ bool mysql_insert_select_prepare(THD *thd)
 
 select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              List<Item> *fields_par,
-                             List<Item> *update_fields, List<Item> *update_values,
+                             List<Item> *update_fields,
+                             List<Item> *update_values,
                              enum_duplicates duplic,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
@@ -1805,12 +1806,11 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->cuted_fields=0;
-  if (info.ignore ||
-      info.handle_duplicates == DUP_REPLACE)
+  if (info.ignore || info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
-  thd->abort_on_warning= (info.handle_duplicates != DUP_IGNORE &&
+  thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
@@ -1856,9 +1856,7 @@ bool select_insert::send_data(List<Item> &values)
     DBUG_RETURN(1);
   if (table_list)                               // Not CREATE ... SELECT
   {
-    switch (table_list->view_check_option(thd,
-                                          thd->lex->duplicates ==
-                                          DUP_IGNORE)) {
+    switch (table_list->view_check_option(thd, info.ignore)) {
     case VIEW_CHECK_SKIP:
       DBUG_RETURN(0);
     case VIEW_CHECK_ERROR:
@@ -2010,12 +2008,11 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   restore_record(table,default_values);			// Get empty record
   thd->cuted_fields=0;
-  if (info.ignore ||
-      info.handle_duplicates == DUP_REPLACE)
+  if (info.ignore || info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
-  thd->abort_on_warning= (info.handle_duplicates != DUP_IGNORE &&
+  thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
