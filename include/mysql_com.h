@@ -169,6 +169,9 @@ int	net_write_command(NET *net,unsigned char command,const char *packet,
 			  unsigned long len);
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
+
+/* The following function is not meant for normal usage */
+struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 	       uint timeout);
 
