@@ -841,7 +841,9 @@ MySQL Internals
 
 MySQL Full-text Search
 
-* Fine-tuning::                 
+* Fulltext Fine-tuning::
+* Fulltext features to appear in MySQL 4.0::
+* Fulltext TODO::
 
 Credits
 
@@ -38968,8 +38970,7 @@ adding @code{FULLTEXT} index with @code{ALTER TABLE}
 (or @code{CREATE INDEX}) would be much faster, than inserting rows into
 the empty table with @code{FULLTEXT} index.
 
-Full-text search is
-performed with the @code{MATCH} function.
+Full-text search is performed with the @code{MATCH} function.
 
 @example
 mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
@@ -39050,14 +39051,16 @@ with search engine), and, as such, has low semantical value in @strong{this
 particular dataset}.
 
 @menu
-* Fine-tuning::                 
+* Fulltext Fine-tuning::
+* Fulltext features to appear in MySQL 4.0::
+* Fulltext TODO::
 @end menu
 
-@node Fine-tuning,  , MySQL full-text search, MySQL full-text search
+@node Fulltext Fine-tuning, Fulltext features to appear in MySQL 4.0, MySQL full-text search, MySQL full-text search
 @subsection Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has no user-tunable parameters yet
-(but adding some is very high in our TODO). But if one has @strong{MySQL}
+(but adding some is very high in the TODO). But if one has @strong{MySQL}
 source distribution (@xref{Installing source}.) he can somewhat alter
 full-text search default behaviour.
 
@@ -39083,7 +39086,7 @@ Modify it to your taste, recompile @strong{MySQL} and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
-50% treshold is caused by weighting scheme chosen. To disable it, change
+50% threshold is caused by weighting scheme chosen. To disable it, change
 @example
 #define GWS_IN_USE GWS_PROB
 @end example
@@ -39093,6 +39096,58 @@ line in @code{myisam/ftdefs.h} to
 @end example
 and recompile @strong{MySQL}.
 There is no need to rebuild the indexes though.
+
+@end itemize
+
+@node Fulltext features to appear in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, MySQL full-text search
+@subsection New Features of Full-text Search to Appear in MySQL 4.0
+
+This section includes a list of the fulltext features that are already
+implemented in the 4.0 tree. It explains
+@strong{More functions for full-text search} entry of @ref{TODO MySQL 4.0}.
+
+@itemize @bullet
+@item @code{REPAIR TABLE} with @code{FULLTEXT} indexes,
+@code{ALTER TABLE} with @code{FULLTEXT} indexes, and
+@code{OPTIMIZE TABLE} with @code{FULLTEXT} indexes are now
+up to 100 times faster.
+
+@item @code{MATCH ... AGAINST} now supports @strong{boolean operators}.
+They are the following:@itemize @bullet
+@item @code{+}word means the that word @strong{must} be present in every
+row returned.
+@item @code{-}word means the that word @strong{must not} be present in every
+row returned.
+@item @code{<} and @code{>} can be used to decrease and increase word 
+weight in the query.
+@item @code{~} can be used to assign a @strong{negative} weight to noise-word.
+@item @code{*} is a truncation operator.
+@end itemize
+Boolean search utilizes more simplistic way of calculating the relevance,
+that does not has 50% threshold.
+
+@item Searches are now up to 2 times faster due to optimized search algorithm.
+
+@item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
+index operations (quering/dumping/statistics).
+
+@end itemize
+
+@node Fulltext TODO, ,Fulltext features to appear in MySQL 4.0, MySQL full-text search
+@subsection Full-text Search TODO
+
+@itemize @bullet
+@item Make all operations with @code{FULLTEXT} index @strong{faster}.
+@item Support for braces @code{()} in boolean fulltext search.
+@item Support for "always-index words". They could be any strings
+the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
+@item Support for fulltext search in @code{MERGE} tables.
+@item Support for multi-byte charsets.
+@item Make stopword list to depend of the language of the data.
+@item Stemming (dependent of the language of the data, of course).
+@item Generic user-suppliable UDF (?) preparser.
+@item Make the model more flexible (by adding some adjustable
+parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 
 @end itemize
 
@@ -45980,6 +46035,7 @@ Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
 Better replication.
 @item
 More functions for full-text search.
+@xref{Fulltext features to appear in MySQL 4.0}.
 @item
 Character set casts and syntax for handling multiple character sets.
 @item
