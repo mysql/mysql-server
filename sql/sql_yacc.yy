@@ -2293,10 +2293,15 @@ purge:
 /* kill threads */
 
 kill:
-	KILL_SYM NUM
+	KILL_SYM expr
 	{
-	  Lex->sql_command=SQLCOM_KILL;
-	  Lex->thread_id= (ulong) strtoul($2.str,NULL,10);
+	  if ($2->fix_fields(current_thd,0))
+	     { 
+		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
+	        YYABORT;
+	     }
+          Lex->sql_command=SQLCOM_KILL;
+	  Lex->thread_id= (ulong) $2->val_int();
 	}
 
 /* change database */

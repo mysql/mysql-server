@@ -1,0 +1,23 @@
+connect (con1, localhost, root,,test,0, mysql-master.sock);
+connect (con2, localhost, root,,test,0, mysql-master.sock);
+
+#remember id of con1
+connection con1;
+drop table if exists connection_kill;
+create table connection_kill (kill_id int);
+insert into connection_kill values(connection_id());
+
+#kill con1
+connection con2;
+select ((@id := kill_id) - kill_id) from connection_kill; 
+kill @id;
+
+# verify that con1 is really dead
+connection con1;
+error 2013;
+select 1;
+
+#make sure the server is still alive
+connection con2;
+select 4;
+drop table connection_kill;

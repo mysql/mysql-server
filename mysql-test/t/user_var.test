@@ -1,0 +1,5 @@
+error 1204;
+set @a := foo;
+set @a := connection_id() + 3;
+select @a - connection_id();
+
