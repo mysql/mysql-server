@@ -2214,6 +2214,7 @@ int main(int argc, char **argv)
   {
     if (log_error_file_ptr != log_error_file)
       strmake(log_error_file, log_error_file_ptr, sizeof(log_error_file));
+#ifdef __WIN__
     else
     {
       char *end;
@@ -2224,6 +2225,7 @@ int main(int argc, char **argv)
       *strxnmov(end, sizeof(log_error_file)-length-1,
                 glob_hostname, ".err", NullS)= 0;
     }
+#endif
     if (log_error_file[0] != 0)
       if (freopen(log_error_file, "a+", stdout))
         freopen(log_error_file, "a+", stderr);
