@@ -3,6 +3,8 @@
 # modified by Sasha Pachev <sasha@mysql.com>
 # Sligtly updated by Monty
 # Cleaned up again by Matt
+# Fixed by Sergei
+# :-)
 
 #++
 # Access Definitions
@@ -11,6 +13,7 @@ DB=test
 DBUSER=test
 DBPASSWD=
 VERBOSE=""
+TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
 # Are we on source or binary distribution?
 
@@ -282,7 +285,7 @@ start_master()
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
-            --log=$MASTER_MYLOG \
+            --log=$MASTER_MYLOG --default-character-set=latin1 \
 	    --language=english $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
@@ -323,7 +326,7 @@ start_slave()
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG \
+            --log=$SLAVE_MYLOG --default-character-set=latin1 \
             --language=english $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
