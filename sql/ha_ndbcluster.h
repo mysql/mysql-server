@@ -75,74 +75,89 @@ typedef union ndb_item_qualification {
   Item_func::Functype function_type; // Instead of Item::FUNC_ITEM
 } NDB_ITEM_QUALIFICATION;
 
-class Ndb_item_string_value {
- public:
-  String s;
-  CHARSET_INFO *c;
-};
-
 typedef struct ndb_item_field_value {
   Field* field;
   int column_no;
 } NDB_ITEM_FIELD_VALUE;
 
 typedef union ndb_item_value {
-  longlong int_value;
-  double real_value;
-  Ndb_item_string_value *string_value;
+  const Item *item;
   NDB_ITEM_FIELD_VALUE *field_value;
 } NDB_ITEM_VALUE;
 
 class Ndb_item {
  public:
-  Ndb_item(NDB_ITEM_TYPE item_type);
+  Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {};
   Ndb_item(NDB_ITEM_TYPE item_type, 
 	   NDB_ITEM_QUALIFICATION item_qualification,
-	   const Item *item_value);
-  Ndb_item(longlong int_value);
-  Ndb_item(double real_value);
-  Ndb_item(Field *field, int column_no);
-  Ndb_item(Item_func::Functype func_type);
-  ~Ndb_item();
-  void print(String *str);
-  uint32 pack_length() { return value.field_value->field->pack_length(); };
-  // Getters and Setters
-  longlong get_int_value() { return value.int_value; };
-  double get_real_value() { return value.real_value; };
-  String * get_string_value() { return &value.string_value->s; };
-  CHARSET_INFO * get_string_charset() { return value.string_value->c; };
-  Field * get_field() { return value.field_value->field; };
-  int get_field_no() { return value.field_value->column_no; };
-
-  const void * get_value()
-  {      
-    switch(qualification.value_type) {
-    case(Item::INT_ITEM): {
-      return (void *) &value.int_value;
-    } 
-    case(Item::REAL_ITEM): {
-      return (void *) &value.real_value;
+	   const Item *item_value)
+    : type(item_type), qualification(item_qualification)
+  { 
+    switch(item_type) {
+    case(NDB_VALUE):
+      value.item= item_value;
+      break;
+    case(NDB_FIELD): {
+      NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
+      Item_field *field_item= (Item_field *) item_value;
+      field_value->field= field_item->field;
+      field_value->column_no= -1; // Will be fetched at scan filter generation
+      value.field_value= field_value;
       break;
     }
-    case(Item::STRING_ITEM): 
-    case(Item::VARBIN_ITEM): {	
-      return  value.string_value->s.ptr();
+    case(NDB_FUNCTION):
+    case(NDB_END_COND):
+      break;
     }
+  };
+  Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
+  {
+    NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
+    qualification.field_type= field->type();
+    field_value->field= field;
+    field_value->column_no= column_no;
+    value.field_value= field_value;
+  };
+  Ndb_item(Item_func::Functype func_type) : type(NDB_FUNCTION)
+  {
+    qualification.function_type= func_type;
+  };
+  ~Ndb_item()
+  { 
+    if (type == NDB_FIELD)
+      {
+	delete value.field_value;
+	value.field_value= NULL;
+      }
+  };
+
+  uint32 pack_length() 
+  { 
+    switch(type) {
+    case(NDB_FIELD):
+      return value.field_value->field->pack_length(); 
     default:
       break;
     }
-
-    return NULL;
-  }
     
- public:
+    return 0;
+  };
+  Field * get_field() { return value.field_value->field; };
+  int get_field_no() { return value.field_value->column_no; };
+  char* get_val() { return value.field_value->field->ptr; };
+  void save_in_field(Ndb_item *field_item)
+  {
+    Field *field = field_item->value.field_value->field;
+    const Item *item= value.item;
+
+    if (item && field)
+      ((Item *)item)->save_in_field(field, false);
+  }
+
   NDB_ITEM_TYPE type;
   NDB_ITEM_QUALIFICATION qualification;
-
-
  private:
   NDB_ITEM_VALUE value;
-
 };
 
 class Ndb_cond {
@@ -179,7 +194,7 @@ class Ndb_cond_traverse_context {
 			    bool *supported, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported_ptr(supported), stack_ptr(stack), cond_ptr(NULL),
-    expect_mask(0), expect_field_result_mask(0)
+    expect_mask(0), expect_field_result_mask(0), skip(0)
   {
     if (stack)
       cond_ptr= stack->ndb_cond;
@@ -231,6 +246,7 @@ class Ndb_cond_traverse_context {
   Ndb_cond* cond_ptr;
   uint expect_mask;
   uint expect_field_result_mask;
+  uint skip;
 };
 
 /*
@@ -406,7 +422,7 @@ class ha_ndbcluster: public handler
   void no_uncommitted_rows_reset(THD *);
 
   /*
-    Condition Pushdown to Handler (CPDH), private methods
+    Condition pushdown
   */
   void cond_clear();
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond);

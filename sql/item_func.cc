@@ -352,7 +352,7 @@ void Item_func::traverse_cond(Item_cond_traverser traverser,
 
     switch (order) {
     case(PREFIX):
-      (traverser)(this, argument);
+      (*traverser)(this, argument);
       for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
       {
 	(*arg)->traverse_cond(traverser, argument, order);
@@ -363,7 +363,7 @@ void Item_func::traverse_cond(Item_cond_traverser traverser,
       {
 	(*arg)->traverse_cond(traverser, argument, order);
       }
-      (traverser)(this, argument);
+      (*traverser)(this, argument);
     }
   }
 }
