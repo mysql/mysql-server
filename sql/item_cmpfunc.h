@@ -123,8 +123,8 @@ public:
   {
     cmp.set_cmp_func(this, tmp_arg, tmp_arg+1);
   }
-  bool set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1, 
-  		       CHARSET_INFO *cs2, enum coercion co2);
+  bool set_cmp_charset(CHARSET_INFO *cs1, Derivation co1, 
+  		       CHARSET_INFO *cs2, Derivation co2);
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
