@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libsrv.a
+noinst_LIBRARIES =	libsrv.a
 
 libsrv_a_SOURCES =	srv0srv.c srv0que.c srv0start.c
 
