@@ -110,7 +110,7 @@ int Guardian_thread::start()
   Instance_map::Iterator iterator(instance_map);
 
   instance_map->lock();
-  while (instance= iterator.next())
+  while ((instance= iterator.next()))
   {
     if ((instance->options.is_guarded != NULL) && (instance->is_running()))
       if (guard(instance))
