@@ -1471,6 +1471,7 @@ int main(int argc, char **argv)
     strmov(glob_hostname,"mysql");
   strmov(pidfile_name,glob_hostname);
   strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
+  strcat(server_version, MYSQL_SERVER_SUFFIX);
 #ifdef DEMO_VERSION
   strcat(server_version,"-demo");
 #endif

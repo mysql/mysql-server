@@ -389,6 +389,14 @@ then
   AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
+AC_ARG_WITH(server-suffix,
+    [  --with-server-suffix    Append value to the version string.],
+    # I heard that 'cut' isn't portable.  Isn't there a better way?
+    [ MYSQL_SERVER_SUFFIX=`echo "$withval" | sed -e  's/^\(...................................\)..*$/\1/'` ],
+    [ MYSQL_SERVER_SUFFIX= ]
+    )
+AC_SUBST(MYSQL_SERVER_SUFFIX)
+
 # Set flags if we wants to have MIT threads.
 AC_ARG_WITH(mit-threads,
     [  --with-mit-threads      Always use included thread lib.],
