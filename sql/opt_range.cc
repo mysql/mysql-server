@@ -725,7 +725,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   key_part_info= head->key_info[index].key_part;
   my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
-  /* 'thd' is not accessible in QUICK_RANGE_SELECT::get_next_init(). */
+  /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   multi_range_bufsiz= thd->variables.read_rnd_buff_size;
   multi_range_count= thd->variables.multi_range_count;
   multi_range_length= 0;
@@ -748,9 +748,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
-
-  if ((error= get_next_init()))
-    DBUG_RETURN(error);
 
   if (file->inited == handler::NONE)
     DBUG_RETURN(error= file->ha_index_init(index));
@@ -5655,9 +5652,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     We reuse the same instance of handler so we need to call both init and 
     reset here.
   */
-  if (cur_quick->init())
+  if (cur_quick->init() || cur_quick->reset())
     DBUG_RETURN(1);
-  cur_quick->reset();
 
   unique= new Unique(refpos_order_cmp, (void *)head->file,
                      head->file->ref_length,
@@ -5675,10 +5671,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
-      if (cur_quick->init())
+      if (cur_quick->init() || cur_quick->reset())
         DBUG_RETURN(1);
-      /* QUICK_RANGE_SELECT::reset never fails */
-      cur_quick->reset();
     }
 
     if (result)
@@ -5745,9 +5739,8 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
     if (pk_quick_select)
     {
       doing_pk_scan= TRUE;
-      if ((result= pk_quick_select->init()))
+      if ((result= pk_quick_select->init()) || (result= pk_quick_select->reset()))
         DBUG_RETURN(result);
-      pk_quick_select->reset();
       DBUG_RETURN(pk_quick_select->get_next());
     }
   }
@@ -5908,28 +5901,15 @@ int QUICK_ROR_UNION_SELECT::get_next()
   DBUG_RETURN(error);
 }
 
-
-/*
-  Initialize data structures needed by get_next().
-
-  SYNOPSIS
-    QUICK_RANGE_SELECT::get_next_init()
-
-  DESCRIPTION
-    This is called from get_next() at its first call for an object.
-    It allocates memory buffers and sets size variables.
-
-  RETURN
-    0           OK.
-    != 0        Error.
-*/
-
-int QUICK_RANGE_SELECT::get_next_init(void)
+int QUICK_RANGE_SELECT::reset()
 {
   uint  mrange_bufsiz;
   byte  *mrange_buff;
-  DBUG_ENTER("QUICK_RANGE_SELECT::get_next_init");
-
+  DBUG_ENTER("QUICK_RANGE_SELECT::reset");
+  next=0;
+  range= NULL;
+  cur_range= (QUICK_RANGE**) ranges.buffer;
+  
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
@@ -5937,15 +5917,8 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     DBUG_RETURN(0);
   }
 
-  /* If the ranges are not yet initialized, wait for the next call. */
-  if (! ranges.elements)
-  {
-    DBUG_RETURN(0);
-  }
-
-  /*
-    Allocate the ranges array.
-  */
+  /* Allocate the ranges array. */
+  DBUG_ASSERT(ranges.elements);
   multi_range_length= min(multi_range_count, ranges.elements);
   DBUG_ASSERT(multi_range_length > 0);
   while (multi_range_length && ! (multi_range= (KEY_MULTI_RANGE*)
@@ -5962,9 +5935,7 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
-  /*
-    Allocate the handler buffer if necessary.
-  */
+  /* Allocate the handler buffer if necessary.  */
   if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
@@ -5992,9 +5963,6 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
     multi_range_buff->end_of_used_area= mrange_buff;
   }
-
-  /* Initialize the current QUICK_RANGE pointer. */
-  cur_range= (QUICK_RANGE**) ranges.buffer;
   DBUG_RETURN(0);
 }
 
@@ -7948,10 +7916,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
   result= file->ha_index_init(index);
   result= file->index_last(record);
-  if (quick_prefix_select)
-    quick_prefix_select->reset();
   if (result)
     DBUG_RETURN(result);
+  if (quick_prefix_select && quick_prefix_select->reset())
+    DBUG_RETURN(1);
   /* Save the prefix of the last group. */
   key_copy(last_prefix, record, index_info, group_prefix_len);
 
