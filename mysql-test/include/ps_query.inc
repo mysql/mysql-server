@@ -294,9 +294,11 @@ set @arg00='ABC';
 set @arg01='two';
 set @arg02='one';
 select first.a, @arg00, second.a FROM t1 first, t1 second
-where @arg01 = first.b or first.a = second.a or second.b = @arg02;
+where @arg01 = first.b or first.a = second.a or second.b = @arg02
+order by second.a, first.a;
 prepare stmt1 from ' select first.a, ?, second.a FROM t1 first, t1 second
-                    where ? = first.b or first.a = second.a or second.b = ? ';
+                    where ? = first.b or first.a = second.a or second.b = ?
+                    order by second.a, first.a';
 execute stmt1 using @arg00, @arg01, @arg02;
 
 

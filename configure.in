@@ -274,7 +274,7 @@ esac
 
 # option, cache_name, variable,
 # code to execute if yes, code to exectute if fail
-AC_DEFUN(AC_SYS_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_COMPILER_FLAG],
 [
   AC_MSG_CHECKING($1)
   OLD_CFLAGS="[$]CFLAGS"
@@ -297,7 +297,7 @@ AC_DEFUN(AC_SYS_COMPILER_FLAG,
 ])
 
 # arch, option, cache_name, variable
-AC_DEFUN(AC_SYS_CPU_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_CPU_COMPILER_FLAG],
 [
  if test "`uname -m 2>/dev/null`" = "$1" ; then
     AC_SYS_COMPILER_FLAG($2,$3,$4)
@@ -305,7 +305,7 @@ AC_DEFUN(AC_SYS_CPU_COMPILER_FLAG,
 ])
 
 # os, option, cache_name, variable
-AC_DEFUN(AC_SYS_OS_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_OS_COMPILER_FLAG],
 [
  if test "x$mysql_cv_sys_os" = "x$1" ; then
     AC_SYS_COMPILER_FLAG($2,$3,$4)

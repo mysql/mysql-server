@@ -1174,7 +1174,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
       {
 	ndbout_c("Unable to setup transporter service port: %d!\n"
 		 "Please check if the port is already used,\n"
-		 "(perhaps a mgmtsrvrserver is already running)",
+		 "(perhaps a mgmt server is already running)",
 		 m_service_port);
 	delete t->m_service;
 	return false;
@@ -1199,7 +1199,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
       {
 	ndbout_c("Unable to setup transporter service port: %d!\n"
 		 "Please check if the port is already used,\n"
-		 "(perhaps a mgmtsrvrserver is already running)",
+		 "(perhaps a mgmt server is already running)",
 		 m_service_port);
 	delete m_transporter_service;
 	return false;
