@@ -153,10 +153,11 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
-		if (trx != cr_trx && trx->conc_state == TRX_ACTIVE) {
+                if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
+                                        trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
-		
+
 			n++;
 
 			/* NOTE that a transaction whose trx number is <
@@ -164,7 +165,7 @@ read_view_open_now(
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			ut_dulint_max. */
-		
+
 			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
 
 				view->low_limit_no = trx->no;

@@ -38,7 +38,7 @@ insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 stop slave;
-change master to master_log_pos=95;
+change master to master_log_pos=96;
 start slave;
 sync_with_master;
 select * from t1;

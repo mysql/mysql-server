@@ -77,6 +77,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 alter table t1 add unique(v);
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+--replace_column 6 # 9 #
 explain select * from t1 where v='a';
 
 # GROUP BY

@@ -26,27 +26,7 @@ int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 
-int check_binlog_magic(IO_CACHE* log, const char** errmsg)
-{
-  char magic[4];
-  DBUG_ASSERT(my_b_tell(log) == 0);
-
-  if (my_b_read(log, (byte*) magic, sizeof(magic)))
-  {
-    *errmsg = "I/O error reading the header from the binary log";
-    sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno,
-		    log->error);
-    return 1;
-  }
-  if (memcmp(magic, BINLOG_MAGIC, sizeof(magic)))
-  {
-    *errmsg = "Binlog has bad magic number;  It's not a binary log file that can be used by this version of MySQL";
-    return 1;
-  }
-  return 0;
-}
-
- /* 
+/*
     fake_rotate_event() builds a fake (=which does not exist physically in any
     binlog) Rotate event, which contains the name of the binlog we are going to
     send to the slave (because the slave may not know it if it just asked for
@@ -162,41 +142,6 @@ static int send_file(THD *thd)
     DBUG_PRINT("error", (errmsg));
   }
   DBUG_RETURN(error);
-}
-
-
-File open_binlog(IO_CACHE *log, const char *log_file_name,
-		 const char **errmsg)
-{
-  File file;
-  DBUG_ENTER("open_binlog");
-
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
-  {
-    sql_print_error("Failed to open log (\
-file '%s', errno %d)", log_file_name, my_errno);
-    *errmsg = "Could not open log file";	// This will not be sent
-    goto err;
-  }
-  if (init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
-		    MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
-  {
-    sql_print_error("Failed to create a cache on log (\
-file '%s')", log_file_name);
-    *errmsg = "Could not open log file";	// This will not be sent
-    goto err;
-  }
-  if (check_binlog_magic(log,errmsg))
-    goto err;
-  DBUG_RETURN(file);
-
-err:
-  if (file >= 0)
-  {
-    my_close(file,MYF(0));
-    end_io_cache(log);
-  }
-  DBUG_RETURN(-1);
 }
 
 
@@ -1289,7 +1234,7 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 }
 
 
-bool show_binlog_events(THD* thd)
+bool mysql_show_binlog_events(THD* thd)
 {
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlog_events");

@@ -14,27 +14,27 @@ rename table t1 to t5, t2 to t1;
 flush no_write_to_binlog tables;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	95	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	95	Query	1	175	use `test`; create table t1 (a int)
-master-bin.000001	175	Query	1	258	use `test`; insert into t1 values (10)
-master-bin.000001	258	Query	1	338	use `test`; create table t2 (a int)
-master-bin.000001	338	Query	1	441	use `test`; create table t3 (a int) engine=merge union(t1)
-master-bin.000001	441	Query	1	521	use `test`; create table t4 (a int)
-master-bin.000001	521	Query	1	609	use `test`; insert into t4 select * from t3
-master-bin.000001	609	Query	1	697	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	4	Format_desc	1	96	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	96	Query	1	176	use `test`; create table t1 (a int)
+master-bin.000001	176	Query	1	259	use `test`; insert into t1 values (10)
+master-bin.000001	259	Query	1	339	use `test`; create table t2 (a int)
+master-bin.000001	339	Query	1	442	use `test`; create table t3 (a int) engine=merge union(t1)
+master-bin.000001	442	Query	1	522	use `test`; create table t4 (a int)
+master-bin.000001	522	Query	1	610	use `test`; insert into t4 select * from t3
+master-bin.000001	610	Query	1	698	use `test`; rename table t1 to t5, t2 to t1
 select * from t3;
 a
 flush tables;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	95	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	95	Query	1	175	use `test`; create table t1 (a int)
-master-bin.000001	175	Query	1	258	use `test`; insert into t1 values (10)
-master-bin.000001	258	Query	1	338	use `test`; create table t2 (a int)
-master-bin.000001	338	Query	1	441	use `test`; create table t3 (a int) engine=merge union(t1)
-master-bin.000001	441	Query	1	521	use `test`; create table t4 (a int)
-master-bin.000001	521	Query	1	609	use `test`; insert into t4 select * from t3
-master-bin.000001	609	Query	1	697	use `test`; rename table t1 to t5, t2 to t1
-master-bin.000001	697	Query	1	766	use `test`; flush tables
+master-bin.000001	4	Format_desc	1	96	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	96	Query	1	176	use `test`; create table t1 (a int)
+master-bin.000001	176	Query	1	259	use `test`; insert into t1 values (10)
+master-bin.000001	259	Query	1	339	use `test`; create table t2 (a int)
+master-bin.000001	339	Query	1	442	use `test`; create table t3 (a int) engine=merge union(t1)
+master-bin.000001	442	Query	1	522	use `test`; create table t4 (a int)
+master-bin.000001	522	Query	1	610	use `test`; insert into t4 select * from t3
+master-bin.000001	610	Query	1	698	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	698	Query	1	767	use `test`; flush tables
 select * from t3;
 a
