@@ -484,6 +484,13 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect,
   return result;
 }
 
+static void
+invalid_command(const char *cmd)
+{
+  ndbout << "Invalid command: " << cmd << endl;
+  ndbout << "Type HELP for help." << endl << endl;
+}
+
 int 
 CommandInterpreter::execute_impl(const char *_line) 
 {
@@ -493,17 +500,30 @@ CommandInterpreter::execute_impl(const char *_line)
 
   char * line;
   if(_line == NULL) {
-    //   ndbout << endl;
     DBUG_RETURN(false);
   }
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
-  
-  if (emptyString(line) ||
-      line[0] == '#') {
-    DBUG_RETURN(true);
-  }
-  
+
+  int do_continue;
+  do {
+    do_continue= 0;
+    BaseString::trim(line," \t");
+    if (line[0] == 0 ||
+	line[0] == '#')
+    {
+      DBUG_RETURN(true);
+    }
+    // for mysql client compatability remove trailing ';'
+    {
+      unsigned last= strlen(line)-1;
+      if (line[last] == ';')
+      {
+	line[last]= 0;
+	do_continue= 1;
+      }
+    }
+  } while (do_continue);
   // if there is anything in the line proceed
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
@@ -590,8 +610,7 @@ CommandInterpreter::execute_impl(const char *_line)
     int nodeId;
 
     if (! convert(firstToken, nodeId)) {
-      ndbout << "Invalid command: " << _line << endl;
-      ndbout << "Type HELP for help." << endl << endl;
+      invalid_command(_line);
       DBUG_RETURN(true);
     }
 
@@ -640,12 +659,8 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
 					   char* allAfterFirstToken) {
   
   if (emptyString(allAfterFirstToken)) {
-    if (processId == -1) {
-      ndbout << "Expected a command after ALL." << endl;
-    }
-    else {
-      ndbout << "Expected a command after node ID." << endl;
-    }
+    ndbout << "Expected a command after "
+	   << ((processId == -1) ? "ALL." : "node ID.") << endl;
     return;
   }
   
@@ -664,8 +679,7 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   }
   
   if(fun == 0){
-    ndbout << "Invalid command: " << secondToken << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(secondToken);
     return;
   }
   
@@ -846,8 +860,7 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << helpTextDebug;
 #endif
   } else {
-    ndbout << "Invalid argument: " << parameters << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(parameters);
   }
 }
 
