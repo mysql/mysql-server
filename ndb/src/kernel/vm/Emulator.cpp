@@ -202,7 +202,7 @@ NdbShutdown(NdbShutdownType type,
     
     if(type != NST_Normal && type != NST_Restart){
       ndbout << "Error handler shutdown completed - " << exitAbort << endl;
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+#if ( defined VM_TRACE || defined ERROR_INSERT ) && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
       signal(6, SIG_DFL);
       abort();
 #else
