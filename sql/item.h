@@ -34,7 +34,7 @@ public:
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
-             SUBSELECT_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -94,6 +94,11 @@ public:
   CHARSET_INFO *thd_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+
+  // Row emulation
+  virtual uint cols() { return 1; }
+  virtual Item* el(uint i) { return this; }
+  virtual bool check_cols(uint c);
 };
 
 
@@ -520,6 +525,7 @@ public:
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"
+#include "item_row.h"
 
 class Item_copy_string :public Item
 {

@@ -2061,7 +2061,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args))
+  if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
   const_item_cache=args[0]->const_item();
@@ -2094,7 +2094,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args))
+  if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
   set_charset(set_collation);

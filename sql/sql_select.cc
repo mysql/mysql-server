@@ -3340,8 +3340,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(item_cmp_type(func->arguments()[0]->result_type(),
-				       func->arguments()[1]->result_type()));
+      func->set_cmp_func(func->arguments()[0],func->arguments()[1]);
     }
   }
   else if (left_item->eq(field,0) && right_item != value)
@@ -3361,8 +3360,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(item_cmp_type(func->arguments()[0]->result_type(),
-				       func->arguments()[1]->result_type()));
+      func->set_cmp_func(func->arguments()[0], func->arguments()[1]);
     }
   }
 }
@@ -3702,6 +3700,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				 item->name,table,item->charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->charset());
+      case ROW_RESULT:
+	// This case should never be choosen
+	DBUG_ASSERT(0);
+	return 0;
       }
     }
     thd->fatal_error=1;
@@ -3757,6 +3759,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       else
 	new_field= new Field_string(item->max_length,maybe_null,
 				    item->name,table,item->str_value.charset());
+      break;
+    case ROW_RESULT: 
+      // This case should never be choosen
+      DBUG_ASSERT(0);
       break;
     }
     if (copy_func)

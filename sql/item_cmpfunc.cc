@@ -23,7 +23,7 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-
+#include "assert.h"
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -107,7 +107,7 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[1]))
       {
-	cmp_func= &Item_bool_func2::compare_int;  // Works for all types.
+	cmp_func= new Compare_func_int(this);  // Works for all types.
 	return;
       }
     }
@@ -119,88 +119,115 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[0]))
       {
-	cmp_func= &Item_bool_func2::compare_int;  // Works for all types.
+	cmp_func= new Compare_func_int(this);  // Works for all types.
 	return;
       }
     }
   }
-  set_cmp_func(item_cmp_type(args[0]->result_type(),args[1]->result_type()));
+  set_cmp_func(args[0], args[1]);
 }
 
-
-void Item_bool_func2::set_cmp_func(Item_result type)
+Compare_func* Compare_func::get_compare_func(Item_bool_func2 *owner,
+					     Item *a, Item* b)
 {
-  switch (type) {
+  switch (item_cmp_type(a->result_type(), b->result_type()))
+  {
   case STRING_RESULT:
-    cmp_func=&Item_bool_func2::compare_string;
-    break;
+    return new Compare_func_string(owner);
   case REAL_RESULT:
-    cmp_func=&Item_bool_func2::compare_real;
-    break;
+    return new Compare_func_real(owner);
   case INT_RESULT:
-    cmp_func=&Item_bool_func2::compare_int;
-    break;
+    return new Compare_func_int(owner);
+  case ROW_RESULT:
+    return new Compare_func_row(owner, a, b);
   }
+  return 0;
 }
 
+Compare_func_row::Compare_func_row(Item_bool_func2 *owner, Item *a, Item* b):
+  Compare_func(owner)
+{
+  uint n= a->cols();
+  if (n != b->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), n);
+    cmp_func= 0;
+    return;
+  }
+  cmp_func= (Compare_func **) sql_alloc(sizeof(Compare_func*)*n);
+  for (uint i=0; i < n; i++)
+    cmp_func[i]= Compare_func::get_compare_func(owner, a->el(i), b->el(i));
+}
 
-int Item_bool_func2::compare_string()
+int Compare_func_string::compare(Item *a, Item *b)
 {
   String *res1,*res2;
-  if ((res1=args[0]->val_str(&tmp_value1)))
+  if ((res1= a->val_str(&owner->tmp_value1)))
   {
-    if ((res2=args[1]->val_str(&tmp_value2)))
+    if ((res2= b->val_str(&owner->tmp_value2)))
     {
-      null_value=0;
-      return binary() ? stringcmp(res1,res2) : sortcmp(res1,res2);
+      owner->null_value= 0;
+      return owner->binary() ? stringcmp(res1,res2) : sortcmp(res1,res2);
     }
   }
-  null_value=1;
+  owner->null_value= 1;
   return -1;
 }
 
-int Item_bool_func2::compare_real()
+int Compare_func_real::compare(Item *a, Item *b)
 {
-  double val1=args[0]->val();
-  if (!args[0]->null_value)
+  double val1= a->val();
+  if (!a->null_value)
   {
-    double val2=args[1]->val();
-    if (!args[1]->null_value)
+    double val2= b->val();
+    if (!b->null_value)
     {
-      null_value=0;
+      owner->null_value= 0;
       if (val1 < val2)	return -1;
       if (val1 == val2) return 0;
       return 1;
     }
   }
-  null_value=1;
+  owner->null_value= 1;
   return -1;
 }
 
 
-int Item_bool_func2::compare_int()
+int Compare_func_int::compare(Item *a, Item *b)
 {
-  longlong val1=args[0]->val_int();
-  if (!args[0]->null_value)
+  longlong val1= a->val_int();
+  if (!a->null_value)
   {
-    longlong val2=args[1]->val_int();
-    if (!args[1]->null_value)
+    longlong val2= b->val_int();
+    if (!b->null_value)
     {
-      null_value=0;
+      owner->null_value= 0;
       if (val1 < val2)	return -1;
       if (val1 == val2)   return 0;
       return 1;
     }
   }
-  null_value=1;
+  owner->null_value= 1;
   return -1;
 }
 
-
+int Compare_func_row::compare(Item *a, Item *b)
+{
+  int res= 0;
+  uint n= a->cols();
+  for (uint i= 0; i<n; i++)
+  {
+    if ((res= cmp_func[i]->compare(a->el(i), b->el(i))))
+      return res;
+    if (owner->null_value)
+      return -1;
+  }
+  return res;
+}
 
 longlong Item_func_eq::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value == 0 ? 1 : 0;
 }
 
@@ -242,6 +269,11 @@ longlong Item_func_equal::val_int()
       return test(args[0]->null_value && args[1]->null_value);
     return test(val1 == val2);
   }
+  case ROW_RESULT:
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "row", "<=>");
+    return 0;
+  }
   }
   return 0;					// Impossible
 }
@@ -249,34 +281,34 @@ longlong Item_func_equal::val_int()
 
 longlong Item_func_ne::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value != 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_ge::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value >= 0 ? 1 : 0;
 }
 
 
 longlong Item_func_gt::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value > 0 ? 1 : 0;
 }
 
 longlong Item_func_le::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value <= 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_lt::val_int()
 {
-  int value=(this->*cmp_func)();
+  int value= cmp_func->compare(args[0], args[1]);
   return value < 0 && !null_value ? 1 : 0;
 }
 
@@ -625,7 +657,7 @@ double
 Item_func_nullif::val()
 {
   double value;
-  if (!(this->*cmp_func)() || null_value)
+  if (!cmp_func->compare(args[0], args[1]) || null_value)
   {
     null_value=1;
     return 0.0;
@@ -639,7 +671,7 @@ longlong
 Item_func_nullif::val_int()
 {
   longlong value;
-  if (!(this->*cmp_func)() || null_value)
+  if (!cmp_func->compare(args[0], args[1]) || null_value)
   {
     null_value=1;
     return 0;
@@ -653,7 +685,7 @@ String *
 Item_func_nullif::val_str(String *str)
 {
   String *res;
-  if (!(this->*cmp_func)() || null_value)
+  if (!cmp_func->compare(args[0], args[1]) || null_value)
   {
     null_value=1;
     return 0;
@@ -732,6 +764,11 @@ Item *Item_func_case::find_item(String *str)
       }
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
+      break;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      break;
     }
   }
   // No, WHEN clauses all missed, return ELSE expression
@@ -794,8 +831,10 @@ double Item_func_case::val()
 bool
 Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (first_expr && first_expr->fix_fields(thd, tables, &first_expr) ||
-      else_expr && else_expr->fix_fields(thd, tables, &else_expr))
+  if (first_expr && (first_expr->check_cols(1) ||
+		     first_expr->fix_fields(thd, tables, &first_expr)) ||
+      else_expr && (else_expr->check_cols(1) ||
+		    else_expr->fix_fields(thd, tables, &else_expr)))
     return 1;
   if (Item_func::fix_fields(thd, tables, ref))
     return 1;
@@ -1037,6 +1076,10 @@ void Item_func_in::fix_length_and_dec()
     case REAL_RESULT:
       array= new in_double(arg_count);
       break;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      break;
     }
     uint j=0;
     for (uint i=0 ; i < arg_count ; i++)
@@ -1062,6 +1105,10 @@ void Item_func_in::fix_length_and_dec()
       break;
     case REAL_RESULT:
       in_item=	  new cmp_item_real;
+      break;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
       break;
     }
   }
@@ -1173,7 +1220,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     if (abort_on_null)
       item->top_level_item();
-    if (item->fix_fields(thd, tables, li.ref()))
+    if (item->check_cols(1) || item->fix_fields(thd, tables, li.ref()))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;
@@ -1475,7 +1522,9 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (args[0]->fix_fields(thd, tables, args) ||
+  if (args[0]->check_cols(1) ||
+      args[1]->check_cols(1) ||
+      args[0]->fix_fields(thd, tables, args) ||
       args[1]->fix_fields(thd,tables, args + 1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;

@@ -241,10 +241,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	SUBSELECT	t8	const	PRIMARY	PRIMARY	35	const	1	
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT * FROM t8 WHERE
 pseudo='joce');
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 pseudo
 joce

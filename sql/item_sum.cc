@@ -22,7 +22,7 @@
 #endif
 
 #include "mysql_priv.h"
-
+#include "assert.h"
 Item_sum::Item_sum(List<Item> &list)
 {
   arg_count=list.elements;
@@ -127,7 +127,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->fix_fields(thd, tables, args + i))
+    if (args[i]->check_cols(1) || args[i]->fix_fields(thd, tables, args + i))
       return 1;
     if (decimals < args[i]->decimals)
       decimals=args[i]->decimals;
@@ -153,7 +153,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
-  if (item->fix_fields(thd, tables, args))
+  if (item->check_cols(1) || item->fix_fields(thd, tables, args))
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
@@ -341,6 +341,10 @@ double Item_sum_hybrid::val()
     return (double) sum_int;
   case REAL_RESULT:
     return sum;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0;
   }
   return 0;					// Keep compiler happy
 }
@@ -371,6 +375,10 @@ Item_sum_hybrid::val_str(String *str)
       str->set((ulonglong) sum_int,thd_charset());
     else
       str->set((longlong) sum_int,thd_charset());
+    break;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
     break;
   }
   return str;					// Keep compiler happy
@@ -414,6 +422,10 @@ bool Item_sum_min::add()
     }
   }
   break;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    break;
   }
   return 0;
 }
@@ -457,6 +469,11 @@ bool Item_sum_max::add()
     }
   }
   break;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    break;
+
   }
   return 0;
 }
