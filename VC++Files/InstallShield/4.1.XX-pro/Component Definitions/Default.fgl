@@ -1,0 +1,42 @@
+[<PROGRAMFILES>\<COMMONFILES>]
+DISPLAYTEXT=Common Files Folder
+TYPE=TEXTSUBFIXED
+fulldirectory=
+
+[<WINDIR>\<WINSYSDIR>]
+DISPLAYTEXT=Windows System Folder
+TYPE=TEXTSUBFIXED
+fulldirectory=
+
+[USERDEFINED]
+DISPLAYTEXT=Script-defined Folders
+TYPE=USERSTART
+fulldirectory=
+
+[<PROGRAMFILES>]
+DISPLAYTEXT=Program Files Folder
+SubDir0=<PROGRAMFILES>\<COMMONFILES>
+TYPE=TEXTSUBFIXED
+fulldirectory=
+
+[<TARGETDIR>]
+DISPLAYTEXT=General Application Destination
+TYPE=TEXTSUBFIXED
+fulldirectory=
+
+[<WINDIR>]
+DISPLAYTEXT=Windows Operating System
+SubDir0=<WINDIR>\<WINSYSDIR>
+TYPE=TEXTSUBFIXED
+fulldirectory=
+
+[TopDir]
+SubDir0=<WINDIR>
+SubDir1=<PROGRAMFILES>
+SubDir2=<TARGETDIR>
+SubDir3=USERDEFINED
+
+[General]
+Type=FILELIST
+Version=1.00.000
+
