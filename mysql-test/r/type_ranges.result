@@ -133,7 +133,7 @@ ALTER TABLE t1
 add new_field char(10) default "new" not null,
 change blob_col new_blob_col varchar(20),
 change date_field date_field char(10),
-alter column string set default "new default",
+alter column string set default "newdefault",
 alter short drop default,
 DROP INDEX utiny,
 DROP INDEX ushort,
@@ -211,7 +211,7 @@ update t2 set string="changed" where auto=16;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL	NO	MUL	NULL	auto_increment	select,insert,update,references	
-string	char(10)	latin1_swedish_ci	YES		new defaul		select,insert,update,references	
+string	char(10)	latin1_swedish_ci	YES		newdefault		select,insert,update,references	
 tiny	tinyint(4)	NULL	NO	MUL	0		select,insert,update,references	
 short	smallint(6)	NULL	NO	MUL	0		select,insert,update,references	
 medium	mediumint(8)	NULL	NO	MUL	0		select,insert,update,references	
@@ -237,7 +237,7 @@ new_field	char(10)	latin1_swedish_ci	NO		new		select,insert,update,references
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL	NO		0		select,insert,update,references	
-string	char(10)	latin1_swedish_ci	YES		new defaul		select,insert,update,references	
+string	char(10)	latin1_swedish_ci	YES		newdefault		select,insert,update,references	
 tiny	tinyint(4)	NULL	NO		0		select,insert,update,references	
 short	smallint(6)	NULL	NO		0		select,insert,update,references	
 medium	mediumint(8)	NULL	NO		0		select,insert,update,references	

@@ -2966,8 +2966,7 @@ bool Item_func_group_concat::setup(THD *thd)
       DBUG_RETURN(TRUE);
     if (item->const_item())
     {
-      (void) item->val_int();
-      if (item->null_value)
+      if (item->is_null())
       {
         always_null= 1;
         DBUG_RETURN(FALSE);
