@@ -1529,6 +1529,12 @@ void Execute_load_log_event::pack_info(String* packet)
 #endif
 
 #ifndef MYSQL_CLIENT
+
+int ignored_error_code(int err_code)
+{
+  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+}
+
 int Query_log_event::exec_event(struct st_master_info* mi)
 {
   int expected_error,actual_error = 0;
@@ -1551,11 +1557,13 @@ int Query_log_event::exec_event(struct st_master_info* mi)
       sanity check to make sure the master did not get a really bad
       error on the query
     */
-    if (!check_expected_error(thd, (expected_error = error_code)))
+    if (ignored_error_code((expected_error=error_code)) ||
+	!check_expected_error(thd, expected_error))
     {
       mysql_parse(thd, thd->query, q_len);
       if (expected_error !=
-	  (actual_error = thd->net.last_errno) && expected_error)
+	  (actual_error = thd->net.last_errno) && expected_error &&
+	  !ignored_error_code(actual_error))
       {
 	const char* errmsg = "Slave: did not get the expected error\
  running query from master - expected: '%s' (%d), got '%s' (%d)"; 
@@ -1565,7 +1573,8 @@ int Query_log_event::exec_event(struct st_master_info* mi)
 			actual_error);
 	thd->query_error = 1;
       }
-      else if (expected_error == actual_error)
+      else if (expected_error == actual_error ||
+	       ignored_error_code(actual_error))
       {
 	thd->query_error = 0;
 	*last_slave_error = 0;
