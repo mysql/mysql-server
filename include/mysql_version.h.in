@@ -19,6 +19,7 @@
 #define MYSQL_PORT			@MYSQL_TCP_PORT@
 #define MYSQL_UNIX_ADDR			"@MYSQL_UNIX_ADDR@"
 #define MYSQL_CONFIG_NAME		"my"
+#define MYSQL_COMPILATION_COMMENT	"@COMPILATION_COMMENT@"
 
 /* mysqld compile time options */
 #endif /* _CUSTOMCONFIG_ */
