@@ -109,7 +109,7 @@ static int get_options(int *argc,char ***argv)
 int main(int argc, char **argv)
 {
   struct hostent *hpaddr;
-  u_long taddr;
+  in_addr_t taddr;
   char *ip,**q;
   int error=0;
 
