@@ -815,6 +815,8 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
 			     const int noerrcodes,
 			     const int temporaryMask)
 {
+  DBUG_ENTER("NdbDictInterface::dictSignal");
+  DBUG_PRINT("enter", ("useMasterNodeId: %d", useMasterNodeId));
   for(Uint32 i = 0; i<RETRIES; i++){
     //if (useMasterNodeId == 0)
     m_buffer.clear();
@@ -834,7 +836,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     if(aNodeId == 0){
       m_error.code = 4009;
       m_transporter->unlock_mutex();
-      return -1;
+      DBUG_RETURN(-1);
     }
     {
       int r;
@@ -870,7 +872,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     
     if(m_waiter.m_state == NO_WAIT && m_error.code == 0){
       // Normal return
-      return 0;
+      DBUG_RETURN(0);
     }
     
     /**
@@ -893,9 +895,9 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
 	continue;
     }
 
-    return -1;
+    DBUG_RETURN(-1);
   }
-  return -1; 
+  DBUG_RETURN(-1);
 }
 
 /*****************************************************************
