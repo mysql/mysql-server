@@ -1401,6 +1401,7 @@ mysql_init(MYSQL *mysql)
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
+  strmov(mysql->net.sqlstate, not_error_sqlstate);
   /*
     By default, we are a replication pivot. The caller must reset it
     after we return if this is not the case.
