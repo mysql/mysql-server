@@ -2148,8 +2148,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
     CHARSET_INFO *default_collation;
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
-    if (!default_collation || !my_charset_same(default_charset_info,
-					       default_collation))
+    if (!default_collation)
+    {
+      sql_print_error(ER(ER_UNKNOWN_COLLATION), default_collation_name);
+      return 1;
+    }
+    if (!my_charset_same(default_charset_info, default_collation))
     {
       sql_print_error(ER(ER_COLLATION_CHARSET_MISMATCH),
 		      default_collation_name,
