@@ -2830,6 +2830,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -2861,6 +2862,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -2892,6 +2894,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -2923,6 +2926,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -2954,6 +2958,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -2985,6 +2990,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3016,6 +3022,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3047,6 +3054,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3078,6 +3086,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3109,6 +3118,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3140,6 +3150,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3171,6 +3182,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3202,6 +3214,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3233,6 +3246,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3264,6 +3278,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3295,6 +3310,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3326,6 +3342,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3357,6 +3374,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3388,6 +3406,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3419,6 +3438,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3450,6 +3470,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3481,6 +3502,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3512,6 +3534,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3543,6 +3566,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3574,6 +3598,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3605,6 +3630,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3636,6 +3662,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3667,6 +3694,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_utf8,
     my_strncasecmp_utf8,
     my_hash_caseup_utf8,/* hash_caseup */
+    my_hash_sort_utf8,	/* hash_sort   */
     0
   },
 #endif
@@ -3698,6 +3726,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3729,6 +3758,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3760,6 +3790,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3791,6 +3822,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3822,6 +3854,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3853,6 +3886,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   },
 #endif
@@ -3885,6 +3919,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
     0
   }
 };

@@ -1754,6 +1754,26 @@ uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
   return nr;
 }
 
+
+void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
+{
+  my_wc_t wc;
+  int res;
+  const uchar *e=s+slen;
+
+  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  {
+    int plane = (wc>>8) & 0xFF;
+    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].sort : wc;
+    n1[0]^= (((n1[0] & 63)+n2[0])*(wc & 0xFF))+ (n1[0] << 8);
+    n2[0]+=3;
+    n1[0]^= (((n1[0] & 63)+n2[0])*(wc >> 8))+ (n1[0] << 8);
+    n2[0]+=3;
+    s+=res;
+  }
+}
+
+
 void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
 {
   my_caseup_utf8(cs, s, strlen(s));
