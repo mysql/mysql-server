@@ -39,7 +39,14 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
   
   /* Try it as aaa.bbb.ccc.ddd. */
   dst->s_addr = inet_addr(address);
-  if (dst->s_addr != INADDR_NONE) {
+  if (dst->s_addr != 
+#ifdef INADDR_NONE
+      INADDR_NONE
+#else
+      -1
+#endif
+      )
+  {
     return 0;
   }
   return -1;
