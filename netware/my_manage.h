@@ -34,11 +34,8 @@
 	
 ******************************************************************************/
 
-#define ARG_MAX			50
+#define ARG_BUF			10
 #define TRY_MAX			5
-
-#define init_args(al)   _init_args(&al);
-#define free_args(al)   _free_args(&al);
 
 /******************************************************************************
 
@@ -50,9 +47,11 @@ typedef struct
 {
   
   int argc;
-  char *argv[ARG_MAX];
+  char **argv;
 
-} arg_list_t, * arg_list;
+  size_t size;
+
+} arg_list_t;
 
 /******************************************************************************
 
@@ -66,18 +65,23 @@ typedef struct
 	
 ******************************************************************************/
 
-void _init_args(arg_list *);
-void add_arg(arg_list, char *, ...);
-void _free_args(arg_list *);
+void init_args(arg_list_t *);
+void add_arg(arg_list_t *, char *, ...);
+void free_args(arg_list_t *);
+
 int sleep_until_file_exists(char *);
 int sleep_until_file_deleted(char *);
 int wait_for_server_start(char *, char *, char *, int);
-int spawn(char *, arg_list, int, char *, char *, char *);
+
+int spawn(char *, arg_list_t *, int, char *, char *, char *);
+
 int stop_server(char *, char *, char *, int, char *);
 pid_t get_server_pid(char *);
 void kill_server(pid_t pid);
+
 void del_tree(char *);
 int removef(char *, ...);
+
 void get_basedir(char *, char *);
 
 #endif /* _MY_MANAGE */

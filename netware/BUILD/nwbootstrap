@@ -129,7 +129,7 @@ else
 fi
 
 echo "creating ChangeLog..."
-bk changes -v -r$rev > $target_dir/ChangeLog
+bk changes -v -r$rev..$revision > $target_dir/ChangeLog
 
 # add the latest manual
 if test -d $doc_dir

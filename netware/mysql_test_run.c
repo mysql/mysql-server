@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "my_config.h"
 #include "my_manage.h"
 
 /******************************************************************************
@@ -178,7 +179,7 @@ void report_stats()
 ******************************************************************************/
 void install_db(char *datadir)
 {
-  arg_list al;
+  arg_list_t al;
   int err, i;
   char input[PATH_MAX];
   char output[PATH_MAX];
@@ -190,23 +191,23 @@ void install_db(char *datadir)
   snprintf(error, PATH_MAX, "%s/install.err", datadir);
   
   // args
-  init_args(al);
-  add_arg(al, mysqld_file);
-  add_arg(al, "--bootstrap");
-  add_arg(al, "--skip-grant-tables");
-  add_arg(al, "--basedir=%s", base_dir);
-  add_arg(al, "--datadir=%s", datadir);
-  add_arg(al, "--skip-innodb");
-  add_arg(al, "--skip-bdb");
+  init_args(&al);
+  add_arg(&al, mysqld_file);
+  add_arg(&al, "--bootstrap");
+  add_arg(&al, "--skip-grant-tables");
+  add_arg(&al, "--basedir=%s", base_dir);
+  add_arg(&al, "--datadir=%s", datadir);
+  add_arg(&al, "--skip-innodb");
+  add_arg(&al, "--skip-bdb");
   
   // spawn
-  if ((err = spawn(mysqld_file, al, TRUE, input, output, error)) != 0)
+  if ((err = spawn(mysqld_file, &al, TRUE, input, output, error)) != 0)
   {
     die("Unable to create database.");
   }
   
   // free args
-  free_args(al);
+  free_args(&al);
 }
 
 /******************************************************************************
@@ -261,7 +262,7 @@ void mysql_install_db()
 ******************************************************************************/
 void start_master()
 {
-  arg_list al;
+  arg_list_t al;
   int err, i;
   char master_out[PATH_MAX];
   char master_err[PATH_MAX];
@@ -297,32 +298,32 @@ void start_master()
            mysql_test_dir, restarts);
   
   // args
-  init_args(al);
-  add_arg(al, "%s", mysqld_file);
-  add_arg(al, "--no-defaults");
-  add_arg(al, "--log-bin=master-bin");
-  add_arg(al, "--server-id=1");
-  add_arg(al, "--basedir=%s", base_dir);
-  add_arg(al, "--port=%u", master_port);
-  add_arg(al, "--local-infile");
-  add_arg(al, "--core");
-  add_arg(al, "--datadir=%s", master_dir);
-  add_arg(al, "--pid-file=%s", master_pid);
-  add_arg(al, "--character-sets-dir=%s", char_dir);
-  add_arg(al, "--tmpdir=%s", mysql_tmp_dir);
-  add_arg(al, "--language=%s", lang_dir);
+  init_args(&al);
+  add_arg(&al, "%s", mysqld_file);
+  add_arg(&al, "--no-defaults");
+  add_arg(&al, "--log-bin=master-bin");
+  add_arg(&al, "--server-id=1");
+  add_arg(&al, "--basedir=%s", base_dir);
+  add_arg(&al, "--port=%u", master_port);
+  add_arg(&al, "--local-infile");
+  add_arg(&al, "--core");
+  add_arg(&al, "--datadir=%s", master_dir);
+  add_arg(&al, "--pid-file=%s", master_pid);
+  add_arg(&al, "--character-sets-dir=%s", char_dir);
+  add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
+  add_arg(&al, "--language=%s", lang_dir);
   
   // $MASTER_40_ARGS
-  add_arg(al, "--rpl-recovery-rank=1");
-  add_arg(al, "--init-rpl-role=master");
+  add_arg(&al, "--rpl-recovery-rank=1");
+  add_arg(&al, "--init-rpl-role=master");
   
   // $SMALL_SERVER
-  add_arg(al, "-O");
-  add_arg(al, "key_buffer_size=1M");
-  add_arg(al, "-O");
-  add_arg(al, "sort_buffer=256K");
-  add_arg(al, "-O");
-  add_arg(al, "max_heap_table_size=1M");
+  add_arg(&al, "-O");
+  add_arg(&al, "key_buffer_size=1M");
+  add_arg(&al, "-O");
+  add_arg(&al, "sort_buffer=256K");
+  add_arg(&al, "-O");
+  add_arg(&al, "max_heap_table_size=1M");
 
   // $EXTRA_MASTER_OPT
   if (master_opt[0] != NULL)
@@ -333,7 +334,7 @@ void start_master()
 
     while(p)
     {
-      add_arg(al, "%s", p);
+      add_arg(&al, "%s", p);
       
       p = (char *)strtok(NULL, " \t");
     }
@@ -343,7 +344,7 @@ void start_master()
   remove(master_pid);
 
   // spawn
-  if ((err = spawn(mysqld_file, al, FALSE, NULL, master_out, master_err)) == 0)
+  if ((err = spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
   {
     sleep_until_file_exists(master_pid);
     
@@ -362,7 +363,7 @@ void start_master()
   }
   
   // free_args
-  free_args(al);
+  free_args(&al);
 }
 
 /******************************************************************************
@@ -374,7 +375,7 @@ void start_master()
 ******************************************************************************/
 void start_slave()
 {
-  arg_list al;
+  arg_list_t al;
   int err, i;
   char slave_out[PATH_MAX];
   char slave_err[PATH_MAX];
@@ -444,34 +445,34 @@ void start_slave()
            mysql_test_dir, restarts);
   
   // args
-  init_args(al);
-  add_arg(al, "%s", mysqld_file);
-  add_arg(al, "--no-defaults");
-  add_arg(al, "--log-bin=slave-bin");
-  add_arg(al, "--relay_log=slave-relay-bin");
-  add_arg(al, "--basedir=%s", base_dir);
-  add_arg(al, "--port=%u", slave_port);
-  add_arg(al, "--datadir=%s", slave_dir);
-  add_arg(al, "--pid-file=%s", slave_pid);
-  add_arg(al, "--character-sets-dir=%s", char_dir);
-  add_arg(al, "--core");
-  add_arg(al, "--tmpdir=%s", mysql_tmp_dir);
-  add_arg(al, "--language=%s", lang_dir);
+  init_args(&al);
+  add_arg(&al, "%s", mysqld_file);
+  add_arg(&al, "--no-defaults");
+  add_arg(&al, "--log-bin=slave-bin");
+  add_arg(&al, "--relay_log=slave-relay-bin");
+  add_arg(&al, "--basedir=%s", base_dir);
+  add_arg(&al, "--port=%u", slave_port);
+  add_arg(&al, "--datadir=%s", slave_dir);
+  add_arg(&al, "--pid-file=%s", slave_pid);
+  add_arg(&al, "--character-sets-dir=%s", char_dir);
+  add_arg(&al, "--core");
+  add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
+  add_arg(&al, "--language=%s", lang_dir);
   
-  add_arg(al, "--exit-info=256");
-  add_arg(al, "--log-slave-updates");
-  add_arg(al, "--init-rpl-role=slave");
-  add_arg(al, "--skip-innodb");
-  add_arg(al, "--skip-slave-start");
-  add_arg(al, "--slave-load-tmpdir=../../var/tmp");
+  add_arg(&al, "--exit-info=256");
+  add_arg(&al, "--log-slave-updates");
+  add_arg(&al, "--init-rpl-role=slave");
+  add_arg(&al, "--skip-innodb");
+  add_arg(&al, "--skip-slave-start");
+  add_arg(&al, "--slave-load-tmpdir=../../var/tmp");
   
-  add_arg(al, "--report-user=%s", user);
-	add_arg(al, "--report-host=127.0.0.1");
-  add_arg(al, "--report-port=%u", slave_port);
+  add_arg(&al, "--report-user=%s", user);
+	add_arg(&al, "--report-host=127.0.0.1");
+  add_arg(&al, "--report-port=%u", slave_port);
 
-  add_arg(al, "--master-retry-count=10");
-  add_arg(al, "-O");
-  add_arg(al, "slave_net_timeout=10");
+  add_arg(&al, "--master-retry-count=10");
+  add_arg(&al, "-O");
+  add_arg(&al, "slave_net_timeout=10");
 
   // slave master info
   if (slave_master_info[0] != NULL)
@@ -482,29 +483,29 @@ void start_slave()
 
     while(p)
     {
-      add_arg(al, "%s", p);
+      add_arg(&al, "%s", p);
       
       p = (char *)strtok(NULL, " \t");
     }
   }
   else
   {
-    add_arg(al, "--master-user=%s", user);
-    add_arg(al, "--master-password=%s", password);
-    add_arg(al, "--master-host=127.0.0.1");
-    add_arg(al, "--master-port=%u", master_port);
-    add_arg(al, "--master-connect-retry=1");
-    add_arg(al, "--server-id=2");
-    add_arg(al, "--rpl-recovery-rank=2");
+    add_arg(&al, "--master-user=%s", user);
+    add_arg(&al, "--master-password=%s", password);
+    add_arg(&al, "--master-host=127.0.0.1");
+    add_arg(&al, "--master-port=%u", master_port);
+    add_arg(&al, "--master-connect-retry=1");
+    add_arg(&al, "--server-id=2");
+    add_arg(&al, "--rpl-recovery-rank=2");
   }
   
   // small server
-  add_arg(al, "-O");
-  add_arg(al, "key_buffer_size=1M");
-  add_arg(al, "-O");
-  add_arg(al, "sort_buffer=256K");
-  add_arg(al, "-O");
-  add_arg(al, "max_heap_table_size=1M");
+  add_arg(&al, "-O");
+  add_arg(&al, "key_buffer_size=1M");
+  add_arg(&al, "-O");
+  add_arg(&al, "sort_buffer=256K");
+  add_arg(&al, "-O");
+  add_arg(&al, "max_heap_table_size=1M");
 
   // opt args
   if (slave_opt[0] != NULL)
@@ -515,7 +516,7 @@ void start_slave()
 
     while(p)
     {
-      add_arg(al, "%s", p);
+      add_arg(&al, "%s", p);
       
       p = (char *)strtok(NULL, " \t");
     }
@@ -525,7 +526,7 @@ void start_slave()
   remove(slave_pid);
 
   // spawn
-  if ((err = spawn(mysqld_file, al, FALSE, NULL, slave_out, slave_err)) == 0)
+  if ((err = spawn(mysqld_file, &al, FALSE, NULL, slave_out, slave_err)) == 0)
   {
     sleep_until_file_exists(slave_pid);
     
@@ -544,7 +545,7 @@ void start_slave()
   }
   
   // free args
-  free_args(al);
+  free_args(&al);
 }
 
 /******************************************************************************
@@ -749,7 +750,7 @@ void run_test(char *test)
     char out_file[PATH_MAX];
     char err_file[PATH_MAX];
     int err;
-    arg_list al;
+    arg_list_t al;
     NXTime_t start, stop;
     
     // skip slave?
@@ -812,25 +813,25 @@ void run_test(char *test)
     log("%-46s ", test);
     
     // args
-    init_args(al);
-    add_arg(al, "%s", mysqltest_file);
-    add_arg(al, "--no-defaults");
-    add_arg(al, "--port=%u", master_port);
-    add_arg(al, "--database=%s", db);
-    add_arg(al, "--user=%s", user);
-    add_arg(al, "--password=%s", password);
-    add_arg(al, "--silent");
-    add_arg(al, "--basedir=%s/", mysql_test_dir);
-    add_arg(al, "--host=127.0.0.1");
-    add_arg(al, "-v");
-    add_arg(al, "-R");
-    add_arg(al, "%s", result_file);
+    init_args(&al);
+    add_arg(&al, "%s", mysqltest_file);
+    add_arg(&al, "--no-defaults");
+    add_arg(&al, "--port=%u", master_port);
+    add_arg(&al, "--database=%s", db);
+    add_arg(&al, "--user=%s", user);
+    add_arg(&al, "--password=%s", password);
+    add_arg(&al, "--silent");
+    add_arg(&al, "--basedir=%s/", mysql_test_dir);
+    add_arg(&al, "--host=127.0.0.1");
+    add_arg(&al, "-v");
+    add_arg(&al, "-R");
+    add_arg(&al, "%s", result_file);
     
     // start timer
     NXGetTime(NX_SINCE_BOOT, NX_USECONDS, &start);
     
     // spawn
-    err = spawn(mysqltest_file, al, TRUE, test_file, out_file, err_file);
+    err = spawn(mysqltest_file, &al, TRUE, test_file, out_file, err_file);
     
     // stop timer
     NXGetTime(NX_SINCE_BOOT, NX_USECONDS, &stop);
@@ -840,7 +841,7 @@ void run_test(char *test)
     total_time += elapsed;
     
     // free args
-    free_args(al);
+    free_args(&al);
     
     if (err == 0)
     {
@@ -1055,9 +1056,6 @@ void setup(char *file)
   
   // enviornment
   setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
-  
-  // install test databases
-  mysql_install_db();
 }
 
 /******************************************************************************
@@ -1067,10 +1065,16 @@ void setup(char *file)
 ******************************************************************************/
 int main(int argc, char **argv)
 {
-  log("Initializing Tests...\n");
-  
   // setup
   setup(argv[0]);
+  
+  // header
+  log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  
+  log("Initializing Tests...\n");
+  
+  // install test databases
+  mysql_install_db();
   
   log("Starting Tests...\n");
   
