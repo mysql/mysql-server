@@ -29,13 +29,13 @@ ndbapi/ndberror.h
 
 mgmapiinclude_HEADERS = \
 mgmapi/mgmapi.h \
-mgmapi/mgmapi_debug.h
+mgmapi/mgmapi_debug.h \
+mgmapi/mgmapi_config_parameters.h \
+mgmapi/mgmapi_config_parameters_debug.h
 
 noinst_HEADERS = \
 ndb_global.h \
-ndb_net.h \
-mgmapi/mgmapi_config_parameters.h \
-mgmapi/mgmapi_config_parameters_debug.h
+ndb_net.h
 
 EXTRA_DIST = debugger editline kernel logger mgmcommon \
 portlib transporter util
