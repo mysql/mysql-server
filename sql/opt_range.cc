@@ -456,7 +456,7 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
   SEL_ARG *tmp;
   if (type != KEY_RANGE)
   {
-    if(!(tmp=new SEL_ARG(type)))
+    if (!(tmp=new SEL_ARG(type)))
       return 0;			// out of memory
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
@@ -464,7 +464,7 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
   }
   else
   {
-    if(!(tmp=new SEL_ARG(field,part, min_value,max_value,
+    if (!(tmp=new SEL_ARG(field,part, min_value,max_value,
 			 min_flag, max_flag, maybe_flag)))
       return 0;			// out of memory
     tmp->parent=new_parent;
@@ -920,7 +920,7 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
       }
       else {
 	// This key may be used later
-	if(!(sel_arg=new SEL_ARG(SEL_ARG::MAYBE_KEY))) 
+	if (!(sel_arg=new SEL_ARG(SEL_ARG::MAYBE_KEY))) 
 	  DBUG_RETURN(0);	// out of memory
       }
       sel_arg->part=(uchar) key_part->part;
@@ -1488,7 +1488,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	SEL_ARG *key2_next=key2->next;
 	if (key2_shared)
 	{
-	  if(!(key2=new SEL_ARG(*key2)))
+	  if (!(key2=new SEL_ARG(*key2)))
 	    return 0;		// out of memory
 	  key2->increment_use_count(key1->use_count+1);
 	  key2->next=key2_next;			// New copy of key2
@@ -2333,7 +2333,7 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
   }
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
-  if(!(range= new QUICK_RANGE(param->min_key,
+  if (!(range= new QUICK_RANGE(param->min_key,
 			      (uint) (tmp_min_key - param->min_key),
 			      param->max_key,
 			      (uint) (tmp_max_key - param->max_key),

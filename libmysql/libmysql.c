@@ -132,8 +132,8 @@ void mysql_once_init(void)
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(THREAD) && !defined(__WIN__)
-    (void) signal(SIGPIPE,SIG_IGN);
+#if defined(SIGPIPE) && !defined(__WIN__)
+    (void) signal(SIGPIPE, SIG_IGN);
 #endif
   }
 #ifdef THREAD
@@ -1186,6 +1186,11 @@ const char * STDCALL
 mysql_get_client_info(void)
 {
   return (char*) MYSQL_SERVER_VERSION;
+}
+
+ulong STDCALL mysql_get_client_version(void)
+{
+  return MYSQL_VERSION_ID;
 }
 
 my_bool STDCALL mysql_eof(MYSQL_RES *res)

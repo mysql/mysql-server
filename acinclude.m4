@@ -879,9 +879,10 @@ AC_MSG_CHECKING(for OpenSSL)
       echo "You can't use the --all-static link option when using openssl."
       exit 1
     fi
+    NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
+  else
     AC_MSG_RESULT(no)
   fi
-  NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   AC_SUBST(openssl_libs)
   AC_SUBST(openssl_includes)
 ])

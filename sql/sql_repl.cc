@@ -730,7 +730,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
               to p, no digits were found, error. If it contains '\0' it
               means  conversion went ok.
             */ 
-            if(p_end==p || *p_end)
+            if (p_end==p || *p_end)
               slave_errno=ER_BAD_SLAVE_UNTIL_COND;
           }
           else
@@ -753,7 +753,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
             ER(ER_UNTIL_COND_IGNORED));
         
       
-      if(!slave_errno)
+      if (!slave_errno)
         slave_errno = start_slave_threads(0 /*no mutex */,
 					1 /* wait for start */,
 					mi,
@@ -878,7 +878,11 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
     STATUS; before doing START SLAVE;
   */
   init_master_info_with_options(mi);
-  clear_last_slave_error(&mi->rli);
+  /* 
+     Reset errors, and master timestamp (the idea is that we forget about the
+     old master).
+  */
+  clear_slave_error_timestamp(&mi->rli);
   clear_until_condition(&mi->rli);
   
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
@@ -1092,8 +1096,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
-  /* Clear the error, for a clean start. */
-  clear_last_slave_error(&mi->rli);
+  /* Clear the errors, for a clean start, and master timestamp */
+  clear_slave_error_timestamp(&mi->rli);
   clear_until_condition(&mi->rli);
   /*
     If we don't write new coordinates to disk now, then old will remain in

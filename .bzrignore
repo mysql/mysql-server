@@ -274,6 +274,7 @@ extra/resolveip
 fcns.c
 fcns.h
 gmon.out
+hardcopy.0
 heap/hp_test1
 heap/hp_test2
 help.c

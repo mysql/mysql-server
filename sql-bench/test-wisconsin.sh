@@ -17,12 +17,13 @@
 # MA 02111-1307, USA
 #
 
+use Cwd;
 use DBI;
 use Benchmark;
 
 $opt_loop_count=10;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $into_table = "";

@@ -763,10 +763,7 @@ public:
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
-  virtual void send_error(uint errcode,const char *err)
-  {
-    my_message(errcode, err, MYF(0));
-  }
+  virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
 };
@@ -1034,8 +1031,13 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
+
+  double val(my_bool *null_value);
+  longlong val_int(my_bool *null_value);
+  String *val_str(my_bool *null_value, String *str, uint decimals);
   DTCollation collation;
 };
+
 
 /* Class for unique (removing of duplicates) */
 

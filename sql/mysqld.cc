@@ -53,6 +53,10 @@
 #define IF_PURIFY(A,B) (B)
 #endif
 
+#ifndef INADDR_NONE
+#define INADDR_NONE -1				// Error value from inet_addr
+#endif
+
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -60,7 +64,9 @@
 char pstack_file_name[80];
 #endif /* __linux__ */
 
-#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
+/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+
+#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ) || defined(HAVE_purify) && defined(__linux__)
 #define HAVE_CLOSE_SERVER_SOCK 1
 #endif
 
@@ -517,12 +523,14 @@ static void close_connections(void)
     struct timespec abstime;
     int error;
     LINT_INIT(error);
+    DBUG_PRINT("info",("Waiting for select_thread"));
+
 #ifndef DONT_USE_THR_ALARM
     if (pthread_kill(select_thread,THR_CLIENT_ALARM))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
-    for (uint tmp=0 ; tmp < 10 ; tmp++)
+    for (uint tmp=0 ; tmp < 10 && select_thread_in_use; tmp++)
     {
       error=pthread_cond_timedwait(&COND_thread_count,&LOCK_thread_count,
 				   &abstime);
@@ -682,8 +690,8 @@ static void close_server_sock()
     VOID(shutdown(tmp_sock,2));
 #if defined(__NETWARE__)
     /*
-      The following code is disabled for normal systems as it causes MySQL
-      AIX 4.3 during shutdown (not tested, but likely)
+      The following code is disabled for normal systems as it may cause MySQL
+      to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
     VOID(closesocket(tmp_sock));
@@ -5210,7 +5218,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (!argument || (my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
+    if (!argument ||
+	(my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
       if (argument || argument[0])

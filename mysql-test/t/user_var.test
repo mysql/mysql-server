@@ -26,7 +26,37 @@ explain select * from t1 where i=@vv1;
 drop table t1,t2;
 
 # Check types of variables
+set @a=0,@b=0;
 select @a:=10,   @b:=1,   @a > @b, @a < @b;
+# Note that here a and b will be avaluated as number
 select @a:="10", @b:="1", @a > @b, @a < @b;
+# Note that here a and b will be avaluated as strings
 select @a:=10,   @b:=2,   @a > @b, @a < @b;
 select @a:="10", @b:="2", @a > @b, @a < @b;
+
+# Fixed bug #1194
+select @a:=1;
+select @a, @a:=1;
+
+create table t1 (id int, d double, c char(10));
+insert into t1 values (1,2.0, "test");
+select @c:=0;
+update t1 SET id=(@c:=@c+1);
+select @c;
+select @c:=0;
+update t1 set id=(@c:=@c+1);
+select @c;
+select @c:=0;
+select @c:=@c+1;
+select @d,(@d:=id),@d from t1;
+select @e,(@e:=d),@e from t1;
+select @f,(@f:=c),@f from t1;
+set @g=1;
+select @g,(@g:=c),@g from t1;
+select @c, @d, @e, @f;
+select @d:=id, @e:=id, @f:=id, @g:=@id from t1;
+select @c, @d, @e, @f, @g;
+drop table t1;
+
+# just for fun :)
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;

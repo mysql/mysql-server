@@ -6,6 +6,11 @@
 drop table if exists t1;
 --enable_warnings
 
+set sql_mode="MySQL40";
+select @@sql_mode;
+set @@sql_mode="ANSI";
+select @@sql_mode;
+
 # Test some functions that works different in ansi mode
 
 SELECT 'A' || 'B';
@@ -18,7 +23,4 @@ SELECT id,NULL,1,1.1,'a' FROM t1 GROUP BY id;
 SELECT id FROM t1 GROUP BY id2;
 drop table t1;
 
-set sql_mode="MySQL40";
-select @@sql_mode;
-set sql_mode="ANSI";
-select @@sql_mode;
+SET @@SQL_MODE="";

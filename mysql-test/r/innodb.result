@@ -256,7 +256,6 @@ start transaction;
 insert into t1 values (4);
 flush tables with read lock;
 commit;
-ERROR HY000: Can't execute the query because you have a conflicting read lock
 unlock tables;
 commit;
 select * from t1;

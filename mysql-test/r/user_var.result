@@ -34,6 +34,7 @@ explain select * from t1 where i=@vv1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	i	i	4	const	1	Using where
 drop table t1,t2;
+set @a=0,@b=0;
 select @a:=10,   @b:=1,   @a > @b, @a < @b;
 @a:=10	@b:=1	@a > @b	@a < @b
 10	1	1	0
@@ -42,7 +43,61 @@ select @a:="10", @b:="1", @a > @b, @a < @b;
 10	1	1	0
 select @a:=10,   @b:=2,   @a > @b, @a < @b;
 @a:=10	@b:=2	@a > @b	@a < @b
-10	2	1	0
+10	2	0	1
 select @a:="10", @b:="2", @a > @b, @a < @b;
 @a:="10"	@b:="2"	@a > @b	@a < @b
-10	2	0	1
+10	2	1	0
+select @a:=1;
+@a:=1
+1
+select @a, @a:=1;
+@a	@a:=1
+1	1
+create table t1 (id int, d double, c char(10));
+insert into t1 values (1,2.0, "test");
+select @c:=0;
+@c:=0
+0
+update t1 SET id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+update t1 set id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+select @c:=@c+1;
+@c:=@c+1
+1
+select @d,(@d:=id),@d from t1;
+@d	(@d:=id)	@d
+NULL	1	1
+select @e,(@e:=d),@e from t1;
+@e	(@e:=d)	@e
+NULL	2	2
+select @f,(@f:=c),@f from t1;
+@f	(@f:=c)	@f
+NULL	test	test
+set @g=1;
+select @g,(@g:=c),@g from t1;
+@g	(@g:=c)	@g
+1	test	test
+select @c, @d, @e, @f;
+@c	@d	@e	@f
+1	1	2	test
+select @d:=id, @e:=id, @f:=id, @g:=@id from t1;
+@d:=id	@e:=id	@f:=id	@g:=@id
+1	1	1	NULL
+select @c, @d, @e, @f, @g;
+@c	@d	@e	@f	@g
+1	1	1	1	NULL
+drop table t1;
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b	@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b
+10	2	1	10	2	1	10	2	1	10	2	1
