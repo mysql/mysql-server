@@ -895,15 +895,24 @@ void Item_func_interval::fix_length_and_dec()
 longlong Item_func_interval::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= row->el(0)->val_real();
+  double value;
   my_decimal dec_buf, *dec= NULL;
   uint i;
 
   if (use_decimal_comparison)
+  {
     dec= row->el(0)->val_decimal(&dec_buf);
+    if (row->el(0)->null_value)
+      return -1;
+    my_decimal2double(E_DEC_FATAL_ERROR, dec, &value);
+  }
+  else
+  {
+    value= row->el(0)->val_real();
+    if (row->el(0)->null_value)
+      return -1;
+  }
 
-  if (row->el(0)->null_value)
-    return -1;				// -1 if null
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
