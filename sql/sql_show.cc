@@ -1457,7 +1457,7 @@ int mysqld_show_collations(THD *thd, const char *wild)
       if (!cs[0] || !cl[0] || !my_charset_same(cs[0],cl[0]) || !(cs[0]->state & MY_CS_PRIMARY))
 	continue;
       if (cs[0] && !(wild && wild[0] &&
-	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
+	  wild_case_compare(system_charset_info,cl[0]->name,wild)))
       {
         if (write_collation(protocol, cl[0]))
 	  goto err;
