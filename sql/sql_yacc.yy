@@ -7395,8 +7395,8 @@ lock:
 	{
 	  Lex->sql_command=SQLCOM_LOCK_TABLES;
 	}
-	table_lock_list
-	{}
+	table_lock_list lock_engine_opt
+	{} 
 	;
 
 table_or_tables:
@@ -7421,6 +7421,15 @@ lock_option:
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
+
+lock_engine_opt:
+	/* empty */	
+	| WHERE 
+	{
+	  Lex->sql_command=SQLCOM_LOCK_TABLES_TRANSACTIONAL;
+	}
+	ENGINE_SYM opt_equal storage_engines
+	;
 
 unlock:
 	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }

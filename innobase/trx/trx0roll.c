@@ -335,8 +335,10 @@ undo log. If the transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread */
 
 void *
-trx_rollback_or_clean_all_without_sess(void *i)
-/*========================================*/
+trx_rollback_or_clean_all_without_sess(
+/*===================================*/
+			/* out: arguments */
+	void	*i)	/* in: arguments (unused) */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -496,6 +498,7 @@ loop:
 	goto loop;
 
 	os_thread_exit(i); /* not reached */
+	return(i);
 }
 	
 /***********************************************************************
