@@ -4494,8 +4494,8 @@ void Dbdih::handleTakeOverNewMaster(Signal* signal, Uint32 takeOverPtrI)
 	SystemError * const sysErr = (SystemError*)&signal->theData[0];
 	sysErr->errorCode = SystemError::CopyFragRefError;
 	sysErr->errorRef = reference();
-	signal->data1= 0;
-	signal->data2= __LINE__;
+	sysErr->data1= 0;
+	sysErr->data2= __LINE__;
 	sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal, 
 		   SystemError::SignalLength, JBB);
       }
