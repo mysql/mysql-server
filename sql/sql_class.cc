@@ -873,8 +873,8 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     Following val() call have to be first, because function AVG() & STD()
     calculate value on it & determinate "is it NULL?".
   */
-  it->real_value= val_item->val();
-  if ((it->null_value= val_item->is_null()))
+  it->real_value= val_item->val_result();
+  if ((it->null_value= val_item->is_null_result()))
   {
     it->assign_null();
   } 
@@ -883,8 +883,8 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     it->max_length= val_item->max_length;
     it->decimals= val_item->decimals;
     it->binary= val_item->binary;
-    it->int_value= val_item->val_int();
-    String *s= val_item->val_str(&it->string_value);
+    it->int_value= val_item->val_int_result();
+    String *s= val_item->str_result(&it->string_value);
     if (s != &it->string_value)
     {
       it->string_value.set(*s, 0, s->length());
