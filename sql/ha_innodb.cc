@@ -1613,6 +1613,31 @@ innobase_rollback_to_savepoint(
 }
 
 /*********************************************************************
+Release transaction savepoint name. */
+
+int
+innobase_release_savepoint_name(
+/*===========================*/
+				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
+				no savepoint with the given name */
+	THD*	thd,		/* in: handle to the MySQL thread of the user
+				whose transaction should be rolled back */
+	char*	savepoint_name)	/* in: savepoint name */
+{
+	ib_longlong mysql_binlog_cache_pos;
+	int	    error = 0;
+	trx_t*	    trx;
+
+	DBUG_ENTER("innobase_release_savepoint_name");
+
+	trx = check_trx_exists(thd);
+
+	error = trx_release_savepoint_for_mysql(trx, savepoint_name);
+
+	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+}
+
+/*********************************************************************
 Sets a transaction savepoint. */
 
 int
