@@ -1174,6 +1174,9 @@ TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  List<String> *use_index,
 						  List<String> *ignore_index,
                                                   LEX_STRING *option)
+{
+  return 0;
+}
 ulong st_select_lex_node::get_table_join_options()
 {
   return 0;

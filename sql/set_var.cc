@@ -1507,7 +1507,8 @@ static KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
                default_key_cache_base.length)))
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE_VAR*) find_named(&key_caches,
-                                       cache_name->str, cache_name->length));
+                                      cache_name->str, cache_name->length,
+                                      0));
 }
 
 byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
@@ -1519,23 +1520,20 @@ byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
   return (byte*) key_cache + offset ;
 }
     
-bool sys_var_key_buffer_size::update(THD *thd, set_var *var
+bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
+{
   ulonglong tmp= var->value->val_int();
-  base_name= &default_key_cache_base;
+  LEX_STRING *base_name= &var->base;
+  if (!base_name->length)
+    base_name= &default_key_cache_base;
   KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
                             
-
-
-
-  }
-  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, base_name.str,
-						base_name.length);
   if (!key_cache)
   {
     if (!tmp)					// Tried to delete cache
       return 0;					// Ok, nothing to do
     if (!(key_cache= create_key_cache(base_name->str,
-                                      base_name->length)
+                                      base_name->length)))
       return 1;
   }
   if (!tmp)					// Zero size means delete
@@ -1549,8 +1547,15 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var
          Move tables using this key cache to the default key cache
          and remove this key cache if no tables are assigned to it
       */
-      return (reassign_keycache_tables(thd, key_cache,
-                                       default_key_cache_base.str, 1));
+      NAMED_LIST *list; 
+      key_cache= (KEY_CACHE_VAR *) find_named(&key_caches, base_name->str,
+					      base_name->length, &list);
+      delete list;
+      int rc= reassign_keycache_tables(thd, key_cache,
+                                       default_key_cache_base.str, 1);
+      my_free((char*) key_cache, MYF(0));
+      return rc;
+
     }
     return 0;
   }
@@ -1566,8 +1571,8 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var
 bool sys_var_key_cache_block_size::update(THD *thd, set_var *var)
 {
   ulong tmp= var->value->val_int();
-
-  if (!base_name.length)
+  LEX_STRING *base_name= &var->base;
+  if (!base_name->length)
     base_name= &default_key_cache_base;
   KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
                             
@@ -1586,8 +1591,8 @@ bool sys_var_key_cache_block_size::update(THD *thd, set_var *var)
 bool sys_var_key_cache_division_limit::update(THD *thd, set_var *var)
 {
   ulong tmp= var->value->val_int();
-
-  if (!base_name.length)
+  LEX_STRING *base_name= &var->base;
+  if (!base_name->length)
     base_name= &default_key_cache_base;
   KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
                             
@@ -1604,11 +1609,11 @@ bool sys_var_key_cache_division_limit::update(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_key_age_threshold::update(THD *thd, set_var *var)
+bool sys_var_key_cache_age_threshold::update(THD *thd, set_var *var)
 {
   ulong tmp= var->value->val_int();
-
-  if (!base_name.length)
+  LEX_STRING *base_name= &var->base;
+  if (!base_name->length)
     base_name= &default_key_cache_base;
   KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
                             
@@ -2195,7 +2200,8 @@ gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
   {
     if (element->cmp(name, length))
     {
-      *found= element;
+      if (found)
+        *found= element;
       return element->data;
     }
   }
