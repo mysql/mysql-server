@@ -45167,7 +45167,7 @@ A wrapper for libmysql.dll for usage in Delphi. By Reiner Sombrowsky.
 @item @uref{http://www.fichtner.net/delphi/mysql.delphi.phtml, A Delphi interface to MySQL.}
 With source code. By Matthias Fichtner.
 
-@item @uref{http://www.productivity.org/projects/mysql/, @strong{TmySQL}
+@item @uref{http://www.productivity.org/projects/tmysql/, @strong{TmySQL}
 A library to use MySQL with Delphi}.
 
 @item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}.
