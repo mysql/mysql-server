@@ -44,18 +44,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-static void my_coll_agg3_error(DTCollation &c1, 
-			       DTCollation &c2,
-			       DTCollation &c3,
-			       const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
-}
-
 uint nr_of_decimals(const char *str)
 {
   if ((str=strchr(str,'.')))
@@ -336,16 +324,11 @@ void Item_func_concat::fix_length_and_dec()
   bool first_coll= 1;
   max_length=0;
 
-  collation.set(args[0]->collation);
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+
   for (uint i=0 ; i < arg_count ; i++)
-  {
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
 
   if (max_length > MAX_BLOB_WIDTH)
   {
@@ -840,13 +823,8 @@ void Item_func_replace::fix_length_and_dec()
     maybe_null=1;
   }
   
-  collation.set(args[0]->collation);
-  if (!collation.aggregate(args[1]->collation))
-    collation.aggregate(args[2]->collation);
-  
-  if (collation.derivation == DERIVATION_NONE)
-    my_coll_agg3_error(args[0]->collation, args[1]->collation, 
-		       args[2]->collation, func_name());
+  if (agg_arg_collations_for_comparison(collation, args, 3))
+    return;
 }
 
 
@@ -1050,9 +1028,9 @@ void Item_func_substr::fix_length_and_dec()
 void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
-  if (collation.set(args[0]->collation, args[1]->collation) ||
-      (collation.derivation == DERIVATION_NONE))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+
+  if (agg_arg_collations_for_comparison(collation, args, 2))
+    return;
 }
 
 
@@ -1339,7 +1317,8 @@ void Item_func_trim::fix_length_and_dec()
     remove.set_ascii(" ",1);
   }
   else
-  if (collation.set(args[1]->collation, args[0]->collation))
+  if (collation.set(args[1]->collation, args[0]->collation) ||
+      collation.derivation == DERIVATION_NONE)
   {
     my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
   }
@@ -1680,20 +1659,13 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
   
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+
   for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
-    if (i == 0)
-      collation.set(args[0]->collation);
-    else
-    {
-      if (collation.aggregate(args[i]->collation))
-      {
-        my_coll_agg_error(collation, args[i]->collation, func_name());
-        break;
-      }
-    }
   }
   maybe_null=1;					// NULL if wrong first arg
   with_sum_func= with_sum_func || item->with_sum_func;
@@ -1786,16 +1758,13 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
-  collation.set(args[0]->collation);
+
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+  
   for (uint i=0 ; i < arg_count ; i++)
-  {
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
- }
+  
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
@@ -2463,15 +2432,8 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  collation.set(args[1]->collation);
-  for (i=2 ; i < 4 && i < arg_count ; i++)
-  {
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+  if (agg_arg_collations(collation, args+1, min(4,arg_count)-1))
+    return;
 }
 
 String* Item_func_inet_ntoa::val_str(String* str)

@@ -222,6 +222,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       goto err;
     }
 
+    if (err == HA_ERR_RECORD_DELETED)
+      continue;
     if (err)
     {
       if (err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
@@ -233,31 +235,24 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       goto ok;
     }
-    if (cond)
+    if (cond && !cond->val_int())
+      continue;
+    if (!err && num_rows >= offset_limit)
     {
-      err=err;
-      if (!cond->val_int())
-        continue;
-    }
-    if (num_rows >= offset_limit)
-    {
-      if (!err)
+      String *packet = &thd->packet;
+      Item *item;
+      protocol->prepare_for_resend();
+      it.rewind();
+      while ((item=it++))
       {
-        String *packet = &thd->packet;
-        Item *item;
-        protocol->prepare_for_resend();
-        it.rewind();
-        while ((item=it++))
-        {
-          if (item->send(thd->protocol, &buffer))
-          {
-            protocol->free();                             // Free used
-            my_error(ER_OUT_OF_RESOURCES,MYF(0));
-            goto err;
-          }
-        }
-	protocol->write();
+	if (item->send(thd->protocol, &buffer))
+	{
+	  protocol->free();                             // Free used
+	  my_error(ER_OUT_OF_RESOURCES,MYF(0));
+	  goto err;
+	}
       }
+      protocol->write();
     }
     num_rows++;
   }
