@@ -476,4 +476,3 @@ x	(select group_concat(x) from r2)
 1	1,1
 2	2,2
 drop table r2;
-
