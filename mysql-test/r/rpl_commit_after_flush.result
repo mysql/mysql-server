@@ -1,10 +1,10 @@
-slave stop;
+stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-slave start;
-create table t1 (a int) type=innodb;
+start slave;
+create table t1 (a int) engine=innodb;
 begin;
 insert into t1 values(1);
 flush tables with read lock;

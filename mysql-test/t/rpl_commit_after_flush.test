@@ -1,6 +1,6 @@
 source include/master-slave.inc;
 source include/have_innodb.inc;
-create table t1 (a int) type=innodb;
+create table t1 (a int) engine=innodb;
 begin;
 insert into t1 values(1);
 flush tables with read lock;
