@@ -62,6 +62,17 @@ INSERT INTO t1 VALUES ("2030-01-01","2030-01-01 00:00:00",20300101000000);
 SELECT * FROM t1;
 drop table t1;
 
+create table t1 (t2 timestamp(2), t4 timestamp(4), t6 timestamp(6),
+                 t8 timestamp(8), t10 timestamp(10), t12 timestamp(12),
+                 t14 timestamp(14));
+insert t1 values (0,0,0,0,0,0,0),
+("1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59");
+select * from t1;
+select * from t1;
+drop table t1;
+
 #
 # Let us check if we properly treat wrong datetimes and produce proper warnings
 # (for both strings and numbers)
@@ -270,7 +281,6 @@ drop table t1;
 # Test for bug #4131, TIMESTAMP columns missing minutes and seconds when
 # using GROUP BY in @@new=1 mode.
 #
-set new=1;
 create table t1 (a char(2), t timestamp);
 insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
                       ('b', '2004-02-01 00:00:00');

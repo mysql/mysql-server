@@ -89,7 +89,6 @@ drop table t1;
 #
 # Bug #5447 Select does not find records
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
   autor varchar(80) NOT NULL default '',
   PRIMARY KEY  (autor)
