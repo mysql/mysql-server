@@ -1308,7 +1308,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (command != COM_STATISTICS && command != COM_PING)
     query_id++;
   thread_running++;
-  /* TODO: set thd->lex->sql_command to SQLCOM_PARSE here */
+  /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thd->server_status&=
@@ -1479,7 +1479,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_length= length;
       thd->query= packet;
       thd->query_id= query_id++;
-      /* TODO: set thd->lex->sql_command to SQLCOM_PARSE here */
+      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
@@ -1637,13 +1637,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
-    enum enum_shutdown_level level= (packet_length >= 2) ?
-      (enum enum_shutdown_level) (uchar) packet[0] : SHUTDOWN_DEFAULT;
-    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     /*
-      Accept old mysql_shutdown (with no argument). For now we do nothing of
-      the argument.
+      If the client is < 4.1.3, it is going to send us no argument; then
+      packet_length is 1, packet[0] is the end 0 of the packet. Note that
+      SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
+      packet[0].
     */
+    enum enum_shutdown_level level=
+      (enum enum_shutdown_level) (uchar) packet[0];
+    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -1652,6 +1654,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       send_error(thd);
       break;
     }
+    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     mysql_log.write(thd,command,NullS);
     send_eof(thd);
 #ifdef __WIN__

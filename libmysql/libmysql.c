@@ -1290,8 +1290,7 @@ mysql_shutdown(MYSQL *mysql, enum enum_shutdown_level shutdown_level)
   uchar level[1];
   level[0]= (uchar) shutdown_level;
   DBUG_ENTER("mysql_shutdown");
-  DBUG_RETURN(simple_command(mysql, COM_SHUTDOWN,
-                             &level, 1, 0));
+  DBUG_RETURN(simple_command(mysql, COM_SHUTDOWN, (char *)level, 1, 0));
 }
 
 
