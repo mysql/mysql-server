@@ -487,3 +487,50 @@ select * from t1;
 show status like "Qcache_queries_in_cache";
 SET OPTION SQL_SELECT_LIMIT=DEFAULT;
 drop table t1;
+
+#
+# Test character set related variables:
+#   character_set_result
+#   character_set_client
+#   charactet_set_connection/collation_connection
+# If at least one of the above variables has changed,
+# the cached query can't be reused. In the below test
+# absolutely the same query is used several times,
+# SELECT should fetch different results for every instance. 
+# No hits should be produced.
+# New cache entry should appear for every SELECT.
+#
+SET NAMES koi8r;
+CREATE TABLE t1 (a char(1) character set koi8r);
+INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
+#
+# Run select
+#
+SELECT a,'Â','â'='Â' FROM t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Change collation_connection and run the same query again
+#
+set collation_connection=koi8r_bin;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Now change character_set_client and run the same query again
+#
+set character_set_client=cp1251;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# And finally change character_set_results and run the same query again
+#
+set character_set_results=cp1251;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Keep things tidy
+#
+DROP TABLE t1;
