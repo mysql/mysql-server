@@ -588,7 +588,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, (uint32) glob_mi.port);
   net_store_data(packet, (uint32) glob_mi.connect_retry);
   net_store_data(packet, glob_mi.log_file_name);
-  net_store_data(packet, (longlong) glob_mi.pos);
+  net_store_data(packet, (uint32) glob_mi.pos);
   pthread_mutex_unlock(&glob_mi.lock);
   pthread_mutex_lock(&LOCK_slave);
   net_store_data(packet, slave_running ? "Yes":"No");
@@ -1148,7 +1148,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   
   int error = 1;
   bool retried_once = 0;
-  ulonglong last_failed_pos = 0;
+  uint32 last_failed_pos = 0;
   
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -1158,7 +1158,10 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd) || init_master_info(&glob_mi))
-    goto err;
+    {
+      sql_print_error("Failed during slave thread initialization");
+      goto err;
+    }
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = save_temporary_tables; // restore temp tables
   threads.append(thd);
@@ -1185,7 +1188,10 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 		  RPL_LOG_NAME,
 		  glob_mi.pos);
   else
-    goto err;
+    {
+      sql_print_error("Slave thread killed while connecting to master");
+      goto err;
+    }
   
   while (!slave_killed(thd))
   {
@@ -1194,7 +1200,11 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	{
 	  sql_print_error("Failed on request_dump()");
 	  if(slave_killed(thd))
-           goto err;
+	    {
+	      sql_print_error("Slave thread killed while requesting master \
+dump");
+              goto err;
+	    }
 	  
 	  thd->proc_info = "waiting to reconnect after a failed dump request";
 	  if(mysql->net.vio)
@@ -1208,14 +1218,21 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	    retried_once = 1;
 	  
 	  if(slave_killed(thd))
+	    {
+	      sql_print_error("Slave thread killed while retrying master \
+dump");
 	      goto err;
+	    }
 
 	  thd->proc_info = "reconnecting after a failed dump request";
           sql_print_error("Slave: failed dump request, reconnecting to \
 try again, log '%s' at postion %ld", RPL_LOG_NAME,
 			  last_failed_pos = glob_mi.pos );
 	  if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
+	    {
+	      sql_print_error("Slave thread killed during or after reconnect");
 	      goto err;
+	    }
 
 	  continue;
 	}
@@ -1226,7 +1243,10 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 	  thd->proc_info = "reading master update";
 	  uint event_len = read_event(mysql, &glob_mi);
 	  if(slave_killed(thd))
-	    goto err;
+	    {
+	      sql_print_error("Slave thread killed while reading event");
+	      goto err;
+	    }
 	  
 	  if (event_len == packet_error)
 	  {
@@ -1239,13 +1259,21 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 	      retried_once = 1; 
 	    
 	    if(slave_killed(thd))
-	      goto err;
+	      {
+		sql_print_error("Slave thread killed while waiting to \
+reconnect after a failed read");
+	        goto err;
+	      }
 	    thd->proc_info = "reconnecting after a failed read";
 	    sql_print_error("Slave: Failed reading log event, \
 reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 			    last_failed_pos = glob_mi.pos);
 	    if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
-	      goto err;
+	      {
+		sql_print_error("Slave thread killed during or after a \
+reconnect done to recover from failed read");
+	        goto err;
+	      }
 	    break;
 	  }
 	  
