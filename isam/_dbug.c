@@ -89,7 +89,7 @@ void _nisam_print_key(FILE *stream, register N_KEYSEG *keyseg, const uchar *key)
       key=end;
       break;
     case HA_KEYTYPE_UINT24:
-      VOID(fprintf(stream,"%ld",uint3korr(key)));
+      VOID(fprintf(stream,"%ld",(long) uint3korr(key)));
       key=end;
       break;
     case HA_KEYTYPE_FLOAT:
