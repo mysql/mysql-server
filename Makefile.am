@@ -29,8 +29,7 @@ SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \
 		 linked_libmysql_sources linked_libmysql_r_sources \
-		 linked_libmysqld_sources linked_include_sources \
-                 linked_tools_sources
+		 linked_libmysqld_sources linked_include_sources
 
 CLEANFILES = $(linked_sources)
 
@@ -44,11 +43,6 @@ linked_include_sources:
 linked_client_sources:  @linked_client_targets@
 	cd client; $(MAKE) link_sources
 	echo timestamp > linked_client_sources
-
-linked_tools_sources: 
-	cd tools; $(MAKE) link_sources
-	echo timestamp > linked_tools_sources
-
 
 linked_libmysql_sources:
 	cd libmysql; $(MAKE) link_sources
