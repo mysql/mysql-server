@@ -73,13 +73,6 @@ public:
   ~EventLogger();
 
   /**
-   * Open/create the eventlog, the default name is 'cluster.log'.
-   *
-   * @return true if successful.
-   */
-  bool open();
-
-  /**
    * Opens/creates the eventlog with the specified filename.
    *
    * @param aFileName the eventlog filename.

@@ -141,13 +141,13 @@ id	parent_id	level
 1015	102	2
 explain select level from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 explain select level,id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 explain select level,id,parent_id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where
+1	SIMPLE	t1	ref	level	level	1	const	#	
 select level,id from t1 where level=1;
 level	id
 1	1002
@@ -609,7 +609,7 @@ id	parent_id	level
 1016	102	2
 explain select level from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 select level,id from t1 where level=1;
 level	id
 1	1004
@@ -1376,7 +1376,7 @@ CREATE TABLE t1 (
 `id` int(10) unsigned NOT NULL auto_increment,
 `id_object` int(10) unsigned default '0',
 `id_version` int(10) unsigned NOT NULL default '1',
-label varchar(100) NOT NULL default '',
+`label` varchar(100) NOT NULL default '',
 `description` text,
 PRIMARY KEY  (`id`),
 KEY `id_object` (`id_object`),
@@ -1390,8 +1390,8 @@ PRIMARY KEY  (`id`),
 KEY `id_version` (`id_version`)
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
-SELECT t2.id, t1.label FROM t2 INNER JOIN
-(SELECT t1.id_object as id_object FROM t1 WHERE t1.label LIKE '%test%') AS lbl 
+SELECT t2.id, t1.`label` FROM t2 INNER JOIN
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl 
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 id	label
 3382	Test

@@ -1089,7 +1089,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     keys		List of keys to create
     tmp_table		Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)
-    no_log		Don't log the query to binary log.
 
   DESCRIPTION
     If one creates a temporary table, this is automaticly opened
@@ -1107,7 +1106,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,bool no_log,
+		       List<Key> &keys,bool tmp_table,
 		       uint select_field_count)
 {
   char		path[FN_REFLEN];
@@ -1206,7 +1205,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(-1);
   }
-  if (wait_if_global_read_lock(thd, 0))
+  if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
@@ -1276,7 +1275,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     thd->tmp_table_used= 1;
   }
-  if (!tmp_table && !no_log && mysql_bin_log.is_open())
+  if (!tmp_table && mysql_bin_log.is_open())
   {
     thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -1346,6 +1345,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   TABLE *table;
   tmp_table.table_name=0;
   uint select_field_count= items->elements;
+  Disable_binlog disable_binlog(thd);
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -1377,10 +1377,17 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   /* create and lock table */
   /* QQ: This should be done atomic ! */
   if (mysql_create_table(thd, create_table->db, create_table->real_name,
-			 create_info, *extra_fields, *keys, 0, 1,
-			 select_field_count)) // no logging
+			 create_info, *extra_fields, *keys, 0,
+			 select_field_count))
     DBUG_RETURN(0);
-  if (!(table= open_table(thd, create_table, 0, (bool*) 0)))
+  /*
+    If this is a HEAP table, the automatic DELETE FROM which is written to the
+    binlog when a HEAP table is opened for the first time since startup, must
+    not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
+    don't want to delete from it) 2) it would be written before the CREATE
+    TABLE, which is a wrong order. So we keep binary logging disabled.
+  */
+  if (!(table= open_table(thd, create_table, &thd->mem_root, (bool*) 0)))
   {
     quick_rm_table(create_info->db_type, create_table->db,
 		   table_case_name(create_info, create_table->real_name));
@@ -1398,6 +1405,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
+  /* Note that leaving the function resets binlogging properties */
 }
 
 
@@ -1509,7 +1517,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static bool close_cached_table(THD *thd, TABLE *table)
+void close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
 
@@ -1525,7 +1533,6 @@ static bool close_cached_table(THD *thd, TABLE *table)
 
   /* When lock on LOCK_open is freed other threads can continue */
   pthread_cond_broadcast(&COND_refresh);
-  DBUG_RETURN(0);
 }
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
@@ -1567,7 +1574,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 					reg_ext))
       DBUG_RETURN(-1); // protect buffer overflow
 
-    my_snprintf(dst_path, sizeof(dst_path), "%s/%s/%s",
+    my_snprintf(dst_path, sizeof(dst_path), "%s%s/%s",
 		mysql_real_data_home, db, table_name);
 
     if (lock_and_wait_for_table_name(thd,table))
@@ -1622,7 +1629,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     char name[FN_REFLEN];
     strxmov(name, mysql_data_home, "/", table_list->db, "/",
 	    table_list->real_name, NullS);
-    if (openfrm(name, "", 0, 0, 0, &tmp_table))
+    if (openfrm(thd, name, "", 0, 0, 0, &tmp_table))
       DBUG_RETURN(0);				// Can't open frm file
     table= &tmp_table;
   }
@@ -1814,7 +1821,6 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	dropping_tables--;
       }
       thd->exit_cond(old_message);
-      pthread_mutex_unlock(&LOCK_open);
       if (thd->killed)
 	goto err;
       open_for_modify=0;
@@ -2202,7 +2208,7 @@ table_exists:
     char warn_buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(warn_buff, sizeof(warn_buff),
 		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		 ER_TABLE_EXISTS_ERROR,warn_buff);
     res= 0;
   }
@@ -2688,7 +2694,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (do_send_ok)
         send_ok(thd);
     }
-    else
+    else if (error > 0)
     {
       table->file->print_error(error, MYF(0));
       error= -1;
@@ -3006,19 +3012,21 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   else
     create_info->data_file_name=create_info->index_file_name=0;
-
-  if ((error=mysql_create_table(thd, new_db, tmp_name,
-				create_info,
-				create_list,key_list,1,1,0))) // no logging
-    DBUG_RETURN(error);
-
+  {
+    /* We don't log the statement, it will be logged later */
+    Disable_binlog disable_binlog(thd);
+    if ((error=mysql_create_table(thd, new_db, tmp_name,
+                                  create_info,
+                                  create_list,key_list,1,0)))
+      DBUG_RETURN(error);
+  }
   if (table->tmp_table)
   {
     TABLE_LIST tbl;
     bzero((void*) &tbl, sizeof(tbl));
     tbl.db= new_db;
     tbl.real_name= tbl.alias= tmp_name;
-    new_table= open_table(thd, &tbl, 0, 0);
+    new_table= open_table(thd, &tbl, &thd->mem_root, 0);
   }
   else
   {
@@ -3131,12 +3139,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       close the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
-    if (close_cached_table(thd, table))
-    {						// Aborted
-      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto err;
-    }
+    close_cached_table(thd, table);
     table=0;					// Marker that table is closed
   }
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
@@ -3278,11 +3281,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   uint length;
   SORT_FIELD *sortorder;
   READ_RECORD info;
-  Field *next_field;
   TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
   ha_rows examined_rows;
+  bool auto_increment_field_copied= 0;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -3299,7 +3302,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     def=it++;
     if (def->field)
+    {
+      if (*ptr == to->next_number_field)
+        auto_increment_field_copied= TRUE;
       (copy_end++)->set(*ptr,def->field,0);
+    }
+
   }
 
   found_count=delete_count=0;
@@ -3335,7 +3343,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error= 1;
     goto err;
   }
-  
+
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the
      current query id */
@@ -3344,7 +3352,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (handle_duplicates == DUP_IGNORE ||
       handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  next_field=to->next_number_field;
   thd->row_count= 0;
   while (!(error=info.read_record(&info)))
   {
@@ -3355,10 +3362,17 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
-    if (next_field)
-      next_field->reset();
+    if (to->next_number_field)
+    {
+      if (auto_increment_field_copied)
+        to->auto_increment_field_not_null= TRUE;
+      else
+        to->next_number_field->reset();
+    }
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
+    {
       copy_ptr->do_copy(copy_ptr);
+    }
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
       if ((handle_duplicates != DUP_IGNORE &&
@@ -3369,6 +3383,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	to->file->print_error(error,MYF(0));
 	break;
       }
+      to->file->restore_auto_increment();
       delete_count++;
     }
     else

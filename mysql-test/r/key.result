@@ -76,13 +76,12 @@ CCident varchar(50) DEFAULT '' NOT NULL,
 PRIMARY KEY (name,author,category)
 );
 INSERT INTO t1 VALUES
-('patnom','patauteur',0,'p.favre@cryo-networks.fr',NULL,NULL,'#p2sndnq6ae5g1u6t','essai\nsalut','scol://195.242.78.119:patauteur.patnom',NULL,NULL,NULL,950036174,-882087474,NULL,3,0,3,'1','Pub/patnom/futur_divers.scs',NULL,'pat','CC1');
+('patnom','patauteur',0,'p.favre@cryo-networks.fr',NULL,NULL,'#p2sndnq6ae5g1u6t','essai salut','scol://195.242.78.119:patauteur.patnom',NULL,NULL,NULL,950036174,-882087474,NULL,3,0,3,'1','Pub/patnom/futur_divers.scs',NULL,'pat','CC1');
 INSERT INTO t1 VALUES
 ('LeNomDeMonSite','Marc',0,'m.barilley@cryo-networks.fr',NULL,NULL,NULL,NULL,'scol://195.242.78.119:Marc.LeNomDeMonSite',NULL,NULL,NULL,950560434,-881563214,NULL,3,0,3,'1','Pub/LeNomDeMonSite/domus_hibere.scs',NULL,'Marq','CC1');
 select * from t1 where name='patnom' and author='patauteur' and category=0;
 name	author	category	email	password	proxy	bitmap	msg	urlscol	urlhttp	timeout	nbcnx	creation	livinguntil	lang	type	subcat	subtype	reg	scs	capacity	userISP	CCident
-patnom	patauteur	0	p.favre@cryo-networks.fr	NULL	NULL	#p2sndnq6ae5g1u6t	essai
-salut	scol://195.242.78.119:patauteur.patnom	NULL	NULL	NULL	950036174	-882087474	NULL	3	0	3	1	Pub/patnom/futur_divers.scs	NULL	pat	CC1
+patnom	patauteur	0	p.favre@cryo-networks.fr	NULL	NULL	#p2sndnq6ae5g1u6t	essai salut	scol://195.242.78.119:patauteur.patnom	NULL	NULL	NULL	950036174	-882087474	NULL	3	0	3	1	Pub/patnom/futur_divers.scs	NULL	pat	CC1
 drop table t1;
 create table t1
 (
@@ -111,7 +110,11 @@ name_id	name
 SELECT * FROM t2 WHERE name='[T,U]_axpby';
 name_id	name
 2	[T,U]_axpby
-drop table t1,t2;
+CREATE TABLE t3 SELECT * FROM t2 WHERE name='[T,U]_axpby';
+SELECT * FROM t2 WHERE name='[T,U]_axpby';
+name_id	name
+2	[T,U]_axpby
+drop table t1,t2,t3;
 create table t1
 (
 SEQNO                         numeric(12 ) not null,
@@ -234,4 +237,37 @@ FLUSH TABLES;
 SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
 1
+drop table t1;
+create table t1 (c varchar(30) character set utf8, t text character set utf8, unique (c(2)), unique (t(3))) engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(30) character set utf8 default NULL,
+  `t` text character set utf8,
+  UNIQUE KEY `c` (`c`(2)),
+  UNIQUE KEY `t` (`t`(3))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert t1 values ('cccc', 'tttt'),
+(0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
+(0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
+insert t1 (c) values ('cc22');
+ERROR 23000: Duplicate entry 'cc22' for key 1
+insert t1 (t) values ('ttt22');
+ERROR 23000: Duplicate entry 'ttt22' for key 2
+insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
+ERROR 23000: Duplicate entry 'б!#"�' for key 1
+insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
+ERROR 23000: Duplicate entry 'бб!#"б' for key 2
+select c from t1 where c='cccc';
+c
+cccc
+select t from t1 where t='tttt';
+t
+tttt
+select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
+c
+?!"#?????
+select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
+t
+??!"#????
 drop table t1;

@@ -75,7 +75,6 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/CreateTab.hpp>
-#include "../dbtc/Dbtc.hpp"
 #include <NdbSleep.h>
 
 #define ZNOT_FOUND 626
@@ -254,6 +253,7 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::FragmentKeyTypeVal, tablePtr.p->fragmentKeyType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
+  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   
   if (tablePtr.p->primaryTableId != RNIL){
     TableRecordPtr primTab;
@@ -1313,6 +1313,7 @@ void Dbdict::initTableRecords()
   TableRecordPtr tablePtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_tableRecordPool.seize(tablePtr);
     if (tablePtr.i == RNIL) {
       jam();
@@ -1373,6 +1374,7 @@ void Dbdict::initTriggerRecords()
   TriggerRecordPtr triggerPtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_triggerRecordPool.seize(triggerPtr);
     if (triggerPtr.i == RNIL) {
       jam();
@@ -3599,30 +3601,37 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
 
   SegmentedSectionPtr fragDataPtr;
   signal->getSection(fragDataPtr, CreateFragmentationConf::FRAGMENTS);
-
   signal->header.m_noOfSections = 0;
 
   /**
-   * Correct table
+   * Get table
    */
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
 
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+  /**
+   * Save fragment count
+   */
+  tabPtr.p->fragmentCount = conf->noOfFragments;
 
   /**
    * Update table version
    */
+  PageRecordPtr pagePtr;
+  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
+  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+
   tabPtr.p->tableVersion = tabEntry->m_tableVersion + 1;
-  
+
+  /**
+   * Pack
+   */
   SimplePropertiesSectionWriter w(getSectionSegmentPool());
   packTableIntoPagesImpl(w, tabPtr);
   
   SegmentedSectionPtr spDataPtr;
   w.getPtr(spDataPtr);
-
+  
   signal->setSection(spDataPtr, CreateTabReq::DICT_TAB_INFO);
   signal->setSection(fragDataPtr, CreateTabReq::FRAGMENTATION);
   
@@ -3749,6 +3758,10 @@ Dbdict::createTab_reply(Signal* signal,
     ref->senderRef = reference();
     ref->senderData = createTabPtr.p->m_senderData;
     ref->errorCode = createTabPtr.p->m_errorCode;
+    ref->masterNodeId = c_masterNodeId;
+    ref->status = 0;
+    ref->errorKey = 0;
+    ref->errorLine = 0;
     
     //@todo check api failed
     sendSignal(createTabPtr.p->m_senderRef, GSN_CREATE_TABLE_REF, signal, 
@@ -4252,7 +4265,9 @@ Dbdict::execDIADDTABCONF(Signal* signal){
     /**
      * No local fragment (i.e. no LQHFRAGREQ)
      */
-    sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
+    execute(signal, createTabPtr.p->m_callback, 0);
+    return;
+    //sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
   }
 }
 
@@ -4637,6 +4652,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->fragmentKeyType = (DictTabInfo::FragmentKeyType)tableDesc.FragmentKeyType;
   tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
   tablePtr.p->kValue = tableDesc.TableKValue;
+  tablePtr.p->fragmentCount = tableDesc.FragmentCount;
 
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
@@ -5080,8 +5096,20 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal){
   
   Uint32 nodeId = refToNode(prep->senderRef);
   dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
- 
-  dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  
+  Uint32 block = refToBlock(prep->senderRef);
+  if((prep->errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH) ||
+     (prep->errorCode == PrepDropTabRef::NF_FakeErrorREF)){
+    jam();
+    /**
+     * Ignore errors:
+     * 1) no such table and LQH, it might not exists in different LQH's
+     * 2) node failure...
+     */
+  } else {
+    dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  }
+  
   if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
     jam();
     return;
@@ -5112,6 +5140,19 @@ void
 Dbdict::execDROP_TAB_REF(Signal* signal){
   jamEntry();
 
+  DropTabRef * const req = (DropTabRef*)signal->getDataPtr();
+
+  Uint32 block = refToBlock(req->senderRef);
+  ndbrequire(req->errorCode == DropTabRef::NF_FakeErrorREF ||
+	     (req->errorCode == DropTabRef::NoSuchTable &&
+	      (block == DBTUP || block == DBACC || block == DBLQH)));
+  
+  if(block != DBDICT){
+    jam();
+    ndbrequire(refToNode(req->senderRef) == getOwnNodeId());
+    dropTab_localDROP_TAB_CONF(signal);
+    return;
+  }
   ndbrequire(false);
 }
 
@@ -5619,7 +5660,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     signal->getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
     SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
     r0.reset(); // undo implicit first()
-    if(r0.getWords((Uint32*)tableName, len))
+    if(r0.getWords((Uint32*)tableName, ((len + 3)/4)))
       memcpy(keyRecord.tableName, tableName, len);
     else {
       jam();
@@ -5734,6 +5775,7 @@ void
 Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
+  Uint32 i;
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
   Uint32 senderRef  = req->senderRef;
   Uint32 senderData = req->senderData;
@@ -5747,7 +5789,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
   conf->senderData = senderData;
   conf->counter = 0;
   Uint32 pos = 0;
-  for (Uint32 i = 0; i < c_tableRecordPool.getSize(); i++) {
+  for (i = 0; i < c_tableRecordPool.getSize(); i++) {
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, i);
     // filter
@@ -5827,12 +5869,12 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->counter++;
       pos = 0;
     }
-    Uint32 i = 0;
-    while (i < size) {
+    Uint32 k = 0;
+    while (k < size) {
       char* p = (char*)&conf->tableData[pos];
       for (Uint32 j = 0; j < 4; j++) {
-        if (i < size)
-          *p++ = tablePtr.p->tableName[i++];
+        if (k < size)
+          *p++ = tablePtr.p->tableName[k++];
         else
           *p++ = 0;
       }
@@ -5846,7 +5888,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
     }
   }
   // XXX merge with above somehow
-  for (Uint32 i = 0; i < c_triggerRecordPool.getSize(); i++) {
+  for (i = 0; i < c_triggerRecordPool.getSize(); i++) {
     if (reqListIndexes)
       break;
     TriggerRecordPtr triggerPtr;
@@ -5890,12 +5932,12 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->counter++;
       pos = 0;
     }
-    Uint32 i = 0;
-    while (i < size) {
+    Uint32 k = 0;
+    while (k < size) {
       char* p = (char*)&conf->tableData[pos];
       for (Uint32 j = 0; j < 4; j++) {
-        if (i < size)
-          *p++ = triggerPtr.p->triggerName[i++];
+        if (k < size)
+          *p++ = triggerPtr.p->triggerName[k++];
         else
           *p++ = 0;
       }
@@ -6132,6 +6174,7 @@ Dbdict::createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr)
 void
 Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
 {
+  Uint32 k;
   jam();
   const CreateIndxReq* const req = &opPtr.p->m_request;
   // signal data writer
@@ -6201,7 +6244,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   }
   // hash index attributes must currently be in table order
   Uint32 prevAttrId = RNIL;
-  for (Uint32 k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     jam();
     bool found = false;
     for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
@@ -6212,16 +6255,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       jam();
       found = true;
       const Uint32 a = aRec->attributeDescriptor;
-      bool isNullable = AttributeDescriptor::getNullable(a);
-      // We do not allow more than one NULLable attribute for hash index
-      if (isNullable && 
-	  indexPtr.p->isHashIndex() && 
-	  (opPtr.p->m_attrList.sz > 1)) {
-        jam();
-        opPtr.p->m_errorCode = CreateIndxRef::AttributeNullable;
-        opPtr.p->m_errorLine = __LINE__;
-        return;
-      }
       if (indexPtr.p->isHashIndex()) {
         const Uint32 s1 = AttributeDescriptor::getSize(a);
         const Uint32 s2 = AttributeDescriptor::getArraySize(a);
@@ -6261,7 +6294,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
-  for (Uint32 k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     jam();
     for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
       AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);

@@ -34,6 +34,12 @@
   - If the variable should show up in 'show variables' add it to the
     init_vars[] struct in this file
 
+  NOTES:
+    - Be careful with var->save_result: sys_var::check() only updates
+    ulonglong_value; so other members of the union are garbage then; to use
+    them you must first assign a value to them (in specific ::check() for
+    example).
+
   TODO:
     - Add full support for the variable character_set (for 4.1)
 
@@ -120,6 +126,11 @@ static byte *get_warning_count(THD *thd);
   These are variables that can be set from the command line, in
   alphabetic order
 */
+
+sys_var_thd_ulong	sys_auto_increment_increment("auto_increment_increment",
+                                                     &SV::auto_increment_increment);
+sys_var_thd_ulong	sys_auto_increment_offset("auto_increment_offset",
+                                                  &SV::auto_increment_offset);
 
 sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
@@ -470,6 +481,8 @@ sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 sys_var *sys_variables[]=
 {
   &sys_auto_is_null,
+  &sys_auto_increment_increment,
+  &sys_auto_increment_offset,
   &sys_autocommit,
   &sys_big_tables,
   &sys_big_selects,
@@ -618,13 +631,15 @@ sys_var *sys_variables[]=
 */
 
 struct show_var_st init_vars[]= {
+  {"auto_incrememt_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
+  {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
 #ifdef HAVE_BERKELEY_DB
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
-  {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
+  {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
@@ -664,9 +679,11 @@ struct show_var_st init_vars[]= {
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
+  {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
+  {"have_example_engine",      (char*) &have_example_db,	            SHOW_HAVE},
+  {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
-  {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
@@ -685,6 +702,7 @@ struct show_var_st init_vars[]= {
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
+  {"innodb_locks_unsafe_for_binlog", (char*) &innobase_locks_unsafe_for_binlog, SHOW_MY_BOOL},
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
@@ -784,6 +802,8 @@ struct show_var_st init_vars[]= {
    SHOW_SYS},
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
+  {sys_query_cache_wlock_invalidate.name,
+   (char *) &sys_query_cache_wlock_invalidate, SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
   {sys_query_prealloc_size.name, (char*) &sys_query_prealloc_size,  SHOW_SYS},
   {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
@@ -1147,8 +1167,10 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
+#ifndef EMBEDDED_LIBRARY
   resize_thr_alarm(max_connections + 
 		   global_system_variables.max_insert_delayed_threads + 10);
+#endif
 }
 
 
@@ -2347,7 +2369,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
   pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
-  sync_binlog_period= var->save_result.ulong_value;
+  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
   /*
     Must reset the counter otherwise it may already be beyond the new period
     and so the new period will not be taken into account. Need mutex otherwise
@@ -2389,8 +2411,9 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
     return 1;
   }
 #endif
-  
-  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
+
+  if (!(var->save_result.time_zone=
+        my_tz_find(res, thd->lex->time_zone_tables_used)))
   {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
     return 1;
@@ -2435,7 +2458,8 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
    if (default_tz_name)
    {
      String str(default_tz_name, &my_charset_latin1);
-     global_system_variables.time_zone= my_tz_find(thd, &str);
+     global_system_variables.time_zone=
+       my_tz_find(&str, thd->lex->time_zone_tables_used);
    }
    else
      global_system_variables.time_zone= my_tz_SYSTEM;
@@ -2892,8 +2916,9 @@ int set_var_password::check(THD *thd)
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
-#else 
+  return check_change_password(thd, user->host.str, user->user.str, password) ?
+         1 : 0;
+#else
   return 0;
 #endif
 }
@@ -2902,8 +2927,8 @@ int set_var_password::update(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Returns 1 as the function sends error to client */
-  return (change_password(thd, user->host.str, user->user.str, password) ?
-	  1 : 0);
+  return change_password(thd, user->host.str, user->user.str, password) ?
+	  1 : 0;
 #else
   return 0;
 #endif
@@ -3076,6 +3101,13 @@ ulong fix_sql_mode(ulong sql_mode)
     sql_mode|= MODE_NO_FIELD_OPTIONS;
   if (sql_mode & MODE_MYSQL323)
     sql_mode|= MODE_NO_FIELD_OPTIONS;
+  if (sql_mode & MODE_TRADITIONAL)
+  {
+    sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
+                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                MODE_ERROR_FOR_DIVISION_BY_ZERO);
+    sql_mode&= ~MODE_INVALID_DATES;
+  }
   return sql_mode;
 }
 

@@ -28,8 +28,8 @@ else
 # Some predefined settings
 $build_command= "BUILD/compile-pentium-max";
 $PWD= cwd();
-$LOGFILE= $PWD . "/Bootstrap.log";
 $opt_docdir= $PWD . "/mysqldoc";
+$opt_archive_log= undef;
 $opt_build_command= undef;
 $opt_changelog= undef;
 $opt_delete= undef;
@@ -51,6 +51,7 @@ $version= "unknown";
 $major=$minor=$release=0;
 
 GetOptions(
+  "archive-log|a",
 	"build-command|b=s",
 	"changelog|c:s",
 	"directory|d=s",
@@ -73,6 +74,17 @@ GetOptions(
 ) || print_help("");
 
 #
+# Override predefined build command
+#
+if (defined $opt_build_command)
+{
+	$build_command= $opt_build_command;
+}
+
+print_help("") if ($opt_help);
+defined($REPO=$ARGV[0]) || print_help("Please enter the BK repository to be used!");
+
+#
 # Override predefined Log file name
 #
 if (defined $opt_log)
@@ -90,16 +102,7 @@ if (defined $opt_log)
 	}
 }
 
-#
-# Override predefined build command
-#
-if (defined $opt_build_command)
-{
-	$build_command= $opt_build_command;
-}
-
-print_help("") if ($opt_help);
-defined($REPO=$ARGV[0]) || print_help("Please enter the BK repository to be used!");
+$LOGFILE= $PWD . "/Bootstrap-" . $REPO . ".log" unless ($LOGFILE);
 
 &logger("Starting build");
 &abort("The directory \"$REPO\" could not be found!") if (!-d $REPO);
@@ -120,14 +123,16 @@ if (($opt_directory ne $PWD) && (!-d $opt_directory && !$opt_dry_run))
 if ($opt_pull)
 {
 	&logger("Updating BK tree $REPO to latest ChangeSet first");
-	$command= "cd $REPO; bk pull; cd ..";
-	&run_command($command, "Could not update $REPO!");
+  chdir ($REPO) or &abort("Could not chdir to $REPO!");
+	&run_command("bk pull", "Could not update $REPO!");
+  chdir ($PWD) or &abort("Could not chdir to $PWD!");
 
 	unless ($opt_skip_manual)
 	{
 		&logger("Updating manual tree in $opt_docdir");
-		$command= "cd $opt_docdir; bk pull; cd ..";
-		&run_command($command, "Could not update $opt_docdir!");
+    chdir ($opt_docdir) or &abort("Could not chdir to $opt_docdir!");
+	  &run_command("bk pull", "Could not update $opt_docdir!");
+    chdir ($PWD) or &abort("Could not chdir to $PWD!");
 	}
 }
 
@@ -351,6 +356,21 @@ if (!$opt_skip_check)
 # All done when we came down here
 #
 &logger("SUCCESS: Build finished successfully.") if (!$opt_dry_run);
+
+#
+# Move the log file into the Log dir of the target dir
+#
+if ($opt_archive_log)
+{
+  my $logdir= $target_dir . "/Logs";
+  &logger("Moving $LOGFILE to $logdir");
+  mkdir "$logdir" if (! -d $logdir);
+  $command= "mv ";
+  $command.= "-v " if ($opt_verbose || defined $opt_log);
+  $command.= "$LOGFILE $logdir";
+  &run_command($command, "Could not move $LOGFILE to $logdir!");
+}
+
 exit 0;
 
 #
@@ -378,6 +398,8 @@ distribution check can be run before the source archive is being created.
 
 Options:
 
+-a, --archive-log          Move the log file into the Logs directory of
+                           the exported tree after a successful build
 -b, --build-command=<cmd>  Use <cmd> to compile the sources before packing
                            the distribution.
                            (default is "$build_command")
@@ -398,7 +420,7 @@ Options:
                            do not build or test the source distribution
 -h, --help                 Print this help message
 -l, --log[=<filename>]     Write a log file [to <filename>]
-                           (default is "$LOGFILE")
+                           (default is "./Bootstrap-<bk repository>.log")
 -m, --mail=<address>       Mail a failure report to the given address (and
                            include a log file snippet, if logging is enabled)
                            Note that the \@-Sign needs to be quoted!

@@ -55,7 +55,7 @@ public:
   static const char delimiter = ':';
   static const char version[];
 
-  Properties();
+  Properties(bool case_insensitive= false);
   Properties(const Properties &);
   Properties(const Property *, int len);
   virtual ~Properties();

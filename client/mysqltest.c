@@ -229,11 +229,11 @@ Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_EXIT,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
-Q_COMMENT_WITH_COMMAND
+Q_COMMENT_WITH_COMMAND,
 };
 
 /* this should really be called command */
@@ -308,6 +308,7 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
+  "exit",
   0
 };
 
@@ -641,7 +642,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   if (*var_name != '$')
     goto err;
   digit = *++var_name - '0';
-  if (!(digit < 10 && digit >= 0))
+  if (digit < 0 || digit >= 10)
   {
     const char* save_var_name = var_name, *end;
     uint length;
@@ -660,7 +661,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
         length < MAX_VAR_NAME)
     {
       char buff[MAX_VAR_NAME+1];
-      strmake(buff, save_var_name, length); 
+      strmake(buff, save_var_name, length);
       v= var_from_env(buff, "");
     }
     var_name--;					/* Point at last character */
@@ -2592,12 +2593,11 @@ int main(int argc, char **argv)
 {
   int error = 0;
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0;
+  my_bool require_file=0, q_send_flag=0, abort_flag= 0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
   {
   DBUG_ENTER("main");
-  DBUG_PROCESS(argv[0]);
 
   save_file[0]=0;
   TMPDIR[0]=0;
@@ -2653,7 +2653,7 @@ int main(int argc, char **argv)
 
   init_var_hash(&cur_con->mysql);
 
-  while (!read_query(&q))
+  while (!abort_flag && !read_query(&q))
   {
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
@@ -2813,6 +2813,9 @@ int main(int argc, char **argv)
       case Q_EXEC: 
 	(void) do_exec(q);
 	break;
+      case Q_EXIT:
+        abort_flag= 1;
+        break;
       default: processed = 0; break;
       }
     }

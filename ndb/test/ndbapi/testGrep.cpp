@@ -254,8 +254,7 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-
-#include "../bank/Bank.hpp"
+#include "bank/Bank.hpp"
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank;
@@ -444,6 +443,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 */
+
 NDBT_TESTSUITE(testGrep);
 TESTCASE("GrepBasic", 
 	 "Test that Global Replication works on one table \n"
@@ -473,8 +473,6 @@ TESTCASE("GrepNodeRestart",
 }
 
 
-
-
 TESTCASE("GrepBank", 
 	 "Test that grep and restore works during transaction load\n"
 	 " by backing up the bank"
@@ -495,6 +493,7 @@ TESTCASE("GrepBank",
   //  FINALIZER(runDropBank);
 
 }
+
 TESTCASE("NFMaster", 
 	 "Test that grep behaves during node failiure\n"){
   INITIALIZER(setMaster);

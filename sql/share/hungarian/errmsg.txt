@@ -1,7 +1,23 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
+/* Copyright (C) 2003 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
    Translated by Feher Peter. Forditotta Feher Peter (feherp@mail.matav.hu) 1998
    Updated May, 2000
-   This file is public domain and comes with NO WARRANTY of any kind */
+*/
 
 character-set=latin2
 
@@ -81,7 +97,7 @@ character-set=latin2
 "Blob objektum '%-.64s' nem hasznalhato kulcskent",
 "A(z) '%-.64s' oszlop tul hosszu. (maximum = %d). Hasznaljon BLOB tipust inkabb.",
 "Csak egy auto mezo lehetseges, es azt kulcskent kell definialni.",
-"%s: kapcsolatra kesz\n",
+"%s: kapcsolatra kesz",
 "%s: Normal leallitas\n",
 "%s: %d jelzes. Megszakitva!\n",
 "%s: A leallitas kesz\n",
@@ -269,7 +285,7 @@ character-set=latin2
 "Row %ld doesn't contain data for all columns",
 "Row %ld was truncated; it contained more data than there were input columns",
 "Data truncated; NULL supplied to NOT NULL column '%s' at row %ld",
-"Data truncated; out of range for column '%s' at row %ld",
+"Out of range value adjusted for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
@@ -306,7 +322,8 @@ character-set=latin2
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -354,7 +371,7 @@ character-set=latin2
 "'%-.64s.%-.64s' is not %s"
 "Column '%-.64s' is not updatable"
 "View's SELECT contains a subquery in the FROM clause"
-"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a '%s' clause"
 "View's SELECT contains a variable or parameter" 
 "View's SELECT contains a temporary table '%-.64s'"
 "View's SELECT and view's field list have different column counts"
@@ -362,3 +379,12 @@ character-set=latin2
 "View being updated does not have complete key of underlying table in it"
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
+"GOTO is not allowed in a stored procedure handler"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"
+"Field '%-.64s' doesn't have a default value",
+"Division by 0",
+"Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld",

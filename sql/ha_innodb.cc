@@ -40,6 +40,7 @@ have disables the InnoDB inlining in this file. */
 #include <m_ctype.h>
 #include <hash.h>
 #include <myisampack.h>
+#include <mysys_err.h>
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
@@ -117,6 +118,8 @@ my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
+my_bool innobase_locks_unsafe_for_binlog        = FALSE;
+my_bool innobase_create_status_file		= FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -133,6 +136,10 @@ char*	innobase_home 	= NULL;
 char    innodb_dummy_stmt_trx_handle = 'D';
 
 static HASH 	innobase_open_tables;
+
+#ifdef __NETWARE__  	/* some special cleanup for NetWare */
+bool nw_panic = FALSE;
+#endif
 
 static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
@@ -292,8 +299,9 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-		return(HA_ERR_ROW_IS_REFERENCED);
-
+    		return(HA_ERR_CANNOT_ADD_FOREIGN); /* TODO: This is a bit
+						misleading, a new MySQL error
+						code should be introduced */
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
     		return(HA_ERR_CRASHED);
@@ -416,6 +424,50 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/*************************************************************************
+Creates a temporary file. */
+extern "C"
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+{
+	char	filename[FN_REFLEN];
+	int	fd2 = -1;
+	File	fd = create_temp_file(filename, NullS, "ib",
+#ifdef __WIN__
+				O_BINARY | O_TRUNC | O_SEQUENTIAL |
+				O_TEMPORARY | O_SHORT_LIVED |
+#endif /* __WIN__ */
+				O_CREAT | O_EXCL | O_RDWR,
+				MYF(MY_WME));
+	if (fd >= 0) {
+#ifndef __WIN__
+		/* On Windows, open files cannot be removed, but files can be
+		created with the O_TEMPORARY flag to the same effect
+		("delete on close"). */
+		unlink(filename);
+#endif /* !__WIN__ */
+		/* Copy the file descriptor, so that the additional resources
+		allocated by create_temp_file() can be freed by invoking
+		my_close().
+
+		Because the file descriptor returned by this function
+		will be passed to fdopen(), it will be closed by invoking
+		fclose(), which in turn will invoke close() instead of
+		my_close(). */
+		fd2 = dup(fd);
+		if (fd2 < 0) {
+			DBUG_PRINT("error",("Got error %d on dup",fd2));
+			my_errno=errno;
+			my_error(EE_OUT_OF_FILERESOURCES,
+				MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
+		}
+		my_close(fd, MYF(MY_WME));
+	}
+	return(fd2);
 }
 
 /*************************************************************************
@@ -910,8 +962,10 @@ innobase_init(void)
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
 	srv_file_per_table = (ibool) innobase_file_per_table;
+        srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
+	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
@@ -982,6 +1036,11 @@ innobase_end(void)
 
 	DBUG_ENTER("innobase_end");
 
+#ifdef __NETWARE__ 	/* some special cleanup for NetWare */
+	if (nw_panic) {
+		set_panic_flag_for_netware();
+	}
+#endif
 	if (innodb_inited)
 	{
 	  innodb_inited= 0;
@@ -1568,8 +1627,6 @@ ha_innobase::open(
 		}
 	}
 
-	auto_inc_counter_for_this_stat = 0;
-
 	block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
 				in query optimization */
 
@@ -2139,7 +2196,7 @@ ha_innobase::write_row(
 	longlong	dummy;
 	ibool           incremented_auto_inc_for_stat = FALSE;
 	ibool           incremented_auto_inc_counter = FALSE;
-	ibool           skip_auto_inc_decr;
+	ibool           skip_auto_inc_decr, auto_inc_used= FALSE;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -2161,7 +2218,8 @@ ha_innobase::write_row(
 		ut_error;
 	}
 
-  	statistic_increment(ha_write_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_write_count,
+			    &LOCK_status);
 
         if (table->timestamp_default_now)
                 update_timestamp(record + table->timestamp_default_now - 1);
@@ -2201,98 +2259,13 @@ ha_innobase::write_row(
 			prebuilt->sql_stat_start = TRUE;
 		}
 
-	        /* Fetch the value the user possibly has set in the
-	        autoincrement field */
-
-	        auto_inc = table->next_number_field->val_int();
-
-		/* In replication and also otherwise the auto-inc column 
-		can be set with SET INSERT_ID. Then we must look at
-		user_thd->next_insert_id. If it is nonzero and the user
-		has not supplied a value, we must use it, and use values
-		incremented by 1 in all subsequent inserts within the
-		same SQL statement! */
-
-		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
-		        auto_inc = user_thd->next_insert_id;
-		        auto_inc_counter_for_this_stat = auto_inc;
-		}
-
-		if (auto_inc == 0 && auto_inc_counter_for_this_stat) {
-			/* The user set the auto-inc counter for
-			this SQL statement with SET INSERT_ID. We must
-			assign sequential values from the counter. */
-
-			auto_inc_counter_for_this_stat++;
-			incremented_auto_inc_for_stat = TRUE;
-
-			auto_inc = auto_inc_counter_for_this_stat;
-
-			/* We give MySQL a new value to place in the
-			auto-inc column */
-			user_thd->next_insert_id = auto_inc;
-		}
-
-		if (auto_inc != 0) {
-			/* This call will calculate the max of the current
-			value and the value supplied by the user and
-			update the counter accordingly */
-
-			/* We have to use the transactional lock mechanism
-			on the auto-inc counter of the table to ensure
-			that replication and roll-forward of the binlog
-			exactly imitates also the given auto-inc values.
-			The lock is released at each SQL statement's
-			end. */
-
-			innodb_srv_conc_enter_innodb(prebuilt->trx);
-			error = row_lock_table_autoinc_for_mysql(prebuilt);
-			innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-			if (error != DB_SUCCESS) {
-
-				error = convert_error_code_to_mysql(error,
-								    user_thd);
-				goto func_exit;
-			}	
-
-			dict_table_autoinc_update(prebuilt->table, auto_inc);
-		} else {
-			innodb_srv_conc_enter_innodb(prebuilt->trx);
-
-			if (!prebuilt->trx->auto_inc_lock) {
-
-				error = row_lock_table_autoinc_for_mysql(
-								prebuilt);
-				if (error != DB_SUCCESS) {
- 					innodb_srv_conc_exit_innodb(
-							prebuilt->trx);
-
-					error = convert_error_code_to_mysql(
-							error, user_thd);
-					goto func_exit;
-				}
-			}	
-
-			/* The following call gets the value of the auto-inc
-			counter of the table and increments it by 1 */
-
-			auto_inc = dict_table_autoinc_get(prebuilt->table);
-			incremented_auto_inc_counter = TRUE;
-
-			innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-			/* We can give the new value for MySQL to place in
-			the field */
-
-			user_thd->next_insert_id = auto_inc;
-		}
-
-		/* This call of a handler.cc function places
-		user_thd->next_insert_id to the column value, if the column
-		value was not set by the user */
-
+		/*
+                  We must use the handler code to update the auto-increment
+                  value to be sure that increment it correctly.
+                */
     		update_auto_increment();
+                auto_inc_used= 1;
+
 	}
 
 	if (prebuilt->mysql_template == NULL
@@ -2307,41 +2280,36 @@ ha_innobase::write_row(
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+	if (error == DB_SUCCESS && auto_inc_used) {
+
+        /* Fetch the value that was set in the autoincrement field */
+
+          auto_inc = table->next_number_field->val_int();
+
+          if (auto_inc != 0) {
+			/* This call will calculate the max of the current
+			value and the value supplied by the user and
+			update the counter accordingly */
+
+			/* We have to use the transactional lock mechanism
+			on the auto-inc counter of the table to ensure
+			that replication and roll-forward of the binlog
+			exactly imitates also the given auto-inc values.
+			The lock is released at each SQL statement's
+			end. */
+
+            error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+            if (error != DB_SUCCESS) {
+
+              error = convert_error_code_to_mysql(error, user_thd);
+              goto func_exit;
+            }
+            dict_table_autoinc_update(prebuilt->table, auto_inc);
+          }
+        }
+
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-	if (error != DB_SUCCESS) {
-	        /* If the insert did not succeed we restore the value of
-		the auto-inc counter we used; note that this behavior was
-		introduced only in version 4.0.4.
-		NOTE that a REPLACE command handles a duplicate key error
-		itself, and we must not decrement the autoinc counter
-		if we are performing a REPLACE statement.
-		NOTE 2: if there was an error, for example a deadlock,
-		which caused InnoDB to roll back the whole transaction
-		already in the call of row_insert_for_mysql(), we may no
-		longer have the AUTO-INC lock, and cannot decrement
-		the counter here. */
-
-	        skip_auto_inc_decr = FALSE;
-
-	        if (error == DB_DUPLICATE_KEY
-		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
-			|| user_thd->lex->sql_command
-			                 == SQLCOM_REPLACE_SELECT)) {
-
-		        skip_auto_inc_decr= TRUE;
-		}
-
-	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
-		    && prebuilt->trx->auto_inc_lock) {
-	                dict_table_autoinc_decrement(prebuilt->table);
-	        }
-
-		if (!skip_auto_inc_decr && incremented_auto_inc_for_stat
-		    && prebuilt->trx->auto_inc_lock) {
-		        auto_inc_counter_for_this_stat--;
-		}
-	}
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
@@ -2352,6 +2320,7 @@ func_exit:
 
   	DBUG_RETURN(error);
 }
+
 
 /******************************************************************
 Converts field data for storage in an InnoDB update vector. */
@@ -2780,7 +2749,8 @@ ha_innobase::index_read(
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-  	statistic_increment(ha_read_key_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_key_count,
+			    &LOCK_status);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2886,7 +2856,8 @@ ha_innobase::change_active_index(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key=0;
-	statistic_increment(ha_read_key_count, &LOCK_status);
+	statistic_increment(current_thd->status_var.ha_read_key_count,
+			    &LOCK_status);
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
@@ -3018,7 +2989,8 @@ ha_innobase::index_next(
 	mysql_byte* 	buf)	/* in/out: buffer for next row in MySQL
 				format */
 {
-  	statistic_increment(ha_read_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_next_count,
+			    &LOCK_status);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, 0));
 }
@@ -3035,7 +3007,8 @@ ha_innobase::index_next_same(
 	const mysql_byte* key,	/* in: key value */
 	uint 		keylen)	/* in: key value length */
 {
-  	statistic_increment(ha_read_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_next_count,
+			    &LOCK_status);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, last_match_mode));
 }
@@ -3069,7 +3042,8 @@ ha_innobase::index_first(
 	int	error;
 
   	DBUG_ENTER("index_first");
-  	statistic_increment(ha_read_first_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_first_count,
+			    &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
 
@@ -3095,7 +3069,8 @@ ha_innobase::index_last(
 	int	error;
 
   	DBUG_ENTER("index_first");
-  	statistic_increment(ha_read_last_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_last_count,
+			    &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
@@ -3160,7 +3135,8 @@ ha_innobase::rnd_next(
 	int	error;
 
   	DBUG_ENTER("rnd_next");
-  	statistic_increment(ha_read_rnd_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+			    &LOCK_status);
 
   	if (start_of_scan) {
 		error = index_first(buf);
@@ -3196,7 +3172,8 @@ ha_innobase::rnd_pos(
 	DBUG_ENTER("rnd_pos");
 	DBUG_DUMP("key", (char*) pos, ref_length);
 
-	statistic_increment(ha_read_rnd_count, &LOCK_status);
+	statistic_increment(current_thd->status_var.ha_read_rnd_count,
+			    &LOCK_status);
 
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
@@ -3645,11 +3622,19 @@ ha_innobase::create(
   	}
 
 	if (current_thd->query != NULL) {
-  	
-		error = row_table_add_foreign_constraints(trx,
-					current_thd->query, norm_name);
 
-		error = convert_error_code_to_mysql(error, NULL);
+		LEX_STRING q;
+		if (thd->convert_string(&q, system_charset_info,
+					current_thd->query,
+					current_thd->query_length,
+					current_thd->charset())) {
+			error = HA_ERR_OUT_OF_MEM;
+		} else {
+			error = row_table_add_foreign_constraints(trx,
+					q.str, norm_name);
+
+			error = convert_error_code_to_mysql(error, NULL);
+		}
 
 		if (error) {
 			innobase_commit_low(trx);
@@ -4398,7 +4383,7 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		/* output the data to a temporary file */
@@ -4460,7 +4445,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
@@ -5150,7 +5135,7 @@ initialized yet. This function does not change the value of the auto-inc
 counter if it already has been initialized. Returns the value of the
 auto-inc counter. */
 
-longlong
+ulonglong
 ha_innobase::get_auto_increment()
 /*=============================*/
                          /* out: auto-increment column value, -1 if error
@@ -5163,10 +5148,10 @@ ha_innobase::get_auto_increment()
 
 	if (error) {
 
-		return(-1);
+          return(~(ulonglong) 0);
 	}
 
-	return(nr);
+	return((ulonglong) nr);
 }
 
 /***********************************************************************

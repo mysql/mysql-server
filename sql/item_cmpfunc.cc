@@ -188,25 +188,17 @@ void Item_bool_func2::fix_length_and_dec()
   {
     uint strong= 0;
     uint weak= 0;
+    DTCollation coll;
 
-    if ((args[0]->collation.derivation < args[1]->collation.derivation) && 
-	!my_charset_same(args[0]->collation.collation, 
-			 args[1]->collation.collation) &&
-        (args[0]->collation.collation->state & MY_CS_UNICODE))
-    {
-      weak= 1;
-    }
-    else if ((args[1]->collation.derivation < args[0]->collation.derivation) && 
-	     !my_charset_same(args[0]->collation.collation,
-			      args[1]->collation.collation) &&
-             (args[1]->collation.collation->state & MY_CS_UNICODE))
-    {
-      strong= 1;
-    }
-    
-    if (strong || weak)
+    if (args[0]->result_type() == STRING_RESULT &&
+        args[1]->result_type() == STRING_RESULT &&
+        !my_charset_same(args[0]->collation.collation,
+                         args[1]->collation.collation) &&
+        !coll.set(args[0]->collation, args[1]->collation, TRUE))
     {
       Item* conv= 0;
+      strong= coll.strong;
+      weak= strong ? 0 : 1;
       if (args[weak]->type() == STRING_ITEM)
       {
         String tmp, cstr;
@@ -219,9 +211,25 @@ void Item_bool_func2::fix_length_and_dec()
       }
       else
       {
-	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
+        THD *thd= current_thd;
+        /*
+          In case we're in prepared statement, create conversion
+          item in its memory: it will be reused on each execute.
+          (and don't juggle with mem_root's if it is ordinary statement).
+          We come here only during first fix_fields() because after creating
+          conversion item we will have arguments with compatible collations.
+        */
+        Item_arena *arena= thd->current_arena, backup;
+        if (arena->is_conventional())
+          arena= 0;
+        else
+          thd->set_n_backup_item_arena(arena, &backup);
+	conv= new Item_func_conv_charset(args[weak],
+                                         args[strong]->collation.collation);
+        if (arena)
+          thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(current_thd, 0, &conv);
+        conv->fix_fields(thd, 0, &conv);
       }
       args[weak]= conv ? conv : args[weak];
     }
@@ -268,8 +276,8 @@ void Item_bool_func2::fix_length_and_dec()
 int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 {
   owner= item;
-  func= comparator_matrix[type][(owner->functype() == Item_func::EQUAL_FUNC)?
-				1:0];
+  func= comparator_matrix[type]
+                         [test(owner->functype() == Item_func::EQUAL_FUNC)];
   if (type == ROW_RESULT)
   {
     uint n= (*a)->cols();
@@ -303,16 +311,32 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
     }
-    if (my_binary_compare(cmp_collation.collation))
+    if (cmp_collation.collation == &my_charset_bin)
     {
       /*
-	We are using binary collation, change to compare byte by byte,
+	We are using BLOB/BINARY/VARBINARY, change to compare byte by byte,
 	without removing end space
       */
       if (func == &Arg_comparator::compare_string)
 	func= &Arg_comparator::compare_binary_string;
       else if (func == &Arg_comparator::compare_e_string)
 	func= &Arg_comparator::compare_e_binary_string;
+    }
+  }
+  else if (type == INT_RESULT)
+  {
+    if (func == &Arg_comparator::compare_int_signed)
+    {
+      if ((*a)->unsigned_flag)
+        func= ((*b)->unsigned_flag)? &Arg_comparator::compare_int_unsigned : 
+                                     &Arg_comparator::compare_int_unsigned_signed;
+      else if ((*b)->unsigned_flag)
+        func= &Arg_comparator::compare_int_signed_unsigned;
+    }
+    else if (func== &Arg_comparator::compare_e_int)
+    {
+      if ((*a)->unsigned_flag ^ (*b)->unsigned_flag)
+        func= &Arg_comparator::compare_e_int_diff_signedness;
     }
   }
   return 0;
@@ -416,7 +440,7 @@ int Arg_comparator::compare_e_real()
   return test(val1 == val2);
 }
 
-int Arg_comparator::compare_int()
+int Arg_comparator::compare_int_signed()
 {
   longlong val1= (*a)->val_int();
   if (!(*a)->null_value)
@@ -434,6 +458,82 @@ int Arg_comparator::compare_int()
   return -1;
 }
 
+
+/*
+  Compare values as BIGINT UNSIGNED.
+*/
+
+int Arg_comparator::compare_int_unsigned()
+{
+  ulonglong val1= (*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    ulonglong val2= (*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (val1 < val2)	return -1;
+      if (val1 == val2)   return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare signed (*a) with unsigned (*B)
+*/
+
+int Arg_comparator::compare_int_signed_unsigned()
+{
+  longlong sval1= (*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    ulonglong uval2= (ulonglong)(*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (sval1 < 0 || (ulonglong)sval1 < uval2)
+        return -1;
+      if ((ulonglong)sval1 == uval2)
+        return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare unsigned (*a) with signed (*B)
+*/
+
+int Arg_comparator::compare_int_unsigned_signed()
+{
+  ulonglong uval1= (ulonglong)(*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    longlong sval2= (*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (sval2 < 0)
+        return 1;
+      if (uval1 < (ulonglong)sval2)
+        return -1;
+      if (uval1 == (ulonglong)sval2)
+        return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
 int Arg_comparator::compare_e_int()
 {
   longlong val1= (*a)->val_int();
@@ -443,6 +543,17 @@ int Arg_comparator::compare_e_int()
   return test(val1 == val2);
 }
 
+/*
+  Compare unsigned *a with signed *b or signed *a with unsigned *b.
+*/
+int Arg_comparator::compare_e_int_diff_signedness()
+{
+  longlong val1= (*a)->val_int();
+  longlong val2= (*b)->val_int();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return (val1 >= 0) && test(val1 == val2);
+}
 
 int Arg_comparator::compare_row()
 {
@@ -1517,7 +1628,7 @@ cmp_item* cmp_item_row::make_same()
 cmp_item_row::~cmp_item_row()
 {
   DBUG_ENTER("~cmp_item_row");
-  DBUG_PRINT("enter",("this: %lx", this));
+  DBUG_PRINT("enter",("this: 0x%lx", this));
   if (comparators)
   {
     for (uint i= 0; i < n; i++)
@@ -1629,8 +1740,8 @@ bool Item_func_in::nulls_in_row()
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
+                               (uchar *) x->ptr(),x->length(),
+                               (uchar *) y->ptr(),y->length());
 }
 
 
@@ -1640,12 +1751,58 @@ void Item_func_in::fix_length_and_dec()
   uint const_itm= 1;
   
   agg_cmp_type(&cmp_type, args, arg_count);
-  if ((cmp_type == STRING_RESULT) &&
-      (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
-    return;
-  
+
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
     const_itm&= arg[0]->const_item();
+
+
+  if (cmp_type == STRING_RESULT)
+  {
+    /*
+      We allow consts character set conversion for
+
+        item IN (const1, const2, const3, ...)
+
+      if item is in a superset for all arguments,
+      and if it is a stong side according to coercibility rules.
+   
+      TODO: add covnersion for non-constant IN values
+      via creating Item_func_conv_charset().
+    */
+
+    if (agg_arg_collations_for_comparison(cmp_collation,
+                                          args, arg_count, TRUE))
+      return;
+    if ((!my_charset_same(args[0]->collation.collation, 
+                          cmp_collation.collation) || !const_itm))
+    {
+      if (agg_arg_collations_for_comparison(cmp_collation,
+                                            args, arg_count, FALSE))
+        return;
+    }
+    else
+    {
+      /* 
+         Conversion is possible:
+         All IN arguments are constants.
+      */
+      for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
+      {
+        if (!my_charset_same(cmp_collation.collation,
+                             arg[0]->collation.collation))
+        {
+          Item_string *conv;
+          String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
+          cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
+                    cmp_collation.collation);
+          conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
+                                arg[0]->collation.derivation);
+          conv->str_value.copy();
+          arg[0]= conv;
+        }
+      }
+    }
+  }
   
   /*
     Row item with NULLs inside can return NULL or FALSE => 
@@ -1927,15 +2084,6 @@ void Item_cond::neg_arguments(THD *thd)
     {
       if (!(new_item= new Item_func_not(item)))
 	return;					// Fatal OEM error
-      /*
-	We can use 0 as tables list because Item_func_not do not use it
-	on fix_fields and its arguments are already fixed.
-
-	We do not check results of fix_fields, because there are not way
-	to return error in this functions interface, thd->net.report_error
-	will be checked on upper level call.
-      */
-      new_item->fix_fields(thd, 0, &new_item);
     }
     VOID(li.replace(new_item));
   }
@@ -2354,7 +2502,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2457,7 +2605,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2488,7 +2636,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     while (j <= tlmpl)
     {
@@ -2613,9 +2761,6 @@ longlong Item_cond_xor::val_int()
        IS NULL(a)         -> IS NOT NULL(a)
        IS NOT NULL(a)     -> IS NULL(a)
 
-  NOTE
-    This method is used in the eliminate_not_funcs() function.
-
   RETURN
     New item or
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
@@ -2623,26 +2768,13 @@ longlong Item_cond_xor::val_int()
 
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
-  // We should apply negation elimination to the argument of the NOT function
-  return eliminate_not_funcs(thd, args[0]);
+  return args[0];
 }
 
 
 Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
-  if (item)
-  {
-    /*
-      We can use 0 as tables list because Item_func* family do not use it
-      on fix_fields and its arguments are already fixed.
-      
-      We do not check results of fix_fields, because there are not way
-      to return error in this functions interface, thd->net.report_error
-      will be checked on upper level call.
-    */
-    item->fix_fields(thd, 0, &item);
-  }
   return item;
 }
 
@@ -2651,9 +2783,6 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 Item *Item_func_isnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnotnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2662,9 +2791,6 @@ Item *Item_func_isnull::neg_transformer(THD *thd)
 Item *Item_func_isnotnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2674,9 +2800,6 @@ Item *Item_cond_and::neg_transformer(THD *thd)	/* NOT(a AND b AND ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_or(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2686,9 +2809,6 @@ Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_and(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 

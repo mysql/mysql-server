@@ -9,12 +9,12 @@
 -- this sql script.
 -- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
-ALTER TABLE user type=MyISAM;
-ALTER TABLE db type=MyISAM;
-ALTER TABLE host type=MyISAM;
-ALTER TABLE func type=MyISAM;
-ALTER TABLE columns_priv type=MyISAM;
-ALTER TABLE tables_priv type=MyISAM;
+ALTER TABLE user type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE db type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE host type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE func type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE columns_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE tables_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user change Password Password char(41) binary not null;
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS func (
   dl char(128) DEFAULT '' NOT NULL,
   type enum ('function','aggregate') NOT NULL,
   PRIMARY KEY (name)
-);
+) CHARACTER SET utf8 COLLATE utf8_bin;
 
 -- Detect whether or not we had the Grant_priv column
 SET @hadGrantPriv:=0;
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS tables_priv (
   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') DEFAULT '' NOT NULL,
   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name)
-);
+) CHARACTER SET utf8 COLLATE utf8_bin;
 
 CREATE TABLE IF NOT EXISTS columns_priv (
   Host char(60) DEFAULT '' NOT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS columns_priv (
   Timestamp timestamp(14),
   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name,Column_name)
-);
+) CHARACTER SET utf8 COLLATE utf8_bin;
 
 
 --
@@ -144,6 +144,13 @@ alter table user comment='Users and global privileges';
 alter table func comment='User defined functions';
 alter table tables_priv comment='Table privileges';
 alter table columns_priv comment='Column privileges';
+
+#
+# Detect whether we had Create_view_priv
+# 
+SET @hadCreateViewPriv:=0;
+SELECT @hadCreateViewPriv:=1 FROM user WHERE Create_view_priv LIKE '%';
+
 #
 # Create VIEWs privileges (v5.0)
 #
@@ -159,6 +166,11 @@ ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Cre
 ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
+# Assign create/show view privileges to people who have create provileges
+#
+UPDATE user SET Create_view_priv=Create_priv, Show_view_priv=Create_priv where user<>"" AND @hadCreateViewPriv = 0;
+
+#
 # Create some possible missing tables
 #
 CREATE TABLE IF NOT EXISTS help_topic (
@@ -169,7 +181,7 @@ description text not null,
 example text not null,
 url varchar(128) not null,
 primary key (help_topic_id), unique index (name)
-) comment='help topics';
+) CHARACTER SET utf8 comment='help topics';
 
 CREATE TABLE IF NOT EXISTS help_category (
 help_category_id smallint unsigned not null,
@@ -178,20 +190,20 @@ parent_category_id smallint unsigned null,
 url varchar(128) not null,
 primary key (help_category_id),
 unique index (name)
-) comment='help categories';
+) CHARACTER SET utf8 comment='help categories';
 
 CREATE TABLE IF NOT EXISTS help_relation (
 help_topic_id int unsigned not null references help_topic,
 help_keyword_id  int unsigned not null references help_keyword,
 primary key (help_keyword_id, help_topic_id)
-) comment='keyword-topic relation';
+) CHARACTER SET utf8 comment='keyword-topic relation';
 
 CREATE TABLE IF NOT EXISTS help_keyword (
 help_keyword_id int unsigned not null,
 name varchar(64) not null,
 primary key (help_keyword_id),
 unique index (name)
-) comment='help keywords';
+) CHARACTER SET utf8 comment='help keywords';
 
 #
 # Create missing time zone related tables
@@ -201,20 +213,20 @@ CREATE TABLE IF NOT EXISTS time_zone_name (
 Name char(64) NOT NULL,   
 Time_zone_id int  unsigned NOT NULL,
 PRIMARY KEY Name (Name) 
-) DEFAULT CHARACTER SET latin1 comment='Time zone names';
+) CHARACTER SET utf8 comment='Time zone names';
 
 CREATE TABLE IF NOT EXISTS time_zone (
 Time_zone_id int unsigned NOT NULL auto_increment,
 Use_leap_seconds  enum('Y','N') DEFAULT 'N' NOT NULL,
 PRIMARY KEY TzId (Time_zone_id) 
-) DEFAULT CHARACTER SET latin1 comment='Time zones';
+) CHARACTER SET utf8 comment='Time zones';
 
 CREATE TABLE IF NOT EXISTS time_zone_transition (
 Time_zone_id int unsigned NOT NULL,
 Transition_time bigint signed NOT NULL,   
 Transition_type_id int unsigned NOT NULL,
 PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time) 
-) DEFAULT CHARACTER SET latin1 comment='Time zone transitions';
+) CHARACTER SET utf8 comment='Time zone transitions';
 
 CREATE TABLE IF NOT EXISTS time_zone_transition_type (
 Time_zone_id int unsigned NOT NULL,
@@ -223,13 +235,13 @@ Offset int signed DEFAULT 0 NOT NULL,
 Is_DST tinyint unsigned DEFAULT 0 NOT NULL,
 Abbreviation char(8) DEFAULT '' NOT NULL,
 PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id) 
-) DEFAULT CHARACTER SET latin1 comment='Time zone transition types';
+) CHARACTER SET utf8 comment='Time zone transition types';
 
 CREATE TABLE IF NOT EXISTS time_zone_leap_second (
 Transition_time bigint signed NOT NULL,
 Correction int signed NOT NULL,   
 PRIMARY KEY TranTime (Transition_time) 
-) DEFAULT CHARACTER SET latin1   comment='Leap seconds information for time zones';
+) CHARACTER SET utf8 comment='Leap seconds information for time zones';
 
 
 #

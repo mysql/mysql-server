@@ -194,7 +194,7 @@ gptr _mymalloc(uint size, const char *filename, uint lineno, myf MyFlags)
   if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
     bfill(data, size, (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
   /* Return a pointer to the real data */
-  DBUG_PRINT("exit",("ptr: %lx", data));
+  DBUG_PRINT("exit",("ptr: 0x%lx", data));
   if (sf_min_adress > data)
     sf_min_adress= data;
   if (sf_max_adress < data)
@@ -259,7 +259,7 @@ void _myfree(gptr ptr, const char *filename, uint lineno, myf myflags)
 {
   struct st_irem *irem;
   DBUG_ENTER("_myfree");
-  DBUG_PRINT("enter",("ptr: %lx", ptr));
+  DBUG_PRINT("enter",("ptr: 0x%lx", ptr));
 
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
@@ -446,7 +446,7 @@ static int _checkchunk(register struct st_irem *irem, const char *filename,
 	    irem->filename, irem->linenum);
     fprintf(stderr, " discovered at %s:%d\n", filename, lineno);
     (void) fflush(stderr);
-    DBUG_PRINT("safe",("Underrun at %lx, allocated at %s:%d",
+    DBUG_PRINT("safe",("Underrun at 0x%lx, allocated at %s:%d",
 		       data, irem->filename, irem->linenum));
     flag=1;
   }
@@ -462,7 +462,7 @@ static int _checkchunk(register struct st_irem *irem, const char *filename,
 	    irem->filename, irem->linenum);
     fprintf(stderr, " discovered at '%s:%d'\n", filename, lineno);
     (void) fflush(stderr);
-    DBUG_PRINT("safe",("Overrun at %lx, allocated at %s:%d",
+    DBUG_PRINT("safe",("Overrun at 0x%lx, allocated at %s:%d",
 		       data,
 		       irem->filename,
 		       irem->linenum));

@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2;
+drop database if exists mysqltest;
 --enable_warnings
 
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
@@ -269,42 +270,42 @@ drop table t1, t2, t3;
 # Test for bug #3342 SHOW CREATE DATABASE seems to require DROP privilege
 #
 
-create database test_$1;
-show create database test_$1;
-create table test_$1.t1(a int);
-insert into test_$1.t1 values(1);
-grant select on `test_$1`.* to mysqltest_1@localhost;
-grant usage  on `test_$1`.* to mysqltest_2@localhost;
-grant drop   on `test_$1`.* to mysqltest_3@localhost;
+create database mysqltest;
+show create database mysqltest;
+create table mysqltest.t1(a int);
+insert into mysqltest.t1 values(1);
+grant select on `mysqltest`.* to mysqltest_1@localhost;
+grant usage  on `mysqltest`.* to mysqltest_2@localhost;
+grant drop   on `mysqltest`.* to mysqltest_3@localhost;
 
-connect (con1,localhost,mysqltest_1,,test_$1);
+connect (con1,localhost,mysqltest_1,,mysqltest);
 connection con1;
 select * from t1;
-show create database test_$1;
+show create database mysqltest;
 --error 1044
 drop table t1;
 --error 1044
-drop database test_$1;
+drop database mysqltest;
 
 connect (con2,localhost,mysqltest_2,,test);
 connection con2;
 --error 1044
-select * from test_$1.t1;
+select * from mysqltest.t1;
 --error 1044
-show create database test_$1;
+show create database mysqltest;
 --error 1044
-drop table test_$1.t1;
+drop table mysqltest.t1;
 --error 1044
-drop database test_$1;
+drop database mysqltest;
 
 connect (con3,localhost,mysqltest_3,,test);
 connection con3;
 --error 1044
-select * from test_$1.t1;
+select * from mysqltest.t1;
 --error 1044
-show create database test_$1;
-drop table test_$1.t1;
-drop database test_$1;
+show create database mysqltest;
+drop table mysqltest.t1;
+drop database mysqltest;
 
 connection default;
 set names binary;
@@ -314,3 +315,11 @@ delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 
+# This test fails on MAC OSX, so it is temporary disabled.
+# This needs WL#1324 to be done.
+#set names latin1;
+#create database `ä`;
+#create table `ä`.`ä` (a int) engine=heap;
+#--replace_column 7 # 8 # 9 #
+#show table status from `ä` LIKE 'ä';
+#drop database `ä`;

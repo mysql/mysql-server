@@ -7,11 +7,6 @@ extra_flags="$pentium_cflags $fast_cflags -g"
 extra_configs="$pentium_configs"
 #strip=yes
 
-#extra_configs="$extra_configs --with-innodb --with-berkeley-db \
-#	--with-embedded-server --enable-thread-safe-client \
-#	--with-openssl --with-vio --with-raid --with-ndbcluster"
-# removed per discussion with Brian and Sanja because it makes Bootstrap
-# fail
 extra_configs="$extra_configs --with-innodb --with-berkeley-db \
 	--with-embedded-server --enable-thread-safe-client \
 	--with-openssl --with-vio --with-raid --with-ndbcluster"

@@ -25,6 +25,7 @@ insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -37,6 +38,7 @@ insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
 rollback;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -51,6 +53,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -67,6 +70,7 @@ insert into t1 values(7);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
+--replace_column 5 #
 show binlog events from 95;
 
 # and when ROLLBACK is not explicit?
@@ -87,6 +91,7 @@ connection con2;
 # so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
 # logging has been done, we use a user lock.
 select get_lock("a",10);
+--replace_column 5 #
 show binlog events from 95;
 
 # and when not in a transact1on?
@@ -97,6 +102,7 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 
+--replace_column 5 #
 show binlog events from 95;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
@@ -108,10 +114,12 @@ reset master;
 insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
+--replace_column 5 #
 show binlog events from 95;
 insert into t1 values(11);
 commit;
 
+--replace_column 5 #
 show binlog events from 95;
 
 
@@ -129,6 +137,7 @@ insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -140,6 +149,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -154,6 +164,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
+--replace_column 5 #
 show binlog events from 95;
 
 delete from t1;
@@ -170,6 +181,7 @@ insert into t1 values(18);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
+--replace_column 5 #
 show binlog events from 95;
 
 drop table t1,t2;
