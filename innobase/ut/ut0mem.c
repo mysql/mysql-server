@@ -236,29 +236,3 @@ ut_memcpyq(
 
 	return(dest);
 }
-
-/**************************************************************************
-Catenates two strings into newly allocated memory. The memory must be freed
-using mem_free. */
-
-char*
-ut_str_catenate(
-/*============*/
-			/* out, own: catenated null-terminated string */
-	char*	str1,	/* in: null-terminated string */
-	char*	str2)	/* in: null-terminated string */
-{
-	ulint	len1;
-	ulint	len2;
-	char*	str;
-
-	len1 = ut_strlen(str1);
-	len2 = ut_strlen(str2);
-
-	str = mem_alloc(len1 + len2 + 1);
-
-	ut_memcpy(str, str1, len1);
-	ut_memcpy(str + len1, str2, len2 + 1);
-
-	return(str);
-}

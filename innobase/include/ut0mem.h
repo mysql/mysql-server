@@ -108,17 +108,6 @@ ut_memcpyq(
 	const char*	src,	/* in: string to be quoted */
 	ulint		len);	/* in: length of src */
 
-/**************************************************************************
-Catenates two strings into newly allocated memory. The memory must be freed
-using mem_free. */
-
-char*
-ut_str_catenate(
-/*============*/
-			/* out, own: catenated null-terminated string */
-	char*	str1,	/* in: null-terminated string */
-	char*	str2);	/* in: null-terminated string */
-
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"
 #endif
