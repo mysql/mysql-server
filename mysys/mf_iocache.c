@@ -27,7 +27,7 @@
   also info->read_pos is set to info->read_end.
   If called through open_cached_file(), then the temporary file will
   only be created if a write exeeds the file buffer or if one calls
-  flush_io_cache().
+  my_b_flush_io_cache().
 
   If one uses SEQ_READ_APPEND, then two buffers are allocated, one for
   reading and another for writing.  Reads are first done from disk and
@@ -43,7 +43,7 @@ TODO:
   each time the write buffer gets full and it's written to disk, we will
   always do a disk read to read a part of the buffer from disk to the
   read buffer.
-  This should be fixed so that when we do a flush_io_cache() and
+  This should be fixed so that when we do a my_b_flush_io_cache() and
   we have been reading the write buffer, we should transfer the rest of the
   write buffer to the read buffer before we start to reuse it.
 */
@@ -339,7 +339,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
     if (info->type == WRITE_CACHE && type == READ_CACHE)
       info->end_of_file=my_b_tell(info);
     /* flush cache if we want to reuse it */
-    if (!clear_cache && flush_io_cache(info))
+    if (!clear_cache && my_b_flush_io_cache(info,1))
       DBUG_RETURN(1);
     info->pos_in_file=seek_offset;
     /* Better to do always do a seek */
@@ -948,7 +948,7 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
-  if (flush_io_cache(info))
+  if (my_b_flush_io_cache(info,1))
     return 1;
   if (Count >= IO_SIZE)
   {					/* Fill first intern buffer */
@@ -1191,6 +1191,7 @@ int end_io_cache(IO_CACHE *info)
   int error=0;
   IO_CACHE_CALLBACK pre_close;
   DBUG_ENTER("end_io_cache");
+  DBUG_PRINT("enter",("cache: 0x%lx", (ulong) info));
 
 #ifdef THREAD
   /*
@@ -1200,7 +1201,7 @@ int end_io_cache(IO_CACHE *info)
   */
   if (info->share)
   {
-    pthread_cond_destroy (&info->share->cond);
+    pthread_cond_destroy(&info->share->cond);
     pthread_mutex_destroy(&info->share->mutex);
     info->share=0;
   }
@@ -1215,7 +1216,7 @@ int end_io_cache(IO_CACHE *info)
   {
     info->alloced_buffer=0;
     if (info->file != -1)			/* File doesn't exist */
-      error=flush_io_cache(info);
+      error= my_b_flush_io_cache(info,1);
     my_free((gptr) info->buffer,MYF(MY_WME));
     info->buffer=info->read_pos=(byte*) 0;
   }

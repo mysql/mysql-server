@@ -567,10 +567,10 @@ write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
-    goto err;                                        /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
   buffpek.file_pos= my_b_tell(tempfile);
   if ((ha_rows) count > param->max_rows)
-    count=(uint) param->max_rows;                /* purecov: inspected */
+    count=(uint) param->max_rows;               /* purecov: inspected */
   buffpek.count=(ha_rows) count;
   for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
     if (my_b_write(tempfile, (byte*) *sort_keys, (uint) rec_length))
@@ -844,6 +844,7 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
     if (flush_io_cache(to_file))
       break;					/* purecov: inspected */
     temp=from_file; from_file=to_file; to_file=temp;
+    
     *maxbuffer= (uint) (lastbuff-buffpek)-1;
   }
   close_cached_file(to_file);			// This holds old result
