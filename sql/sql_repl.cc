@@ -225,6 +225,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 
 	    if(read_packet)
 	    {
+	      thd->proc_info = "sending update to slave";
 	      if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
 	      {
 		errmsg = "Failed on my_net_write()";
@@ -257,7 +258,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       else
 	{
 	  bool loop_breaker = 0; // need this to break out of the for loop from switch
-
+          thd->proc_info = "switching to next log";
 	  switch(mysql_bin_log.find_next_log(&linfo))
 	    {
 	    case LOG_INFO_EOF:
@@ -307,10 +308,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
     }
 
   (void)my_fclose(log, MYF(MY_WME));
-
+  
   send_eof(&thd->net);
+  thd->proc_info = "waiting to finalize termination";
   DBUG_VOID_RETURN;
  err:
+  thd->proc_info = "waiting to finalize termination";
   if(log)
    (void) my_fclose(log, MYF(MY_WME));
   send_error(&thd->net, 0, errmsg);
@@ -408,6 +411,34 @@ void reset_slave()
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {
   pthread_mutex_lock(&LOCK_thread_count);
+  I_List_iterator<THD> it(threads);
+  THD *tmp;
+
+  while((tmp=it++))
+    {
+      if(tmp->command == COM_BINLOG_DUMP &&
+	 tmp->server_id == slave_server_id)
+	{
+	  // here we do not call kill_one_thread()
+	  // it will be slow because it will iterate through the list
+	  // again. Plus it double-locks LOCK_thread_count, which
+	  // make safe_mutex complain and abort
+	  // so we just to our own thread murder
+	  
+	  thr_alarm_kill(tmp->real_id);
+	  tmp->killed = 1;
+	  pthread_mutex_lock(&tmp->mysys_var->mutex);
+          tmp->mysys_var->abort = 1;
+	  if(tmp->mysys_var->current_mutex)
+	    {
+	      pthread_mutex_lock(tmp->mysys_var->current_mutex);
+	      pthread_cond_broadcast(tmp->mysys_var->current_cond);
+	      pthread_mutex_unlock(tmp->mysys_var->current_mutex);
+	    }
+	  pthread_mutex_unlock(&tmp->mysys_var->mutex);
+	}
+   }
+  
   pthread_mutex_unlock(&LOCK_thread_count);
 }
 
