@@ -105,7 +105,13 @@ class TC_LOG_MMAP: public TC_LOG
   File fd;
   uint file_length, npages, inited;
   uchar *data;
-  struct st_page *pages, *in_sync, *active, *pool, *pool_last;
+  struct st_page *pages, *syncing, *active, *pool, *pool_last;
+  /*
+    note that, e.g. LOCK_active is only used to protect
+    'active' pointer, to protect the content of the active page
+    one has to use active->lock.
+    Same for LOCK_pool and LOCK_sync
+  */
   pthread_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
   pthread_cond_t COND_pool, COND_active;
 
@@ -121,17 +127,6 @@ class TC_LOG_MMAP: public TC_LOG
   void get_active_from_pool();
   int sync();
   int overflow();
-  void compact_active();
-  void lock_queue(pthread_mutex_t *lock)
-  {
-    if (in_sync)
-      pthread_mutex_lock(lock);
-  }
-  void unlock_queue(pthread_mutex_t *lock)
-  {
-    if (in_sync)
-      pthread_mutex_unlock(lock);
-  }
 };
 
 extern TC_LOG *tc_log;
@@ -881,6 +876,7 @@ struct st_savepoint {
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+extern const char *xa_state_names[];
 
 /*
   A registry for item tree transformations performed during
@@ -1775,7 +1771,7 @@ class multi_delete :public select_result_interceptor
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
-  bool do_delete, transactional_tables, log_delayed, normal_tables;
+  bool do_delete, transactional_tables, normal_tables;
 public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
@@ -1802,7 +1798,7 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed;
+  bool do_update, trans_safe, transactional_tables;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,

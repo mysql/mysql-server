@@ -692,7 +692,7 @@ static inline bool thread_safe_dec_and_test(ulong &V, pthread_mutex_t *L)
 {
   ulong res;
   pthread_mutex_lock(L);
-  res=V--;
+  res=--V;
   pthread_mutex_unlock(L);
   return res==0;
 }

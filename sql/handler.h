@@ -195,7 +195,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 
-typedef ulong my_xid;
+typedef ulonglong my_xid;
 #define MYSQL_XID_PREFIX "MySQLXid"
 #define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
@@ -215,11 +215,11 @@ struct xid_t {
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(LEX_STRING *l) { set(l->length, 0, l->str); }
-  void set(ulong l)
+  void set(ulonglong l)
   {
     set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
     *(ulong*)(data+MYSQL_XID_PREFIX_LEN)=server_id;
-    *(ulong*)(data+MYSQL_XID_OFFSET)=l;
+    *(my_xid*)(data+MYSQL_XID_OFFSET)=l;
     gtrid_length=MYSQL_XID_GTRID_LEN;
   }
   void set(long g, long b, const char *d)
@@ -233,7 +233,7 @@ struct xid_t {
   void null() { formatID= -1; }
   my_xid quick_get_my_xid()
   {
-    return *(ulong*)(data+MYSQL_XID_OFFSET);
+    return *(my_xid*)(data+MYSQL_XID_OFFSET);
   }
   my_xid get_my_xid()
   {
@@ -319,8 +319,11 @@ typedef struct
 
 typedef struct st_thd_trans
 {
+  /* number of entries in the ht[] */
   uint        nht;
+  /* true is not all entries in the ht[] support 2pc */
   bool        no_2pc;
+  /* storage engines that registered themselves for this transaction */
   handlerton *ht[MAX_HA];
 } THD_TRANS;
 
