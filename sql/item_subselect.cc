@@ -44,12 +44,13 @@ Item_subselect::Item_subselect():
 }
 
 void Item_subselect::init(THD *thd, st_select_lex *select_lex,
-		     select_subselect *result)
+			  select_subselect *result, Item *left_expr)
 {
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
+  DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
 
+  select_transformer(select_lex, left_expr);
   if (select_lex->next_select())
     engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
 				       this);
@@ -64,6 +65,14 @@ Item_subselect::~Item_subselect()
   if (engine_owner)
     delete engine;
 }
+
+void Item_subselect::select_transformer(st_select_lex *select_lex,
+					Item *left_expr) 
+{
+  DBUG_ENTER("Item_subselect::select_transformer");
+  DBUG_VOID_RETURN;
+}
+
 
 void Item_subselect::make_field (Send_field *tmp_field)
 {
@@ -109,9 +118,11 @@ Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 						   st_select_lex *select_lex):
   Item_subselect()
 {
-  init(thd, select_lex, new select_singleval_subselect(this));
+  DBUG_ENTER("Item_singleval_subselect::Item_singleval_subselect");
+  init(thd, select_lex, new select_singleval_subselect(this), 0);
   max_columns= 1;
   maybe_null= 1;
+  DBUG_VOID_RETURN;
 }
 
 void Item_singleval_subselect::fix_length_and_dec()
@@ -156,16 +167,36 @@ String *Item_singleval_subselect::val_str (String *str)
 }
 
 Item_exists_subselect::Item_exists_subselect(THD *thd,
-					     st_select_lex *select_lex):
+					     st_select_lex *select_lex,
+					     Item *left_expr):
   Item_subselect()
 {
-  init(thd, select_lex, new select_exists_subselect(this));
+  DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
+  init(thd, select_lex, new select_exists_subselect(this), left_expr);
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
   value= 0;
-  select_lex->select_limit= 1; // we need only 1 row to determinate existence
+  // We need only 1 row to determinate existence
+  select_lex->master_unit()->global_parameters->select_limit= 1;
+  DBUG_VOID_RETURN;
 }
+
+Item_in_subselect::Item_in_subselect(THD *thd, Item * left_expr,
+				     st_select_lex *select_lex):
+  Item_exists_subselect()
+{
+  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  init(thd, select_lex, new select_exists_subselect(this), left_expr);
+  max_columns= UINT_MAX;
+  null_value= 0; //can't be NULL
+  maybe_null= 0; //can't be NULL
+  value= 0;
+  // We need only 1 row to determinate existence
+  select_lex->master_unit()->global_parameters->select_limit= 1;
+  DBUG_VOID_RETURN;
+}
+
 
 void Item_exists_subselect::fix_length_and_dec()
 {
@@ -204,6 +235,37 @@ String *Item_exists_subselect::val_str(String *str)
   return str;
 }
 
+Item_in_subselect::Item_in_subselect(Item_in_subselect *item):
+  Item_exists_subselect(item)
+{
+}
+
+void Item_in_subselect::select_transformer(st_select_lex *select_lex,
+					   Item *left_expr)
+{
+  DBUG_ENTER("Item_in_subselect::select_transformer");
+  for(SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  {
+    Item *item;
+    if (sl->item_list.elements > 1)
+    {
+      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      item= 0; // Item_asterisk_remover mast fail
+    }
+    else
+      item= (Item*) sl->item_list.pop();
+    sl->item_list.empty();
+    sl->item_list.push_back(new Item_int(1));
+    left_expr= new Item_outer_select_context_saver(left_expr);
+    item= new Item_asterisk_remover(item);
+    if (sl->where)
+      sl->where= new Item_cond_and(sl->where,
+				   new Item_func_eq(item, left_expr));
+    else
+      sl->where= new Item_func_eq(item, left_expr);
+  }
+  DBUG_VOID_RETURN;
+}
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
 							       st_select_lex *select,
