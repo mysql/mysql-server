@@ -12,10 +12,12 @@
 .*.swp
 .deps
 .gdb_history
+.gdbinit
 .libs
 .o
 .out
 .snprj/*
+.vimrc
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -199,6 +201,7 @@ libmysqld/ha_isammrg.cc
 libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
 libmysqld/handler.cc
+libmysqld/hash_filo.cc
 libmysqld/hostname.cc
 libmysqld/init.cc
 libmysqld/item.cc
@@ -251,8 +254,10 @@ libmysqld/sql_string.cc
 libmysqld/sql_table.cc
 libmysqld/sql_test.cc
 libmysqld/sql_udf.cc
+libmysqld/sql_unions.cc
 libmysqld/sql_update.cc
 libmysqld/sql_yacc.cc
+libmysqld/stacktrace.c
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
 libmysqld/time.cc
@@ -265,6 +270,7 @@ linked_libmysql_r_sources
 linked_libmysql_sources
 linked_libmysqld_sources
 linked_server_sources
+locked
 myisam/ft_dump
 myisam/ft_eval
 myisam/ft_test1
@@ -279,6 +285,7 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
 mysql-test/r/*.reject
+mysql-test/r/rpl_log.eval
 mysql-test/share/mysql
 mysql-test/var/*
 mysql.proj
@@ -307,6 +314,7 @@ scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
 scripts/mysqld_multi
+scripts/mysqld_safe
 scripts/mysqldumpslow
 scripts/mysqlhotcopy
 scripts/safe_mysqld
@@ -341,6 +349,7 @@ sql/mysqld
 sql/share/*.sys
 sql/share/charsets/gmon.out
 sql/share/gmon.out
+sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys
 sql/sql_yacc.cc
@@ -364,11 +373,3 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
-libmysqld/hash_filo.cc
-libmysqld/sql_unions.cc
-libmysqld/stacktrace.c
-sql/share/mysql
-.gdbinit
-.vimrc
-scripts/mysqld_safe
-mysql-test/r/rpl_log.eval

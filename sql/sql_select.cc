@@ -385,6 +385,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       thd->fatal_error)
     goto err;
   thd->proc_info="preparing";
+  result->initialize_tables(&join);
   if ((tmp=join_read_const_tables(&join)) > 0)
     goto err;
   if (tmp && !(select_options & SELECT_DESCRIBE))
