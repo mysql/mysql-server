@@ -390,9 +390,14 @@ int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result,
-		 SELECT_LEX_UNIT *unit);
+		 SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+		 bool fake_select_lex);
+void fix_tables_pointers(SELECT_LEX *select_lex);
+int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
+			 select_result *result);
 int mysql_union(THD *thd, LEX *lex,select_result *result);
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t,
+		  bool tables_is_opened);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
