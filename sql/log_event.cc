@@ -671,9 +671,9 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   fprintf(file, "LOAD DATA INFILE '%s' ", fname);
 
-  if(sql_ex.opt_flags && REPLACE_FLAG )
+  if(sql_ex.opt_flags & REPLACE_FLAG )
     fprintf(file," REPLACE ");
-  else if(sql_ex.opt_flags && IGNORE_FLAG )
+  else if(sql_ex.opt_flags & IGNORE_FLAG )
     fprintf(file," IGNORE ");
   
   fprintf(file, "INTO TABLE %s ", table_name);
@@ -685,7 +685,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   if(!(sql_ex.empty_flags & ENCLOSED_EMPTY))
   {
-    if(sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+    if(sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
       fprintf(file," OPTIONALLY ");
     fprintf(file, " ENCLOSED BY ");
     pretty_print_char(file, sql_ex.enclosed);
