@@ -263,7 +263,7 @@ typedef struct st_mysql_parameters
 int STDCALL mysql_server_init(int argc, char **argv, char **groups);
 void STDCALL mysql_server_end(void);
 
-MYSQL_PARAMETERS *STDCALL mysql_get_parameters();
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void);
 
 /*
   Set up and bring down a thread; these function should be called
