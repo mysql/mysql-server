@@ -229,7 +229,11 @@ JOIN::prepare(TABLE_LIST *tables_init,
   {
     thd->where="having clause";
     thd->allow_sum_func=1;
-    if (having->fix_fields(thd,tables_list) || thd->fatal_error)
+    bool having_fix_field_store= thd->having_fix_field;
+    thd->having_fix_field= 1;
+    bool having_fix_rc= having->fix_fields(thd,tables_list);
+    thd->having_fix_field= having_fix_field_store;
+    if (having_fix_rc || thd->fatal_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
