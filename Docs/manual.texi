@@ -34695,17 +34695,17 @@ transaction cause the corresponding cache entries to be invalidated.
 A query cannot be cached if it contains one of the functions:
 @multitable @columnfractions .25 .25 .25 .25
 @item @strong{Function} @tab @strong{Function}
-@tab @strong{Function} @tab @strong{Function}
+ @tab @strong{Function} @tab @strong{Function}
 @item @code{User Defined Functions} @tab @code{CONNECTION_ID}
-@tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
+ @tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
 @item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
-@tab @code{MASTER_POS_WAIT} @tab @code{NOW}
+ @tab @code{MASTER_POS_WAIT} @tab @code{NOW}
 @item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
-@tab @code{CURDATE} @tab @code{CURRENT_DATE}
+ @tab @code{CURDATE} @tab @code{CURRENT_DATE}
 @item @code{CURTIME} @tab @code{CURRENT_TIME}
-@tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
+ @tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
 @item @code{LAST_INSERT_ID} @tab @code{RAND}
-@tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
+ @tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
 @item @code{BENCHMARK}
 @end multitable
 
@@ -34738,6 +34738,7 @@ If this is 0, the query cache is disabled (default).
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
 @multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item 0 @tab (OFF, don't cache or retrieve results)
 @item 1 @tab (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries)
 @item 2 @tab (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries)
@@ -34771,16 +34772,15 @@ specified in a @code{SELECT} query:
 @findex SQL_CACHE
 @findex SQL_NO_CACHE
 
-@itemize
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item @code{SQL_CACHE}
-If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND},
-allow the query to be cached.
-If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
-If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
+ @tab If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND}, allow the query to be cached.
+ If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
+ If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
 @item @code{SQL_NO_CACHE}
-Make this query non-cachable, don't allow this query to be stored
-in the cache.
-@end itemize
+ @tab Make this query non-cachable, don't allow this query to be stored in the cache.
+@end multitable
 
 
 @node Query Cache Status and Maintenance,  , Query Cache in SELECT, Query Cache
@@ -34796,19 +34796,20 @@ query cache.
 
 You can monitor query cache performance in @code{SHOW STATUS}:
 
-@itemize
+@multitable @columnfractions .3 .7
+@item @strong{Variable} @tab @strong{Description}
 @item @code{Qcache_queries_in_cache}
-Number of queries registered in the cache.
+ @tab Number of queries registered in the cache.
 @item @code{Qcache_inserts}
-Number of queries added to the cache.
+ @tab Number of queries added to the cache.
 @item @code{Qcache_hits}
-Number of cache hits
+ @tab Number of cache hits
 @item @code{Qcache_not_cached}
-Number of non-cached queries
-(not cachable, or due to SQL_QUERY_CACHE_TYPE)
+ @tab Number of non-cached queries
+ (not cachable, or due to SQL_QUERY_CACHE_TYPE)
 @item @code{Qcache_free_memory}
-Amount of free memory for query cache.
-@end itemize
+ @tab Amount of free memory for query cache.
+@end multitable
 
 Please note:
 Total number of queries =
