@@ -1116,9 +1116,9 @@ static void dumpTable(uint numFields, char *table)
 		  if (field->type == FIELD_TYPE_DECIMAL)
 		  {
 		    /* add " signs around */
-		    dynstr_append(&extended_row, "\"");
+		    dynstr_append(&extended_row, "\'");
 		    dynstr_append(&extended_row, ptr);
-		    dynstr_append(&extended_row, "\"");
+		    dynstr_append(&extended_row, "\'");
 		  }
 		  else
 		    dynstr_append(&extended_row, ptr);
@@ -1162,9 +1162,9 @@ static void dumpTable(uint numFields, char *table)
 		if (field->type == FIELD_TYPE_DECIMAL)
 		{
 		  /* add " signs around */
-		  fputs("\"", md_result_file);
+		  fputs("\'", md_result_file);
 		  fputs(ptr, md_result_file);
-		  fputs("\"", md_result_file);
+		  fputs("\'", md_result_file);
 		}
 		else
 		  fputs(ptr, md_result_file);
