@@ -163,6 +163,13 @@ mlog_write_initial_log_record_fast(
 	space = buf_block_get_space(block);
 	offset = buf_block_get_page_no(block);
 
+	if (space != 0 || offset > 0x8FFFFFFF) {
+	        fprintf(stderr,
+	"InnoDB: error: buffer page pointer %lx has nonsensical space id %lu\n"
+	"InnoDB: or page no %lu\n", (ulint)ptr, space, offset);
+	        ut_a(0);
+	}
+
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;	
 	log_ptr += mach_write_compressed(log_ptr, space);
