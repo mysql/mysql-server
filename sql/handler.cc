@@ -660,8 +660,8 @@ void handler::update_auto_increment()
     thd->next_insert_id=0;			// Clear after use
   else
     nr=get_auto_increment();
-  thd->insert_id((ulonglong) nr);
-  table->next_number_field->store(nr);
+  if (!table->next_number_field->store(nr))
+    thd->insert_id((ulonglong) nr);
   auto_increment_column_changed=1;
   DBUG_VOID_RETURN;
 }
