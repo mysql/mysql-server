@@ -36,7 +36,7 @@ linked_sources = linked_client_sources linked_server_sources \
 CLEANFILES = $(linked_sources)
 
 # This is just so that the linking is done early.
-config.h: $(linked_sources)
+all-local: $(linked_sources)
 
 linked_include_sources:
 	cd include; $(MAKE) link_sources

@@ -390,7 +390,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       const TreeEnt ent = scan.m_scanPos.m_ent;
       // read tuple key
       keyPar.m_ent = ent;
-      keyPar.m_data = c_keyBuffer;
+      keyPar.m_data = c_dataBuffer;
       tupReadKeys(signal, frag, keyPar);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
@@ -406,7 +406,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
       lockReq->hashValue = md5_hash(buf64, keyPar.m_size);
-      lockReq->tupAddr = ent.m_tupAddr;
+      lockReq->tupAddr = getTupAddr(frag, ent);
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       // execute
@@ -483,7 +483,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       if (keyPar.m_data == 0) {
         jam();
         keyPar.m_ent = ent;
-        keyPar.m_data = c_keyBuffer;
+        keyPar.m_data = c_dataBuffer;
         tupReadKeys(signal, frag, keyPar);
       }
     }
@@ -503,7 +503,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     }
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-    conf->localKey[0] = ent.m_tupAddr;
+    conf->localKey[0] = getTupAddr(frag, ent);
     conf->localKey[1] = 0;
     conf->localKeyLength = 1;
     unsigned signalLength = 6;
@@ -704,12 +704,12 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
     jam();
-    c_keyBuffer[j] = *iter.data;
+    c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
   // comparison parameters
   BoundPar boundPar;
-  boundPar.m_data1 = c_keyBuffer;
+  boundPar.m_data1 = c_dataBuffer;
   boundPar.m_count1 = scan.m_boundCnt[0];
   boundPar.m_dir = 0;
 loop: {
@@ -847,12 +847,12 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
     jam();
-    c_keyBuffer[j] = *iter.data;
+    c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
   // comparison parameters
   BoundPar boundPar;
-  boundPar.m_data1 = c_keyBuffer;
+  boundPar.m_data1 = c_dataBuffer;
   boundPar.m_count1 = scan.m_boundCnt[1];
   boundPar.m_dir = 1;
   // use copy of position
@@ -1001,10 +1001,10 @@ Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
   Uint32 tableId = frag.m_tableId;
   Uint32 fragBit = ent.m_fragBit;
   Uint32 fragId = frag.m_fragId | (fragBit << frag.m_fragOff);
-  Uint32 tupAddr = ent.m_tupAddr;
+  Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   /* Check for same tuple twice in row */
-  if (scan.m_lastEnt.m_tupAddr == tupAddr &&
+  if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
       scan.m_lastEnt.m_fragBit == fragBit) {
     jam();
     return false;

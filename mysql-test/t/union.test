@@ -527,3 +527,11 @@ CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
 --error 1054
 explain (select * from t1) union (select * from t2) order by not_existing_column;
 drop table t1, t2;
+
+#
+# length detecting
+#
+CREATE TABLE t1 (uid int(1));
+INSERT INTO t1 SELECT 150;
+SELECT 'a' UNION SELECT uid FROM t1;
+drop table t1;

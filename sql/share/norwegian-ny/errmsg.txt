@@ -303,3 +303,5 @@ character-set=latin1
 "This command is not supported in the prepared statement protocol yet",
 "Mottok feil %d '%-.100s' fra %s",
 "Mottok temporary feil %d '%-.100s' fra %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",

@@ -1308,6 +1308,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (command != COM_STATISTICS && command != COM_PING)
     query_id++;
   thread_running++;
+  /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thd->server_status&=
@@ -1478,6 +1479,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_length= length;
       thd->query= packet;
       thd->query_id= query_id++;
+      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
@@ -1631,10 +1633,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
+  {
     statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
-    DBUG_PRINT("quit",("Got shutdown command"));
+    /*
+      If the client is < 4.1.3, it is going to send us no argument; then
+      packet_length is 1, packet[0] is the end 0 of the packet. Note that
+      SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
+      packet[0].
+    */
+    enum enum_shutdown_level level=
+      (enum enum_shutdown_level) (uchar) packet[0];
+    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
+    if (level == SHUTDOWN_DEFAULT)
+      level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
+    else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this shutdown level");
+      send_error(thd);
+      break;
+    }
+    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     mysql_log.write(thd,command,NullS);
     send_eof(thd);
 #ifdef __WIN__
@@ -1650,6 +1670,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     kill_mysql();
     error=TRUE;
     break;
+  }
 #endif
   case COM_STATISTICS:
   {
@@ -3489,7 +3510,8 @@ purposes internal to the MySQL server", MYF(0));
         thd->variables.collation_server=
           global_system_variables.collation_server;
         thd->update_charset();
-        /* Add timezone stuff here */
+        thd->variables.time_zone=
+          global_system_variables.time_zone;
         thd->one_shot_set= 0;
       }
     }
@@ -3847,7 +3869,7 @@ mysql_init_query(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
-  thd->is_fatal_error= thd->rand_used= 0;
+  thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
 			  SERVER_QUERY_NO_INDEX_USED |
 			  SERVER_QUERY_NO_GOOD_INDEX_USED);

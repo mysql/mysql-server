@@ -301,3 +301,5 @@ character-set=latin1
 "This command is not supported in the prepared statement protocol yet",
 "Fick felkod %d '%-.100s' från %s",
 "Fick tilfällig felkod %d '%-.100s' från %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
