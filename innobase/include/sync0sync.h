@@ -234,15 +234,6 @@ mutex_get_waiters(
 /*==============*/
 				/* out: value to set */		
 	mutex_t*	mutex);	/* in: mutex */
-/**********************************************************************
-Implements the memory barrier operation which makes a serialization point to
-the instruction flow. This is needed because the Pentium may speculatively
-execute reads before preceding writes are committed. We could also use here
-any LOCKed instruction (see Intel Software Dev. Manual, Vol. 3). */
-
-void
-mutex_fence(void);
-/*=============*/
 
 /*
 		LATCHING ORDER WITHIN THE DATABASE

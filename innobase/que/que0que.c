@@ -73,37 +73,6 @@ void
 que_thr_move_to_run_state(
 /*======================*/
 	que_thr_t*	thr);	/* in: an query thread */
-/**************************************************************************
-Tries to parallelize query if it is not parallel enough yet. */
-static
-que_thr_t*
-que_try_parallelize(
-/*================*/
-				/* out: next thread to execute */
-	que_thr_t*	thr);	/* in: query thread */
-
-#ifdef notdefined
-/********************************************************************
-Adds info about the number of inserted rows etc. to the message to the
-client. */
-static
-void
-que_thr_add_update_info(
-/*====================*/
-	que_thr_t*	thr)	/* in: query thread */
-{
-	que_fork_t*	graph;
-
-	graph = thr->graph;
-
-	mach_write_to_8(thr->msg_buf + SESS_SRV_MSG_N_INSERTS,
-							graph->n_inserts);
-	mach_write_to_8(thr->msg_buf + SESS_SRV_MSG_N_UPDATES,
-							graph->n_updates);
-	mach_write_to_8(thr->msg_buf + SESS_SRV_MSG_N_DELETES,
-							graph->n_deletes);
-}
-#endif
 
 /***************************************************************************
 Adds a query graph to the session's list of graphs. */
@@ -711,22 +680,6 @@ que_thr_handle_error(
 	/* Does nothing */
 }
 
-/**************************************************************************
-Tries to parallelize query if it is not parallel enough yet. */
-static
-que_thr_t*
-que_try_parallelize(
-/*================*/
-				/* out: next thread to execute */
-	que_thr_t*	thr)	/* in: query thread */
-{
-	ut_ad(thr);
-
-	/* Does nothing yet */
-
-	return(thr);
-}
-
 /********************************************************************
 Builds a command completed-message to the client. */
 static
@@ -1331,85 +1284,6 @@ que_thr_step(
 	return(thr);
 }
 
-/***********************************************************************
-Checks if there is a need for a query thread switch or stopping the current
-thread. */
-
-que_thr_t*
-que_thr_check_if_switch(
-/*====================*/
-	que_thr_t*	thr,		/* in: current query thread */
-	ulint*		cumul_resource)	/* in: amount of resources used
-					by the current call of que_run_threads
-					(resources used by the OS thread!) */
-{
-	que_thr_t*	next_thr;
-	ibool		stopped;
-
-	if (que_thr_peek_stop(thr)) {
-
-		mutex_enter(&kernel_mutex);
-
-		stopped = que_thr_stop(thr);
-
-		mutex_exit(&kernel_mutex);
-
-		if (stopped) {
-			/* If a signal is processed, we may get a new query
-			thread next_thr to run */
-
-			next_thr = NULL;
-
-			que_thr_dec_refer_count(thr, &next_thr);
-
-			if (next_thr == NULL) {
-
-				return(NULL);
-			}
-
-			thr = next_thr;
-		}
-	}
-
-	if (thr->resource > QUE_PARALLELIZE_LIMIT) { 
-
-		/* Try parallelization of the query thread */
-		thr = que_try_parallelize(thr);
-
-		thr->resource = 0;
-	}
-
-	(*cumul_resource)++;
-
-	if (*cumul_resource > QUE_ROUND_ROBIN_LIMIT) {
-
-		/* It is time to round-robin query threads in the
-		server task queue */
-
-		if (srv_get_thread_type() == SRV_COM) {
-			/* This OS thread is a SRV_COM thread: we put
-			the query thread to the task queue and return
-			to allow the OS thread to receive more
-			messages from clients */
-
-			ut_ad(thr->is_active);
-	    	
-			srv_que_task_enqueue(thr);
-
-			return(NULL);
-		} else {
-			/* Change the query thread if there is another
-			in the server task queue */
-
-			thr = srv_que_round_robin(thr);
-		}
-
-		*cumul_resource = 0;
-	}
-
-	return(thr);
-}
-
 /**************************************************************************
 Runs query threads. Note that the individual query thread which is run
 within this function may change if, e.g., the OS thread executing this
@@ -1433,27 +1307,6 @@ que_run_threads(
 	loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
 	cumul_resource = 0;	
 loop:
-	if (loop_count >= QUE_MAX_LOOPS_WITHOUT_CHECK) {
-
-/* In MySQL this thread switch is never needed! 
-
-		loop_count = 0;
-
-		next_thr = que_thr_check_if_switch(thr, &cumul_resource);
-
-		if (next_thr != thr) {
-			if (next_thr == NULL) {
-	
-				return;
-			}
-
-			loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
-		}
-				
-		thr = next_thr;
-*/
-	}
-
 	/* Check that there is enough space in the log to accommodate
 	possible log entries by this query step; if the operation can touch
 	more than about 4 pages, checks must be made also within the query
