@@ -943,7 +943,7 @@ Remark:         Get an operation from NdbOperation object idlelist and
                 object, synchronous.
 *****************************************************************************/
 NdbOperation*
-NdbConnection::getNdbOperation(NdbTableImpl * tab, NdbOperation* aNextOp)
+NdbConnection::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
 { 
   NdbOperation* tOp;
 
@@ -989,7 +989,7 @@ NdbConnection::getNdbOperation(NdbTableImpl * tab, NdbOperation* aNextOp)
   return NULL;
 }//NdbConnection::getNdbOperation()
 
-NdbOperation* NdbConnection::getNdbOperation(NdbDictionary::Table * table)
+NdbOperation* NdbConnection::getNdbOperation(const NdbDictionary::Table * table)
 {
   if (table)
     return getNdbOperation(& NdbTableImpl::getImpl(*table));
@@ -1048,8 +1048,8 @@ NdbConnection::getNdbIndexScanOperation(const char* anIndexName,
 }
 
 NdbIndexScanOperation*
-NdbConnection::getNdbIndexScanOperation(NdbIndexImpl* index,
-					NdbTableImpl* table)
+NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
+					const NdbTableImpl* table)
 {
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
@@ -1070,8 +1070,8 @@ NdbConnection::getNdbIndexScanOperation(NdbIndexImpl* index,
 }//NdbConnection::getNdbIndexScanOperation()
 
 NdbIndexScanOperation* 
-NdbConnection::getNdbIndexScanOperation(NdbDictionary::Index * index,
-					NdbDictionary::Table * table)
+NdbConnection::getNdbIndexScanOperation(const NdbDictionary::Index * index,
+					const NdbDictionary::Table * table)
 {
   if (index && table)
     return getNdbIndexScanOperation(& NdbIndexImpl::getImpl(*index),
@@ -1091,7 +1091,7 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
   	        getOperation will set the theTableId in the NdbOperation object, synchronous.
 *****************************************************************************/
 NdbIndexScanOperation*
-NdbConnection::getNdbScanOperation(NdbTableImpl * tab)
+NdbConnection::getNdbScanOperation(const NdbTableImpl * tab)
 { 
   NdbIndexScanOperation* tOp;
   
@@ -1120,7 +1120,7 @@ getNdbOp_error1:
 }//NdbConnection::getNdbScanOperation()
 
 NdbScanOperation* 
-NdbConnection::getNdbScanOperation(NdbDictionary::Table * table)
+NdbConnection::getNdbScanOperation(const NdbDictionary::Table * table)
 {
   if (table)
     return getNdbScanOperation(& NdbTableImpl::getImpl(*table));
@@ -1178,8 +1178,8 @@ Remark:         Get an operation from NdbIndexOperation object idlelist and get 
   	        getOperation will set the theTableId in the NdbIndexOperation object, synchronous.
 *****************************************************************************/
 NdbIndexOperation*
-NdbConnection::getNdbIndexOperation(NdbIndexImpl * anIndex, 
-				    NdbTableImpl * aTable,
+NdbConnection::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
+				    const NdbTableImpl * aTable,
                                     NdbOperation* aNextOp)
 { 
   NdbIndexOperation* tOp;
@@ -1222,8 +1222,8 @@ NdbConnection::getNdbIndexOperation(NdbIndexImpl * anIndex,
 }//NdbConnection::getNdbIndexOperation()
 
 NdbIndexOperation* 
-NdbConnection::getNdbIndexOperation(NdbDictionary::Index * index,
-				    NdbDictionary::Table * table)
+NdbConnection::getNdbIndexOperation(const NdbDictionary::Index * index,
+				    const NdbDictionary::Table * table)
 {
   if (index && table)
     return getNdbIndexOperation(& NdbIndexImpl::getImpl(*index),

@@ -709,7 +709,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(class NdbTableImpl*, NdbConnection* aCon);
+  int init(const class NdbTableImpl*, NdbConnection* aCon);
   void initInterpreter();
 
   void	next(NdbOperation*);		// Set next pointer		      
@@ -858,8 +858,8 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  class NdbTableImpl* m_currentTable;      // The current table
-  class NdbTableImpl* m_accessTable;
+  const class NdbTableImpl* m_currentTable;      // The current table
+  const class NdbTableImpl* m_accessTable;
 
   // Set to TRUE when a tuple key attribute has been defined. 
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];

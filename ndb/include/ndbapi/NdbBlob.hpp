@@ -238,9 +238,9 @@ private:
   Ndb* theNdb;
   NdbConnection* theNdbCon;
   NdbOperation* theNdbOp;
-  NdbTableImpl* theTable;
-  NdbTableImpl* theAccessTable;
-  NdbTableImpl* theBlobTable;
+  const NdbTableImpl* theTable;
+  const NdbTableImpl* theAccessTable;
+  const NdbTableImpl* theBlobTable;
   const NdbColumnImpl* theColumn;
   char theFillChar;
   // sizes

@@ -131,7 +131,7 @@ NdbOperation::setErrorCodeAbort(int anErrorCode)
  *****************************************************************************/
 
 int
-NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
+NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;
