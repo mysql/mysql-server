@@ -1653,6 +1653,11 @@ void st_select_lex::print_limit(THD *thd, String *str)
 }
 
 
+st_lex::st_lex()
+  :result(0)
+{}
+
+
 /*
   Unlink first table from global table list and first table from outer select
   list (lex->select_lex)
