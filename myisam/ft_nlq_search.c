@@ -154,7 +154,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   if (doc_cnt)
   {
     word->weight*=GWS_IN_USE;
-    if (word->weight < 0) word->weight=0;
+    if (word->weight < 0)
+      word->weight=0;
 
   }
   DBUG_RETURN(0);
