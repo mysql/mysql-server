@@ -745,10 +745,12 @@ Commands and functions
 @item
 Full operator and function support in the @code{SELECT} and @code{WHERE}
 parts of queries.  For example:
+
 @example
 mysql> SELECT CONCAT(first_name, " ", last_name) FROM tbl_name
            WHERE income/dependents > 10000 AND age > 30;
 @end example
+
 @item
 Full support for SQL @code{GROUP BY} and @code{ORDER BY} clauses.  Support 
 for group functions (@code{COUNT()}, @code{COUNT(DISTINCT ...)}, 
