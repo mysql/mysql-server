@@ -60,7 +60,7 @@ ConfigValues::ConfigValues(Uint32 sz, Uint32 dsz){
 
 ConfigValues::~ConfigValues(){
   for(Uint32 i = 0; i<m_stringCount; i++){
-    free(getString(i));
+    free(* getString(i));
   }
 }
 
@@ -87,10 +87,10 @@ ConfigValues::getByPos(Uint32 pos, Entry * result) const {
     result->m_int = val;
     break;
   case StringType:
-    result->m_string = getString(val);
+    result->m_string = * getString(val);
     break;
   case Int64Type:
-    result->m_int64 = get64(val);
+    result->m_int64 = * get64(val);
     break;
   case InvalidType: 
   default:
@@ -102,18 +102,23 @@ ConfigValues::getByPos(Uint32 pos, Entry * result) const {
   return true;
 }
 
-Uint64 &
+Uint64 *
 ConfigValues::get64(Uint32 index) const {
   assert(index < m_int64Count);
-  Uint64 * ptr = (Uint64*)(&m_values[m_size << 1]);
-  return ptr[index];
+	const Uint32 * data = m_values + (m_size << 1);
+  Uint64 * ptr = (Uint64*)data;
+	ptr += index;
+  return ptr;
 }
 
-char * &
+char **
 ConfigValues::getString(Uint32 index) const {
-  assert(index < m_stringCount);  
-  char ** ptr = (char**)(((char *)&(m_values[m_size << 1])) + m_dataSize);
-  return ptr[-index];
+  assert(index < m_stringCount); 
+	const Uint32 * data = m_values + (m_size << 1);
+	char * ptr = (char*)data;
+  ptr += m_dataSize; 
+	ptr -= (index * sizeof(char *));
+  return (char**)ptr;
 }
 
 bool
@@ -176,7 +181,7 @@ ConfigValues::Iterator::set(Uint32 key, Uint64 value){
     return false;
   }
   
-  m_cfg.get64(m_cfg.m_values[pos+1]) = value;
+  * m_cfg.get64(m_cfg.m_values[pos+1]) = value;
   return true;
 }
 
@@ -191,9 +196,9 @@ ConfigValues::Iterator::set(Uint32 key, const char * value){
     return false;
   }
 
-  char * & str = m_cfg.getString(m_cfg.m_values[pos+1]);
-  free(str);
-  str = strdup(value ? value : "");
+  char **  str = m_cfg.getString(m_cfg.m_values[pos+1]);
+  free(* str);
+  * str = strdup(value ? value : "");
   return true;
 }
 
@@ -457,7 +462,8 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
   case ConfigValues::StringType:{
     Uint32 index = m_cfg->m_stringCount++;
     m_cfg->m_values[pos+1] = index;
-    m_cfg->getString(index) = strdup(entry.m_string ? entry.m_string : "");
+		char **  ref = m_cfg->getString(index);
+    * ref = strdup(entry.m_string ? entry.m_string : "");
     m_freeKeys--;
     m_freeData -= sizeof(char *);
     DEBUG printf("Putting at: %d(%d) (loop = %d) key: %d value(%d): %s\n", 
@@ -470,7 +476,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
   case ConfigValues::Int64Type:{
     Uint32 index = m_cfg->m_int64Count++;
     m_cfg->m_values[pos+1] = index;
-    m_cfg->get64(index) = entry.m_int64;
+    * m_cfg->get64(index) = entry.m_int64;
     m_freeKeys--;
     m_freeData -= 8;
     DEBUG printf("Putting at: %d(%d) (loop = %d) key: %d value64(%d): %lld\n", 
@@ -558,7 +564,7 @@ ConfigValues::getPackedSize() const {
 	break;
       case StringType:
 	size += 8; // key + len
-	size += mod4(strlen(getString(m_values[i+1])) + 1);
+	size += mod4(strlen(* getString(m_values[i+1])) + 1);
 	break;
       case InvalidType:
       default:
@@ -587,7 +593,7 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
 	* (Uint32*)dst = htonl(val); dst += 4;
 	break;
       case Int64Type:{
-	Uint64 i64 = get64(val); 
+	Uint64 i64 = * get64(val); 
 	Uint32 hi = (i64 >> 32);
 	Uint32 lo = (i64 & 0xFFFFFFFF);
 	* (Uint32*)dst = htonl(key); dst += 4;
@@ -596,7 +602,7 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
       }
 	break;
       case StringType:{
-	const char * str = getString(val);
+	const char * str = * getString(val);
 	Uint32 len = strlen(str) + 1;
 	* (Uint32*)dst = htonl(key); dst += 4;
 	* (Uint32*)dst = htonl(len); dst += 4;
