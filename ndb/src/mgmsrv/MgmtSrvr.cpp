@@ -2324,25 +2324,38 @@ MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
     const char *config_hostname = 0;
     if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
 
-    //  getsockname(int s, struct sockaddr *name, socklen_t *namelen);
-
-   if (config_hostname && config_hostname[0] != 0 && client_addr) {
-     // check hostname compatability
-     struct in_addr config_addr;
-     if(Ndb_getInAddr(&config_addr, config_hostname) != 0
-	|| memcmp(&config_addr, &(((sockaddr_in*)client_addr)->sin_addr),
-		  sizeof(config_addr)) != 0) {
+    if (config_hostname && config_hostname[0] != 0 && client_addr) {
+      // check hostname compatability
+      struct in_addr config_addr;
+      const void *tmp= &(((sockaddr_in*)client_addr)->sin_addr);
+      if(Ndb_getInAddr(&config_addr, config_hostname) != 0
+	 || memcmp(&config_addr, tmp, sizeof(config_addr)) != 0) {
+	struct in_addr tmp_addr;
+	if(Ndb_getInAddr(&tmp_addr, "localhost") != 0
+	   || memcmp(&tmp_addr, tmp, sizeof(config_addr)) != 0) {
+	  // not localhost
 #if 0
-       ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
-	      << "\" id=" << tmp << endl;
+	  ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
+		<< "\" id=" << tmp << endl;
 #endif
-       continue;
-     }
+	  continue;
+	}
+	// connecting through localhost
+	// check if config_hostname match hostname
+	char my_hostname[256];
+	if (gethostname(my_hostname, sizeof(my_hostname)) != 0)
+	  continue;
+	if(Ndb_getInAddr(&tmp_addr, my_hostname) != 0
+	   || memcmp(&tmp_addr, &config_addr, sizeof(config_addr)) != 0) {
+	  // no match
+	  continue;
+	}
+      }
     }
     *nodeId= tmp;
 #if 0
-  ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
-	 << " *nodeid=" << *nodeId << endl;
+    ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
+	   << " *nodeid=" << *nodeId << endl;
 #endif
     return true;
   }
