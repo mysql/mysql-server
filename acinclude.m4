@@ -1687,7 +1687,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
-      ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la"
+      ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la \$(top_builddir)/mysys/libmysys.a"
       MYSQL_CHECK_NDB_OPTIONS
       ;;
     * )
