@@ -186,7 +186,7 @@ void STDCALL mysql_server_end()
 static MYSQL_PARAMETERS mysql_internal_parameters=
 {&max_allowed_packet, &net_buffer_length};
 
-MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void)
 {
   return &mysql_internal_parameters;
 }

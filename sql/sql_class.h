@@ -383,6 +383,7 @@ struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
+  ulong log_warnings;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
@@ -390,7 +391,6 @@ struct system_variables
   */
   ulong pseudo_thread_id;
 
-  my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
