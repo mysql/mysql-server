@@ -38,6 +38,7 @@ AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_FUNCS(sched_yield)
 AC_CHECK_FUNCS(fdatasync)
+AC_CHECK_FUNCS(localtime_r)
 #AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
