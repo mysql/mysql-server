@@ -456,6 +456,7 @@ public:
   */
   bool allow_sum_func;
 
+  LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
   /*
     Points to the query associated with this statement. It's const, but
@@ -522,8 +523,14 @@ public:
 
 
 /*
-  Used to seek all existing statements in the connection
-  Deletes all statements in destructor.
+  Container for all statements created/used in a connection.
+  Statements in Statement_map have unique Statement::id (guaranteed by id
+  assignment in Statement::Statement)
+  Non-empty statement names are unique too: attempt to insert a new statement
+  with duplicate name causes older statement to be deleted
+  
+  Statements are auto-deleted when they are removed from the map and when the
+  map is deleted.
 */
 
 class Statement_map
@@ -531,12 +538,14 @@ class Statement_map
 public:
   Statement_map();
   
-  int insert(Statement *statement)
+  int insert(Statement *statement);
+
+  Statement *find_by_name(LEX_STRING *name)
   {
-    int rc= my_hash_insert(&st_hash, (byte *) statement);
-    if (rc == 0)
-      last_found_statement= statement;
-    return rc;
+    Statement *stmt;
+    stmt= (Statement*)hash_search(&names_hash, (byte*)name->str,
+                                  name->length);
+    return stmt;
   }
 
   Statement *find(ulong id)
@@ -550,15 +559,21 @@ public:
   {
     if (statement == last_found_statement)
       last_found_statement= 0;
+    if (statement->name.str)
+    {
+      hash_delete(&names_hash, (byte *) statement);  
+    }
     hash_delete(&st_hash, (byte *) statement);
   }
 
   ~Statement_map()
   {
     hash_free(&st_hash);
+    hash_free(&names_hash);
   }
 private:
   HASH st_hash;
+  HASH names_hash;
   Statement *last_found_statement;
 };
 
@@ -593,12 +608,6 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
-
-  /* 
-    statement_name -> (Statement*) map of statements prepared using SQL syntax.
-    Hash element is SQL_PREP_STMT_ENTRY.
-  */
-  HASH    sql_prepared_stmts;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
@@ -1276,14 +1285,6 @@ class user_var_entry
   DTCollation collation;
 };
 
-class Prepared_statement;
-/* Needed by THD::sql_prepared_stmts */
-typedef struct st_sql_prep_stmt_entry
-{
- public:
-  LEX_STRING name;
-  Prepared_statement *stmt;
-}SQL_PREP_STMT_ENTRY;
 
 /* Class for unique (removing of duplicates) */
 
