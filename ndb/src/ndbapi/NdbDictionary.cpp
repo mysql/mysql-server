@@ -177,12 +177,12 @@ NdbDictionary::Column::getPrimaryKey() const {
 }
 
 void 
-NdbDictionary::Column::setDistributionKey(bool val){
+NdbDictionary::Column::setPartitionKey(bool val){
   m_impl.m_distributionKey = val;
 }
 
 bool 
-NdbDictionary::Column::getDistributionKey() const{
+NdbDictionary::Column::getPartitionKey() const{
   return m_impl.m_distributionKey;
 }
 
@@ -706,7 +706,8 @@ NdbDictionary::Dictionary::alterTable(const Table & t){
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name, void **data){
+NdbDictionary::Dictionary::getTable(const char * name, void **data) const
+{
   NdbTableImpl * t = m_impl.getTable(name, data);
   if(t)
     return t->m_facade;
@@ -719,7 +720,8 @@ void NdbDictionary::Dictionary::set_local_table_data_size(unsigned sz)
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name){
+NdbDictionary::Dictionary::getTable(const char * name) const
+{
   return getTable(name, 0);
 }
 
@@ -752,7 +754,7 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
 
 const NdbDictionary::Index * 
 NdbDictionary::Dictionary::getIndex(const char * indexName,
-				    const char * tableName)
+				    const char * tableName) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
   if(i)
@@ -782,7 +784,7 @@ NdbDictionary::Dictionary::removeCachedIndex(const char * indexName,
 
 const NdbDictionary::Table *
 NdbDictionary::Dictionary::getIndexTable(const char * indexName, 
-					 const char * tableName)
+					 const char * tableName) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
   NdbTableImpl * t = m_impl.getTable(tableName);
@@ -822,7 +824,25 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 }
 
 int
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
+{
+  return m_impl.listObjects(list, type);
+}
+
+int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
+{
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
+}
+
+int
+NdbDictionary::Dictionary::listIndexes(List& list,
+				       const char * tableName) const
 {
   const NdbDictionary::Table* tab= getTable(tableName);
   if(tab == 0)

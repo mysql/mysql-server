@@ -154,47 +154,55 @@ static int ndb_to_mysql_error(const NdbError *err)
 
 
 inline
-int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
+int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int m_batch_execute= 0;
 #ifdef NOT_USED
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,AbortOnError,h->m_force_send);
+  return trans->execute(NdbTransaction::NoCommit,
+			NdbTransaction::AbortOnError,
+			h->m_force_send);
 }
 
 inline
-int execute_commit(ha_ndbcluster *h, NdbConnection *trans)
+int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int m_batch_execute= 0;
 #ifdef NOT_USED
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(Commit,AbortOnError,h->m_force_send);
+  return trans->execute(NdbTransaction::Commit,
+			NdbTransaction::AbortOnError,
+			h->m_force_send);
 }
 
 inline
-int execute_commit(THD *thd, NdbConnection *trans)
+int execute_commit(THD *thd, NdbTransaction *trans)
 {
   int m_batch_execute= 0;
 #ifdef NOT_USED
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(Commit,AbortOnError,thd->variables.ndb_force_send);
+  return trans->execute(NdbTransaction::Commit,
+			NdbTransaction::AbortOnError,
+			thd->variables.ndb_force_send);
 }
 
 inline
-int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
+int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int m_batch_execute= 0;
 #ifdef NOT_USED
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,AO_IgnoreError,h->m_force_send);
+  return trans->execute(NdbTransaction::NoCommit,
+			NdbTransaction::AO_IgnoreError,
+			h->m_force_send);
 }
 
 /*
@@ -330,7 +338,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 */
 
 
-int ha_ndbcluster::ndb_err(NdbConnection *trans)
+int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 {
   int res;
   const NdbError err= trans->getNdbError();
@@ -1091,7 +1099,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   DBUG_PRINT("enter", ("key_len: %u", key_len));
   DBUG_DUMP("key", (char*)key, key_len);
   uint no_fields= table->fields, i;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= current_thd;
 
@@ -1141,7 +1149,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
 int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
 {
   uint no_fields= table->fields, i;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= current_thd;
   DBUG_ENTER("complemented_pk_read");
@@ -1204,7 +1212,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
 
 int ha_ndbcluster::peek_row()
 {
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= current_thd;
   DBUG_ENTER("peek_row");
@@ -1235,7 +1243,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
 				     uint key_len, byte *buf)
 {
   int res;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbIndexOperation *op;
   DBUG_ENTER("ha_ndbcluster::unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
@@ -1271,7 +1279,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
 {
   DBUG_ENTER("fetch_next");
   int check;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   
   bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
   do {
@@ -1551,7 +1559,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 {
   uint i;
   THD *thd= current_thd;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
 
   DBUG_ENTER("define_read_attrs");  
 
@@ -1598,7 +1606,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 {  
   int res;
   bool restart;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbIndexScanOperation *op;
 
   DBUG_ENTER("ha_ndbcluster::ordered_index_scan");
@@ -1668,7 +1676,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 				 enum ha_rkey_function find_flag)
 {  
   int res;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbScanOperation *op;
 
   DBUG_ENTER("filtered_scan");
@@ -1748,7 +1756,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   uint i;
   int res;
   NdbScanOperation *op;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
 
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
@@ -1776,7 +1784,7 @@ int ha_ndbcluster::write_row(byte *record)
 {
   bool has_auto_increment;
   uint i;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
   int res;
   THD *thd= current_thd;
@@ -1945,7 +1953,7 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
 int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 {
   THD *thd= current_thd;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint i;
@@ -2063,7 +2071,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 int ha_ndbcluster::delete_row(const byte *record)
 {
   THD *thd= current_thd;
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   DBUG_ENTER("delete_row");
@@ -2635,7 +2643,7 @@ int ha_ndbcluster::rnd_init(bool scan)
 
 int ha_ndbcluster::close_scan()
 {
-  NdbConnection *trans= m_active_trans;
+  NdbTransaction *trans= m_active_trans;
   DBUG_ENTER("close_scan");
 
   m_multi_cursor= 0;
@@ -2983,7 +2991,7 @@ int ha_ndbcluster::end_bulk_insert()
   // Check if last inserts need to be flushed
   if (m_bulk_insert_not_flushed)
   {
-    NdbConnection *trans= m_active_trans;
+    NdbTransaction *trans= m_active_trans;
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
                         "rows_inserted:%d, bulk_insert_rows: %d", 
@@ -3102,7 +3110,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
 int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 {
   int error=0;
-  NdbConnection* trans= NULL;
+  NdbTransaction* trans= NULL;
 
   DBUG_ENTER("external_lock");
   /*
@@ -3189,8 +3197,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     //     m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
-      (NdbConnection*)thd->transaction.all.ndb_tid:
-      (NdbConnection*)thd->transaction.stmt.ndb_tid;
+      (NdbTransaction*)thd->transaction.all.ndb_tid:
+      (NdbTransaction*)thd->transaction.stmt.ndb_tid;
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
     m_retrieve_all_fields= FALSE;
@@ -3272,13 +3280,13 @@ int ha_ndbcluster::start_stmt(THD *thd)
   DBUG_ENTER("start_stmt");
   PRINT_OPTION_FLAGS(thd);
 
-  NdbConnection *trans= (NdbConnection*)thd->transaction.stmt.ndb_tid;
+  NdbTransaction *trans= (NdbTransaction*)thd->transaction.stmt.ndb_tid;
   if (!trans){
     Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
     
-    NdbConnection *tablock_trans= 
-      (NdbConnection*)thd->transaction.all.ndb_tid;
+    NdbTransaction *tablock_trans= 
+      (NdbTransaction*)thd->transaction.all.ndb_tid;
     DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
     DBUG_ASSERT(tablock_trans);
 //    trans= ndb->hupp(tablock_trans);
@@ -3307,7 +3315,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
 {
   int res= 0;
   Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
-  NdbConnection *trans= (NdbConnection*)ndb_transaction;
+  NdbTransaction *trans= (NdbTransaction*)ndb_transaction;
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_PRINT("transaction",("%s",
@@ -3337,7 +3345,7 @@ int ndbcluster_rollback(THD *thd, void *ndb_transaction)
 {
   int res= 0;
   Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
-  NdbConnection *trans= (NdbConnection*)ndb_transaction;
+  NdbTransaction *trans= (NdbTransaction*)ndb_transaction;
 
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_PRINT("transaction",("%s",
@@ -3345,7 +3353,7 @@ int ndbcluster_rollback(THD *thd, void *ndb_transaction)
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
-  if (trans->execute(Rollback) != 0)
+  if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
@@ -4842,7 +4850,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
-  NdbConnection* pTrans= ndb->startTransaction();
+  NdbTransaction* pTrans= ndb->startTransaction();
   do 
   {
     if (pTrans == NULL)
@@ -4863,7 +4871,9 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     
-    check= pTrans->execute(NoCommit, AbortOnError, TRUE);
+    check= pTrans->execute(NdbTransaction::NoCommit,
+			   NdbTransaction::AbortOnError,
+			   TRUE);
     if (check == -1)
       break;
     

@@ -21,8 +21,8 @@ extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
 
-static bool asynchErrorHandler(NdbConnection * trans, Ndb * ndb);
-static void callback(int result, NdbConnection* trans, void* aObject);
+static bool asynchErrorHandler(NdbTransaction * trans, Ndb * ndb);
+static void callback(int result, NdbTransaction* trans, void* aObject);
 
 bool
 BackupRestore::init()
@@ -371,7 +371,7 @@ BackupRestore::tuple(const TupleS & tup)
     return;
   while (1) 
   {
-    NdbConnection * trans = m_ndb->startTransaction();
+    NdbTransaction * trans = m_ndb->startTransaction();
     if (trans == NULL) 
     {
       // Deep shit, TODO: handle the error
@@ -460,7 +460,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   if (!m_restore)
     return;
 
-  NdbConnection * trans = m_ndb->startTransaction();
+  NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
     // Deep shit, TODO: handle the error
@@ -551,7 +551,7 @@ BackupRestore::endOfLogEntrys()
  *
  ******************************************/
 static void restoreCallback(int result,            // Result for transaction
-			    NdbConnection *object, // Transaction object
+			    NdbTransaction *object, // Transaction object
 			    void *anything)        // Not used
 {
   static Uint32 counter = 0;
@@ -593,12 +593,12 @@ static void restoreCallback(int result,            // Result for transaction
  *              
  *   (This function must have three arguments: 
  *   - The result of the transaction, 
- *   - The NdbConnection object, and 
+ *   - The NdbTransaction object, and 
  *   - A pointer to an arbitrary object.)
  */
 
 static void
-callback(int result, NdbConnection* trans, void* aObject)
+callback(int result, NdbTransaction* trans, void* aObject)
 {
   restore_callback_t *cb = (restore_callback_t *)aObject;
   (cb->restore)->cback(result, cb);
@@ -610,7 +610,7 @@ callback(int result, NdbConnection* trans, void* aObject)
  *  false if it is an  error that generates an abort.
  */
 static
-bool asynchErrorHandler(NdbConnection * trans, Ndb* ndb) 
+bool asynchErrorHandler(NdbTransaction * trans, Ndb* ndb) 
 {
   NdbError error = trans->getNdbError();
   ndb->closeTransaction(trans);
