@@ -1276,6 +1276,10 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   uint key_length;
   ulong length;
   char fill[IO_SIZE];
+  int create_flags= O_RDWR | O_TRUNC;
+
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    create_flags|= O_EXCL | O_NOFOLLOW;
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
@@ -1290,7 +1294,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   */
   set_if_smaller(create_info->raid_chunks, 255);
 
-  if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(MY_WME))) >= 0)
   {
     bzero((char*) fileinfo,64);
     /* header */

@@ -89,9 +89,6 @@ AC_MSG_CHECKING(for OpenSSL)
 	fi
     MYSQL_FIND_OPENSSL([$openssl_includes], [$openssl_libs])
     #force VIO use
-    vio_dir="vio"
-    vio_libs="../vio/libvio.la"
-    AC_DEFINE([HAVE_VIO], [1], [Virtual IO])
     AC_MSG_RESULT(yes)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
     # Don't set openssl_includes to /usr/include as this gives us a lot of

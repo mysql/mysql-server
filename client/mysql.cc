@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.8";
+const char *VER= "14.9";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1045,7 +1045,12 @@ static COMMANDS *find_command (char *name,char cmd_char)
   {
     while (my_isspace(charset_info,*name))
       name++;
-    if (strstr(name, delimiter) || strstr(name, "\\g"))
+    /*
+      As special case we allow row that starts with word delimiter
+      to be able to change delimiter if someone has delimiter 'delimiter'.
+    */
+    if (strstr(name, "\\g") || (strstr(name, delimiter) &&
+				strncmp(name, "delimiter", 9)))
       return ((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
