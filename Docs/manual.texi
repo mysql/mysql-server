@@ -36797,8 +36797,12 @@ the configuration file @file{my.cnf}. @xref{Option files}.
 The only required parameter to use InnoDB is @code{innodb_data_file_path},
 but you should set others if you want to get a better performance.
 
+The default value for @code{innodb_data_home_dir} is the @code<datadir}
+of MySQL. If you do not specify @code{innodb_data_home_dir}, then
+you cannot use absolute paths in @code{innodb_data_file_path}.
+
 Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
-hard disk.  Below is an example of possible configuration parameters in
+hard disk. Below is an example of possible configuration parameters in
 @file{my.cnf} for InnoDB:
 
 @example
@@ -36832,9 +36836,11 @@ set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
-Note that data files must be < 4G, and < 2G on
+Note that data files must be < 2G in
 some file systems! The total size of data files has
-to be >= 10 MB.
+to be >= 10 MB. The combined size of log files MUST be < 4G
+in 32-bit computers.
+
 InnoDB does not create directories:
 you have to create them yourself.
 Check that the MySQL server
@@ -36901,10 +36907,6 @@ formed by the data files from bottom up. In some cases it will
 improve the performance of the database if all data is not placed
 on the same physical disk. Putting log files on a different disk from
 data is very often beneficial for performance.
-
-The combined size of the log files MUST be < 4G in a 32-bit computer,
-and to make recovery reasonably fast you should keep the combined size
-smaller than the buffer pool size.
 
 The meanings of the configuration parameters are the following:
 
