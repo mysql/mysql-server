@@ -469,7 +469,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
     }
     key_info->key_length=(uint16) key_length;
-    if (key_length > file->max_key_length())
+    if (key_length > file->max_key_length() && key->type != Key::FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),file->max_key_length());
       DBUG_RETURN(-1);
@@ -725,9 +725,9 @@ bool close_cached_table(THD *thd,TABLE *table)
 
 static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
-			     
+
 {
-  
+
   String* packet = &thd->packet;
   packet->length(0);
   net_store_data(packet, table->name);
@@ -744,7 +744,7 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 {
   String *packet = &thd->packet;
-  
+
   if(table->table) // do not overwrite existing tables on restore
     {
       return send_check_errmsg(thd, table, "restore",
@@ -757,10 +757,10 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
       char src_path[FN_REFLEN], dst_path[FN_REFLEN];
       char* table_name = table->name;
       char* db = thd->db ? thd->db : table->db;
-	
+
       if(!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
 	return -1; // protect buffer overflow
-	    
+
       sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
 
       int lock_retcode;
@@ -770,14 +770,14 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 	  pthread_mutex_unlock(&LOCK_open);
 	  return -1;
 	}
-      
+
       if(lock_retcode && wait_for_locked_table_names(thd, table))
 	{
           pthread_mutex_unlock(&LOCK_open);
 	  return -1;
 	}
       pthread_mutex_unlock(&LOCK_open);
-      
+
       if(my_copy(src_path,
 		 fn_format(dst_path, dst_path,"",
 			   reg_ext, 4),
@@ -790,25 +790,25 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
       thd->net.no_send_ok = 1;
       // generate table will try to send OK which messes up the output
       // for the client
-      
+
       if(generate_table(thd, table, 0))
 	{
 	  thd->net.no_send_ok = save_no_send_ok;
            return send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file");
 	}
-      
+
       thd->net.no_send_ok = save_no_send_ok;
     }
-	
-  return 0;	
+
+  return 0;
 }
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
 			     thr_lock_type lock_type,
 			     bool open_for_modify,
-			     const char *operator_name, 
+			     const char *operator_name,
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -849,7 +849,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       // to finish the restore in the handler later on
       table->table = reopen_name_locked_table(thd, table);
     }
-    
+
     if (!table->table)
     {
       const char *err_msg;
