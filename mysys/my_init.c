@@ -217,6 +217,10 @@ static void my_win_init(void)
 
   setlocale(LC_CTYPE, "");             /* To get right sortorder */
 
+  /* Clear the OS system variable TZ and avoid the 100% CPU usage */
+  _putenv( "TZ=" ); 
+  _tzset();
+
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */
   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,(LPCTSTR)targetKey,0,
 		   KEY_READ,&hSoftMysql) != ERROR_SUCCESS)
@@ -240,7 +244,7 @@ static void my_win_init(void)
 
     /* Inserisce i dati come variabili d'ambiente */
     my_env=strdup(EnvString);  /* variable for putenv must be allocated ! */
-    putenv(EnvString) ;
+    putenv(my_env) ;
 
     dimNameValueBuffer = dimName ;
     dimDataValueBuffer = dimData ;

@@ -50,13 +50,14 @@
 	/* The following is parameter to ha_rkey() how to use key */
 
 enum ha_rkey_function {
-  HA_READ_KEY_EXACT,			/* Find first record else error */
-  HA_READ_KEY_OR_NEXT,			/* Record or next record */
-  HA_READ_KEY_OR_PREV,			/* Record or previous */
-  HA_READ_AFTER_KEY,			/* Find next rec. after key-record */
-  HA_READ_BEFORE_KEY,			/* Find next rec. before key-record */
-  HA_READ_PREFIX,			/* Key which as same prefix */
-  HA_READ_PREFIX_LAST,			/* Last key with the same prefix */
+  HA_READ_KEY_EXACT,              /* Find first record else error */
+  HA_READ_KEY_OR_NEXT,            /* Record or next record */
+  HA_READ_KEY_OR_PREV,            /* Record or previous */
+  HA_READ_AFTER_KEY,              /* Find next rec. after key-record */
+  HA_READ_BEFORE_KEY,             /* Find next rec. before key-record */
+  HA_READ_PREFIX,                 /* Key which as same prefix */
+  HA_READ_PREFIX_LAST,            /* Last key with the same prefix */
+  HA_READ_PREFIX_LAST_OR_PREV,    /* Last or prev key with the same prefix */
   HA_READ_MBR_CONTAIN,
   HA_READ_MBR_INTERSECT,
   HA_READ_MBR_WITHIN,
@@ -66,7 +67,7 @@ enum ha_rkey_function {
 
 	/* Key algorithm types */
 
-enum ha_key_alg {			
+enum ha_key_alg {
   HA_KEY_ALG_UNDEF=	0,		/* Not specified (old file) */
   HA_KEY_ALG_BTREE=	1,		/* B-tree, default one          */
   HA_KEY_ALG_RTREE=	2,		/* R-tree, for spatial searches */
@@ -202,7 +203,7 @@ enum ha_base_keytype {
 	/* Bits in flag to _status */
 
 #define HA_STATUS_POS		1		/* Return position */
-#define HA_STATUS_NO_LOCK 	2		/* Don't use external lock */
+#define HA_STATUS_NO_LOCK	2		/* Don't use external lock */
 #define HA_STATUS_TIME		4		/* Return update time */
 #define HA_STATUS_CONST		8		/* Return constants values */
 #define HA_STATUS_VARIABLE	16
@@ -233,7 +234,7 @@ enum ha_base_keytype {
 #define HA_ERR_WRONG_TABLE_DEF	 143
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
-#define HA_ERR_LOCK_WAIT_TIMEOUT 146    
+#define HA_ERR_LOCK_WAIT_TIMEOUT 146
 #define HA_ERR_LOCK_TABLE_FULL   147
 #define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
 #define HA_ERR_LOCK_DEADLOCK	 149
@@ -272,7 +273,7 @@ enum ha_base_keytype {
 #define READ_CHECK_USED 4
 #define KEY_READ_USED	8
 #define WRITE_CACHE_USED 16
-#define OPT_NO_ROWS 	32
+#define OPT_NO_ROWS	32
 
 	/* bits in update */
 #define HA_STATE_CHANGED	1	/* Database has changed */
@@ -302,7 +303,7 @@ enum data_file_type {
 #ifdef BIG_TABLES
 typedef my_off_t	ha_rows;
 #else
-typedef ulong		ha_rows;	
+typedef ulong		ha_rows;
 #endif
 
 #define HA_POS_ERROR	(~ (ha_rows) 0)

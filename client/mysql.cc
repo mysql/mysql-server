@@ -205,8 +205,8 @@ typedef struct {
 } COMMANDS;
 
 static COMMANDS commands[] = {
-  { "help",   'h', com_help,   0, "Display this help." },
-  { "?",      '?', com_help,   0, "Synonym for `help'." },
+  { "help",   'h', com_help,   1, "Display this help." },
+  { "?",      '?', com_help,   1, "Synonym for `help'." },
   { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
@@ -382,8 +382,9 @@ int main(int argc,char *argv[])
     }
   }
 #endif
-  sprintf(buff, 
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+  sprintf(buff, "%s%s",
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n",
+	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   if (opt_outfile)
@@ -1322,31 +1323,154 @@ static int reconnect(void)
  The different commands
 ***************************************************************************/
 
+int mysql_real_query_for_lazy(const char *buf, int length)
+{
+  for (uint retry=0;; retry++)
+  {
+    if (!mysql_real_query(&mysql,buf,length))
+      return 0;    
+    uint error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
+    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 
+	|| status.batch)
+      return error;
+    if (reconnect())
+      return error;
+  }
+}
+
+int mysql_store_result_for_lazy(MYSQL_RES **result)
+{
+  if ((*result=mysql_store_result(&mysql)))
+    return 0;
+
+  if (mysql_error(&mysql)[0])
+    return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
+
+  return 0;
+}
+
+static int com_server_help(String *buffer __attribute__((unused)),
+	  char *line __attribute__((unused)), char *help_arg)
+{
+  MYSQL_ROW cur;
+  const char *server_cmd= buffer->ptr();
+  char cmd_buf[100];
+
+  if (help_arg[0]!='\'')
+  {
+    (void*)sprintf(cmd_buf,"help \'%s\';",help_arg);
+    server_cmd= cmd_buf;
+  }
+
+  char buff[16], time_buf[32];
+  MYSQL_RES *result;
+  ulong timer;
+  uint error= 0;
+
+  if (!status.batch)
+  {
+    old_buffer= *buffer;
+    old_buffer.copy();
+  }
+
+  if (!connected && reconnect())
+    return 1;
+
+  timer= start_timer();
+
+  error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd));
+  if (error)
+    return error;
+
+  error= mysql_store_result_for_lazy(&result);
+  if (error)
+    return error;
+
+  if (result)
+  {
+    int num_rows= mysql_num_rows(result);
+    if (num_rows==1)
+    {
+      if (!(cur= mysql_fetch_row(result)))
+	return -1;
+
+      init_pager();
+      if (cur[1][0]=='Y')
+      {
+	tee_fprintf(PAGER, "\nHelp topic \'%s\'\n", cur[0]);
+	tee_fprintf(PAGER, "%s\n", cur[2]);
+	tee_fprintf(PAGER, "For help on specific function please type 'help <function>' where function is one of next :\n%s\n", cur[3]);
+      }
+      else
+      {
+	tee_fprintf(PAGER, "\nName : \'%s\'\n\n", cur[0]);
+	tee_fprintf(PAGER, "Description : \n%s\n\n", cur[2]);
+	tee_fprintf(PAGER, "Examples : \n%s\n", cur[3]);
+      }
+      end_pager();
+    }
+    else if (num_rows>1)
+    {
+      put_info("\nMany help items for your request exist", INFO_INFO);
+      put_info("For more specific request please type 'help <item>' where item is one of next :", INFO_INFO);
+
+      init_pager();
+      char last_char= '_';
+      while ((cur= mysql_fetch_row(result))){
+	if (cur[1][0]!=last_char){
+	  put_info("-------------------------------------------", INFO_INFO);
+	  put_info(cur[1][0]=='Y' ? 
+		   "categories:" : "functions:", INFO_INFO);
+	  put_info("-------------------------------------------", INFO_INFO);
+	}
+	last_char= cur[1][0];
+	tee_fprintf(PAGER, "%s\n", cur[0]);
+      }
+      tee_fprintf(PAGER, "\n");
+      end_pager();
+    }
+    else
+    {
+      put_info("\nNothing found\n", INFO_INFO);
+    }
+  }
+
+  mysql_free_result(result);
+  return error;
+}
+
 static int
 com_help (String *buffer __attribute__((unused)),
 	  char *line __attribute__((unused)))
 {
   reg1 int i;
+  char * help_arg= strchr(line,' ');
 
-  put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
-  put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
-  put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
-  put_info("List of all MySQL commands:", INFO_INFO);
-  if (!named_cmds)
-    put_info("   (Commands must appear first on line and end with ';')\n",
-	     INFO_INFO);
-  for (i = 0; commands[i].name; i++)
+  if (help_arg)
   {
-    if (commands[i].func)
-      tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
-		  commands[i].cmd_char, commands[i].doc);
+    return com_server_help(buffer,line,help_arg+1);
   }
-  if (connected)
-    tee_fprintf(stdout,
+  else
+  {
+    put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
+    put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
+    put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+    put_info("List of all MySQL commands:", INFO_INFO);
+    if (!named_cmds)
+      put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
+    for (i = 0; commands[i].name; i++)
+    {
+      if (commands[i].func)
+        tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+		    commands[i].cmd_char, commands[i].doc);
+    }
+    if (connected)
+      tee_fprintf(stdout,
 		"\nConnection id: %ld  (Can be used with mysqladmin kill)\n\n",
 		mysql_thread_id(&mysql));
-  else
-    tee_fprintf(stdout, "Not connected!  Reconnect with 'connect'!\n\n");
+    else
+      tee_fprintf(stdout, "Not connected!  Reconnect with 'connect'!\n\n");
+  }
   return 0;
 }
 
@@ -1411,23 +1535,14 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   timer=start_timer();
-  for (uint retry=0;; retry++)
+
+  error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
+  if (error)
   {
-    if (!mysql_real_query(&mysql,buffer->ptr(),buffer->length()))
-      break;
-    error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 
-	|| status.batch)
-    {
-      buffer->length(0);			// Remove query on error
-      return error;
-    }
-    if (reconnect())
-    {
-      buffer->length(0);			// Remove query on error
-      return error;
-    }
+    buffer->length(0); // Remove query on error
+    return error;
   }
+
   error=0;
   buffer->length(0);
 
@@ -1440,13 +1555,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
   else
   {
-    if (!(result=mysql_store_result(&mysql)))
-    {
-      if (mysql_error(&mysql)[0])
-      {
-	return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
-      }
-    }
+    error= mysql_store_result_for_lazy(&result);
+    if (error)
+      return error;
   }
 
   if (verbose >= 3 || !opt_silent)
@@ -2772,3 +2883,5 @@ void sql_element_free(void *ptr)
   my_free((gptr) ptr,MYF(0));
 }
 #endif /* EMBEDDED_LIBRARY */
+
+

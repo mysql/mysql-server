@@ -160,7 +160,6 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     max_length=item->max_length;
   decimals=item->decimals;
   maybe_null=item->maybe_null;
-  binary=item->binary;
   unsigned_flag=item->unsigned_flag;
   result_field=0;
   null_value=1;
@@ -380,7 +379,7 @@ bool Item_sum_min::add()
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
 	(null_value ||
-	 (binary ? stringcmp(&value,result) : sortcmp(&value,result)) > 0))
+	 (binary() ? stringcmp(&value,result) : sortcmp(&value,result)) > 0))
     {
       value.copy(*result);
       null_value=0;
@@ -423,7 +422,7 @@ bool Item_sum_max::add()
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
 	(null_value ||
-	 (binary ? stringcmp(&value,result) : sortcmp(&value,result)) < 0))
+	 (binary() & MY_CS_BINSORT ? stringcmp(&value,result) : sortcmp(&value,result)) < 0))
     {
       value.copy(*result);
       null_value=0;
@@ -693,7 +692,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     result_field->ptr-=offset;
 
     if (result_field->is_null() ||
-	(cmp_sign * (binary ? stringcmp(res_str,&tmp_value) :
+	(cmp_sign * (binary() ? stringcmp(res_str,&tmp_value) :
 		 sortcmp(res_str,&tmp_value)) < 0))
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else

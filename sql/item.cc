@@ -37,7 +37,7 @@ void item_init(void)
 Item::Item()
 {
   marker=0;
-  binary=maybe_null=null_value=with_sum_func=unsigned_flag=0;
+  maybe_null=null_value=with_sum_func=unsigned_flag=0;
   name=0;
   decimals=0; max_length=0;
   next=current_thd->free_list;			// Put in free list
@@ -131,11 +131,8 @@ void Item_field::set_field(Field *field_par)
   decimals= field->decimals();
   table_name=field_par->table_name;
   field_name=field_par->field_name;
-  binary=field_par->binary();
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  /* For string fields copy character set from original field */
-  if (!field_par->binary())
-    str_value.set_charset(((Field_str*)field_par)->charset());
+  str_value.set_charset(field_par->charset());
 }
 
 const char *Item_ident::full_name() const
@@ -670,7 +667,7 @@ int Item::save_in_field(Field *field)
       field->result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
+    CHARSET_INFO *cs=field->binary()?my_charset_bin:((Field_str*)field)->charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
@@ -702,7 +699,7 @@ int Item::save_in_field(Field *field)
 int Item_string::save_in_field(Field *field)
 {
   String *result;
-  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
+  CHARSET_INFO *cs=field->binary()?my_charset_bin:((Field_str*)field)->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
@@ -741,15 +738,14 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
-Item_varbinary::Item_varbinary(const char *str, uint str_length,
-			       CHARSET_INFO *cs)
+Item_varbinary::Item_varbinary(const char *str, uint str_length)
 {
   name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
     return;
-  str_value.set(ptr,max_length,cs);
+  str_value.set(ptr,max_length,my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
     *ptr++=char_val(*str++);			// Not even, assume 0 prefix
@@ -759,7 +755,6 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length,
     str+=2;
   }
   *ptr=0;					// Keep purify happy
-  binary=1;					// Binary is default
 }
 
 longlong Item_varbinary::val_int()
@@ -827,23 +822,22 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
+    SELECT_LEX *sl=thd->lex.select->outer_select();
     if ((ref= find_item_in_list(this, thd->lex.select->item_list,
-				REPORT_EXCEPT_NOT_FOUND)) ==
+		(sl ? REPORT_EXCEPT_NOT_FOUND : REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
       /*
-	We can't find table field in table list of current select, 
+	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
-	We can't join lists of outer & current select, because of scope 
-	of view rules. For example if both tables (outer & current) have 
-	field 'field' it is not mistake to refer to this field without 
+	We can't join lists of outer & current select, because of scope
+	of view rules. For example if both tables (outer & current) have
+	field 'field' it is not mistake to refer to this field without
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
       SELECT_LEX *last=0;
-      for (SELECT_LEX *sl= thd->lex.select->outer_select();
-	   sl;
-	   sl= sl->outer_select())
+      for ( ; sl ; sl= sl->outer_select())
 	if((ref= find_item_in_list(this, (last= sl)->item_list,
 				   REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
@@ -857,13 +851,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	// Call to report error
 	find_item_in_list(this, thd->lex.select->item_list, REPORT_ALL_ERRORS);
+        ref=0;
 	return 1;
       }
       else
       {
 	depended_from= last;
 	/*
-	  Mark all selects from resolved to 1 before select where was 
+	  Mark all selects from resolved to 1 before select where was
 	  found table as depended (of select where was found table)
 	*/
 	for (SELECT_LEX *s= thd->lex.select;
@@ -872,9 +867,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  if( !s->depended )
 	  {
 	    // Select is depended of outer select
-	    s->depended= s->master_unit()->depended= 1; 
+	    s->depended= s->master_unit()->depended= 1;
 	    //Tables will be reopened many times
-	    for (TABLE_LIST *tbl= 
+	    for (TABLE_LIST *tbl=
 		   (TABLE_LIST*)s->table_list.first;
 		 tbl;
 		 tbl= tbl->next)
@@ -887,7 +882,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
-    binary=	(*ref)->binary;
   }
   return 0;
 }

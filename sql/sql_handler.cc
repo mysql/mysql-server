@@ -88,7 +88,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 }
 
 static enum enum_ha_read_modes rkey_to_rnext[]=
-    { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
+    { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
 
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
