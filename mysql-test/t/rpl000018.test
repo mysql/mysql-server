@@ -1,3 +1,8 @@
+#
+# Running test with abort-slave-event-count=1
+# This will force slave to reconnect after every event
+#
+
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0,mysql-slave.sock);
 connection slave;

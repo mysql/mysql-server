@@ -1,3 +1,14 @@
+#
+# Test are run with max_binlog_size=2048 to force automatic rotation of the
+# binary log
+# Tests done:
+# - Check that slaves reports correct failures if master.info has strange
+#   modes/information
+# - Automatic binary log rotation
+# - Ensure that temporary tables works over flush logs and binary log
+#   changes
+# - Test creating a duplicate key error and recover from it
+#
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0,mysql-slave.sock);
 system cat /dev/null > var/slave-data/master.info;
@@ -16,7 +27,14 @@ reset master;
 connection slave;
 slave start;
 connection master;
-drop table if exists t1;
+
+drop table if exists t1, t2, t3, t4;
+
+#
+# Test FLUSH LOGS
+#
+create temporary table temp_table (a char(80) not null);
+insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 save_master_pos;
@@ -30,15 +48,24 @@ flush logs;
 drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
-save_master_pos;
 flush logs;
 show master logs;
+create table t3 select * from temp_table;
 
-#now lets make some duplicate key mess and see if we can recover from it
-
-#first insert a value on the slave
+save_master_pos;
 connection slave;
 sync_with_master;
+
+select * from t3;
+connection master;
+drop table temp_table, t3;
+
+#
+# Now lets make some duplicate key mess and see if we can recover from it
+#
+
+# First insert a value on the slave
+connection slave;
 insert into t2 values(1234);
 
 #same value on the master
@@ -72,7 +99,14 @@ sync_with_master;
 --replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 select * from t2;
+
+#
+# Test forcing the replication log to rotate
+# 
+
 connection master;
+create temporary table temp_table (a char(80) not null);
+insert into temp_table values ("testing temporary tables part 2");
 let $1=100;
 drop table if exists t3;
 create table t3 (n int);
@@ -82,13 +116,16 @@ while ($1)
  eval insert into t3 values($1 + 4);
  dec $1;
 }
+create table t4 select * from temp_table;
 show master logs;
 show master status;
 save_master_pos;
 connection slave;
-slave stop;
-slave start;
+#slave stop;
+#slave start;
 sync_with_master;
+select * from t4;
+
 --replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 # because of concurrent insert, the table may not be up to date
