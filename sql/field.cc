@@ -3878,6 +3878,15 @@ void Field_datetime::sql_type(String &res) const
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  char buff[80];
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  /* Convert character set if nesessary */
+  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  { 
+    tmpstr.copy(from, length, cs, field_charset);
+    from= tmpstr.ptr();
+    length=  tmpstr.length();
+  }
   if (length <= field_length)
   {
     memcpy(ptr,from,length);
@@ -4051,6 +4060,15 @@ uint Field_string::max_packed_col_length(uint max_length)
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  char buff[80];
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  /* Convert character set if nesessary */
+  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  { 
+    tmpstr.copy(from, length, cs, field_charset);
+    from= tmpstr.ptr();
+    length=  tmpstr.length();
+  }
   if (length > field_length)
   {
     length=field_length;
@@ -4359,6 +4377,15 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   }
   else
   {
+    char buff[80];
+    String tmpstr(buff,sizeof(buff), &my_charset_bin);
+    /* Convert character set if nesessary */
+    if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+    { 
+      tmpstr.copy(from, length, cs, field_charset);
+      from= tmpstr.ptr();
+      length=  tmpstr.length();
+    }
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -4827,6 +4854,15 @@ uint find_enum(TYPELIB *lib,const char *x, uint length)
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int err= 0;
+  char buff[80];
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  /* Convert character set if nesessary */
+  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  { 
+    tmpstr.copy(from, length, cs, field_charset);
+    from= tmpstr.ptr();
+    length=  tmpstr.length();
+  }
   uint tmp=find_enum(typelib,from,length);
   if (!tmp)
   {
@@ -5033,7 +5069,15 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   int err= 0;
   char *not_used;
   uint not_used2;
-
+  char buff[80];
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  /* Convert character set if nesessary */
+  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  { 
+    tmpstr.copy(from, length, cs, field_charset);
+    from= tmpstr.ptr();
+    length=  tmpstr.length();
+  }
   ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2);
   if (!tmp && length && length < 22)
   {
