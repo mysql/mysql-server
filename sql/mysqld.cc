@@ -184,7 +184,9 @@ static uint handler_count;
 static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
-static bool opt_console=0,start_mode=0;
+static bool opt_console=0, start_mode=0, use_opt_args;
+static int opt_argc;
+static char **opt_argv;
 #endif
 
 /* Set prefix for windows binary */
@@ -316,7 +318,7 @@ struct system_variables max_system_variables;
 ulong keybuff_size,table_cache_size,
       thread_stack,
       thread_stack_min,what_to_log= ~ (1L << (uint) COM_TIME),
-      query_buff_size, mysqld_net_retry_count,
+      query_buff_size,
       slow_launch_time = 2L,
       slave_open_temp_tables=0,
       open_files_limit=0, max_binlog_size;
@@ -1151,7 +1153,7 @@ sig_handler end_thread_signal(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("end_thread_signal");
-  if (thd)
+  if (thd && ! thd->bootstrap)
     end_thread(thd,0);
   DBUG_VOID_RETURN;				/* purecov: deadcode */
 }
@@ -2218,9 +2220,51 @@ The server will not act as a slave.");
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 int mysql_service(void *p)
 {
-  win_main(Service.my_argc, Service.my_argv);
+  if (use_opt_args)
+    win_main(opt_argc, opt_argv);
+  else
+    win_main(Service.my_argc, Service.my_argv);
   return 0;
 }
+
+/*
+  Handle basic handling of services, like installation and removal
+
+  SYNOPSIS
+    default_service_handling()
+    argv		Pointer to argument list 
+    servicename		Internal name of service
+    displayname		Display name of service (in taskbar ?)
+    file_path		Path to this program
+
+  RETURN VALUES
+    0		option handled
+    1		Could not handle option
+ */
+
+bool default_service_handling(char **argv,
+			      const char *servicename,
+			      const char *displayname,
+			      const char *file_path)
+{
+  if (Service.got_service_option(argv, "install"))
+  {
+    Service.Install(1, servicename, displayname, file_path);
+    return 0;
+  }
+  if (Service.got_service_option(argv, "install-manual"))
+  {
+    Service.Install(0, servicename, displayname, file_path);
+    return 0;
+  }
+  if (Service.got_service_option(argv, "remove"))
+  {
+    Service.Remove(servicename);
+    return 0;
+  }
+  return 1;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -2232,51 +2276,50 @@ int main(int argc, char **argv)
 
     if (argc == 2)
     {	
-      if (Service.got_service_option(argv, "install"))
-      {
-        Service.Install(1, MYSQL_SERVICENAME, MYSQL_SERVICENAME, file_path);
-        return 0;
-      }
-      else if (Service.got_service_option(argv, "install-manual"))
-      {
-        Service.Install(0, MYSQL_SERVICENAME, MYSQL_SERVICENAME, file_path);
-        return 0;
-      }
-      else if (Service.got_service_option(argv, "remove"))
-      {
-        Service.Remove(MYSQL_SERVICENAME);
-        return 0;
-      }
-      else if (Service.IsService(argv[1]))
+      if (!default_service_handling(argv,MYSQL_SERVICENAME, MYSQL_SERVICENAME,
+				   file_path))
+	return 0;
+      if (Service.IsService(argv[1]))
       {
         /* start an optional service */
-        load_default_groups[0]= argv[1];
-        event_name= argv[1];
+        event_name = load_default_groups[0]= argv[1];
         start_mode= 1;
-        Service.Init(event_name, mysql_service );
+        Service.Init(event_name, mysql_service);
         return 0;
       }
     }
     else if (argc == 3) /* install or remove any optional service */
     {
+      /* Add service name after filename */
       uint length=strlen(file_path);
-      file_path[sizeof(file_path)-1]=0;
-      strxnmov(file_path + length, sizeof(file_path)-2, " ", argv[2], NullS);
-      if (Service.got_service_option(argv, "install"))
+      strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+	       argv[2], NullS)= '\0';
+
+      if (!default_service_handling(argv, argv[2], argv[2], file_path))
+	return 0;
+      if (Service.IsService(argv[2]))
       {
-        Service.Install(1, argv[2], argv[2], file_path);
-        return 0;
+	/* start an optional service */
+	use_opt_args=1;
+	opt_argc=argc;
+	opt_argv=argv;
+	event_name= argv[2];
+	start_mode= 1;
+	Service.Init(event_name, mysql_service);
+	return 0;
       }
-      else if (Service.got_service_option(argv, "install-manual"))
-      {
-        Service.Install(0, argv[2], argv[2], file_path);
-        return 0;
-      }
-      else if (Service.got_service_option(argv, "remove"))
-      {
-        Service.Remove(argv[2]);
-        return 0;
-      }
+    }
+    else if (argc == 4)
+    {
+      /*
+	Install an optional service with optional config file
+	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
+      */
+      uint length=strlen(file_path);
+      strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+	       argv[3], " ", argv[2], NullS)= '\0';
+      if (!default_service_handling(argv, argv[2], argv[2], file_path))
+	return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
@@ -2305,6 +2348,7 @@ static int bootstrap(FILE *file)
 {
   THD *thd= new THD;
   int error;
+  DBUG_ENTER("bootstrap");
 
   thd->bootstrap=1;
   thd->client_capabilities=0;
@@ -2319,7 +2363,7 @@ static int bootstrap(FILE *file)
 		     (void*) thd))
   {
     sql_print_error("Warning: Can't create thread to handle bootstrap");    
-    return -1;
+    DBUG_RETURN(-1);
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -2333,7 +2377,7 @@ static int bootstrap(FILE *file)
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
-  return error;
+  DBUG_RETURN(error);
 }
 
 static bool read_init_file(char *file_name)
@@ -3511,7 +3555,8 @@ struct my_option my_long_options[] =
    REQUIRED_ARG, 16384, 1024, 1024*1024L, 0, 1024, 0},
   {"net_retry_count", OPT_NET_RETRY_COUNT,
    "If a read on a communication port is interrupted, retry this many times before giving up.",
-   (gptr*) &mysqld_net_retry_count, (gptr*) &mysqld_net_retry_count, 0,
+   (gptr*) &global_system_variables.net_retry_count,
+   (gptr*) &max_system_variables.net_retry_count,0,
    GET_ULONG, REQUIRED_ARG, MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1, 0},
   {"net_read_timeout", OPT_NET_READ_TIMEOUT,
    "Number of seconds to wait for more data from a connection before aborting the read.",

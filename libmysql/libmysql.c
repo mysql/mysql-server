@@ -2902,6 +2902,7 @@ void my_net_local_init(NET *net)
   net->max_packet=   (uint) net_buffer_length;
   net->read_timeout= (uint) net_read_timeout;
   net->write_timeout=(uint) net_write_timeout;
+  net->retry_count=  1;
   net->max_packet_size= max(net_buffer_length, max_allowed_packet);
 }
 

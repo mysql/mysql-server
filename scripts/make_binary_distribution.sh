@@ -123,6 +123,10 @@ $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin 
 $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
 $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
 
+# Make safe_mysqld a symlink to mysqld_safe for backwards portability
+# To be removed in MySQL 4.1
+(cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
+
 mv $BASE/support-files/binary-configure $BASE/configure
 chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/configure
 $CP -r sql-bench/* $BASE/sql-bench

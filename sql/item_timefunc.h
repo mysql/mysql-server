@@ -73,6 +73,7 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
 };
 
+
 class Item_func_monthname :public Item_func_month
 {
 public:
