@@ -128,6 +128,8 @@ static MYSQL_FIELD * STDCALL emb_list_fields(MYSQL *mysql)
 static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   THD *thd= (THD*)mysql->thd;
+  if (mysql->net.last_errno)
+    return 1;
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= mysql->field_count;

@@ -169,6 +169,7 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns __attribute__((unused))
 
   thd->client_stmt_id= stmt->stmt_id;
   thd->client_param_count= stmt->param_count;
+  thd->net.last_errno= 0;
 
   return 0;
 }
