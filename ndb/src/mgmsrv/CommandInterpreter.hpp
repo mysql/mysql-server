@@ -55,6 +55,9 @@ public:
   int readAndExecute();
 
 private:
+  char m_err_str[1024];
+  const char *get_error_text(int err_no);
+
   /**
    *   Read a string, and return a pointer to it.  
    *
@@ -122,7 +125,6 @@ private:
   void executeShow(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
-  void executeClusterLog(char* parameters);
 
 public:
   void executeStop(int processId, const char* parameters, bool all);

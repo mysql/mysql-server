@@ -22,14 +22,14 @@ select * from t1;
 f1	f2
 10	10
 100000	100000
-1.23457e+09	1234567890
+1.23457e+9	1234567890
 1e+10	10000000000
 1e+15	1e+15
 1e+20	1e+20
 3.40282e+38	1e+50
 3.40282e+38	1e+150
 -10	-10
-1e-05	1e-05
+1e-5	1e-5
 1e-10	1e-10
 1e-15	1e-15
 1e-20	1e-20
@@ -137,6 +137,8 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (c20 char);
 insert into t1 values (5000.0);
+Warnings:
+Warning	1265	Data truncated for column 'c20' at row 1
 drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'

@@ -32,7 +32,7 @@ public:
   static Ndb_local_table_info *create(NdbTableImpl *table_impl, Uint32 sz=0);
   static void destroy(Ndb_local_table_info *);
   NdbTableImpl *m_table_impl;
-  char m_local_data[1];
+  Uint64 m_local_data[1];
 private:
   Ndb_local_table_info(NdbTableImpl *table_impl);
   ~Ndb_local_table_info();

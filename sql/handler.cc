@@ -723,7 +723,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
         if (mysql_bin_log.write(&qinfo))
           error= 1;
       }
@@ -761,7 +761,7 @@ int ha_savepoint(THD *thd, char *savepoint_name)
       innobase_savepoint(thd,savepoint_name,
                          my_b_tell(&thd->transaction.trans_log));
 #endif
-      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }
@@ -953,8 +953,10 @@ int handler::read_first_row(byte * buf, uint primary_key)
   /*
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
+    TODO remove the test for HA_READ_ORDER
   */
-  if (deleted < 10 || primary_key >= MAX_KEY)
+  if (deleted < 10 || primary_key >= MAX_KEY ||
+      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
@@ -1081,6 +1083,9 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_KEY;
     break;
   }
+  case HA_ERR_NULL_IN_SPATIAL:
+    textno= ER_UNKNOWN_ERROR;
+    DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
@@ -1194,7 +1199,8 @@ uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
+  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE ||
+      error == HA_ERR_NULL_IN_SPATIAL)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }

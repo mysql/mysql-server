@@ -61,6 +61,7 @@ struct LocalConfig {
   bool parseHostName(const char *buf);
   bool parseFileName(const char *buf);
   bool parseString(const char *buf, BaseString &err);
+  char * makeConnectString(char *buf, int sz);
 };
 
 #endif // LocalConfig_H

@@ -55,7 +55,6 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
-#include "sql_acl.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -360,6 +359,19 @@ sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 #endif
 
+#ifdef HAVE_NDBCLUSTER_DB
+/* ndb thread specific variable settings */
+sys_var_thd_ulong 
+sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
+				  &SV::ndb_autoincrement_prefetch_sz);
+sys_var_thd_bool
+sys_ndb_force_send("ndb_force_send", &SV::ndb_force_send);
+sys_var_thd_bool
+sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
+sys_var_thd_bool
+sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
+#endif
+
 /* Time/date/datetime formats */
 
 sys_var_thd_date_time_format sys_time_format("time_format",
@@ -612,7 +624,13 @@ sys_var *sys_variables[]=
   &sys_innodb_table_locks,
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
-#endif    
+#endif  
+#ifdef HAVE_NDBCLUSTER_DB
+  &sys_ndb_autoincrement_prefetch_sz,
+  &sys_ndb_force_send,
+  &sys_ndb_use_exact_count,
+  &sys_ndb_use_transactions,
+#endif
   &sys_unique_checks,
   &sys_warning_count
 };
@@ -772,6 +790,13 @@ struct show_var_st init_vars[]= {
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  {sys_ndb_autoincrement_prefetch_sz.name,
+   (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
+  {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
+  {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
+  {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
@@ -2695,21 +2720,25 @@ sys_var *find_sys_var(const char *str, uint length)
 
 int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
-  int error= 0;
+  int error;
   List_iterator_fast<set_var_base> it(*var_list);
   DBUG_ENTER("sql_set_variables");
 
   set_var_base *var;
   while ((var=it++))
   {
-    if ((error=var->check(thd)))
-      DBUG_RETURN(error);
+    if ((error= var->check(thd)))
+      goto err;
   }
-  if (thd->net.report_error)
-    DBUG_RETURN(1);
-  it.rewind();
-  while ((var=it++))
-    error|= var->update(thd);			// Returns 0, -1 or 1
+  if (!(error= test(thd->net.report_error)))
+  {
+    it.rewind();
+    while ((var= it++))
+      error|= var->update(thd);         // Returns 0, -1 or 1
+  }
+
+err:
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -2770,7 +2799,8 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
+  if ((!value->fixed && 
+       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -2805,7 +2835,8 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+                value->check_cols(1)))
     return -1;
   return 0;
 }

@@ -97,30 +97,37 @@ select * from t1 where a is null or b is null;
 a	b
 drop table t1;
 create table t1 (t datetime);
-insert into t1 values (20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+insert into t1 values (20030102030460),(20030102036301),(20030102240401),
+(20030132030401),(20031302030401),(100001202030401);
 Warnings:
 Warning	1265	Data truncated for column 't' at row 1
 Warning	1265	Data truncated for column 't' at row 2
 Warning	1265	Data truncated for column 't' at row 3
 Warning	1265	Data truncated for column 't' at row 4
 Warning	1265	Data truncated for column 't' at row 5
+Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
+0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 delete from t1;
-insert into t1 values ("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
+insert into t1 values
+("2003-01-02 03:04:60"),("2003-01-02 03:63:01"),("2003-01-02 24:04:01"),
+("2003-01-32 03:04:01"),("2003-13-02 03:04:01"), ("10000-12-02 03:04:00");
 Warnings:
 Warning	1264	Data truncated; out of range for column 't' at row 1
 Warning	1264	Data truncated; out of range for column 't' at row 2
 Warning	1264	Data truncated; out of range for column 't' at row 3
 Warning	1264	Data truncated; out of range for column 't' at row 4
 Warning	1264	Data truncated; out of range for column 't' at row 5
+Warning	1264	Data truncated; out of range for column 't' at row 6
 select * from t1;
 t
+0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00
 0000-00-00 00:00:00

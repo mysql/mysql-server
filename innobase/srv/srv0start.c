@@ -1172,6 +1172,9 @@ NetWare. */
 	}
 
 	if (ret == NULL) {
+		fprintf(stderr,
+"InnoDB: Fatal error: cannot allocate the memory for the buffer pool\n");
+
 		return(DB_ERROR);
 	}
 

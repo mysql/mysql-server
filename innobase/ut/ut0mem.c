@@ -61,8 +61,10 @@ ut_malloc_low(
 /*==========*/
 	                     /* out, own: allocated memory */
         ulint   n,           /* in: number of bytes to allocate */
-	ibool   set_to_zero) /* in: TRUE if allocated memory should be set
+	ibool   set_to_zero, /* in: TRUE if allocated memory should be set
 			     to zero if UNIV_SET_MEM_TO_ZERO is defined */
+	ibool	assert_on_error) /* in: if TRUE, we crash mysqld if the memory
+				cannot be allocated */
 {
 	void*	ret;
 
@@ -86,9 +88,7 @@ ut_malloc_low(
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
-		"InnoDB: a big enough maximum process size.\n"
-		"InnoDB: We now intentionally generate a seg fault so that\n"
-		"InnoDB: on Linux we get a stack trace.\n",
+		"InnoDB: a big enough maximum process size.\n",
 		                  (ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
 			(ulong) GetLastError()
@@ -110,7 +110,15 @@ ut_malloc_low(
 		/* Intentional segfault on NetWare causes an abend. Avoid this 
 		by graceful exit handling in ut_a(). */
 #if (!defined __NETWARE__) 
-		if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
+		if (assert_on_error) {
+			fprintf(stderr,
+		"InnoDB: We now intentionally generate a seg fault so that\n"
+		"InnoDB: on Linux we get a stack trace.\n");
+
+			if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
+		} else {
+			return(NULL);
+		}
 #else
 		ut_a(0);
 #endif
@@ -144,7 +152,7 @@ ut_malloc(
 	                /* out, own: allocated memory */
         ulint   n)      /* in: number of bytes to allocate */
 {
-        return(ut_malloc_low(n, TRUE));
+        return(ut_malloc_low(n, TRUE, TRUE));
 }
 
 /**************************************************************************

@@ -2139,12 +2139,12 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   DESCRIPTION
     This function should be used after mysql_stmt_execute().
     You can safely check that prepared statement has a result set by calling
-    mysql_stmt_num_fields(): if number of fields is not zero, you can call
+    mysql_stmt_field_count(): if number of fields is not zero, you can call
     this function to get fields metadata.
     Next steps you may want to make:
     - find out number of columns in result set by calling
       mysql_num_fields(res) (the same value is returned by
-      mysql_stmt_num_fields)
+      mysql_stmt_field_count())
     - fetch metadata for any column with mysql_fetch_field,
       mysql_fetch_field_direct, mysql_fetch_fields, mysql_field_seek.
     - free returned MYSQL_RES structure with mysql_free_result.
@@ -3257,11 +3257,12 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
       tm->hour+= tm->day*24;
       tm->day= 0;
     }
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
+
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_TIME;
+    set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
 }
 
 static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
@@ -3286,12 +3287,12 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
     else
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATETIME);
 }
 
 static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
@@ -3308,12 +3309,12 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->hour= tm->minute= tm->second= 0;
     tm->second_part= 0;
     tm->neg= 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATE;
 
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_DATE;
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATE);
 }
 
 
@@ -3662,8 +3663,8 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_INT24: /* mediumint is sent as 4 bytes int */
   case MYSQL_TYPE_LONG:
   {
-    long value= sint4korr(*row);
-    longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
+    int32 value= sint4korr(*row);
+    longlong data= field_is_unsigned ? (longlong) (uint32) value :
                                        (longlong) value;
     fetch_long_with_conversion(param, field, data);
     *row+= 4;
@@ -3881,11 +3882,10 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
   if (!bind_count)
   {
-    if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
-    {
-      set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    }
-    DBUG_RETURN(0);
+    int errorcode= (int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE ?
+                   CR_NO_PREPARE_STMT : CR_NO_STMT_METADATA;
+    set_stmt_error(stmt, errorcode, unknown_sqlstate);
+    DBUG_RETURN(1);
   }
 
   /*
@@ -4277,7 +4277,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   row+= (stmt->field_count+9)/8;		/* skip null bits */
   bit= 4;					/* first 2 bits are reserved */
 
-  /* Go throw all fields and calculate metadata */
+  /* Go through all fields and calculate metadata */
   for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
        bind < end ;
        bind++, field++)
@@ -4412,6 +4412,12 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
   for (; tmp && row; --row, tmp= tmp->next)
     ;
   stmt->data_cursor= tmp;
+  if (!row && tmp)
+  {
+       /*  Rewind the counter */
+    stmt->read_row_func= stmt_read_row_buffered;
+    stmt->state= MYSQL_STMT_EXECUTE_DONE;
+  }
   DBUG_VOID_RETURN;
 }
 

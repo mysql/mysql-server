@@ -936,7 +936,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->master_unit()->uncacheable)
+    if (thd->lex->subqueries)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -1418,7 +1418,7 @@ JOIN::exec()
 	  WHERE clause for any tables after the sorted one.
 	*/
 	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[tables];
+	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables];
 	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
@@ -2154,7 +2154,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 
       bool is_const=1;
       for (uint i=0; i<num_values; i++)
-        is_const&= (*value)->const_item();
+        is_const&= value[i]->const_item();
       if (is_const)
         stat[0].const_keys.merge(possible_keys);
       /*
@@ -3833,7 +3833,9 @@ JOIN::join_free(bool full)
   JOIN_TAB *tab,*end;
   DBUG_ENTER("JOIN::join_free");
 
-  full= full || !select_lex->uncacheable;
+  full= full || (!select_lex->uncacheable &&
+                 !thd->lex->subqueries &&
+                 !thd->lex->describe); // do not cleanup too early on EXPLAIN
 
   if (table)
   {
@@ -3862,6 +3864,7 @@ JOIN::join_free(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
       table= 0;
+      tables= 0;
     }
     else
     {
@@ -6002,7 +6005,10 @@ join_read_system(JOIN_TAB *tab)
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_error(table, error);
-      table->null_row=1;			// This is ok.
+      if (tab->on_expr)
+        mark_as_null_row(tab->table);
+      else
+        table->null_row=1;			// Why do this for inner join?
       empty_record(table);			// Make empty record
       return -1;
     }
@@ -6032,7 +6038,10 @@ join_read_const(JOIN_TAB *tab)
     }
     if (error)
     {
-      table->null_row=1;
+      if (tab->on_expr)
+        mark_as_null_row(tab->table);
+      else
+        table->null_row=1;
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
 	return report_error(table, error);
@@ -8895,7 +8904,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
+  if (!cond->fixed)
+    cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);

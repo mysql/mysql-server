@@ -64,7 +64,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "ndb_tools",0 };
+  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))

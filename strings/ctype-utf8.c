@@ -1545,31 +1545,33 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   {
     while (1)
     {
+      my_bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
                        (const uchar*)wildend)) <= 0)
         return 1;
-      
-      if (w_wc ==  (my_wc_t)escape)
-      {
-        wildstr+= scan;
-        if ((scan= mb_wc(cs,&w_wc, (const uchar*)wildstr,
-                         (const uchar*)wildend)) <= 0)
-          return 1;
-      }
-      
+
       if (w_wc == (my_wc_t)w_many)
       {
         result= 1;				/* Found an anchor char */
         break;
       }
-      
+
       wildstr+= scan;
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+        wildstr+= scan;
+        escaped= 1;
+      }
+      
       if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
-                       (const uchar*)str_end)) <=0)
+                       (const uchar*)str_end)) <= 0)
         return 1;
       str+= scan;
       
-      if (w_wc == (my_wc_t)w_one)
+      if (!escaped && w_wc == (my_wc_t)w_one)
       {
         result= 1;				/* Found an anchor char */
       }

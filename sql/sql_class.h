@@ -399,6 +399,12 @@ struct system_variables
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
+#ifdef HAVE_NDBCLUSTER_DB
+  ulong ndb_autoincrement_prefetch_sz;
+  my_bool ndb_force_send;
+  my_bool ndb_use_exact_count;
+  my_bool ndb_use_transactions;
+#endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */
@@ -1086,6 +1092,12 @@ public:
   void end_statement();
 };
 
+#define tmp_disable_binlog(A)       \
+  ulong save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG;
+
+#define reenable_binlog(A)          (A)->options= save_options;
+
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
@@ -1226,9 +1238,20 @@ class select_insert :public select_result_interceptor {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
   }
+  select_insert(TABLE *table_par, List<Item> *fields_par,
+		List<Item> *update_fields, List<Item> *update_values,
+		enum_duplicates duplic)
+    :table(table_par), fields(fields_par), last_insert_id(0)
+  {
+    bzero((char*) &info,sizeof(info));
+    info.handle_duplicates=duplic;
+    info.update_fields= update_fields;
+    info.update_values= update_values;
+  }
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
+  virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
@@ -1256,7 +1279,8 @@ public:
     create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &values);
+  void store_values(List<Item> &values);
+  void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
 };
@@ -1305,7 +1329,7 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      copy_field=0;
+      save_copy_field= copy_field= 0;
     }
   }
 };

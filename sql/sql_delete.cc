@@ -216,7 +216,7 @@ cleanup:
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;
     }
@@ -565,7 +565,7 @@ bool multi_delete::send_eof()
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
@@ -674,7 +674,7 @@ end:
       {
         thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      thd->tmp_table);
+			      thd->tmp_table, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);		// This should return record count

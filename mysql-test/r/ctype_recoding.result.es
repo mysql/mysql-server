@@ -1,0 +1,242 @@
+SET CHARACTER SET koi8r;
+DROP TABLE IF EXISTS таблица, t1, t2;
+SET CHARACTER SET koi8r;
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'проба' AS a;
+CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) character set cp1251 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT a FROM t1;
+a
+проба
+SELECT HEX(a) FROM t1;
+HEX(a)
+EFF0EEE1E0
+INSERT t2 SELECT * FROM t1;
+SELECT HEX(a) FROM t2;
+HEX(a)
+D0BFD180D0BED0B1D0B0
+DROP TABLE t1, t2;
+CREATE TABLE t1 (description text character set cp1250 NOT NULL);
+INSERT INTO t1 (description) VALUES (_latin2'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasssssssssssaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddde');
+SELECT description FROM t1;
+description
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasssssssssssaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddde
+DROP TABLE t1;
+CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'проба' AS a;
+CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text character set cp1251
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT HEX(a) FROM t1;
+HEX(a)
+EFF0EEE1E0
+INSERT t2 SELECT * FROM t1;
+SELECT HEX(a) FROM t2;
+HEX(a)
+D0BFD180D0BED0B1D0B0
+DROP TABLE t1, t2;
+CREATE TABLE `таблица`
+(
+поле CHAR(32) CHARACTER SET koi8r NOT NULL COMMENT "комментарий поля"
+) COMMENT "комментарий таблицы";
+SHOW TABLES;
+Tables_in_test
+таблица
+SHOW CREATE TABLE таблица;
+Table	Create Table
+таблица	CREATE TABLE `таблица` (
+  `поле` char(32) character set koi8r NOT NULL default '' COMMENT 'комментарий поля'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
+SHOW FIELDS FROM таблица;
+Field	Type	Null	Key	Default	Extra
+поле	char(32)				
+SET CHARACTER SET cp1251;
+SHOW TABLES;
+Tables_in_test
+РЮАКХЖЮ
+SHOW CREATE TABLE РЮАКХЖЮ;
+Table	Create Table
+РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
+  `ОНКЕ` char(32) character set koi8r NOT NULL default '' COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
+SHOW FIELDS FROM РЮАКХЖЮ;
+Field	Type	Null	Key	Default	Extra
+ОНКЕ	char(32)				
+SET CHARACTER SET utf8;
+SHOW TABLES;
+Tables_in_test
+я┌п╟п╠п╩п╦я├п╟
+SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
+Table	Create Table
+я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
+  `п©п╬п╩п╣` char(32) character set koi8r NOT NULL default '' COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
+SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
+Field	Type	Null	Key	Default	Extra
+п©п╬п╩п╣	char(32)				
+SET CHARACTER SET koi8r;
+DROP TABLE таблица;
+SET CHARACTER SET default;
+SET NAMES UTF8;
+CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+INSERT INTO t1 (t) VALUES ('x');
+SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
+1
+1
+DROP TABLE t1;
+SET CHARACTER SET koi8r;
+CREATE DATABASE тест;
+USE тест;
+SHOW TABLES;
+Tables_in_я┌п╣я│я┌
+SHOW TABLES IN тест;
+Tables_in_я┌п╣я│я┌
+SET CHARACTER SET cp1251;
+SHOW TABLES;
+Tables_in_я┌п╣я│я┌
+SHOW TABLES IN РЕЯР;
+Tables_in_я┌п╣я│я┌
+SET CHARACTER SET koi8r;
+DROP DATABASE тест;
+SET NAMES koi8r;
+SELECT hex('тест');
+hex('я┌п╣я│я┌')
+D4C5D3D4
+SET character_set_connection=cp1251;
+SELECT hex('тест');
+hex('я┌п╣я│я┌')
+F2E5F1F2
+USE test;
+SET NAMES binary;
+CREATE TABLE `я┌п╣я│я┌` (`я┌п╣я│я┌` int);
+SHOW CREATE TABLE `я┌п╣я│я┌`;
+Table	Create Table
+я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
+  `я┌п╣я│я┌` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SET NAMES utf8;
+SHOW CREATE TABLE `я┌п╣я│я┌`;
+Table	Create Table
+я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
+  `я┌п╣я│я┌` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE `я┌п╣я│я┌`;
+SET NAMES binary;
+SET character_set_connection=utf8;
+SELECT 'я┌п╣я│я┌' as s;
+s
+я┌п╣я│я┌
+SET NAMES utf8;
+SET character_set_connection=binary;
+SELECT 'я┌п╣я│я┌' as s;
+s
+я┌п╣я│я┌
+SET NAMES latin1;
+CREATE TABLE t1 (`Д` CHAR(128) DEFAULT 'Д', `Д1` ENUM('Д1','Д2') DEFAULT 'Д2');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `Д` char(128) default 'Д',
+  `Д1` enum('Д1','Д2') default 'Д2'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+Д	char(128)	YES		Д	
+Д1	enum('Д1','Д2')	YES		Д2	
+SET NAMES binary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ц╓` char(128) default 'ц╓',
+  `ц╓1` enum('ц╓1','ц╓2') default 'ц╓2'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+ц╓	char(128)	YES		ц╓	
+ц╓1	enum('ц╓1','ц╓2')	YES		ц╓2	
+DROP TABLE t1;
+SET NAMES binary;
+CREATE TABLE `goodплохо` (a int);
+ERROR HY000: Invalid utf8 character string: 'плохо'
+SET NAMES utf8;
+CREATE TABLE `goodплохо` (a int);
+ERROR HY000: Invalid utf8 character string: 'плохо` (a int)'
+set names latin1;
+create table t1 (a char(10) character set koi8r, b text character set koi8r);
+insert into t1 values ('test','test');
+insert into t1 values ('йцук','йцук');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+drop table t1;
+set names koi8r;
+create table t1 (a char(10) character set cp1251);
+insert into t1 values (_koi8r'вася');
+select * from t1 where a=_koi8r'вася';
+a
+вася
+select * from t1 where a=concat(_koi8r'вася');
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation '='
+select * from t1 where a=_latin1'вася';
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
+set names latin1;
+set names koi8r;
+create table t1 (c1 char(10) character set cp1251);
+insert into t1 values ('ъ');
+select c1 from t1 where c1 between 'ъ' and 'ъ';
+c1
+ъ
+select ifnull(c1,'ъ'), ifnull(null,c1) from t1;
+ifnull(c1,'я┼')	ifnull(null,c1)
+ъ	ъ
+select if(1,c1,'Ж'), if(0,c1,'Ж') from t1;
+if(1,c1,'п√')	if(0,c1,'п√')
+ъ	Ж
+select coalesce('Ж',c1), coalesce(null,c1) from t1;
+coalesce('п√',c1)	coalesce(null,c1)
+Ж	ъ
+select least(c1,'Ж'), greatest(c1,'Ж') from t1;
+least(c1,'п√')	greatest(c1,'п√')
+Ж	ъ
+select locate(c1,'ъ'), locate('ъ',c1) from t1;
+locate(c1,'я┼')	locate('я┼',c1)
+1	1
+select field(c1,'ъ'),field('ъ',c1) from t1;
+field(c1,'я┼')	field('я┼',c1)
+1	1
+select concat(c1,'Ж'), concat('Ж',c1) from t1;
+concat(c1,'п√')	concat('п√',c1)
+ъЖ	Жъ
+select concat_ws(c1,'Ж','ъ'), concat_ws('Ж',c1,'ъ') from t1;
+concat_ws(c1,'п√','я┼')	concat_ws('п√',c1,'я┼')
+Жъъ	ъЖъ
+select replace(c1,'ъ','Ж'), replace('ъ',c1,'Ж') from t1;
+replace(c1,'я┼','п√')	replace('я┼',c1,'п√')
+Ж	Ж
+select substring_index(c1,'ЖЖъъ',2) from t1;
+substring_index(c1,'п√п√я┼я┼',2)
+ъ
+select elt(1,c1,'Ж'),elt(1,'Ж',c1) from t1;
+elt(1,c1,'п√')	elt(1,'п√',c1)
+ъ	Ж
+select make_set(3,c1,'Ж'), make_set(3,'Ж',c1) from t1;
+make_set(3,c1,'п√')	make_set(3,'п√',c1)
+ъ,Ж	Ж,ъ
+select insert(c1,1,2,'Ж'),insert('Ж',1,2,c1) from t1;
+insert(c1,1,2,'п√')	insert('п√',1,2,c1)
+Ж	ъ
+select trim(c1 from 'ъ'),trim('ъ' from c1) from t1;
+trim(c1 from 'я┼')	trim('я┼' from c1)
+	
+select lpad(c1,3,'Ж'), lpad('Ж',3,c1) from t1;
+lpad(c1,3,'п√')	lpad('п√',3,c1)
+ЖЖъ	ъъЖ
+select rpad(c1,3,'Ж'), rpad('Ж',3,c1) from t1;
+rpad(c1,3,'п√')	rpad('п√',3,c1)
+ъЖЖ	Жъъ

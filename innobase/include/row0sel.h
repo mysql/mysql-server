@@ -120,6 +120,7 @@ row_search_for_mysql(
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
 					DB_END_OF_INDEX, DB_DEADLOCK,
+					DB_LOCK_TABLE_FULL,
 					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */

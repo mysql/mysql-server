@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
 SCREENNAME "MySQL MyISAM Table Log Tool"
-COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
+COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL MyISAM Table Log Tool"
 VERSION 4, 0
 XDCDATA ../netware/mysql.xdc

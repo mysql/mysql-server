@@ -1411,15 +1411,14 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
   const char * originalInternalName = internalName.c_str();
   BaseString externalName = impl.m_externalName;
   const char * originalExternalName = externalName.c_str();
-  NdbTableImpl * oldTab = getTable(originalExternalName);
-  
-  if(!oldTab){
+
+  DBUG_ENTER("NdbDictionaryImpl::alterTable");
+  if(!get_local_table_info(originalInternalName, false)){
     m_error.code = 709;
-    return -1;
+    DBUG_RETURN(-1);
   }
   // Alter the table
   int ret = m_receiver.alterTable(m_ndb, impl);
-
   if(ret == 0){
     // Remove cached information and let it be refreshed at next access
     if (m_localHash.get(originalInternalName) != NULL) {
@@ -1433,7 +1432,7 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
       m_globalHash->unlock();
     }
   }
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int 
@@ -1448,15 +1447,16 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
+  DBUG_ENTER("NdbDictInterface::createOrAlterTable");
   unsigned i;
   if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
     m_error.code = 4317;
-    return -1;
+    DBUG_RETURN(-1);
   }
   unsigned sz = impl.m_columns.size();
   if (sz > NDB_MAX_ATTRIBUTES_IN_TABLE){
     m_error.code = 4318;
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   impl.copyNewProperties();
@@ -1491,7 +1491,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
     m_error.code = 1229;
-    return -1;
+    DBUG_RETURN(-1);
   }
   tmpTab.FrmLen = impl.m_frm.length();
   memcpy(tmpTab.FrmData, impl.m_frm.get_data(), impl.m_frm.length());
@@ -1543,12 +1543,12 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     // charset is defined exactly for char types
     if (col->getCharType() != (col->m_cs != NULL)) {
       m_error.code = 703;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // primary key type check
     if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
       m_error.code = 743;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // charset in upper half of precision
     if (col->getCharType()) {
@@ -1571,7 +1571,13 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
-  if (alter) {
+  
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].sz = m_buffer.length() / 4;
+  int ret;
+  if (alter)
+  {
     AlterTableReq * const req = 
       CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
     
@@ -1582,8 +1588,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     req->tableVersion = impl.m_version;;
     tSignal.theVerId_signalNumber   = GSN_ALTER_TABLE_REQ;
     tSignal.theLength = AlterTableReq::SignalLength;
+    ret= alterTable(&tSignal, ptr);
   }
-  else {
+  else
+  {
     CreateTableReq * const req = 
       CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
     
@@ -1591,28 +1599,24 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     req->senderData = 0;
     tSignal.theVerId_signalNumber   = GSN_CREATE_TABLE_REQ;
     tSignal.theLength = CreateTableReq::SignalLength;
-  }
-  
-  LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
-  ptr[0].sz = m_buffer.length() / 4;
+    ret= createTable(&tSignal, ptr);
 
-  int ret = (alter) ?
-    alterTable(&tSignal, ptr)
-    : createTable(&tSignal, ptr);
+    if (ret)
+      return ret;
 
-  if (!alter && haveAutoIncrement) {
-    if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
-				   autoIncrementValue)) {
-      if (ndb.theError.code == 0) {
-	m_error.code = 4336;
-	ndb.theError = m_error;
-      } else
-	m_error= ndb.theError;
-      ret = -1; // errorcode set in initialize_autoincrement
+    if (haveAutoIncrement) {
+      if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
+				     autoIncrementValue)) {
+	if (ndb.theError.code == 0) {
+	  m_error.code = 4336;
+	  ndb.theError = m_error;
+	} else
+	  m_error= ndb.theError;
+	ret = -1; // errorcode set in initialize_autoincrement
+      }
     }
   }
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int
@@ -1671,17 +1675,17 @@ NdbDictInterface::alterTable(NdbApiSignal* signal, LinearSectionPtr ptr[3])
   int errCodes[noErrCodes] =
     {AlterTableRef::NotMaster,
      AlterTableRef::Busy};
-   int r = dictSignal(signal,ptr,1,
-		      1/*use masternode id*/,
-		      100,WAIT_ALTER_TAB_REQ,
-		      WAITFOR_RESPONSE_TIMEOUT,
-		      errCodes, noErrCodes);
-   if(m_error.code == AlterTableRef::InvalidTableVersion) {
-     // Clear caches and try again
-     return INCOMPATIBLE_VERSION;
-   }
+  int r = dictSignal(signal,ptr,1,
+		     1/*use masternode id*/,
+		     100,WAIT_ALTER_TAB_REQ,
+		     WAITFOR_RESPONSE_TIMEOUT,
+		     errCodes, noErrCodes);
+  if(m_error.code == AlterTableRef::InvalidTableVersion) {
+    // Clear caches and try again
+    return INCOMPATIBLE_VERSION;
+  }
 
-   return r;
+  return r;
 }
 
 void

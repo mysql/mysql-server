@@ -863,6 +863,13 @@ Backup::execBACKUP_REQ(Signal* signal)
     sendBackupRef(senderRef, signal, senderData, BackupRef::IAmNotMaster);
     return;
   }//if
+
+  if (m_diskless)
+  {
+    sendBackupRef(senderRef, signal, senderData, 
+		  BackupRef::CannotBackupDiskless);
+    return;
+  }
   
   if(dataLen32 != 0) {
     jam();

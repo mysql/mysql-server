@@ -924,76 +924,139 @@ SOURCE=.\message.mc
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
+# Begin Custom Build
+InputPath=.\message.mc
+
+BuildCmds= \
+	mc message.mc
+
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
+
+# Begin Custom Build
+InputPath=.\message.mc
+
+BuildCmds= \
+	mc message.mc
+
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
 
-# Begin Custom Build - Compiling messages
-InputDir=.
+# Begin Custom Build
 InputPath=.\message.mc
-InputName=message
 
 BuildCmds= \
-	mc.exe "$(InputDir)\$(InputName).mc"
+	mc message.mc
 
-"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 
-"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 # End Custom Build
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
-# Begin Custom Build - Compiling messages
-InputDir=.
+
+# Begin Custom Build
 InputPath=.\message.mc
-InputName=message
 
 BuildCmds= \
-	mc.exe "$(InputDir)\$(InputName).mc"
+	mc message.mc
 
-"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 
-"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 # End Custom Build
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
+
+# Begin Custom Build
+InputPath=.\message.mc
+
+BuildCmds= \
+	mc message.mc
+
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 classic"
 
+# Begin Custom Build
+InputPath=.\message.mc
+
+BuildCmds= \
+	mc message.mc
+
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro"
 
+# Begin Custom Build
+InputPath=.\message.mc
+
+BuildCmds= \
+	mc message.mc
+
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 classic nt"
-# Begin Custom Build - Compiling messages
-InputDir=.
+
+# Begin Custom Build
 InputPath=.\message.mc
-InputName=message
 
 BuildCmds= \
-	mc.exe "$(InputDir)\$(InputName).mc"
+	mc message.mc
 
-"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 
-"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 # End Custom Build
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
-# Begin Custom Build - Compiling messages
-InputDir=.
+
+# Begin Custom Build
 InputPath=.\message.mc
-InputName=message
 
 BuildCmds= \
-	mc.exe "$(InputDir)\$(InputName).mc"
+	mc message.mc
 
-"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 
-"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"message.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
    $(BuildCmds)
 # End Custom Build
+
 !ENDIF 
 
 # End Source File

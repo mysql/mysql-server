@@ -229,20 +229,42 @@ public:
   Item *neg_transformer(THD *thd);
 };
 
+class Item_maxmin_subselect;
 class Item_func_not_all :public Item_func_not
 {
+  /* allow to check presence od values in max/min optimisation */
+  Item_sum_hybrid *test_sum_item;
+  Item_maxmin_subselect *test_sub_item;
+
   bool abort_on_null;
 public:
   bool show;
 
-  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0), show(0) {}
+  Item_func_not_all(Item *a)
+    :Item_func_not(a), test_sum_item(0), test_sub_item(0), abort_on_null(0),
+     show(0)
+    {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
   void print(String *str);
+  void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
+  void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
+  bool empty_underlying_subquery();
 };
+
+
+class Item_func_nop_all :public Item_func_not_all
+{
+public:
+
+  Item_func_nop_all(Item *a) :Item_func_not_all(a) {}
+  longlong val_int();
+  const char *func_name() const { return "<nop>"; }
+};
+
 
 class Item_func_eq :public Item_bool_rowready_func2
 {

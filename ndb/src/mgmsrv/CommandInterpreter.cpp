@@ -113,6 +113,11 @@ private:
   void * m_ptr;
 };
 
+const char *CommandInterpreter::get_error_text(int err_no)
+{
+  return _mgmtSrvr.getErrorText(err_no, m_err_str, sizeof(m_err_str));
+}
+
 //*****************************************************************************
 //*****************************************************************************
 int CommandInterpreter::readAndExecute() {
@@ -150,10 +155,6 @@ int CommandInterpreter::readAndExecute() {
   }
   else if (strcmp(firstToken, "SHOW") == 0) {
     executeShow(allAfterFirstToken);
-    return true;
-  }
-  else if (strcmp(firstToken, "CLUSTERLOG") == 0) {
-    executeClusterLog(allAfterFirstToken);
     return true;
   }
   else if(strcmp(firstToken, "START") == 0 &&
@@ -467,130 +468,6 @@ void CommandInterpreter::executeShow(char* parameters) {
   }
 }
 
-
-//*****************************************************************************
-//*****************************************************************************
-void CommandInterpreter::executeClusterLog(char* parameters) {
-
-  if (parameters != 0 && strlen(parameters) != 0) {
-    int severity = 7;
-    int isOk = true;
-    char name[12]; 
-    bool noArgs = false;
-    
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, " ", &tmpPtr);
-    
-    /********************
-     * CLUSTERLOG FILTER 
-     ********************/
-    if (strcmp(item, "FILTER") == 0) {
-      
-      item = strtok_r(NULL, " ", &tmpPtr);
-      if (item == NULL) {
-	noArgs = true;
-      }
-      while (item != NULL) {
-		  BaseString::snprintf(name, 12, item);
-
-	if (strcmp(item, "ALL") == 0) {
-	  severity = 7;	
-	} else if (strcmp(item, "ALERT") == 0) {
-	  severity = 6;
-	} else if (strcmp(item, "CRITICAL") == 0) { 
-	  severity = 5;
-	} else if (strcmp(item, "ERROR") == 0) {
-	  severity = 4;
-	} else if (strcmp(item, "WARNING") == 0) {
-	  severity = 3;
-	} else if (strcmp(item, "INFO") == 0) {
-	  severity = 2;
-	} else if (strcmp(item, "DEBUG") == 0) {
-	  severity = 1;
-	} else if (strcmp(item, "OFF") == 0) {
-	  severity = 0;
-	} else {
-	  isOk = false;
-	}      
-	
-	item = strtok_r(NULL, " ", &tmpPtr);	
-      } //  while(item != NULL){
-      free(tmpString);
-
-      if (noArgs) {
-	ndbout << "Missing argument(s)." << endl;
-      } else if (isOk) {
-	if (_mgmtSrvr.setEventLogFilter(severity)) {
-	  if(strcmp(name, "ALL") == 0 || strcmp(name, "all") == 0) {
-	    ndbout << "All severities levels enabled." << endl;
-	  } else if(strcmp(name, "OFF") == 0 || strcmp(name, "off") == 0) {
-	    ndbout << "Cluster logging disabled." << endl;
-	  } else {
-	    ndbout << name << " events enabled." << endl;
-	  }
-	} else {
-	  if(strcmp(name, "ALL") == 0) {
-	    ndbout << "All severities levels disabled." << endl;
-	  } else if(strcmp(name, "OFF") == 0) {
-	    ndbout << "Cluster logging enabled." << endl;
-	  } else {
-	    ndbout << name << " events disabled." << endl;
-	  }
-	}      
-      } else {
-	ndbout << "Invalid severity level." << endl;
-      }
-
-    /********************
-     * CLUSTERLOG INFO
-     ********************/
-    } else if (strcmp(item, "INFO") == 0) {
-      const char* names[] = {"DEBUG", "INFO", "WARNING", "ERROR", 
-			     "CRITICAL", "ALERT"};
-      if (_mgmtSrvr.isEventLogFilterEnabled(0)) { // OFF
-	ndbout << "Cluster logging is disabled." << endl;
-      } 
-
-      ndbout << "Severities enabled: ";
-      for (int i = 0; i < 6; i++) {
-	if (_mgmtSrvr.isEventLogFilterEnabled(i + 1)) {
-	  ndbout << names[i] << " ";
-	}	
-      }
-      ndbout << endl;
-
-      /********************
-       * CLUSTERLOG OFF
-       ********************/
-    } else if (strcmp(item, "OFF") == 0) {
-      if (!_mgmtSrvr.isEventLogFilterEnabled(0)) { // ON
-	if (_mgmtSrvr.setEventLogFilter(0));
-	ndbout << "Cluster logging is disabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already disabled." << endl;	
-      }
-      
-      /********************
-       * CLUSTERLOG ON
-       ********************/
-    } else if (strcmp(item, "ON") == 0) {
-      if (_mgmtSrvr.isEventLogFilterEnabled(0)) { // OFF
-	if (_mgmtSrvr.setEventLogFilter(0));
-	ndbout << "Cluster logging is enabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already enabled." << endl;	
-      }
-
-    } else {
-      ndbout << "Invalid argument." << endl;
-    }
-
-  } else {
-    ndbout << "Missing argument." << endl;
-  }
-}
-
 void
 stopCallback(int nodeId, void * anyData, int errCode){
   if(errCode == 0){
@@ -600,8 +477,9 @@ stopCallback(int nodeId, void * anyData, int errCode){
       ndbout << "\nNode " << nodeId << " has shutdown" << endl;
   } else {
     MgmtSrvr * mgm = (MgmtSrvr *)anyData;
+    char err_str[1024];
     ndbout << "Node " << nodeId << " has not shutdown: " 
-	   << mgm->getErrorText(errCode) << endl;
+	   << mgm->getErrorText(errCode,err_str,sizeof(err_str)) << endl;
   }
 }
 
@@ -653,7 +531,8 @@ versionCallback(int nodeId, int version, void * anyData, int errCode){
     
   } else {
     MgmtSrvr * mgm = (MgmtSrvr *)anyData;
-    ndbout  << mgm->getErrorText(errCode) << endl;
+    char err_str[1024];
+    ndbout  << mgm->getErrorText(errCode,err_str,sizeof(err_str)) << endl;
   }
 }
 
@@ -671,7 +550,7 @@ void CommandInterpreter::executeStop(int processId,
     result = _mgmtSrvr.stopNode(processId, false, stopCallback, this);
   
   if(result != 0)
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
 }
 
 
@@ -686,7 +565,7 @@ void CommandInterpreter::executeStart(int processId, const char* parameters,
   
   int result = _mgmtSrvr.start(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -719,7 +598,7 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
 			       stopCallback,
 			       this);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -761,7 +640,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   free(tmpString);
   int result = _mgmtSrvr.dumpState(processId, pars, no);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -782,7 +661,7 @@ void CommandInterpreter::executeStatus(int processId,
 				&status, &version, &startPhase, &system,
 				&dynamicId, &nodeGroup, &connectCount);
   if(result != 0){
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
     return;
   }
   
@@ -876,7 +755,7 @@ void CommandInterpreter::executeLogLevel(int processId,
 
   int result = _mgmtSrvr.setNodeLogLevel(processId, logLevel);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 #endif
 }
@@ -914,7 +793,7 @@ void CommandInterpreter::executeError(int processId,
 
   int result = _mgmtSrvr.insertError(processId, errorNo);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
   free(newpar);
 }
@@ -954,7 +833,7 @@ void CommandInterpreter::executeTrace(int processId,
 
   int result = _mgmtSrvr.setTraceNo(processId, traceNo);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
   free(newpar);
 }
@@ -975,7 +854,7 @@ void CommandInterpreter::executeLog(int processId,
   
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -996,7 +875,7 @@ void CommandInterpreter::executeLogIn(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::In, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -1015,7 +894,7 @@ void CommandInterpreter::executeLogOut(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Out, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1036,7 +915,7 @@ void CommandInterpreter::executeLogOff(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1055,7 +934,7 @@ void CommandInterpreter::executeTestOn(int processId,
 
   int result = _mgmtSrvr.startSignalTracing(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1074,7 +953,7 @@ void CommandInterpreter::executeTestOff(int processId,
 
   int result = _mgmtSrvr.stopSignalTracing(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1127,7 +1006,7 @@ void CommandInterpreter::executeEventReporting(int processId,
   ndbout_c("processId %d", processId);
   int result = _mgmtSrvr.setEventReportingLevel(processId, logLevel);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 #endif
 }
@@ -1137,7 +1016,7 @@ CommandInterpreter::executeStartBackup(char* parameters) {
   Uint32 backupId;
   int result = _mgmtSrvr.startBackup(backupId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     //    ndbout << "Start of backup ordered" << endl;
   }
@@ -1154,7 +1033,7 @@ CommandInterpreter::executeAbortBackup(char* parameters) {
   }
   int result = _mgmtSrvr.abortBackup(bid);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     ndbout << "Abort of backup " << bid << " ordered" << endl;
   }
@@ -1175,7 +1054,7 @@ CommandInterpreter::executeEnterSingleUser(char* parameters) {
   }
   int result = _mgmtSrvr.enterSingleUser(0, nodeId,0,0);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     ndbout << "Entering single user mode, granting access for node " 
 	   << nodeId << " OK." << endl;

@@ -42,8 +42,10 @@ Backup::Backup(const Configuration & conf) :
   ndbrequire(p != 0);
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
 
   noAttribs++; //RT 527 bug fix
@@ -203,7 +205,7 @@ Backup::~Backup()
 {
 }
 
-BLOCK_FUNCTIONS(Backup);
+BLOCK_FUNCTIONS(Backup)
 
 template class ArrayPool<Backup::Page32>;
 template class ArrayPool<Backup::Attribute>;

@@ -221,7 +221,7 @@ update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	4	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	4	Range checked for each record (index map: 0x1)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
@@ -237,7 +237,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 0x1)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
