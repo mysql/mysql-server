@@ -3845,7 +3845,6 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
       jam();
       return; // No queued TcKeyConf
     }//if
-    ndbout_c("TopWords: %d", TopWords);
   }//if
   if(TcommitFlag){
     jam();
