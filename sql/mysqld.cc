@@ -4533,6 +4533,12 @@ static void use_help(void)
 
 static void usage(void)
 {
+  if (!(default_charset_info= get_charset_by_csname(sys_charset.value,
+					           MY_CS_PRIMARY,
+						   MYF(MY_WME))))
+    exit(1);
+  if (!default_collation_name)
+    default_collation_name= (char*) default_charset_info->name;
   print_version();
   puts("\
 Copyright (C) 2000 MySQL AB, by Monty and others\n\
