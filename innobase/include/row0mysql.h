@@ -363,6 +363,15 @@ row_get_background_drop_list_len_low(void);
 /*======================================*/
 					/* out: how many tables in list */
 /*************************************************************************
+Truncates a table for MySQL. */
+
+int
+row_truncate_table_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table handle */
+	trx_t*		trx);	/* in: transaction handle */
+/*************************************************************************
 Drops a table for MySQL. If the name of the dropped table ends to
 characters INNODB_MONITOR, then this also stops printing of monitor
 output by the master thread. */
@@ -447,6 +456,8 @@ struct mysql_row_templ_struct {
 					zero if column cannot be NULL */
 	ulint	type;			/* column type in Innobase mtype
 					numbers DATA_CHAR... */
+	ulint	charset;		/* MySQL charset-collation code
+					of the column, or zero */
 	ulint	is_unsigned;		/* if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */
