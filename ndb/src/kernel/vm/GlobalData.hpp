@@ -19,7 +19,6 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
-#include <assert.h>
 #include "Prio.hpp"
 #include "VMSignal.hpp"
 

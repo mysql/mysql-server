@@ -23,7 +23,6 @@
 //*****************************************************************************
 
 #include <ndb_global.h>
-#include <NdbStdio.h>
 #include <Vector.hpp>
 #include <editline/editline.h>
 

@@ -17,8 +17,7 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include <NdbStdio.h>
-#include <NdbConstant.hpp>
+#include <ndb_global.h>
 
 /**
  * This class provides a file abstraction . It has operations

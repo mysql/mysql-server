@@ -34,10 +34,6 @@
 #include "NdbApiSignal.hpp"
 #include <NdbOut.hpp>
 #include "NdbDictionaryImpl.hpp"
-#include <NdbString.h>
-#ifndef NDB_MACOSX
-#include <malloc.h>
-#endif
 
 NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   NdbCursorOperation(aNdb),

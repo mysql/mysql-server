@@ -15,8 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include <OutputStream.hpp>
-#include <stdarg.h>
 #include <socket_io.h>
 
 FileOutputStream::FileOutputStream(FILE * file){

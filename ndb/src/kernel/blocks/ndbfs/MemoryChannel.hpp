@@ -76,7 +76,6 @@
 #include "NdbCondition.h"
 #include <NdbOut.hpp>
 
-#include <assert.h>
 
 template <class T>
 class MemoryChannel

@@ -19,7 +19,6 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
-#include <NdbString.h>
 #include <signaldata/DictTabInfo.hpp>
 
 /**

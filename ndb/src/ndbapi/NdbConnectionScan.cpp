@@ -28,7 +28,6 @@
  * Adjust:  2000-06-12  UABRONM   First version.
  ****************************************************************************/
 #include <ndb_global.h>
-#include <assert.h>
 
 #include <Ndb.hpp>
 #include <NdbConnection.hpp>

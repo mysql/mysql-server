@@ -17,8 +17,8 @@
 #ifndef SIGNAL_DATA_PRINT_H
 #define SIGNAL_DATA_PRINT_H
 
+#include <ndb_global.h>
 #include <kernel_types.h>
-#include <NdbStdio.h>
 
 /**
  * Typedef for a Signal Data Print Function

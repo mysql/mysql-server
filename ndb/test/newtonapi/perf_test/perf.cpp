@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <assert.h>
 
 extern "C" {
 #include <dba.h>

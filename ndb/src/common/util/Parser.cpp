@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <assert.h>
 
 #include "Parser.hpp"
 #include <NdbOut.hpp>

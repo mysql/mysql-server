@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <assert.h>
 #include "NDBT_ResultRow.hpp"
 #include <NdbOut.hpp>
 

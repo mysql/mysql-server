@@ -17,7 +17,6 @@
 
 
 #include <ndb_global.h>
-#include <assert.h>
 
 #include <ArrayList.hpp>
 #include <NdbOut.hpp>

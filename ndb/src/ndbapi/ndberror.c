@@ -16,8 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <stdarg.h>
-#include <assert.h>
 
 #include <ndberror.h>
 

@@ -18,7 +18,6 @@
 #include <NDBT_Table.hpp>
 #include <NDBT_Tables.hpp>
 
-#include <assert.h>
 /* ******************************************************* */
 //    Define Ndb standard tables 
 //

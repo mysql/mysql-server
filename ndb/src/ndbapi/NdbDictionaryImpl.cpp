@@ -35,7 +35,6 @@
 #include <AttributeList.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
-#include <assert.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <stdarg.h>
+#include <ndb_global.h>
 
 #include "Logger.hpp"
 
@@ -26,12 +26,6 @@
 #if !defined NDB_OSE || !defined NDB_SOFTOSE || !defined NDB_WIN32
 #include <SysLogHandler.hpp>
 #endif
-
-#include <NdbStdio.h>
-#include <ndb_types.h>
-#include <NdbString.h>
-
-#include <assert.h>
 
 //
 // PUBLIC

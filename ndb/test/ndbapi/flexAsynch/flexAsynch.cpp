@@ -24,8 +24,6 @@
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include <NdbTimer.hpp>
-#include <string.h>
-#include <NdbStdio.h>
 #include <NDBT_Error.hpp>
 
 #include <NdbTest.hpp>

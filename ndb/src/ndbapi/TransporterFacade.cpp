@@ -26,7 +26,6 @@
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
-#include <assert.h>
 
 #include "API.hpp"
 #include <ConfigRetriever.hpp>

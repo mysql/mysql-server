@@ -646,7 +646,6 @@ NdbDictionary::Dictionary::Dictionary(NdbDictionaryImpl & impl)
   : m_impl(impl) 
 {
 }
-#include <assert.h>
 NdbDictionary::Dictionary::~Dictionary(){
   NdbDictionaryImpl * tmp = &m_impl;  
   if(this != tmp){

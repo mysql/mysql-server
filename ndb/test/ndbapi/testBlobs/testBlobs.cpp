@@ -19,10 +19,7 @@
  */
 
 #include <ndb_global.h>
-#include <stdarg.h>
-#include <assert.h>
 
-#include <new>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbThread.h>

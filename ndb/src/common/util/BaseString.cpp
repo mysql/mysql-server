@@ -17,7 +17,6 @@
 /* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
 #include <BaseString.hpp>
-#include <stdarg.h>
 
 BaseString::BaseString()
 {
@@ -338,7 +337,6 @@ BaseString::trim(char * str, const char * delim){
 
 
 #ifdef TEST_BASE_STRING
-#include <assert.h>
 
 /*
 g++ -g -Wall -o tbs -DTEST_BASE_STRING -I$NDB_TOP/include/util \

@@ -18,7 +18,6 @@
 #include <ndb_global.h>
 #include "../CpcClient.hpp"
 #include <Vector.hpp>
-#include <assert.h>
 
 SimpleCpcClient g_client("localhost", 1234);
 Vector<SimpleCpcClient::Process> g_procs;

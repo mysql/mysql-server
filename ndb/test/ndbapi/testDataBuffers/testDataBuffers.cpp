@@ -29,7 +29,6 @@
  */
 
 #include <ndb_global.h>
-#include <stdarg.h>
 
 #include <NdbMain.h>
 #include <NdbOut.hpp>

@@ -21,11 +21,6 @@
 #ifndef SYS_TYPES_H
 #define SYS_TYPES_H
 
-#if 0
-#include <sys/types.h>
-#include <stddef.h>
-#endif
-
 typedef          char  Int8;
 typedef unsigned char  Uint8;
 typedef          short Int16;

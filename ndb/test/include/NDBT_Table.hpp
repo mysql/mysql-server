@@ -18,7 +18,6 @@
 #define NDBT_TABLE_HPP
 
 #include <ndb_global.h>
-#include <assert.h>
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
