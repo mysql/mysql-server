@@ -4473,7 +4473,7 @@ CHARSET_INFO my_charset_sjis =
     13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "sjis",		/* cs name    */
-    "sjis",		/* name */
+    "sjis_japanese_ci",	/* name */
     "",			/* comment    */
     ctype_sjis,
     to_lower_sjis,

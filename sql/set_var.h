@@ -438,6 +438,15 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 
+class sys_var_result_collation :public sys_var_collation
+{
+public:
+  sys_var_result_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
+};
+
 
 /* Variable that you can only read from */
 
@@ -546,14 +555,16 @@ public:
 
 class set_var_client_collation: public set_var_base
 {
-  CHARSET_INFO *client_charset;
   CHARSET_INFO *client_collation;
-  my_bool convert_result_charset;
+  CHARSET_INFO *literal_collation;
+  CHARSET_INFO *result_collation;
 public:
-  set_var_client_collation(CHARSET_INFO *cset_arg,
-  			   CHARSET_INFO *coll_arg ,my_bool conv_arg)
-    :client_charset(cset_arg), client_collation(coll_arg),
-     convert_result_charset(conv_arg)
+  set_var_client_collation(CHARSET_INFO *client_coll_arg,
+  			   CHARSET_INFO *literal_coll_arg,
+  			   CHARSET_INFO *result_coll_arg)
+    :client_collation(client_coll_arg),
+     literal_collation(literal_coll_arg),
+     result_collation(result_coll_arg)
   {}
   int check(THD *thd);
   int update(THD *thd);
