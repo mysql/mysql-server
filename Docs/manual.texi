@@ -2592,6 +2592,12 @@ database and use embedded SQL in their programs.
 @subheading Other @strong{MySQL}-related Links
 
 @itemize @bullet
+@item @uref{http://www.satisoft.com/, SAT}
+The Small Application Toolkit (SAT) is a collection of utilities
+intended to simplify the development of small, multi-user, GUI based
+applications in a (Microsoft -or- X) Windows Client / Unix Server
+environment.
+
 @item @uref{http://www.wix.com/mysql-hosting/}@*
 Registry of Web providers who support @strong{MySQL}.
 
