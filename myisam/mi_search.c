@@ -879,7 +879,10 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	  continue;
 	}
 	if (keyseg->flag & HA_NULL_PART)
+	{
 	  key++;				/* Skipp null marker*/
+	  start++;
+	}
 
 	get_key_length(rest_length,page);
 	tot_length=rest_length+length;
