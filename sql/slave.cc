@@ -2065,8 +2065,21 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                - mi->rli.last_master_timestamp)
         - mi->clock_diff_with_master;
       /*
-        Apparently on some systems tmp can be <0 (which is still a
-        mistery). This confuses users, so we don't go below 0.
+        Apparently on some systems tmp can be <0. Here are possible reasons
+        related to MySQL:
+        - the master is itself a slave of another master whose time is ahead.
+        - somebody used an explicit SET TIMESTAMP on the master.
+        Possible reason related to granularity-to-second of time functions
+        (nothing to do with MySQL), which can explain a value of -1:
+        assume the master's and slave's time are perfectly synchronized, and
+        that at slave's connection time, when the master's timestamp is read,
+        it is at the very end of second 1, and (a very short time later) when
+        the slave's timestamp is read it is at the very beginning of second
+        2. Then the recorded value for master is 1 and the recorded value for
+        slave is 2. At SHOW SLAVE STATUS time, assume that the difference
+        between timestamp of slave and rli->last_master_timestamp is 0
+        (i.e. they are in the same second), then we get 0-(2-1)=-1 as a result.
+        This confuses users, so we don't go below 0.
       */
       protocol->store((longlong)(max(0, tmp)));
     }
