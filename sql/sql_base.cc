@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sql_trigger.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -359,7 +360,30 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 
 
 /*
-  Close all tables used by thread
+  Mark all tables in the list which were used by current substatement
+  as free for reuse.
+
+  SYNOPSIS
+    mark_used_tables_as_free_for_reuse()
+      thd   - thread context
+      table - head of the list of tables
+
+  DESCRIPTION
+    Marks all tables in the list which were used by current substatement
+    (they are marked by its query_id) as free for reuse.
+*/
+
+static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
+{
+  for (; table ; table= table->next)
+    if (table->query_id == thd->query_id)
+      table->query_id= 0;
+}
+
+
+/*
+  Close all tables used by the current substatement, or all tables
+  used by this thread if we are on the upper level.
 
   SYNOPSIS
     close_thread_tables()
@@ -372,14 +396,31 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   IMPLEMENTATION
     Unlocks tables and frees derived tables.
     Put all normal tables used by thread in free list.
+
+    When in prelocked mode it will only close/mark as free for reuse
+    tables opened by this substatement, it will also check if we are
+    closing tables after execution of complete query (i.e. we are on
+    upper level) and will leave prelocked mode if needed.
 */
 
 void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived, 
                          TABLE *stopper)
 {
   bool found_old_table;
+  prelocked_mode_type prelocked_mode= thd->prelocked_mode;
   DBUG_ENTER("close_thread_tables");
 
+  /*
+    We are assuming here that thd->derived_tables contains ONLY derived
+    tables for this substatement. i.e. instead of approach which uses
+    query_id matching for determining which of the derived tables belong
+    to this substatement we rely on the ability of substatements to
+    save/restore thd->derived_tables during their execution.
+
+    TODO: Probably even better approach is to simply associate list of
+          derived tables with (sub-)statement instead of thread and destroy
+          them at the end of its execution.
+  */
   if (thd->derived_tables && !skip_derived)
   {
     TABLE *table, *next;
@@ -394,10 +435,50 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
     }
     thd->derived_tables= 0;
   }
-  if (thd->locked_tables)
+
+  if (prelocked_mode)
   {
-    ha_commit_stmt(thd);			// If select statement
-    DBUG_VOID_RETURN;				// LOCK TABLES in use
+    /*
+      Mark all temporary tables used by this substatement as free for reuse.
+    */
+    mark_used_tables_as_free_for_reuse(thd, thd->temporary_tables);
+  }
+
+  if (thd->locked_tables || prelocked_mode)
+  {
+    /*
+      TODO: It is not 100% clear whenever we should do ha_commit_stmt() for
+            sub-statements. This issue needs additional investigation.
+    */
+    ha_commit_stmt(thd);
+
+    /* We are under simple LOCK TABLES so should not do anything else. */
+    if (!prelocked_mode)
+      DBUG_VOID_RETURN;
+
+    if (!thd->lex->requires_prelocking())
+    {
+      /*
+        If we are executing one of substatements we have to mark
+        all tables which it used as free for reuse.
+      */
+      mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
+      DBUG_VOID_RETURN;
+    }
+
+    DBUG_ASSERT(prelocked_mode);
+    /*
+      We are in prelocked mode, so we have to leave it now with doing
+      implicit UNLOCK TABLES if need.
+    */
+    thd->prelocked_mode= NON_PRELOCKED;
+
+    if (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES)
+      DBUG_VOID_RETURN;
+
+    thd->lock= thd->locked_tables;
+    thd->locked_tables= 0;
+    /* Fallthrough */
   }
 
   if (thd->lock)
@@ -441,6 +522,17 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   if (!lock_in_use)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
+
+  if (prelocked_mode == PRELOCKED)
+  {
+    /*
+      If we are here then we are leaving normal prelocked mode, so it is
+      good idea to turn off OPTION_TABLE_LOCK flag.
+    */
+    DBUG_ASSERT(thd->lex->requires_prelocking());
+    thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -910,7 +1002,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	  !memcmp(table->s->table_cache_key, key,
 		  key_length + TMP_TABLE_KEY_EXTRA))
       {
-	if (table->query_id == thd->query_id)
+	if (table->query_id == thd->query_id ||
+            thd->prelocked_mode && table->query_id)
 	{
 	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
 	  DBUG_RETURN(0);
@@ -924,16 +1017,17 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
-  if (thd->locked_tables)
+  if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
-	  !memcmp(table->s->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(system_charset_info, table->alias, alias))
+          !memcmp(table->s->table_cache_key, key, key_length) &&
+          !my_strcasecmp(system_charset_info, table->alias, alias) &&
+          table->query_id != thd->query_id && /* skip tables already used by this query */
+          !(thd->prelocked_mode && table->query_id))
       {
-	if (table->query_id != thd->query_id)
-	  table->query_id=thd->query_id;
+        table->query_id= thd->query_id;
         DBUG_PRINT("info",("Using locked table"));
 	goto reset;
       }
@@ -1625,21 +1719,34 @@ err:
   SYNOPSIS
     open_tables()
     thd - thread handler
-    start - list of tables
+    start - list of tables in/out
     counter - number of opened tables will be return using this parameter
+
+  NOTE
+    Unless we are already in prelocked mode, this function will also precache
+    all SP/SFs explicitly or implicitly (via views and triggers) used by the
+    query and add tables needed for their execution to table list. If resulting
+    tables list will be non empty it will mark query as requiring precaching.
+    Prelocked mode will be enabled for such query during lock_tables() call.
+
+    If query for which we are opening tables is already marked as requiring
+    prelocking it won't do such precaching and will simply reuse table list
+    which is already built.
 
   RETURN
     0  - OK
     -1 - error
 */
 
-int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
+int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
 {
   TABLE_LIST *tables;
   bool refresh;
   int result=0;
-  DBUG_ENTER("open_tables");
   MEM_ROOT new_frm_mem;
+  /* Also used for indicating that prelocking is need */
+  TABLE_LIST **query_tables_last_own;
+  DBUG_ENTER("open_tables");
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -1649,8 +1756,51 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
   thd->current_tablenr= 0;
  restart:
   *counter= 0;
+  query_tables_last_own= 0;
   thd->proc_info="Opening tables";
-  for (tables= start; tables ;tables= tables->next_global)
+
+  /*
+    If we are not already executing prelocked statement and don't have
+    statement for which table list for prelocking is already built, let
+    us cache routines and try to build such table list.
+
+    NOTE: If we want queries with functions to work under explicit
+    LOCK TABLES we have to additionaly lock mysql.proc table in it.
+    At least until Monty will fix SP loading :)
+
+    NOTE: We can't delay prelocking until we will met some sub-statement
+    which really uses tables, since this will imply that we have to restore
+    its table list to be able execute it in some other context.
+    And current views implementation assumes that view tables are added to
+    global table list only once during PS preparing/first SP execution.
+    Also locking at earlier stage is probably faster altough may decrease
+    concurrency a bit.
+
+    NOTE: We will mark statement as requiring prelocking only if we will
+    have non empty table list. But this does not guarantee that in prelocked
+    mode we will have some locked tables, because queries which use only
+    derived/information schema tables and views possible. Thus "counter"
+    may be still zero for prelocked statement...
+  */
+  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
+      (thd->lex->spfuns.records || thd->lex->spprocs.records))
+  {
+    TABLE_LIST **save_query_tables_last;
+
+    sp_cache_routines(thd, thd->lex);
+    save_query_tables_last= thd->lex->query_tables_last;
+
+    DBUG_ASSERT(thd->lex->query_tables == *start);
+
+    if (sp_add_sp_tables_to_table_list(thd, thd->lex, thd->lex) ||
+        *start)
+    {
+      query_tables_last_own= save_query_tables_last;
+      *start= thd->lex->query_tables;
+    }
+  }
+
+  for (tables= *start; tables ;tables= tables->next_global)
   {
     /*
       Ignore placeholders for derived tables. After derived tables
@@ -1671,8 +1821,27 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
       if (tables->view)
       {
+        /* VIEW placeholder */
 	(*counter)--;
-	continue; //VIEW placeholder
+        /*
+          Again if needed we have to get cache all routines used by this view
+          and add tables used by them to table list.
+        */
+        if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
+            (tables->view->spfuns.records || tables->view->spprocs.records))
+        {
+          // FIXME We should catch recursion for both views and funcs here
+          sp_cache_routines(thd, tables->view);
+
+          /* We have at least one table in TL here */
+          if (!query_tables_last_own)
+            query_tables_last_own= thd->lex->query_tables_last;
+          sp_add_sp_tables_to_table_list(thd, thd->lex, tables->view);
+        }
+        /* Cleanup hashes because destructo for this LEX is never called */
+        hash_free(&tables->view->spfuns);
+        hash_free(&tables->view->spprocs);
+	continue;
       }
 
       if (refresh)				// Refresh in progress
@@ -1684,7 +1853,12 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
 	thd->version=refresh_version;
 	TABLE **prev_table= &thd->open_tables;
 	bool found=0;
-	for (TABLE_LIST *tmp= start; tmp; tmp= tmp->next_global)
+        /*
+          QQ: What we should do if we have started building of table list
+          for prelocking ??? Probably throw it away ? But before we should
+          mark all temporary tables as free? How about locked ?
+        */
+	for (TABLE_LIST *tmp= *start; tmp; tmp= tmp->next_global)
 	{
 	  /* Close normal (not temporary) changed tables */
 	  if (tmp->table && ! tmp->table->s->tmp_table)
@@ -1713,7 +1887,27 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
       break;
     }
     else
+    {
+      /*
+        If we are not already in prelocked mode and extended table list is not
+        yet built and we have trigger for table being opened then we should
+        cache all routines used by its triggers and add their tables to
+        prelocking list.
+        If we lock table for reading we won't update it so there is no need to
+        process its triggers since they never will be activated.
+
+        FIXME Now we are simply turning on prelocking. Proper integration
+        and testing is to be done later.
+      */
+      if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
+          tables->table->triggers &&
+          tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+      {
+        if (!query_tables_last_own)
+            query_tables_last_own= thd->lex->query_tables_last;
+      }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
+    }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
       tables->table->reginfo.lock_type=tables->lock_type;
@@ -1721,6 +1915,10 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
   }
   thd->proc_info=0;
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
+
+  if (query_tables_last_own)
+    thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
+
   DBUG_RETURN(result);
 }
 
@@ -1768,6 +1966,11 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     thd			Thread handler
     table_list		Table to open is first table in this list
     lock_type		Lock to use for open
+
+  NOTE
+    This function don't do anything like SP/SF/views/triggers analysis done
+    in open_tables(). It is intended for opening of only one concrete table.
+    And used only in special contexts.
 
   RETURN VALUES
     table		Opened table
@@ -1843,7 +2046,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("simple_open_n_lock_tables");
   uint counter;
-  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+  if (open_tables(thd, &tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -1870,7 +2073,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   uint counter;
   DBUG_ENTER("open_and_lock_tables");
-  if (open_tables(thd, tables, &counter) ||
+  if (open_tables(thd, &tables, &counter) ||
       lock_tables(thd, tables, counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -1903,7 +2106,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
   uint counter;
   DBUG_ENTER("open_normal_and_derived_tables");
   DBUG_ASSERT(!thd->fill_derived_tables());
-  if (open_tables(thd, tables, &counter) ||
+  if (open_tables(thd, &tables, &counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE); /* purecov: inspected */
   relink_tables_for_multidelete(thd);           // Not really needed, but
@@ -1937,6 +2140,27 @@ static void relink_tables_for_multidelete(THD *thd)
 
 
 /*
+  Mark all real tables in the list as free for reuse.
+
+  SYNOPSIS
+    mark_real_tables_as_free_for_reuse()
+      thd   - thread context
+      table - head of the list of tables
+
+  DESCRIPTION
+    Marks all real tables in the list (i.e. not views, derived
+    or schema tables) as free for reuse.
+*/
+
+static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
+{
+  for (; table; table= table->next_global)
+    if (!table->placeholder() && !table->schema_table)
+      table->table->query_id= 0;
+}
+
+
+/*
   Lock all tables in list
 
   SYNOPSIS
@@ -1950,6 +2174,10 @@ static void relink_tables_for_multidelete(THD *thd)
     handling thr_lock gives us.  You most always get all needed locks at
     once.
 
+    If query for which we are calling this function marked as requring
+    prelocking, this function will do implicit LOCK TABLES and change
+    thd::prelocked_mode accordingly.
+
   RETURN VALUES
    0	ok
    -1	Error
@@ -1958,36 +2186,125 @@ static void relink_tables_for_multidelete(THD *thd)
 int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
 {
   TABLE_LIST *table;
-  if (!tables)
-    return 0;
 
-  if (!thd->locked_tables)
+  DBUG_ENTER("lock_tables");
+  /*
+    We can't meet statement requiring prelocking if we already
+    in prelocked mode.
+  */
+  DBUG_ASSERT(!thd->prelocked_mode || !thd->lex->requires_prelocking());
+  /*
+    If statement requires prelocking then it has non-empty table list.
+    So it is safe to shortcut.
+  */
+  DBUG_ASSERT(!thd->lex->requires_prelocking() || tables);
+
+  if (!tables)
+    DBUG_RETURN(0);
+
+  /*
+    We need this extra check for thd->prelocked_mode because we want to avoid
+    attempts to lock tables in substatements. Checking for thd->locked_tables
+    is not enough in some situations. For example for SP containing
+    "drop table t3; create temporary t3 ..; insert into t3 ...;"
+    thd->locked_tables may be 0 after drop tables, and without this extra
+    check insert will try to lock temporary table t3, that will lead
+    to memory leak...
+  */
+  if (!thd->locked_tables && !thd->prelocked_mode)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
+
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
-      return -1;
+      DBUG_RETURN(-1);
     for (table= tables; table; table= table->next_global)
     {
       if (!table->placeholder() && !table->schema_table)
 	*(ptr++)= table->table;
     }
+
+    /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
+    if (thd->lex->requires_prelocking())
+    {
+      thd->in_lock_tables=1;
+      thd->options|= OPTION_TABLE_LOCK;
+    }
+
     if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
-      return -1;				/* purecov: inspected */
+    {
+      if (thd->lex->requires_prelocking())
+      {
+        thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+        thd->in_lock_tables=0;
+      }
+      DBUG_RETURN(-1);
+    }
+    if (thd->lex->requires_prelocking() &&
+        thd->lex->sql_command != SQLCOM_LOCK_TABLES)
+    {
+      TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
+      /*
+        We just have done implicit LOCK TABLES, and now we have
+        to emulate first open_and_lock_tables() after it.
+
+        Note that "LOCK TABLES" can also be marked as requiring prelocking
+        (e.g. if one locks view which uses functions). We should not emulate
+        such open_and_lock_tables() in this case. We also should not set
+        THD::prelocked_mode or first close_thread_tables() call will do
+        "UNLOCK TABLES".
+      */
+      thd->locked_tables= thd->lock;
+      thd->lock= 0;
+      thd->in_lock_tables=0;
+
+      for (table= tables; table != first_not_own; table= table->next_global)
+      {
+        if (!table->placeholder() && !table->schema_table)
+        {
+          table->table->query_id= thd->query_id;
+          if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
+          {
+            ha_rollback_stmt(thd);
+            mysql_unlock_tables(thd, thd->locked_tables);
+            thd->locked_tables= 0;
+            thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+            DBUG_RETURN(-1);
+          }
+        }
+      }
+      /*
+        Let us mark all tables which don't belong to the statement itself,
+        and was marked as occupied during open_tables() as free for reuse.
+      */
+      mark_real_tables_as_free_for_reuse(first_not_own);
+      thd->prelocked_mode= PRELOCKED;
+    }
   }
   else
   {
-    for (table= tables; table; table= table->next_global)
+    TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
+    for (table= tables; table != first_not_own; table= table->next_global)
     {
-      if (!table->placeholder() && 
+      if (!table->placeholder() && !table->schema_table &&
 	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	ha_rollback_stmt(thd);
-	return -1;
+	DBUG_RETURN(-1);
       }
     }
+    /*
+      If we are under explicit LOCK TABLES and our statement requires
+      prelocking, we should mark all "additional" tables as free for use
+      and enter prelocked mode.
+    */
+    if (thd->lex->requires_prelocking())
+    {
+      mark_real_tables_as_free_for_reuse(first_not_own);
+      thd->prelocked_mode= PRELOCKED_UNDER_LOCK_TABLES;
+    }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
