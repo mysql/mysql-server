@@ -654,7 +654,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
-	union union_option
+	union union_list union_option
 	precision opt_on_delete_item subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
@@ -1254,8 +1254,8 @@ opt_binary:
 
 opt_primary:
 	/* empty */
-	| PRIMARY_SYM
-
+	| PRIMARY_SYM;
+	
 references:
 	REFERENCES table_ident
 	{
@@ -4316,7 +4316,11 @@ rollback:
 
 union:
 	/* empty */ {}
-	|UNION_SYM    union_option
+	| union_list
+	;
+
+union_list:
+	UNION_SYM    union_option
 	{
 	  LEX *lex=Lex;
 	  if (lex->exchange)
