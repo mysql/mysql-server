@@ -260,7 +260,7 @@ MySQL, see @ref{MySQL-Books}.
 @cindex MySQL, defined
 @cindex MySQL, introduction
 
-MySQL, the most popular Open Source SQL database, is provided
+MySQL, the most popular Open Source SQL database, is developed and provided
 by MySQL AB.  MySQL AB is a commercial company that
 builds its business providing services around the MySQL database.
 @xref{What is MySQL AB}.
@@ -343,8 +343,8 @@ language already supports MySQL.
 @cindex MySQL, pronunciation
 @cindex goals of MySQL
 The official way to pronounce MySQL is ``My Ess Que Ell'' (not
-MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
-
+MY-SEQUEL), but we don't mind you pronounce it like MY-SEQUEL
+or in some other localized way.
 
 @node What is MySQL AB, Manual-info, What-is, MySQL and MySQL AB
 @subsection What Is MySQL AB
@@ -355,24 +355,22 @@ MySQL AB is the Swedish company owned and run by the MySQL
 founders and main developers.  We are dedicated to developing MySQL 
 and spreading our database to new users.  MySQL AB owns the copyright
 to the MySQL server source code and the MySQL trademark.
-A significant amount of revenues from our services goes to developing 
-MySQL.  @xref{What-is}.
+@xref{What-is}.
 
 @menu
 * Contact information::         Contact information
 @end menu
 
-MySQL AB has been profitable from the start with providing MySQL. Though
-initially working without any outside funding, in October MySQL AB has
-received seed round financing from ABN Amro / Alfred Berg Industrifinans,
-Holtron, Scope Capital, Servisen Holding and a number of business angels.
+We make money on support, services, commercial licenses and royalties, 
+and we use the revenues to fund product development and to expand the MySQL 
+business. The company has been profitable since its inception. In October 
+2001, we accepted venture financing from leading Scandinavian investors and 
+a handful of business angels. This investment is used to solidify our 
+business model and build a basis for sustainable growth.
 
-MySQL AB currently has 30+ employees worldwide (situation in October 2001).
-
-We are always on the look-out for new partners who would like to support us,
-so that we can further accelerate the pace of MySQL development.  If you are
-interested in doing this, please e-mail @email{partner@@mysql.com}!
-
+We have a number of partners worldwide that provide value-added products 
+and services around MySQL. If you are interested in working with us, please 
+e-mail us at @email{partner@@mysql.com}.
 
 Our main sources of income are:
 
@@ -415,8 +413,8 @@ of MySQL AB please visit
 @email{partner@@mysql.com}.
 
 @item
-We provide MySQL training through our partner programs.  For more
-information, please e-mail @email{info@@mysql.com}.
+We provide MySQL training classes for developers and database administrators.
+For more information, please e-mail us at @email{training@@mysql.com}.
 
 @item
 The MySQL brand has, since 1995, been associated with speed and
