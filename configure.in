@@ -3039,16 +3039,16 @@ then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
-  if test "$with_ndb_debug" = "default"
+  if test "$have_ndb_debug" = "default"
   then
-    with_ndb_debug = $with_debug
+    have_ndb_debug=$with_debug
   fi
 
-  if test "$with_ndb_debug" = "yes"
+  if test "$have_ndb_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  elif test "$with_ndb_debug" = "full"
+  elif test "$have_ndb_debug" = "full"
   then
     NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
