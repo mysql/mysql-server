@@ -21,11 +21,11 @@ int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 		    uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
-  if (skip_end_space)
+  if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-					   b, b_length);
+                                           b, b_length, !skip_end_space);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
-				       b, b_length, part_key);
+                                       b, b_length, part_key);
 }
 
 
@@ -208,11 +208,9 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       break;
     case HA_KEYTYPE_VARTEXT:
       {
-        int a_length,full_a_length,b_length,full_b_length,pack_length;
+        int a_length,b_length,pack_length;
         get_key_length(a_length,a);
         get_key_pack_length(b_length,pack_length,b);
-        full_a_length= a_length;
-        full_b_length= b_length;
         next_key_length=key_length-b_length-pack_length;
 
         if (piks &&
@@ -221,10 +219,12 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
                                               next_key_length <= 0),
 				   (my_bool) ((nextflag & (SEARCH_FIND |
 							   SEARCH_UPDATE)) ==
-					      SEARCH_FIND))))
+					      SEARCH_FIND &&
+                                              ! (keyseg->flag &
+                                                 HA_END_SPACE_ARE_EQUAL)))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
-        a+= full_a_length;
-        b+= full_b_length;
+        a+= a_length;
+        b+= b_length;
         break;
       }
       break;

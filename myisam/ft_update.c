@@ -77,7 +77,7 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
       DBUG_RETURN(1);
   }
   ftsi->pos= ftsi->rec+ftsi->seg->start;
-  if (ftsi->seg->flag & HA_VAR_LENGTH)
+  if (ftsi->seg->flag & HA_VAR_LENGTH_PART)
   {
     ftsi->len=uint2korr(ftsi->pos);
     ftsi->pos+=2;				 /* Skip VARCHAR length */

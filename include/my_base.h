@@ -213,7 +213,7 @@ enum ha_base_keytype {
 /*
   Key has a part that can have end space.  If this is an unique key
   we have to handle it differently from other unique keys as we can find
-  many matching rows for one key (becaue end space are not compared)
+  many matching rows for one key (because end space are not compared)
 */
 #define HA_END_SPACE_KEY	4096
 
@@ -221,12 +221,17 @@ enum ha_base_keytype {
 
 #define HA_SPACE_PACK		 1	/* Pack space in key-seg */
 #define HA_PART_KEY_SEG		 4	/* Used by MySQL for part-key-cols */
-#define HA_VAR_LENGTH		 8
+#define HA_VAR_LENGTH_PART	 8
 #define HA_NULL_PART		 16
 #define HA_BLOB_PART		 32
 #define HA_SWAP_KEY		 64
 #define HA_REVERSE_SORT		 128	/* Sort key in reverse order */
 #define HA_NO_SORT               256 /* do not bother sorting on this keyseg */
+/*
+  End space in unique/varchar are considered equal. (Like 'a' and 'a ')
+  Only needed for internal temporary tables.
+*/
+#define HA_END_SPACE_ARE_EQUAL	 512
 
 	/* optionbits for database */
 #define HA_OPTION_PACK_RECORD		1
@@ -345,6 +350,7 @@ enum ha_base_keytype {
 #define HA_STATE_BUFF_SAVED	512	/* If current keybuff is info->buff */
 #define HA_STATE_ROW_CHANGED	1024	/* To invalide ROW cache */
 #define HA_STATE_EXTEND_BLOCK	2048
+#define HA_STATE_RNEXT_SAME	4096	/* rnext_same was called */
 
 enum en_fieldtype {
   FIELD_LAST=-1,FIELD_NORMAL,FIELD_SKIP_ENDSPACE,FIELD_SKIP_PRESPACE,

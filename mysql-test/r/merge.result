@@ -614,19 +614,19 @@ KEY files (fileset_id,fileset_root_id)
 EXPLAIN SELECT * FROM t2 IGNORE INDEX (files) WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	33	NULL	5	Using where
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	35	NULL	5	Using where
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,files	PRIMARY	33	NULL	5	Using where
+1	SIMPLE	t2	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	33	NULL	5	Using where
+1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	33	const,const	1	
+1	SIMPLE	t2	ref	PRIMARY,files	PRIMARY	35	const,const	1	Using where
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));

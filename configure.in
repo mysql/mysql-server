@@ -2414,7 +2414,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_EXAMPLEDB
@@ -2474,12 +2473,6 @@ then
   #
   # Configuration for optional table handlers
   #
-
-  if test X"$have_isam" != Xno
-  then
-    sql_server_dirs="$sql_server_dirs isam merge"
-    AC_CONFIG_FILES(isam/Makefile merge/Makefile)
-  fi
 
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then

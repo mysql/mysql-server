@@ -720,8 +720,8 @@ void String::qs_append(uint i)
 int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
-                             (unsigned char *) s->ptr(),s->length(),
-			     (unsigned char *) t->ptr(),t->length());
+                              (unsigned char *) s->ptr(),s->length(),
+                              (unsigned char *) t->ptr(),t->length(), 0);
 }
 
 

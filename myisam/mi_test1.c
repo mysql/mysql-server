@@ -134,7 +134,7 @@ static int run_test(const char *filename)
       uniqueseg[1].flag|= HA_BLOB_PART;
     }
     else if (extra_field == FIELD_VARCHAR)
-      uniqueseg[1].flag|= HA_VAR_LENGTH;
+      uniqueseg[1].flag|= HA_VAR_LENGTH_PART;
   }
   else
     uniques=0;
@@ -372,7 +372,7 @@ static void create_key(char *key,uint rownr)
     }
     *key++=0;
   }
-  if (keyinfo[0].seg[0].flag & (HA_BLOB_PART | HA_VAR_LENGTH))
+  if (keyinfo[0].seg[0].flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
   {
     uint tmp;
     create_key_part(key+2,rownr);
@@ -524,7 +524,7 @@ static struct my_option my_long_options[] =
   {"key_binary_pack", 'B', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key_blob", 'b', "Undocumented",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key_cache", 'K', "Undocumented", (gptr*) &key_cacheing,
    (gptr*) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key_length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
@@ -617,7 +617,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_field=FIELD_VARCHAR;			/* varchar keys */
     extra_field= FIELD_VARCHAR;
     key_type= HA_KEYTYPE_VARTEXT;
-    pack_seg|= HA_VAR_LENGTH;
+    pack_seg|= HA_VAR_LENGTH_PART;
     create_flag|= HA_PACK_RECORD;
     break;
   case 'K':				/* Use key cacheing */
