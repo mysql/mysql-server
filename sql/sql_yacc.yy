@@ -127,6 +127,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	AUTO_INC
 %token	AUTOCOMMIT
 %token	AVG_ROW_LENGTH
+%token  BACKUP_SYM
 %token	BERKELEY_DB_SYM
 %token	BINARY
 %token	BIT_SYM
@@ -237,6 +238,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REGEXP
 %token	RELOAD
 %token	RENAME
+%token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
 %token	ROWS_SYM
@@ -488,7 +490,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	query verb_clause create change select drop insert replace insert2
 	insert_values update delete show describe load alter optimize flush
 	begin commit rollback slave master_def master_defs
-	repair analyze check rename
+	repair restore backup analyze check rename
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
@@ -526,6 +528,7 @@ query:
 verb_clause:
 	  alter
 	| analyze
+	| backup  
 	| begin
 	| change
 	| check
@@ -544,6 +547,7 @@ verb_clause:
 	| rename
         | repair
 	| replace
+	| restore  
 	| revoke
 	| rollback
 	| select
@@ -1083,6 +1087,26 @@ slave:
            Lex->sql_command = SQLCOM_SLAVE_STOP;
 	   Lex->type = 0;
          };
+
+restore:
+	RESTORE_SYM table_or_tables
+	{
+	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
+	}
+	table_list FROM TEXT_STRING
+        {
+	  Lex->backup_dir = $6.str;
+        }
+backup:
+	BACKUP_SYM table_or_tables
+	{
+	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
+	}
+	table_list TO_SYM TEXT_STRING
+        {
+	  Lex->backup_dir = $6.str;
+        }
+
 
 repair:
 	REPAIR table_or_tables
@@ -2348,6 +2372,7 @@ keyword:
 	| AUTOCOMMIT		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
+	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
@@ -2412,6 +2437,7 @@ keyword:
 	| RAID_TYPE		{}
 	| RELOAD		{}
 	| REPAIR		{}
+	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}

@@ -96,6 +96,8 @@ class ha_myisam: public handler
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int restore(THD* thd, HA_CHECK_OPT* check_opt);
+  int backup(THD* thd, HA_CHECK_OPT* check_opt);
   int dump(THD* thd, int fd);
   int net_read_dump(NET* net);
 };

@@ -46,7 +46,7 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 			  COM_PROCESS_INFO,COM_CONNECT,COM_PROCESS_KILL,
 			  COM_DEBUG,COM_PING,COM_TIME,COM_DELAYED_INSERT,
 			  COM_CHANGE_USER, COM_BINLOG_DUMP,
-                          COM_TABLE_DUMP};
+                          COM_TABLE_DUMP, COM_CONNECT_OUT};
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
 #define PRI_KEY_FLAG	2		/* Field is part of a primary key */
