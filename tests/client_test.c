@@ -6735,7 +6735,7 @@ static void test_explain_bug()
                        "","","",10,0);
 
   verify_prepare_field(result,4,"possible_keys","",MYSQL_TYPE_VAR_STRING,
-                       "","","",NAME_LEN*32,0);
+                       "","","",NAME_LEN*64,0);
 
   verify_prepare_field(result,5,"key","",MYSQL_TYPE_VAR_STRING,
                        "","","",NAME_LEN,0);
