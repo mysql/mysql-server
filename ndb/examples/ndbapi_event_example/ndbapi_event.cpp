@@ -70,12 +70,13 @@
  * mysql> use TEST_DB;
  * mysql> create table TAB0 (COL0 int primary key, COL1 int, COL11 int) engine=ndb;
  *
- * In another window start ndbapi_example5, wait until properly started
+ * In another window start ndbapi_event, wait until properly started
  *
- * mysql> insert into TAB0 values (1,2,3);
- * mysql> insert into TAB0 values (2,2,3);
- * mysql> insert into TAB0 values (3,2,9);
- * mysql> 
+   insert into TAB0 values (1,2,3);
+   insert into TAB0 values (2,2,3);
+   insert into TAB0 values (3,2,9);
+   update TAB0 set COL1=10 where COL0=1;
+   delete from TAB0 where COL0=1;
  *
  * you should see the data popping up in the example window
  *

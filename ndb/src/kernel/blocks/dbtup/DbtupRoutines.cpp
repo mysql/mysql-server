@@ -1001,6 +1001,13 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   case AttributeHeader::FRAGMENT:
     * outBuffer = operPtr.p->fragId >> 1; // remove "hash" bit
     return 1;
+  case AttributeHeader::FRAGMENT_MEMORY:
+    {
+      Uint64 tmp= fragptr.p->noOfPages;
+      tmp*= 32768;
+      memcpy(outBuffer,&tmp,8);
+    }
+    return 2;
   case AttributeHeader::ROW_SIZE:
     * outBuffer = tabptr.p->tupheadsize << 2;
     return 1;
