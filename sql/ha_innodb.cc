@@ -3826,6 +3826,10 @@ innobase_drop_database(
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
 
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
   	error = row_drop_database_for_mysql(namebuf, trx);
 
 	/* Flush the log to reduce probability that the .frm files and

@@ -132,16 +132,6 @@ void
 mtr_commit(
 /*=======*/
 	mtr_t*	mtr);	/* in: mini-transaction */
-/****************************************************************
-Writes to the database log the full contents of the pages that this mtr is
-the first to modify in the buffer pool. This function is called when the
-database is in the online backup state. */
-
-void
-mtr_log_write_backup_entries(
-/*=========================*/
-	mtr_t*	mtr,		/* in: mini-transaction */
-	dulint	backup_lsn);	/* in: online backup lsn */
 /**************************************************************
 Sets and returns a savepoint in mtr. */
 UNIV_INLINE

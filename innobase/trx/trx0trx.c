@@ -650,29 +650,6 @@ trx_commit_off_kernel(
 
 		if (undo) {
 			mutex_enter(&kernel_mutex);
-#ifdef notdefined
-			/* !!!!!!!!! There is a bug here: purge and rollback
-			need the whole stack of old record versions even if no
-			consistent read would need them!! This is because they
-			decide on the basis of the old versions when we can
-			remove delete marked secondary index records! */
-			
-			if (!undo->del_marks && (undo->size == 1)
-			    && (UT_LIST_GET_LEN(trx_sys->view_list) == 1)) {
-
-			    	/* There is no need to save the update undo
-			    	log: discard it; note that &mtr gets committed
-			    	while we must hold the kernel mutex and
-				therefore this optimization may add to the
-				contention of the kernel mutex. */
-
-			    	lsn = trx_undo_update_cleanup_by_discard(trx,
-									&mtr);
-				mutex_exit(&(rseg->mutex));
-
-			    	goto shortcut;
-			}
-#endif
 			trx->no = trx_sys_get_new_trx_no();
 			
 			mutex_exit(&kernel_mutex);
@@ -1147,8 +1124,6 @@ trx_sig_send(
 
 		ut_a(0);
 		
-		/* sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-						"Incompatible signal"); */
 		return(FALSE);
 	}
 
@@ -1197,9 +1172,6 @@ trx_sig_send(
 		in the error state: */
 
 		ut_a(0);
-
-		sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-				     (char *) "Signal from another session, or a break execution signal");
 	}
 
 	/* If there were no other signals ahead in the queue, try to start

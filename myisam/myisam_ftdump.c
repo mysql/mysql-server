@@ -20,9 +20,9 @@
 #include "ftdefs.h"
 #include <my_getopt.h>
 
-static void get_options(int *argc,char **argv[]);
 static void usage();
 static void complain(int val);
+static my_bool get_one_option(int, const struct my_option *, char *);
 
 static int count=0, stats=0, dump=0, lstats=0;
 static my_bool verbose;
@@ -68,7 +68,8 @@ int main(int argc,char *argv[])
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
   MY_INIT(argv[0]);
-  get_options(&argc, &argv);
+  if (error=handle_options(&argc, &argv, my_long_options, get_one_option))
+    exit(error);
   if (count || dump)
     verbose=0;
   if (!count && !dump && !lstats && !query)
@@ -80,12 +81,21 @@ int main(int argc,char *argv[])
   if (argc < 2)
     usage();
 
+  {
+    char *end;
+    inx= strtoll(argv[1], &end, 10);
+    if (*end)
+      usage();
+  }
+
   init_key_cache(dflt_key_cache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT, 0, 0);
 
   if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
+  {
+    error=my_errno;
     goto err;
+  }
 
-  inx=atoi(argv[1]);
   *buf2=0;
   aio->info=info;
 
@@ -95,6 +105,8 @@ int main(int argc,char *argv[])
     printf("Key %d in table %s is not a FULLTEXT key\n", inx, info->filename);
     goto err;
   }
+
+  mi_lock_database(info, F_EXTRA_LCK);
 
   if (query)
   {
@@ -112,7 +124,7 @@ int main(int argc,char *argv[])
       printf("%d rows matched\n",result->ndocs);
 
     for(i=0 ; i<result->ndocs ; i++)
-      printf("%9qx %20.7f\n",result->doc[i].dpos,result->doc[i].weight);
+      printf("%9lx %20.7f\n",(ulong)result->doc[i].dpos,result->doc[i].weight);
 
     ft_nlq_close_search(result);
 #else
@@ -179,6 +191,7 @@ int main(int argc,char *argv[])
       if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
         printf("%10ld\r",total);
     }
+    mi_lock_database(info, F_UNLCK);
 
     if (stats)
     {
@@ -250,15 +263,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-
-
-static void get_options(int *argc, char **argv[])
-{
-  int ho_error;
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
-} /* get options */
 
 
 static void usage()
