@@ -3447,6 +3447,8 @@ revoke:
 	  lex->columns.empty();
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
+	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table FROM user_list;
