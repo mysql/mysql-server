@@ -54,7 +54,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_gemini.h opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h md5.h \
-                        log_event.h mini_client.h sql_repl.h slave.h
+                        log_event.h mini_client.h sql_repl.h slave.h \
+			stacktrace.h
 mysqld_SOURCES =	sql_lex.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -67,17 +68,19 @@ mysqld_SOURCES =	sql_lex.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_update.cc sql_delete.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
-			log.cc init.cc derror.cc sql_acl.cc unireg.cc \
+			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
+			unireg.cc \
 			time.cc opt_range.cc opt_sum.cc opt_ft.cc \
 		   	records.cc filesort.cc handler.cc \
-		        ha_isam.cc ha_isammrg.cc ha_heap.cc \
-			ha_myisam.cc ha_myisammrg.cc ha_berkeley.cc \
-	                ha_innobase.cc ha_gemini.cc \
+		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
+	                ha_berkeley.cc ha_innobase.cc ha_gemini.cc \
+			ha_isam.cc ha_isammrg.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc \
-			md5.c log_event.cc mini_client.cc mini_client_errors.c
+			mini_client.cc mini_client_errors.c \
+			md5.c stacktrace.c
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \

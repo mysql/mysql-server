@@ -43451,18 +43451,23 @@ your actual @strong{MySQL} server either way. Free of charge. See
 Created by Laurent Bossavit of NetDIVE.
 @strong{NOTE:} Doesn't work with Access2!
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/msql2mysqlWrapper-1.0.tgz, /msql2mysqlWrapper 1.0}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mdb2sql.bas, mdb2sql.bas}
+Converter from Access97 to @strong{MySQL} by Moshe Gurvich.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/msql2mysqlWrapper-1.0.tgz, msql2mysqlWrapper 1.0}
 A C wrapper from @code{mSQL} to @strong{MySQL}. By @email{alfred@@sb.net}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlconv.pl, sqlconv.pl}
-A simple script that can be used to copy fields from one @strong{MySQL} table to
-another in bulk. Basically, you can run @code{mysqldump} and pipe it to
+A simple script that can be used to copy fields from one @strong{MySQL} table
+to another in bulk. Basically, you can run @code{mysqldump} and pipe it to
 the @code{sqlconv.pl} script. The script will parse through the
 @code{mysqldump} output and will rearrange the fields so they can be
 inserted into a new table. An example is when you want to create a new
 table for a different site you are working on, but the table is just a
 bit different (that is - fields in different order, etc.).
 By Steve Shreeve.
+@item @uref{http://www.mysql.com/Downloads/Contrib/oracledump, oracledump}
+Perl program to convert Oracle databases to @strong{MySQL}. By Johan Andersson.
 @end itemize
 
 @appendixsec Using MySQL with Other Products
