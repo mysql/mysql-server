@@ -469,6 +469,11 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 * Silent column changes::       Silent column changes
 
+@code{INSERT} Syntax
+
+* INSERT SELECT::               
+* INSERT DELAYED::              
+
 @code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
 * SHOW DATABASE INFO::          
@@ -510,19 +515,19 @@ BDB or Berkeley_db Tables
 * BDB TODO::                    
 * BDB errors::                  
 
-GEMINI tables
+GEMINI Tables
 
-* GEMINI overview::
-* GEMINI start::
-* GEMINI features::
-* GEMINI TODO::
+* GEMINI overview::             
+* GEMINI start::                
+* GEMINI features::             
+* GEMINI TODO::                 
 
 INNOBASE Tables
 
 * INNOBASE overview::           
-* INNOBASE start::    
-* Using INNOBASE tables::       
-* INNOBASE restrictions::       
+* INNOBASE start::              INNOBASE startup options
+* Using INNOBASE tables::       Using INNOBASE tables
+* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables:
 
 MySQL Tutorial
 
@@ -590,7 +595,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -6154,7 +6159,9 @@ source tree:
 
 @itemize
 @item
-Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.cgi}.
+Download @strong{BitKeeper} from
+@uref{http://www.bitmover.com/cgi-bin/download.cgi}.  You will need
+@strong{Bitkeeper} 2.0 or newer to access our repository.
 @item
 Follow the instructions to install it.
 @item
@@ -10810,7 +10817,7 @@ other contexts, however.
 @strong{MySQL} doesn't yet support the Oracle SQL extension:
 @code{SELECT ... INTO TABLE ...}.  @strong{MySQL} supports instead the
 ANSI SQL syntax @code{INSERT INTO ... SELECT ...}, which is basically
-the same thing. @xref{INSERT}.
+the same thing. @xref{INSERT SELECT}.
 
 @example
 INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
@@ -10902,7 +10909,7 @@ still allowed to happen.  The new inserted records will not be seen by
 any of the clients that have a @code{READ} lock until they release their read
 locks.  With @code{INSERT DELAYED} you can queue inserts into a local queue,
 until the locks are released, without having the client wait for the insert
-to complete.
+to complete. @xref{INSERT DELAYED}.
 
 ``Atomic,'' in the sense that we mean it, is nothing magical. It only means
 that you can be sure that while each specific update is running, no other
@@ -19635,12 +19642,13 @@ mysql> INSERT INTO tbl_name (col1,col2) VALUES(col2*2,15);
 
 @item
 If you specify the keyword @code{LOW_PRIORITY}, execution of the
-@code{INSERT} is delayed until no other clients are reading from the table.
-In this case the client has to wait until the insert statement is completed,
-which may take a long time if the table is in heavy use. This is in
-contrast to @code{INSERT DELAYED}, which lets the client continue at once.
-Note that @code{LOW_PRIORITY} should normally not be used with @code{MyISAM}
-tables as this disables concurrent inserts.@xref{MyISAM}.
+@code{INSERT} is delayed until no other clients are reading from the
+table.  In this case the client has to wait until the insert statement
+is completed, which may take a long time if the table is in heavy
+use. This is in contrast to @code{INSERT DELAYED}, which lets the client
+continue at once.  @xref{INSERT DELAYED}.  Note that @code{LOW_PRIORITY}
+should normally not be used with @code{MyISAM} tables as this disables
+concurrent inserts. @xref{MyISAM}.
 
 @item
 If you specify the keyword @code{IGNORE} in an @code{INSERT} with many value
@@ -19660,32 +19668,6 @@ specify values for all columns that require a non-@code{NULL} value.
 You can find the value used for an @code{AUTO_INCREMENT} column
 with the @code{mysql_insert_id} function.
 @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
-@end itemize
-
-With @code{INSERT ... SELECT} statement you can quickly insert many rows
-into a table from one or many tables.
-
-@example
-INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
-tblTemp1.fldOrder_ID > 100;
-@end example
-
-The following conditions hold for an @code{INSERT ... SELECT} statement:
-
-@itemize @minus
-@item
-The query cannot contain an @code{ORDER BY} clause.
-
-@item
-The target table of the @code{INSERT} statement cannot appear in the
-@code{FROM} clause of the @code{SELECT} part of the query because it's
-forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
-inserting.  (The problem is that the @code{SELECT} possibly would
-find records that were inserted earlier during the same run.  When using
-sub-select clauses, the situation could easily be very confusing!)
-
-@item
-@code{AUTO_INCREMENT} columns work as usual.
 @end itemize
 
 @findex mysql_info()
@@ -19728,17 +19710,76 @@ Inserting a value into a date or time column that is illegal for the column
 type.  The column is set to the appropriate zero value for the type.
 @end itemize
 
+@findex REPLACE ... SELECT
+@findex INSERT ... SELECT
+@menu
+* INSERT SELECT::               
+* INSERT DELAYED::              
+@end menu
+
+@node INSERT SELECT, INSERT DELAYED, INSERT, INSERT
+@subsection INSERT ... SELECT Syntax
+
+@example
+INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name [(column list)] SELECT ...
+@end example
+
+With @code{INSERT ... SELECT} statement you can quickly insert many rows
+into a table from one or many tables.
+
+@example
+INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
+tblTemp1.fldOrder_ID > 100;
+@end example
+
+The following conditions hold for an @code{INSERT ... SELECT} statement:
+
+@itemize @minus
+@item
+The query cannot contain an @code{ORDER BY} clause.
+
+@item
+The target table of the @code{INSERT} statement cannot appear in the
+@code{FROM} clause of the @code{SELECT} part of the query because it's
+forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
+inserting.  (The problem is that the @code{SELECT} possibly would
+find records that were inserted earlier during the same run.  When using
+sub-select clauses, the situation could easily be very confusing!)
+
+@item
+@code{AUTO_INCREMENT} columns work as usual.
+
+@item
+You can use the C API function @code{mysql_info()} to get information about
+the query. @xref{INSERT}.
+@end itemize
+
+You can of course also use @code{REPLACE} instead of @code{INSERT} to
+overwrite old rows.
+
 @findex INSERT DELAYED
 @findex DELAYED
+@cindex INSERT DELAYED
+@node INSERT DELAYED,  , INSERT SELECT, INSERT
+@subsection @code{INSERT DELAYED} syntax
 
-The @code{DELAYED} option
-for the
-@code{INSERT} statement is a @strong{MySQL}-specific option that is very
-useful if you have clients that can't wait for the @code{INSERT} to complete.
-This is a common problem when you use @strong{MySQL} for logging and you also
-periodically run @code{SELECT} statements that take a long time to complete.
-@code{DELAYED} was introduced in @strong{MySQL} Version 3.22.15.  It is a
-@strong{MySQL} extension to ANSI SQL92.
+@example
+INSERT DELAYED ...
+@end example
+
+The @code{DELAYED} option for the @code{INSERT} statement is a
+@strong{MySQL}-specific option that is very useful if you have clients
+that can't wait for the @code{INSERT} to complete.  This is a common
+problem when you use @strong{MySQL} for logging and you also
+periodically run @code{SELECT} and @code{UPDATE} statements that take a
+long time to complete.  @code{DELAYED} was introduced in @strong{MySQL}
+Version 3.22.15.  It is a @strong{MySQL} extension to ANSI SQL92.
+
+@code{INSERT DELAYED} only works with @code{ISAM} and @code{MyISAM}
+tables.  Note that as @code{MyISAM} tables supports concurrent
+@code{SELECT} and @code{INSERT}, if there is no empty blocks in the data
+file, you very seldom need to use @code{INSERT DELAYED} with
+@code{MyISAM}.
 
 When you use @code{INSERT DELAYED}, the client will get an OK at once
 and the row will be inserted when the table is not in use by any other thread.
@@ -23533,10 +23574,10 @@ not trivial).
 @section GEMINI Tables
 
 @menu
-* GEMINI overview::
-* GEMINI start::
-* GEMINI features::
-* GEMINI TODO::
+* GEMINI overview::             
+* GEMINI start::                
+* GEMINI features::             
+* GEMINI TODO::                 
 @end menu
 
 @node GEMINI overview, GEMINI start, GEMINI, GEMINI
@@ -26572,7 +26613,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -42008,6 +42049,9 @@ Added the @code{INNOBASE} table handler and the @code{BDB} table handler
 to the @strong{MySQL} source distribution.
 @item
 Updated the documentation about @code{GEMINI} tables.
+@item
+Fixed thread-hang-bug in @code{INSERT DELAYED} when inserting
+@code{NULL} into an @code{AUTO_INCREMENT} column.
 @item
 @code{REPLACE} will not replace a row that conflicts with an
 @code{auto_increment} generated key.
