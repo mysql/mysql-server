@@ -44697,8 +44697,8 @@ of several databases simultaneously. By Innovative-IT Development AB.
 The @strong{MySQL} GUI client homepage. By Sinisa at @strong{MySQL AB}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_navigator_0.9.0.tar.gz, MySQL navigator 0.9}
-MySQL Navigator is MySQL database server GUI client program. The purpose
-of MySQL Navigator is to provide a useful client interface to MySQL
+MySQL Navigator is a @strong{MySQL} database server GUI client program. The purpose
+of MySQL Navigator is to provide a useful client interface to @strong{MySQL}
 database servers, whilst supporting multiple operating systems and
 languages. You can currently import/export database, enter queries, get
 result sets, edit scripts, run scripts, add, alter, and delete users,
@@ -44833,7 +44833,7 @@ connect to some of the most popular database systems.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mmc.zip, MySQL MMC}
 MySQL MMC is a GUI Management Tool developed using kdevelop
 with a very good interface completely like Microsoft
-Enterprise Tool (for Sql Server) or Sybase Central. We
+Enterprise Tool (for SQL Server) or Sybase Central. We
 can use it to manage server, database, table, index,
 users and to edit table data in grid or execute Sql
 by Query Analysis.
@@ -44909,7 +44909,7 @@ and run update queries.  Originally written to implement a simple fast
 low-overhead banner-rotation system.  By Sasha Pachev.
 
 @item @uref{http://htcheck.sourceforge.net, htCheck} - URL checker with
-MySQL backend. Spidered URLs can later be queried using SQL to retrieve
+@strong{MySQL} backend. Spidered URLs can later be queried using SQL to retrieve
 various kinds of information, eg. broken links. Written by Gabriele Bartolini.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
@@ -46295,7 +46295,7 @@ Fixed problem when using @code{DECIMAL()} keys on negative numbers.
 always returned @code{NULL}.
 @item
 Fixed security bug in something (please upgrade if you are using a earlier
-MySQL 3.23 version).
+@strong{MySQL} 3.23 version).
 @item
 Fixed buffer overflow bug when writing a certain error message.
 @item
