@@ -1404,9 +1404,9 @@ ulong Query_cache::init_cache()
 		 query_cache_table_get_key, 0, 0));
 #else
   // windows, OS/2 or other case insensitive file names work around
-  VOID(hash_init(&tables,system_charset_info,def_table_hash_size, 0, 0,
-		 query_cache_table_get_key, 0,
-		 (lower_case_table_names?0:HASH_CASE_INSENSITIVE)));
+  VOID(hash_init(&tables,
+		 lower_case_table_names ? &my_charset_bin : system_charset_info,
+		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 
   queries_in_cache = 0;
@@ -2476,10 +2476,8 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
 	  (tables_used->db_length == 5 &&
 #ifdef FN_NO_CASE_SENCE
-	   // TODO: latin1 charset should be replaced with system charset
-	   my_strncasecmp(&my_charset_latin1,
-			  tables_used->db,
-			  "mysql",5) == 0
+	   my_strnncoll(system_charset_info, tables_used->db, 6,
+					     "mysql",6) == 0
 #else
 	   tables_used->db[0]=='m' &&
 	   tables_used->db[1]=='y' &&
