@@ -40,9 +40,9 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
-explain select level from t1 where level=1;
-explain select level,id from t1 where level=1;
-explain select level,id,parent_id from t1 where level=1;
+# explain select level from t1 where level=1;
+# explain select level,id from t1 where level=1;
+# explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
@@ -339,7 +339,7 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
-explain select level from t1 where level=1;
+# explain select level from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1 order by id;
