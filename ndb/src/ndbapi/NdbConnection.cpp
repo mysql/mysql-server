@@ -1122,8 +1122,11 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
     if (indexTable != 0){
       NdbIndexScanOperation* tOp = 
 	getNdbScanOperation((NdbTableImpl *) indexTable);
-      tOp->m_currentTable = table;
-      if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      if(tOp)
+      {
+	tOp->m_currentTable = table;
+	tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      }
       return tOp;
     } else {
       setOperationErrorCodeAbort(theNdb->theError.code);
@@ -1618,9 +1621,6 @@ from other transactions.
 	/**
 	 * There's always a TCKEYCONF when using IgnoreError
 	 */
-#ifdef VM_TRACE
-	ndbout_c("Not completing transaction 2");
-#endif
 	return -1;
       }
 /**********************************************************************/
@@ -1872,9 +1872,6 @@ NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */
-#ifdef VM_TRACE
-      ndbout_c("Not completing transaction");
-#endif
       return -1;
     }
     
