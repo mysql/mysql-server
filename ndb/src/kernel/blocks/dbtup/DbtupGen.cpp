@@ -95,7 +95,6 @@ Dbtup::Dbtup(const class Configuration & conf)
     jam();
     cnoOfUndoPage+= (16 - mega_byte_part);
   }
-  ndbout << "TUP: No of Undo Pages = " << cnoOfUndoPage << endl;
 
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
