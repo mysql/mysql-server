@@ -851,7 +851,8 @@ class Item_func_group_concat : public Item_sum
   friend int group_concat_key_cmp_with_distinct_and_order(void* arg,
 							byte* key1,
 							byte* key2);
-  friend int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
+  friend int dump_leaf_key(byte* key,
+                           element_count count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
 
  public:

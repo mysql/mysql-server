@@ -4683,7 +4683,6 @@ Field *
 Item_func_sp::tmp_table_field(TABLE *t_arg)
 {
   Field *res= 0;
-  enum_field_types ftype;
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
   if (m_sp)
