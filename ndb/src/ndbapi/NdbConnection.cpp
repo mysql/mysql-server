@@ -340,7 +340,12 @@ NdbConnection::execute(ExecType aTypeOfExec,
 
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
         ret = -1;
+#ifndef VM_TRACE
+    // can happen in complex abort cases
+    theFirstOpInList = theLastOpInList = NULL;
+#else
     assert(theFirstOpInList == NULL && theLastOpInList == NULL);
+#endif
 
     {
       NdbOperation* tOp = theCompletedFirstOp;

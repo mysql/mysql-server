@@ -337,8 +337,9 @@ select * from t1 order by a;
 drop table t1;
 drop database test2;
 
-# -- bug-5252 tinytext crashes --
+# -- bug-5252 tinytext crashes plus no-commit result --
 
+set autocommit=0;
 create table t1 (
   a int not null primary key,
   b tinytext
@@ -348,10 +349,13 @@ insert into t1 values(1, 'x');
 update t1 set b = 'y';
 select * from t1;
 delete from t1;
+select * from t1;
+commit;
 drop table t1;
 
 # -- bug-5013 insert empty string to text --
 
+set autocommit=0;
 create table t1 (
   a int not null primary key,
   b text not null
@@ -359,6 +363,7 @@ create table t1 (
 
 insert into t1 values(1, '');
 select * from t1;
+commit;
 drop table t1;
 
 # -- bug #5349 --
@@ -380,6 +385,7 @@ alter table t1 engine=ndb;
 select * from t1 order by a;
 
 # -- bug #5872 --
+set autocommit=1;
 alter table t1 engine=myisam;
 select * from t1 order by a;
 drop table t1;
