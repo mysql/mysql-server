@@ -1018,7 +1018,7 @@ static int mysql_test_delete(Prepared_statement *stmt,
   {
     mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
-    DBUG_RETURN(FALSE)
+    DBUG_RETURN(FALSE);
   }
   /* TODO: here we should send types of placeholders to the client. */ 
   DBUG_RETURN(TRUE);
