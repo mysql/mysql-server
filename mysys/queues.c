@@ -167,11 +167,11 @@ void _downheap(register QUEUE *queue, uint idx)
 }
 
 
-static int queue_fix_cmp(QUEUE *queue, void *a, void *b)
+static int queue_fix_cmp(QUEUE *queue, void **a, void **b)
 {
   return queue->compare(queue->first_cmp_arg,
-			(char*) a+queue->offset_to_key,
-			(char*) b+queue->offset_to_key);
+			(char*) (*a)+queue->offset_to_key,
+			(char*) (*b)+queue->offset_to_key);
 }
 
 	/* Fix heap when every element was changed */
