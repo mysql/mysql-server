@@ -2682,10 +2682,11 @@ btr_estimate_number_of_different_key_vals(
 
 		btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF, &cursor, &mtr);
 		
-		/* Count the number of different key values minus one
-		for each prefix of the key on this index page: we subtract
-		one because otherwise our algorithm would give a wrong
-		estimate for an index where there is just one key value */
+		/* Count the number of different key values for each prefix of
+		the key on this index page. If the prefix does not determine
+		the index record uniquely in te B-tree, then we subtract one
+		because otherwise our algorithm would give a wrong estimate
+		for an index where there is just one key value. */
 
 		page = btr_cur_get_page(&cursor);
 
@@ -2707,6 +2708,9 @@ btr_estimate_number_of_different_key_vals(
 						&matched_bytes);
 
 			for (j = matched_fields + 1; j <= n_cols; j++) {
+				/* We add one if this index record has
+				a different prefix from the previous */
+
 				n_diff[j]++;
 			}
 
@@ -2716,6 +2720,18 @@ btr_estimate_number_of_different_key_vals(
 			rec = page_rec_get_next(rec);
 		}
 		
+		if (n_cols == dict_index_get_n_unique_in_tree(index)) {
+			/* We add one because we know that the first record
+			on the page certainly had a different prefix than the
+			last record on the previous index page in the
+			alphabetical order. Before this fix, if there was
+			just one big record on each clustered index page, the
+			algorithm grossly underestimated the number of rows
+			in the table. */
+
+			n_diff[n_cols]++;
+		}
+
 		total_external_size +=
 				btr_rec_get_externally_stored_len(rec);
 		mtr_commit(&mtr);
