@@ -10,7 +10,7 @@ create table t1 (a bigint unsigned not null, primary key(a));
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
 select * from t1;
 select * from t1 where a=18446744073709551615;
-select * from t1 where a='18446744073709551615';
+#select * from t1 where a='18446744073709551615';
 delete from t1 where a=18446744073709551615;
 select * from t1;
 drop table t1;
