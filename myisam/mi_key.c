@@ -25,9 +25,12 @@
 
 #define CHECK_KEYS
 
-#define FIX_LENGTH if (length > char_length) \
-                     char_length= my_charpos(cs, pos, pos+length, char_length); \
-                   set_if_smaller(char_length,length); \
+#define FIX_LENGTH                                                          \
+            do {                                                            \
+              if (length > char_length)                                     \
+                char_length= my_charpos(cs, pos, pos+length, char_length);  \
+              set_if_smaller(char_length,length);                           \
+            } while(0)
 
 static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 
@@ -157,7 +160,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     FIX_LENGTH;
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      bfill(key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs, key+char_length, length-char_length, ' ');
     key+= length;
   }
   _mi_dpointer(info,key,filepos);
@@ -267,7 +270,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     FIX_LENGTH;
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      bfill(key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs,key+char_length, length-char_length, ' ');
     key+= length;
     k_length-=length;
   }

@@ -407,11 +407,14 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }
 #endif
 
+  DBUG_ENTER("Ndb::startTransactionLocal");
+  DBUG_PRINT("enter", ("nodeid: %d", nodeId));
+
   NdbConnection* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
   tConnection = doConnect(nodeId);
   if (tConnection == NULL) {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
   NdbConnection* tConNext = theTransactionList;
   tConnection->init();
@@ -434,7 +437,8 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     abort();
   }
 #endif
-  return tConnection;
+  DBUG_PRINT("exit", ("transaction id: %d", tConnection->getTransactionId()));
+  DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
 /*****************************************************************************
