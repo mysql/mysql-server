@@ -27,6 +27,17 @@ INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared
 
+# Don't depend on files in pthread library
+OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
+			__math.h time.h __time.h unistd.h __unistd.h types.h \
+			xtypes.h ac-types.h posix.h string.h __string.h \
+			errno.h socket.h inet.h dirent.h netdb.h \
+			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
+			prio_queue.h pthread_attr.h pthread_once.h queue.h\
+			sleep.h specific.h version.h pwd.h timers.h uio.h \
+			cdefs.h machdep.h signal.h __signal.h util.h lex.h \
+			wait.h
+
 libmysql_dir = $(top_srcdir)/libmysql
 
 libmysqlclient_r_la_SOURCES = $(target_sources)
