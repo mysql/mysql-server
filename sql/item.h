@@ -428,8 +428,10 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
-  Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
+    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) 
+    { fixed= 0; }
+  Item_uint(uint32 i) :Item_int((longlong) i, 10) 
+    { fixed= 0; }
   double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
