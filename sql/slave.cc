@@ -812,6 +812,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   my_thread_init(); // needs to be up here, otherwise we get a coredump
   // trying to use DBUG_ stuff
   thd = new THD; // note that contructor of THD uses DBUG_ !
+  thd->set_time();
   DBUG_ENTER("handle_slave");
 
   pthread_detach_this_thread();
