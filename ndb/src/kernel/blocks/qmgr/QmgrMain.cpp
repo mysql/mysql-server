@@ -1760,8 +1760,8 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   } else {
     jam();
 #ifdef VM_TRACE
-    ndbout << "failedNodePtr.p->failState = " << failedNodePtr.p->failState
-	   << endl;
+    ndbout << "failedNodePtr.p->failState = "
+	   << (Uint32)(failedNodePtr.p->failState) << endl;
 #endif   
     systemErrorLab(signal);
   }//if
@@ -1932,10 +1932,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 
   bool compatability_check;
   switch(getNodeInfo(apiNodePtr.i).getType()){
-  case NodeInfo::DB:
-  case NodeInfo::INVALID:
-    sendApiRegRef(signal, ref, ApiRegRef::WrongType);
-    return;
   case NodeInfo::API:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
@@ -1945,6 +1941,11 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   case NodeInfo::REP:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
+  case NodeInfo::DB:
+  case NodeInfo::INVALID:
+  default:
+    sendApiRegRef(signal, ref, ApiRegRef::WrongType);
+    return;
   }
 
   if (!compatability_check) {
