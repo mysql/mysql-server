@@ -565,17 +565,6 @@ private:
   };
 
   /*
-   * Tree search for entry.
-   */
-  struct SearchPar;
-  friend struct SearchPar;
-  struct SearchPar {
-    TableData m_data;           // input index key values
-    TreeEnt m_ent;              // input tuple and version
-    SearchPar();
-  };
-
-  /*
    * Scan bound comparison.
    */
   struct BoundPar;
@@ -641,7 +630,7 @@ private:
   /*
    * DbtuxTree.cpp
    */
-  void treeSearch(Signal* signal, Frag& frag, SearchPar searchPar, TreePos& treePos);
+  void treeSearch(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent);
   void treeRemove(Signal* signal, Frag& frag, TreePos treePos);
   void treeRotateSingle(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
@@ -669,6 +658,7 @@ private:
    * DbtuxCmp.cpp
    */
   int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned size2 = MaxAttrDataSize);
+  int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, TableData data2);
   int cmpScanBound(const Frag& frag, const BoundPar boundPar);
 
   /*
@@ -1219,13 +1209,6 @@ Dbtux::ReadPar::ReadPar() :
 }
 
 inline
-Dbtux::SearchPar::SearchPar() :
-  m_data(0),
-  m_ent()
-{
-}
-
-inline
 Dbtux::BoundPar::BoundPar() :
   m_data1(0),
   m_data2(0),
@@ -1295,6 +1278,7 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, ConstData key
   const Uint32 tupVersion = ent.m_tupVersion;
   ndbrequire(start < frag.m_numAttrs);
   const unsigned numAttrs = frag.m_numAttrs - start;
+  // start applies to both keys and output data
   keyAttrs += start;
   keyData += start;
   c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, numAttrs, keyAttrs, keyData);

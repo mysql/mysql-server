@@ -18,11 +18,11 @@
 #include "Dbtux.hpp"
 
 /*
- * Search key vs tree entry.
+ * Search key vs node prefix.
  *
- * Compare search key and index attribute data.  The attribute data may
- * be partial in which case CmpUnknown may be returned.  Also counts how
- * many (additional) initial attributes were equal.
+ * The comparison starts at given attribute position (in fact 0).  The
+ * position is updated by number of equal initial attributes found.  The
+ * prefix may be partial in which case CmpUnknown may be returned.
  */
 int
 Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned size2)
@@ -82,6 +82,61 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstDat
   ndbrequire(ret != NdbSqlUtil::CmpError);
   return ret;
 }
+
+/*
+ * Search key vs tree entry.
+ *
+ * Start position is updated as in previous routine.
+ */
+int
+Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, TableData data2)
+{
+  const unsigned numAttrs = frag.m_numAttrs;
+  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  // skip to right position
+  data1 += start;
+  data2 += start;
+  int ret = 0;
+  while (start < numAttrs) {
+    if (*data1 != 0) {
+      if (*data2 != 0) {
+        jam();
+        // current attribute
+        const DescAttr& descAttr = descEnt.m_descAttr[start];
+        const unsigned typeId = descAttr.m_typeId;
+        // full data size
+        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
+        // compare
+        const Uint32* const p1 = *data1;
+        const Uint32* const p2 = *data2;
+        ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
+        if (ret != 0) {
+          jam();
+          break;
+        }
+      } else {
+        jam();
+        // not NULL < NULL
+        ret = -1;
+        break;
+      }
+    } else {
+      if (*data2 != 0) {
+        jam();
+        // NULL > not NULL
+        ret = +1;
+        break;
+      }
+    }
+    data1 += 1;
+    data2 += 1;
+    start++;
+  }
+  // XXX until data format errors are handled
+  ndbrequire(ret != NdbSqlUtil::CmpError);
+  return ret;
+}
+
 
 /*
  * Scan bound vs tree entry.
