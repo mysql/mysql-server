@@ -1613,7 +1613,7 @@ void st_table_list::set_ancestor()
     tbl->table->grant= grant;
   }
   /* if view contain only one table, substitute TABLE of it */
-  if (!ancestor->next_local)
+  if (ancestor && !ancestor->next_local)
   {
     table= ancestor->table;
     schema_table= ancestor->schema_table;
