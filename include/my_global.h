@@ -158,11 +158,11 @@ C_MODE_END
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
-#ifdef HAVE_BROKEN_PREAD	/*
-                                These don't work on HP-UX 11.0 without
-                                installing the kernel patch PHKL_20349 or
-                                greater
-                                */
+#ifdef HAVE_BROKEN_PREAD
+/*
+  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
+  installing the kernel patch PHKL_20349 or greater
+*/
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
 #endif
