@@ -2225,8 +2225,10 @@ You should consider changing lower_case_table_names to 1 or 2",
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
   server_init();
-  table_cache_init();
-  hostname_cache_init();
+  if (table_cache_init() || hostname_cache_init())
+  {
+    unireg_abort(1);
+  }
   query_cache_result_size_limit(query_cache_limit);
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
@@ -3749,11 +3751,11 @@ replicating a LOAD DATA INFILE command",
    0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4100,8 +4102,8 @@ this value; if zero (the default): when the size exceeds max_binlog_size. \
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
-   0},
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
+   0, 1, 0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
    (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_ULONG, REQUIRED_ARG,

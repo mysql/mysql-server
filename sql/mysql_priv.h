@@ -375,7 +375,7 @@ bool check_stack_overrun(THD *thd,char *dummy);
 #endif
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables);
-void table_cache_init(void);
+bool table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);

@@ -486,7 +486,7 @@ else
  MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
  MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/bin/mysql"
- INSTALL_DB="./install_test_db -bin"
+ INSTALL_DB="./install_test_db --bin"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
