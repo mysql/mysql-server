@@ -18,7 +18,6 @@
 #include "my_sys.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "dbug.h"
 #include "stdarg.h"
 #include "assert.h"
 
@@ -273,4 +272,98 @@ double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 			   const char *s, char **e)
 {
   return strtod(s,e);
+}
+
+
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+#ifdef LIKE_CMP_TOUPPER
+#define likeconv(s,A) (uchar) my_toupper(s,A)
+#else
+#define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
+#endif
+
+#define INC_PTR(cs,A,B) A++
+
+
+int my_wildcmp_8bit(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  int result= -1;				// Not found, using wildcards
+
+  while (wildstr != wildend)
+  {
+    while (*wildstr != w_many && *wildstr != w_one)
+    {
+      if (*wildstr == escape && wildstr+1 != wildend)
+	wildstr++;
+
+      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
+	return(1);				// No match
+      if (wildstr == wildend)
+	return (str != str_end);		// Match if both are at end
+      result=1;					// Found an anchor char
+    }
+    if (*wildstr == w_one)
+    {
+      do
+      {
+	if (str == str_end)			// Skip one char if possible
+	  return (result);
+	INC_PTR(cs,str,str_end);
+      } while (++wildstr < wildend && *wildstr == w_one);
+      if (wildstr == wildend)
+	break;
+    }
+    if (*wildstr == w_many)
+    {						// Found w_many
+      uchar cmp;
+      
+      wildstr++;
+      /* Remove any '%' and '_' from the wild search string */
+      for (; wildstr != wildend ; wildstr++)
+      {
+	if (*wildstr == w_many)
+	  continue;
+	if (*wildstr == w_one)
+	{
+	  if (str == str_end)
+	    return (-1);
+	  INC_PTR(cs,str,str_end);
+	  continue;
+	}
+	break;					// Not a wild character
+      }
+      if (wildstr == wildend)
+	return(0);				// Ok if w_many is last
+      if (str == str_end)
+	return -1;
+      
+      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
+	cmp= *++wildstr;
+
+      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      cmp=likeconv(cs,cmp);   
+      do
+      {
+          while (str != str_end && likeconv(cs,*str) != cmp)
+            str++;
+          if (str++ == str_end) return (-1);
+	{
+	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  if (tmp <= 0)
+	    return (tmp);
+	}
+      } while (str != str_end && wildstr[0] != w_many);
+      return(-1);
+    }
+  }
+  return (str != str_end ? 1 : 0);
 }

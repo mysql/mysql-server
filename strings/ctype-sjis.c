@@ -4474,6 +4474,7 @@ CHARSET_INFO my_charset_sjis =
     my_strnncoll_sjis,
     my_strnxfrm_sjis,
     my_like_range_sjis,
+    my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
     ismbchar_sjis,
     ismbhead_sjis,

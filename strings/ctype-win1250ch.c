@@ -636,6 +636,7 @@ CHARSET_INFO my_charset_win1250ch =
     my_strnncoll_win1250ch,
     my_strnxfrm_win1250ch,
     my_like_range_win1250ch,
+    my_wildcmp_8bit,		/* wildcmp   */
     1,				/* mbmaxlen  */
     NULL,			/* ismbchar  */
     NULL,			/* ismbhead  */
@@ -646,7 +647,7 @@ CHARSET_INFO my_charset_win1250ch =
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,			/* tosort      */
+    NULL,			/* tosort     */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,

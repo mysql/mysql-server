@@ -610,6 +610,7 @@ CHARSET_INFO my_charset_czech =
     my_strnncoll_czech,
     my_strnxfrm_czech,
     my_like_range_czech,
+    my_wildcmp_8bit,
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */

@@ -414,10 +414,10 @@ static my_bool my_like_range_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_latin1_de =
 {
-    31,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "latin1_de",	/* name */
-    "",			/* comment    */
+    31,			/* number    */
+    MY_CS_COMPILED,	/* state     */
+    "latin1_de",	/* name      */
+    "",			/* comment   */
     ctype_latin1_de,
     to_lower_latin1_de,
     to_upper_latin1_de,
@@ -428,17 +428,18 @@ CHARSET_INFO my_charset_latin1_de =
     my_strnncoll_latin1_de,
     my_strnxfrm_latin1_de,
     my_like_range_latin1_de,
+    my_wildcmp_8bit,	/* wildcmp   */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
+    my_mb_wc_8bit,	/* mb_wc     */
+    my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,		/* tosort      */
+    NULL,		/* tosort    */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
