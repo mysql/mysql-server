@@ -747,7 +747,7 @@ insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-f2	datetime			0000-00-00 00:00:00	
+f2	datetime	YES		NULL	
 drop table t2;
 create table t2 select f2 from (select now() f2 from t1) a;
 show columns from t2;
