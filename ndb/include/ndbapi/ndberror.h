@@ -17,8 +17,6 @@
 #ifndef NDBERROR_H
 #define NDBERROR_H
 
-#define NDBERR_EVENT_NAME_ALEADY_EXISTS 746
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,7 +47,8 @@ typedef enum
   ndberror_cl_function_not_implemented = 13,
   ndberror_cl_unknown_error_code = 14,
   ndberror_cl_node_shutdown = 15,
-  ndberror_cl_configuration = 16  
+  ndberror_cl_configuration = 16,
+  ndberror_cl_schema_object_already_exists = 17 
 } ndberror_classification_enum;
 
 

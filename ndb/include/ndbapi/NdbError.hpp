@@ -168,7 +168,12 @@ struct NdbError {
     /**
      * Node shutdown
      */
-    NodeShutdown = ndberror_cl_node_shutdown
+    NodeShutdown = ndberror_cl_node_shutdown,
+
+    /**
+     * Schema object already exists
+     */
+    SchemaObjectExists = ndberror_cl_schema_object_already_exists
   };
   
   /**
