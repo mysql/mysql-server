@@ -260,7 +260,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if (lock_type != TL_WRITE_DELAYED)
+  if (lock_type != TL_WRITE_DELAYED && values_list.elements != 1);
     table->file->start_bulk_insert(values_list.elements);
 
   while ((values= its++))

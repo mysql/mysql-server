@@ -92,10 +92,10 @@
 
 
 /*
-   Bits in index_ddl_flags(KEY *wanted_index)
-   for what ddl you can do with index
-   If none is set, the wanted type of index is not supported
-   by the handler at all. See WorkLog 1563.
+  Bits in index_ddl_flags(KEY *wanted_index)
+  for what ddl you can do with index
+  If none is set, the wanted type of index is not supported
+  by the handler at all. See WorkLog 1563.
 */
 #define HA_DDL_SUPPORT   1 /* Supported by handler */
 #define HA_DDL_WITH_LOCK 2 /* Can create/drop with locked table */
