@@ -366,6 +366,15 @@ spin_loop:
 
                 return;
    	}
+
+	/* We may end up with a situation where lock_word is
+	0 but the OS fast mutex is still reserved. On FreeBSD
+	the OS does not seem to schedule a thread which is constantly
+	calling pthread_mutex_trylock (in mutex_test_and_set
+	implementation). Then we could end up spinning here indefinitely.
+	The following 'i++' stops this infinite spin. */
+
+	i++;
         
 	if (i < SYNC_SPIN_ROUNDS) {
 
