@@ -702,7 +702,7 @@ struct Item_change_record: public ilink
   Item **place;
   Item *old_value;
   /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(unsigned int size, void *mem) { return mem; }
+  static void *operator new(size_t size, void *mem) { return mem; }
 };
 
 
