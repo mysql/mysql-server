@@ -273,6 +273,10 @@ typedef struct xid_t XID;
 typedef struct
 {
   /*
+    storage engine name as it should be printed to a user
+  */
+  const char *name;
+  /*
     each storage engine has it's own memory area (actually a pointer)
     in the thd, for storing per-connection information.
     It is accessed as
@@ -832,10 +836,20 @@ int ha_recover(HASH *commit_list);
 int ha_commit_trans(THD *thd, bool all);
 int ha_autocommit_or_rollback(THD *thd, int error);
 int ha_enable_transaction(THD *thd, bool on);
-void trans_register_ha(THD *thd, bool all, handlerton *ht);
 
 /* savepoints */
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* these are called by storage engines */
+void trans_register_ha(THD *thd, bool all, handlerton *ht);
+
+/*
+  Storage engine has to assume the transaction will end up with 2pc if
+   - there is more than one 2pc-capable storage engine available
+   - in the current transaction 2pc was not disabled yet
+*/
+#define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
+        !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 

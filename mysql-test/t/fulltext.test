@@ -59,6 +59,7 @@ select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
 
 select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"now   support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
@@ -68,7 +69,6 @@ select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('+collections -supp* -foobar*' IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
 # bug#2708, bug#3870 crash
 

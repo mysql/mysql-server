@@ -730,7 +730,6 @@ dict_load_table(
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
-	ulint		mix_len;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -770,47 +769,12 @@ dict_load_table(
 
 	/* Check if the table name in record is the searched one */
 	if (len != ut_strlen(name) || ut_memcmp(name, field, len) != 0) {
-
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
 		
 		return(NULL);
 	}
-
-	/* Track a corruption bug reported on the MySQL mailing list Jan 14,
-	2005: mix_len had a value different from 0 */
-
-	field = rec_get_nth_field_old(rec, 7, &len);
-	ut_a(len == 4);
-
-	mix_len = mach_read_from_4(field);
-
-	if (mix_len != 0 && mix_len != 0x80000000) {
-		ut_print_timestamp(stderr);
-		
-		fprintf(stderr,
-			"  InnoDB: table %s has a nonsensical mix len %lu\n",
-			name, (ulong)mix_len);
-	}
-
-#ifndef UNIV_HOTBACKUP
-#if MYSQL_VERSION_ID < 50003
-	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
-	"compact format" flag. */
-	field = rec_get_nth_field(rec, 7, &len);
-	if (mach_read_from_1(field) & 0x80) {
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: table %s is in the new compact format\n"
-			"InnoDB: of MySQL 5.0.3 or later\n", name);
-		return(NULL);
-	}
-#endif /* MYSQL_VERSION_ID < 50300 */
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(0 == ut_strcmp("SPACE",
 		dict_field_get_col(
@@ -853,8 +817,10 @@ dict_load_table(
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	/* table->comp will be initialized later, in this function */
-	table = dict_mem_table_create(name, space, n_cols, FALSE);
+	/* The high-order bit of N_COLS is the "compact format" flag. */
+	table = dict_mem_table_create(name, space,
+					n_cols & ~0x80000000UL,
+					!!(n_cols & 0x80000000UL));
 
 	table->ibd_file_missing = ibd_file_missing;
 
@@ -879,14 +845,12 @@ dict_load_table(
 #endif
 	}
 
-	/* The high-order bit of MIX_LEN is the "compact format" flag */
-	field = rec_get_nth_field_old(rec, 7, &len);
-	table->comp = !!(mach_read_from_1(field) & 0x80);
-
 	if ((table->type == DICT_TABLE_CLUSTER)
 	    || (table->type == DICT_TABLE_CLUSTER_MEMBER)) {
 
-		table->mix_len = mach_read_from_4(field) & 0x7fffffff;
+		field = rec_get_nth_field_old(rec, 7, &len);
+		ut_a(len == 4);
+		table->mix_len = mach_read_from_4(field);
 	}
 
 	btr_pcur_close(&pcur);

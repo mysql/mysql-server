@@ -873,7 +873,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    KEY_INTERNAL,
+    CFG_DB_MAX_OPEN_FILES,
     "MaxNoOfOpenFiles",
     DB_TOKEN,
     "Max number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
@@ -882,8 +882,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "40",
     "20",
-    "256" },
-
+    STR_VALUE(MAX_INT_RNIL) },
   
   {
     CFG_DB_TRANSACTION_CHECK_INTERVAL,

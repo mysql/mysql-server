@@ -1740,6 +1740,13 @@ innobase_shutdown_for_mysql(void)
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
+        /* In a 'very fast' shutdown, we do not need to wait for these threads
+        to die; all which counts is that we flushed the log; a 'very fast'
+        shutdown is essentially a crash. */
+
+        if (srv_fast_shutdown)
+          return((int) DB_SUCCESS);
+
 	/* All threads end up waiting for certain events. Put those events
 	to the signaled state. Then the threads will exit themselves in
 	os_thread_event_wait(). */

@@ -1252,8 +1252,10 @@ class Item_func_sp :public Item_func
 private:
   sp_name *m_name;
   mutable sp_head *m_sp;
+  TABLE *dummy_table;
 
   int execute(Item **itp);
+  Field *sp_result_field(void) const;
 
 public:
 
@@ -1267,6 +1269,10 @@ public:
   const char *func_name() const;
 
   enum enum_field_types field_type() const;
+
+  Field *tmp_table_field(TABLE *t_arg);
+
+  void make_field(Send_field *tmp_field);
 
   Item_result result_type() const;
 

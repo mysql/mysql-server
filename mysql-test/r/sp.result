@@ -962,7 +962,7 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int
+chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int(11)
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -975,7 +975,7 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int
+chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int(11)
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
@@ -2026,11 +2026,11 @@ bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "test"."bug2564_2"()
 insert into "t1" values ('foo', 1)
 show create function bug2564_3|
 Function	sql_mode	Create Function
-bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int
+bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int(11)
 return x || y
 show create function bug2564_4|
 Function	sql_mode	Create Function
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int(11)
 return x || y
 drop procedure bug2564_1|
 drop procedure bug2564_2|
@@ -2094,6 +2094,28 @@ call bug4579_1()|
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
+drop table if exists t3|
+drop procedure if exists bug2773|
+create function bug2773() returns int return null|
+create table t3 as select bug2773()|
+show create table t3|
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `bug2773()` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t3|
+drop function bug2773|
+drop procedure if exists bug3788|
+create function bug3788() returns date return cast("2005-03-04" as date)|
+select bug3788()|
+bug3788()
+2005-03-04
+drop function bug3788|
+create function bug3788() returns binary(5) return 5|
+select bug3788()|
+bug3788()
+5
+drop function bug3788|
 drop table if exists t3|
 create table t3 (f1 int, f2 int, f3 int)|
 insert into t3 values (1,1,1)|

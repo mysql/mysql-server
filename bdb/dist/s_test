@@ -9,7 +9,7 @@ msg2="# Automatically built by dist/s_test; may require local editing."
 t=/tmp/__t
 trap 'rm -f $t; exit 0' 0 1 2 3 13 15
 
-. RELEASE
+. ./RELEASE
 
 (echo "$msg1"					&& \
  echo ""					&& \

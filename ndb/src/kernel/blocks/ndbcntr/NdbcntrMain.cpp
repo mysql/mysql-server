@@ -103,8 +103,22 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
     }
     
     Uint64 now = NdbTick_CurrentMillisecond();
-    if(now > c_start.m_startFailureTimeout){
-      ndbrequire(false);
+    if(now > c_start.m_startFailureTimeout)
+    {
+      jam();
+      Uint32 to_3= 0;
+      const ndb_mgm_configuration_iterator * p = 
+	theConfiguration.getOwnConfigIterator();
+      ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT, &to_3);
+      BaseString tmp;
+      tmp.append("Shutting down node as total restart time exceeds "
+		 " StartFailureTimeout as set in config file ");
+      if(to_3 == 0)
+	tmp.append(" 0 (inifinite)");
+      else
+	tmp.appfmt(" %d", to_3);
+      
+      progError(__LINE__, ERR_SYSTEM_ERROR, tmp.c_str());
     }
     
     signal->theData[0] = ZSTARTUP;
@@ -413,7 +427,7 @@ inline
 Uint64
 setTimeout(Uint64 time, Uint32 timeoutValue){
   if(timeoutValue == 0)
-    return ~0;
+    return ~(Uint64)0;
   return time + timeoutValue;
 }
 

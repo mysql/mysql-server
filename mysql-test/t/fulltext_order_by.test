@@ -31,6 +31,14 @@ SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE a=7 an
 SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) as rel FROM t1 ORDER BY rel;
 SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
 
+#
+# BUG#6635 - test_if_skip_sort_order() thought it can skip filesort
+# for fulltext searches too
+#
+alter table t1 add key m (message);
+explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;
+SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message desc;
+
 drop table t1;
 
 #

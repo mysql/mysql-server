@@ -79,13 +79,14 @@ row_sel_sec_rec_is_for_clust_rec(
         ulint           i;
 	dtype_t*	cur_type;
 	mem_heap_t*	heap		= NULL;
-	ulint		clust_offsets_[100]
-					= { 100, };
-	ulint		sec_offsets_[10]
-					= { 10, };
+	ulint		clust_offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
+
+	*clust_offsets_ = (sizeof clust_offsets_) / sizeof *clust_offsets_;
+	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
 
 	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
 						ULINT_UNDEFINED, &heap);
@@ -625,8 +626,9 @@ row_sel_get_clust_rec(
 	rec_t*		old_vers;
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	offsets = rec_get_offsets(rec,
 				btr_pcur_get_btr_cur(&plan->pcur)->index,
@@ -990,9 +992,10 @@ row_sel_try_search_shortcut(
 	dict_index_t*	index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	index = plan->index;
 
@@ -1115,8 +1118,9 @@ row_sel(
 	ulint		found_flag;
 	ulint		err;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100]			= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(thr->run_node == node);
 
@@ -2115,10 +2119,10 @@ row_sel_convert_mysql_key_to_innobase(
 				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
 			data_offset += 2;
-			
-			type = DATA_CHAR; /* now that we know the length, we
-					  store the column value like it would
-					  be a fixed char field */
+
+			/* now that we know the length, we store the column
+			value like it would be a fixed char field */
+
 		} else if (field->prefix_len > 0) {
 			/* Looks like MySQL pads unused end bytes in the
 			prefix with space. Therefore, also in UTF-8, it is ok
@@ -2142,11 +2146,12 @@ row_sel_convert_mysql_key_to_innobase(
 		
 		if (!is_null) {
 		        row_mysql_store_col_in_innobase_format(
-					dfield, buf, key_ptr + data_offset,
-					data_len, type,
-					index->table->comp,
-					dfield_get_type(dfield)->prtype
-							& DATA_UNSIGNED);
+					dfield,
+					buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset,
+					data_len,
+					index->table->comp);
 			buf += data_len;
 		}
 
@@ -2221,7 +2226,7 @@ row_sel_store_row_id_to_prebuilt(
 		dict_index_name_print(stderr, prebuilt->trx, index);
 		fprintf(stderr, "\n"
 "InnoDB: Field number %lu, record:\n",
-			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+		    (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
 		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
 		ut_error;
@@ -2231,8 +2236,9 @@ row_sel_store_row_id_to_prebuilt(
 }
 
 /******************************************************************
-Stores a non-SQL-NULL field in the MySQL format. */
-UNIV_INLINE
+Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.c. */
+static
 void
 row_sel_field_store_in_mysql_format(
 /*================================*/
@@ -2247,6 +2253,8 @@ row_sel_field_store_in_mysql_format(
 	ulint	len)	/* in: length of the data */
 {
 	byte*	ptr;
+	byte*	field_end;
+	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
 
@@ -2270,25 +2278,66 @@ row_sel_field_store_in_mysql_format(
 		}
 
 		ut_ad(templ->mysql_col_len == len);
-	} else if (templ->type == DATA_VARCHAR || templ->type == DATA_VARMYSQL
-					|| templ->type == DATA_BINARY) {
-		/* Store the length of the data to the first two bytes of
-		dest; does not do anything yet because MySQL has
-		no real vars! */
+	} else if (templ->type == DATA_VARCHAR
+	           || templ->type == DATA_VARMYSQL
+		   || templ->type == DATA_BINARY) {
+
+		field_end = dest + templ->mysql_col_len;
+
+		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+			/* This is a >= 5.0.3 type true VARCHAR. Store the
+			length of the data to the first byte or the first
+			two bytes of dest. */
 		
-		dest = row_mysql_store_var_len(dest, len);
+			dest = row_mysql_store_true_var_len(dest, len,
+						templ->mysql_length_bytes);
+		}
+
+		/* Copy the actual data */
 		ut_memcpy(dest, data, len);
-#if 0
-		/* No real var implemented in MySQL yet! */
-		ut_ad(templ->mysql_col_len >= len + 2);
-#endif
 		
+		/* Pad with trailing spaces. We pad with spaces also the
+		unused end of a >= 5.0.3 true VARCHAR column, just in case
+		MySQL expects its contents to be deterministic. */
+			
+		pad_ptr = dest + len;
+
+		ut_ad(templ->mbminlen <= templ->mbmaxlen);
+
+		/* We handle UCS2 charset strings differently. */
+		if (templ->mbminlen == 2) {
+			/* A space char is two bytes, 0x0020 in UCS2 */
+
+			if (len & 1) {
+				/* A 0x20 has been stripped from the column.
+				Pad it back. */
+				
+				if (pad_ptr < field_end) {
+					*pad_ptr = 0x20;
+					pad_ptr++;
+				}
+			}
+			
+			/* Pad the rest of the string with 0x0020 */
+
+			while (pad_ptr < field_end) {
+				*pad_ptr = 0x00;
+				pad_ptr++;
+				*pad_ptr = 0x20;
+				pad_ptr++;
+			}
+		} else {
+			ut_ad(templ->mbminlen == 1);
+			/* space=0x20 */
+
+			memset(pad_ptr, 0x20, field_end - pad_ptr);
+		}
 	} else if (templ->type == DATA_BLOB) {
 		/* Store a pointer to the BLOB buffer to dest: the BLOB was
 		already copied to the buffer in row_sel_store_mysql_rec */
 
-		row_mysql_store_blob_ref(dest, templ->mysql_col_len,
-							data, len);
+		row_mysql_store_blob_ref(dest, templ->mysql_col_len, data,
+									len);
 	} else if (templ->type == DATA_MYSQL) {
 		memcpy(dest, data, len);
 
@@ -2302,9 +2351,10 @@ row_sel_field_store_in_mysql_format(
 		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
 		if (templ->mbminlen != templ->mbmaxlen) {
-			/* Pad with spaces.  This undoes the stripping
+			/* Pad with spaces. This undoes the stripping
 			done in row0mysql.ic, function
 			row_mysql_store_col_in_innobase_format(). */
+
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
 	} else {
@@ -2316,6 +2366,7 @@ row_sel_field_store_in_mysql_format(
 			|| templ->type == DATA_DOUBLE
 			|| templ->type == DATA_DECIMAL);
 		ut_ad(templ->mysql_col_len == len);
+
 		memcpy(dest, data, len);
 	}
 }
@@ -2348,15 +2399,9 @@ row_sel_store_mysql_rec(
 	byte*			blob_buf;
 	int			pad_char;
 	ulint			i;
-	dict_index_t*		index;
 	
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-
-	index = prebuilt->index;
-	if (prebuilt->need_to_access_clustered) {
-		index = dict_table_get_first_index(index->table);
-	}
 
 	if (prebuilt->blob_heap != NULL) {
 		mem_heap_free(prebuilt->blob_heap);
@@ -2437,40 +2482,6 @@ row_sel_store_mysql_rec(
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, data, len);
-
-			if (templ->type == DATA_VARCHAR
-					|| templ->type == DATA_VARMYSQL
-					|| templ->type == DATA_BINARY) {
-				/* Pad with trailing spaces */
-				data = mysql_rec + templ->mysql_col_offset;
-
-				ut_ad(templ->mbminlen <= templ->mbmaxlen);
-				/* Handle UCS2 strings differently. */
-				if (templ->mbminlen == 2) {
-					/* space=0x0020 */
-					ulint	col_len = templ->mysql_col_len;
-
-					ut_a(!(col_len & 1));
-					if (len & 1) {
-						/* A 0x20 has been stripped
-						from the column.
-						Pad it back. */
-						goto pad_0x20;
-					}
-					/* Pad the rest of the string
-					with 0x0020 */
-					while (len < col_len) {
-						data[len++] = 0x00;
-					pad_0x20:
-						data[len++] = 0x20;
-					}
-				} else {
-					ut_ad(templ->mbminlen == 1);
-					/* space=0x20 */
-					memset(data + len, 0x20,
-						templ->mysql_col_len - len);
-				}
-			}
 
 			/* Cleanup */
 			if (extern_field_heap) {
@@ -3035,9 +3046,10 @@ row_search_for_mysql(
 	ulint		next_offs;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100]			= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
-	
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
@@ -3484,10 +3496,10 @@ rec_loop:
 			ut_print_timestamp(stderr);
 			buf_page_print(buf_frame_align(rec));
 			fprintf(stderr,
-"\nInnoDB: rec address %lx, first buffer frame %lx\n"
-"InnoDB: buffer pool high end %lx, buf block fix count %lu\n",
-				(ulong)rec, (ulong)buf_pool->frame_zero,
-				(ulong)buf_pool->high_end,
+"\nInnoDB: rec address %p, first buffer frame %p\n"
+"InnoDB: buffer pool high end %p, buf block fix count %lu\n",
+				rec, buf_pool->frame_zero,
+				buf_pool->high_end,
 				(ulong)buf_block_align(rec)->buf_fix_count);
 			fprintf(stderr,
 "InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"

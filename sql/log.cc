@@ -46,6 +46,7 @@ static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
 static handlerton binlog_hton = {
+  "binlog",
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,
@@ -360,12 +361,6 @@ MYSQL_LOG::MYSQL_LOG()
   bzero((char*) &index_file, sizeof(index_file));
 }
 
-
-MYSQL_LOG::~MYSQL_LOG()
-{
-  cleanup();
-}
-
 /* this is called only once */
 
 void MYSQL_LOG::cleanup()
@@ -618,7 +613,12 @@ bool MYSQL_LOG::open(const char *log_name,
         even if this is not the very first binlog.
       */
       Format_description_log_event s(BINLOG_VERSION);
-      s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
+      /*
+        don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+        as we won't be able to reset it later
+      */
+      if (io_cache_type == WRITE_CACHE)
+        s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
       if (!s.is_valid())
         goto err;
       if (null_created_arg)
@@ -1276,8 +1276,7 @@ bool MYSQL_LOG::is_active(const char *log_file_name_arg)
 
   SYNOPSIS
     new_file()
-    need_lock		Set to 1 (default) if caller has not locked
-			LOCK_log and LOCK_index
+    need_lock		Set to 1 if caller has not locked LOCK_log
 
   NOTE
     The new file name is stored last in the index file
@@ -1764,12 +1763,13 @@ err:
 
 void MYSQL_LOG::rotate_and_purge(uint flags)
 {
+  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
+    pthread_mutex_lock(&LOCK_log);
   if ((flags & RP_FORCE_ROTATE) ||
       (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    new_file(!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED));
+    new_file(0);
 #ifdef HAVE_REPLICATION
-    // QQ why do we need #ifdef here ???
     if (expire_logs_days)
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
@@ -1778,6 +1778,8 @@ void MYSQL_LOG::rotate_and_purge(uint flags)
     }
 #endif
   }
+  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
+    pthread_mutex_unlock(&LOCK_log);
 }
 
 uint MYSQL_LOG::next_file_id()
@@ -2491,7 +2493,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     inited= 1;
     crashed= TRUE;
-    sql_print_information("Recovering after a crash");
+    sql_print_information("Recovering after a crash using %s", opt_name);
     if (tc_heuristic_recover)
     {
       sql_print_error("Cannot perform automatic crash recovery when "
@@ -2951,7 +2953,10 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if ((ev= Log_event::read_log_event(&log, 0, &fdle)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+    {
+      sql_print_information("Recovering after a crash using %s", opt_name);
       error= recover(&log, (Format_description_log_event *)ev);
+    }
     else
       error=0;
 

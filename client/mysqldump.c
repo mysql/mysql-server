@@ -1084,6 +1084,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+
 /*
   getStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
@@ -1813,7 +1814,7 @@ static void dumpTable(uint numFields, char *table)
                 char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
-                  fprintf(md_result_file, "%02X", *ptr);
+		  fprintf(md_result_file, "%02X", *((uchar *)ptr));
               }
               else
                 unescape(md_result_file, row[i], lengths[i]);

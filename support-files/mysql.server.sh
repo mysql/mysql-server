@@ -53,8 +53,21 @@ then
   basedir=@prefix@
   bindir=@bindir@
   datadir=@localstatedir@
+  sbindir=@sbindir@
 else
   bindir="$basedir/bin"
+  sbindir="$basedir/sbin"
+fi
+
+#
+# Use LSB init script functions for printing messages, if possible
+#
+lsb_functions="/lib/lsb/init-functions"
+if test -f $lsb_functions ; then
+  source $lsb_functions
+else
+  alias log_success_msg="echo \ SUCCESS! "
+  alias log_failure_msg="echo \ ERROR! "
 fi
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
@@ -68,18 +81,39 @@ case `echo "testing\c"`,`echo -n testing` in
     *)       echo_n=   echo_c='\c' ;;
 esac
 
-parse_arguments() {
+parse_server_arguments() {
   for arg do
     case "$arg" in
       --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+    esac
+  done
+}
+
+parse_manager_arguments() {
+  for arg do
+    case "$arg" in
       --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
 }
 
+wait_for_pid () {
+  for((i=0; i<35; i++)); do
+    sleep 1
+    test -s $pid_file && i='' && break
+    echo $echo_n ".$echo_c"
+  done
+
+  if test -z "$i" ; then
+    log_success_msg
+  else
+    log_failure_msg
+  fi
+}
+
 # Get arguments from the my.cnf file,
-# groups [mysqld] [mysql_server] and [mysql.server]
+# the only group, which is read from now on is [mysqld]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -128,20 +162,26 @@ then
   extra_args="-e $datadir/my.cnf"
 fi
 
-parse_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
+parse_server_arguments `$print_defaults $extra_args mysqld`
+
+# Look for the pidfile 
+parse_manager_arguments `$print_defaults $extra_args manager`
 
 #
 # Set pid file if not given
 #
 if test -z "$pid_file"
 then
-  pid_file=$datadir/`@HOSTNAME@`.pid
+  pid_file=$datadir/mysqlmanager-`@HOSTNAME@`.pid
 else
   case "$pid_file" in
     /* ) ;;
     * )  pid_file="$datadir/$pid_file" ;;
   esac
 fi
+
+user=@MYSQLD_USER@
+USER_OPTION="--user=$user"
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -150,18 +190,21 @@ case "$mode" in
   'start')
     # Start daemon
 
-    if test -x $bindir/mysqld_safe
+    if test -x $sbindir/mysqlmanager
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file >/dev/null 2>&1 &
+      echo $echo_n "Starting MySQL"
+      $sbindir/mysqlmanager $USER_OPTION --pid-file=$pid_file >/dev/null 2>&1 &
+      wait_for_pid
+
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
-        touch /var/lock/subsys/mysql
+        touch /var/lock/subsys/mysqlmanager
       fi
     else
-      echo "Can't execute $bindir/mysqld_safe from dir $basedir"
+      log_failure_msg "Can't execute $sbindir/mysqlmanager"
     fi
     ;;
 
@@ -170,30 +213,19 @@ case "$mode" in
     # root password.
     if test -s "$pid_file"
     then
-      mysqld_pid=`cat $pid_file`
-      echo "Killing mysqld with pid $mysqld_pid"
-      kill $mysqld_pid
-      # mysqld should remove the pid_file when it exits, so wait for it.
+      mysqlmanager_pid=`cat $pid_file`
+      echo $echo_n "Shutting down MySQL"
+      kill $mysqlmanager_pid
+      # mysqlmanager should remove the pid_file when it exits, so wait for it.
+      wait_for_pid
 
-      sleep 1
-      while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
-      do
-	[ -z "$flags" ] && echo $echo_n "Wait for mysqld to exit$echo_c" || echo $echo_n ".$echo_c"
-        flags=a$flags
-        sleep 1
-      done
-      if [ -s $pid_file ]
-         then echo " gave up waiting!"
-      elif [ -n "$flags" ]
-         then echo " done"
-      fi
       # delete lock for RedHat / SuSE
-      if test -f /var/lock/subsys/mysql
+      if test -f /var/lock/subsys/mysqlmanager
       then
-        rm -f /var/lock/subsys/mysql
+        rm -f /var/lock/subsys/mysqlmanager
       fi
     else
-      echo "No mysqld pid file found. Looked for $pid_file."
+      log_failure_msg "mysqlmanager PID file could not be found!"
     fi
     ;;
 
@@ -202,7 +234,7 @@ case "$mode" in
     # running or not, start it again.
     $0 stop
     $0 start
-		;;
+    ;;
 
   *)
     # usage

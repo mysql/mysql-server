@@ -4368,13 +4368,19 @@ longlong Item_func_row_count::val_int()
 Item_func_sp::Item_func_sp(sp_name *name)
   :Item_func(), m_name(name), m_sp(NULL)
 {
+  maybe_null= 1;
   m_name->init_qname(current_thd);
+  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
+  bzero(dummy_table, sizeof(TABLE));
 }
 
 Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   :Item_func(list), m_name(name), m_sp(NULL)
 {
+  maybe_null= 1;
   m_name->init_qname(current_thd);
+  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
+  bzero(dummy_table, sizeof(TABLE));
 }
 
 const char *
@@ -4396,6 +4402,32 @@ Item_func_sp::func_name() const
   qname.append('.');
   append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
   return qname.ptr();
+}
+
+
+Field *
+Item_func_sp::sp_result_field(void) const
+{
+  Field *field= 0;
+  THD *thd= current_thd;
+  DBUG_ENTER("Item_func_sp::sp_result_field");
+  if (m_sp)
+  {
+    if (dummy_table->s == NULL)
+    {
+      char *empty_name= (char *) "";
+      TABLE_SHARE *share;
+      dummy_table->s= share= &dummy_table->share_not_to_be_used;      
+      dummy_table->alias = empty_name;
+      dummy_table->maybe_null = maybe_null;
+      dummy_table->in_use= current_thd;
+      share->table_cache_key = empty_name;
+      share->table_name = empty_name;
+      share->table_name = empty_name;
+    }
+    field= m_sp->make_field(max_length, name, dummy_table);
+  }
+  DBUG_RETURN(field);
 }
 
 
@@ -4449,17 +4481,38 @@ Item_func_sp::execute(Item **itp)
 }
 
 
+void
+Item_func_sp::make_field(Send_field *tmp_field)
+{
+  Field *field;
+  DBUG_ENTER("Item_func_sp::make_field");
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
+  if ((field= sp_result_field()))
+  {
+    field->make_field(tmp_field);
+    delete field;
+    DBUG_VOID_RETURN;
+  }
+  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+  init_make_field(tmp_field, MYSQL_TYPE_VARCHAR);  
+  DBUG_VOID_RETURN;
+}
+
+
 enum enum_field_types
 Item_func_sp::field_type() const
 {
+  Field *field= 0;
   DBUG_ENTER("Item_func_sp::field_type");
 
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
-  if (m_sp)
+  if ((field= sp_result_field()))
   {
-    DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
-    DBUG_RETURN(m_sp->m_returns);
+    enum_field_types result= field->type();
+    delete field;
+    DBUG_RETURN(result);
   }
   my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
   DBUG_RETURN(MYSQL_TYPE_VARCHAR);
@@ -4469,14 +4522,17 @@ Item_func_sp::field_type() const
 Item_result
 Item_func_sp::result_type() const
 {
+  Field *field= 0;
   DBUG_ENTER("Item_func_sp::result_type");
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
-  if (m_sp)
+  if ((field= sp_result_field()))
   {
-    DBUG_RETURN(m_sp->result());
+    Item_result result= field->result_type();
+    delete field;
+    DBUG_RETURN(result);
   }
   my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
   DBUG_RETURN(STRING_RESULT);
@@ -4495,7 +4551,7 @@ Item_func_sp::fix_length_and_dec()
   }
   else
   {
-    switch (m_sp->result()) {
+    switch (result_type()) {
     case STRING_RESULT:
       maybe_null= 1;
       max_length= MAX_BLOB_WIDTH;
@@ -4529,4 +4585,20 @@ longlong Item_func_found_rows::val_int()
   THD *thd= current_thd;
 
   return thd->found_rows();
+}
+
+Field *
+Item_func_sp::tmp_table_field(TABLE *t_arg)
+{
+  Field *res= 0;
+  enum_field_types ftype;
+  DBUG_ENTER("Item_func_sp::tmp_table_field");
+
+  if (m_sp)
+    res= m_sp->make_field(max_length, (const char *)name, t_arg);
+  
+  if (!res) 
+    res= Item_func::tmp_table_field(t_arg);
+
+  DBUG_RETURN(res);
 }
