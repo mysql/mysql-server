@@ -361,6 +361,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_SYM
 %token	UNCOMMITTED_SYM
 %token	UNDERSCORE_CHARSET
+%token	UNICODE_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -1259,6 +1260,14 @@ opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
+	| UNICODE_SYM
+	{
+	  if (!(Lex->charset=get_charset_by_name("ucs2",MYF(0))))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"ucs2");
+	    YYABORT;
+	  }
+	}
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 
@@ -3872,6 +3881,7 @@ keyword:
 	| TYPE_SYM		{}
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| UNICODE_SYM		{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
