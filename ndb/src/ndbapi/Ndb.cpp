@@ -38,8 +38,6 @@ Name:          Ndb.cpp
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 
-static bool fullyQualifiedNames = true;
-
 /****************************************************************************
 void connect();
 
@@ -1032,10 +1030,10 @@ void Ndb::setCatalogName(const char * a_catalog_name)
     uint schema_len =
       MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
     strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = '/';
+    prefixName[db_len] = table_name_separator;
     strncpy(prefixName+db_len+1, theDataBaseSchema,
             NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = '/';
+    prefixName[db_len+schema_len+1] = table_name_separator;
     prefixName[db_len+schema_len+2] = '\0';
     prefixEnd = prefixName + db_len+schema_len + 2;
   }
@@ -1055,10 +1053,10 @@ void Ndb::setSchemaName(const char * a_schema_name)
     uint schema_len =
       MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
     strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = '/';
+    prefixName[db_len] = table_name_separator;
     strncpy(prefixName+db_len+1, theDataBaseSchema,
             NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = '/';
+    prefixName[db_len+schema_len+1] = table_name_separator;
     prefixName[db_len+schema_len+2] = '\0';
     prefixEnd = prefixName + db_len+schema_len + 2;
   }
@@ -1098,22 +1096,49 @@ bool Ndb::usingFullyQualifiedNames()
 }
  
 const char *
-Ndb::externalizeTableName(const char * internalTableName)
+Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
     register const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != '/');
+    while (*ptr && *ptr++ != table_name_separator);
     // Skip schema name
-    while (*ptr && *ptr++ != '/');
-     
+    while (*ptr && *ptr++ != table_name_separator);
     return ptr;
   }
   else
     return internalTableName;
 }
- 
+
+const char *
+Ndb::externalizeTableName(const char * internalTableName)
+{
+  return externalizeTableName(internalTableName, usingFullyQualifiedNames());
+}
+
+const char *
+Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
+{
+  if (fullyQualifiedNames) {
+    register const char *ptr = internalIndexName;
+   
+    // Scan name from the end
+    while (*ptr++); ptr--; // strend
+    while (ptr >= internalIndexName && *ptr != table_name_separator)
+      ptr--;
+     
+    return ptr + 1;
+  }
+  else
+    return internalIndexName;
+}
+
+const char *
+Ndb::externalizeIndexName(const char * internalIndexName)
+{
+  return externalizeIndexName(internalIndexName, usingFullyQualifiedNames());
+}
 
 const char *
 Ndb::internalizeTableName(const char * externalTableName)
@@ -1127,23 +1152,6 @@ Ndb::internalizeTableName(const char * externalTableName)
 }
  
 const char *
-Ndb::externalizeIndexName(const char * internalIndexName)
-{
-  if (fullyQualifiedNames) {
-    register const char *ptr = internalIndexName;
-   
-    // Scan name from the end
-    while (*ptr++); ptr--; // strend
-    while (ptr >= internalIndexName && *ptr != '/')
-      ptr--;
-     
-    return ptr + 1;
-  }
-  else
-    return internalIndexName;
-}
- 
-const char *
 Ndb::internalizeIndexName(const NdbTableImpl * table,
                           const char * externalIndexName)
 {
@@ -1152,7 +1160,7 @@ Ndb::internalizeIndexName(const NdbTableImpl * table,
     sprintf(tableId, "%d", table->m_tableId);
     Uint32 tabIdLen = strlen(tableId);
     strncpy(prefixEnd, tableId, tabIdLen);
-    prefixEnd[tabIdLen] = '/';
+    prefixEnd[tabIdLen] = table_name_separator;
     strncpy(prefixEnd + tabIdLen + 1, 
 	    externalIndexName, NDB_MAX_TAB_NAME_SIZE);
     return prefixName;
@@ -1168,8 +1176,8 @@ Ndb::getDatabaseFromInternalName(const char * internalName)
   strcpy(databaseName, internalName);
   register char *ptr = databaseName;
    
-  /* Scan name for the first '/' */
-  while (*ptr && *ptr != '/')
+  /* Scan name for the first table_name_separator */
+  while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
   BaseString ret = BaseString(databaseName);
@@ -1183,12 +1191,12 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   char * schemaName = new char[strlen(internalName)];
   register const char *ptr1 = internalName;
    
-  /* Scan name for the second '/' */
-  while (*ptr1 && *ptr1 != '/')
+  /* Scan name for the second table_name_separator */
+  while (*ptr1 && *ptr1 != table_name_separator)
     ptr1++;
   strcpy(schemaName, ptr1 + 1);
   register char *ptr = schemaName;
-  while (*ptr && *ptr != '/')
+  while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
   BaseString ret = BaseString(schemaName);
