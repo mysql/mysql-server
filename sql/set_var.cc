@@ -82,6 +82,8 @@ static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -165,8 +167,8 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
-sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size);
-sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size);
+sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
+sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 sys_var_thd_ulong	sys_net_buffer_length("net_buffer_length",
@@ -586,6 +588,21 @@ static void fix_low_priority_updates(THD *thd, enum_var_type type)
 }
 
 
+static void
+fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_extra_temp_length=
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+}
+
+
+static void
+fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_temp_length=
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+}
+
 /*
   Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR
 */
@@ -815,15 +832,22 @@ byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
+  ulonglong tmp= var->value->val_int();
+
+  if ((ulonglong) tmp > max_system_variables.*offset)
+    tmp= max_system_variables.*offset;
+
+  if (option_limits)
+    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= var->value->val_int();
+    global_system_variables.*offset= (ulonglong) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= var->value->val_int();
+    thd->variables.*offset= (ulonglong) tmp;
   return 0;
 }
 

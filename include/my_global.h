@@ -290,7 +290,6 @@ C_MODE_END
 /* This has to be after include limits.h */
 #define HAVE_ERRNO_AS_DEFINE
 #define HAVE_FCNTL_LOCK
-#undef  HAVE_SYS_UN_H
 #undef  HAVE_FINITE
 #undef  HAVE_RINT
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
