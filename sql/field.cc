@@ -2877,7 +2877,8 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
   :Field_str(ptr_arg, 19, (uchar*) 0,0,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
-  flags|=ZEROFILL_FLAG; /* 4.0 MYD compatibility */
+  /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
   if (table && !table->timestamp_field && 
       unireg_check != NONE)
   {
