@@ -947,3 +947,13 @@ Variable_name	Value
 Qcache_hits	7
 DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
+SET SESSION query_cache_type = 2;
+create table t1(a int);
+select table_name from information_schema.tables
+where table_schema="test";
+table_name
+t1
+drop table t1;
+select table_name from information_schema.tables
+where table_schema="test";
+table_name

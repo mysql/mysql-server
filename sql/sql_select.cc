@@ -3716,8 +3716,12 @@ choose_plan(JOIN *join, table_map join_tables)
     }
   }
 
-  /* Store the cost of this query into a user variable */
-  last_query_cost= join->best_read;
+  /* 
+    Store the cost of this query into a user variable
+    Don't update last_query_cost for 'show status' command
+  */
+  if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
+    last_query_cost= join->best_read;
 
   DBUG_VOID_RETURN;
 }
