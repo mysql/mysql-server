@@ -15,7 +15,7 @@ select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 select pow(10,log10(10)),power(2,4);
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
-select pi(),sin(pi()/2),cos(pi()/2),abs(tan(pi())),cot(1),asin(1),acos(0),atan(1);
+select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 select degrees(pi()),radians(360);
 
 #
