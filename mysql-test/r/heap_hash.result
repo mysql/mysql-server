@@ -66,7 +66,7 @@ a
 alter table t1 engine=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uniq_id	uniq_id	4	NULL	4	Using where; Using index
+1	SIMPLE	t1	index	uniq_id	uniq_id	4	NULL	4	Using where; Using index
 drop table t1;
 create table t1 (x int not null, y int not null, key x  using HASH (x), unique y  using HASH (y))
 engine=heap;
