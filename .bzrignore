@@ -256,6 +256,7 @@ libmysqld/sql_yacc.cc
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
 libmysqld/time.cc
+libmysqld/uniques.cc
 libmysqld/unireg.cc
 libtool
 linked_client_sources

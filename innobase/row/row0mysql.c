@@ -1129,3 +1129,146 @@ funct_exit:
 	
 	return((int) err);
 }
+
+/*************************************************************************
+Checks that the index contains entries in an ascending order, unique
+constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction. */
+static
+ibool
+row_scan_and_check_index(
+/*=====================*/
+					/* out: TRUE if ok */
+	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL */
+	dict_index_t*	index,		/* in: index */
+	ulint*		n_rows)		/* out: number of entries seen in the
+					current consistent read */
+{
+	mem_heap_t*	heap;
+	dtuple_t*	prev_entry = NULL;
+	ulint		matched_fields;
+	ulint		matched_bytes;
+	byte*		buf;
+	ulint		ret;
+	rec_t*		rec;
+	ibool		is_ok	= TRUE;
+	int		cmp;
+	
+	*n_rows = 0;
+	
+	buf = mem_alloc(UNIV_PAGE_SIZE);
+	heap = mem_heap_create(100);
+	
+	/* Make a dummy template in prebuilt, which we will use
+	in scanning the index entries */
+
+	prebuilt->index = index;
+	prebuilt->sql_stat_start = TRUE;
+	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
+	prebuilt->n_template = 0;
+	prebuilt->need_to_access_clustered = FALSE;
+
+ 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
+
+	prebuilt->select_lock_type = LOCK_NONE;
+
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
+loop:
+	if (ret != DB_SUCCESS) {
+
+		mem_free(buf);
+		mem_heap_free(heap);
+
+		return(is_ok);
+	}
+
+	*n_rows = *n_rows + 1;
+	
+	/* row_search... returns the index record in buf, record origin offset
+	within buf stored in the first 4 bytes, because we have built a dummy
+	template */
+	
+	rec = buf + mach_read_from_4(buf);
+	
+	if (prev_entry != NULL) {
+		matched_fields = 0;
+		matched_bytes = 0;
+	
+		cmp = cmp_dtuple_rec_with_match(prev_entry, rec,
+						&matched_fields,
+						&matched_bytes);
+		if (cmp > 0) {
+			fprintf(stderr,
+			"Error: index records in a wrong order in index %s\n",
+			index->name);
+
+			is_ok = FALSE;
+		} else if ((index->type & DICT_UNIQUE)
+			   && matched_fields >=
+			   dict_index_get_n_ordering_defined_by_user(index)) {
+			fprintf(stderr,
+			"Error: duplicate key in index %s\n",
+			index->name);
+
+			is_ok = FALSE;			   	
+		}
+	}
+
+	mem_heap_empty(heap);
+	
+	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);	
+
+	goto loop;	
+}
+
+/*************************************************************************
+Checks a table for corruption. */
+
+ulint
+row_check_table_for_mysql(
+/*======================*/
+					/* out: DB_ERROR or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
+					handle */
+{
+	dict_table_t*	table	= prebuilt->table;
+	dict_index_t*	index;
+	ulint		n_rows;
+	ulint		n_rows_in_table;
+	ulint		ret 	= DB_SUCCESS;
+	
+	index = dict_table_get_first_index(table);
+
+	while (index != NULL) {
+      /*        fprintf(stderr, "Validating index %s\n", index->name); */
+	
+		if (!btr_validate_tree(index->tree)) {
+			ret = DB_ERROR;
+		} else {
+			if (!row_scan_and_check_index(prebuilt,
+							index, &n_rows)) {
+				ret = DB_ERROR;
+			}
+
+			/* fprintf(stderr, "%lu entries in index %s\n", n_rows,
+			  index->name); */
+
+			if (index == dict_table_get_first_index(table)) {
+				n_rows_in_table = n_rows;
+			} else if (n_rows != n_rows_in_table) {
+
+				ret = DB_ERROR;
+ 
+				fprintf(stderr,
+		"Error: index %s contains %lu entries, should be %lu\n",
+					index->name, n_rows, n_rows_in_table);
+			}
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return(ret);
+}
