@@ -244,7 +244,9 @@ int ha_isam::reset(void)
 
 int ha_isam::external_lock(THD *thd, int lock_type)
 {
-  return nisam_lock_database(file,lock_type);
+  if (!table->tmp_table)
+    return nisam_lock_database(file,lock_type);
+  return 0;
 }
 
 
