@@ -592,3 +592,24 @@ a	NULL
 b	NULL
 c	NULL
 drop table t1;
+SET collation_connection='ucs2_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_general_ci	00610009
+ucs2_general_ci	0061
+ucs2_general_ci	00610020
+drop table t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_bin	00610009
+ucs2_bin	0061
+ucs2_bin	00610020
+drop table t1;

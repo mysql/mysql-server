@@ -57,8 +57,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     DBUG_RETURN(1);
   }
 
-  if (thd->lex->duplicates == DUP_IGNORE)
-    thd->lex->select_lex.no_error= 1;
+  thd->lex->select_lex.no_error= thd->lex->ignore;
 
   /* Test if the user wants to delete all rows */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&

@@ -36,6 +36,7 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    List<create_field> &create,
 				    enum enum_duplicates handle_duplicates,
+                                    bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
@@ -2686,7 +2687,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      TABLE_LIST *table_list,
 		      List<create_field> &fields, List<Key> &keys,
 		      uint order_num, ORDER *order,
-		      enum enum_duplicates handle_duplicates,
+		      enum enum_duplicates handle_duplicates, bool ignore,
 		      ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table;
@@ -3205,7 +3206,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   copied=deleted=0;
   if (!new_table->is_view)
     error=copy_data_between_tables(table,new_table,create_list,
-				   handle_duplicates,
+				   handle_duplicates, ignore,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -3425,6 +3426,7 @@ static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<create_field> &create,
 			 enum enum_duplicates handle_duplicates,
+                         bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted)
@@ -3517,7 +3519,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
      current query id */
   from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-  if (handle_duplicates == DUP_IGNORE ||
+  if (ignore ||
       handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
@@ -3543,7 +3545,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
-      if ((handle_duplicates != DUP_IGNORE &&
+      if ((!ignore &&
 	   handle_duplicates != DUP_REPLACE) ||
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
@@ -3619,7 +3621,7 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,
-                                DUP_ERROR, &lex->alter_info, do_send_ok));
+                                DUP_ERROR, 0, &lex->alter_info, do_send_ok));
 }
 
 
