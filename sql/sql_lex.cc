@@ -30,15 +30,6 @@
 */
 sys_var_long_ptr trg_new_row_fake_var(0, 0);
 
-/*
-  Fake table list object, pointer to which is used as special value for
-  st_lex::time_zone_tables_used indicating that we implicitly use time
-  zone tables in this statement but real table list was not yet created.
-  Pointer to it is also returned by my_tz_get_tables_list() as indication
-  of transient error;
-*/
-TABLE_LIST fake_time_zone_tables_list;
-
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -1879,6 +1870,31 @@ void st_lex::first_lists_tables_same()
   }
 }
 
+
+/*
+  Add implicitly used time zone description tables to global table list
+  (if needed).
+
+  SYNOPSYS
+    st_lex::add_time_zone_tables_to_query_tables()
+      thd - pointer to current thread context
+
+  RETURN VALUE
+   TRUE  - error
+   FALSE - success
+*/
+
+bool st_lex::add_time_zone_tables_to_query_tables(THD *thd)
+{
+  /* We should not add these tables twice */
+  if (!time_zone_tables_used)
+  {
+    time_zone_tables_used= my_tz_get_table_list(thd, &query_tables_last);
+    if (time_zone_tables_used == &fake_time_zone_tables_list)
+      return TRUE;
+  }
+  return FALSE;
+}
 
 /*
   Link table back that was unlinked with unlink_first_table()
