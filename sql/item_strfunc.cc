@@ -2166,17 +2166,11 @@ void Item_func_set_collation::fix_length_and_dec()
 					 MY_CS_BINSORT,MYF(0));
   else
     set_collation= get_charset_by_name(colname,MYF(0));
-  
-  if (!set_collation)
-  {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), str->c_ptr());
-    return;
-  }
-  
-  if (!my_charset_same(args[0]->charset(),set_collation))
+
+  if (!set_collation || !my_charset_same(args[0]->charset(),set_collation))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-      set_collation->name,args[0]->charset()->csname);
+      colname,args[0]->charset()->csname);
     return;
   }
   set_charset(set_collation, COER_EXPLICIT);

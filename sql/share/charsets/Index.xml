@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="82">
+<charsets max-id="83">
 
 <description>
 This file lists all of the available character sets.
@@ -377,6 +377,7 @@ To make maintaining easier please:
   <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>
   <collation name="utf8"	id="33"	flag="primary"/>
+  <collation name="utf8_bin"	id="83"	flag="binary"/>
 </charset>
 
 <charset name="ucs2">
