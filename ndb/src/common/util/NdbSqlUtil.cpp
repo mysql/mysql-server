@@ -192,6 +192,14 @@ NdbSqlUtil::m_typeList[] = {
   { // 28
     Type::Olddecimalunsigned,
     cmpOlddecimalunsigned
+  },
+  { // 29
+    Type::Decimal,
+    cmpDecimal
+  },
+  { // 30
+    Type::Decimalunsigned,
+    cmpDecimalunsigned
   }
 };
 
@@ -481,6 +489,34 @@ NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1,
     return cmp_olddecimal(v1, v2, n1);
   }
   return CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  // compare as binary strings
+  unsigned n = (n1 <= n2 ? n1 : n2);
+  int k = memcmp(v1, v2, n);
+  if (k == 0) {
+    k = (full ? n1 : n) - n2;
+  }
+  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  // compare as binary strings
+  unsigned n = (n1 <= n2 ? n1 : n2);
+  int k = memcmp(v1, v2, n);
+  if (k == 0) {
+    k = (full ? n1 : n) - n2;
+  }
+  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
 }
 
 int
