@@ -139,8 +139,9 @@ void Dbtup::initializePage()
   ptrAss(pagePtr, page);
   pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
   
-  cnoOfAllocatedPages = 1 + MAX_PARALLELL_TUP_SRREQ;
-  returnCommonArea(cnoOfAllocatedPages, cnoOfPage - cnoOfAllocatedPages);
+  Uint32 tmp = 1 + MAX_PARALLELL_TUP_SRREQ;
+  returnCommonArea(tmp, cnoOfPage - tmp);
+  cnoOfAllocatedPages = tmp; // Is updated by returnCommonArea
   c_sr_free_page_0 = ~0;
 }//Dbtup::initializePage()
 
