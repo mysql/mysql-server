@@ -1030,7 +1030,7 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     {
       /* convert column_name <=> NULL -> column_name IS NULL */
       char *str= (char*) sql_alloc(1);		// Get local copy of key
-      if (!*str)
+      if (!str)
 	DBUG_RETURN(0);
       *str = 1;
       DBUG_RETURN(new SEL_ARG(field,str,str));
