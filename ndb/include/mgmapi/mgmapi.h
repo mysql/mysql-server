@@ -244,7 +244,9 @@ extern "C" {
    *   Log severities (used to filter the cluster log)
    */
   enum ndb_mgm_clusterlog_level {
-    NDB_MGM_CLUSTERLOG_OFF = 0,             /*< Cluster log off*/
+    NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,
+    /* must range from 0 and up, indexes into an array */
+    NDB_MGM_CLUSTERLOG_ON    = 0,           /*< Cluster log on*/
     NDB_MGM_CLUSTERLOG_DEBUG = 1,           /*< Used in NDB Cluster
 					     *< developement
 					     */
@@ -264,7 +266,8 @@ extern "C" {
 					     *< corrected immediately,
 					     *< such as a corrupted system
 					     */
-    NDB_MGM_CLUSTERLOG_ALL = 7              /*< All severities on*/
+    /* must be next number, works as bound in loop */
+    NDB_MGM_CLUSTERLOG_ALL = 7              /*< All severities */
   };
 
   /**
@@ -580,11 +583,13 @@ extern "C" {
    *
    * @param   handle        NDB management handle.
    * @param   level         A cluster log level to filter.
+   * @param   enable        set 1=enable 0=disable
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
   int ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
 				enum ndb_mgm_clusterlog_level level,
+				int enable,
 				struct ndb_mgm_reply* reply);
 
   /**
@@ -619,6 +624,11 @@ extern "C" {
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
+
+  ndb_mgm_clusterlog_level
+  ndb_mgm_match_clusterlog_level(const char * name);
+  const char * 
+  ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level level);
 
   /**
    * Set log category and levels for the Node
