@@ -6,7 +6,7 @@ connection master;
 drop database if exists mysqltest;
 sync_slave_with_master;
 # can't read dir
---replace_result "Errcode: 1" "Errcode: X" "Errcode: 2" "Errcode: X"
+--replace_result "Errcode: 1" "Errcode: X" "Errcode: 2" "Errcode: X" \\ /
 --error 12
 show tables from mysqltest;
 
