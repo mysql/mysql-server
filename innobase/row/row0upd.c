@@ -1196,7 +1196,7 @@ row_upd(
 		}
 	}
 
-	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+	if (!node->is_delete && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		goto function_exit;
 	}

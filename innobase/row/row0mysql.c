@@ -634,31 +634,21 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->in_update_remember_pos) {
-		if (prebuilt->index == clust_index) {
-			btr_pcur_copy_stored_position(node->pcur,
-							prebuilt->pcur);
-		} else {
-			btr_pcur_copy_stored_position(node->pcur,
-							prebuilt->clust_pcur);
-		}
-		
-	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
-
-	 	goto skip_cursor_search;
-	} else {
-	        /* MySQL seems to call rnd_pos before updating each row it
-	        has cached: we can get the correct cursor position from
-	        prebuilt->pcur; NOTE that we cannot build the row reference
-	        from mysql_rec if the clustered index was automatically
-	        generated for the table: MySQL does not know anything about
-	        the row id used as the clustered index key */
-
+	if (prebuilt->pcur->btr_cur.index == clust_index) {
 		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
-	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
-
-	 	goto skip_cursor_search;
+	} else {
+		btr_pcur_copy_stored_position(node->pcur, prebuilt->clust_pcur);
 	}
+		
+	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+	 	
+	/* MySQL seems to call rnd_pos before updating each row it
+	has cached: we can get the correct cursor position from
+	prebuilt->pcur; NOTE that we cannot build the row reference
+	from mysql_rec if the clustered index was automatically
+	generated for the table: MySQL does not know anything about
+	the row id used as the clustered index key */
+
 #ifdef notdefined
 	/* We have to search for the correct cursor position */
 
@@ -691,7 +681,6 @@ row_update_for_mysql(
 
 	mem_heap_free(heap);
 #endif
-skip_cursor_search:
 	savept = trx_savept_take(trx);
 	
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
