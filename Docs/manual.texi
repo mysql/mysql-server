@@ -14341,7 +14341,7 @@ privilege.
 
 @item --skip-stack-trace
 Don't write stack traces.  This option is useful when you are running
-@code{mysqld} under a debugger. On some system you also have to use
+@code{mysqld} under a debugger. On some systems you also have to use
 this option to get a core file. @xref{Debugging server}.
 
 @item --skip-thread-priority
