@@ -723,6 +723,7 @@ static void mysql_once_init()
   if (!mysql_client_init)
   {
     mysql_client_init=1;
+
     my_init();					/* Will init threads */
     init_client_errs();
     mysql_port = MYSQL_PORT;
@@ -1131,24 +1132,6 @@ my_bool my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 #endif
 }
 
-/*
-int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, ulong length)
-{
-  if (mysql->options.separate_thread)
-  {
-    return -1;
-  }
-
-  mysql->result= NULL;
-
-  free_old_query(mysql);
-
-  return simple_command(mysql, COM_QUERY, query, length, 1);
-}
-*/
-
-
 int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
@@ -1248,12 +1231,6 @@ mysql_store_result(MYSQL *mysql)
 
   mysql->status=MYSQL_STATUS_READY;		/* server is ready */
   return result;
-}
-
-void _0dummy()
-{
-  send_file_to_server(NULL, NULL);
-  net_field_length_ll(NULL);
 }
 
 /**************************************************************************

@@ -1017,7 +1017,7 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   net_store_data(packet, "error");
   net_store_data(packet, errmsg);
   thd->net.last_error[0]=0;
-  if (SEND_ROW(thd, &thd->net, 4, (char*) thd->packet.ptr(), packet->length()))
+  if (SEND_ROW(thd, 4, (char*) thd->packet.ptr(), packet->length()))
     return -1;
   return 1;
 }
@@ -1211,7 +1211,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
       net_store_data(packet, err_msg);
       thd->net.last_error[0]=0;
-      if (SEND_ROW(thd, &thd->net, field_list.elements, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
@@ -1226,7 +1226,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       net_store_data(packet, buff);
       close_thread_tables(thd);
       table->table=0;				// For query cache
-      if (SEND_ROW(thd, &thd->net, field_list.elements, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
@@ -1313,7 +1313,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+    if (SEND_ROW(thd, field_list.elements, 
 			  (char *)thd->packet.ptr(), thd->packet.length()))
       goto err;
   }

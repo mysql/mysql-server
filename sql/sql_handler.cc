@@ -233,7 +233,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
             goto err;
           }
         }
-	SEND_ROW(thd, &thd->net, list.elements, (char*)packet->ptr(), packet->length());
+	SEND_ROW(thd, list.elements, (char*)packet->ptr(), packet->length());
       }
     }
     num_rows++;
