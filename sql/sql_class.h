@@ -394,7 +394,7 @@ struct system_variables
   CHARSET_INFO 	*thd_charset;
 };
 
-
+void free_tmp_table(THD *thd, TABLE *entry);
 /*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
@@ -507,6 +507,7 @@ public:
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
   List<Item> *possible_loops; // Items that may cause loops in subselects
+  List<TABLE> temporary_tables_should_be_free; // list of temporary tables
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
@@ -662,6 +663,17 @@ public:
 #endif
 
   void add_possible_loop(Item *);
+  void free_tmp_tables()
+  {
+    if (temporary_tables_should_be_free.elements)
+    {
+      List_iterator_fast<TABLE> lt(temporary_tables_should_be_free);
+      TABLE *table;
+      while ((table= lt++))
+	free_tmp_table(this,table);
+      temporary_tables_should_be_free.empty();
+    }
+  }
 };
 
 /*

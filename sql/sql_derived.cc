@@ -99,21 +99,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     
   if (!(res=open_and_lock_tables(thd,tables)))
   {
-    if (is_union)
-    {
-      /* 
-	 The following code is a re-do of fix_tables_pointers() found
-	 in sql_select.cc for UNION's within derived tables. The only
-	 difference is in navigation, as in derived tables we care for
-	 this level only.
-
-      */
-      for (SELECT_LEX *sel= sl; sel; sel= sel->next_select())
-	relink_tables(sel);
-    }
-
-    lex->current_select= sl;
-    if (setup_fields(thd,tables,item_list,0,0,1))
+    if (setup_wild(thd, tables, item_list, 0, sl->with_wild) ||
+	setup_fields(thd, 0, tables, item_list, 0, 0, 1))
     {
       res= -1;
       goto exit;
@@ -144,12 +131,14 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       if (is_union)
 	res= mysql_union(thd,lex,derived_result,unit);
       else
-	res= mysql_select(thd, tables,  sl->item_list,
-			sl->where, (ORDER *) sl->order_list.first,
-			(ORDER*) sl->group_list.first,
-			sl->having, (ORDER*) NULL,
-			sl->options | thd->options  | SELECT_NO_UNLOCK,
-			derived_result, unit, sl, 0);
+        res= mysql_select(thd, &sl->ref_pointer_array, tables, sl->with_wild,
+			  sl->item_list, sl->where,
+			  sl->order_list.elements+sl->group_list.elements,
+			  (ORDER *) sl->order_list.first,
+			  (ORDER *) sl->group_list.first,
+			  sl->having, (ORDER*) NULL,
+			  sl->options | thd->options  | SELECT_NO_UNLOCK,
+			  derived_result, unit, sl, 0);
 
       if (!res)
       {
@@ -181,12 +170,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       delete derived_result;
     }
     if (res)
-      free_tmp_table(thd, table);
-    else
-    {
-      table->next= thd->derived_tables;
-      thd->derived_tables= table;
-    }
+mp_table(thd, table);
+
+
+>next= thd->derived_tables
+erived_tables= table;
+
 exit:
     lex->current_select= save_current_select;
     close_thread_tables(thd, 0, 1);

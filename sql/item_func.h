@@ -117,7 +117,7 @@ public:
   inline Item **arguments() const { return args; }
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
-  virtual void split_sum_func(List<Item> &fields);
+  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
   void fix_num_length_and_dec();
@@ -131,9 +131,11 @@ public:
   }
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
   bool check_loop(uint id);
   void set_outer_resolving();
+  Item * get_tmp_table_item();
 };
 
 

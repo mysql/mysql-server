@@ -439,6 +439,8 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
+  THD *thd= current_thd;
+
   if (unit->global_parameters->select_limit != HA_POS_ERROR)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -482,11 +484,15 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 
     sl->order_list.empty(); // no sense in ORDER BY without LIMIT
 
-    if (sl->having || sl->with_sum_func || sl->group_list.first)
+    if (sl->having || sl->with_sum_func || sl->group_list.elements)
     {
       sl->item_list.push_back(item);
+      setup_ref_array(thd, &sl->ref_pointer_array,
+		      1+ select_lex->with_sum_func +
+		      select_lex->order_list.elements +
+		      select_lex->group_list.elements);
       item= (*func)(expr, new Item_ref_null_helper(this,
-						   sl->item_list.head_ref(),
+						   sl->ref_pointer_array,
 						   (char *)"<no matter>",
 						   (char*)"<result>"));
       sl->having= and_items(sl->having, item);
@@ -678,8 +684,12 @@ int subselect_single_select_engine::prepare()
   prepared= 1;
   SELECT_LEX_NODE *save_select= thd->lex.current_select;
   thd->lex.current_select= select_lex;
-  if (join->prepare((TABLE_LIST*) select_lex->table_list.first,
+  if (join->prepare(&select_lex->ref_pointer_array,
+		    (TABLE_LIST*) select_lex->table_list.first,
+		    select_lex->with_wild,
 		    select_lex->where,
+		    select_lex->order_list.elements +
+		    select_lex->group_list.elements,
 		    (ORDER*) select_lex->order_list.first,
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,

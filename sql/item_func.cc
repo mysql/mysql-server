@@ -155,17 +155,19 @@ void Item_func::set_outer_resolving()
   }
 }
 
-void Item_func::split_sum_func(List<Item> &fields)
+void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
   Item **arg,**arg_end;
   for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
   {
     if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
-      (*arg)->split_sum_func(fields);
+      (*arg)->split_sum_func(ref_pointer_array, fields);
     else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
     {
+      uint el= fields.elements;
       fields.push_front(*arg);
-      *arg=new Item_ref((Item**) fields.head_ref(),0,(*arg)->name);
+      ref_pointer_array[el]= *arg;
+      *arg=new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
     }
   }
 }
@@ -234,14 +236,11 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
-
 Field *Item_func::tmp_table_field(TABLE *t_arg)
 {
   Field *res;
   LINT_INIT(res);
 
-  if (!t_arg)
-    return result_field;
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > 11)
@@ -310,6 +309,16 @@ void Item_func::fix_num_length_and_dec()
   for (uint i=0 ; i < arg_count ; i++)
     set_if_bigger(decimals,args[i]->decimals);
   max_length=float_length(decimals);
+}
+
+Item * Item_func::get_tmp_table_item()
+{
+  if (!with_sum_func && !const_item())
+  {
+    return new Item_field(result_field);
+  }
+  else
+    return get_same();
 }
 
 String *Item_int_func::val_str(String *str)

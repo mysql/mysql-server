@@ -52,6 +52,8 @@ public:
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
+  // copy constructor used by Item_field, Item_ref & agregate (sum) functions
+  Item(Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
@@ -70,7 +72,8 @@ public:
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;
-  virtual Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return 0; }
+  virtual Field *tmp_table_field() { return 0; }
+  virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
@@ -84,12 +87,14 @@ public:
   virtual bool const_item() const { return used_tables() == 0; }
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   virtual void update_used_tables() {}
-  virtual void split_sum_func(List<Item> &fields) {}
+  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
   virtual bool check_loop(uint id);
   virtual void top_level_item() {}
+  virtual Item * get_same() { return this; }
+  virtual Item * get_tmp_table_item() { return get_same(); }
 
   virtual bool binary() const
   { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
@@ -124,6 +129,8 @@ public:
     :db_name(db_name_par), table_name(table_name_par),
      field_name(field_name_par), depended_from(0), outer_resolving(0)
     { name = (char*) field_name_par; }
+  // copy constructor used by Item_field & Item_ref
+  Item_ident(Item_ident &item);
   const char *full_name() const;
   void set_outer_resolving() { outer_resolving= 1; }
 };
@@ -140,6 +147,8 @@ public:
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
   {}
+  // copy constructor need to process subselect with temporary tables
+  Item_field(Item_field &item);
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -163,10 +172,12 @@ public:
   {
     return field->type();
   }
-  Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return result_field; }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(TIME *ltime,bool fuzzydate);  
   bool get_time(TIME *ltime);  
   bool is_null() { return field->is_null(); }
+  Item * get_tmp_table_item();
 };
 
 
@@ -446,8 +457,13 @@ class Item_result_field :public Item	/* Item with result field */
 public:
   Field *result_field;				/* Save result here */
   Item_result_field() :result_field(0) {}
+  Item_result_field(Item_result_field &item): Item(item)
+  {
+    result_field= item.result_field;
+  }
   ~Item_result_field() {}			/* Required with gcc 2.95 */
-  Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return result_field; }
+  Field *tmp_table_field() { return result_field; }
+  Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
 };
@@ -461,6 +477,8 @@ public:
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
   Item_ref(Item **item, char *table_name_par,char *field_name_par)
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
+  // copy constructor need to process subselect with temporary tables
+  Item_ref(Item_ref &item): Item_ident(item), ref(item.ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
