@@ -220,7 +220,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(-1);				// Can't allocate buffers
   }
 
-  if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
     lf_info.ex = ex;
@@ -287,7 +287,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
-    if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open())
     {
       /*
         Make sure last block (the one which caused the error) gets logged.
@@ -332,28 +332,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (mysql_bin_log.is_open())
   {
-    if (opt_old_rpl_compat)
+    /*
+      As already explained above, we need to call end_io_cache() or the last
+      block will be logged only after Execute_load_log_event (which is wrong),
+      when read_info is destroyed.
+    */
+    read_info.end_io_cache(); 
+    if (lf_info.wrote_create_file)
     {
-      if (!read_file_from_client)
-      {
-	Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
-			     handle_duplicates, log_delayed);
-	mysql_bin_log.write(&qinfo);
-      }
-    }
-    else
-    {
-      /*
-        As already explained above, we need to call end_io_cache() or the last
-        block will be logged only after Execute_load_log_event (which is wrong),
-        when read_info is destroyed.
-      */
-      read_info.end_io_cache(); 
-      if (lf_info.wrote_create_file)
-      {
-        Execute_load_log_event e(thd, db, log_delayed);
-        mysql_bin_log.write(&e);
-      }
+      Execute_load_log_event e(thd, db, log_delayed);
+      mysql_bin_log.write(&e);
     }
   }
   if (transactional_table)
@@ -644,7 +632,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
 	cache.read_function = _my_b_net_read;
 
       need_end_io_cache = 1;
-      if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
     }
