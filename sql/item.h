@@ -706,8 +706,8 @@ public:
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0,
-  							&my_charset_bin)
+  Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
+    Item_string("",0, cs ? cs : &my_charset_bin)
     { name=(char*) header; max_length=length;}
   void make_field(Send_field *field);
 };
