@@ -168,7 +168,9 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
             this key, while prefix_len will contain the length of 
-            the beginning of this key without field used in MIN() 
+            the beginning of this key without field used in MIN(). 
+            Type of range for the key part for this field will be
+            returned in range_fl.
           */
           if ((outer_tables & table->map) ||
               !find_key_for_maxmin(0, &ref, item_field->field, conds,
@@ -178,24 +180,15 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             break;
           }
           bool error= table->file->index_init((uint) ref.key);
-          enum ha_rkey_function find_flag= range_fl & NEAR_MIN ?
-                              HA_READ_AFTER_KEY : HA_READ_KEY_OR_NEXT; 
-          /*
-            If we are doing MIN() on a column with NULL fields
-            we must read the key after the NULL column
-          */
-          if (item_field->field->null_bit)
-          {
-            ref.key_buff[ref.key_length++]= 1;
-            find_flag= HA_READ_AFTER_KEY;
-          }
 
           if (!ref.key_length)
             error= table->file->index_first(table->record[0]) != 0;
           else
-            error= table->file->index_read(table->record[0], key_buff,
-                                          ref.key_length,
-                                          find_flag) ||
+	        error= table->file->index_read(table->record[0],key_buff,
+					                       ref.key_length,
+					                       range_fl & NEAR_MIN ?
+					                       HA_READ_AFTER_KEY :
+					                       HA_READ_KEY_OR_NEXT) ||
                    reckey_in_range(0, &ref, item_field->field, 
                                    conds, range_fl, prefix_len); 
           if (table->key_read)
@@ -240,7 +233,9 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
             this key, while prefix_len will contain the length of 
-            the beginning of this key without field used in MAX() 
+            the beginning of this key without field used in MAX().
+            Type of range for the key part for this field will be
+            returned in range_fl.
           */
           if ((outer_tables & table->map) ||
 	          !find_key_for_maxmin(1, &ref, item_field->field, conds,
@@ -520,12 +515,13 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   if (org_key_part_used != *key_part_used ||
       (is_field_part && 
-       (between || max_fl == less_fl) && !cond->val_int()))
+       (between || eq_type || max_fl == less_fl) && !cond->val_int()))
   {
     /*
       It's the first predicate for this part or a predicate of the
       following form  that moves upper/lower bounds for max/min values:
       - field BETWEEN const AND const
+      - field = const 
       - field {<|<=} const, when searching for MAX
       - field {>|>=} const, when searching for MIN
     */
@@ -545,7 +541,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     }
     if (is_field_part)
     {
-      if (between)
+      if (between || eq_type)
         *range_fl&= ~(NO_MAX_RANGE | NO_MIN_RANGE);
       else
       {
@@ -578,7 +574,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     ref         in/out  Reference to the structure we store the key value
     field       in:     Field used inside MIN() / MAX()
     cond        in:     WHERE condition
-    range_fl    in/out  Bit flags for how to search if key is ok
+    range_fl    out:    Bit flags for how to search if key is ok
     prefix_len  out:    Length of prefix for the search range
 
   DESCRIPTION
@@ -739,17 +735,17 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond)
   case Item_func::GT_FUNC:
   case Item_func::GE_FUNC:
   {
-     Item *item= ((Item_func*) cond)->arguments()[1];
-     /* In case of 'const op item' we have to swap the operator */
-     if (!item->const_item())
-       less_fl= 1-less_fl;
-     /*
-       We only have to check the expression if we are using an expression like
-       SELECT MAX(b) FROM t1 WHERE a=const AND b>const
-       not for
-       SELECT MAX(b) FROM t1 WHERE a=const AND b<const
-     */
-     if (max_fl != less_fl)
+    Item *item= ((Item_func*) cond)->arguments()[1];
+    /* In case of 'const op item' we have to swap the operator */
+    if (!item->const_item())
+      less_fl= 1-less_fl;
+    /*
+      We only have to check the expression if we are using an expression like
+      SELECT MAX(b) FROM t1 WHERE a=const AND b>const
+      not for
+      SELECT MAX(b) FROM t1 WHERE a=const AND b<const
+    */
+    if (max_fl != less_fl)
       return cond->val_int() == 0;                // Return 1 if WHERE is false
     return 0;
   }
