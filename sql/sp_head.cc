@@ -47,10 +47,10 @@ sp_map_result_type(enum enum_field_types type)
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
-static Item *
-eval_func_item(THD *thd, Item *it, enum enum_field_types type)
+Item *
+sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 {
-  DBUG_ENTER("eval_func_item");
+  DBUG_ENTER("sp_eval_func_item");
   it= it->this_item();
   DBUG_PRINT("info", ("type: %d", type));
 
@@ -310,7 +310,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
 
-    nctx->push_item(eval_func_item(thd, *argp++, pvar->type));
+    nctx->push_item(sp_eval_func_item(thd, *argp++, pvar->type));
   }
   // Close tables opened for subselect in argument list
   close_thread_tables(thd);
@@ -387,7 +387,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	if (pvar->mode == sp_param_out)
 	  nctx->push_item(NULL); // OUT
 	else
-	  nctx->push_item(eval_func_item(thd, it, pvar->type)); // IN or INOUT
+	  nctx->push_item(sp_eval_func_item(thd, it,pvar->type)); // IN or INOUT
 	// Note: If it's OUT or INOUT, it must be a variable.
 	// QQ: Need to handle "global" user/host variables too!!!
 	if (pvar->mode == sp_param_in)
@@ -626,10 +626,10 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
        sl ;
        sl= sl->next_select_in_list())
   {
-    List_iterator_fast<Item> li(sl->item_list);
-
     if (sl->with_wild)
     {
+      List_iterator_fast<Item> li(sl->item_list);
+
       // Copy item_list
       sl->item_list_copy.empty();
       while (Item *it= li++)
@@ -638,7 +638,18 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
     sl->ref_pointer_array= 0;
     if (sl->prep_where)
       sl->where= sl->prep_where->copy_andor_structure(thd);
-    DBUG_ASSERT(sl->join == 0);
+    for (ORDER *order= (ORDER *)sl->order_list.first ;
+	 order ;
+	 order= order->next)
+    {
+      order->item_copy= order->item;
+    }
+    for (ORDER *group= (ORDER *)sl->group_list.first ;
+	 group ;
+	 group= group->next)
+    {
+      group->item_copy= group->item;
+    }
   }
 
   res= mysql_execute_command(thd);
@@ -660,6 +671,18 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
       while (Item *it= sl->item_list_copy.pop())
 	sl->item_list.push_back(it);
     }
+    for (ORDER *order= (ORDER *)sl->order_list.first ;
+	 order ;
+	 order= order->next)
+    {
+      order->item= order->item_copy;
+    }
+    for (ORDER *group= (ORDER *)sl->group_list.first ;
+	 group ;
+	 group= group->next)
+    {
+      group->item= group->item_copy;
+    }
   }
   thd->lex= olex;		// Restore the other lex
   thd->free_list= freelist;
@@ -675,7 +698,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set::execute");
   DBUG_PRINT("info", ("offset: %u", m_offset));
-  thd->spcont->set_item(m_offset, eval_func_item(thd, m_value, m_type));
+  thd->spcont->set_item(m_offset, sp_eval_func_item(thd, m_value, m_type));
   *nextp = m_ip+1;
   DBUG_RETURN(0);
 }
@@ -701,7 +724,7 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
-  Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (it->val_int())
     *nextp = m_dest;
@@ -718,7 +741,7 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if_not::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
-  Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (! it->val_int())
     *nextp = m_dest;
@@ -734,7 +757,7 @@ int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_freturn::execute");
-  thd->spcont->set_result(eval_func_item(thd, m_value, m_type));
+  thd->spcont->set_result(sp_eval_func_item(thd, m_value, m_type));
   *nextp= UINT_MAX;
   DBUG_RETURN(0);
 }

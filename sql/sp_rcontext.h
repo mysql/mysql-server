@@ -69,6 +69,9 @@ class sp_rcontext : public Sql_alloc
       m_frame[idx] = i;
   }
 
+  void
+  set_item_eval(uint idx, Item *i, enum_field_types type);
+
   inline Item *
   get_item(uint idx)
   {
