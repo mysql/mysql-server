@@ -2310,16 +2310,12 @@ olap_opt:
 	| WITH CUBE_SYM
           {
 	    LEX *lex=Lex;
-	    lex->olap = true;
-	    lex->select->olap= CUBE_TYPE;
 	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "CUBE");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	| WITH ROLLUP_SYM
           {
 	    LEX *lex=Lex;
-	    lex->olap = true;
-	    lex->select->olap= ROLLUP_TYPE;
 	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "ROLLUP");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
@@ -2407,7 +2403,7 @@ delete_limit_clause:
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulong) strtoll($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };

@@ -204,12 +204,12 @@ static char **opt_argv;
 #ifdef __WIN__
 #undef MYSQL_SERVER_SUFFIX
 #ifdef __NT__
-#if defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#if defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max-nt"
 #else
 #define MYSQL_SERVER_SUFFIX "-nt"
 #endif /* ...DB */
-#elif defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#elif defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max"
 #else
 #define MYSQL_SERVER_SUFFIX ""

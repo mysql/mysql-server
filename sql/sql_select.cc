@@ -2631,6 +2631,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					join->thd->select_limit)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
 	    sel->cond=orig_cond;
+	    /* Fix for EXPLAIN */
+	    if (sel->quick)
+	      join->best_positions[i].records_read= sel->quick->records;
 	  }
 	  else
 	  {

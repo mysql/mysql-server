@@ -1029,7 +1029,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 #else
 	error=pthread_cond_timedwait(&di->cond,&di->mutex,&abstime);
 #ifdef EXTRA_DEBUG
-	if (error && error != EINTR)
+	if (error && error != EINTR && error != ETIMEDOUT)
 	{
 	  fprintf(stderr, "Got error %d from pthread_cond_timedwait\n",error);
 	  DBUG_PRINT("error",("Got error %d from pthread_cond_timedwait",
