@@ -166,24 +166,26 @@ inline uint char_val(char X)
 ** This code detects new version password by leading char. 
 ** Old password has to be divisible by 8 length
 ** do not forget to increase array length if you need longer passwords
+** THIS FUNCTION DOES NOT HAVE ANY LENGTH CHECK 
 */
 
 void get_salt_from_password(ulong *res,const char *password)
 {
-  bzero(res,5*sizeof(res[0]));
-  if (password)
+  bzero(res,6*sizeof(res[0]));
+  if (password) // zero salt corresponds to empty password 
   {
     if (password[0]==PVERSION41_CHAR) // if new password
     {
       uint val=0;
       uint i;
       password++; // skip version identifier.
-      //get hashing salt from password and store in in the start of array
       
+      //get hashing salt from password and store in in the start of array      
       for (i=0 ; i < 4 ; i++)
 	val=(val << 4)+char_val(*password++);
       *res++=val; 
     }
+     // We process old passwords the same way as new ones in other case
     while (*password)
     {
       ulong val=0;
@@ -196,10 +198,16 @@ void get_salt_from_password(ulong *res,const char *password)
   return;
 }
 
-void make_password_from_salt(char *to, ulong *hash_res)
+void make_password_from_salt(char *to, ulong *hash_res,uint8 password_version)
 {
-  // warning this does not work for new passwords yet
-  sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+  if (!password_version) // Handling of old passwords.
+    sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+  else
+    if (password_version==PVERSION41_CHAR)
+      sprintf(to,"%c%04x%08lx%08lx%08lx%08lx%08lx",(uint)hash_res[0],hash_res[1],
+              hash_res[2],hash_res[3],hash_res[4],hash_res[5]);
+    else // Just use empty password if we can't handle it. This should not happen
+      to[0]='\0';
 }
 
 
