@@ -63,10 +63,11 @@ double Item_str_func::val()
   DBUG_ASSERT(fixed == 1);
   int err;
   char buff[64];
+  char *end_not_used;
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
   res= val_str(&tmp);
   return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			  NULL, &err) : 0.0;
+			  &end_not_used, &err) : 0.0;
 }
 
 longlong Item_str_func::val_int()
