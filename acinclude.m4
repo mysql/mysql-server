@@ -241,13 +241,10 @@ dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
 AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
 AC_MSG_CHECKING([for zlib compression library])
 case $SYSTEM_TYPE in
-dnl  This is a quick fix for Netware if AC_TRY_LINK for some reason 
-dnl  won't work there. Uncomment in case of failure and on Netware
-dnl  we'll always assume that zlib is present 
-dnl  *netware* | *modesto*)
-dnl     AC_MSG_RESULT(ok)
-dnl     AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
-dnl    ;;
+*netware* | *modesto*)
+     AC_MSG_RESULT(ok)
+     AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
+    ;;
   *)
     AC_ARG_WITH([zlib-dir],
                 AC_HELP_STRING([--with-zlib-dir=DIR],
