@@ -51,17 +51,38 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
 static uint sortlength(SORT_FIELD *sortorder,uint length);
 
-	/*
-	  Creates a set of pointers that can be used to read the rows
-	  in sorted order. This should be done with the functions
-	  in records.cc
+/*
+  Sort a table
 
-	  Before calling filesort, one must have done
-	  table->file->info(HA_STATUS_VARIABLE)
+  SYNOPSIS
+    filesort()
+    table		Table to sort
+    sortorder		How to sort the table
+    s_length		Number of elements in sortorder	
+    select		condition to apply to the rows
+    special		Not used.
+			(This could be used to sort the rows pointed on by
+			select->file)
+   examined_rows	Store number of examined rows here
 
-	  The result set is stored in table->io_cache or
-	  table->record_pointers
-	*/
+  IMPLEMENTATION
+    Creates a set of pointers that can be used to read the rows
+    in sorted order. This should be done with the functions
+    in records.cc
+  
+  REQUIREMENTS
+    Before calling filesort, one must have done
+    table->file->info(HA_STATUS_VARIABLE)
+
+  RETURN
+    HA_POS_ERROR	Error
+    #			Number of rows
+
+    examined_rows	will be set to number of examined rows
+
+    The result set is stored in table->io_cache or
+    table->record_pointers
+*/
 
 ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special, ha_rows max_rows,
@@ -127,8 +148,6 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=table->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
-  if (param.sort_length == param.ref_length && records > param.max_rows)
-    records=param.max_rows;			/* purecov: inspected */
 
 #ifdef USE_STRCOLL
   if (use_strcoll(default_charset_info) &&
@@ -372,16 +391,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
 	  DBUG_RETURN(HA_POS_ERROR);
 	idx=0;
-	if (param->ref_length == param->sort_length &&
-	    my_b_tell(tempfile)/param->sort_length >= param->max_rows)
-	{
-	  /*
-	    We are writing the result index file and have found all
-	    rows that we need.  Abort the sort and return the result.
-	  */
-	  error=HA_ERR_END_OF_FILE;
-	  break;			/* Found enough records */
-	}
 	indexpos++;
       }
       make_sortkey(param,sort_keys[idx++],ref_pos);
