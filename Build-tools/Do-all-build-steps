@@ -56,7 +56,7 @@ aclocal; autoheader; aclocal; automake; autoconf
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-# A normal user starts here. We must use mit-threads, bdb and innobase.
+# A normal user starts here. We must use mit-threads, bdb and innodb.
 # Otherwise they do not end up in the distribution.
 ./configure \
  --with-unix-socket-path=/var/tmp/mysql.sock \
@@ -64,7 +64,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
  --with-berkeley-db \
- --with-innobase
+ --with-innodb
 
 gmake -j 2 
 

@@ -17,9 +17,9 @@ package main;
 $opt_skip_create=$opt_skip_in=$opt_verbose=$opt_fast_insert=
 $opt_lock_tables=$opt_debug=$opt_skip_delete=$opt_fast=$opt_force=0;
 $opt_threads=5;
-$opt_host=""; $opt_db="test";
+$opt_host=$opt_user=$opt_password=""; $opt_db="test";
 
-GetOptions("host=s","db=s","loop-count=i","skip-create","skip-in","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","threads=i") || die "Aborted";
+GetOptions("host=s","db=s","user=s","password=s","loop-count=i","skip-create","skip-in","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","threads=i") || die "Aborted";
 $opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
 
 print "Test of multiple connections that test the following things:\n";
@@ -400,7 +400,7 @@ sub test_flush
 sub test_database
 {
   my ($database) = @_;
-  my ($dbh, $row, $i, $type, $table, $tables);
+  my ($dbh, $row, $i, $type, $tables);
   $dbh = DBI->connect("DBI:mysql:$database:$opt_host",
 		      $opt_user, $opt_password,
 		    { PrintError => 0}) || die $DBI::errstr;
@@ -409,7 +409,7 @@ sub test_database
   $type= "check";
   for ($i=0 ; !test_if_abort($dbh) ; $i++)
   {
-    sleep(10);
+    sleep(120);
     $sth=$dbh->prepare("$type table $tables") || die "Got error on prepare: $DBI::errstr\n";
     $sth->execute || die $DBI::errstr;
 
