@@ -49,7 +49,7 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,system_charset_info,
+  VOID(hash_init(&open_cache,&my_charset_bin,
 		 table_cache_size+16,0,0,table_cache_key,
 		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
