@@ -202,6 +202,29 @@ static inline int read_str(char * &buf, char *buf_end, char * &str,
   return 0;
 }
 
+/*
+  Transforms a string into "" or its expression in 0x... form.
+*/
+static char *str_to_hex(char *to, char *from, uint len)
+{
+  char *p= to;
+  if (len)
+  {
+    p= strmov(p, "0x");
+    for (uint i= 0; i < len; i++, p+= 2)
+    {
+      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
+      uint tmp= (uint) (uchar) from[i];
+      p[0]= _dig_vec_upper[tmp >> 4];
+      p[1]= _dig_vec_upper[tmp & 15];
+    }
+    *p= 0;
+  }
+  else
+    p= strmov(p, "\"\"");
+  return p; // pointer to end 0 of 'to'
+}
+
 
 /**************************************************************************
 	Log_event methods
@@ -2210,9 +2233,9 @@ void User_var_log_event::pack_info(Protocol* protocol)
       }
       else
       {
-        char *p= strxmov(buf + val_offset, "_", cs->csname, "'", NullS);
-        p+= escape_string_for_mysql(&my_charset_bin, p, val, val_len);
-        p= strxmov(p, "' COLLATE ", cs->name, NullS);
+        char *p= strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
+        p= str_to_hex(p, val, val_len);
+        p= strxmov(p, " COLLATE ", cs->name, NullS);
         event_len= p-buf;
       }
       break;
@@ -2341,11 +2364,24 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
       break;
     case STRING_RESULT:
     {
-      char *p;
-      if (!(p= (char *)my_alloca(2*val_len+1)))
+      /*
+        Let's express the string in hex. That's the most robust way. If we
+        print it in character form instead, we need to escape it with
+        character_set_client which we don't know (we will know it in 5.0, but
+        in 4.1 we don't know it easily when we are printing
+        User_var_log_event). Explanation why we would need to bother with
+        character_set_client (quoting Bar):
+        > Note, the parser doesn't switch to another unescaping mode after
+        > it has met a character set introducer.
+        > For example, if an SJIS client says something like:
+        > SET @a= _ucs2 \0a\0b'
+        > the string constant is still unescaped according to SJIS, not
+        > according to UCS2.
+      */
+      char *p, *q;
+      if (!(p= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits per byte
         break; // no error, as we are 'void'
-      escape_string_for_mysql(&my_charset_bin, p, val, val_len);
-#if MYSQL_VERSION_ID < 50000
+      str_to_hex(p, val, val_len);
       /*
         For proper behaviour when mysqlbinlog|mysql, we need to explicitely
         specify the variable's collation. It will however cause problems when
@@ -2360,14 +2396,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
         */
         fprintf(file, ":=???;\n");
       else
-        fprintf(file, ":=_%s'%s' COLLATE %s;\n", cs->csname, p, cs->name);
-#else
-      /*
-        In 5.0 we will have some SET CHARACTER_SET_ect automatically printed
-        for all events where it's needed.
-      */
-      fprintf(file, ":='%s';\n", p);
-#endif
+        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, p, cs->name);
       my_afree(p);
     }
       break;
