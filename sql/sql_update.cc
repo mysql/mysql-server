@@ -324,7 +324,9 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
   if (updated)
+  {
     query_cache_invalidate3(thd, table_list, 1);
+  }
 
   delete select;
   if (error >= 0)
@@ -788,8 +790,9 @@ bool multi_update::send_eof()
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
     if (updated)
+    {
       query_cache_invalidate3(thd, update_tables, 1);
-
+    }
     ::send_ok(&thd->net,
 	      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	      thd->insert_id_used ? thd->insert_id() : 0L,buff);
