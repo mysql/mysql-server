@@ -100,4 +100,4 @@ select "--- --position --" as "";
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=27 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # clean up
-drop table t1;
+drop table t1, t2;

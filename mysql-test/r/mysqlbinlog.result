@@ -80,4 +80,4 @@ insert into t1 values ("Alas");
 use test;
 SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");
-drop table t1;
+drop table t1, t2;

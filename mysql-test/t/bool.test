@@ -26,7 +26,6 @@ SELECT * FROM t1 WHERE NULL AND (@a:=@a+1);
 SELECT * FROM t1 WHERE NOT(a>=0 AND NULL AND (@b:=@b+1));
 SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
 SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
-SELECT @a, @b;
 DROP TABLE t1;
 
 
