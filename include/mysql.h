@@ -187,9 +187,9 @@ struct st_mysql_options {
   my_bool secure_auth;
 
   /* function pointers for local infile support */
-  int (*local_infile_init)(void **, char *);
+  int (*local_infile_init)(void **, const char *);
   int (*local_infile_read)(void *, char *, uint);
-  int (*local_infile_end)(void *);
+  void (*local_infile_end)(void *);
   int (*local_infile_error)(void *, char *, uint);
 };
 
@@ -394,12 +394,12 @@ my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 
 #define LOCAL_INFILE_ERROR_LEN 512
 
-int
+void
 mysql_set_local_infile_handler(MYSQL *mysql,
-                               int (*local_infile_init)(void **, char *),       
+                               int (*local_infile_init)(void **, const char *),
                                int (*local_infile_read)(void *, char *, uint),
-                               int (*local_infile_end)(void *),
-                               int (*local_infile_error)(void *, char *, uint));
+                               void (*local_infile_end)(void *),
+                               int (*local_infile_error)(void *, char*, uint));
 
 void
 mysql_set_local_infile_default(MYSQL *mysql);
