@@ -667,15 +667,20 @@ void Item_param::set_double(double value)
 }
 
 
-void Item_param::set_value(const char *str, uint length)
+void Item_param::set_value(const char *str, uint length, CHARSET_INFO *ci)
 {
   DBUG_ENTER("Item_param::set_value");
-  str_value.copy(str,length,default_charset());
+  str_value.copy(str,length,ci);
   item_type= STRING_ITEM;
   value_is_set= 1;
   maybe_null= 0;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
+}
+
+void Item_param::set_value(const char *str, uint length)
+{
+  set_value(str, length, default_charset());
 }
 
 
@@ -1558,7 +1563,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_TINY:
   {
-    longlong nr;
+    longlong nr;  
     nr= val_int();
     if (!null_value)
       result= protocol->store_tiny(nr);
