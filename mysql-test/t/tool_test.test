@@ -1,0 +1,105 @@
+########################### tool_test.test #############################
+#                                                                      #
+#  Test sequences for the check of mysqltest based test tools          #
+#                                                                      #
+#  Checked routines:                                                   #
+#              include/patchwork-check.inc                             #
+#                                                                      #
+########################################################################
+
+##### Check of include/patchwork-check.inc
+#
+use test ;
+--disable_abort_on_error
+
+#-----------------------------------------------------------------------
+# Simple test (special case):
+# The statement is made of only one piece and does not contain variables.
+#-----------------------------------------------------------------------
+set @stmt_part_1= 'SELECT 1 as "my_fine_statement"' ;
+set @max_var_number= 0;
+# switch debug output on (Attention: patchwork-check.inc will switch it off)
+let $__debug_= 1;
+--source include/patchwork-check.inc
+
+#-----------------------------------------------------------------------
+# Test case with many statement pieces and variables of all in
+# include/patchwork-check.inc available data types.
+#-----------------------------------------------------------------------
+set @stmt_part_1= 'SELECT ' ;
+set @stmt_part_2= ' + ' ;
+set @stmt_part_3= ' + ' ;
+set @stmt_part_4= ' + ' ;
+set @stmt_part_5= ' + ' ;
+set @stmt_part_6= ' + ' ;
+set @stmt_part_7= ' + ' ;
+set @stmt_part_8= ' + ' ;
+set @stmt_part_9= ' as "my_fine_statement"' ;
+set @max_var_number= 8;
+
+set @string_1= '1' ;
+set @type_1=   'BIGINT' ;
+set @string_2= 'nULL' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '2.0' ;
+set @type_3=   'DOUBLE' ;
+set @string_4= 'NuLL' ;
+set @type_4=   'DOUBLE' ;
+set @string_5= 'TEXT' ;
+set @type_5=   'LONGTEXT' ;
+set @string_6= 'NUlL' ;
+set @type_6=   'LONGTEXT' ;
+set @string_7= 'BLOB' ;
+set @type_7=   'LONGBLOB' ;
+set @string_8= 'NULl' ;
+set @type_8=   'LONGBLOB' ;
+
+# Initialization of all uservariables to the data type LONGTEXT and content,
+# which will not be repeated within the following tests.
+# 'include/patchwork-check.inc' MUST destroy all these settings.
+# That is why this initialization is NOT needed within test cases
+# calling include/patchwork-check.inc .
+set @var_1= 'YYYYYYYY' ;
+set @var_2= 'YYYYYYYY' ;
+set @var_3= 'YYYYYYYY' ;
+set @var_4= 'YYYYYYYY' ;
+set @var_5= 'YYYYYYYY' ;
+set @var_6= 'YYYYYYYY' ;
+set @var_7= 'YYYYYYYY' ;
+set @var_8= 'YYYYYYYY' ;
+
+# switch debug output on (Attention: patchwork-check.inc will switch it off)
+let $__debug_= 1;
+--source include/patchwork-check.inc
+
+### Execute the statement with more useful content of the variables.
+set @string_1= '1.0' ;
+set @type_1=   'DOUBLE' ;
+set @string_2= '3.0' ;
+set @type_2=   'DOUBLE' ;
+set @string_3= '2' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '4' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '5' ;
+set @type_5=   'BIGINT' ;
+set @string_6= '6' ;
+set @type_6=   'DOUBLE' ;
+set @string_7= '7' ;
+set @type_7=   'DOUBLE' ;
+set @string_8= '8' ;
+set @type_8=   'DOUBLE' ;
+
+# Initialization
+set @var_1= 'YYYYYYYY' ;
+set @var_2= 'YYYYYYYY' ;
+set @var_3= 'YYYYYYYY' ;
+set @var_4= 'YYYYYYYY' ;
+set @var_5= 'YYYYYYYY' ;
+set @var_6= 'YYYYYYYY' ;
+set @var_7= 'YYYYYYYY' ;
+set @var_8= 'YYYYYYYY' ;
+
+# switch debug output on (Attention: include/patchwork-check.inc switches it off)
+let $__debug_= 1;
+--source include/patchwork-check.inc
