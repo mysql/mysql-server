@@ -716,7 +716,7 @@ page_cur_parse_insert_rec(
 
 	       buf_page_print(page);
 
-	       ut_a(0);
+	       ut_error;
 	}
 
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);

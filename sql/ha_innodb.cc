@@ -981,19 +981,13 @@ innobase_commit_low(
         }
 
 #ifdef HAVE_REPLICATION
-        /* TODO: Guilhem should check if master_log_name, pending
-        etc. are right if the master log gets rotated! Possible bug here.
-        Comment by Heikki March 4, 2003. */
-
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
-                trx->mysql_master_log_pos = ((ib_longlong)
-                                         (active_mi->rli.group_master_log_pos +
-                                          active_mi->rli.event_len
-                                          ));
+                trx->mysql_master_log_pos= ((ib_longlong)
+                   			    active_mi->rli.future_group_master_log_pos);
         }
 #endif /* HAVE_REPLICATION */
 
@@ -2110,8 +2104,27 @@ ha_innobase::write_row(
 
   	DBUG_ENTER("ha_innobase::write_row");
 
-	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	if (prebuilt->trx !=
+			(trx_t*) current_thd->transaction.all.innobase_tid) {
+		char	err_buf[2000];
+		
+		fprintf(stderr,
+"InnoDB: Error: the transaction object for the table handle is at\n"
+"InnoDB: %lx, but for the current thread it is at %lx\n",
+			(ulong)prebuilt->trx,
+			(ulong)current_thd->transaction.all.innobase_tid);
+		
+		ut_sprintf_buf(err_buf, ((byte*)prebuilt) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around prebuilt: %.1000s\n", err_buf);
+
+		ut_sprintf_buf(err_buf,
+			((byte*)(&(current_thd->transaction.all))) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around transaction.all: %.1000s\n", err_buf);
+
+		ut_a(0);
+	}
 
   	statistic_increment(ha_write_count, &LOCK_status);
 

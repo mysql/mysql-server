@@ -657,18 +657,15 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 {
   longlong num;
+  ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
   
   num= eval_num_suffix(arg, err, (char*) optp->name);
-  if (num < (longlong) optp->min_value)
-    num= (longlong) optp->min_value;
-  else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value
-	   && optp->max_value) /* if max value is not set -> no upper limit */
+  if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value &&
+      optp->max_value) /* if max value is not set -> no upper limit */
     num= (longlong) (ulong) optp->max_value;
-  num= ((num - (longlong) optp->sub_size) / (optp->block_size ?
-					     (ulonglong) optp->block_size :
-					     1L));
-  return (longlong) (num * (optp->block_size ? (ulonglong) optp->block_size :
-			    1L));
+  num= ((num - (longlong) optp->sub_size) / block_size);
+  num= (longlong) (num * block_size);
+  return max(num, optp->min_value);
 }
 
 /*

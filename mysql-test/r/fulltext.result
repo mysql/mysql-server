@@ -142,6 +142,10 @@ a	b
 MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 a	b
+select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
+a	b
+select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
+a	b
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 a	b
 select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);

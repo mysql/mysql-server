@@ -2628,6 +2628,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
+
   /*
     Data is copied.  Now we rename the old table to a temp name,
     rename the new one to the old name, remove all entries from the old table

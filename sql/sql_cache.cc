@@ -1158,6 +1158,37 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Invalidate locked for write
+
+  SYNOPSIS
+    Query_cache::invalidate_locked_for_write()
+    tables_used - table list
+
+  NOTE
+    can be used only for opened tables
+*/
+void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
+{
+  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (query_cache_size > 0 && tables_used)
+  {
+    STRUCT_LOCK(&structure_guard_mutex);
+    if (query_cache_size > 0)
+    {
+      DUMP(this);
+      for (; tables_used; tables_used= tables_used->next)
+      {
+	if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE))
+	  invalidate_table(tables_used->table);
+      }
+    }
+    STRUCT_UNLOCK(&structure_guard_mutex);
+  }
+  DBUG_VOID_RETURN;
+}
+
 /*
   Remove all cached queries that uses the given table
 */

@@ -534,7 +534,9 @@ fil_node_close_file(
 	ibool	ret;
 
 	ut_ad(node && system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
@@ -742,7 +744,9 @@ fil_node_free(
 	fil_space_t*	space)	/* in: space where the file node is chained */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 	ut_a(node->n_pending == 0);
 
@@ -3383,7 +3387,9 @@ fil_node_prepare_for_io(
 	fil_space_t*	space)	/* in: space */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	if (system->n_open > system->max_n_open + 5) {
 		ut_print_timestamp(stderr);
@@ -3427,7 +3433,9 @@ fil_node_complete_io(
 {
 	ut_ad(node);
 	ut_ad(system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(node->n_pending > 0);
 	
@@ -3561,7 +3569,7 @@ fil_io(
 			space->name, (ulong) byte_offset, (ulong) len,
 			(ulong) type);
  			
-			ut_a(0);
+			ut_error;
 		}
 
 		if (node->size > block_offset) {
@@ -3726,7 +3734,7 @@ fil_aio_wait(
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
-		ut_a(0);
+		ut_error;
 #endif
 	} else {
 		srv_io_thread_op_info[segment] =(char *)"handle simulated aio";

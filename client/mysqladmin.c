@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
-   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
@@ -440,6 +440,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   }
 }
 
+
 /*
   Execute a command.
   Return 0 on ok
@@ -450,6 +451,14 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
+  /*
+    MySQL documentation relies on the fact that mysqladmin will
+    execute commands in the order specified, e.g.
+    mysqladmin -u root flush-privileges password "newpassword"
+    to reset a lost root password.
+    If this behaviour is ever changed, Docs should be notified.
+  */
+
   struct rand_struct rand_st;
 
   for (; argc > 0 ; argv++,argc--)

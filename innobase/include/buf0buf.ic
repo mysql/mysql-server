@@ -130,7 +130,9 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	buf_pool->ulint_clock++;
 
@@ -221,7 +223,7 @@ buf_block_align(
 "InnoDB: how to force recovery.\n",
  			(long)ptr, (long)frame_zero,
 					(long)(buf_pool->high_end));
-		ut_a(0);
+		ut_error;
 	}
 	
 	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
@@ -257,7 +259,7 @@ buf_frame_align(
 "InnoDB: how to force recovery.\n",
  			(long)ptr, (long)(buf_pool->frame_zero),
 					(long)(buf_pool->high_end));
-		ut_a(0);
+		ut_error;
 	}
 
 	return(frame);
@@ -447,8 +449,10 @@ buf_frame_modify_clock_inc(
 
 	block = buf_block_align(frame);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /*UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
 
@@ -466,8 +470,10 @@ buf_block_modify_clock_inc(
 				/* out: new value */
 	buf_block_t*	block)	/* in: block */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
 
@@ -490,8 +496,10 @@ buf_frame_get_modify_clock(
 
 	block = buf_block_align(frame);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(block->modify_clock);
 }
@@ -542,7 +550,9 @@ buf_page_hash_get(
 	ulint		fold;
 	
 	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 
@@ -642,6 +652,7 @@ buf_page_release(
 	}
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
@@ -656,7 +667,6 @@ buf_page_dbg_add_level(
 	ulint		level __attribute__((unused))) /* in: latching order
                                 level */
 {
-#ifdef UNIV_SYNC_DEBUG
 	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
-#endif
 }
+#endif /* UNIV_SYNC_DEBUG */

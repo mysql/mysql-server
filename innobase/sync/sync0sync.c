@@ -188,8 +188,10 @@ mutex_create_func(
 #endif
 	mutex_set_waiters(mutex, 0);
 	mutex->magic_n = MUTEX_MAGIC_N;
+#ifdef UNIV_SYNC_DEBUG
 	mutex->line = 0;
 	mutex->file_name = (char *) "not yet reserved";
+#endif /* UNIV_SYNC_DEBUG */
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
@@ -266,9 +268,11 @@ mutex_enter_nowait(
 /*===============*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*	   	file_name, 	/* in: file name where mutex
+	char*	   	file_name __attribute__((unused)),
+					/* in: file name where mutex
 					requested */
-	ulint	   	line)		/* in: line where requested */
+	ulint	   	line __attribute__((unused)))
+					/* in: line where requested */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -277,9 +281,6 @@ mutex_enter_nowait(
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
-		
-		mutex->file_name = file_name;
-		mutex->line = line;
 
 		return(0);	/* Succeeded! */
 	}
@@ -379,9 +380,6 @@ spin_loop:
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
 
-		mutex->file_name = file_name;
-		mutex->line = line;
-
                 return;
    	}
 
@@ -425,9 +423,6 @@ spin_loop:
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
-
-		mutex->file_name = file_name;
-		mutex->line = line;
 
 		if (srv_print_latch_waits) {
 			printf(
@@ -479,6 +474,7 @@ mutex_signal_object(
 	sync_array_signal_object(sync_primary_wait_array, mutex);
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Sets the debug information for a reserved mutex. */
 
@@ -516,7 +512,8 @@ mutex_get_debug_info(
 	*file_name = mutex->file_name;
 	*line	   = mutex->line;
 	*thread_id = mutex->thread_id;
-}	
+}
+#endif /* UNIV_SYNC_DEBUG */
 
 /**********************************************************************
 Sets the mutex latching level field. */
@@ -530,6 +527,7 @@ mutex_set_level(
 	mutex->level = level;
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only in the debug
 version. */
@@ -562,8 +560,6 @@ void
 mutex_list_print_info(void)
 /*=======================*/
 {
-#ifndef UNIV_SYNC_DEBUG
-#else
 	mutex_t*	mutex;
 	char*		file_name;
 	ulint		line;
@@ -596,7 +592,6 @@ mutex_list_print_info(void)
 	printf("Total number of mutexes %ld\n", count);
 	
 	mutex_exit(&mutex_list_mutex);
-#endif
 }
 
 /**********************************************************************
@@ -606,12 +601,6 @@ ulint
 mutex_n_reserved(void)
 /*==================*/
 {
-#ifndef UNIV_SYNC_DEBUG
-	printf("Sorry, cannot give mutex info in non-debug version!\n");
-	ut_error;
-
-	return(0);
-#else
 	mutex_t*	mutex;
 	ulint		count		= 0;
 
@@ -634,7 +623,6 @@ mutex_n_reserved(void)
 
 	return(count - 1); /* Subtract one, because this function itself
 			   was holding one mutex (mutex_list_mutex) */
-#endif
 }
 
 /**********************************************************************
@@ -645,19 +633,9 @@ ibool
 sync_all_freed(void)
 /*================*/
 {
-#ifdef UNIV_SYNC_DEBUG
-	if (mutex_n_reserved() + rw_lock_n_locked() == 0) {
-
-		return(TRUE);
-	} else {
-		return(FALSE);
-	}	
-#else
-	ut_error;
-
-	return(FALSE);
-#endif
+	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }
+#endif /* UNIV_SYNC_DEBUG */
 
 /**********************************************************************
 Gets the value in the nth slot in the thread level arrays. */
@@ -754,9 +732,6 @@ sync_thread_levels_g(
 				thread */
 	ulint		limit)	/* in: level limit */
 {
-	char*		file_name;
-	ulint		line;
-	os_thread_id_t	thread_id;
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
 	mutex_t*	mutex;
@@ -781,18 +756,28 @@ sync_thread_levels_g(
 						(ulong) mutex->cline);
 
 					if (mutex_get_lock_word(mutex) != 0) {
+#ifdef UNIV_SYNC_DEBUG
+						char*		file_name;
+						ulint		line;
+						os_thread_id_t	thread_id;
 
 		    				mutex_get_debug_info(mutex,
 						&file_name, &line, &thread_id);
 
-	printf("InnoDB: Locked mutex: addr %lx thread %ld file %s line %ld\n",
-		    	(ulong) mutex, (ulong) os_thread_pf(thread_id),
-						file_name, (ulong) line);
+						fprintf(stderr,
+		"InnoDB: Locked mutex: addr %p thread %ld file %s line %ld\n",
+		mutex, os_thread_pf(thread_id), file_name, (ulong) line);
+#else /* UNIV_SYNC_DEBUG */
+						fprintf(stderr,
+		"InnoDB: Locked mutex: addr %p\n", mutex);
+#endif /* UNIV_SYNC_DEBUG */
 					} else {
-						printf("Not locked\n");
+						fputs("Not locked\n", stderr);
 					}	
 				} else {
+#ifdef UNIV_SYNC_DEBUG
 					rw_lock_print(lock);
+#endif /* UNIV_SYNC_DEBUG */
 				}
 								
 				return(FALSE);
@@ -932,7 +917,9 @@ sync_thread_add_level(
 
 	if ((latch == (void*)&sync_thread_mutex)
 	    || (latch == (void*)&mutex_list_mutex)
+#ifdef UNIV_SYNC_DEBUG
 	    || (latch == (void*)&rw_lock_debug_mutex)
+#endif /* UNIV_SYNC_DEBUG */
 	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return;
@@ -1112,7 +1099,9 @@ sync_thread_reset_level(
 
 	if ((latch == (void*)&sync_thread_mutex)
 	    || (latch == (void*)&mutex_list_mutex)
+#ifdef UNIV_SYNC_DEBUG
 	    || (latch == (void*)&rw_lock_debug_mutex)
+#endif /* UNIV_SYNC_DEBUG */
 	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return(FALSE);
@@ -1198,11 +1187,13 @@ sync_init(void)
         mutex_create(&rw_lock_list_mutex);
         mutex_set_level(&rw_lock_list_mutex, SYNC_NO_ORDER_CHECK);
 
+#ifdef UNIV_SYNC_DEBUG
         mutex_create(&rw_lock_debug_mutex);
         mutex_set_level(&rw_lock_debug_mutex, SYNC_NO_ORDER_CHECK);
 
 	rw_lock_debug_event = os_event_create(NULL);
 	rw_lock_debug_waiters = FALSE;
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /**********************************************************************
@@ -1267,9 +1258,11 @@ sync_print(
 	char*	buf,		/* in/out: buffer where to print */
 	char*	buf_end)	/* in: buffer end */
 {
+#ifdef UNIV_SYNC_DEBUG
 	mutex_list_print_info();
 
 	rw_lock_list_print_info();
+#endif /* UNIV_SYNC_DEBUG */
 
 	sync_array_print_info(buf, buf_end, sync_primary_wait_array);
 

@@ -43,7 +43,9 @@ dict_get_first_table_name_in_db(
 	char*		table_name;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(1000);
 	
@@ -307,7 +309,9 @@ dict_load_columns(
 	ulint		i;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -414,7 +418,9 @@ dict_load_fields(
 	ulint		i;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	UT_NOT_USED(table);
 
@@ -526,7 +532,9 @@ dict_load_indexes(
 	dulint		id;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if ((ut_dulint_get_high(table->id) == 0)
 	    && (ut_dulint_get_low(table->id) < DICT_HDR_FIRST_ID)) {
@@ -700,7 +708,9 @@ dict_load_table(
 	ulint		err;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(1000);
 	
@@ -791,7 +801,7 @@ dict_load_table(
 	table->type = mach_read_from_4(field);
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		ut_a(0);
+		ut_error;
 	
 		field = rec_get_nth_field(rec, 6, &len);
 		table->mix_id = mach_read_from_8(field);
@@ -872,7 +882,9 @@ dict_load_table_on_id(
 	char*		name;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* NOTE that the operation of this function is protected by
 	the dictionary mutex, and therefore no deadlocks can occur
@@ -957,7 +969,9 @@ dict_load_sys_table(
 {
 	mem_heap_t*	heap;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(1000);
 
@@ -988,7 +1002,9 @@ dict_load_foreign_cols(
 	ulint		i;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
 					foreign->n_fields * sizeof(void*));
@@ -1069,7 +1085,9 @@ dict_load_foreign(
 	ulint		err;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	heap2 = mem_heap_create(1000);
 	
@@ -1201,7 +1219,9 @@ dict_load_foreigns(
 	ulint		err;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	sys_foreign = dict_table_get_low((char *) "SYS_FOREIGN");
 

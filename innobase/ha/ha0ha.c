@@ -89,8 +89,9 @@ ha_insert_for_fold(
 	ulint		hash;
 
 	ut_ad(table && data);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-	
+#endif /* UNIV_SYNC_DEBUG */
 	hash = hash_calc_hash(fold, table);
 
 	cell = hash_get_nth_cell(table, hash);
@@ -186,8 +187,9 @@ ha_delete(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_search_with_data(table, fold, data);
 
 	ut_a(node);
@@ -237,8 +239,9 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {

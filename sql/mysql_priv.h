@@ -407,6 +407,7 @@ int quick_rm_table(enum db_type base,const char *db,
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
+bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
@@ -432,7 +433,7 @@ bool check_stack_overrun(THD *thd,char *dummy);
 #define check_stack_overrun(A, B) 0
 #endif
 
-void table_cache_init(void);
+bool table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);
@@ -815,7 +816,7 @@ extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
-extern ulong max_insert_delayed_threads, max_user_connections;
+extern ulong max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
@@ -838,7 +839,7 @@ extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
-extern my_bool opt_readonly;
+extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;

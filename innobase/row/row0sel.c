@@ -930,7 +930,9 @@ row_sel_try_search_shortcut(
 	ut_ad(node->read_view);
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	row_sel_open_pcur(node, plan, TRUE, mtr);
 
@@ -2080,7 +2082,7 @@ row_sel_store_row_id_to_prebuilt(
 		      (ulong) len, index->table_name, index->name,
 		      (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID),
 		      err_buf);
-		ut_a(0);
+		ut_error;
 	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
@@ -2770,7 +2772,7 @@ row_search_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (trx->n_mysql_tables_in_use == 0) {
@@ -2831,7 +2833,7 @@ row_search_for_mysql(
 
 		if (direction != prebuilt->fetch_direction) {
 			if (prebuilt->n_fetch_cached > 0) {
-				ut_a(0);
+				ut_error;
 				/* TODO: scrollable cursor: restore cursor to
 				the place of the latest returned row,
 				or better: prevent caching for a scroll

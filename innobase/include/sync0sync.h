@@ -185,6 +185,7 @@ sync_thread_levels_empty_gen(
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
@@ -217,6 +218,7 @@ Prints debug info of currently reserved mutexes. */
 void
 mutex_list_print_info(void);
 /*========================*/
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
@@ -225,6 +227,7 @@ ulint
 mutex_get_lock_word(
 /*================*/
 	mutex_t*	mutex);	/* in: mutex */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex. */
@@ -234,6 +237,7 @@ mutex_get_waiters(
 /*==============*/
 				/* out: value to set */		
 	mutex_t*	mutex);	/* in: mutex */
+#endif /* UNIV_SYNC_DEBUG */
 
 /*
 		LATCHING ORDER WITHIN THE DATABASE
@@ -442,13 +446,13 @@ struct mutex_struct {
 				Otherwise, this is 0. */
 	UT_LIST_NODE_T(mutex_t)	list; /* All allocated mutexes are put into
 				a list.	Pointers to the next and prev. */
+#ifdef UNIV_SYNC_DEBUG
+	const char*	file_name;	/* File where the mutex was locked */
+	ulint	line;		/* Line where the mutex was locked */
 	os_thread_id_t thread_id; /* Debug version: The thread id of the
 				thread which locked the mutex. */
-	char*	file_name;	/* Debug version: File name where the mutex
-				was locked */
-	ulint	line;		/* Debug version: Line where the mutex was
-				locked */
-	ulint	level;		/* Debug version: level in the global latching
+#endif /* UNIV_SYNC_DEBUG */
+	ulint	level;		/* Level in the global latching
 				order; default SYNC_LEVEL_NONE */
 	char*	cfile_name;	/* File name where mutex created */
 	ulint	cline;		/* Line where created */

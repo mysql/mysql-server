@@ -150,7 +150,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
    */
   if ((lock_type == TL_WRITE_DELAYED &&
        ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
-	thd->slave_thread || !max_insert_delayed_threads)) ||
+	thd->slave_thread || !thd->variables.max_insert_delayed_threads)) ||
       (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE) ||
       (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
@@ -749,7 +749,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   if (!(tmp=find_handler(thd,table_list)))
   {
     /* Don't create more than max_insert_delayed_threads */
-    if (delayed_insert_threads >= max_insert_delayed_threads)
+    if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
     thd->proc_info="Creating delayed handler";
     pthread_mutex_lock(&LOCK_delayed_create);
@@ -1330,8 +1330,15 @@ bool delayed_insert::handle_inserts(void)
     pthread_mutex_lock(&mutex);
 
     delete row;
-    /* Let READ clients do something once in a while */
-    if (group_count++ == max_rows)
+    /*
+      Let READ clients do something once in a while
+      We should however not break in the middle of a multi-line insert
+      if we have binary logging enabled as we don't want other commands
+      on this table until all entries has been processed
+    */
+    if (group_count++ >= max_rows && (row= rows.head()) &&
+	(!(row->log_query & DELAYED_LOG_BIN && using_bin_log) ||
+	 row->query))
     {
       group_count=0;
       if (stacked_inserts || tables_in_use)	// Let these wait a while

@@ -247,6 +247,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
@@ -266,6 +267,7 @@ my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
+my_bool lower_case_file_system= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -295,7 +297,7 @@ ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
       created_tmp_disk_tables=0;
-ulong max_connections,max_insert_delayed_threads,max_used_connections,
+ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
@@ -1057,8 +1059,8 @@ static void set_user(const char *user)
     {
       /* Don't give a warning, if real user is same as given with --user */
       struct passwd *user_info= getpwnam(user);
-
-      if (!user_info || user_id != user_info->pw_uid)
+      if ((!user_info || user_id != user_info->pw_uid) &&
+	  global_system_variables.log_warnings)
 	fprintf(stderr,
 		"Warning: One can only use the --user switch if running as root\n");
     }
@@ -1195,7 +1197,7 @@ static void server_init(void)
     
     pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
-	     unix_socket, NullS);
+	     mysql_unix_port, NullS);
     bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
     bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
     if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
@@ -1753,7 +1755,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(max_connections+max_insert_delayed_threads+10);
+  init_thr_alarm(max_connections +
+		 global_system_variables.max_insert_delayed_threads + 10);
 #if SIGINT != THR_KILL_SIGNAL
   if (test_flags & TEST_SIGINT)
   {
@@ -2132,10 +2135,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 	DBUG_PRINT("warning",
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
-	sql_print_error("Warning: Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+	if (global_system_variables.log_warnings)
+	  sql_print_error("Warning: Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 			files, max_connections, table_cache_size);
       }
-      else
+      else if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
@@ -2267,8 +2271,9 @@ static void init_ssl()
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
-  table_cache_init();
-  hostname_cache_init();
+  if (table_cache_init() || hostname_cache_init())
+    unireg_abort(1);
+
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_resize(query_cache_size);
@@ -2349,7 +2354,8 @@ Now disabling --log-slave-updates.");
   {
     if (mlockall(MCL_CURRENT))
     {
-      sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
     }
     else
       locked_in_memory=1;
@@ -2523,11 +2529,27 @@ int main(int argc, char **argv)
     insensitive names.  If this is not done the users MyISAM tables will
     get corrupted if accesses with names of different case.
   */
+  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
   if (!lower_case_table_names &&
-      test_if_case_insensitive(mysql_real_data_home) == 1)
+      (lower_case_file_system=
+       (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
-    sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
-    lower_case_table_names= 2;
+    if (lower_case_table_names_used)
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_error("\
+Warning: You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
+			mysql_real_data_home);
+    }
+    else
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      lower_case_table_names= 2;
+    }
   }
 
   select_thread=pthread_self();
@@ -3636,7 +3658,7 @@ enum options_mysqld
   OPT_OPEN_FILES_LIMIT,
   OPT_PRELOAD_BUFFER_SIZE,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
-  OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
+  OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_READONLY, OPT_DEBUGGING,
@@ -4217,11 +4239,11 @@ replicating a LOAD DATA INFILE command.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4417,7 +4439,8 @@ The minimum value for this variable is 4096.",
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
    "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
-   (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
+   (gptr*) &global_system_variables.max_insert_delayed_threads,
+   (gptr*) &max_system_variables.max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_error_count", OPT_MAX_ERROR_COUNT,
    "Max number of errors/warnings to store for a statement.",
@@ -4554,12 +4577,17 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.query_cache_type,
    (gptr*) &max_system_variables.query_cache_type,
    0, GET_ULONG, REQUIRED_ARG, 1, 0, 2, 0, 1, 0},
+  {"query_cache_wlock_invalidate", OPT_QUERY_CACHE_WLOCK_INVALIDATE,
+   "Invalidate queries in query cache on LOCK for write",
+   (gptr*) &global_system_variables.query_cache_wlock_invalidate,
+   (gptr*) &max_system_variables.query_cache_wlock_invalidate,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif /*HAVE_QUERY_CACHE*/
   {"query_prealloc_size", OPT_QUERY_PREALLOC_SIZE,
    "Persistent buffer for query parsing and execution",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
-#endif /*HAVE_QUERY_CACHE*/
   {"read_buffer_size", OPT_RECORD_BUFFER,
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
@@ -4619,8 +4647,8 @@ The minimum value for this variable is 4096.",
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
-   0},
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
+   0, 1, 0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
    (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_ULONG, REQUIRED_ARG,
@@ -5622,6 +5650,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names= argument ? atoi(argument) : 1;
+    lower_case_table_names_used= 1;
     break;
   }
   return 0;
@@ -5901,6 +5930,7 @@ static int test_if_case_insensitive(const char *dir_name)
   File file;
   char buff[FN_REFLEN], buff2[FN_REFLEN];
   MY_STAT stat_info;
+  DBUG_ENTER("test_if_case_insensitive");
 
   fn_format(buff, glob_hostname, dir_name, ".lower-test",
 	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
@@ -5910,13 +5940,14 @@ static int test_if_case_insensitive(const char *dir_name)
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
     sql_print_error("Warning: Can't create test file %s", buff);
-    return -1;
+    DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));
   if (my_stat(buff2, &stat_info, MYF(0)))
     result= 1;					// Can access file
   (void) my_delete(buff, MYF(MY_WME));
-  return result;
+  DBUG_PRINT("exit", ("result: %d", result));
+  DBUG_RETURN(result);
 }
 
 

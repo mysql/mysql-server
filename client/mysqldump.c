@@ -80,8 +80,6 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
-	        opt_delete_master_logs=0, tty_password=0,
-		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,

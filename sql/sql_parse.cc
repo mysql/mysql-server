@@ -101,6 +101,7 @@ static void unlock_locked_tables(THD *thd)
   }
 }
 
+
 static bool end_active_trans(THD *thd)
 {
   int error=0;
@@ -113,6 +114,15 @@ static bool end_active_trans(THD *thd)
       error=1;
   }
   return error;
+}
+
+
+inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
+{
+  return (table_rules_on && tables && !tables_ok(thd,tables) &&
+          ((thd->lex.sql_command != SQLCOM_DELETE_MULTI) ||
+           !tables_ok(thd,
+		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
 }
 
 
@@ -1537,8 +1547,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
       // null test to handle EOM
-      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
-	  check_db_name(db))
+      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1554,8 +1563,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
       char *db=thd->strdup(packet), *alias;
       // null test to handle EOM
-      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
-	  check_db_name(db))
+      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1833,9 +1841,7 @@ mysql_execute_command(THD *thd)
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated
     */
-    if (table_rules_on && tables && !tables_ok(thd,tables) &&
-        ((lex->sql_command != SQLCOM_DELETE_MULTI) ||
-         !tables_ok(thd,(TABLE_LIST *)thd->lex->auxilliary_table_list.first)))
+    if (all_tables_not_ok(thd,tables))
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
@@ -2075,9 +2081,9 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     res = change_master(thd,active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT:
@@ -2085,9 +2091,9 @@ mysql_execute_command(THD *thd)
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     res = show_master_info(thd,active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -2139,7 +2145,7 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_TABLE_NAME, tables->real_name);
       break;
     }
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     /*
       fetch_master_table will send the error to the client on failure.
       Give error if the table already exists.
@@ -2149,7 +2155,7 @@ mysql_execute_command(THD *thd)
     {
       send_ok(thd);
     }
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
 #endif /* HAVE_REPLICATION */
@@ -2265,9 +2271,9 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     start_slave(thd,active_mi,1 /* net report*/);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SLAVE_STOP:
@@ -2290,9 +2296,9 @@ mysql_execute_command(THD *thd)
     break;
   }
   {
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     stop_slave(thd,active_mi,1/* net report*/);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
 #endif /* HAVE_REPLICATION */
@@ -3003,8 +3009,12 @@ mysql_execute_command(THD *thd)
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
-    if (!(res=open_and_lock_tables(thd,tables)))
+    if (!(res= open_and_lock_tables(thd, tables)))
     {
+#ifdef HAVE_QUERY_CACHE
+      if (thd->variables.query_cache_wlock_invalidate)
+	query_cache.invalidate_locked_for_write(tables);
+#endif /*HAVE_QUERY_CACHE*/
       thd->locked_tables=thd->lock;
       thd->lock=0;
       send_ok(thd);
@@ -3016,8 +3026,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CREATE_DB:
   {
     char *alias;
-    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
-	check_db_name(lex->name))
+    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -3047,8 +3056,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_DROP_DB:
   {
     char *alias;
-    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
-	check_db_name(lex->name))
+    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
       net_printf(thd, ER_WRONG_DB_NAME, lex->name);
       break;
@@ -3908,8 +3916,11 @@ void mysql_init_multi_delete(LEX *lex)
 }
 
 
-void
-mysql_parse(THD *thd, char *inBuf, uint length)
+/*
+  When you modify mysql_parse(), you may need to mofify
+  mysql_test_parse_for_slave() in this same file.
+*/
+void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -3948,6 +3959,31 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     lex_end(lex);
   }
   DBUG_VOID_RETURN;
+}
+
+/*
+  Usable by the replication SQL thread only: just parse a query to know if it
+  can be ignored because of replicate-*-table rules.
+
+  RETURN VALUES
+    0	cannot be ignored
+    1	can be ignored
+*/
+
+bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
+{
+  LEX *lex;
+  bool error= 0;
+
+  mysql_init_query(thd);
+  lex= lex_start(thd, (uchar*) inBuf, length);
+  if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
+      all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
+    error= 1;                /* Ignore question */
+  free_items(thd->free_list);  /* Free strings used by items */
+  lex_end(lex);
+
+  return error;
 }
 
 
@@ -4593,9 +4629,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (purge_time >= 0)
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
 #endif
     if (ha_flush_logs())
       result=1;
@@ -4656,10 +4692,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
-   LOCK_ACTIVE_MI;
+   pthread_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
      result=1;
-   UNLOCK_ACTIVE_MI;
+   pthread_mutex_unlock(&LOCK_active_mi);
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)

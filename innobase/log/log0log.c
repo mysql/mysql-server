@@ -133,7 +133,9 @@ log_buf_pool_get_oldest_modification(void)
 {
 	dulint	lsn;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	lsn = buf_pool_get_oldest_modification();
 
@@ -231,7 +233,9 @@ log_write_low(
 	ulint	data_len;
 	byte*	log_block;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 part_loop:
 	/* Calculate a part length */
 
@@ -298,7 +302,9 @@ log_close(void)
 	log_t*	log	= log_sys;
 	ulint	checkpoint_age;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	lsn = log->lsn;
 	
@@ -414,7 +420,9 @@ log_group_get_capacity(
 				/* out: capacity in bytes */
 	log_group_t*	group)	/* in: log group */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return((group->file_size - LOG_FILE_HDR_SIZE) * group->n_files); 
 }
@@ -430,7 +438,9 @@ log_group_calc_size_offset(
 	ulint		offset,	/* in: real offset within the log group */
 	log_group_t*	group)	/* in: log group */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(offset - LOG_FILE_HDR_SIZE * (1 + offset / group->file_size));
 }
@@ -446,7 +456,9 @@ log_group_calc_real_offset(
 	ulint		offset,	/* in: size offset within the log group */
 	log_group_t*	group)	/* in: log group */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(offset + LOG_FILE_HDR_SIZE
 		* (1 + offset / (group->file_size - LOG_FILE_HDR_SIZE)));
@@ -469,7 +481,9 @@ log_group_calc_lsn_offset(
 	ib_longlong	group_size;
 	ib_longlong	offset;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* If total log file size is > 2 GB we can easily get overflows
 	with 32-bit integers. Use 64-bit integers instead. */
@@ -583,7 +597,9 @@ log_calc_max_ages(void)
 	ulint		archive_margin;
 	ulint		smallest_archive_margin;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -873,7 +889,9 @@ log_flush_do_unlocks(
 	ulint	code)	/* in: any ORed combination of LOG_UNLOCK_FLUSH_LOCK
 			and LOG_UNLOCK_NONE_FLUSHED_LOCK */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* NOTE that we must own the log mutex when doing the setting of the
 	events: this is because transactions will wait for these events to
@@ -905,7 +923,9 @@ log_group_check_flush_completion(
 				/* out: LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
 	log_group_t*	group)	/* in: log group */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));	
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
 
@@ -939,7 +959,9 @@ log_sys_check_flush_completion(void)
 	ulint	move_start;
 	ulint	move_end;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (log_sys->n_pending_writes == 0) {
 	
@@ -1002,7 +1024,7 @@ log_io_complete(
 		return;
 	}
 
-	ut_a(0);	/* We currently use synchronous writing of the
+	ut_error;	/* We currently use synchronous writing of the
 			logs and cannot end up here! */
 
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
@@ -1046,7 +1068,9 @@ log_group_file_header_flush(
 	
 	UT_NOT_USED(type);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(nth_file < group->n_files);
 
@@ -1114,7 +1138,9 @@ log_group_write_buf(
 	ulint	next_offset;
 	ulint	i;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
@@ -1513,7 +1539,9 @@ void
 log_complete_checkpoint(void)
 /*=========================*/
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(log_sys->n_pending_checkpoint_writes == 0);
 
 	log_sys->next_checkpoint_no
@@ -1604,7 +1632,9 @@ log_group_checkpoint(
 	byte*	buf;
 	ulint	i;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
 	
 	buf = group->checkpoint_buf;
@@ -1758,7 +1788,9 @@ log_group_read_checkpoint_info(
 	log_group_t*	group,	/* in: log group */
 	ulint		field)	/* in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	log_sys->n_log_ios++;
 	
@@ -1776,7 +1808,9 @@ log_groups_write_checkpoint_info(void)
 {
 	log_group_t*	group;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -2041,7 +2075,9 @@ log_group_read_log_seg(
 	ulint	source_offset;
 	ibool	sync;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	sync = FALSE;
 
@@ -2113,9 +2149,11 @@ log_group_archive_file_header_write(
 	byte*	buf;
 	ulint	dest_offset;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(nth_file < group->n_files);
 
@@ -2152,9 +2190,11 @@ log_group_archive_completed_header_write(
 	byte*	buf;
 	ulint	dest_offset;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(nth_file < group->n_files);
 
 	buf = *(group->archive_file_header_bufs + nth_file);
@@ -2193,9 +2233,11 @@ log_group_archive(
 	ulint	n_files;
 	ulint	open_mode;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	start_lsn = log_sys->archived_lsn;
 
@@ -2320,9 +2362,11 @@ log_archive_groups(void)
 {
 	log_group_t*	group;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -2345,9 +2389,11 @@ log_archive_write_complete_groups(void)
 	dulint		end_lsn;
 	ulint		i;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -2409,9 +2455,11 @@ void
 log_archive_check_completion_low(void)
 /*==================================*/
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_a(0);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (log_sys->n_pending_archive_ios == 0
 			&& log_sys->archiving_phase == LOG_ARCHIVE_READ) {
@@ -2513,7 +2561,6 @@ loop:
 	
 	if (calc_new_limit) {
 		ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE
-								== 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 
@@ -2649,7 +2696,9 @@ log_archive_close_groups(
 	log_group_t*	group;
 	ulint		trunc_len;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
 
@@ -3172,7 +3221,9 @@ log_check_log_recs(
 	byte*	buf1;
 	byte*	scan_buf;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (len == 0) {
 
