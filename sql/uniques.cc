@@ -37,14 +37,20 @@
 
 int unique_write_to_file(gptr key, element_count count, Unique *unique)
 {
+  /*
+    Use unique->size (size of element stored in the tree) and not 
+    unique->tree.size_of_element. The latter is different from unique->size 
+    when tree implementation chooses to store pointer to key in TREE_ELEMENT
+    (instead of storing the element itself there)
+  */
   return my_b_write(&unique->file, (byte*) key,
-		    unique->tree.size_of_element) ? 1 : 0;
+		    unique->size) ? 1 : 0;
 }
 
 int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
 {
-  memcpy(unique->record_pointers, key, unique->tree.size_of_element);
-  unique->record_pointers+=unique->tree.size_of_element;
+  memcpy(unique->record_pointers, key, unique->size);
+  unique->record_pointers+=unique->size;
   return 0;
 }
 
@@ -132,7 +138,7 @@ bool Unique::get(TABLE *table)
   bzero((char*) &sort_param,sizeof(sort_param));
   sort_param.max_rows= elements;
   sort_param.sort_form=table;
-  sort_param.sort_length=sort_param.ref_length=tree.size_of_element;
+  sort_param.sort_length=sort_param.ref_length=size;
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
   sort_param.not_killable=1;
 
