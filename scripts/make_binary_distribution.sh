@@ -85,7 +85,7 @@ do
   fi
 done
 
-for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
+for i in COPYING README Docs/INSTALL-BINARY \
          MySQLEULA.txt LICENSE.doc README.NW 
 do
   if [ -f $i ]

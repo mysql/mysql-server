@@ -444,7 +444,7 @@ fi
 %files server
 %defattr(755 root, root)
 
-%doc %attr(644, root, root) COPYING COPYING.LIB README
+%doc %attr(644, root, root) COPYING README
 %doc %attr(644, root, root) Docs/manual.{html,ps,texi,txt} Docs/manual_toc.html
 %doc %attr(644, root, root) support-files/my-*.cnf
 
