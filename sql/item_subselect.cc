@@ -1421,13 +1421,15 @@ int subselect_indexsubquery_engine::exec()
 
 uint subselect_single_select_engine::cols()
 {
-  return select_lex->item_list.elements;
+  DBUG_ASSERT(select_lex->join); // should be called after fix_fields()
+  return select_lex->join->fields_list.elements;
 }
 
 
 uint subselect_union_engine::cols()
 {
-  return unit->first_select()->item_list.elements;
+  DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
+  return unit->types.elements;
 }
 
 
