@@ -115,7 +115,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(net,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  thd->master_access=acl_getroot(thd->host, thd->ip, thd->user,
+  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
@@ -433,7 +433,7 @@ check_connections(THD *thd)
     DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    sslaccept(ssl_acceptor_fd, net->vio);
+    sslaccept(ssl_acceptor_fd, net->vio, (long)60L);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)

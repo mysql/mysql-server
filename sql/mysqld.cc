@@ -242,15 +242,10 @@ static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
 static char glob_hostname[FN_REFLEN];
 
+#include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
-static bool opt_use_ssl = FALSE;
-static char *opt_ssl_key = 0;
-static char *opt_ssl_cert = 0;
-static char *opt_ssl_ca = 0;
-static char *opt_ssl_capath = 0;
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
-
 
 I_List <i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -725,6 +720,7 @@ void clean_up(bool print_message)
   my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
@@ -1712,7 +1708,7 @@ int main(int argc, char **argv)
   if (opt_use_ssl)
   {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-					   opt_ssl_ca, opt_ssl_capath);
+			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl=0;
@@ -3110,21 +3106,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"SSL_CTX_sess_accept",      (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
-  {"SSL_CTX_sess_accept_good", (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"SSL_CTX_sess_accept_renegotiate", (char*) 0, 		SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"SSL_CTX_sess_cb_hits",     (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
-  {"SSL_CTX_sess_number",      (char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
-  {"SSL_CTX_get_session_cache_mode", (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"SSL_CTX_sess_get_cache_size", (char*) 0,			SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"SSL_CTX_get_verify_mode",  (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"SSL_CTX_get_verify_depth", (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"SSL_get_verify_mode",      (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
-  {"SSL_get_verify_depth",     (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
-  {"SSL_session_reused",       (char*) 0,			SHOW_SSL_SESSION_REUSED},
-  {"SSL_get_version",          (char*) 0,  			SHOW_SSL_GET_VERSION},
-  {"SSL_get_cipher",           (char*) 0,  			SHOW_SSL_GET_CIPHER},
-  {"SSL_get_default_timeout",  (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"ssl_accepts",              (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
+  {"ssl_finished_accepts",     (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"ssl_finished_connects",    (char*) 0,  			SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"ssl_accept_renegotiates",  (char*) 0, 			SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"ssl_connect_renegotiates", (char*) 0, 		        SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"ssl_callback_cache_hits",  (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
+  {"ssl_session_cache_hits",   (char*) 0,		 	SHOW_SSL_CTX_SESS_HITS},
+  {"ssl_session_cache_misses", (char*) 0,		 	SHOW_SSL_CTX_SESS_MISSES},
+  {"ssl_session_cache_timeouts", (char*) 0,		 	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"ssl_used_session_cache_entries",(char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
+  {"ssl_client_connects",      (char*) 0,			SHOW_SSL_CTX_SESS_CONNECT},
+  {"ssl_session_cache_overflows", (char*) 0,		 	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"ssl_session_cache_size",   (char*) 0,		 	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"ssl_session_cache_mode",   (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"ssl_sessions_reused",      (char*) 0,			SHOW_SSL_SESSION_REUSED},
+  {"ssl_ctx_verify_mode",      (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"ssl_ctx_verify_depth",     (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"ssl_verify_mode",          (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
+  {"ssl_verify_depth",         (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
+  {"ssl_version",   	       (char*) 0,  			SHOW_SSL_GET_VERSION},
+  {"ssl_cipher",               (char*) 0,  			SHOW_SSL_GET_CIPHER},
+  {"ssl_cipher_list",          (char*) 0,  			SHOW_SSL_GET_CIPHER_LIST},
+  {"ssl_default_timeout",      (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},

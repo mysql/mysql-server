@@ -39,4 +39,10 @@
       my_free(opt_ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_ca = my_strdup(optarg, MYF(0));
       break;
+    case OPT_SSL_CIPHER:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_cipher = my_strdup(optarg, MYF(0));
+      break;
+
 #endif

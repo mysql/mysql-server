@@ -285,6 +285,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SHUTDOWN
+%token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
 %token	STRAIGHT_JOIN
@@ -316,6 +317,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
+%token  X509_SYM
 %token  COMPRESSED_SYM
 
 %token	BIGINT
@@ -3265,10 +3267,11 @@ grant:
 	  lex->columns.empty();
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
-	  lex->ssl_chipher=lex->ssl_subject=lex->ssl_issuer=0;
+	  lex->ssl_type=SSL_TYPE_NONE;
+	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	grant_option require_clause
+	require_clause grant_option 
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3302,25 +3305,32 @@ grant_privilege:
 	| FILE_SYM	{ Lex->grant |= FILE_ACL;}
 	| GRANT OPTION  { Lex->grant |= GRANT_ACL;}
 
-require_clause: /* empty */
- | REQUIRE_SYM require_list
-
-
 require_list: require_list_element AND require_list
 | require_list_element 
 
-
 require_list_element: SUBJECT_SYM TEXT_STRING
  {
-   Lex->ssl_subject=$2.str;
+   if (Lex->x509_subject) {
+     send_error(&Lex->thd->net,ER_GRANT_DUPL_SUBJECT);
+     YYABORT;
+   } else 
+   Lex->x509_subject=$2.str;
  }
  | ISSUER_SYM TEXT_STRING
  {
-   Lex->ssl_issuer=$2.str;
+   if (Lex->x509_issuer) {
+     send_error(&Lex->thd->net,ER_GRANT_DUPL_ISSUER);
+     YYABORT;
+   } else 
+     Lex->x509_issuer=$2.str;
  }
  | CIPHER_SYM TEXT_STRING
  {
-   Lex->ssl_chipher=$2.str;
+   if (Lex->ssl_cipher) {
+     send_error(&Lex->thd->net,ER_GRANT_DUPL_CIPHER);
+     YYABORT;
+   } else 
+     Lex->ssl_cipher=$2.str;
  }
  
 opt_table:
@@ -3429,16 +3439,18 @@ column_list_id:
 
 
 require_clause: /* empty */
-	| REQUIRE_SYM require_list { /* do magic */}
-
-require_list: require_list_element AND require_list
-	{ /* do magic */}
-	| require_list_element {/*do magic*/}
-
-require_list_element: SUBJECT_SYM TEXT_STRING
-	| ISSUER TEXT_STRING
- 	| CIPHER TEXT_STRING
-
+        | REQUIRE_SYM require_list 
+        {
+          Lex->ssl_type=SSL_TYPE_SPECIFIED;
+        }
+        | REQUIRE_SYM SSL_SYM
+        {
+          Lex->ssl_type=SSL_TYPE_ANY;
+        }
+        | REQUIRE_SYM X509_SYM
+        {
+          Lex->ssl_type=SSL_TYPE_X509;
+        }
 
 grant_option:
 	/* empty */ {}
