@@ -117,7 +117,9 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
     mi_check_print_warning(param,
 			   "%d clients is using or hasn't closed the table properly",
 			   share->state.open_count);
-    param->warning_printed=save;
+    /* If this will be fixed by the check, forget the warning */
+    if (param->testflag & T_UPDATE_STATE)
+      param->warning_printed=save;
   }
   return 0;
 }

@@ -62,7 +62,8 @@ File my_create_with_symlink(const char *linkname, const char *filename,
 int my_delete_with_symlink(const char *name, myf MyFlags)
 {
   char link_name[FN_REFLEN];
-  int was_symlink= !my_readlink(link_name, name, MYF(0));
+  int was_symlink= (!my_disable_symlinks &&
+		    !my_readlink(link_name, name, MYF(0)));
   int result;
   DBUG_ENTER("my_delete_with_symlink");
 
@@ -90,7 +91,8 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
   return my_rename(from, to, MyFlags);
 #else
   char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
-  int was_symlink= !my_readlink(link_name, name, MYF(0));
+  int was_symlink= (!my_disable_symlinks &&
+		    !my_readlink(link_name, name, MYF(0)));
   int result;
   DBUG_ENTER("my_rename_with_symlink");
 

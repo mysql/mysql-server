@@ -54,7 +54,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
     new_file_stat=stat((char*) to, &new_stat_buff);
 
-  if ((from_file=my_open(from,O_RDONLY,MyFlags)) >= 0)
+  if ((from_file=my_open(from,O_RDONLY | O_SHARE,MyFlags)) >= 0)
   {
     if (stat(from,&stat_buff))
     {
@@ -64,7 +64,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
       stat_buff=new_stat_buff;
     if ((to_file=  my_create(to,(int) stat_buff.st_mode,
-			     O_WRONLY | O_TRUNC | O_BINARY,
+			     O_WRONLY | O_TRUNC | O_BINARY | O_SHARE,
 			     MyFlags)) < 0)
       goto err;
 
