@@ -106,7 +106,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
   test_set set('val1','val2','val3') NOT NULL default '',
-  name char(20) default 'O''Brien' COMMENT 'O''Brien as default',
+  `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
   c int(11) NOT NULL default '0' COMMENT 'int column',
   `c-b` int(11) default NULL COMMENT 'name with a space',
   `space ` int(11) default NULL COMMENT 'name with a space'
