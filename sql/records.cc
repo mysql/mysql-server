@@ -249,12 +249,7 @@ static int init_rr_cache(READ_RECORD *info)
   rec_cache_size=info->cache_records*info->reclength;
   info->rec_cache_size=info->cache_records*info->ref_length;
 
-  /*
-      We are going to read the last three bytes of the buffer via uint3korr
-      This macro reads actually 4 bytes (for speed)
-      So, we have to allocate one more byte at the end of the buffer 
-      to avoid memory assertion fault 
-  */
+  // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
       !(info->cache=(byte*) my_malloc_lock(rec_cache_size+info->cache_records*
 					   info->struct_length+1,
