@@ -10625,6 +10625,23 @@ static void test_bug6058()
 }
 
 
+static void test_bug6059()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug6059");
+
+  stmt_text= "SELECT 'foo' INTO OUTFILE 'x.3'";
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  DIE_UNLESS(mysql_stmt_field_count(stmt) == 0);
+  mysql_stmt_close(stmt);
+}
+
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -10938,6 +10955,7 @@ int main(int argc, char **argv)
                                prepared statements */
     test_bug6049();         /* check support for negative TIME values */
     test_bug6058();         /* check support for 0000-00-00 dates */
+    test_bug6059();         /* correct metadata for SELECT ... INTO OUTFILE */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
