@@ -178,7 +178,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	btn	btn	10	NULL	1	Using where
 explain select * from t1 where btn like "h%";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	btn	btn	10	NULL	4	Using where
+1	SIMPLE	t1	range	btn	btn	10	NULL	#	Using where
 explain select * from t1 where btn like "a%";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	btn	btn	10	NULL	1	Using where

@@ -1833,6 +1833,7 @@ int read_line(char* buf, int size)
   return feof(*cur_file);
 }
 
+
 static char read_query_buf[MAX_QUERY];
 
 int read_query(struct st_query** q_ptr)
@@ -1840,7 +1841,7 @@ int read_query(struct st_query** q_ptr)
   char *p = read_query_buf, * p1 ;
   int expected_errno;
   struct st_query* q;
-  DBUG_ENTER("read_query_buf");
+  DBUG_ENTER("read_query");
 
   if (parser.current_line < parser.read_lines)
   {
@@ -1857,7 +1858,7 @@ int read_query(struct st_query** q_ptr)
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
   q->expected_errors= global_expected_errors;
-  q->abort_on_error= global_expected_errno[0] == 0;
+  q->abort_on_error= global_expected_errors == 0;
   bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
   global_expected_errors=0;
 
@@ -2308,7 +2309,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	    goto end;				/* Ok */
 	  }
 	}
-	DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+	DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
+			   q->expected_errors));
 	dynstr_append_mem(ds, "ERROR ",6);
 	replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
 				  strlen(mysql_sqlstate(mysql)));

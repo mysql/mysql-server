@@ -1798,10 +1798,10 @@ alter_list_item:
 	      YYABORT;
 	    }
 	    LEX *lex= Lex;
-	    lex->create_info.table_charset= $5;
-	    lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;  
-	    lex->create_info.default_table_charset= $5;
-	    lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+	    lex->create_info.table_charset= 
+	      lex->create_info.default_table_charset= $5;
+	    lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
+					    HA_CREATE_USED_DEFAULT_CHARSET);
 	    lex->simple_alter= 0;
 	  }
         | create_table_options_space_separated { Lex->simple_alter=0; }
