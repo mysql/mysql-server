@@ -5480,6 +5480,27 @@ create_field::create_field(Field *old_field,Field *orig_field)
   if (flags & BLOB_FLAG)
     pack_length= (pack_length- old_field->table->blob_ptr_size +
 		  portable_sizeof_char_ptr);
+
+  switch (sql_type)
+  {
+    case FIELD_TYPE_BLOB:
+      switch (pack_length - portable_sizeof_char_ptr)
+      {
+        case  1: sql_type= FIELD_TYPE_TINY_BLOB; break;
+        case  2: sql_type= FIELD_TYPE_BLOB; break;
+        case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
+        default: sql_type= FIELD_TYPE_LONG_BLOB; break;
+      }
+      length /= charset->mbmaxlen;
+      break;
+    case FIELD_TYPE_STRING:
+    case FIELD_TYPE_VAR_STRING:
+      length /= charset->mbmaxlen;
+      break;
+    default:
+      break;
+  }
+  
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
