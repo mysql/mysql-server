@@ -93,10 +93,10 @@ CREATE TABLE IF NOT EXISTS tables_priv (
 
 CREATE TABLE IF NOT EXISTS columns_priv (
   Host char(60) DEFAULT '' NOT NULL,
-  Db char(60) DEFAULT '' NOT NULL,
+  Db char(64) DEFAULT '' NOT NULL,
   User char(16) DEFAULT '' NOT NULL,
-  Table_name char(60) DEFAULT '' NOT NULL,
-  Column_name char(59) DEFAULT '' NOT NULL,
+  Table_name char(64) DEFAULT '' NOT NULL,
+  Column_name char(64) DEFAULT '' NOT NULL,
   Timestamp timestamp(14),
   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name,Column_name)
