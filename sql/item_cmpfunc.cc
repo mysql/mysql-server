@@ -650,6 +650,9 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
+  if (set_charset(args[0]->charset(),args[0]->coercibility,
+		  args[1]->charset(),args[1]->coercibility))
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
 }
 
 
@@ -690,11 +693,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
+    res->set_charset(charset());
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
+  res->set_charset(charset());
   return res;
 }
 
