@@ -383,11 +383,20 @@ UtilTransactions::clearTable3(Ndb* pNdb,
     
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
+      err = pTrans->getNdbError();
+      if(err.status == NdbError::TemporaryError){
+	ERR(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	par = 1;
+	goto restart;
+      }
       goto failed;
     }
     
     NdbResultSet * rs = pOp->readTuplesExclusive(par);
     if( rs == 0 ) {
+      err = pTrans->getNdbError();
       goto failed;
     }
     
@@ -647,8 +656,16 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
 
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      const NdbError err = pNdb->getNdbError();
       pNdb->closeTransaction(pTrans);
+
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
       return NDBT_FAILED;
     }
 
