@@ -817,10 +817,6 @@ bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
-int wild_compare(const char *str,const char *str_end,
-		 const char *wildstr,const char *wildend,char escape);
-int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
-		      const char *wildstr,const char *wildend,char escape);
 
 /* from hostname.cc */
 struct in_addr;
