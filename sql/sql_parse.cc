@@ -1704,11 +1704,6 @@ mysql_execute_command(THD *thd)
   */
   if (tables || &lex->select_lex != lex->all_selects_list)
     mysql_reset_errors(thd);
-  /*
-    Save old warning count to be able to send to client how many warnings we
-    got
-  */
-  thd->old_total_warn_count= thd->total_warn_count;
 
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
