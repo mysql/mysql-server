@@ -50,10 +50,9 @@ flush privileges;
 use mysqltest;
 create table t1 (id int primary key, data varchar(255));
 
-connect (mrbad, localhost, mysqltest_1,,);
+connect (mrbad, localhost, mysqltest_1,,mysqltest);
 connection mrbad;
 show grants for current_user();
-use mysqltest;
 insert into t1 values (1, 'I can''t change it!');
 --error 1044
 update t1 set data='I can change it!' where id = 1;
@@ -61,11 +60,32 @@ update t1 set data='I can change it!' where id = 1;
 --error 1044
 insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
 select * from t1;
+disconnect mrbad;
 
 connection default;
 drop table t1;
-drop database mysqltest;
-use test;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
+
+create table t1 (a int, b int);
+grant select (a) on t1 to mysqltest_1@localhost with grant option;
+connect (mrugly, localhost, mysqltest_1,,mysqltest);
+connection mrugly;
+--error 1143
+grant select (a,b) on t1 to mysqltest_2@localhost;
+--error 1142
+grant select on t1 to mysqltest_3@localhost;
+disconnect mrugly;
+
+connection default;
+drop table t1;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+drop database mysqltest;
+use test;
+

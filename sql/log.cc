@@ -2036,6 +2036,7 @@ bool flush_error_log()
     char err_renamed[FN_REFLEN], *end;
     end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
     strmov(end, "-old");
+    VOID(pthread_mutex_lock(&LOCK_error_log));
 #ifdef __WIN__
     char err_temp[FN_REFLEN+4];
     /*
@@ -2056,7 +2057,7 @@ bool flush_error_log()
       if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
         while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
-             my_fwrite(stderr, (byte*) buf, (uint) strlen(buf),MYF(0));
+             my_fwrite(stderr, (byte*) buf, bytes, MYF(0));
         my_close(fd, MYF(0));
       }
       (void) my_delete(err_temp, MYF(0)); 
@@ -2070,6 +2071,7 @@ bool flush_error_log()
    else
      result= 1;
 #endif
+    VOID(pthread_mutex_unlock(&LOCK_error_log));
   }
    return result;
 }

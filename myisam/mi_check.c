@@ -1466,12 +1466,14 @@ static int writekeys(MI_CHECK *param, register MI_INFO *info, byte *buff,
         if (_mi_ft_add(info,i,(char*) key,buff,filepos))
 	  goto err;
       }
+#ifdef HAVE_SPATIAL
       else if (info->s->keyinfo[i].flag & HA_SPATIAL)
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
 	if (rtree_insert(info, i, key, key_length))
 	  goto err;
       }
+#endif /*HAVE_SPATIAL*/
       else
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
