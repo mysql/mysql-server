@@ -351,7 +351,9 @@ int mysql_update(THD *thd,
     This must be before binlog writing and ha_autocommit_...
   */
   if (updated)
+  {
     query_cache_invalidate3(thd, table_list, 1);
+  }
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);

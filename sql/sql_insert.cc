@@ -357,7 +357,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       before binlog writing and ha_autocommit_...
     */
     if (info.copied || info.deleted)
+    {
       query_cache_invalidate3(thd, table_list, 1);
+    }
 
     transactional_table= table->file->has_transactions();
 
@@ -1465,7 +1467,9 @@ void select_insert::send_error(uint errcode,const char *err)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
   }
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
+  }
   ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }

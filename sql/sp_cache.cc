@@ -120,7 +120,7 @@ static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,
 			       my_bool first)
 {
-  return ((sp_head*)ptr)->name(plen);
+  return (byte*) ((sp_head*)ptr)->name(plen);
 }
 
 static void
