@@ -1,9 +1,11 @@
 #! /bin/sh
+gmake -k clean || true 
+/bin/rm -f */.deps/*.P config.cache
 
-path=`dirname $0`
-. "$path/SETUP.sh"
+aclocal && autoheader && aclocal && automake && autoconf
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-extra_flags="$sparc_cflags -DHAVE_PURIFY -O2"
-extra_configs="$sparc_configs --with-debug=full"
+CFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -DHAVE_purify -O2" CXX=gcc CXXFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -DHAVE_PURIFY -O2" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-debug=full
 
-. "$path/FINISH.sh"
+gmake -j 4

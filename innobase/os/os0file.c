@@ -318,11 +318,8 @@ try_again:
 	UT_NOT_USED(purpose);
 
 	if (create_mode == OS_FILE_CREATE) {
-#ifndef S_IRWXU
-                file = open(name, create_flag);
-#else
-	        file = open(name, create_flag, S_IRWXU | S_IRWXG | S_IRWXO);
-#endif
+	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
+			                     | S_IWGRP | S_IROTH | S_IWOTH);
         } else {
                 file = open(name, create_flag);
         }
@@ -905,19 +902,21 @@ os_aio_init(
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
 	}
 
-#if defined(POSIX_ASYNC_IO) && defined(NOT_USED_WITH_MYSQL)
+#ifdef POSIX_ASYNC_IO
 	/* Block aio signals from the current thread and its children:
 	for this to work, the current thread must be the first created
 	in the database, so that all its children will inherit its
 	signal mask */
 	
+	/* TODO: to work MySQL needs the SIGALARM signal; the following
+	will not work yet! */
         sigemptyset(&sigset);
 	sigaddset(&sigset, SIGRTMIN + 1 + 0);
 	sigaddset(&sigset, SIGRTMIN + 1 + 1);
 	sigaddset(&sigset, SIGRTMIN + 1 + 2);
 	sigaddset(&sigset, SIGRTMIN + 1 + 3);
 
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+	pthread_sigmask(SIG_BLOCK, &sigset, NULL); */
 #endif
 }
 				

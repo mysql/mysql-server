@@ -158,6 +158,7 @@ class ha_gemini: public handler
 #define GEM_OPTID_SPIN_RETRIES      1
 
 extern bool gemini_skip;
+extern SHOW_COMP_OPTION have_gemini;
 extern long gemini_options;
 extern long gemini_buffer_cache;
 extern long gemini_io_threads;

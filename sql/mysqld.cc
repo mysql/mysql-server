@@ -1696,9 +1696,9 @@ int main(int argc, char **argv)
 #ifdef EXTRA_DEBUG
     case 1:
       sql_print_error("\
-Warning: You should set server-id to a non-0 value if log-bin is enabled.\n\
-mysqld will log updates to the binary log, but will not accept connections\n\
-from slaves.");
+Warning: You have enabled the binary log, but you haven't set server-id:\n\
+Updates will be logged to the binary log, but connections to slaves will\n\
+not be accepted.");
       break;
 #endif
     case 2:

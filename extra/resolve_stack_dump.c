@@ -31,7 +31,7 @@
 #define INIT_SYM_TABLE  4096
 #define INC_SYM_TABLE  4096
 #define MAX_SYM_SIZE   128
-#define DUMP_VERSION "1.1"
+#define DUMP_VERSION "1.2"
 #define HEX_INVALID  (uchar)255
 
 typedef ulong my_long_addr_t ; /* at some point, we need to fix configure
@@ -72,14 +72,15 @@ static void usage()
   printf("MySQL AB, by Sasha Pachev\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Resolve numeric stack strace dump into symbols.\n\n");
-  printf("Usage: %s [OPTIONS]\n", my_progname);
+  printf("Usage: %s [OPTIONS] symbols-file [numeric-dump-file]\n", my_progname);
   printf("\n\
   -?, --help               Display this help and exit.\n\
   -h, --host=...           Connect to host.\n\
-  -V, --version            Output version information and exit.\n\
-  -n, --numeric-dump-file  File containing the numeric stack dump.\n\
-  -s, --symbols-file=...   File containting the output of\
- nm --numeric-sort mysqld    .\n\n");
+  -V, --version            Output version information and exit.\n");
+  printf("\n\
+The symbols-file should include the output from:  'nm --numeric-sort mysqld'.\n\
+The numeric-dump-file should contain a numeric stack trace from mysqld.\n\
+If the numeric-dump-file is not given, the stack trace is read from stdin.\n");
 }
 
 
@@ -125,14 +126,37 @@ static int parse_args(int argc, char **argv)
 
   argc-=optind;
   argv+=optind;
-  if (argc > 0)
+
+  /*
+    The following code is to make the command compatible with the old
+    version that required one to use the -n and -s options
+ */
+
+  if (argc == 2)
+  {
+    sym_fname= argv[0];
+    dump_fname= argv[1];
+  }
+  else if (argc == 1)
+  {
+    if (!sym_fname)
+      sym_fname = argv[0];
+    else if (!dump_fname)
+      dump_fname = argv[0];
+    else
+    {
+      usage();
+      exit(1);
+    }
+  }
+  else if (argc != 0 || !sym_fname)
   {
     usage();
     exit(1);
   }
-
   return 0;
 }
+
 
 static void open_files()
 {
