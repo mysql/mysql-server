@@ -406,7 +406,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
       lockReq->hashValue = md5_hash(buf64, keyPar.m_size);
-      lockReq->tupAddr = ent.m_tupAddr;
+      lockReq->tupAddr = getTupAddr(frag, ent);
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       // execute
@@ -503,7 +503,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     }
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-    conf->localKey[0] = ent.m_tupAddr;
+    conf->localKey[0] = getTupAddr(frag, ent);
     conf->localKey[1] = 0;
     conf->localKeyLength = 1;
     unsigned signalLength = 6;
@@ -1001,10 +1001,10 @@ Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
   Uint32 tableId = frag.m_tableId;
   Uint32 fragBit = ent.m_fragBit;
   Uint32 fragId = frag.m_fragId | (fragBit << frag.m_fragOff);
-  Uint32 tupAddr = ent.m_tupAddr;
+  Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   /* Check for same tuple twice in row */
-  if (scan.m_lastEnt.m_tupAddr == tupAddr &&
+  if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
       scan.m_lastEnt.m_fragBit == fragBit) {
     jam();
     return false;

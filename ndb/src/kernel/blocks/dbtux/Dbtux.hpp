@@ -183,17 +183,17 @@ private:
   // tree definitions
 
   /*
-   * Tree entry.  Points to a tuple in primary table via logical address
-   * of "original" tuple and tuple version.  Uses 2 words to get correct
-   * aligment (one byte is wasted currently).
+   * Tree entry.  Points to a tuple in primary table via physical
+   * address of "original" tuple and tuple version.
+   *
+   * ZTUP_VERSION_BITS must be 15 (or less).
    */
   struct TreeEnt;
   friend struct TreeEnt;
   struct TreeEnt {
-    TupAddr m_tupAddr;          // address of original tuple
-    Uint16 m_tupVersion;        // version
-    Uint8 m_fragBit;            // which duplicated table fragment
-    Uint8 pad1;
+    TupLoc m_tupLoc;            // address of original tuple
+    unsigned m_tupVersion : 15; // version
+    unsigned m_fragBit : 1;     // which duplicated table fragment
     TreeEnt();
     // methods
     int cmp(const TreeEnt ent) const;
@@ -615,8 +615,6 @@ private:
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
   void dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData);
-  // helpers
-  DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
 
   /*
    * DbtuxMaint.cpp
@@ -722,7 +720,9 @@ private:
   // buffers
   Data c_keyBuffer;             // search key or scan bound
 
-  // small stuff
+  // inlined utils
+  DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
+  Uint32 getTupAddr(const Frag& frag, const TreeEnt ent);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
 };
@@ -852,24 +852,26 @@ Dbtux::TupLoc::operator!=(const TupLoc& loc) const
 
 inline
 Dbtux::TreeEnt::TreeEnt() :
-  m_tupAddr(NullTupAddr),
+  m_tupLoc(),
   m_tupVersion(0),
-  m_fragBit(255),
-  pad1(0)
+  m_fragBit(0)
 {
 }
 
 inline int
 Dbtux::TreeEnt::cmp(const TreeEnt ent) const
 {
-  // compare frags first (not optimal but makes easier to read logs)
   if (m_fragBit < ent.m_fragBit)
     return -1;
   if (m_fragBit > ent.m_fragBit)
     return +1;
-  if (m_tupAddr < ent.m_tupAddr)
+  if (m_tupLoc.m_pageId < ent.m_tupLoc.m_pageId)
     return -1;
-  if (m_tupAddr > ent.m_tupAddr)
+  if (m_tupLoc.m_pageId > ent.m_tupLoc.m_pageId)
+    return +1;
+  if (m_tupLoc.m_pageOffset < ent.m_tupLoc.m_pageOffset)
+    return -1;
+  if (m_tupLoc.m_pageOffset > ent.m_tupLoc.m_pageOffset)
     return +1;
   if (m_tupVersion < ent.m_tupVersion)
     return -1;
@@ -1252,7 +1254,7 @@ Dbtux::PrintPar::PrintPar() :
 }
 #endif
 
-// other methods
+// utils
 
 inline Dbtux::DescEnt&
 Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
@@ -1263,6 +1265,16 @@ Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
   ndbrequire(descOff < DescPageSize);
   DescEnt* descEnt = (DescEnt*)&pagePtr.p->m_data[descOff];
   return *descEnt;
+}
+
+inline Uint32
+Dbtux::getTupAddr(const Frag& frag, const TreeEnt ent)
+{
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const TupLoc tupLoc = ent.m_tupLoc;
+  Uint32 tupAddr = NullTupAddr;
+  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupAddr);
+  return tupAddr;
 }
 
 inline unsigned
