@@ -5248,10 +5248,20 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   if (ref_key >= 0)
   {
+    int order_direction;
     /* Check if we get the rows in requested sorted order by using the key */
     if ((usable_keys & ((key_map) 1 << ref_key)) &&
-	test_if_order_by_key(order,table,ref_key) == 1)
+	(order_direction = test_if_order_by_key(order,table,ref_key)))
+    {
+      if (order_direction == -1 && select && select->quick)
+      {
+	// ORDER BY ref_key DESC
+	select->quick = new QUICK_SELECT_DESC(select->quick);
+	if (select->quick->error)
+	  DBUG_RETURN(0);
+      }
       DBUG_RETURN(1);			/* No need to sort */
+    }
   }
   else
   {

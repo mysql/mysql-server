@@ -205,3 +205,25 @@ select member_id, nickname, voornaam FROM members
 ORDER by lastchange_datum DESC LIMIT 2;
 drop table members;
 
+
+create table t1 (a int not null, b int, c varchar(10), key (a, b, c));
+insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 0, 'a'), (2, 0, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 1, 'c');
+explain select * from t1 order by a, b, c;
+select * from t1 order by a, b, c;
+explain select * from t1 order by a desc, b desc, c desc;
+select * from t1 order by a desc, b desc, c desc;
+# test multiple ranges, NO_MAX_RANGE and EQ_RANGE
+explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
+select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
+# test NEAR_MAX, NO_MIN_RANGE
+explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
+select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
+# test HA_READ_AFTER_KEY (at the end of the file), NEAR_MIN
+explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
+select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
+# test HA_READ_AFTER_KEY (in the middle of the file)
+explain select * from t1 where a between 0 and 1 order by a desc, b desc;
+select * from t1 where a between 0 and 1 order by a desc, b desc;
+drop table t1;
+
+/* vim:set ft=sql sw=2 noet: */
