@@ -26,8 +26,6 @@ Name:          Ndb.cpp
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
 #include <NdbEventOperation.hpp>
@@ -155,7 +153,7 @@ Ndb::NDB_connect(Uint32 tNode)
 // Set connection pointer as NdbConnection object
 //************************************************
   tSignal->setData(theMyRef, 2);	// Set my block reference
-  tNdbCon->Status(Connecting);		// Set status to connecting
+  tNdbCon->Status(NdbConnection::Connecting); // Set status to connecting
   Uint32 nodeSequence;
   { // send and receive signal
     tp->lock_mutex();
@@ -178,7 +176,7 @@ Ndb::NDB_connect(Uint32 tNode)
     }//if
   }
   
-  if ((tReturnCode == 0) && (tNdbCon->Status() == Connected)) {
+  if ((tReturnCode == 0) && (tNdbCon->Status() == NdbConnection::Connected)) {
     //************************************************
     // Send and receive was successful
     //************************************************
@@ -434,7 +432,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     theFirstTransId = tFirstTransId + 1;
   }//if
 #ifdef VM_TRACE
-  if (tConnection->theListState != NotInList) {
+  if (tConnection->theListState != NdbConnection::NotInList) {
     printState("startTransactionLocal %x", tConnection);
     abort();
   }
@@ -589,7 +587,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   tSignal.setData (tAction, 1);
   tSignal.setData(tNdbConn->ptr2int(),2);
   tSignal.setData(theMyRef,3);		// Set return block reference
-  tNdbConn->Status(Connecting);		// Set status to connecting	
+  tNdbConn->Status(NdbConnection::Connecting); // Set status to connecting
   TransporterFacade *tp = TransporterFacade::instance();
   if (tAction == 3) {
     tp->lock_mutex();
@@ -622,7 +620,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
       }//if
       ret_code = sendRecSignal(tNode, WAIT_NDB_TAMPER, &tSignal, 0);
       if (ret_code == 0) {  
-        if (tNdbConn->Status() != Connected) {
+        if (tNdbConn->Status() != NdbConnection::Connected) {
           theRestartGCI = 0;
         }//if
         releaseNdbCon(tNdbConn);
@@ -637,6 +635,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   return 0;
 #endif
 }
+#if 0
 /****************************************************************************
 NdbSchemaCon* startSchemaTransaction();
 
@@ -678,7 +677,7 @@ Ndb::closeSchemaTransaction(NdbSchemaCon* aSchemaCon)
   theSchemaConToNdbList = NULL;
   return;
 }//Ndb::closeSchemaTransaction()
-
+#endif
 
 /*****************************************************************************
 void RestartGCI(int aRestartGCI);

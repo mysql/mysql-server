@@ -26,7 +26,7 @@ operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
   bool key = attr.getPrimaryKey();
   bool null = attr.getNullable();
 
-  ndbout << attr.getName() << "\t";
+  ndbout << attr.getName() << " ";
   char tmp[100];
   if(attr.getLength() != 1)
     snprintf(tmp, 100," [%d]", attr.getLength());
@@ -103,16 +103,16 @@ operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
     ndbout << "Unknown(" << type << ")";
   }
   
-  ndbout << "\t";
+  ndbout << " ";
   if(null){
     ndbout << "NULL";
   } else {
     ndbout << "NOT NULL";
   }
-  ndbout << "\t";
+  ndbout << " ";
   
   if(key)
-    ndbout << "\tprimary key";
+    ndbout << "PRIMARY KEY";
   
   return ndbout;
 }
@@ -130,6 +130,9 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "Temporary table: " <<  (tab.getStoredTable() ? "no" : "yes") << endl;
   ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
   ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
+  ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
+
+
   //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;
   ndbout << "TableStatus: ";
   switch(tab.getObjectStatus()){
@@ -154,3 +157,32 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   
   return ndbout;
 }
+
+class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index & idx)
+{
+  ndbout << idx.getName();
+  ndbout << "(";
+  for (unsigned i=0; i < idx.getNoOfColumns(); i++)
+  {
+    const NdbDictionary::Column *col = idx.getColumn(i);
+    ndbout << col->getName();
+    if (i < idx.getNoOfColumns()-1)
+      ndbout << ", ";
+  }
+  ndbout << ")";
+  
+  ndbout << " - ";
+  switch (idx.getType()) {
+  case NdbDictionary::Object::UniqueHashIndex:
+    ndbout << "UniqueHashIndex";
+    break;
+  case NdbDictionary::Object::OrderedIndex:
+    ndbout << "OrderedIndex";
+    break;
+  default:
+    ndbout << "Type " << idx.getType();
+    break;
+  }
+  return ndbout;
+}
+

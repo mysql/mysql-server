@@ -34,7 +34,7 @@
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
-
+#include <NdbSchemaCon.hpp>
 // limits
 static int const MaxAttr = 64;
 static int const MaxOper = 1000;
@@ -99,7 +99,7 @@ ndberror(char const* fmt, ...)
     if (tcon)
 	ndbout << "tcon: " << tcon->getNdbError() << endl;
     if (top)
-	ndbout << "top : " << top->getNdbError() << endl;
+	ndbout << "top: " << top->getNdbError() << endl;
     if (con)
 	ndbout << "con : " << con->getNdbError() << endl;
     if (op)
@@ -258,7 +258,7 @@ testcase(int flag)
     if (ndb->waitUntilReady(30) < 0)
 	return ndberror("waitUntilReady");
 
-    if ((tcon = ndb->startSchemaTransaction()) == 0)
+    if ((tcon = NdbSchemaCon::startSchemaTrans(ndb)) == 0)
 	return ndberror("startSchemaTransaction");
     if ((top = tcon->getNdbSchemaOp()) == 0)
 	return ndberror("getNdbSchemaOp");

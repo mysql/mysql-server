@@ -17,6 +17,7 @@
 #include <ndb_global.h>
 
 #include <NdbApi.hpp>
+#include <NdbSchemaCon.hpp>
 #include <NdbCondition.h>
 #include <NdbMutex.h>
 #include <NdbSleep.h>
@@ -849,7 +850,7 @@ int CreateCallContextTable(Ndb* pNdb, const char* szTableName, bool bStored)
     NdbError err;
     memset(&err, 0, sizeof(err));
 
-    NdbSchemaCon* pNdbSchemaCon = pNdb->startSchemaTransaction();
+    NdbSchemaCon* pNdbSchemaCon = NdbSchemaCon::startSchemaTrans(pNdb);
     if(pNdbSchemaCon)
     {
         NdbSchemaOp* pNdbSchemaOp = pNdbSchemaCon->getNdbSchemaOp();
@@ -874,7 +875,8 @@ int CreateCallContextTable(Ndb* pNdb, const char* szTableName, bool bStored)
         } 
         else 
             err = pNdbSchemaCon->getNdbError();
-        pNdb->closeSchemaTransaction(pNdbSchemaCon);
+
+        NdbSchemaCon::closeSchemaTrans(pNdbSchemaCon);
     }
     else 
         err = pNdb->getNdbError();

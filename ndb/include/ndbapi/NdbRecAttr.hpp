@@ -18,7 +18,6 @@
 #define NdbRecAttr_H
 
 #include <NdbDictionary.hpp>
-#include "AttrType.hpp"
 
 class NdbOperation;
 class AttrInfo;
@@ -85,13 +84,11 @@ public:
    * @{
    */
   const NdbDictionary::Column * getColumn() const;
-  
+
   /**
-   * Get attribute type.
-   * 
-   * @return Type of attribute: { Signed, UnSigned, Float, String }
+   * Get type of column
+   * @return Data type of the column
    */
-  AttrType attrType() const ;           
   NdbDictionary::Column::Type getType() const;
   
   /**
@@ -313,33 +310,6 @@ NdbRecAttr::attrSize() const {
   case NdbDictionary::Column::Undefined:
   default:
     return 0;
-  }
-}
-
-inline
-AttrType
-NdbRecAttr::attrType() const {
-  switch(getType()){
-  case NdbDictionary::Column::Bigint:
-  case NdbDictionary::Column::Int:
-    return Signed;
-  case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Unsigned:
-    return UnSigned;
-  case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Decimal:
-  case NdbDictionary::Column::Double:
-    return Float;
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:
-    return String;
-  case NdbDictionary::Column::Datetime:
-  case NdbDictionary::Column::Timespec:
-  case NdbDictionary::Column::Undefined:
-  default:
-    return NoAttrTypeDef;
   }
 }
 

@@ -15,7 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+
 #include "NdbApi.hpp"
+#include <NdbSchemaCon.hpp>
 #include <NdbMain.h>
 #include <md5_hash.hpp>
 
@@ -738,7 +740,7 @@ createTables(Ndb* pMyNdb){
   if (theTableCreateFlag == 0) {
     for(int i=0; i < 1 ;i++) {
       ndbout << "Creating " << tableName[i] << "..." << endl;
-      MySchemaTransaction = pMyNdb->startSchemaTransaction();
+      MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
       
       if(MySchemaTransaction == NULL && 
          (!error_handler(MySchemaTransaction->getNdbError())))
@@ -748,7 +750,8 @@ createTables(Ndb* pMyNdb){
       if(MySchemaOp == NULL &&
          (!error_handler(MySchemaTransaction->getNdbError())))
         return -1;
-      
+
+
       check = MySchemaOp->createTable( tableName[i]
                                        ,8                       // Table Size
                                        ,TupleKey                // Key Type
@@ -793,7 +796,7 @@ createTables(Ndb* pMyNdb){
           (!error_handler(MySchemaTransaction->getNdbError())))
         return -1;
       
-      pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+      NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
     }
   }
   

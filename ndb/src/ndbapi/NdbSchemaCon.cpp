@@ -14,28 +14,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
+
 /*********************************************************************
-Name:          NdbSchemaCon.C
+Name:          NdbSchemaCon.cpp
 Include:
 Link:
 Author:        UABMNST Mona Natterkvist UAB/B/SD
                EMIKRON Mikael Ronstrom                         
 Date:          020826
-Version:       2.0
-Description:   Interface between application and NDB
+Version:       3.0
+Description:   Old Interface between application and NDB
 Documentation:
 Adjust:  980126  UABMNST   First version.
          020826  EMIKRON   New version adapted to new DICT version
-************************************************************************************************/
+         040524  Magnus Svensson - Adapted to not be included in public NdbApi
+                                   unless the user wants to use it.
+
+  NOTE: This file is only used as a compatibility layer for old test programs,
+        New programs should use NdbDictionary.hpp
+*********************************************************************/
+
 #include "NdbSchemaCon.hpp"
 #include "NdbSchemaOp.hpp"
 #include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
-#include <RefConvert.hpp>
-#include <signaldata/CreateIndx.hpp>
-#include <signaldata/DropIndx.hpp>
-#include <signaldata/CreateTable.hpp>
-#include <NdbOut.hpp>
+
 
 /*********************************************************************
 NdbSchemaCon(Ndb* aNdb);

@@ -21,7 +21,6 @@
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
-#include "AttrType.hpp"
 #include "NdbApiSignal.hpp"
 #include "API.hpp"
 #include <NdbSleep.h>

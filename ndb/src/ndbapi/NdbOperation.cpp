@@ -31,7 +31,7 @@
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
-
+#include "ndbapi_limits.h"
 #include <signaldata/TcKeyReq.hpp>
 #include "NdbDictionaryImpl.hpp"
 
@@ -163,7 +163,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   m_currentTable = m_accessTable = tab;
   
   theNdbCon = myConnection;
-  for (Uint32 i=0; i<MAXNROFTUPLEKEY; i++)
+  for (Uint32 i=0; i<NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; i++)
     for (int j=0; j<3; j++)
       theTupleKeyDefined[i][j] = false;  
 

@@ -19,19 +19,19 @@
 #include <NdbApi.hpp>
 
 
+
+
 int main(int argc, const char** argv){
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
-  int _frm = 0;
   int _unqualified = 0;
   int _help = 0;
   
   struct getargs args[] = {
-    { "unqualified", 'u', arg_integer, &_unqualified, "unqualified", 
+    { "unqualified", 'u', arg_flag, &_unqualified, "unqualified", 
       "Use unqualified table names"}, 
     { "database", 'd', arg_string, &_dbname, "dbname", 
       "Name of database table is in"},
-    { "frm-data", 'f', arg_flag, &_frm, "Show frm data for table", "" } ,
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -62,15 +62,40 @@ int main(int argc, const char** argv){
   NdbDictionary::Dictionary * dict = pMyNdb->getDictionary();
   for (int i = optind; i < argc; i++) {
     NDBT_Table* pTab = (NDBT_Table*)dict->getTable(argv[i]);
-    if (pTab != 0) {
+    if (pTab != 0){
       ndbout << (* pTab) << endl;
-      if (_frm){
-	ndbout << "getFrmLength: "<< endl
-	       << pTab->getFrmLength() << endl;
-	  }
-    } else {
-      ndbout << argv[i] << ": " << dict->getNdbError() << endl;
+
+      NdbDictionary::Dictionary::List list;
+      if (dict->listIndexes(list, argv[i]) != 0){
+	ndbout << argv[i] << ": " << dict->getNdbError() << endl;
+	return NDBT_ProgramExit(NDBT_FAILED);
+      }
+        
+      ndbout << "-- Indexes -- " << endl;
+      ndbout << "PRIMARY KEY(";
+      for (unsigned j= 0; j < pTab->getNoOfPrimaryKeys(); j++)
+      {
+	const NdbDictionary::Column * col = pTab->getColumn(j);
+	ndbout << col->getName();
+	if (j < pTab->getNoOfPrimaryKeys()-1)
+	  ndbout << ", ";       
+      }
+      ndbout << ") - UniqueHashIndex" << endl;
+	
+      for (unsigned j= 0; j < list.count; j++) {
+	NdbDictionary::Dictionary::List::Element& elt = list.elements[j];
+	const NdbDictionary::Index *pIdx = dict->getIndex(elt.name, argv[i]);
+	if (!pIdx){
+	  ndbout << argv[i] << ": " << dict->getNdbError() << endl;
+	  return NDBT_ProgramExit(NDBT_FAILED);
+	}
+	  
+	ndbout << (*pIdx) << endl;
+      }
+      ndbout << endl;
     }
+    else
+      ndbout << argv[i] << ": " << dict->getNdbError() << endl;
   }
   
   delete pMyNdb;

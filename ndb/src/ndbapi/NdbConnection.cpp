@@ -1706,7 +1706,7 @@ NdbConnection::getTransactionId()
   return theTransactionId;
 }//NdbConnection::getTransactionId()
 
-CommitStatusType
+NdbConnection::CommitStatusType
 NdbConnection::commitStatus()
 {
   return theCommitStatus;

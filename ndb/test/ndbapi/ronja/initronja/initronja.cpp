@@ -21,6 +21,7 @@
  * *************************************************** */
 
 #include "NdbApi.hpp"
+#include "NdbSchemaCon.hpp"
 #include <NdbOut.hpp>
 #include <NdbMain.h>
 #include <NdbTest.hpp>
@@ -90,7 +91,7 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
   
   ndbout << endl << "Creating the table SHORT_REC" << "..." << endl;
 
-  MySchemaTransaction = pNdb->startSchemaTransaction();
+  MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if(!MySchemaTransaction) goto error_handler;
   MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if(!MySchemaOp) goto error_handler;
@@ -148,11 +149,11 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
 	  ndbout << "SHORT_REC created " << endl;
   }// if
 
-  pNdb->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   
   ndbout << endl << "Creating the table LONG_REC..." << endl;
 
-  MySchemaTransaction = pNdb->startSchemaTransaction();
+  MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if(!MySchemaTransaction) goto error_handler;
    
   MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
@@ -212,7 +213,7 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
 	  ndbout << "LONG_REC created" << endl;
   }// if
   
-  pNdb->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   
 
   check = InsertRecords(pNdb, tNoOfRecords);
@@ -234,7 +235,7 @@ NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
 error_handler:
   ndbout << "SchemaTransaction returned error:" ;
   ndbout << MySchemaTransaction->getNdbError() << endl;
-  pNdb->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   delete pNdb ;
   NDBT_ProgramExit(NDBT_FAILED) ;
   exit(-1);

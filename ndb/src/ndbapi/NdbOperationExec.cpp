@@ -757,7 +757,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
 
   theStatus = Finished;
   
-  theNdbCon->theReturnStatus = ReturnFailure;
+  theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
   //-------------------------------------------------------------------------//
   // If the transaction this operation belongs to consists only of simple reads
   // we set the error code on the transaction object. 

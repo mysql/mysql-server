@@ -31,7 +31,6 @@ Adjust:  991029  UABRONM   First version.
 #include "NdbConnection.hpp"
 #include "Ndb.hpp"
 #include "NdbRecAttr.hpp"
-#include "AttrType.hpp"
 #include "NdbUtil.hpp"
 #include "Interpreter.hpp"
 
@@ -69,7 +68,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
     }
     return tNdbColumnImpl->m_attrId;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;
@@ -121,7 +120,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     }
     return tNdbColumnImpl->m_attrId;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;
@@ -169,7 +168,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     }
     return tNdbColumnImpl->m_attrId;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;
@@ -209,7 +208,7 @@ NdbOperation::initial_interpreterCheck()
     }
     return 0;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;
@@ -235,7 +234,7 @@ NdbOperation::labelCheck()
     }
     return 0;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;
@@ -255,7 +254,7 @@ NdbOperation::intermediate_interpreterCheck()
     }
     return 0;
   } else {
-    if (theNdbCon->theCommitStatus == Started)
+    if (theNdbCon->theCommitStatus == NdbConnection::Started)
       setErrorCodeAbort(4200);
   }
   return -1;

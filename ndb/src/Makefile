@@ -10,7 +10,6 @@ DIRS := \
 	rep \
         mgmclient \
         cw \
-        newtonapi \
         ndbbaseclient
 ifneq ($(NDB_ODBC),N)
         DIRS += ndbclient
