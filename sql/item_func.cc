@@ -1629,13 +1629,25 @@ void Item_func_int_val::find_num_type()
 
 longlong Item_func_ceiling::int_op()
 {
-  /*
-    the volatile's for BUG #3051 to calm optimizer down (because of gcc's
-    bug)
-  */
-  volatile double value= args[0]->val_real();
-  null_value= args[0]->null_value;
-  return (longlong) ceil(value);
+  longlong result;
+  switch (args[0]->result_type()) {
+  case INT_RESULT:
+    result= args[0]->val_int();
+    null_value= args[0]->null_value;
+    break;
+  case DECIMAL_RESULT:
+  {
+    my_decimal dec_buf, *dec;
+    if ((dec= decimal_op(&dec_buf)))
+      my_decimal2int(E_DEC_FATAL_ERROR, dec, unsigned_flag, &result);
+    else
+      result= 0;
+    break;
+  }
+  default:
+    result= (longlong)real_op();
+  };
+  return result;
 }
 
 
