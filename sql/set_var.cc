@@ -502,7 +502,9 @@ struct show_var_st init_vars[]= {
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
+#ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
+#endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {"sql_mode",                (char*) &opt_sql_mode,                SHOW_LONG},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},

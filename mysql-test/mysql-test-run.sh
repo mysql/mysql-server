@@ -468,7 +468,7 @@ fi
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
- --tmpdir=$MYSQL_TMP_DIR"
+ --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT"
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
