@@ -1930,7 +1930,7 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
 
 int
 NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
-					      const NdbTableImpl* tab,
+					      NdbTableImpl* tab,
 					      const NdbTableImpl* prim){
   NdbIndexImpl *idx = new NdbIndexImpl();
   idx->m_version = tab->m_version;
@@ -1938,23 +1938,43 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_indexId = tab->m_tableId;
   idx->m_externalName.assign(tab->getName());
   idx->m_tableName.assign(prim->m_externalName);
-  idx->m_type = tab->m_indexType;
+  NdbDictionary::Index::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
   // skip last attribute (NDB$PK or NDB$TNODE)
+  
+  Uint32 distKeys = 0;
   for(unsigned i = 0; i+1<tab->m_columns.size(); i++){
+    NdbColumnImpl* org = tab->m_columns[i];
+
     NdbColumnImpl* col = new NdbColumnImpl;
     // Copy column definition
-    *col = *tab->m_columns[i];
+    *col = * org;
     idx->m_columns.push_back(col);
+
     /**
      * reverse map
      */
-    int key_id = prim->getColumn(col->getName())->getColumnNo();
+    const NdbColumnImpl* primCol = prim->getColumn(col->getName());
+    int key_id = primCol->getColumnNo();
     int fill = -1;
     idx->m_key_ids.fill(key_id, fill);
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
+
+    /**
+     * Fix distribution key stuff for ordered indexes
+     */
+    if(type == NdbDictionary::Index::OrderedIndex)
+    {
+      if(primCol->m_distributionKey ||
+	 (prim->m_noOfDistributionKeys == 0 && primCol->getPrimaryKey()))
+      {
+	distKeys++;
+	org->m_distributionKey = 1;
+      }
+    }
   }
+  tab->m_noOfDistributionKeys = distKeys;
 
   * dst = idx;
   return 0;
