@@ -6,7 +6,7 @@ sum(length(word))
 (@id := id) - id
 0
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9306	1	master-bin.001	939	No			1053	Slave: query ' update t1 set n = n + get_lock('crash_lock', 2)' partially completed on the master and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;	0
+127.0.0.1	root	9999	1	master-bin.001	939	No			1053	Slave: query ' update t1 set n = n + get_lock('crash_lock', 2)' partially completed on the master and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;	0
 count(*)
 10
 n

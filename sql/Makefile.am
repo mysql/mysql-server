@@ -42,7 +42,7 @@ LDADD =			../isam/libnisam.a \
 			../strings/libmystrings.a
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @gemini_libs@ \
-			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS)
+			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h mysql_priv.h \
