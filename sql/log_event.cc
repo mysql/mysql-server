@@ -1616,9 +1616,9 @@ end:
     probably, so data_buf will be freed, so the thd->... listed above will be
     pointers to freed memory. 
     So we must set them to 0, so that those bad pointers values are not later
-    used. Note that "cleanup" queries (automatic DO RELEASE_LOCK() and DROP
-    TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
-    TABLE uses the db.table syntax).
+    used. Note that "cleanup" queries like automatic DROP TEMPORARY TABLE
+    don't suffer from these assignments to 0 as DROP TEMPORARY
+    TABLE uses the db.table syntax.
   */
   thd->db= thd->catalog= 0;	        // prevent db from being freed
   thd->query= 0;			// just to be sure
@@ -3666,8 +3666,8 @@ void Stop_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
 
   The master stopped.
   We used to clean up all temporary tables but this is useless as, as the
-  master has shut down properly, it has written all DROP TEMPORARY TABLE and DO
-  RELEASE_LOCK (prepared statements' deletion is TODO).
+  master has shut down properly, it has written all DROP TEMPORARY TABLE
+  (prepared statements' deletion is TODO only when we binlog prep stmts).
   We used to clean up slave_load_tmpdir, but this is useless as it has been
   cleared at the end of LOAD DATA INFILE.
   So we have nothing to do here.

@@ -1037,7 +1037,7 @@ extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
-extern ulong slave_net_timeout;
+extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
