@@ -519,7 +519,7 @@ fil_node_open_file(
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 	        	fprintf(stderr,
 "InnoDB: Error: the size of single-table tablespace file %s\n"
-"InnoDB: is only %lu %lu, should be at least %lu!", node->name,
+"InnoDB: is only %lu %lu, should be at least %lu!\n", node->name,
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 			
