@@ -1,6 +1,6 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_MANAGER_ERROR_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_MANAGER_ERROR_H
+/* Copyright (C) 2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Options;
+/* Definefile for instance manager error messagenumbers */
 
-void manager(const Options &options);
+#define ER_BAD_INSTANCE_NAME        3000
+#define ER_INSTANCE_IS_NOT_STARTED  3001
+#define ER_INSTANCE_ALREADY_STARTED 3002
+#define ER_CANNOT_START_INSTANCE    3003
+#define ER_STOP_INSTANCE            3004
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_MANAGER_ERROR_H */
