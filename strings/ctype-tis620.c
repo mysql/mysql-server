@@ -762,7 +762,7 @@ CHARSET_INFO my_charset_tis620_bin=
     NULL,		/* tab_from_uni */
     "",
     "",
-    0,			/* strxfrm_multiply */
+    1,			/* strxfrm_multiply */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
