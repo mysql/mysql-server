@@ -88,7 +88,9 @@ class NdbColumnImpl;
  * - lock mode vs allowed operation is not checked
  * - too many pending blob ops can blow up i/o buffers
  * - table and its blob part tables are not created atomically
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
  * - there is no support for an asynchronous interface
+#endif
  */
 class NdbBlob {
 public:
