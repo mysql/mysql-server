@@ -452,11 +452,9 @@ bool Field::get_time(TIME *ltime)
 
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
-  char buff[MAX_DATE_REP_LENGTH];
-  String tmp;
-  tmp.set(buff, sizeof(buff), &my_charset_bin);
-  TIME_to_string(ltime, &tmp);
-  store(buff, tmp.length(), &my_charset_bin);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= (uint) my_TIME_to_str(ltime, buff);
+  store(buff, length, &my_charset_bin);
 }
 
 
