@@ -33,15 +33,10 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			mysql_version.h.in my_handler.h my_time.h decimal.h
 
 # mysql_version.h are generated
-SUPERCLEANFILES =	mysql_version.h my_config.h
+CLEANFILES =            mysql_version.h my_config.h readline
 
 # Some include files that may be moved and patched by configure
-DISTCLEANFILES =	sched.h $(SUPERCLEANFILES)
-
-clean:
-	$(RM) -fr readline
-distclean:
-	$(RM) -fr readline
+DISTCLEANFILES =	sched.h $(CLEANFILES)
 
 all-local:		my_config.h
 

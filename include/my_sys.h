@@ -259,6 +259,8 @@ extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
 
+extern my_bool timed_mutexes;
+
 typedef struct wild_file_pack	/* Struct to hold info when selecting files */
 {
   uint		wilds;		/* How many wildcards */

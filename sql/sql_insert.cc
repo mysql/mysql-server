@@ -1802,13 +1802,22 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->lex->current_select->options|= OPTION_BUFFER_RESULT;
     thd->lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-
+  else
+  {
+    /*
+      We must not yet prepare the result table if it is the same as one of the 
+      source tables (INSERT SELECT). The preparation may disable 
+      indexes on the result table, which may be used during the select, if it
+      is the same table (Bug #6034). Do the preparation after the select phase
+      in select_insert::prepare2().
+    */
+    if (info.ignore || info.handle_duplicates != DUP_ERROR)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    table->file->start_bulk_insert((ha_rows) 0);
+  }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->cuted_fields=0;
-  if (info.ignore || info.handle_duplicates != DUP_ERROR)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -1816,6 +1825,36 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                             MODE_STRICT_ALL_TABLES)));
   DBUG_RETURN(fields->elements &&
               check_that_all_fields_are_given_values(thd, table));
+}
+
+
+/*
+  Finish the preparation of the result table.
+
+  SYNOPSIS
+    select_insert::prepare2()
+    void
+
+  DESCRIPTION
+    If the result table is the same as one of the source tables (INSERT SELECT),
+    the result table is not finally prepared at the join prepair phase.
+    Do the final preparation now.
+		       
+  RETURN
+    0   OK
+*/
+
+int select_insert::prepare2(void)
+{
+  DBUG_ENTER("select_insert::prepare2");
+
+  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT)
+  {
+    if (info.ignore || info.handle_duplicates != DUP_ERROR)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    table->file->start_bulk_insert((ha_rows) 0);
+  }
+  return 0;
 }
 
 

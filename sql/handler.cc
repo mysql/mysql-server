@@ -373,6 +373,16 @@ int ha_init()
       opt_using_transactions=1;
   }
 #endif
+#ifdef HAVE_ARCHIVE_DB
+  if (have_archive_db == SHOW_OPTION_YES)
+  {
+    if (archive_db_init())
+    {
+      have_archive_db= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+  }
+#endif
   return error;
 }
 
@@ -403,6 +413,10 @@ int ha_panic(enum ha_panic_function flag)
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  if (have_archive_db == SHOW_OPTION_YES)
+    error|= archive_db_end();
 #endif
   if (ha_finish_errors())
     error= 1;
