@@ -182,7 +182,6 @@ int mysql_update(THD *thd,
       */
       uint         length;
       SORT_FIELD  *sortorder;
-      List<Item>   fields;
       ha_rows examined_rows;
 
       table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
