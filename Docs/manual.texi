@@ -25573,8 +25573,8 @@ get a 10-30 % speed increase in your application.  This is particularly
 important if you compile the SQL server yourself!
 
 We have tested the both Cygnus CodeFusion and the Fujitsu compiler but
-when we tested them, neither was enough bug free enough to compile
-@strong{MySQL} with optimizations on.
+when we tested them, neither was sufficiently bug free to allow
+@strong{MySQL} to be compiled with optimizations on.
 
 When you compile @strong{MySQL} you should only include support for the
 character sets that you are going to use. (Option @code{--with-charset=xxx}).
