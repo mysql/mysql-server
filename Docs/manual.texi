@@ -3471,6 +3471,14 @@ source distribution.
 Check the @uref{http://www.mysql.com/, @strong{MySQL} home page} for
 information about the current version and for downloading instructions.
 
+Our main download mirror is located at @uref{http://www.sourceforge.net/, SourceForge.net}:
+@uref{http://download.sourceforge.net/mirrors/mysql/, http://download.sourceforge.net/mirrors/mysql/}
+
+If you are interested in becoming a @strong{MySQL} mirror site, you may anonymously
+rsync with: @uref{rsync://download.sourceforge.net/mysql/, rsync://download.sourceforge.net/mysql/}.
+Please send mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
+added to the list below.
+
 If you have problems downloading from our main site, try using one of the
 mirrors listed below.
 
@@ -3488,18 +3496,20 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: delian@naturella.com (Delian Delchev)
-@image{Flags/bulgaria} Bulgaria [Naturella] @
-@uref{http://archive.nat.bg/pub/mirror/mysql/, WWW}
-@uref{ftp://ftp.ntrl.net/pub/mirror/mysql/, FTP}
+@c @image{Flags/bulgaria} Bulgaria [Naturella] @
+@c @uref{http://archive.nat.bg/pub/mirror/mysql/, WWW}
+@c @uref{ftp://ftp.ntrl.net/pub/mirror/mysql/, FTP}
 
-@item
+@c @item
 @c Added: 990614
+@c Not ok 20000919; Out of date (Matt)
 @c EMAIL: vuksan@veus.hr (Vladimir Vuksan)
-@image{Flags/croatia} Croatia [HULK] @
-@uref{http://ftp.linux.hr/pub/mysql/, WWW}
-@uref{ftp://ftp.linux.hr/pub/mysql/, FTP}
+@c @image{Flags/croatia} Croatia [HULK] @
+@c @uref{http://ftp.linux.hr/pub/mysql/, WWW}
+@c @uref{ftp://ftp.linux.hr/pub/mysql/, FTP}
 
 @item
 @c Added: 990614
@@ -3508,11 +3518,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.linux.cz/index.html, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
 
-@item
+@c @item
 @c Added: 990920
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: <radek@sopik.cz> (Radek Libovicky)
-@image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
-@uref{http://www.mysql.cz/, WWW}
+@c @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
+@c @uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
@@ -3545,22 +3556,25 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/estonia} Estonia [OKinteractive] @
 @uref{http://mysql.mirror.ok.ee, WWW}
 
-@item
+@c @item
 @c Changed 990531
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: Steeve.Devergne@minet.net (Steeve Devergne)
-@image{Flags/france} France [minet] @
-@uref{http://www.minet.net/devel/mysql/, WWW}
+@c @image{Flags/france} France [minet] @
+@c @uref{http://www.minet.net/devel/mysql/, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: Jaakko.Hyvatti@eunet.fi
-@image{Flags/finland} Finland [EUnet] @
-@uref{http://mysql.eunet.fi/, WWW}
+@c @image{Flags/finland} Finland [EUnet] @
+@c @uref{http://mysql.eunet.fi/, WWW}
 
-@item
+@c @item
 @c Added 990829
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: tomi.hakala@clinet.fi (Tomi Hakala)
-@image{Flags/finland} Finland [clinet] @
-@uref{ftp://ftp.clinet.fi/mirrors/ftp.mysql.org/pub/mysql/, FTP}
+@c @image{Flags/finland} Finland [clinet] @
+@c @uref{ftp://ftp.clinet.fi/mirrors/ftp.mysql.org/pub/mysql/, FTP}
 
 @item
 @c Added 981208
@@ -3575,17 +3589,19 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://www.fh-wolfenbuettel.de/ftp/pub/database/mysql/, WWW}
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
 
-@item
+@c @item
 @c Ok 980114. Removed 981208 (down > 3 days) ok 981214
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: straub@gks.de (Hans-Peter Straub)
-@image{Flags/germany} Germany [Staufen] @
-@uref{http://mysql.staufen.de/, WWW}
+@c @image{Flags/germany} Germany [Staufen] @
+@c @uref{http://mysql.staufen.de/, WWW}
 
-@item
+@c @item
 @c Added 990614
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: thomas.rohde@ecrc.de (Thomas Rohde)
-@image{Flags/germany} Germany [Cable & Wireless] @
-@uref{ftp://ftp.ecrc.net/pub/database/mysql/, FTP}
+@c @image{Flags/germany} Germany [Cable & Wireless] @
+@c @uref{ftp://ftp.ecrc.net/pub/database/mysql/, FTP}
 
 @item
 @c Added 981208
@@ -3601,11 +3617,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://xenia.sote.hu/ftp/mirrors/www.mysql.com/, WWW}
 @c @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/,FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
-@image{Flags/iceland} Island [GM] @
-@uref{http://mysql.gm.is/, WWW}
-@uref{ftp://ftp.gm.is/pub/mysql, WWW}
+@c @image{Flags/iceland} Island [GM] @
+@c @uref{http://mysql.gm.is/, WWW}
+@c @uref{ftp://ftp.gm.is/pub/mysql, WWW}
 
 @c @item
 @c Out of date 990906
@@ -3624,12 +3641,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/italy} Italy [Teta Srl] @
 @uref{http://www.teta.it/mysql/, WWW}
 
-@item
+@c @item
 @c Added 991121
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: nick@iol.ie (Nick Hilliard)
-@image{Flags/ireland} Ireland [Ireland On-Line/Dublin] @
-@uref{http://mysql.iol.ie, WWW}
-@uref{ftp://ftp.iol.ie/pub/mysql, FTP}
+@c @image{Flags/ireland} Ireland [Ireland On-Line/Dublin] @
+@c @uref{http://mysql.iol.ie, WWW}
+@c @uref{ftp://ftp.iol.ie/pub/mysql, FTP}
 
 @item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
@@ -3644,17 +3662,19 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/portugal} Portugal [IP] @
 @c @uref{http://mysql.ip.pt, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: Equipa de suporte do Leirianet <support@leirianet.pt>
-@image{Flags/portugal} Portugal [lerianet] @
-@uref{http://mysql.leirianet.pt, WWW}
-@uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
+@c @image{Flags/portugal} Portugal [lerianet] @
+@c @uref{http://mysql.leirianet.pt, WWW}
+@c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
-@image{Flags/russia} Russia [DirectNet] @
-@uref{http://mysql.directnet.ru, WWW}
-@uref{ftp://ftp.dn.ru/pub/MySQL, FTP}
+@c @image{Flags/russia} Russia [DirectNet] @
+@c @uref{http://mysql.directnet.ru/, WWW}
+@c @uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
 
 @c @item
 @c down 990113
@@ -3664,10 +3684,11 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://mysql.cityline.ru, WWW}
 @c EMAIL: bar@izhcom.ru (Alexander I Barkov)
 
-@item
-@image{Flags/russia} Russia [IZHCOM] @
-@uref{http://mysql.udm.net/, WWW}
-@uref{ftp://ftp.izhcom.ru/pub/mysql/,FTP}
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
+@c @image{Flags/russia} Russia [IZHCOM] @
+@c @uref{http://mysql.udm.net/, WWW}
+@c @uref{ftp://ftp.izhcom.ru/pub/mysql/,FTP}
 
 @item
 @c Added 990507
@@ -3675,16 +3696,17 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/russia} Russia [Scientific Center/Chernogolovka] @
 @uref{ftp://ftp.chg.ru/pub/databases/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: sebi@dnttm.ro (Sebastian DEAC)
-@image{Flags/romania} Romania [Timisoara] @
-@uref{http://www.dnttm.ro/mysql, WWW}
-@uref{ftp://ftp.dnttm.ro/pub/mysql, FTP}
+@c @image{Flags/romania} Romania [Timisoara] @
+@c @uref{http://download.dnttm.ro/mysql, WWW}
+@c @uref{ftp://ftp.dnttm.ro/pub/mysql, FTP}
 
 @item
 @c EMAIL: tim@lbi.ro (Bogdan Surdu)
 @image{Flags/romania} Romania [Bucharest] @
-@uref{http://www.lbi.ro/MySQL, WWW}
+@uref{http://www.lbi.ro/MySQL/, WWW}
 @uref{ftp://ftp.lbi.ro/mirrors/ftp.tcx.se, FTP}
 
 @c @item
@@ -3693,12 +3715,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/spain} Spain [MasterD]
 @c @uref{http://mysql.masterd.es, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: Patrik.Karen@sdi.slu.se (Patrik Karen)
 @c ftp -> remove old files
-@image{Flags/sweden} Sweden [Sunet] @
-@uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
-@uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
+@c @image{Flags/sweden} Sweden [Sunet] @
+@c @uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
+@c @uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
 
 @item
 @c EMAIL: archive@sunsite.cnlab-switch.ch (Thomas Lenggenhager)
@@ -3707,15 +3730,17 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/, FTP}
 
 @c @item
-@c @c simon@oyster.co.uk (Simon Gornall)
+@c Not ok 20000919; Non-existent (Matt)
+@c simon@oyster.co.uk (Simon Gornall)
 @c @image{Flags/great-britain} UK [Oyster/UK] @
 @c @uref{ftp://ftp.oyster.co.uk/pub/mysql, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c gareth@omnipotent.net (Gareth Watts)
-@image{Flags/great-britain} UK [Omnipotent/UK] @
-@uref{http://mysql.omnipotent.net/, WWW}
-@uref{ftp://mysql.omnipotent.net/, FTP}
+@c @image{Flags/great-britain} UK [Omnipotent/UK] @
+@c @uref{http://mysql.omnipotent.net/, WWW}
+@c @uref{ftp://mysql.omnipotent.net/, FTP}
 
 @item
 @c keet@mordor.plig.net (Christiaan Keet)
@@ -3728,17 +3753,19 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/great-britain} UK [MicroMuse] @
 @c @uref{ftp://ftp.micromuse.co.uk/pub/packages/unix/databases/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c lmjm@icparc.ic.ac.uk (Lee McLoughlin)
-@image{Flags/great-britain} UK [SunSITE] @
-@uref{http://sunsite.org.uk/packages/mysql/, WWW}
-@uref{ftp://sunsite.org.uk/packages/mysql/, FTP}
+@c @image{Flags/great-britain} UK [SunSITE] @
+@c @uref{http://sunsite.org.uk/packages/mysql/, WWW}
+@c @uref{ftp://sunsite.org.uk/packages/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c sander@paco.net (Alexander Ivanov)
-@image{Flags/ukraine} Ukraine [PACO] @
-@uref{http://mysql.paco.net.ua, WWW}
-@uref{ftp://mysql.paco.net.ua/, FTP}
+@c @image{Flags/ukraine} Ukraine [PACO] @
+@c @uref{http://mysql.paco.net.ua, WWW}
+@c @uref{ftp://mysql.paco.net.ua/, FTP}
 
 @end itemize
 
@@ -3757,12 +3784,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/canada} Canada [Tryc] @
 @uref{http://web.tryc.on.ca/mysql/, WWW}
 
-@item
+@c @item
 @c not updated 990218. Added again 990918
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: rhooper@cyberus.ca (Roy Hooper)
-@image{Flags/canada} Canada [Cyberus] @
-@uref{http://mysql.cyberus.ca/, WWW}
-@uref{ftp://mysql.cyberus.ca/, FTP}
+@c @image{Flags/canada} Canada [Cyberus] @
+@c @uref{http://mysql.cyberus.ca/, WWW}
+@c @uref{ftp://mysql.cyberus.ca/, FTP}
 
 @item
 @c EMAIL:  mleber@he.net (Mike Leber)
@@ -3770,11 +3798,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/usa} USA [Hurricane Electric/San Jose] @
 @uref{http://mysql.he.net, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: meltzer@icsnet.com (Jeffrey Meltzer)
 @c Added 000108
-@image{Flags/usa} USA [Meltzer/New York State] @
-@uref{ftp://ftp.meltzer.org/pub/mysql/, FTP}
+@c @image{Flags/usa} USA [Meltzer/New York State] @
+@c @uref{ftp://ftp.meltzer.org/pub/mysql/, FTP}
 
 @c @item
 @c No such directory 990830
@@ -3817,11 +3846,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/usa} USA [Circle Net/North Carolina] @
 @uref{http://www.mysql.net, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: paul@gina.net (Paul Vining)
 @c mirrors ftp.sunet.se
-@image{Flags/usa} USA [Gina net/Florida] @
-@uref{http://www.gina.net/mysql/, WWW}
+@c @image{Flags/usa} USA [Gina net/Florida] @
+@c @uref{http://www.gina.net/mysql/, WWW}
 
 @c Out of date 2000-01-08 (Not updated since 1999-10)
 @c @item
@@ -3830,16 +3860,18 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/usa} USA [pingzero/Los Angeles] @
 @c @uref{http://mysql.pingzero.net/, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Out of date (Matt)
 @c EMAIL: ftpkeeper@mirror.sit.wisc.edu
-@image{Flags/usa} USA [Wisconsin University/Wisconsin] @
-@uref{http://mirror.sit.wisc.edu/mysql/, WWW}
-@uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/, FTP}
+@c @image{Flags/usa} USA [Wisconsin University/Wisconsin] @
+@c @uref{http://mirror.sit.wisc.edu/mysql/, WWW}
+@c @uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Out of date (Matt)
 @c EMAIL: ftp-admin@digex.net
-@image{Flags/usa} USA [DIGEX] @
-@uref{ftp://ftp.digex.net/pub/packages/database/mysql/, FTP}
+@c @image{Flags/usa} USA [DIGEX] @
+@c @uref{ftp://ftp.digex.net/pub/packages/database/mysql/, FTP}
 
 @item
 @c EMAIL: andrew.sawyers@thelinuxstore.com
@@ -3852,15 +3884,17 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @strong{South America:}
 
 @itemize @bullet
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: gaiser@matrix.com.br (Roberto Gaiser)
-@image{Flags/brazil} Brazil [Matrix] @
-@uref{http://mysql.matrix.com.br, WWW}
+@c @image{Flags/brazil} Brazil [Matrix] @
+@c @uref{http://mysql.matrix.com.br, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c jpabuyer@vision.cl
-@image{Flags/chile} Chile [Vision] @
-@uref{http://mysql.vision.cl/, WWW}
+@c @image{Flags/chile} Chile [Vision] @
+@c @uref{http://mysql.vision.cl/, WWW}
 
 @c @item
 @c Removed 990730
@@ -3873,25 +3907,28 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @strong{Asia:}
 
 @itemize @bullet
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: mirnshi@netchina.com.cn (Meng Lingbo)
-@image{Flags/china} China [Freecode] @
-@uref{http://mysql.freecode.com.cn, WWW}
+@c @image{Flags/china} China [Freecode] @
+@c @uref{http://mysql.freecode.com.cn, WWW}
 
 @item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
 @image{Flags/china} China [Hong Kong] @
 @uref{http://mysql.islnet.net, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: george@netfirm.net (Hongsheng Zhu)
-@image{Flags/china} China [Netfirm] @
-@uref{http://mysql.netfirm.net, WWW}
+@c @image{Flags/china} China [Netfirm] @
+@c @uref{http://mysql.netfirm.net, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
-@image{Flags/south-korea} Korea [KREONet] @
-@uref{http://linux.kreonet.re.kr/mysql/, WWW}
+@c @image{Flags/south-korea} Korea [KREONet] @
+@c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
 
 @c @item
 @c ftp -> remove old files
@@ -3912,12 +3949,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://www.happysize.co.jp/mysql/, WWW}
 @c @uref{ftp://ftp.happysize.co.jp/pub/mysql/, FTP}
 
-@item
+@c @item
 @c Ok 981204
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: hiroyuki@nucba.ac.jp (hiroyuki kurimoto)
-@image{Flags/japan} Japan [Nagoya Syouka University] @
-@uref{http://mirror.nucba.ac.jp/mirror/mysql, WWW}
-@uref{ftp://mirror.nucba.ac.jp/mirror/mysql, FTP}
+@c @image{Flags/japan} Japan [Nagoya Syouka University] @
+@c @uref{http://mirror.nucba.ac.jp/mirror/mysql, WWW}
+@c @uref{ftp://mirror.nucba.ac.jp/mirror/mysql, FTP}
 
 @c @item
 @c Removed 990308
@@ -3932,17 +3970,19 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.hjc.edu.sg, WWW}
 @uref{ftp://ftp.hjc.edu.sg/mysql, FTP}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c 991118: Removed because a user complained about that the page contains
 @c nothing about MySQL. 991119: Added again because it is a mirror again
 @c EMAIL: dean@ht.net.tw (Dean Lin)
-@image{Flags/taiwan} Taiwan [HT] @
-@uref{http://mysql.ht.net.tw, WWW}
+@c @image{Flags/taiwan} Taiwan [HT] @
+@c @uref{http://mysql.ht.net.tw, WWW}
 
-@item
+@c @item
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: linda@ttn.com.tw (Linda Hu)
-@image{Flags/taiwan} Taiwan [TTN] @
-@uref{http://mysql.ttn.net, WWW}
+@c @image{Flags/taiwan} Taiwan [TTN] @
+@c @uref{http://mysql.ttn.net, WWW}
 
 @c @item
 @c Ok 980321 No connect -> removed 990730
@@ -3988,11 +4028,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://ftp.tas.gov.au/mysql, WWW}
 @c @uref{ftp://ftp.tas.gov.au/pub/mysql, FTP}
 
-@item
+@c @item
 @c Ok 980623
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: samh@bluep.com (Sam Hadzajlic)
-@image{Flags/australia} Australia [Blue Planet/Melbourne] @
-@uref{http://mysql.bluep.com/, WWW}
+@c @image{Flags/australia} Australia [Blue Planet/Melbourne] @
+@c @uref{http://mysql.bluep.com/, WWW}
 @c removed because ftp was not working 990729 & 30
 @c @uref{ftp://mysql.bluep.com/pub/mirror1/mysql/, FTP}
 
@@ -4013,11 +4054,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @itemize @bullet
 
-@item
+@c @item
 @c Ok 981010
+@c Not ok 20000919; Old site (Matt)
 @c EMAIL: nick@mweb.com (Nick Rosenberg)
-@image{Flags/south-africa1} South-Africa [Mweb/] @
-@uref{http://www.mysql.mweb.co.za, WWW}
+@c @image{Flags/south-africa1} South-Africa [Mweb/] @
+@c @uref{http://www.mysql.mweb.co.za, WWW}
 
 @item
 @c Ok 981010
