@@ -107,6 +107,21 @@
 #include <m_string.h>
 #include <decimal.h>
 
+/*
+  Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
+  So one "decimal_digit" is
+
+      0 < decimal_digit <= DIG_MAX < DIG_BASE
+
+  in the struct st_decimal:
+
+    intg is the number of *decimal* digits (NOT number of decimal_digit's !)
+         before the point
+    frac - number of decimal digits after the point
+    buf is an array of decimal_digit's
+    len is the length of buf (length of allocated space) in decimal_digit's,
+        not in bytes
+*/
 typedef decimal_digit dec1;
 typedef longlong      dec2;
 
@@ -1073,6 +1088,68 @@ int decimal2longlong(decimal *from, longlong *to)
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
+
+  DESCRIPTION
+    for storage decimal numbers are converted to the "binary" format.
+
+    This format has the following properties:
+      1. length of the binary representation depends on the {precision, scale}
+      as provided by the caller and NOT on the intg/frac of the decimal to
+      convert.
+      2. binary representations of the same {precision, scale} can be compared
+      with memcmp - with the same result as decimal_cmp() of the original
+      decimals (not taking into account possible precision loss during
+      conversion).
+
+    This binary format is as follows:
+      1. First the number is converted to have a requested precision and scale.
+      2. Every full DIG_PER_DEC1 digits of intg part are stored in 4 bytes
+         as is
+      3. The first intg % DIG_PER_DEC1 digits are stored in the reduced
+         number of bytes (enough bytes to store this number of digits -
+         see dig2bytes)
+      4. same for frac - full decimal_digit's are stored as is,
+         the last frac % DIG_PER_DEC1 digits - in the reduced number of bytes.
+      5. If the number is negative - every byte is inversed.
+      5. The very first bit of the resulting byte array is inverted (because
+         memcmp compares unsigned bytes, see property 2 above)
+
+    Example:
+
+      1234567890.1234
+
+    internally is represented as 3 decimal_digit's
+
+      1 234567890 123400000
+
+    (assuming we want a binary representation with precision=14, scale=4)
+    in hex it's
+
+      00-00-00-01  0D-FB-38-D2  07-5A-EF-40
+
+    now, middle decimal_digit is full - it stores 9 decimal digits. It goes
+    into binary representation as is:
+
+
+      ...........  0D-FB-38-D2 ............
+
+    First decimal_digit has only one decimal digit. We can store one digit in
+    one byte, no need to waste four:
+
+                01 0D-FB-38-D2 ............
+
+    now, last digit. It's 123400000. We can store 1234 in two bytes:
+
+                01 0D-FB-38-D2 04-D2
+
+    So, we've packed 12 bytes number in 7 bytes.
+    And now we invert the highest bit to get the final result:
+
+                81 0D FB 38 D2 04 D2
+
+    And for -1234567890.1234 it would be
+
+                7E F2 04 37 2D FB 2D
 */
 int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
