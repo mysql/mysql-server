@@ -861,6 +861,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	key_info->name=(char*) key_name;
       }
     }
+    if (!key_info->name || check_column_name(key_info->name))
+    {
+      my_error(ER_WRONG_INDEX_NAME, MYF(0), key_info->name);
+      DBUG_RETURN(-1);
+    }
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;

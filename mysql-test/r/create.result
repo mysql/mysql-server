@@ -69,6 +69,8 @@ drop table if exists ``;
 ERROR 42000: Incorrect table name ''
 create table t1 (`` int);
 ERROR 42000: Incorrect column name ''
+create table t1 (i int, index `` (i));
+ERROR HY000: Incorrect index name ''
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
