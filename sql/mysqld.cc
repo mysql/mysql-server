@@ -3042,6 +3042,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
       0, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
+  { "relay_log_space_limit",  (long*) &relay_log_space_limit, 0L, 0L,ULONG_MAX,
+    0, 1},
   { "slave_net_timeout",        (long*) &slave_net_timeout, 
       SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 

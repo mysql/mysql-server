@@ -78,12 +78,29 @@ class MYSQL_LOG {
   bool need_start_event;
   pthread_cond_t update_cond;
   bool no_auto_events; // for relay binlog
+  ulonglong bytes_written;
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
   pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  void reset_bytes_written()
+    {
+      bytes_written = 0;
+    }
+  void harvest_bytes_written(ulonglong* counter)
+    {
+#ifndef DBUG_OFF
+      char buf1[22],buf2[22];
+#endif	
+      DBUG_ENTER("harvest_bytes_written");
+      (*counter)+=bytes_written;
+      DBUG_PRINT("info",("counter=%s,bytes_written=%s", llstr(*counter,buf1),
+		  llstr(bytes_written,buf2)));
+      bytes_written=0;
+      DBUG_VOID_RETURN;
+    }
   IO_CACHE* get_log_file() { return &log_file; }
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
