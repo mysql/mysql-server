@@ -76,8 +76,8 @@
 #define get_rights_for_db(A) (((A) & 63) | (((A) & DB_CHUNK1) >> 4) | (((A) & DB_CHUNK2) >> 6))
 #define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
 #define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
-#define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 7))
-#define get_rights_for_column(A) (((A) & 7) | (((A) & ~7) >> 7))
+#define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
+#define get_rights_for_column(A) (((A) & 7) | ((A) >> 8))
 
 /* prototypes */
 
