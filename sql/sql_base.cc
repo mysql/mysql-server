@@ -2395,7 +2395,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0,
 				DUP_ERROR));
 }
 
@@ -2412,7 +2412,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0,
 				DUP_ERROR));
 }
 

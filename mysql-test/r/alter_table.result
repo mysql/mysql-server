@@ -412,12 +412,15 @@ t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE
 t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
 DROP TABLE t1;
-CREATE TABLE t1 (a int UNIQUE);
+CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
 ALTER TABLE t1 DROP PRIMARY KEY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) default NULL,
-  UNIQUE KEY `a` (`a`)
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL,
+  UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: Can't DROP 'PRIMARY'. Check that column/key exists
 DROP TABLE t1;

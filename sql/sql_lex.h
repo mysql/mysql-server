@@ -575,7 +575,7 @@ typedef struct st_lex
   uint param_count;
   uint slave_thd_opt;
   uint8 describe;
-  bool drop_primary, drop_if_exists, drop_temporary, local_file;
+  bool drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
