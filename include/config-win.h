@@ -301,6 +301,9 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO
 
+#define HAME_MMAP               /* in mysys/my_mmap.c */
+#define HAVE_GETPAGESIZE        /* in mysys/my_mmap.c */
+
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf
