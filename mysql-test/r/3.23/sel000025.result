@@ -1,0 +1,2 @@
+'?' LIKE '|%'	'?' LIKE '|%' ESCAPE '|'	'%' LIKE '|%'	'%' LIKE '|%' ESCAPE '|'	'%' LIKE '%'	
+0	0	0	1	1	

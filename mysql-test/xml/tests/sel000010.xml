@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000010">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric bitwise comparisons.</description>
+   <description>Testing |, &amp;, BIT_COUNT().</description>
+
+   <resultfile name="r/3.23/sel000010.result">
+        <sql>SELECT 1 | (1+1),5 &amp; 3,BIT_COUNT(7)</sql>
+   </resultfile>
+
+</test>
