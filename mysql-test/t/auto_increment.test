@@ -82,7 +82,7 @@ insert into t1 values (NULL);
 select * from t1;
 drop table t1;
 
-create table t1 (a int not null auto_increment primary key) /*!41002 type=heap */;
+create table t1 (a int not null auto_increment primary key) /*!40102 type=heap */;
 insert into t1 values (NULL);
 insert into t1 values (-1);
 select last_insert_id();
