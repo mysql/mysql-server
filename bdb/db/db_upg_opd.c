@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_upg_opd.c,v 11.9 2000/11/30 00:58:33 ubell Exp $";
+static const char revid[] = "$Id: db_upg_opd.c,v 11.18 2002/08/06 06:11:18 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,11 +18,8 @@ static const char revid[] = "$Id: db_upg_opd.c,v 11.9 2000/11/30 00:58:33 ubell 
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "btree.h"
-#include "hash.h"
-#include "qam.h"
+#include "dbinc/db_page.h"
+#include "dbinc/btree.h"
 
 static int __db_build_bi __P((DB *, DB_FH *, PAGE *, PAGE *, u_int32_t, int *));
 static int __db_build_ri __P((DB *, DB_FH *, PAGE *, PAGE *, u_int32_t, int *));
@@ -71,7 +68,7 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 	pgno_cur = pgno_next = NULL;
 
 	/* Allocate room to hold a page. */
-	if ((ret = __os_malloc(dbp->dbenv, dbp->pgsize, NULL, &page)) != 0)
+	if ((ret = __os_malloc(dbp->dbenv, dbp->pgsize, &page)) != 0)
 		goto err;
 
 	/*
@@ -85,7 +82,7 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 		if (pgno_max == cur_cnt) {
 			pgno_max += 20;
 			if ((ret = __os_realloc(dbp->dbenv, pgno_max *
-			    sizeof(db_pgno_t), NULL, &pgno_cur)) != 0)
+			    sizeof(db_pgno_t), &pgno_cur)) != 0)
 				goto err;
 		}
 		pgno_cur[cur_cnt++] = pgno;
@@ -112,7 +109,7 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 		 * list while we do so.
 		 */
 		if ((ret = __os_malloc(dbp->dbenv,
-		    cur_cnt * sizeof(db_pgno_t), NULL, &pgno_next)) != 0)
+		    cur_cnt * sizeof(db_pgno_t), &pgno_next)) != 0)
 			goto err;
 
 		/* Figure out where we can start allocating new pages. */
@@ -121,7 +118,7 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 
 		/* Allocate room for an internal page. */
 		if ((ret = __os_malloc(dbp->dbenv,
-		    dbp->pgsize, NULL, &ipage)) != 0)
+		    dbp->pgsize, &ipage)) != 0)
 			goto err;
 		PGNO(ipage) = PGNO_INVALID;
 	}
@@ -187,13 +184,13 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 	*pgnop = pgno_cur[0];
 
 err:	if (pgno_cur != NULL)
-		__os_free(pgno_cur, 0);
+		__os_free(dbp->dbenv, pgno_cur);
 	if (pgno_next != NULL)
-		__os_free(pgno_next, 0);
+		__os_free(dbp->dbenv, pgno_next);
 	if (ipage != NULL)
-		__os_free(ipage, dbp->pgsize);
+		__os_free(dbp->dbenv, ipage);
 	if (page != NULL)
-		__os_free(page, dbp->pgsize);
+		__os_free(dbp->dbenv, page);
 
 	return (ret);
 }
@@ -214,22 +211,24 @@ __db_build_bi(dbp, fhp, ipage, page, indx, nomemp)
 	BKEYDATA *child_bk;
 	u_int8_t *p;
 	int ret;
+	db_indx_t *inp;
 
+	inp = P_INP(dbp, ipage);
 	switch (TYPE(page)) {
 	case P_IBTREE:
-		child_bi = GET_BINTERNAL(page, 0);
-		if (P_FREESPACE(ipage) < BINTERNAL_PSIZE(child_bi->len)) {
+		child_bi = GET_BINTERNAL(dbp, page, 0);
+		if (P_FREESPACE(dbp, ipage) < BINTERNAL_PSIZE(child_bi->len)) {
 			*nomemp = 1;
 			return (0);
 		}
-		ipage->inp[indx] =
-		     HOFFSET(ipage) -= BINTERNAL_SIZE(child_bi->len);
-		p = P_ENTRY(ipage, indx);
+		inp[indx] =
+		    HOFFSET(ipage) -= BINTERNAL_SIZE(child_bi->len);
+		p = P_ENTRY(dbp, ipage, indx);
 
 		bi.len = child_bi->len;
 		B_TSET(bi.type, child_bi->type, 0);
 		bi.pgno = PGNO(page);
-		bi.nrecs = __bam_total(page);
+		bi.nrecs = __bam_total(dbp, page);
 		memcpy(p, &bi, SSZA(BINTERNAL, data));
 		p += SSZA(BINTERNAL, data);
 		memcpy(p, child_bi->data, child_bi->len);
@@ -241,40 +240,40 @@ __db_build_bi(dbp, fhp, ipage, page, indx, nomemp)
 				return (ret);
 		break;
 	case P_LDUP:
-		child_bk = GET_BKEYDATA(page, 0);
+		child_bk = GET_BKEYDATA(dbp, page, 0);
 		switch (B_TYPE(child_bk->type)) {
 		case B_KEYDATA:
-			if (P_FREESPACE(ipage) <
+			if (P_FREESPACE(dbp, ipage) <
 			    BINTERNAL_PSIZE(child_bk->len)) {
 				*nomemp = 1;
 				return (0);
 			}
-			ipage->inp[indx] =
+			inp[indx] =
 			    HOFFSET(ipage) -= BINTERNAL_SIZE(child_bk->len);
-			p = P_ENTRY(ipage, indx);
+			p = P_ENTRY(dbp, ipage, indx);
 
 			bi.len = child_bk->len;
 			B_TSET(bi.type, child_bk->type, 0);
 			bi.pgno = PGNO(page);
-			bi.nrecs = __bam_total(page);
+			bi.nrecs = __bam_total(dbp, page);
 			memcpy(p, &bi, SSZA(BINTERNAL, data));
 			p += SSZA(BINTERNAL, data);
 			memcpy(p, child_bk->data, child_bk->len);
 			break;
 		case B_OVERFLOW:
-			if (P_FREESPACE(ipage) <
+			if (P_FREESPACE(dbp, ipage) <
 			    BINTERNAL_PSIZE(BOVERFLOW_SIZE)) {
 				*nomemp = 1;
 				return (0);
 			}
-			ipage->inp[indx] =
+			inp[indx] =
 			    HOFFSET(ipage) -= BINTERNAL_SIZE(BOVERFLOW_SIZE);
-			p = P_ENTRY(ipage, indx);
+			p = P_ENTRY(dbp, ipage, indx);
 
 			bi.len = BOVERFLOW_SIZE;
 			B_TSET(bi.type, child_bk->type, 0);
 			bi.pgno = PGNO(page);
-			bi.nrecs = __bam_total(page);
+			bi.nrecs = __bam_total(dbp, page);
 			memcpy(p, &bi, SSZA(BINTERNAL, data));
 			p += SSZA(BINTERNAL, data);
 			memcpy(p, child_bk, BOVERFLOW_SIZE);
@@ -285,11 +284,11 @@ __db_build_bi(dbp, fhp, ipage, page, indx, nomemp)
 				return (ret);
 			break;
 		default:
-			return (__db_pgfmt(dbp, PGNO(page)));
+			return (__db_pgfmt(dbp->dbenv, PGNO(page)));
 		}
 		break;
 	default:
-		return (__db_pgfmt(dbp, PGNO(page)));
+		return (__db_pgfmt(dbp->dbenv, PGNO(page)));
 	}
 
 	return (0);
@@ -308,19 +307,19 @@ __db_build_ri(dbp, fhp, ipage, page, indx, nomemp)
 	int *nomemp;
 {
 	RINTERNAL ri;
+	db_indx_t *inp;
 
-	COMPQUIET(dbp, NULL);
 	COMPQUIET(fhp, NULL);
-
-	if (P_FREESPACE(ipage) < RINTERNAL_PSIZE) {
+	inp = P_INP(dbp, ipage);
+	if (P_FREESPACE(dbp, ipage) < RINTERNAL_PSIZE) {
 		*nomemp = 1;
 		return (0);
 	}
 
 	ri.pgno = PGNO(page);
-	ri.nrecs = __bam_total(page);
-	ipage->inp[indx] = HOFFSET(ipage) -= RINTERNAL_SIZE;
-	memcpy(P_ENTRY(ipage, indx), &ri, RINTERNAL_SIZE);
+	ri.nrecs = __bam_total(dbp, page);
+	inp[indx] = HOFFSET(ipage) -= RINTERNAL_SIZE;
+	memcpy(P_ENTRY(dbp, ipage, indx), &ri, RINTERNAL_SIZE);
 
 	return (0);
 }
@@ -340,14 +339,14 @@ __db_up_ovref(dbp, fhp, pgno)
 	int ret;
 
 	/* Allocate room to hold a page. */
-	if ((ret = __os_malloc(dbp->dbenv, dbp->pgsize, NULL, &page)) != 0)
+	if ((ret = __os_malloc(dbp->dbenv, dbp->pgsize, &page)) != 0)
 		return (ret);
 
 	GET_PAGE(dbp, fhp, pgno, page);
 	++OV_REF(page);
 	PUT_PAGE(dbp, fhp, pgno, page);
 
-err:	__os_free(page, dbp->pgsize);
+err:	__os_free(dbp->dbenv, page);
 
 	return (ret);
 }

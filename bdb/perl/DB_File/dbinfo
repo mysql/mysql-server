@@ -1,0 +1,112 @@
+#!/usr/local/bin/perl
+
+# Name:		dbinfo -- identify berkeley DB version used to create 
+#			  a database file
+#
+# Author:	Paul Marquess  <Paul.Marquess@btinternet.com>
+# Version: 	1.03 
+# Date		17th September 2000
+#
+#     Copyright (c) 1998-2002 Paul Marquess. All rights reserved.
+#     This program is free software; you can redistribute it and/or
+#     modify it under the same terms as Perl itself.
+
+# Todo: Print more stats on a db file, e.g. no of records
+#       add log/txn/lock files
+
+use strict ;
+
+my %Data =
+	(
+	0x053162 =>	{
+			  Type 	   => "Btree",
+			  Versions => 
+				{
+				  1	=> "Unknown (older than 1.71)",
+				  2	=> "Unknown (older than 1.71)",
+				  3	=> "1.71 -> 1.85, 1.86",
+				  4	=> "Unknown",
+				  5	=> "2.0.0 -> 2.3.0",
+				  6	=> "2.3.1 -> 2.7.7",
+				  7	=> "3.0.x",
+				  8	=> "3.1.x -> 4.0.x",
+				  9	=> "4.1.x or greater",
+				}
+			},
+	0x061561 => 	{
+			  Type     => "Hash",
+			  Versions =>
+				{
+				  1	=> "Unknown (older than 1.71)",
+        			  2     => "1.71 -> 1.85",
+        			  3     => "1.86",
+        			  4     => "2.0.0 -> 2.1.0",
+        			  5     => "2.2.6 -> 2.7.7",
+        			  6     => "3.0.x",
+				  7	=> "3.1.x -> 4.0.x",
+				  8	=> "4.1.x or greater",
+				}
+			},
+	0x042253 => 	{
+			  Type     => "Queue",
+			  Versions =>
+				{
+				  1	=> "3.0.x",
+				  2	=> "3.1.x",
+				  3	=> "3.2.x -> 4.0.x",
+				  4	=> "4.1.x or greater",
+				}
+			},
+	) ;
+
+die "Usage: dbinfo file\n" unless @ARGV == 1 ;
+
+print "testing file $ARGV[0]...\n\n" ;
+open (F, "<$ARGV[0]") or die "Cannot open file $ARGV[0]: $!\n" ;
+
+my $buff ;
+read F, $buff, 20 ;
+
+my (@info) = unpack("NNNNN", $buff) ;
+my (@info1) = unpack("VVVVV", $buff) ;
+my ($magic, $version, $endian) ;
+
+if ($Data{$info[0]}) # first try DB 1.x format
+{
+    $magic = $info[0] ;
+    $version = $info[1] ;
+    $endian  = "Unknown" ;
+}
+elsif ($Data{$info[3]}) # next DB 2.x big endian
+{
+    $magic = $info[3] ;
+    $version = $info[4] ;
+    $endian  = "Big Endian" ;
+}
+elsif ($Data{$info1[3]}) # next DB 2.x little endian
+{
+    $magic = $info1[3] ;
+    $version = $info1[4] ;
+    $endian  = "Little Endian" ;
+}
+else
+  { die "not a Berkeley DB database file.\n" }
+
+my $type = $Data{$magic} ;
+$magic = sprintf "%06X", $magic ;
+
+my $ver_string = "Unknown" ;
+$ver_string = $type->{Versions}{$version}
+	if defined $type->{Versions}{$version} ;
+
+print <<EOM ;
+File Type:		Berkeley DB $type->{Type} file.
+File Version ID:	$version
+Built with Berkeley DB:	$ver_string
+Byte Order:		$endian
+Magic:			$magic
+EOM
+
+close F ;
+
+exit ;

@@ -1,16 +1,17 @@
-# See the file LICENSE for redistribution information.
+# Sel the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: rpc002.tcl,v 1.7 2000/10/27 13:23:56 sue Exp $
+# $Id: rpc002.tcl,v 1.17 2002/07/16 20:53:03 bostic Exp $
 #
-# RPC Test 2
-# Test invalid RPC functions and make sure we error them correctly
+# TEST	rpc002
+# TEST	Test invalid RPC functions and make sure we error them correctly
 proc rpc002 { } {
 	global __debug_on
 	global __debug_print
 	global errorInfo
+	global rpc_svc
 	source ./include.tcl
 
 	set testfile "rpc002.db"
@@ -20,9 +21,9 @@ proc rpc002 { } {
 	#
 	puts "Rpc002: Unsupported interface test"
 	if { [string compare $rpc_server "localhost"] == 0 } {
-	       set dpid [exec $util_path/berkeley_db_svc -h $rpc_testdir &]
+	       set dpid [exec $util_path/$rpc_svc -h $rpc_testdir &]
 	} else {
-	       set dpid [exec rsh $rpc_server $rpc_path/berkeley_db_svc \
+	       set dpid [exec rsh $rpc_server $rpc_path/$rpc_svc \
 		   -h $rpc_testdir &]
 	}
 	puts "\tRpc002.a: Started server, pid $dpid"
@@ -32,7 +33,7 @@ proc rpc002 { } {
 	puts "\tRpc002.b: Unsupported env options"
 	#
 	# Test each "pre-open" option for env's.  These need to be
-	# tested on the 'berkdb env' line.
+	# tested on the 'berkdb_env' line.
 	#
 	set rlist {
 	{ "-data_dir $rpc_testdir"	"Rpc002.b0"}
@@ -50,8 +51,8 @@ proc rpc002 { } {
 	{ "-verbose {recovery on}"		"Rpc002.b13"}
 	}
 
-	set e "berkdb env -create -mode 0644 -home $home -server $rpc_server \
-	    -client_timeout 10000 -txn"
+	set e "berkdb_env_noerr -create -mode 0644 -home $home \
+	    -server $rpc_server -client_timeout 10000 -txn"
 	foreach pair $rlist {
 		set cmd [lindex $pair 0]
 		set msg [lindex $pair 1]
@@ -60,7 +61,7 @@ proc rpc002 { } {
 		set stat [catch {eval $e $cmd} ret]
 		error_check_good $cmd $stat 1
 		error_check_good $cmd.err \
-		    [is_substr $errorInfo "meaningless in RPC env"] 1
+		    [is_substr $errorInfo "meaningless in an RPC env"] 1
 	}
 
 	#
@@ -68,7 +69,7 @@ proc rpc002 { } {
 	# the rest)
 	#
 	puts "\tRpc002.c: Unsupported env related interfaces"
-	set env [eval {berkdb env -create -mode 0644 -home $home \
+	set env [eval {berkdb_env_noerr -create -mode 0644 -home $home \
 	    -server $rpc_server -client_timeout 10000 -txn}]
 	error_check_good envopen [is_valid_env $env] TRUE
 	set dbcmd "berkdb_open_noerr -create -btree -mode 0644 -env $env \
@@ -89,16 +90,14 @@ proc rpc002 { } {
 	{ " log_archive"		"Rpc002.c5"}
 	{ " log_file {0 0}"		"Rpc002.c6"}
 	{ " log_flush"			"Rpc002.c7"}
-	{ " log_get -current"		"Rpc002.c8"}
-	{ " log_register $db $testfile"	"Rpc002.c9"}
-	{ " log_stat"			"Rpc002.c10"}
-	{ " log_unregister $db"		"Rpc002.c11"}
-	{ " mpool -create -pagesize 512"	"Rpc002.c12"}
-	{ " mpool_stat"			"Rpc002.c13"}
-	{ " mpool_sync {0 0}"		"Rpc002.c14"}
-	{ " mpool_trickle 50"		"Rpc002.c15"}
-	{ " txn_checkpoint -min 1"	"Rpc002.c16"}
-	{ " txn_stat"			"Rpc002.c17"}
+	{ " log_cursor"			"Rpc002.c8"}
+	{ " log_stat"			"Rpc002.c9"}
+	{ " mpool -create -pagesize 512"	"Rpc002.c10"}
+	{ " mpool_stat"			"Rpc002.c11"}
+	{ " mpool_sync {0 0}"		"Rpc002.c12"}
+	{ " mpool_trickle 50"		"Rpc002.c13"}
+	{ " txn_checkpoint -min 1"	"Rpc002.c14"}
+	{ " txn_stat"			"Rpc002.c15"}
 	}
 
 	foreach pair $rlist {
@@ -109,7 +108,7 @@ proc rpc002 { } {
 		set stat [catch {eval $env $cmd} ret]
 		error_check_good $cmd $stat 1
 		error_check_good $cmd.err \
-		    [is_substr $errorInfo "meaningless in RPC env"] 1
+		    [is_substr $errorInfo "meaningless in an RPC env"] 1
 	}
 	error_check_good dbclose [$db close] 0
 
@@ -128,7 +127,7 @@ proc rpc002 { } {
 	set stat [catch {eval $dbcmd} ret]
 	error_check_good dbopen_cache $stat 1
 	error_check_good dbopen_cache_err \
-	    [is_substr $errorInfo "meaningless in RPC env"] 1
+	    [is_substr $errorInfo "meaningless in an RPC env"] 1
 
 	puts "\tRpc002.d1: Try to upgrade a database"
 	#
@@ -136,9 +135,9 @@ proc rpc002 { } {
 	set stat [catch {eval {berkdb upgrade -env} $env $testfile} ret]
 	error_check_good dbupgrade $stat 1
 	error_check_good dbupgrade_err \
-	    [is_substr $errorInfo "meaningless in RPC env"] 1
+	    [is_substr $errorInfo "meaningless in an RPC env"] 1
 
 	error_check_good envclose [$env close] 0
 
-	exec $KILL $dpid
+	tclkill $dpid
 }

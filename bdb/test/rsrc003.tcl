@@ -1,13 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: rsrc003.tcl,v 11.1 2000/11/29 18:28:49 sue Exp $
+# $Id: rsrc003.tcl,v 11.5 2002/01/11 15:53:33 bostic Exp $
 #
-# Recno backing file test.
-# Try different patterns of adding records and making sure that the
-# corresponding file matches
+# TEST	rsrc003
+# TEST	Recno backing file test.  Try different patterns of adding
+# TEST	records and making sure that the corresponding file matches.
 proc rsrc003 { } {
 	source ./include.tcl
 	global fixed_len
@@ -26,7 +26,7 @@ proc rsrc003 { } {
 	set bigrec3 [replicate "This is record 3 " 512]
 
 	set orig_fixed_len $fixed_len
-	set rlist { 
+	set rlist {
 	{{$rec1 $rec2 $rec3} "small records" }
 	{{$bigrec1 $bigrec2 $bigrec3} "large records" }}
 
@@ -65,26 +65,26 @@ proc rsrc003 { } {
 				puts \
 "Rsrc003: Testing with disk-backed database with $msg."
 			}
-	
+
 			puts -nonewline \
 			    "\tRsrc003.a: Read file, rewrite last record;"
 			puts " write it out and diff"
 			set db [eval {berkdb_open -create -mode 0644 -recno \
 			    -len $reclen -source $testdir/rsrc.txt} $testfile]
 			error_check_good dbopen [is_valid_db $db] TRUE
-	
+
 			# Read the last record; replace it (don't change it).
 			# Then close the file and diff the two files.
 			set txn ""
 			set dbc [eval {$db cursor} $txn]
 			error_check_good db_cursor \
 			    [is_valid_cursor $dbc $db] TRUE
-	
+
 			set rec [$dbc get -last]
 			error_check_good get_last [llength [lindex $rec 0]] 2
 			set key [lindex [lindex $rec 0] 0]
 			set data [lindex [lindex $rec 0] 1]
-	
+
 			# Get the last record from the text file
 			set oid [open $testdir/rsrc.txt]
 			set laststr ""
@@ -95,17 +95,17 @@ proc rsrc003 { } {
 			close $oid
 			set data [sanitize_record $data]
 			error_check_good getlast $data $laststr
-	
+
 			set ret [eval {$db put} $txn {$key $data}]
 			error_check_good replace_last $ret 0
-	
+
 			error_check_good curs_close [$dbc close] 0
 			error_check_good db_sync [$db sync] 0
 			error_check_good db_sync [$db sync] 0
 			error_check_good \
 			    diff1($testdir/rsrc.txt,$testdir/check.txt) \
 			    [filecmp $testdir/rsrc.txt $testdir/check.txt] 0
-	
+
 			puts -nonewline "\tRsrc003.b: "
 			puts "Append some records in tree and verify in file."
 			set oid [open $testdir/check.txt a]
@@ -124,7 +124,7 @@ proc rsrc003 { } {
 			set ret [filecmp $testdir/rsrc.txt $testdir/check.txt]
 			error_check_good \
 			    diff2($testdir/{rsrc.txt,check.txt}) $ret 0
-	
+
 			puts "\tRsrc003.c: Append by record number"
 			set oid [open $testdir/check.txt a]
 			for {set i 1} {$i < 10} {incr i} {
@@ -136,14 +136,14 @@ proc rsrc003 { } {
 				set ret [eval {$db put} $txn {$key $rec}]
 				error_check_good put_byno $ret 0
 			}
-	
+
 			error_check_good db_sync [$db sync] 0
 			error_check_good db_sync [$db sync] 0
 			close $oid
 			set ret [filecmp $testdir/rsrc.txt $testdir/check.txt]
 			error_check_good \
 			    diff3($testdir/{rsrc.txt,check.txt}) $ret 0
-	
+
 			puts \
 "\tRsrc003.d: Verify proper syncing of changes on close."
 			error_check_good Rsrc003:db_close [$db close] 0
@@ -171,4 +171,3 @@ proc rsrc003 { } {
 	set fixed_len $orig_fixed_len
 	return
 }
-

@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: env008.tcl,v 11.2 2000/10/30 19:00:38 sue Exp $
+# $Id: env008.tcl,v 11.6 2002/02/22 14:29:34 sandstro Exp $
 #
-# Test of env and subdirs.
+# TEST	env008
+# TEST	Test environments and subdirectories.
 proc env008 { } {
 	global errorInfo
 	global errorCode
@@ -21,9 +22,8 @@ proc env008 { } {
 
 	puts "Env008: Test of environments and subdirectories."
 
-	# Try opening without Create flag should error
 	puts "\tEnv008.a: Create env and db."
-	set env [berkdb env -create -mode 0644 -home $testdir -txn]
+	set env [berkdb_env -create -mode 0644 -home $testdir -txn]
 	error_check_good env [is_valid_env $env] TRUE
 
 	puts "\tEnv008.b: Remove db in subdir."

@@ -1,21 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: env002.tcl,v 11.11 2000/08/25 14:21:50 sue Exp $
+# $Id: env002.tcl,v 11.15 2002/02/20 16:35:20 sandstro Exp $
 #
-# Env Test 002
-# Test set_lg_dir and env name resolution
-# With an environment path specified using -home, and then again
-# with it specified by the environment variable DB_HOME:
-#	1) Make sure that the set_lg_dir option is respected
-#		a) as a relative pathname.
-#		b) as an absolute pathname.
-#	2) Make sure that the DB_LOG_DIR db_config argument is respected,
-#		again as relative and absolute pathnames.
-#	3) Make sure that if -both- db_config and a file are present,
-#		only the file is respected (see doc/env/naming.html).
+# TEST	env002
+# TEST	Test of DB_LOG_DIR and env name resolution.
+# TEST	With an environment path specified using -home, and then again
+# TEST	with it specified by the environment variable DB_HOME:
+# TEST	1) Make sure that the set_lg_dir option is respected
+# TEST		a) as a relative pathname.
+# TEST		b) as an absolute pathname.
+# TEST	2) Make sure that the DB_LOG_DIR db_config argument is respected,
+# TEST		again as relative and absolute pathnames.
+# TEST	3) Make sure that if -both- db_config and a file are present,
+# TEST		only the file is respected (see doc/env/naming.html).
 proc env002 { } {
 	#   env002 is essentially just a small driver that runs
 	# env002_body--formerly the entire test--twice;  once, it
@@ -30,7 +30,7 @@ proc env002 { } {
 
 	puts "Env002: set_lg_dir test."
 
-	puts "\tEnv002: Running with -home argument to berkdb env."
+	puts "\tEnv002: Running with -home argument to berkdb_env."
 	env002_body "-home $testdir"
 
 	puts "\tEnv002: Running with environment variable DB_HOME set."
@@ -125,8 +125,8 @@ proc env002_run_test { major minor msg env_args log_path} {
 
 	# Create an environment, with logging, and scribble some
 	# stuff in a [btree] database in it.
-	# puts [concat {berkdb env -create -log -private} $env_args]
-	set dbenv [eval {berkdb env -create -log -private} $env_args]
+	# puts [concat {berkdb_env -create -log -private} $env_args]
+	set dbenv [eval {berkdb_env -create -log -private} $env_args]
 	error_check_good env_open [is_valid_env $dbenv] TRUE
 	set db [berkdb_open -env $dbenv -create -btree -mode 0644 $testfile]
 	error_check_good db_open [is_valid_db $db] TRUE

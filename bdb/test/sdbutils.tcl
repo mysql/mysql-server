@@ -1,21 +1,19 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdbutils.tcl,v 11.9 2000/05/22 12:51:38 bostic Exp $
+# $Id: sdbutils.tcl,v 11.14 2002/06/10 15:39:39 sue Exp $
 #
 proc build_all_subdb { dbname methods psize dups {nentries 100} {dbargs ""}} {
 	set nsubdbs [llength $dups]
-	set plen [llength $psize]
 	set mlen [llength $methods]
 	set savearg $dbargs
 	for {set i 0} {$i < $nsubdbs} { incr i } {
 		set m [lindex $methods [expr $i % $mlen]]
 		set dbargs $savearg
-		set p [lindex $psize [expr $i % $plen]]
 		subdb_build $dbname $nentries [lindex $dups $i] \
-		    $i $m $p sub$i.db $dbargs
+		    $i $m $psize sub$i.db $dbargs
 	}
 }
 
@@ -27,6 +25,13 @@ proc subdb_build { name nkeys ndups dup_interval method psize subdb dbargs} {
 
 	puts "Method: $method"
 
+	set txnenv 0
+	set eindex [lsearch -exact $dbargs "-env"]
+	if { $eindex != -1 } {
+		incr eindex
+		set env [lindex $dbargs $eindex]
+		set txnenv [is_txnenv $env]
+	}
 	# Create the database and open the dictionary
 	set oflags "-create -mode 0644 $omethod \
 	    -pagesize $psize $dbargs $name $subdb"
@@ -54,16 +59,32 @@ proc subdb_build { name nkeys ndups dup_interval method psize subdb dbargs} {
 			}
 		}
 	}
+	set txn ""
 	for { set count 0 } { [gets $did str] != -1 && $count < $nkeys } {
 	    incr count} {
 		for { set i 0 } { $i < $ndups } { incr i } {
 			set data [format "%04d" [expr $i * $dup_interval]]
-			set ret [$db put $str [chop_data $method $data]]
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set ret [eval {$db put} $txn {$str \
+			    [chop_data $method $data]}]
 			error_check_good put $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 		}
 
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		if { $ndups == 0 } {
-			set ret [$db put $str [chop_data $method NODUP]]
+			set ret [eval {$db put} $txn {$str \
+			    [chop_data $method NODUP]}]
 			error_check_good put $ret 0
 		} elseif { $ndups < 0 } {
 			if { [is_record_based $method] == 1 } {
@@ -71,33 +92,38 @@ proc subdb_build { name nkeys ndups dup_interval method psize subdb dbargs} {
 
 				set num [expr $nkeys * $dup_interval]
 				set num [expr $num + $count + 1]
-				set ret [$db put $num [chop_data $method $str]]
+				set ret [eval {$db put} $txn {$num \
+				    [chop_data $method $str]}]
 				set kvals($num) [pad_data $method $str]
 				error_check_good put $ret 0
 			} else {
-				set ret [$db put $str [chop_data $method $str]]
+				set ret [eval {$db put} $txn \
+				    {$str [chop_data $method $str]}]
 				error_check_good put $ret 0
 			}
+		}
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
 		}
 	}
 	close $did
 	error_check_good close:$name [$db close] 0
 }
 
-proc do_join_subdb { db primary subdbs key } {
+proc do_join_subdb { db primary subdbs key oargs } {
 	source ./include.tcl
 
 	puts "\tJoining: $subdbs on $key"
 
 	# Open all the databases
-	set p [berkdb_open -unknown $db $primary]
+	set p [eval {berkdb_open -unknown} $oargs $db $primary]
 	error_check_good "primary open" [is_valid_db $p] TRUE
 
 	set dblist ""
 	set curslist ""
 
 	foreach i $subdbs {
-		set jdb [berkdb_open -unknown $db sub$i.db]
+		set jdb [eval {berkdb_open -unknown} $oargs $db sub$i.db]
 		error_check_good "sub$i.db open" [is_valid_db $jdb] TRUE
 
 		lappend jlist [list $jdb $key]

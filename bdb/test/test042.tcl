@@ -1,27 +1,26 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test042.tcl,v 11.24 2000/08/25 14:21:56 sue Exp $
+# $Id: test042.tcl,v 11.37 2002/09/05 17:23:07 sandstro Exp $
 #
-# DB Test 42 {access method}
-#
-# Multiprocess DB test; verify that locking is working for the concurrent
-# access method product.
-#
-# Use the first "nentries" words from the dictionary.  Insert each with self
-# as key and a fixed, medium length data string.  Then fire off multiple
-# processes that bang on the database.  Each one should try to read and write
-# random keys.  When they rewrite, they'll append their pid to the data string
-# (sometimes doing a rewrite sometimes doing a partial put).  Some will use
-# cursors to traverse through a few keys before finding one to write.
-
-set datastr abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+# TEST	test042
+# TEST	Concurrent Data Store test (CDB)
+# TEST
+# TEST	Multiprocess DB test; verify that locking is working for the
+# TEST	concurrent access method product.
+# TEST
+# TEST	Use the first "nentries" words from the dictionary.  Insert each with
+# TEST	self as key and a fixed, medium length data string.  Then fire off
+# TEST	multiple processes that bang on the database.  Each one should try to
+# TEST	read and write random keys.  When they rewrite, they'll append their
+# TEST	pid to the data string (sometimes doing a rewrite sometimes doing a
+# TEST	partial put).  Some will use cursors to traverse through a few keys
+# TEST	before finding one to write.
 
 proc test042 { method {nentries 1000} args } {
-	global datastr
-	source ./include.tcl
+	global encrypt
 
 	#
 	# If we are using an env, then skip this test.  It needs its own.
@@ -32,10 +31,25 @@ proc test042 { method {nentries 1000} args } {
 		puts "Test042 skipping for env $env"
 		return
 	}
-	set args [convert_args $method $args]
-	set omethod [convert_method $method]
 
-	puts "Test042: CDB Test $method $nentries"
+	set args [convert_args $method $args]
+	if { $encrypt != 0 } {
+		puts "Test042 skipping for security"
+		return
+	}
+	test042_body $method $nentries 0 $args
+	test042_body $method $nentries 1 $args
+}
+
+proc test042_body { method nentries alldb args } {
+	source ./include.tcl
+
+	if { $alldb } {
+		set eflag "-cdb -cdb_alldb"
+	} else {
+		set eflag "-cdb"
+	}
+	puts "Test042: CDB Test ($eflag) $method $nentries"
 
 	# Set initial parameters
 	set do_exit 0
@@ -62,44 +76,24 @@ proc test042 { method {nentries 1000} args } {
 
 	env_cleanup $testdir
 
-	set env [berkdb env -create -cdb -home $testdir]
-	error_check_good dbenv [is_valid_widget $env env] TRUE
+	set env [eval {berkdb_env -create} $eflag -home $testdir]
+	error_check_good dbenv [is_valid_env $env] TRUE
 
-	set db [eval {berkdb_open -env $env -create -truncate \
-	    -mode 0644 $omethod} $oargs {$testfile}]
-	error_check_good dbopen [is_valid_widget $db db] TRUE
-
-	set did [open $dict]
-
-	set pflags ""
-	set gflags ""
-	set txn ""
-	set count 0
-
-	# Here is the loop where we put each key/data pair
-	puts "\tTest042.a: put/get loop"
-	while { [gets $did str] != -1 && $count < $nentries } {
-		if { [is_record_based $method] == 1 } {
-			set key [expr $count + 1]
-		} else {
-			set key $str
+	# Env is created, now set up database
+	test042_dbinit $env $nentries $method $oargs $testfile 0
+	if { $alldb } {
+		for { set i 1 } {$i < $procs} {incr i} {
+			test042_dbinit $env $nentries $method $oargs \
+			    $testfile $i
 		}
-		set ret [eval {$db put} \
-		    $txn $pflags {$key [chop_data $method $datastr]}]
-		error_check_good put:$db $ret 0
-		incr count
 	}
-	close $did
-	error_check_good close:$db [$db close] 0
-
-	# Database is created, now set up environment
 
 	# Remove old mpools and Open/create the lock and mpool regions
 	error_check_good env:close:$env [$env close] 0
 	set ret [berkdb envremove -home $testdir]
 	error_check_good env_remove $ret 0
 
-	set env [berkdb env -create -cdb -home $testdir]
+	set env [eval {berkdb_env -create} $eflag -home $testdir]
 	error_check_good dbenv [is_valid_widget $env env] TRUE
 
 	if { $do_exit == 1 } {
@@ -112,16 +106,21 @@ proc test042 { method {nentries 1000} args } {
 	set pidlist {}
 
 	for { set i 0 } {$i < $procs} {incr i} {
+		if { $alldb } {
+			set tf $testfile$i
+		} else {
+			set tf ${testfile}0
+		}
 		puts "exec $tclsh_path $test_path/wrap.tcl \
 		    mdbscript.tcl $testdir/test042.$i.log \
-		    $method $testdir $testfile $nentries $iter $i $procs &"
+		    $method $testdir $tf $nentries $iter $i $procs &"
 		set p [exec $tclsh_path $test_path/wrap.tcl \
 		    mdbscript.tcl $testdir/test042.$i.log $method \
-		    $testdir $testfile $nentries $iter $i $procs &]
+		    $testdir $tf $nentries $iter $i $procs &]
 		lappend pidlist $p
 	}
 	puts "Test042: $procs independent processes now running"
-	watch_procs
+	watch_procs $pidlist 
 
 	# Check for test failure
 	set e [eval findfail [glob $testdir/test042.*.log]]
@@ -146,4 +145,37 @@ proc rand_key { method nkeys renum procs} {
 	} else {
 		return [berkdb random_int 0 [expr $nkeys - 1]]
 	}
+}
+
+proc test042_dbinit { env nentries method oargs tf ext } {
+	global datastr
+	source ./include.tcl
+
+	set omethod [convert_method $method]
+	set db [eval {berkdb_open -env $env -create \
+	    -mode 0644 $omethod} $oargs {$tf$ext}]
+	error_check_good dbopen [is_valid_db $db] TRUE
+
+	set did [open $dict]
+
+	set pflags ""
+	set gflags ""
+	set txn ""
+	set count 0
+
+	# Here is the loop where we put each key/data pair
+	puts "\tTest042.a: put loop $tf$ext"
+	while { [gets $did str] != -1 && $count < $nentries } {
+		if { [is_record_based $method] == 1 } {
+			set key [expr $count + 1]
+		} else {
+			set key $str
+		}
+		set ret [eval {$db put} \
+		    $txn $pflags {$key [chop_data $method $datastr]}]
+		error_check_good put:$db $ret 0
+		incr count
+	}
+	close $did
+	error_check_good close:$db [$db close] 0
 }
