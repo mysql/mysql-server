@@ -25,3 +25,5 @@ n
 9
 10
 12
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
