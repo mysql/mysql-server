@@ -1,0 +1,84 @@
+# Test of replication of time zones.
+source include/master-slave.inc;
+
+# Some preparations
+let $VERSION=`select version()`;
+create table t1 (t timestamp);
+create table t2 (t char(32));
+
+#
+# Let us check how well replication works when we are saving datetime
+# value in TIMESTAMP field.
+#
+connection master;
+select @@time_zone;
+set time_zone='UTC';
+insert into t1 values ('20040101000000'), ('20040611093902');
+select * from t1;
+# On slave we still in 'Europe/Moscow' so we should see equivalent but
+# textually different values.
+sync_slave_with_master;
+select * from t1;
+
+# Let us check also that setting of time_zone back to default also works
+# well
+connection master;
+delete from t1;
+set time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000'), ('20040611093902');
+select * from t1;
+sync_slave_with_master;
+select * from t1;
+connection master;
+# We should not see SET ONE_SHOT time_zone before second insert
+--replace_result $VERSION VERSION
+show binlog events;
+
+#
+# Now let us check how well we replicate statments reading TIMESTAMP fields
+# (We should see the same data on master and on slave but it should differ 
+# from originally inserted)
+#
+set time_zone='MET';
+insert into t2 (select t from t1);
+select * from t1;
+sync_slave_with_master;
+select * from t2;
+
+#
+# Now let us check how well we replicate various CURRENT_* functions
+#
+connection master;
+delete from t2;
+set timestamp=1000072000;
+insert into t2 values (current_timestamp), (current_date), (current_time);
+sync_slave_with_master;
+# Values in ouput of these to queries should differ because we are in
+# in 'MET' on master and in 'Europe/Moscow on slave...
+set timestamp=1000072000;
+select current_timestamp, current_date, current_time;
+select * from t2;
+
+#
+# At last let us check replication of FROM_UNIXTIME/UNIX_TIMESTAMP functions.
+#
+connection master;
+delete from t2;
+insert into t2 values (from_unixtime(1000000000)),
+                      (unix_timestamp('2001-09-09 03:46:40'));
+select * from t2;
+sync_slave_with_master;
+# We should get same result on slave as on master
+select * from t2;
+
+#
+# Let us check that we are not allowing to set global time_zone with
+# replication
+#
+connection master;
+--error 1105
+set global time_zone='MET';
+
+# Clean up
+drop table t1, t2;
+sync_slave_with_master;

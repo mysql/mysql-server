@@ -441,6 +441,7 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
                                                          &SV::group_concat_max_len);
 
+sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
@@ -586,6 +587,7 @@ sys_var *sys_variables[]=
   &sys_thread_cache_size,
   &sys_time_format,
   &sys_timestamp,
+  &sys_time_zone,
   &sys_tmp_table_size,
   &sys_trans_alloc_block_size,
   &sys_trans_prealloc_size,
@@ -809,8 +811,9 @@ struct show_var_st init_vars[]= {
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
 #ifdef HAVE_TZNAME
-  {"timezone",                time_zone,                            SHOW_CHAR},
+  {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
+  {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
@@ -2351,6 +2354,77 @@ bool sys_var_rand_seed2::update(THD *thd, set_var *var)
   return 0;
 }
 
+
+bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
+{
+  char buff[MAX_TIME_ZONE_NAME_LENGTH]; 
+  String str(buff, sizeof(buff), &my_charset_latin1);
+  String *res= var->value->val_str(&str);
+
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing "
+                       "of the global server time zone", MYF(0));
+    return 1;
+  }
+#endif
+  
+  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
+  {
+    my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
+    return 1;
+  }
+  return 0;
+}
+
+
+bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
+{
+  /* We are using Time_zone object found during check() phase */ 
+  *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
+  return 0;
+}
+
+
+byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
+{
+  /* 
+    We can use ptr() instead of c_ptr() here because String contaning
+    time zone name is guaranteed to be zero ended.
+  */
+  return (byte *)((*get_tz_ptr(thd,type))->get_name()->ptr());
+}
+
+
+Time_zone** sys_var_thd_time_zone::get_tz_ptr(THD *thd, 
+                                              enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.time_zone;
+  else
+    return &thd->variables.time_zone;
+}
+
+
+void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+ {
+   if (default_tz_name)
+   {
+     String str(default_tz_name, &my_charset_latin1);
+     global_system_variables.time_zone= my_tz_find(thd, &str);
+   }
+   else
+     global_system_variables.time_zone= my_tz_SYSTEM;
+ }
+ else
+   thd->variables.time_zone= global_system_variables.time_zone;
+}
 
 /*
   Functions to update thd->options bits

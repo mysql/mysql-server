@@ -716,6 +716,29 @@ public:
   SHOW_TYPE type() { return show_type; }
 };
 
+class sys_var_thd_time_zone :public sys_var_thd
+{
+public:
+  sys_var_thd_time_zone(const char *name_arg):
+    sys_var_thd(name_arg) 
+  {
+#if MYSQL_VERSION_ID < 50000
+    no_support_one_shot= 0;
+#endif
+  }
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  bool check_default(enum_var_type type) { return 0; }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  virtual void set_default(THD *thd, enum_var_type type);
+  Time_zone **get_tz_ptr(THD *thd, enum_var_type type);
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -749,6 +772,7 @@ public:
     ulong ulong_value;
     ulonglong ulonglong_value;
     DATE_TIME_FORMAT *date_time_format;
+    Time_zone *time_zone;
   } save_result;
   LEX_STRING base;			/* for structs */
 
