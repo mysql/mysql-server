@@ -465,3 +465,12 @@ select group_concat( distinct col1 ) as alias from t1
 
 drop table t1;
 
+
+#Test for BUG#6976: Aggregate functions have incorrect NULL-ness
+create table t1 (a int);
+insert into t1 values(null);
+select min(a) is null from t1;
+select min(a) is null or null from t1;
+select 1 and min(a) is null from t1;
+drop table t1;
+
