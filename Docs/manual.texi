@@ -24513,6 +24513,10 @@ non-locking read in @code{SELECTS}, which increases transaction
 concurrency. There is not need for lock escalation in InnoDB,
 because row level locks in InnoDB fit in very small space.
 
+InnoDB has been designed for maximum performance when processing
+large data volumes. Its CPU efficiency is probably not
+matched by any other disk-based relational database engine.
+
 Technically, InnoDB is a database backend placed under @strong{MySQL}. InnoDB
 has its own buffer pool for caching data and indexes in main
 memory. InnoDB stores its tables and indexes in a tablespace, which
@@ -25398,6 +25402,21 @@ all rows from it is guaranteed to release the space to other users,
 but remember that deleted rows can be physically removed only in a
 purge operation after they are no longer needed in transaction rollback or
 consistent read.
+
+@subsubsection Defragmenting a table
+
+If there are random insertions or deletions
+in the indexes of a table, the indexes
+may become fragmented. By this we mean that the physical ordering
+of the index pages on the disk is not close to the alphabetical ordering
+of the records on the pages. It can speed up index scans if you
+periodically use @code{mysqldump} to dump the table to
+a text file, drop the table, and reload it from the dump.
+
+Note that if the insertions to and index are always ascending and
+records are deleted only from the end, then the the file space management
+algorithm of InnoDB guarantees that fragmentation in the index will
+not occur.
 
 @node Error handling, InnoDB restrictions, File space management, InnoDB
 @subsection Error handling
