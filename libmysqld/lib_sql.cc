@@ -200,9 +200,14 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
+int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
-  return emb_read_rows(stmt->mysql, 0, 0);
+  MYSQL_DATA *data;
+  if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
+    return 1;
+  stmt->result= *data;
+  my_free((char *) data, MYF(0));
+  return 0;
 }
 
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
