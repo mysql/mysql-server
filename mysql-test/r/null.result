@@ -30,7 +30,7 @@ SELECT (NULL OR NULL) IS NULL;
 1
 select NULL AND 0, 0 and NULL;
 NULL AND 0	0 and NULL
-NULL	0
+0	0
 select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 inet_ntoa(null)	inet_aton(null)	inet_aton("122.256")	inet_aton("122.226.")	inet_aton("")
 NULL	NULL	NULL	NULL	NULL

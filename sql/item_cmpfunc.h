@@ -216,6 +216,11 @@ public:
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
+  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  {
+    args[0]->top_level_item();
+    return Item_func::fix_fields(thd,tlist);
+  }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
   unsigned int size_of() { return sizeof(*this);}  
@@ -560,10 +565,12 @@ class Item_cond :public Item_bool_func
 {
 protected:
   List<Item> list;
+  bool abort_on_null;
 public:
-  Item_cond() : Item_bool_func() { const_item_cache=0; }
-  Item_cond(Item *i1,Item *i2) :Item_bool_func()
-    { list.push_back(i1); list.push_back(i2); }
+  /* Item_cond() is only used to create top level items */
+  Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
+  Item_cond(Item *i1,Item *i2) :Item_bool_func(), abort_on_null(0)
+  { list.push_back(i1); list.push_back(i2); }
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *,struct st_table_list *);
@@ -576,6 +583,7 @@ public:
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   unsigned int size_of() { return sizeof(*this);}  
+  void top_level_item() { abort_on_null=1; }
 };
 
 

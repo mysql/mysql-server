@@ -175,15 +175,28 @@ longlong Item_func_second::val_int()
 }
 
 
-// Returns the week of year in the range of 0 - 53
+/*
+  Returns the week of year.
+
+  The bits in week_format has the following meaning:
+    0	If not set:	USA format: Sunday is first day of week
+        If set:		ISO format: Monday is first day of week
+    1   If not set:	Week is in range 0-53
+    	If set		Week is in range 1-53.
+*/
 
 longlong Item_func_week::val_int()
 {
   uint year;
+  uint week_format;
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
-  return (longlong) calc_week(&ltime, 0, args[1]->val_int() == 0, &year);
+  week_format= args[1]->val_int();
+  return (longlong) calc_week(&ltime, 
+			      (week_format & 2) != 0,
+			      (week_format & 1) == 0,
+			      &year);
 }
 
 
@@ -193,7 +206,7 @@ longlong Item_func_yearweek::val_int()
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
-  week=calc_week(&ltime, 1, args[1]->val_int() == 0, &year);
+  week=calc_week(&ltime, 1, (args[1]->val_int() & 1) == 0, &year);
   return week+year*100;
 }
 
