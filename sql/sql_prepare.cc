@@ -907,15 +907,16 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     ulong counter= 0;
     Item *unused_conds= 0;
 
+    table_list->table->insert_values=(byte *)1; // don't allocate insert_values
     if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
 				   fields, values, update_fields,
 				   update_values, duplic,
                                    &unused_conds, FALSE)))
       goto error;
-    
+
     value_count= values->elements;
     its.rewind();
-   
+
     while ((values= its++))
     {
       counter++;
@@ -932,6 +933,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   res= 0;
 error:
   lex->unit.cleanup();
+  table_list->table->insert_values=0;
   DBUG_RETURN(res);
 }
 
@@ -1586,28 +1588,6 @@ static bool init_param_array(Prepared_statement *stmt)
   }
   return FALSE;
 }
-
-
-/* Init statement before execution */
-
-static void cleanup_stmt_for_execute(Prepared_statement *stmt)
-{
-  THD *thd= stmt->thd;
-  LEX *lex= stmt->lex;
-  SELECT_LEX *sl= lex->all_selects_list;
-
-  for (; sl; sl= sl->next_select_in_list())
-  {
-    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
-	 tables;
-	 tables= tables->next_global)
-    {
-      if (tables->table)
-        tables->table->insert_values= 0;
-    }
-  }
-}
-
 
 /*
   Given a query string with parameter markers, create a Prepared Statement

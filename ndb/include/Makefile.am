@@ -2,6 +2,7 @@
 include $(top_srcdir)/ndb/config/common.mk.am
 
 ndbinclude_HEADERS = \
+ndb_init.h \
 ndb_types.h \
 ndb_version.h
 

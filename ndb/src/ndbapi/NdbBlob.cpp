@@ -21,6 +21,7 @@
 #include <NdbIndexOperation.hpp>
 #include <NdbRecAttr.hpp>
 #include <NdbBlob.hpp>
+#include "NdbBlobImpl.hpp"
 #include <NdbScanOperation.hpp>
 
 #ifdef NDB_BLOB_DEBUG
@@ -85,14 +86,14 @@ void
 NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c)
 {
   assert(t != 0 && c != 0 && c->getBlobType());
-  memset(btname, 0, BlobTableNameSize);
+  memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
   sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_tableId, (int)c->m_attrId);
 }
 
 void
 NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c)
 {
-  char btname[BlobTableNameSize];
+  char btname[NdbBlobImpl::BlobTableNameSize];
   getBlobTableName(btname, t, c);
   bt.setName(btname);
   bt.setLogging(t->getLogging());
@@ -450,15 +451,15 @@ NdbBlob::getValue(void* data, Uint32 bytes)
 {
   DBG("getValue data=" << hex << data << " bytes=" << dec << bytes);
   if (theGetFlag || theState != Prepared) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   if (! isReadOp() && ! isScanOp()) {
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   if (data == NULL && bytes != 0) {
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   theGetFlag = true;
@@ -472,15 +473,15 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
 {
   DBG("setValue data=" << hex << data << " bytes=" << dec << bytes);
   if (theSetFlag || theState != Prepared) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   if (! isInsertOp() && ! isUpdateOp() && ! isWriteOp()) {
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   if (data == NULL && bytes != 0) {
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   theSetFlag = true;
@@ -512,7 +513,7 @@ NdbBlob::setActiveHook(ActiveHook activeHook, void* arg)
 {
   DBG("setActiveHook hook=" << hex << (void*)activeHook << " arg=" << hex << arg);
   if (theState != Prepared) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   theActiveHook = activeHook;
@@ -531,7 +532,7 @@ NdbBlob::getNull(bool& isNull)
     return 0;
   }
   if (theNullFlag == -1) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   isNull = theNullFlag;
@@ -546,7 +547,7 @@ NdbBlob::setNull()
     if (theState == Prepared) {
       return setValue(0, 0);
     }
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   if (theNullFlag)
@@ -568,7 +569,7 @@ NdbBlob::getLength(Uint64& len)
     return 0;
   }
   if (theNullFlag == -1) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   len = theLength;
@@ -580,7 +581,7 @@ NdbBlob::truncate(Uint64 length)
 {
   DBG("truncate [in] length=" << length);
   if (theNullFlag == -1) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   if (theLength > length) {
@@ -608,7 +609,7 @@ NdbBlob::getPos(Uint64& pos)
 {
   DBG("getPos");
   if (theNullFlag == -1) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   pos = thePos;
@@ -620,11 +621,11 @@ NdbBlob::setPos(Uint64 pos)
 {
   DBG("setPos pos=" << pos);
   if (theNullFlag == -1) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   if (pos > theLength) {
-    setErrorCode(ErrSeek);
+    setErrorCode(NdbBlobImpl::ErrSeek);
     return -1;
   }
   thePos = pos;
@@ -637,7 +638,7 @@ int
 NdbBlob::readData(void* data, Uint32& bytes)
 {
   if (theState != Active) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   char* buf = static_cast<char*>(data);
@@ -666,7 +667,7 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     }
   }
   if (len > 0 && thePartSize == 0) {
-    setErrorCode(ErrSeek);
+    setErrorCode(NdbBlobImpl::ErrSeek);
     return -1;
   }
   if (len > 0) {
@@ -731,7 +732,7 @@ int
 NdbBlob::writeData(const void* data, Uint32 bytes)
 {
   if (theState != Active) {
-    setErrorCode(ErrState);
+    setErrorCode(NdbBlobImpl::ErrState);
     return -1;
   }
   const char* buf = static_cast<const char*>(data);
@@ -764,7 +765,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
     }
   }
   if (len > 0 && thePartSize == 0) {
-    setErrorCode(ErrSeek);
+    setErrorCode(NdbBlobImpl::ErrSeek);
     return -1;
   }
   if (len > 0) {
@@ -1081,7 +1082,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
     theFillChar = 0x20;
     break;
   default:
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   // sizes
@@ -1099,7 +1100,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
         (bc = bt->getColumn("DATA")) == NULL ||
         bc->getType() != partType ||
         bc->getLength() != (int)thePartSize) {
-      setErrorCode(ErrTable);
+      setErrorCode(NdbBlobImpl::ErrTable);
       return -1;
     }
     theBlobTable = &NdbTableImpl::getImpl(*bt);
@@ -1120,7 +1121,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
       Uint32* data = (Uint32*)theKeyBuf.data;
       unsigned size = theTable->m_keyLenInWords;
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
-        setErrorCode(ErrUsage);
+        setErrorCode(NdbBlobImpl::ErrUsage);
         return -1;
       }
     }
@@ -1129,7 +1130,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
       Uint32* data = (Uint32*)theAccessKeyBuf.data;
       unsigned size = theAccessTable->m_keyLenInWords;
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
-        setErrorCode(ErrUsage);
+        setErrorCode(NdbBlobImpl::ErrUsage);
         return -1;
       }
     }
@@ -1158,7 +1159,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
     supportedOp = true;
   }
   if (! supportedOp) {
-    setErrorCode(ErrUsage);
+    setErrorCode(NdbBlobImpl::ErrUsage);
     return -1;
   }
   setState(Prepared);
@@ -1204,7 +1205,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
               tOp->updateTuple() == -1 ||
               setTableKeyValue(tOp) == -1 ||
               setHeadInlineValue(tOp) == -1) {
-            setErrorCode(ErrAbort);
+            setErrorCode(NdbBlobImpl::ErrAbort);
             return -1;
           }
           DBG("add op to update head+inline");
@@ -1434,7 +1435,7 @@ NdbBlob::postExecute(ExecType anExecType)
        tOp->updateTuple() == -1 ||
        setTableKeyValue(tOp) == -1 ||
        setHeadInlineValue(tOp) == -1) {
-      setErrorCode(ErrAbort);
+      setErrorCode(NdbBlobImpl::ErrAbort);
       return -1;
     }
     tOp->m_abortOption = AbortOnError;
@@ -1464,7 +1465,7 @@ NdbBlob::preCommit()
             tOp->updateTuple() == -1 ||
             setTableKeyValue(tOp) == -1 ||
             setHeadInlineValue(tOp) == -1) {
-          setErrorCode(ErrAbort);
+          setErrorCode(NdbBlobImpl::ErrAbort);
           return -1;
         }
         tOp->m_abortOption = AbortOnError;
@@ -1489,7 +1490,7 @@ NdbBlob::atNextResult()
   { Uint32* data = (Uint32*)theKeyBuf.data;
     unsigned size = theTable->m_keyLenInWords;
     if (((NdbScanOperation*)theNdbOp)->getKeyFromKEYINFO20(data, size) == -1) {
-      setErrorCode(ErrUsage);
+      setErrorCode(NdbBlobImpl::ErrUsage);
       return -1;
     }
   }
@@ -1545,7 +1546,7 @@ NdbBlob::setErrorCode(NdbOperation* anOp, bool invalidFlag)
   else if ((code = theNdb->theError.code) != 0)
     ;
   else
-    code = ErrUnknown;
+    code = NdbBlobImpl::ErrUnknown;
   setErrorCode(code, invalidFlag);
 }
 
@@ -1558,7 +1559,7 @@ NdbBlob::setErrorCode(NdbConnection* aCon, bool invalidFlag)
   else if ((code = theNdb->theError.code) != 0)
     ;
   else
-    code = ErrUnknown;
+    code = NdbBlobImpl::ErrUnknown;
   setErrorCode(code, invalidFlag);
 }
 

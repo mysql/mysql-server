@@ -380,15 +380,15 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
- 		/* Since we rolled back the whole transaction, we must
- 		tell it also to MySQL so that MySQL knows to empty the
- 		cached binlog for this transaction */
+		/* Since we rolled back the whole transaction, we must
+		tell it also to MySQL so that MySQL knows to empty the
+		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+		if (thd) {
+			ha_rollback(thd);
+		}
 
-    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
+   		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
  	} else if (error == (int) DB_NO_REFERENCED_ROW) {
 
@@ -4075,11 +4075,9 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
-	if (err == DB_SUCCESS) {
-		DBUG_RETURN(0);
-	}
+	err = convert_error_code_to_mysql(err, NULL);
 
-	DBUG_RETURN(-1);
+	DBUG_RETURN(err);
 }
 
 /*********************************************************************
@@ -5215,19 +5213,6 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
- 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
-
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -5276,9 +5261,18 @@ ha_innobase::external_lock(
 			prebuilt->select_lock_type = LOCK_S;
 		}
 
+		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
+		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
+		an InnoDB table lock if it is released immediately at the end
+		of LOCK TABLES, and InnoDB's table locks in that case cause
+		VERY easily deadlocks. */
+
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+
 			if (thd->in_lock_tables &&
-			    thd->variables.innodb_table_locks) {
+			    thd->variables.innodb_table_locks &&
+			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
+
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
 							NULL, LOCK_TABLE_EXP);
