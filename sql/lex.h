@@ -300,7 +300,6 @@ static SYMBOL symbols[] = {
   { "POLYGON",		SYM(POLYGON),0,0},
   { "PURGE",		SYM(PURGE),0,0},
   { "PRECISION",	SYM(PRECISION),0,0},
-  { "PRELOAD",          SYM(PRELOAD),0,0},
   { "PREV",		SYM(PREV_SYM),0,0},
   { "PRIMARY",		SYM(PRIMARY_SYM),0,0},
   { "PROCEDURE",	SYM(PROCEDURE),0,0},
