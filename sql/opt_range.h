@@ -77,6 +77,7 @@ public:
   void reset(void) { next=0; it.rewind(); }
   int init() { return error=file->index_init(index); }
   virtual int get_next();
+  virtual bool reverse_sorted() { return 0; }
   int cmp_next(QUICK_RANGE *range);
   bool unique_key_range();
 };
@@ -87,6 +88,7 @@ class QUICK_SELECT_DESC: public QUICK_SELECT
 public:
   QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts);
   int get_next();
+  bool reverse_sorted() { return 1; }
 private:
   int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
@@ -95,6 +97,7 @@ private:
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
 };
+
 
 class SQL_SELECT :public Sql_alloc {
  public:

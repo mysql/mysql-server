@@ -291,7 +291,7 @@ do
     I=1
     while test "$I" -le "$numofproces"
     do 
-      PROC=`ps xa | grep $ledir/$MYSQLD | grep -v "grep" | tail -1` 
+      PROC=`ps xa | grep $ledir/$MYSQLD | grep -v "grep" | sed -n '$p'` 
 	for T in $PROC
 	do
 	  break
