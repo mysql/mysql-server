@@ -404,7 +404,7 @@ d	date			0000-00-00
 e	char(1)				
 f	datetime			0000-00-00 00:00:00	
 g	time			00:00:00	
-h	mediumblob				
+h	longblob				
 dd	time			00:00:00	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
