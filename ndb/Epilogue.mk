@@ -851,3 +851,26 @@ ebrowse: DUMMY
 	cd $(NDB_TOP); find . -name "*.hpp" -or -name "*.cpp" -or -name "*.h" -or -name "*.c" > tmpfile~ 
 	cd $(NDB_TOP); ebrowse --file tmpfile~ 
 	cd $(NDB_TOP); rm -f tmpfile~
+
+srcdir = $(NDB_TOP)
+top_distdir = $(NDB_TOP)/..
+mkinstalldirs := /bin/sh ../mkinstalldirs
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)/ndb
+
+distdir:
+	$(mkinstalldirs) $(distdir)
+	@list='$(shell /bin/sh SrcDist.sh)'; for file in $$list; do \
+	  if test -f $$file || test -d $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    dir="/$$dir"; \
+	    $(mkinstalldirs) "$(distdir)$$dir"; \
+	  else \
+	    dir=''; \
+	  fi; \
+	  if test -f $$d/$$file; then \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
