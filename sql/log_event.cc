@@ -732,7 +732,9 @@ int Query_log_event::write_data(IO_CACHE* file)
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), data_buf(0), query(query_arg),
+  :Log_event(thd_arg, !thd_arg->lex.tmp_table_used ? 
+	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans), 
+   data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
   thread_id(thd_arg->thread_id)
@@ -814,6 +816,8 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
   *end++=';';
   *end++='\n';
   my_fwrite(file, (byte*) buff, (uint) (end-buff),MYF(MY_NABP | MY_WME));
+  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+    fprintf(file,"SET @@session.pseudo_thread_id=%lu;\n",(ulong)thread_id);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fprintf(file, ";\n");
 }
@@ -849,7 +853,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->query_error= 0;			// clear error
     thd->clear_error();
     
-    thd->slave_proxy_id = thread_id;		// for temp tables
+    thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 	
     /*
       Sanity check to make sure the master did not get a really bad
@@ -1468,7 +1472,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       set_fields(field_list);
-      thd->slave_proxy_id = thd->thread_id;
+      thd->variables.pseudo_thread_id= thd->thread_id;
       if (net)
       {
 	// mysql_load will use thd->net to read the file

@@ -607,7 +607,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			   (char *)field_name);
 	if (!r)
 	  return 1;
-	int res;
 	if (r->check_cols(1) || r->fix_fields(thd, tables, ref))
 	  return 1;
 	r->depended_from= last;
