@@ -2469,6 +2469,9 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       }
       thd->lex->current_select->cond_count+= cond_and->list.elements;
 
+      // to prevent natural join processing during PS re-execution
+      table->natural_join= 0;
+
       if (!table->outer_join)			// Not left join
       {
 	*conds= and_conds(*conds, cond_and);

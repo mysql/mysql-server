@@ -8495,13 +8495,21 @@ static void test_bug3117()
 }
 
 
-static void test_on()
+static void jest_join()
 {
   MYSQL_STMT *stmt;
-  int rc, i;
-  const char *query= "SELECT * FROM t2 join t1 on (t1.a=t2.a)";
+  int rc, i, j;
+  const char *query[]={"SELECT * FROM t2 join t1 on (t1.a=t2.a)",
+		       "SELECT * FROM t2 natural join t1",
+		       "SELECT * FROM t2 join t1 using(a)",
+		       "SELECT * FROM t2 left join t1 on(t1.a=t2.a)",
+		       "SELECT * FROM t2 natural left join t1",
+		       "SELECT * FROM t2 left join t1 using(a)",
+		       "SELECT * FROM t2 right join t1 on(t1.a=t2.a)",
+		       "SELECT * FROM t2 natural right join t1",
+		       "SELECT * FROM t2 right join t1 using(a)"};
 
-  myheader("test_on");
+  myheader("jest_join");
   
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
   myquery(rc);
@@ -8513,18 +8521,24 @@ static void test_on()
 		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
   myquery(rc);
 
-  rc= mysql_query(mysql,"create table t2 select * from t1;");
+  rc= mysql_query(mysql,"CREATE TABLE t2 (a int , c int);");
   myquery(rc);
 
-  stmt= mysql_prepare(mysql, query, strlen(query));
-  mystmt_init(stmt);
-  for (i= 0; i < 3; i++)
+  rc= mysql_query(mysql,
+		  "insert into t2 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+
+  for (j= 0; j < 9; j++)
   {
-    rc= mysql_execute(stmt);
-    mystmt(stmt, rc);
-    assert(5 == my_process_stmt_result(stmt));
+    stmt= mysql_prepare(mysql, query[j], strlen(query[j]));
+    mystmt_init(stmt);
+    for (i= 0; i < 3; i++)
+    {
+      rc= mysql_execute(stmt);
+      mystmt(stmt, rc);
+      assert(5 == my_process_stmt_result(stmt));
+    }
+    mysql_stmt_close(stmt);
   }
-  mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "DROP TABLE t1,t2");
   myquery(rc);
@@ -8836,7 +8850,7 @@ int main(int argc, char **argv)
 			       Item_field -> Item_ref */
     test_union();	    /* test union with prepared statements */
     test_bug3117();	    /* BUG#3117: LAST_INSERT_ID() */
-    test_on();		    /* ... join ... on(), BUG#2794 */
+    jest_join();	    /* different kinds of join, BUG#2794 */
     test_selecttmp();	    /* temporary table used in select execution */
 
 
