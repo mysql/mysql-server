@@ -1800,6 +1800,8 @@ ha_innobase::write_row(
 				goto func_exit;
 			}	
 
+		        printf("Updated value to %lu + 1\n", (ulint)auto_inc);
+
 			dict_table_autoinc_update(prebuilt->table, auto_inc);
 		} else {
 			srv_conc_enter_innodb(prebuilt->trx);
@@ -1865,8 +1867,12 @@ ha_innobase::write_row(
 		introduced only in version 4.0.4.
 		NOTE that a REPLACE command handles a duplicate key error
 		itself, and we must not decrement the autoinc counter
-		if we are performing a REPLACE statement. This was fixed
-		in 4.0.6. */
+		if we are performing a REPLACE statement.
+		NOTE 2: if there was an error, for example a deadlock,
+		which caused InnoDB to roll back the whole transaction
+		already in the call of row_insert_for_mysql(), we may no
+		longer have the AUTO-INC lock, and cannot decrement
+		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
 
@@ -1876,11 +1882,13 @@ ha_innobase::write_row(
 				                       &skip_auto_inc_decr);
 		}
 
-	        if (!skip_auto_inc_decr && incremented_auto_inc_counter) {
+	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
+		    && prebuilt->trx->auto_inc_lock) {
 	                dict_table_autoinc_decrement(prebuilt->table);
 	        }
 
-		if (!skip_auto_inc_decr && incremented_auto_inc_for_stat) {
+		if (!skip_auto_inc_decr && incremented_auto_inc_for_stat
+		    && prebuilt->trx->auto_inc_lock) {
 		        auto_inc_counter_for_this_stat--;
 		}
 	}
