@@ -87,6 +87,11 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
 extern "C" {
 
+volatile bool *killed_ptr(MI_CHECK *param)
+{
+  return &(((THD *)(param->thd))->killed);
+}
+
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
 {
   param->error_printed|=1;
