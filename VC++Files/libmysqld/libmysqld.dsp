@@ -55,7 +55,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "libmysqld - Win32 Debug"
@@ -82,7 +82,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug.lib ..\lib_debug\mysys.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap.lib ..\lib_debug\innodb.lib /nologo /dll /incremental:no /debug /machine:I386 /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib" /pdbtype:sept
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug_tls.lib ..\lib_debug\mysys_tls.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap_tls.lib ..\lib_debug\innodb.lib /nologo /dll /incremental:no /debug /machine:I386 /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib" /pdbtype:sept
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "libmysqld - Win32 classic"
@@ -109,9 +109,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "libmysqld - Win32 pro"
@@ -138,9 +138,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_pro/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib  ..\lib_release\zlib.lib /nologo /dll /machine:I386 /out:"../lib_pro/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF
