@@ -465,7 +465,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
 extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
   COND_slave_stopped;
 extern pthread_attr_t connection_attrib;
-extern bool opt_endinfo,using_udf_functions;
+extern bool opt_endinfo,using_udf_functions, locked_in_memory;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,

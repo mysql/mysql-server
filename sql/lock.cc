@@ -127,6 +127,7 @@ retry:
       sql_lock=0;
     }
   }
+  thd->lock_time();
   DBUG_RETURN (sql_lock);
 }
 

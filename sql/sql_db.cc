@@ -71,9 +71,12 @@ void mysql_create_db(THD *thd, char *db, uint create_options)
 				path);
   }
   {
-    mysql_update_log.write(thd->query, thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd,thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
   }
   if (thd->query == path)
   {
@@ -131,9 +134,12 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
       thd->query_length = (uint) (strxmov(path,"drop database ", db, NullS)-
 				  path);
     }
-    mysql_update_log.write(thd->query, thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd, thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
     if (thd->query == path)
     {
       thd->query = 0; // just in case
@@ -276,7 +282,7 @@ bool mysql_change_db(THD *thd,const char *name)
 	       thd->priv_user,
 	       thd->host ? thd->host : thd->ip ? thd->ip : "unknown",
 	       dbname);
-    mysql_log.write(COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user,
 		    thd->host ? thd->host : thd->ip ? thd->ip : "unknown",
 		    dbname);

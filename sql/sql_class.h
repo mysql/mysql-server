@@ -94,8 +94,9 @@ public:
   void open(const char *log_name,enum_log_type log_type,
 	    const char *new_name=0);
   void new_file(void);
-  void write(enum enum_server_command command,const char *format,...);
-  void write(const char *query, uint query_length, ulong time_to_do_query=0);
+  void write(THD *thd, enum enum_server_command command,const char *format,...);
+  void write(THD *thd, const char *query, uint query_length,
+	     time_t query_start=0);
   void write(Query_log_event* event_info); // binary log write
   void write(Load_log_event* event_info);
 
@@ -111,7 +112,7 @@ public:
   int find_next_log(LOG_INFO* linfo);
   int get_current_log(LOG_INFO* linfo);
 
-  bool is_open() { return log_type != LOG_CLOSED; }
+  inline bool is_open() { return log_type != LOG_CLOSED; }
   char* get_index_fname() { return index_file_name;}
   char* get_log_fname() { return log_file_name; }
 };
@@ -241,7 +242,7 @@ public:
   const char *where;
   char* last_nx_table; // last non-existent table, we need this for replication
   char* last_nx_db; // database of the last nx table
-  time_t  start_time;
+  time_t  start_time,time_after_lock;
   time_t  connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
@@ -257,7 +258,7 @@ public:
 #endif
   ulonglong  next_insert_id,last_insert_id,current_insert_id;
   ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
-          max_join_size;
+          max_join_size,sent_row_count;
   ulong query_id,version, inactive_timeout,options,thread_id;
   long  dbug_thread_id;
   pthread_t  real_id;
@@ -276,6 +277,7 @@ public:
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void	set_time()    { if (!user_time) time(&start_time); }
   inline void	set_time(time_t t) { start_time=t; user_time=1; }
+  inline void	lock_time()   { time(&time_after_lock); }
   inline void	insert_id(ulonglong id)
   { last_insert_id=id; insert_id_used=1; }
   inline ulonglong insert_id(void)

@@ -72,6 +72,10 @@ int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
 
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
@@ -139,13 +143,13 @@ static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
 static my_string opt_logname=0,opt_update_logname=0,
   opt_binlog_index_name = 0,opt_slow_logname=0;
-my_string opt_bin_logname = 0; // this one needs to be  seen in sql_parse.cc
+my_string opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static pthread_t flush_thread;			// Used when debugging
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-            opt_ansi_mode,opt_myisam_log=0;
+	    opt_ansi_mode=0,opt_myisam_log=0;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
 
 // if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync, and are
@@ -197,7 +201,7 @@ uint master_port = MYSQL_PORT, master_connect_retry = 60;
 ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
-bool opt_endinfo,using_udf_functions,low_priority_updates;
+bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool volatile abort_loop,select_thread_in_use,flush_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -589,6 +593,7 @@ void clean_up(void)
   x_free((gptr) errmsg[ERRMAPP]);	/* Free messages */
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
+  x_free(opt_bin_logname);
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
   /* Tell main we are ready */
@@ -1472,6 +1477,13 @@ int main(int argc, char **argv)
 	     LOG_NEW);
   if (opt_bin_log)
   {
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      strnmov(tmp,hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
     mysql_bin_log.set_index_file_name(opt_binlog_index_name);
     open_log(&mysql_bin_log, hostname, opt_bin_logname, "-bin",
 	     LOG_BIN);
@@ -1484,6 +1496,21 @@ int main(int argc, char **argv)
     sql_print_error("Can't init databases");
     exit(1);
   }
+#ifdef HAVE_MLOCKALL
+  if (locked_in_memory && !geteuid())
+  {
+    ha_key_cache();
+    if (mlockall(MCL_CURRENT))
+    {
+      sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+    }
+    else
+      locked_in_memory=1;
+  }
+#else
+  locked_in_memory=0;
+#endif    
+
   if (opt_myisam_log)
     (void) mi_log( 1 );
   ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
@@ -2171,7 +2198,8 @@ enum options {
                OPT_MASTER_CONNECT_RETRY, OPT_SQL_BIN_UPDATE_SAME,
                OPT_REPLICATE_DO_DB,      OPT_REPLICATE_IGNORE_DB, 
                OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
-               OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE
+               OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
+	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK
 };
 
 static struct option long_options[] = {
@@ -2225,6 +2253,7 @@ static struct option long_options[] = {
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
+  {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
 #ifndef DBUG_OFF
@@ -2240,6 +2269,7 @@ static struct option long_options[] = {
 #ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
 #endif
+  {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
   {"skip-grant-tables",     no_argument,       0, (int) OPT_SKIP_GRANT},
   {"skip-locking",          no_argument,       0, (int) OPT_SKIP_LOCK},
@@ -2369,6 +2399,9 @@ struct show_var_st init_vars[]= {
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
   {"language",                language,                             SHOW_CHAR},
+#ifdef HAVE_MEMLOCKALL
+  {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
+#endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
@@ -2532,9 +2565,10 @@ static void usage(void)
 			Log slow queries to this log file.  Defaults logging\n\
                         to hostname-slow.log\n\
   --pid-file=path	Pid file used by safe_mysqld\n\
-  -P, --port=...	Port number to use for connection\n\
+  --memlock		Lock mysqld in memory\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
-  -o, --old-protocol	Use the old (3.20) protocol\n");
+  -o, --old-protocol	Use the old (3.20) protocol\n\
+  -P, --port=...	Port number to use for connection\n");
 #ifndef DBUG_OFF
   puts("\
   --one-thread		Only use one thread (for debugging under Linux)\n");
@@ -2546,6 +2580,8 @@ static void usage(void)
 			Start without grant tables. This gives all users\n\
 			FULL ACCESS to all tables!\n\
   --safe-mode		Skip some optimize stages (for testing)\n\
+  --skip-concurrent-insert\n\
+		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
 			Ignore the delay_key_write option for all tables\n\
   --skip-locking	Don't use system locking. To use isamchk one has\n\
@@ -2607,11 +2643,12 @@ The default values (after parsing the command line arguments) are:\n\n");
     printf("logfile:     %s\n",opt_logname);
   if (opt_update_logname)
     printf("update log:  %s\n",opt_update_logname);
-  if (opt_bin_logname)
-    {
-     printf("binary log:  %s\n",opt_bin_logname);
-     printf("binary log index:  %s\n",opt_binlog_index_name);
-    }
+  if (opt_bin_log)
+  {
+    printf("binary log:  %s\n",opt_bin_logname ? opt_bin_logname : "");
+    printf("binary log index:  %s\n",
+	   opt_binlog_index_name ? opt_binlog_index_name : "");
+  }
   if (opt_slow_logname)
     printf("update log:  %s\n",opt_slow_logname);
   printf("TCP port:    %d\n",mysql_port);
@@ -2771,7 +2808,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_BIN_LOG:
       opt_bin_log=1;
-      opt_bin_logname=optarg;
+      x_free(opt_bin_logname);
+      if (optarg && optarg[0])
+	opt_bin_logname=my_strdup(optarg,MYF(0));
       break;
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
@@ -2820,6 +2859,9 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       break;
+    case (int) OPT_SKIP_CONCURRENT_INSERT:
+      myisam_concurrent_insert=0;
+      break;
     case (int) OPT_SKIP_PRIOR:
       opt_specialflag|= SPECIAL_NO_PRIOR;
       break;
@@ -2852,6 +2894,9 @@ static void get_options(int argc,char **argv)
       opt_skip_show_db=1;
       opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
       mysql_port=0;
+      break;
+    case (int) OPT_MEMLOCK:
+      locked_in_memory=1;
       break;
     case (int) OPT_ONE_THREAD:
       test_flags |= TEST_NO_THREADS;

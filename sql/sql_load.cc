@@ -244,14 +244,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
   send_ok(&thd->net,info.copied+info.deleted,0L,name);
-  mysql_update_log.write(thd->query,thd->query_length);
+  mysql_update_log.write(thd,thd->query,thd->query_length);
   
-  if(!read_file_from_client)
-    {
-      ex->skip_lines = save_skip_lines; 
-      Load_log_event qinfo(thd, ex, table->table_name, fields, handle_duplicates);
-      mysql_bin_log.write(&qinfo);
-    }
+  if (!read_file_from_client)
+  {
+    ex->skip_lines = save_skip_lines; 
+    Load_log_event qinfo(thd, ex, table->table_name, fields, handle_duplicates);
+    mysql_bin_log.write(&qinfo);
+  }
   DBUG_RETURN(0);
 }
 

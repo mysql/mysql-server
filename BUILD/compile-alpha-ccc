@@ -6,11 +6,13 @@ aclocal; autoheader; aclocal; automake; autoconf
 
 CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client
 make
+rm */.deps/*
+make
 if [ $? = 0 ]
 then
   rm */.deps/*
   bin/mysqladmin shutdown
-  make install
+  sur make install
   if [ $? = 0 ]
   then
      scripts/make_binary_distribution

@@ -221,6 +221,7 @@ bool select_send::send_data(List<Item> &items)
       DBUG_RETURN(1);
     }
   }
+  thd->sent_row_count++;
   bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
   DBUG_RETURN(error);
 }
@@ -256,6 +257,7 @@ select_export::~select_export()
     (void) my_close(file,MYF(0));
     file= -1;
   }
+  thd->sent_row_count=row_count;
 }
 
 int
@@ -461,10 +463,10 @@ err:
 
 void select_export::send_error(uint errcode,const char *err)
 {
-    ::send_error(&thd->net,errcode,err);
-    (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
-    file= -1;
+  ::send_error(&thd->net,errcode,err);
+  (void) end_io_cache(&cache);
+  (void) my_close(file,MYF(0));
+  file= -1;
 }
 
 
