@@ -1,5 +1,6 @@
 # We test openssl. Result set is optimized to be compiled with --with-openssl but 
 # SSL is swithced off in some reason
+-- source include/have_openssl_2.inc
 
 SHOW STATUS LIKE 'SSL%';
 

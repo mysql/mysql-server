@@ -1991,7 +1991,7 @@ The server will not act as a slave.");
     if(hEventShutdown) CloseHandle(hEventShutdown);
   }
 #endif
-
+  my_free((gptr)ssl_acceptor_fd,MYF(0));
   /* Wait until cleanup is done */
   (void) pthread_mutex_lock(&LOCK_thread_count);
   while (!ready_to_exit)

@@ -1,5 +1,5 @@
 # We want to test everything with SSL turned on. 
--- source include/have_openssl.inc 
+-- source include/have_openssl_2.inc 
 
 SHOW STATUS LIKE 'SSL%';
 
