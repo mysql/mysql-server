@@ -1811,10 +1811,12 @@ print_field_types(MYSQL_RES *result)
   MYSQL_FIELD	*field;  
   while ((field = mysql_fetch_field(result)))
   {
+    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %d\nMax length: %d\nIs_null:    %d\nFlags:      %d\nDecimals:   %d\n\n",
     tee_fprintf(PAGER,"'%s.%s.%s.%s' %d %d %d %d %d\n",
 		field->catalog, field->db, field->table, field->name,
 		(int) field->type,
-		field->length, field->max_length, 
+		field->length, field->max_length,
+		!IS_NOT_NULL(field->flags),
 		field->flags, field->decimals);
   }
   tee_puts("", PAGER);
@@ -2650,10 +2652,10 @@ com_status(String *buffer __attribute__((unused)),
       (void) mysql_fetch_row(result);		// Read eof
     }
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio && mysql.net.vio->ssl_ &&
-	SSL_get_cipher(mysql.net.vio->ssl_))
+    if (mysql.net.vio && mysql.net.vio->ssl_arg &&
+	SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  SSL_get_cipher(mysql.net.vio->ssl_));
+		  SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg));
     else
 #endif /* HAVE_OPENSSL */
       tee_puts("SSL:\t\t\tNot in use", stdout);

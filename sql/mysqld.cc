@@ -210,6 +210,7 @@ const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", NullS
@@ -1119,7 +1120,14 @@ static void server_init(void)
     IPaddr.sin_family = AF_INET;
     IPaddr.sin_addr.s_addr = my_bind_addr;
     IPaddr.sin_port = (unsigned short) htons((unsigned short) mysqld_port);
+
+#ifndef __WIN__
+    /*
+      We should not use SO_REUSEADDR on windows as this would enable a
+      user to open two mysqld servers with the same TCP/IP port.
+    */
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
+#endif /* __WIN__ */
     if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
 	     sizeof(IPaddr)) < 0)
     {
@@ -2050,7 +2058,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
 		  max_connections,table_cache_size));
       sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
     }
+    open_files_limit= files;
   }
+#else
+  open_files_limit= 0;		/* Can't set or detect limit */
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   init_errmessage();		/* Read error messages from file */
@@ -3104,6 +3115,12 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     }
     if (sock == unix_sock)
       thd->host=(char*) localhost;
+#ifdef __WIN__
+    /* Set default wait_timeout */
+    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
+    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
+                    sizeof(wait_timeout));
+#endif
     create_new_thread(thd);
   }
 
@@ -4196,7 +4213,7 @@ replicating a LOAD DATA INFILE command.",
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
    (gptr*) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 80, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
@@ -5563,6 +5580,19 @@ static void fix_paths(void)
 }
 
 
+/*
+  set how many open files we want to be able to handle
+
+  SYNOPSIS
+    set_maximum_open_files()  
+    max_file_limit		Files to open
+
+  NOTES
+    The request may not fulfilled becasue of system limitations
+
+  RETURN
+    Files available to open
+*/
 
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit)

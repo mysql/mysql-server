@@ -51,7 +51,7 @@
 
 #ifdef HAVE_CHARSET_tis620
 
-static uchar* thai2sortable(const uchar *tstr,uint len);
+static uchar* thai2sortable(const uchar *tstr,int len);
 
 #define BUFFER_MULTIPLY 4
 #define buffsize(s)	(BUFFER_MULTIPLY * (strlen(s) + 1))
@@ -458,7 +458,7 @@ uchar NEAR sort_order_tis620[]=
 /*
   NOTE: isn't it faster to alloc buffer in calling function?
  */
-static uchar* thai2sortable(const uchar * tstr,uint len)
+static uchar* thai2sortable(const uchar * tstr,int len)
 {
 /* We use only 3 levels (neglect capitalization). */
 
@@ -469,16 +469,16 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
   uint	bufSize;
   uint  RightSize;
 
-  len= (uint) strnlen((char*) tstr,len);
+  len= (int) strnlen((char*) tstr,len);
   bufSize= (uint) buffsize((char*) tstr);
   RightSize= sizeof(uchar) * (len + 1);
-  if (!(outBuf= pLeft1= pRight1= 
+  if (!(outBuf= pLeft1= pRight1=
        (uchar *)malloc(sizeof(uchar) * bufSize + RightSize*2)))
     return (uchar*) tstr;
   pLeft2= pRight2= pRight1 + sizeof(uchar) * bufSize;
   pLeft3= pRight3= pRight2 + RightSize;
 
-  while (--len)
+  while (--len > 0)
   {
     int *t_ctype0= t_ctype[p[0]];
     if (isldvowel(*p) && isconsnt(p[1]))
@@ -584,8 +584,8 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 {
   uchar *tc1, *tc2;
   int i;
-  tc1= thai2sortable(s1, (uint) strlen((char*)s1));
-  tc2= thai2sortable(s2, (uint) strlen((char*)s2));
+  tc1= thai2sortable(s1, (int) strlen((char*)s1));
+  tc2= thai2sortable(s2, (int) strlen((char*)s2));
   i= strcmp((char*)tc1, (char*)tc2);
   free(tc1);
   free(tc2);

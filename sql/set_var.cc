@@ -615,13 +615,6 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
-  {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
-  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
-  {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
-#ifdef HAVE_REPLICATION
-  {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
-#endif
-  {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
   {sys_query_cache_min_res_unit.name, (char*) &sys_query_cache_min_res_unit,
@@ -629,6 +622,13 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
+  {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
+  {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
+#ifdef HAVE_REPLICATION
+  {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
+#endif
+  {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
   {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
@@ -845,10 +845,12 @@ void fix_max_relay_log_size(THD *thd, enum_var_type type)
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulong) tmp;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
@@ -862,17 +864,21 @@ void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulonglong) tmp;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
 
 void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
 {
+  pthread_mutex_lock(&LOCK_global_system_variables);
   *value= (ulonglong) option_limits->def_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -1164,9 +1170,21 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   case SHOW_LONG:
     return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type, base));
   case SHOW_LONGLONG:
-    return new Item_int(*(longlong*) value_ptr(thd, var_type, base));
+  {
+    longlong value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(longlong*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_int(value);
+  }
   case SHOW_HA_ROWS:
-    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type, base));
+  {
+    ha_rows value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(ha_rows*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_int((longlong) value);
+  }
   case SHOW_MY_BOOL:
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type, base),1);
   case SHOW_CHAR:

@@ -305,12 +305,16 @@ libmysql/conf_to_src
 libmysql/my_static.h
 libmysql/mysys_priv.h
 libmysql/net.c
+libmysql/vio_priv.h
 libmysql_r/*.c
 libmysql_r/acconfig.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
+libmysql_r/vio_priv.h
 libmysqld/backup_dir
+libmysqld/client.c
+libmysqld/client_settings.h
 libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/errmsg.c
@@ -355,6 +359,7 @@ libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
 libmysqld/key.cc
+libmysqld/libmysql.c
 libmysqld/lock.cc
 libmysqld/log.cc
 libmysqld/log_event.cc
@@ -366,6 +371,7 @@ libmysqld/net_serv.cc
 libmysqld/opt_ft.cc
 libmysqld/opt_range.cc
 libmysqld/opt_sum.cc
+libmysqld/pack.c
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/protocol.cc
@@ -622,7 +628,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-libmysqld/client.c
-libmysqld/client_settings.h
-libmysqld/libmysql.c
-libmysqld/pack.c

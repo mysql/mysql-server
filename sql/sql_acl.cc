@@ -599,6 +599,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 
   {
     Vio *vio=thd->net.vio;
+#ifdef HAVE_OPENSSL
+    SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
     /*
       At this point we know that user is allowed to connect
       from given host by given username/password pair. Now
@@ -624,8 +627,8 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	we should reject connection.
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
-	  SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
-	  SSL_get_peer_certificate(vio->ssl_))
+	  SSL_get_verify_result(ssl) == X509_V_OK &&
+	  SSL_get_peer_certificate(ssl))
 	user_access=acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
@@ -636,27 +639,27 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	use.
       */
       if (vio_type(vio) != VIO_TYPE_SSL ||
-	  SSL_get_verify_result(vio->ssl_) != X509_V_OK)
+	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
       if (acl_user->ssl_cipher)
       {
 	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-			   acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+			   acl_user->ssl_cipher,SSL_get_cipher(ssl)));
+	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
 	  user_access=acl_user->access;
 	else
 	{
 	  if (global_system_variables.log_warnings)
 	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
 			    acl_user->ssl_cipher,
-			    SSL_get_cipher(vio->ssl_));
+			    SSL_get_cipher(ssl));
 	  user_access=NO_ACCESS;
 	  break;
 	}
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+      X509* cert=SSL_get_peer_certificate(ssl);
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
@@ -2445,7 +2448,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       {
 	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
 			"DB GRANT","GLOBAL PRIVILEGES");
-	result= -1;
+	result= 1;
       }
     }
   }
@@ -3172,6 +3175,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
+ 	else if (!(table_access & ~GRANT_ACL))
+ 	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;

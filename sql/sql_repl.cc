@@ -545,7 +545,7 @@ Increase max_allowed_packet on master";
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
-	    mysql_bin_log.wait_for_update(thd);
+	    mysql_bin_log.wait_for_update(thd, 0);
 	  }
 	  else
 	    pthread_mutex_unlock(log_lock);
@@ -560,7 +560,7 @@ Increase max_allowed_packet on master";
 
 	if (read_packet)
 	{
-	  thd->proc_info = "sending update to slave";
+	  thd->proc_info = "Sending binlog event to slave";
 	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
@@ -597,7 +597,7 @@ Increase max_allowed_packet on master";
     {
       bool loop_breaker = 0;
       // need this to break out of the for loop from switch
-      thd->proc_info = "switching to next log";
+      thd->proc_info = "Finished reading one binlog; switching to next binlog";
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case LOG_INFO_EOF:
 	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
@@ -636,14 +636,14 @@ end:
   (void)my_close(file, MYF(MY_WME));
 
   send_eof(thd);
-  thd->proc_info = "waiting to finalize termination";
+  thd->proc_info = "Waiting to finalize termination";
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
 err:
-  thd->proc_info = "waiting to finalize termination";
+  thd->proc_info = "Waiting to finalize termination";
   end_io_cache(&log);
   /*
     Exclude  iteration through thread list
@@ -903,7 +903,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     DBUG_RETURN(1);
   }
 
-  thd->proc_info = "changing master";
+  thd->proc_info = "Changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
@@ -969,7 +969,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd->proc_info="purging old relay logs";
+    thd->proc_info="Purging old relay logs";
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
@@ -1258,7 +1258,7 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, buffer, block_len,
+    Append_block_log_event a(lf_info->thd, lf_info->db, buffer, block_len,
 			     lf_info->log_delayed);
     mysql_bin_log.write(&a);
   }

@@ -14,6 +14,7 @@ SILENT=0
 SUFFIX=""
 DIRNAME=""
 OUTTAR=0
+OUTZIP=0
 
 #
 # This script must run from MySQL top directory
@@ -62,7 +63,8 @@ show_usage()
   echo "  --suffix  Suffix name for the package"
   echo "  --dirname Directory name to copy files (intermediate)"
   echo "  --silent  Do not list verbosely files processed"
-  echo "  --tar     Create tar.gz package instead of .zip"
+  echo "  --tar     Create tar.gz package"
+  echo "  --zip     Create zip package"
   echo "  --help    Show this help message"
 
   exit 0
@@ -75,12 +77,14 @@ show_usage()
 parse_arguments() {
   for arg do
     case "$arg" in
+      --add-tar)  ADDTAR=1 ;;
       --debug)    DEBUG=1;;
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --dirname=*) DIRNAME=`echo "$arg" | sed -e "s;--dirname=;;"` ;;
       --silent)   SILENT=1 ;;
       --tar)      OUTTAR=1 ;;
+      --zip)      OUTZIP=1 ;;
       --help)     show_usage ;;
       *)
   echo "Unknown argument '$arg'"
@@ -98,15 +102,29 @@ parse_arguments "$@"
 
 for i in $TMP $TMPDIR $TEMPDIR $TEMP /tmp
 do
-  if [ "$i" ]; then 
+  if [ "$i" ]; then
     print_debug "Setting TMP to '$i'"
-    TMP=$i 
+    TMP=$i
     break
   fi
 done
 
-    
+
 #
+# Convert argument file from unix to DOS text
+#
+
+unix_to_dos()
+{
+  for arg do
+    print_debug "Replacing LF -> CRLF from '$arg'"
+
+    sed -e 's/$/\r/' $arg > $arg.tmp
+    rm -f $arg
+    mv $arg.tmp $arg
+  done
+}
+
 
 #
 # Create a tmp dest directory to copy files
@@ -123,14 +141,9 @@ $CP -r $SOURCE/VC++Files $BASE
 (
 find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
 )|(
-  while read v 
+  while read v
   do
-    print_debug "Replacing LF -> CRLF from '$v'"
-
-    # ^M -> type CTRL V + CTRL M 
-    cat $v | sed 's///' | sed 's/$//' > $v.tmp
-    rm $v
-    mv $v.tmp $v
+    unix_to_dos $v
   done
 )
 
@@ -147,7 +160,7 @@ rm -r -f "$BASE/share/Makefile.am"
 # Clean up if we did this from a bk tree
 #
 
-if [ -d $BASE/SCCS ]  
+if [ -d $BASE/SCCS ]
 then
   find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
@@ -169,9 +182,9 @@ copy_dir_files()
        mkdir $BASE/$arg
      fi
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
-             README INSTALL* LICENSE 
-    do 
-      if [ -f $i ] 
+             README INSTALL* LICENSE
+    do
+      if [ -f $i ]
       then
         $CP $SOURCE/$arg/$i $BASE/$arg/$i
       fi
@@ -195,21 +208,19 @@ copy_dir_dirs() {
 
   for arg do
 
-    basedir=$arg
-      
-    if [ ! -d $BASE/$arg ]; then
-      mkdir $BASE/$arg
-    fi
-    
-    copy_dir_files $arg
-    
-    cd $SOURCE/$arg/    
-    for i in *
-    do
-      if [ -d $SOURCE/$basedir/$i ] && [ "$i" != "SCCS" ]; then
-        copy_dir_files $basedir/$i
-      fi
-    done
+    cd $SOURCE
+    (
+    find $arg -type d \
+              -and -not -path \*SCCS\* \
+              -and -not -path \*.deps\* \
+              -and -not -path \*autom4te.cache -print
+    )|(
+      while read v
+      do
+        copy_dir_files $v
+      done
+    )
+
   done
 }
 
@@ -220,7 +231,7 @@ copy_dir_dirs() {
 for i in client dbug extra heap include isam \
          libmysql libmysqld merge myisam \
          myisammrg mysys regex sql strings sql-common \
-         vio zlib
+         tools vio zlib
 do
   copy_dir_files $i
 done
@@ -249,17 +260,32 @@ touch $BASE/innobase/ib_config.h
 #
 
 cd $SOURCE
-for i in COPYING ChangeLog README \
+for i in COPYING COPYING.LIB ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
-         Docs/mysqld_error.txt Docs/INSTALL-BINARY 
-         
+         Docs/manual.txt Docs/mysqld_error.txt \
+         Docs/INSTALL-BINARY
+
 do
   print_debug "Copying file '$i'"
-  if [ -f $i ] 
+  if [ -f $i ]
   then
     $CP $i $BASE/$i
+  fi
+done
+
+#
+# Raw dirs from source tree
+#
+
+for i in Docs/Flags scripts sql-bench SSL \
+         tests
+do
+  print_debug "Copying directory '$i'"
+  if [ -d $i ]
+  then
+    $CP -R $i $BASE/$i
   fi
 done
 
@@ -269,11 +295,14 @@ done
 
 ./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
 
+unix_to_dos $BASE/README
+mv $BASE/README $BASE/README.txt
+
 #
 # Initialize the initial data directory
 #
 
-if [ -f scripts/mysql_install_db ]; then 
+if [ -f scripts/mysql_install_db ]; then
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
 fi
@@ -334,9 +363,13 @@ which_1 ()
 # Create the result zip/tar file
 #
 
-set_tarzip_options() 
+if [ [ "$OUTTAR" = "0" ] && [ "$OUTZIP" = "0" ] ]; then
+  OUTZIP=1
+fi
+
+set_tarzip_options()
 {
-  for arg 
+  for arg
   do
     if [ "$arg" = "tar" ]; then
       ZIPFILE1=gnutar
@@ -360,43 +393,60 @@ set_tarzip_options()
   done
 }
 
-if [ "$OUTTAR" = "1" ]; then
-  set_tarzip_options 'tar'
-else
-  set_tarzip_options 'zip'
-fi
-
-tar=`which_1 $ZIPFILE1 $ZIPFILE2`
-if test "$?" = "1" -o "$tar" = ""
-then
-  print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
-  tar=tar
-  set_tarzip_options 'tar'
-fi
 
 #
 # Create the archive
 #
+create_archive()
+{
 
-print_debug "Using $tar to create archive"
+  print_debug "Using $tar to create archive"
 
-cd $TMP
+  cd $TMP
 
-rm -f $SOURCE/$NEW_NAME$EXT
-$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
-cd $SOURCE
+  rm -f $SOURCE/$NEW_NAME$EXT
+  $tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
+  cd $SOURCE
 
-if [ "$NEED_COMPRESS" = "1" ]
-then
-  print_debug "Compressing archive"
-  gzip -9 $NEW_NAME$EXT
-  EXT="$EXT.gz"
+  if [ "$NEED_COMPRESS" = "1" ]
+  then
+    print_debug "Compressing archive"
+    gzip -9 $NEW_NAME$EXT
+    EXT="$EXT.gz"
+  fi
+
+  if [ "$SILENT" = "0" ] ; then
+    echo "$NEW_NAME$EXT created successfully !!"
+  fi
+}
+
+if [ "$OUTTAR" = "1" ]; then
+  set_tarzip_options 'tar'
+
+  tar=`which_1 $ZIPFILE1 $ZIPFILE2`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
+    tar=tar
+    set_tarzip_options 'tar'
+  fi
+  
+  create_archive 
+fi
+
+if [ "$OUTZIP" = "1" ]; then
+  set_tarzip_options 'zip'
+
+  tar=`which_1 $ZIPFILE1 $ZIPFILE2`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    echo "Search failed for '$ZIPFILE1', '$ZIPFILE2', cannot create zip!"
+  fi
+ 
+  create_archive
 fi
 
 print_debug "Removing temporary directory"
 rm -r -f $BASE
 
-if [ "$SILENT" = "0" ] ; then
-  echo "$NEW_NAME$EXT created successfully !!"
-fi
 # End of script

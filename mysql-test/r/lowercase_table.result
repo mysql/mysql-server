@@ -6,6 +6,14 @@ id	Word
 1	a
 2	b
 3	c
+SELECT T1.id from T1 LIMIT 1;
+id
+1
+SELECT T2.id from t1 as T2 LIMIT 1;
+id
+1
+SELECT T2.id from t1 as t2 LIMIT 1;
+Unknown table 'T2' in field list
 RENAME TABLE T1 TO T2;
 ALTER TABLE T2 ADD new_col int not null;
 ALTER TABLE T2 RENAME T3;
