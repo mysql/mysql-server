@@ -191,3 +191,15 @@ create table `t1 `(a int);
 create database `db1 `;
 --error 1166;
 create table t1(`a ` int);
+
+#
+# Test for Bug #3481 
+#   "Parser permits multiple commas without syntax error"
+#
+
+--error 1064
+create table t1 (a int,);
+--error 1064
+create table t1 (a int,,b int);
+--error 1064
+create table t1 (,b int);

@@ -133,7 +133,7 @@ CREATE TABLE t1 (
   wid int(10) unsigned NOT NULL auto_increment,
   data_podp date default NULL,
   status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-  PRIMARY KEY(wid),
+  PRIMARY KEY(wid)
 );
 
 INSERT INTO t1 VALUES (8,NULL,'real');

@@ -222,3 +222,9 @@ create database `db1 `;
 Incorrect database name 'db1 '
 create table t1(`a ` int);
 Incorrect column name 'a '
+create table t1 (a int,);
+You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+create table t1 (a int,,b int);
+You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+create table t1 (,b int);
+You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1

@@ -3,7 +3,7 @@ drop table if exists t1,t2;
 
 CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
- b int unsigned,
+ b int unsigned
 ) TYPE=MyISAM;
 
 CREATE TABLE t2 (
