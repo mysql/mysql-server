@@ -53,7 +53,7 @@ DROP TABLE IF EXISTS t2;
 --enable_warnings
 
 create table t2 (a int NOT NULL PRIMARY KEY) engine=myisam;
-let $1=15001;
+let $1=12001;
 disable_query_log;
 while ($1)
 {
@@ -62,7 +62,10 @@ while ($1)
 }
 enable_query_log;
 alter table t2 engine=ndbcluster;
-select count(*) from t2;
+--error 1297
+delete from t2;
+#to make sure we do a full table scan
+select count(*) from t2 where a+0 > 0;
 truncate table t2;
 select count(*) from t2;
 drop table t2;
