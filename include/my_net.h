@@ -72,6 +72,12 @@ struct hostent *my_gethostbyname_r(const char *name,
 #define GETHOSTBYNAME_BUFF_SIZE 2048
 #endif
 
+/* On SCO you get a link error when refering to h_errno */
+#ifdef SCO
+#undef h_errno
+#define h_errno errno
+#endif
+
 #ifdef	__cplusplus
 }
 #endif

@@ -34,10 +34,10 @@ AM_MAKEFLAGS="-j 4"
 # The following warning flag will give too many warnings:
 # -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
 # __attribute()__ doesn't work with gnu C++)
-global_warnings="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings"
+global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings"
 #debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
-cxx_warnings="$global_warnings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
+cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
 pentium_cflags="-mcpu=pentiumpro"

@@ -80,16 +80,6 @@
 #include <m_string.h>
 #include <assert.h>
 
-const char *raid_type_string[]={"none","striped"};
-
-
-extern "C" {
-  const char *my_raid_type(int raid_type)
-  {
-    return raid_type_string[raid_type];
-  }
-}
-
 #if defined(USE_RAID) && !defined(MYSQL_CLIENT)
 
 #define RAID_SEEK_DONE ~(off_t) 0
