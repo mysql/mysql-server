@@ -1723,6 +1723,23 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     printf("- recovering (with sort) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
+
+  /* Hmm, repair_by_sort uses find_all_keys, and find_all_keys strictly
+     implies "one row - one key per keynr", while for ft_key one row/keynr
+     can produce as many keys as the number of unique words in the text
+     that's why I disabled repair_by_sort for ft-keys. (serg)
+  */
+  for (i=0 ; i < share->base.keys ; i++)
+  {
+    if ((((ulonglong) 1 << i) & key_map) && 
+	(share->keyinfo[i].flag & HA_FULLTEXT))
+    {
+      mi_check_print_error(param,
+			   "Can`t use repair_by_sort with FULLTEXT key");
+      DBUG_RETURN(1);
+    }
+  }
+
   bzero((char*) sort_info,sizeof(*sort_info));
   if (!(sort_info->key_block=
 	alloc_key_blocks(param,
@@ -2040,22 +2057,8 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
-  /* Hmm, repair_by_sort uses find_all_keys, and find_all_keys strictly
-     implies "one row - one key per keynr", while for ft_key one row/keynr
-     can produce as many keys as the number of unique words in the text
-     that's why I disabled repair_by_sort for ft-keys. (serg)
-   */
-  if (sort_info->keyinfo->flag & HA_FULLTEXT )
-  {
-    mi_check_print_error(sort_info->param,
-    			 "Can`t use repair_by_sort with FULLTEXT key");
-    DBUG_RETURN(1);
-  }
-  else
-  {
-    VOID(_mi_make_key(info,sort_info->key,key,sort_info->record,
-                      sort_info->filepos));
-  }
+  (void) _mi_make_key(info,sort_info->key,key,sort_info->record,
+                      sort_info->filepos);
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */
 

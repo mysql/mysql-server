@@ -22806,8 +22806,8 @@ The disadvantages with @code{MERGE} tables are:
 
 @itemize @bullet
 @item
-You can't use @code{INSERT} on @code{MERGE} tables, as @strong{MySQL} can't know
-in which of the tables we should insert the row.
+You can't use @code{INSERT} on @code{MERGE} tables, as @strong{MySQL}
+can't know in which of the tables we should insert the row.
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @item
@@ -22825,7 +22825,11 @@ will need to read the next key block. This makes @code{MERGE} keys much slower
 on @code{eq_ref} searches, but not much slower on @code{ref} searches.
 @xref{EXPLAIN}.
 @item
-You can't yet easily map the @code{MERGE} table from within @strong{MySQL}.
+You can't do @code{DROP TABLE}, @code{ALTER TABLE} or @code{DELETE FROM
+table_name} without a @code{WHERE} clause on any of the table that is
+mapped by a @code{MERGE} table that is 'open'.  If you do this, the
+@code{MERGE} table may still refer to the original table and you will
+get unexpected results.
 @end itemize
 
 The following example shows you how to use @code{MERGE} tables:
@@ -41441,6 +41445,8 @@ not yet 100 % confident in this code.
 @node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
+@item
+Allow space around @code{=} in argument to @code{--set-variable}.
 @item
 Fixed problem in automatic repair that could let some threads in state
 @code{Waiting for table}.
