@@ -33,6 +33,10 @@
     - Setting server default character set
 */
 
+my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+{
+  return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
+}
 
 static void set_max_sort_char(CHARSET_INFO *cs)
 {

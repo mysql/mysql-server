@@ -215,6 +215,7 @@ extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 extern void free_charsets(void);
 extern char *list_charsets(myf want_flags); /* my_free() this string... */
 extern char *get_charsets_dir(char *buf);
+extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 
 
 /* statistics */

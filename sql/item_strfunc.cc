@@ -2216,7 +2216,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
     return 1;
   }
   
-  if (strcmp(args[0]->charset()->csname,set_collation->csname))
+  if (!my_charset_same(args[0]->charset(),set_collation))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
       set_collation->name,args[0]->charset()->csname);
