@@ -16,7 +16,7 @@ To make maintaining easier please:
   <alias>big-five</alias>
   <alias>cn-big5</alias>
   <alias>csbig5</alias>
-  <collation name="big5"	id="1"	order="Chinese"	flag="primary"/>
+  <collation name="big5"	id="1"	order="Chinese"	flag="primary" flag="compiled"/>
 </charset>
 
 <charset name="latin2">
@@ -27,7 +27,7 @@ To make maintaining easier please:
   <alias>iso_8859-2</alias>
   <alias>iso_8859-2:1987</alias>
   <alias>l2</alias>
-  <collation name="czech" 	id="2"	order="Czech"/>
+  <collation name="czech" 	id="2"	order="Czech" flag="compiled"/>
   <collation name="latin2"	id="9"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
@@ -86,7 +86,7 @@ To make maintaining easier please:
   <collation name="german1"		id="5"	order="German Duden"/>
   <collation name="latin1"		id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="danish"		id="15"	order="Danish"/>
-  <collation name="latin1_de"		id="31"	order="German DIN"/>
+  <collation name="latin1_de"		id="31"	order="German DIN"	flag="compiled"/>
   <collation name="latin1_bin"		id="47"	order="Binary"/>
   <collation name="latin1_ci_as"	id="48">
     <order>Dutch</order>
@@ -209,14 +209,14 @@ To make maintaining easier please:
 <charset name="tis620">
   <family>Thai</family>
   <alias>tis-620</alias>
-  <collation name="tis620"	id="18"	order="Thai"	flag="primary"/>
+  <collation name="tis620"	id="18"	order="Thai"	flag="primary"	flag="compiled"/>
 </charset>
 
 <charset name="euc_kr">
   <family>Korean</family>
   <alias>euckr</alias>
   <alias>euc-kr</alias>
-  <collation name="euc_kr"	id="19"	order="Korean"	flag="primary"/>
+  <collation name="euc_kr"	id="19"	order="Korean"	flag="primary"	flag="compiled"/>
 </charset>
 
 <charset name="latin7">
@@ -239,7 +239,7 @@ To make maintaining easier please:
   <family>Simplified Chinese</family>
   <alias>chinese</alias>
   <alias>iso-ir-58</alias>
-  <collation name="gb2312"	id="24"	order="Chinese"	flag="primary"/>
+  <collation name="gb2312"	id="24"	order="Chinese"	flag="primary"	flag="compiled"/>
 </charset>
 
 <charset name="greek">
@@ -271,7 +271,7 @@ To make maintaining easier please:
 <charset name="gbk">
   <family>East Asian</family>
   <alias>cp936</alias>
-  <collation name="gbk"		id="28"	order="Chinese"	flag="primary"/>
+  <collation name="gbk"		id="28"	order="Chinese"	flag="primary"	flag="compiled"/>
 </charset>
 
 <charset name="cp1257">
@@ -449,7 +449,7 @@ To make maintaining easier please:
 </charset>
 
 <charset name="binary">
-  <collation name="binary"	id="63"	order="Binary"	flag="primary"/>
+  <collation name="binary"	id="63"	order="Binary"	flag="primary"	flag="compiled"/>
 </charset>
 
 </charsets>
