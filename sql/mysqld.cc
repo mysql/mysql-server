@@ -797,9 +797,9 @@ static void __cdecl kill_server(int sig_ptr)
 
 #ifdef __NETWARE__
   pthread_join(select_thread, NULL);		// wait for main thread
-#else
-  pthread_exit(0);				/* purecov: deadcode */
 #endif /* __NETWARE__ */
+  
+  pthread_exit(0);				/* purecov: deadcode */
 
   RETURN_FROM_KILL_SERVER;
 }
@@ -856,13 +856,11 @@ void unireg_end(void)
 {
   clean_up(1);
   my_thread_end();
-#ifndef __NETWARE__
-#ifdef SIGNALS_DONT_BREAK_READ
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(__NETWARE__)
   exit(0);
 #else
   pthread_exit(0);				// Exit is in main thread
 #endif
-#endif /* __NETWARE__ */
 }
 
 
