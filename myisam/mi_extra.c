@@ -33,14 +33,10 @@
     		Used when function is one of:
 		HA_EXTRA_WRITE_CACHE
 		HA_EXTRA_CACHE
-		HA_EXTRA_BULK_INSERT_BEGIN
-		  If extra_arg is 0, then the default cache size is used.
-		HA_EXTRA_BULK_INSERT_FLUSH
-		  extra_arg is a a pointer to which index to flush (uint*)
-    RETURN VALUES
-    0	ok
+  RETURN VALUES
+    0  ok
+    #  error
 */
-
 
 int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 {
