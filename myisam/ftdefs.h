@@ -120,6 +120,16 @@ uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 byte ft_get_word(byte **, byte *, FT_WORD *, FTB_PARAM *);
 byte ft_simple_get_word(byte **, byte *, FT_WORD *);
 
+typedef struct _st_ft_seg_iterator {
+  uint        num, len;
+  MI_KEYSEG  *seg;
+  const byte *rec, *pos;
+} FT_SEG_ITERATOR;
+
+void _mi_ft_segiterator_init(MI_INFO *, uint, const byte *, FT_SEG_ITERATOR *);
+void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
+uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
+
 int ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(/*MI_INFO *, uint, byte *, */TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
