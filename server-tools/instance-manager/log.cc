@@ -32,8 +32,8 @@
   SYNOPSYS
     log()
 */
-  
-static inline void log(FILE *file,  const char *format, va_list args) 
+
+static inline void log(FILE *file,  const char *format, va_list args)
 {
   /*
     log() should be thread-safe; it implies that we either call fprintf()

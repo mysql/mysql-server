@@ -45,8 +45,8 @@ static const char *mysqld_error_message(unsigned sql_errno)
   case ER_BAD_INSTANCE_NAME:
     return "Bad instance name. Check that the instance with such a name exists";
   case ER_INSTANCE_IS_NOT_STARTED:
-    return "Cannot stop instance. Perhaps the instance is not started or you"
-           " have specified wrong username/password in the config file";
+    return "Cannot stop instance. Perhaps the instance is not started, or was started"
+            "manually, so IM cannot find the pidfile.";
   case ER_INSTANCE_ALREADY_STARTED:
     return "The instance is already started";
   case ER_CANNOT_START_INSTANCE:
