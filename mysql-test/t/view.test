@@ -1654,3 +1654,19 @@ select * from v3;
 
 drop view v3;
 drop tables t1,t2;
+
+#
+# Resolving view fields in subqueries in VIEW (Bug #6394)
+#
+create table t1(c1 int);
+create table t2(c2 int);
+insert into t1 values (1),(2),(3);
+insert into t2 values (1);
+SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+create view v1 as SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+create view v2 as SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+select * from v1;
+select * from v2;
+drop view v2, v1;
+drop table t1, t2;
