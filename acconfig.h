@@ -189,6 +189,9 @@
 /* Define as the base type of the last arg to accept */
 #undef SOCKET_SIZE_TYPE
 
+/* Last argument to get/setsockopt */
+#undef SOCKOPT_OPTLEN_TYPE
+
 #undef SPEED_T_IN_SYS_TYPES
 #undef SPRINTF_RETURNS_PTR
 #undef SPRINTF_RETURNS_INT

@@ -39,7 +39,7 @@ mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
 			strcend.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
-			strtoull.lo strtoll.lo llstr.lo strto.lo \
+			strtoull.lo strtoll.lo llstr.lo \
 			ctype.lo $(LTCHARSET_OBJS)
 mystringsextra= 	strto.c ctype_autoconf.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo

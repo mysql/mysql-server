@@ -1,0 +1,21 @@
+#
+# Test of REPLACE with ISAM and MyISAM and BDB
+#
+
+drop table if exists t1;
+
+CREATE TABLE t1 (
+  gesuchnr int(11) DEFAULT '0' NOT NULL,
+  benutzer_id int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (gesuchnr,benutzer_id)
+) type=ISAM;
+
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+alter table t1 type=myisam;
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+alter table t1 type=bdb;
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+alter table t1 type=heap;
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+drop table t1;
