@@ -782,10 +782,11 @@ row_lock_table_for_mysql(
 					/* out: error code or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in the MySQL
 					table handle */
-	dict_table_t*	table)		/* in: table to LOCK_IX, or NULL
+	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
 					locked as LOCK_TABLE_EXP |
 					prebuilt->select_lock_type */
+	ulint		mode)		/* in: lock mode of table */
 {
 	trx_t*		trx 		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -819,7 +820,7 @@ run_again:
 	trx_start_if_not_started(trx);
 
 	if (table) {
-		err = lock_table(0, table, LOCK_IX, thr);
+		err = lock_table(0, table, mode, thr);
 	} else {
 		err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
 			prebuilt->select_lock_type, thr);

@@ -136,3 +136,13 @@ create view v1 as select * from t1;
 --exec $MYSQL_DUMP --skip-comments test
 drop view v1;
 drop table t1;
+
+#
+# Bug #6101: create database problem
+#
+
+--exec $MYSQL_DUMP --skip-comments --databases test
+
+create database mysqldump_test_db character set latin2 collate latin2_bin;
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
+drop database mysqldump_test_db;

@@ -90,6 +90,11 @@ const char *ConfigRetriever::get_mgmd_host() const
   return ndb_mgm_get_connected_host(m_handle);
 }
 
+const char *ConfigRetriever::get_connectstring(char *buf, int buf_sz) const
+{
+  return ndb_mgm_get_connectstring(m_handle, buf, buf_sz);
+}
+
 //****************************************************************************
 //****************************************************************************
  

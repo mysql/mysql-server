@@ -55,6 +55,9 @@ public:
   int readAndExecute();
 
 private:
+  char m_err_str[1024];
+  const char *get_error_text(int err_no);
+
   /**
    *   Read a string, and return a pointer to it.  
    *

@@ -35,6 +35,7 @@ typedef struct ErrorBundle {
 
 #define NE ndberror_cl_none
 #define AE ndberror_cl_application
+#define CE ndberror_cl_configuration
 #define ND ndberror_cl_no_data_found
 #define CV ndberror_cl_constraint_violation
 #define SE ndberror_cl_schema_error
@@ -57,6 +58,27 @@ static const char REDO_BUFFER_MSG[]=
 "REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
 
 static const char* empty_string = "";
+
+/*
+ * Error code ranges are reserved for respective block
+ *
+ *  200 - TC
+ *  300 - DIH
+ *  400 - LQH
+ *  600 - ACC
+ *  700 - DICT
+ *  800 - TUP
+ * 1200 - LQH
+ * 1300 - BACKUP
+ * 4000 - API
+ * 4100 - ""
+ * 4200 - ""
+ * 4300 - ""
+ * 4400 - ""
+ * 4500 - ""
+ * 4600 - ""
+ * 5000 - Management server
+ */
 
 static
 const 
@@ -304,6 +326,36 @@ ErrorBundle ErrorCodes[] = {
   { 4003, NI, "Function not implemented yet" },
 
   /**
+   * Backup error codes
+   */ 
+
+  { 1300, IE, "Undefined error" },
+  { 1301, IE, "Backup issued to not master (reissue command to master)" },
+  { 1302, IE, "Out of backup record" },
+  { 1303, IS, "Out of resources" },
+  { 1304, IE, "Sequence failure" },
+  { 1305, IE, "Backup definition not implemented" },
+  { 1306, AE, "Backup not supported in diskless mode (change Diskless)" },
+
+  { 1321, IE, "Backup aborted by application" },
+  { 1322, IE, "Backup already completed" },
+  { 1323, IE, "1323" },
+  { 1324, IE, "Backup log buffer full" },
+  { 1325, IE, "File or scan error" },
+  { 1326, IE, "Backup abortet due to node failure" },
+  { 1327, IE, "1327" },
+
+  { 1340, IE, "Backup undefined error" },
+  { 1342, AE, "Backup failed to allocate buffers (check configuration)" },
+  { 1343, AE, "Backup failed to setup fs buffers (check configuration)" },
+  { 1344, AE, "Backup failed to allocate tables (check configuration)" },
+  { 1345, AE, "Backup failed to insert file header (check configuration)" },
+  { 1346, AE, "Backup failed to insert table list (check configuration)" },
+  { 1347, AE, "Backup failed to allocate table memory (check configuration)" },
+  { 1348, AE, "Backup failed to allocate file record (check configuration)" },
+  { 1349, AE, "Backup failed to allocate attribute record (check configuration)" },
+
+  /**
    * Still uncategorized
    */
   { 720,  AE, "Attribute name reused in table definition" },
@@ -467,6 +519,7 @@ const
 ErrorStatusClassification StatusClassificationMapping[] = {
   { ST_S, NE, "No error"},
   { ST_P, AE, "Application error"},
+  { ST_P, CE, "Configuration or application error"},
   { ST_P, ND, "No data found"},
   { ST_P, CV, "Constraint violation"},
   { ST_P, SE, "Schema error"},
