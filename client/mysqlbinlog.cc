@@ -236,7 +236,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"remote", 'R', "Connect to remote MySQL server",
+  {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
    (gptr*) &remote_opt, (gptr*) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
