@@ -298,13 +298,21 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
-  for (int i = 0; (i < ids.size()) && (sz-p > 0); i++)
-  {
-    if (ids[i].type != MgmId_TCP)
-      continue;
-    p+=BaseString::snprintf(buf+p,sz-p,",%s:%d",
-			    ids[i].name.c_str(), ids[i].port);
-  }
+  if (p < sz)
+    for (unsigned i = 0; i < ids.size(); i++)
+    {
+      if (ids[i].type != MgmId_TCP)
+	continue;
+      int new_p= p+BaseString::snprintf(buf+p,sz-p,",%s:%d",
+					ids[i].name.c_str(), ids[i].port);
+      if (new_p < sz)
+	p= new_p;
+      else 
+      {
+	buf[p]= 0;
+	break;
+      }
+    }
   buf[sz-1]=0;
   return buf;
 }
