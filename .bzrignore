@@ -190,3 +190,9 @@ extra/resolve_stack_dump
 sql/share/*.sys
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/*
+bdb/examples_java
+bdb/README
+bdb/build_vxworks/db.h
+bdb/build_win32/db.h
+bdb/dist/configure
+bdb/dist/tags
