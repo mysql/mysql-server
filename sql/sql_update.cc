@@ -171,10 +171,18 @@ int mysql_update(THD *thd,
   init_ftfuncs(thd, &thd->lex.select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
-    used_key_is_modified= (!select->quick->unique_key_range() &&
-			   check_if_key_used(table,
-					     (used_index=select->quick->index),
-					     fields));
+  {
+    if (select->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+    {
+      used_index= select->quick->index;
+      used_key_is_modified= (!select->quick->unique_key_range() &&
+			      check_if_key_used(table,used_index,fields));
+    }
+    else
+    {
+      used_key_is_modified= true;
+    }
+  }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
@@ -688,8 +696,26 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-      return !check_if_key_used(table, join_tab->quick->index,
-				*fields);
+    {
+      if (join_tab->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+      {
+        return !check_if_key_used(table,join_tab->quick->index,*fields);
+      }
+      else
+      {
+        QUICK_INDEX_MERGE_SELECT *qsel_imerge=
+          (QUICK_INDEX_MERGE_SELECT*)(join_tab->quick);
+        List_iterator_fast<QUICK_RANGE_SELECT> it(qsel_imerge->quick_selects);
+        QUICK_RANGE_SELECT *quick;
+        while ((quick= it++))
+        {
+          if (check_if_key_used(table, quick->index, *fields))
+            return 0;
+        }
+        return 1;
+      }
+    }
+
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->primary_key < MAX_KEY)
