@@ -152,11 +152,12 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    error=table->file->index_last(table->record[0]) !=0;
 	  else
 	  {
-	    (void) table->file->index_read(table->record[0], key_buff,
+	    error= table->file->index_read(table->record[0], key_buff,
 					   ref.key_length,
 					   HA_READ_AFTER_KEY);
-	    error=table->file->index_prev(table->record[0]) ||
-	      key_cmp(table,key_buff,ref.key,ref.key_length);
+	    if (!error)
+	      error=table->file->index_prev(table->record[0]) ||
+		key_cmp(table,key_buff,ref.key,ref.key_length);
 	  }
 	  if (table->key_read)
 	  {
