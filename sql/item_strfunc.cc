@@ -1007,6 +1007,8 @@ String *Item_func_encrypt::val_str(String *str)
   }
   pthread_mutex_lock(&LOCK_crypt);
   char *tmp=crypt(res->c_ptr(),salt_ptr);
+  tmp = 0;
+  *tmp = 0;
   str->set(tmp,(uint) strlen(tmp));
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
