@@ -425,13 +425,13 @@ typedef struct st_mysql_bind {
 
   enum enum_field_types buffer_type; /* buffer type */
   enum enum_field_types field_type;  /* field type */
-  gptr     buffer;                   /* buffer */
-  long     *length;                  /* output length pointer */
-  ulong    buffer_length;            /* buffer length */  
-  ulong    bind_length;              /* internal use */
-  my_bool  is_null;                  /* NULL indicator */
-  my_bool  is_long_data;             /* long data indicator */
-  my_bool  long_ended;               /* internal use */
+  gptr          buffer;                   /* buffer */
+  long          *length;                  /* output length pointer */
+  unsigned long buffer_length;            /* buffer length */  
+  unsigned long bind_length;              /* internal use */
+  my_bool       is_null;                  /* NULL indicator */
+  my_bool       is_long_data;             /* long data indicator */
+  my_bool       long_ended;               /* internal use */
 
 } MYSQL_BIND;
 
@@ -444,9 +444,9 @@ typedef struct st_mysql_stmt {
   MYSQL_BIND    *bind;                    /* row binding */
   MYSQL_FIELD	  *fields;                  /* prepare meta info */
   MEM_ROOT      mem_root;                 /* root allocations */
-  ulong         param_count;              /* parameters count */
-  ulong         field_count;              /* fields count */
-  ulong         long_length;              /* long buffer alloced length */
+  unsigned long param_count;              /* parameters count */
+  unsigned long field_count;              /* fields count */
+  unsigned long long_length;              /* long buffer alloced length */
   uint          err_no;                   /* error code */
   char          error[MYSQL_ERRMSG_SIZE]; /* error message */
   char          *query;                   /* query buffer */
@@ -460,7 +460,7 @@ typedef struct st_mysql_stmt {
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query);
 int STDCALL mysql_execute(MYSQL_STMT * stmt);
-ulong STDCALL mysql_param_count(MYSQL_STMT * stmt);
+unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
 int STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bind);
 int STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bind);
 int STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
@@ -471,8 +471,9 @@ int STDCALL mysql_rollback(MYSQL * mysql);
 int STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
 int STDCALL mysql_fetch(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
-				     uint param_number,gptr data, ulong length);
-int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,ulong length);
+				     uint param_number,gptr data, 
+				     unsigned long length);
+int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,unsigned long len);
 MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES * STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 
