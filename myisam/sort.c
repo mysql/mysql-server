@@ -275,6 +275,7 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
 } /* find_all_keys */
 
 
+#ifdef THREAD
 /* Search after all keys and place them in a temp. file */
 
 pthread_handler_decl(thr_find_all_keys,arg)
@@ -284,7 +285,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
-  
+
   error=1;
 
   if (my_thread_init())
@@ -542,6 +543,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   my_free((gptr) mergebuf,MYF(MY_ALLOW_ZERO_PTR));
   return got_error;
 }
+#endif /* THREAD */
 
         /* Write all keys in memory to file for later merge */
 

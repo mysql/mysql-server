@@ -2213,11 +2213,11 @@ Storage: same as TINYINT.
 @strong{DATE}
 @itemize @bullet
 @item
-Storage: fixed-length series of binary integers, always three bytes
-long.
+Storage: 3 byte integer, low byte first.
+Packed as: 'day + month*32 + year*16*32'
 @item
-Example: a DATE column containing '0001-01-01' looks like:@*
-@code{hexadecimal 21 02 00}
+Example: a DATE column containing '1962-01-02' looks like:@*
+@code{hexadecimal 22 54 0F}
 @end itemize
 
 @strong{DATETIME}
@@ -2236,16 +2236,19 @@ Example: a DATETIME column for '0001-01-01 01:01:01' looks like:@*
 @strong{TIME}
 @itemize @bullet
 @item
-Storage: a value offset from 8385959, always three bytes long.
+Storage: 3 bytes, low byte first.
+This is stored as seconds:  days*24*3600+hours*3600+minutes*60+seconds
 @item
-Example: a TIME column containing '01:01:01' looks like:@*
-@code{hexadecimal 75 27 00}
+Example: a TIME column containing '1 02:03:04' (1 day 2 hour 3 minutes and 4 seconds) looks like:@*
+@code{hexadecimal 58 6E 01}
 @end itemize
 
 @strong{TIMESTAMP}
 @itemize @bullet
 @item
-Storage: four bytes long (NOTE TO SELF: not figured out)
+Storage: 4 bytes, low byte first.
+Stored as unix @code{time()}, which is seconds since the Epoch
+(00:00:00 UTC, January 1, 1970).
 @item
 Example: a TIMESTAMP column containing '2003-01-01 01:01:01' looks like:@*
 @code{hexadecimal 4D AE 12 23}
