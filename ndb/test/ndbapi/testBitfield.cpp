@@ -5,7 +5,6 @@
 #include <NdbApi.hpp>
 #include <HugoTransactions.hpp>
 
-static const char* opt_connect_str= 0;
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
 
