@@ -142,24 +142,17 @@ static int ndb_to_mysql_error(const NdbError *err)
   Place holder for ha_ndbcluster thread specific data
 */
 
-class Thd_ndb {
-public:
-  Thd_ndb();
-  ~Thd_ndb();
-  Ndb *ndb;
-  ulong count;
-  uint lock_count;
-};
-
 Thd_ndb::Thd_ndb()
 {
-  ndb= 0;
+  ndb= new Ndb(g_ndb_cluster_connection, "");
   lock_count= 0;
   count= 0;
 }
 
 Thd_ndb::~Thd_ndb()
 {
+  if (ndb)
+    delete ndb;
 }
 
 /*
@@ -168,7 +161,7 @@ Thd_ndb::~Thd_ndb()
 
 struct Ndb_table_local_info {
   int no_uncommitted_rows_count;
-  ulong transaction_count;
+  ulong last_count;
   ha_rows records;
 };
 
@@ -195,9 +188,9 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_init");
   struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
   Thd_ndb *thd_ndb= (Thd_ndb *)thd->transaction.thd_ndb;
-  if (info->transaction_count != thd_ndb->count)
+  if (info->last_count != thd_ndb->count)
   {
-    info->transaction_count = thd_ndb->count;
+    info->last_count = thd_ndb->count;
     info->no_uncommitted_rows_count= 0;
     info->records= ~(ha_rows)0;
     DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
@@ -3346,10 +3339,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_tabname[0]= '\0';
   m_dbname[0]= '\0';
 
-  // TODO Adjust number of records and other parameters for proper 
-  // selection of scan/pk access
-  //  records= 100;
-  records= 0;
+  records= ~(ha_rows)0; // uninitialized
   block_size= 1024;
 
   for (i= 0; i < MAX_KEY; i++)
@@ -3444,41 +3434,44 @@ int ha_ndbcluster::close(void)
 }
 
 
-Ndb* ha_ndbcluster::seize_ndb()
+Thd_ndb* ha_ndbcluster::seize_thd_ndb()
 {
-  Ndb* ndb;
-  DBUG_ENTER("seize_ndb");
+  Thd_ndb *thd_ndb;
+  DBUG_ENTER("seize_thd_ndb");
 
 #ifdef USE_NDB_POOL
   // Seize from pool
   ndb= Ndb::seize();
+  xxxxxxxxxxxxxx error
 #else
-  ndb= new Ndb(g_ndb_cluster_connection, "");  
+  thd_ndb= new Thd_ndb();
 #endif
-  if (ndb->init(max_transactions) != 0)
+  thd_ndb->ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
+  if (thd_ndb->ndb->init(max_transactions) != 0)
   {
-    ERR_PRINT(ndb->getNdbError());
+    ERR_PRINT(thd_ndb->ndb->getNdbError());
     /*
       TODO 
       Alt.1 If init fails because to many allocated Ndb 
       wait on condition for a Ndb object to be released.
       Alt.2 Seize/release from pool, wait until next release 
     */
-    delete ndb;
-    ndb= NULL;
+    delete thd_ndb;
+    thd_ndb= NULL;
   }
-  DBUG_RETURN(ndb);
+  DBUG_RETURN(thd_ndb);
 }
 
 
-void ha_ndbcluster::release_ndb(Ndb* ndb)
+void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 {
-  DBUG_ENTER("release_ndb");
+  DBUG_ENTER("release_thd_ndb");
 #ifdef USE_NDB_POOL
   // Release to  pool
   Ndb::release(ndb);
+  xxxxxxxxxxxx error
 #else
-  delete ndb;
+  delete thd_ndb;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -3497,19 +3490,18 @@ void ha_ndbcluster::release_ndb(Ndb* ndb)
 
 int ha_ndbcluster::check_ndb_connection()
 {
-  THD* thd= current_thd;
-  Ndb* ndb;
+  THD *thd= current_thd;
+  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
   DBUG_ENTER("check_ndb_connection");
   
-  if (!thd->transaction.thd_ndb)
+  if (!thd_ndb)
   {
-    ndb= seize_ndb();
-    if (!ndb)
+    thd_ndb= seize_thd_ndb();
+    if (!thd_ndb)
       DBUG_RETURN(2);
-    thd->transaction.thd_ndb= new Thd_ndb();
-    ((Thd_ndb *)thd->transaction.thd_ndb)->ndb= ndb;
+    thd->transaction.thd_ndb= thd_ndb;
   }
-  m_ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
+  m_ndb= thd_ndb->ndb;
   m_ndb->setDatabaseName(m_dbname);
   DBUG_RETURN(0);
 }
@@ -3517,12 +3509,10 @@ int ha_ndbcluster::check_ndb_connection()
 void ndbcluster_close_connection(THD *thd)
 {
   Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
-  Ndb* ndb;
   DBUG_ENTER("ndbcluster_close_connection");
   if (thd_ndb)
   {
-    ha_ndbcluster::release_ndb(thd_ndb->ndb);
-    delete thd_ndb;
+    ha_ndbcluster::release_thd_ndb(thd_ndb);
     thd->transaction.thd_ndb= NULL;
   }
   DBUG_VOID_RETURN;
@@ -3543,6 +3533,7 @@ int ndbcluster_discover(const char *dbname, const char *name,
   DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name)); 
 
   Ndb ndb(g_ndb_cluster_connection, dbname);
+  ndb.getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
 
   if (ndb.init())
     ERR_RETURN(ndb.getNdbError());
@@ -3633,6 +3624,7 @@ bool ndbcluster_init()
 
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
+  g_ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
   if (g_ndb->init() != 0)
   {
     ERR_PRINT (g_ndb->getNdbError());

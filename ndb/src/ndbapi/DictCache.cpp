@@ -21,19 +21,29 @@
 #include <NdbCondition.h>
 #include <NdbSleep.h>
 
-Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl, Uint32 sz)
+Ndb_local_table_info *
+Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
+{
+  void *data= malloc(sizeof(NdbTableImpl)+sz-1);
+  if (data == 0)
+    return 0;
+  memset(data,0,sizeof(NdbTableImpl)+sz-1);
+  new (data) Ndb_local_table_info(table_impl);
+  return (Ndb_local_table_info *) data;
+}
+
+void Ndb_local_table_info::destroy(Ndb_local_table_info *info)
+{
+  free((void *)info);
+}
+
+Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl)
 {
   m_table_impl= table_impl;
-  if (sz)
-    m_local_data= malloc(sz);
-  else
-    m_local_data= 0;
 }
 
 Ndb_local_table_info::~Ndb_local_table_info()
 {
-  if (m_local_data)
-    free(m_local_data);
 }
 
 LocalDictCache::LocalDictCache(){
@@ -61,7 +71,7 @@ void
 LocalDictCache::drop(const char * name){
   Ndb_local_table_info *info= m_tableHash.deleteKey(name, strlen(name));
   DBUG_ASSERT(info != 0);
-  delete info;
+  Ndb_local_table_info::destroy(info);
 }
 
 /*****************************************************************

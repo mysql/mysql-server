@@ -29,12 +29,13 @@
 
 class Ndb_local_table_info {
 public:
-  Ndb_local_table_info(NdbTableImpl *table_impl, Uint32 sz=0);
-  ~Ndb_local_table_info();
+  static Ndb_local_table_info *create(NdbTableImpl *table_impl, Uint32 sz=0);
+  static void destroy(Ndb_local_table_info *);
   NdbTableImpl *m_table_impl;
-  Uint64 m_first_tuple_id;
-  Uint64 m_last_tuple_id;
-  void *m_local_data;
+  char m_local_data[1];
+private:
+  Ndb_local_table_info(NdbTableImpl *table_impl);
+  ~Ndb_local_table_info();
 };
 
 /**

@@ -1068,6 +1068,7 @@ public:
 				const char * tableName);
   public:
     const Table * getTable(const char * name, void **data);
+    void set_local_table_data_size(unsigned sz);
   };
 };
 
