@@ -1233,7 +1233,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (drop->type == Alter_drop::COLUMN &&
 	  !my_strcasecmp(field->field_name, drop->name))
+      {
+	/* Reset auto_increment value if it was dropped */
+	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
+	    !(create_info->used_fields & HA_CREATE_USED_AUTO))
+	{
+	  create_info->auto_increment_value=0;
+	  create_info->used_fields|=HA_CREATE_USED_AUTO;
+	}
 	break;
+      }
     }
     if (drop)
     {
