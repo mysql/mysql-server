@@ -119,12 +119,11 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :temp_buf(0), exec_time(0), cached_event_len(0), flags(flags_arg), 
-   thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), cached_event_len(0), 
+   flags(flags_arg), thd(thd_arg)
 {
   server_id = thd->server_id;
   when = thd->start_time;
-  log_pos = thd->log_pos;
   cache_stmt= (using_trans &&
 	       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
