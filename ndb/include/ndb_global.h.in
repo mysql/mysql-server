@@ -115,10 +115,8 @@ static const char table_name_separator =  '/';
 #endif
 
 #ifdef  __cplusplus
-#include <new>
-#endif
-
-#ifdef  __cplusplus
+inline void* operator new(size_t, void* __p) { return __p; }
+inline void* operator new[](size_t, void* __p) { return __p; }
 extern "C" {
 #endif
 	

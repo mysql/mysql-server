@@ -5,7 +5,7 @@ static
 void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
 {
   printf("b'");
-  for(int i = 0; i<len; i++)
+  for(unsigned i = 0; i<len; i++)
   {
     if(BitmaskImpl::get((pos + len + 31) >> 5, src, i+pos))
       printf("1");

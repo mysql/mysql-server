@@ -1761,9 +1761,9 @@ DO benchmark(100,1+1),1,1;
 # Bug #6449: do default;
 #
 
---error 1064
+--error ER_PARSE_ERROR
 do default;
---error 1054
+--error ER_BAD_FIELD_ERROR
 do foobar;
 
 #

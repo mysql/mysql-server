@@ -26,7 +26,7 @@ primary key (pk1, pk2)
 ) engine=innodb;
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,key1	PRIMARY	4	const	1	Using where
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	9	Using where
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
 1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2

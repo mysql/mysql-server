@@ -591,14 +591,17 @@ void Item_sum_hybrid::clear()
 double Item_sum_hybrid::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  int err;
   if (null_value)
     return 0.0;
   switch (hybrid_type) {
   case STRING_RESULT:
+  {
+    char *end_not_used;
+    int err_not_used;
     String *res;  res=val_str(&str_value);
-    return (res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			     (char**) 0, &err) : 0.0);
+    return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+			     &end_not_used, &err_not_used) : 0.0);
+  }
   case INT_RESULT:
     if (unsigned_flag)
       return ulonglong2double(sum_int);

@@ -2441,36 +2441,37 @@ void Item_func_add_time::print(String *str)
 
 
 /*
+  Calculate difference between two datetime values as seconds + microseconds.
+
   SYNOPSIS
     calc_time_diff()
-    l_time1		TIME/DATE/DATETIME value
-    l_time2		TIME/DATE/DATETIME value
-    l_sign		Can be 1 (operation of addition)
-                        or -1 (substraction)
-    seconds_out         Returns count of seconds bitween
-                        l_time1 and l_time2
-    microseconds_out    Returns count of microseconds bitween
-                        l_time1 and l_time2.
+      l_time1         - TIME/DATE/DATETIME value
+      l_time2         - TIME/DATE/DATETIME value
+      l_sign          - 1 absolute values are substracted,
+                        -1 absolute values are added.
+      seconds_out     - Out parameter where difference between
+                        l_time1 and l_time2 in seconds is stored.
+      microseconds_out- Out parameter where microsecond part of difference
+                        between l_time1 and l_time2 is stored.
 
-  DESCRIPTION
-    Calculates difference in seconds(seconds_out)
-    and microseconds(microseconds_out)
-    bitween two TIME/DATE/DATETIME values.
+  NOTE
+    This function calculates difference between l_time1 and l_time2 absolute
+    values. So one should set l_sign and correct result if he want to take
+    signs into account (i.e. for TIME values).
 
   RETURN VALUES
-    Rertuns sign of difference.
+    Returns sign of difference.
     1 means negative result
     0 means positive result
 
 */
 
-bool calc_time_diff(TIME *l_time1,TIME *l_time2, int l_sign,
-		    longlong *seconds_out, long *microseconds_out)
+static bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
+                           longlong *seconds_out, long *microseconds_out)
 {
   long days;
   bool neg;
-  longlong seconds= *seconds_out;
-  long microseconds= *microseconds_out;
+  longlong microseconds;
 
   /*
     We suppose that if first argument is MYSQL_TIMESTAMP_TIME
@@ -2487,29 +2488,20 @@ bool calc_time_diff(TIME *l_time1,TIME *l_time2, int l_sign,
 			     (uint) l_time2->month,
 			     (uint) l_time2->day));
 
-  microseconds= l_time1->second_part - l_sign*l_time2->second_part;
-  seconds= ((longlong) days*86400L + l_time1->hour*3600L + 
-	    l_time1->minute*60L + l_time1->second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2->hour*3600L+l_time2->minute*60L+l_time2->second));
+  microseconds= ((longlong)days*86400L +
+                 l_time1->hour*3600L + l_time1->minute*60L + l_time1->second -
+                 (longlong)l_sign*(l_time2->hour*3600L + l_time2->minute*60L +
+                                   l_time2->second))*1000000L +
+                l_time1->second_part - l_sign*l_time2->second_part;
 
   neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    neg= 1;
-  }
-  else if (seconds == 0 && microseconds < 0)
+  if (microseconds < 0)
   {
     microseconds= -microseconds;
     neg= 1;
   }
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
-  *seconds_out= seconds;
-  *microseconds_out= microseconds;
+  *seconds_out= microseconds/1000000L;
+  *microseconds_out= (long) (microseconds%1000000L);
   return neg;
 }
 
@@ -2544,9 +2536,10 @@ String *Item_func_timediff::val_str(String *str)
   /*
     For MYSQL_TIMESTAMP_TIME only:
       If both argumets are negative values and diff between them
-      is negative we need to swap sign as result should be positive.
+      is non-zero we need to swap sign to get proper result.
   */
-  if ((l_time2.neg == l_time1.neg) && l_time1.neg)
+  if ((l_time2.neg == l_time1.neg) && l_time1.neg &&
+      (seconds || microseconds))
     l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
   calc_time_from_sec(&l_time3, (long) seconds, microseconds);
@@ -2712,13 +2705,11 @@ longlong Item_func_timestamp_diff::val_int()
   case INTERVAL_SECOND:		
     return seconds*neg;
   case INTERVAL_MICROSECOND:
-  {
-    longlong max_sec= LONGLONG_MAX/1000000;
-    if (max_sec > seconds ||
-	max_sec == seconds && LONGLONG_MAX%1000000 >= microseconds)
-      return (longlong) (seconds*1000000L+microseconds)*neg;
-    goto null_date;
-  }
+    /*
+      In MySQL difference between any two valid datetime values
+      in microseconds fits into longlong.
+    */
+    return (seconds*1000000L+microseconds)*neg;
   default:
     break;
   }
