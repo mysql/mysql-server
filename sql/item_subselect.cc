@@ -111,10 +111,12 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     }
     fix_length_and_dec();
   }
-  if (engine->uncacheable())
+  uint8 uncacheable= engine->uncacheable();
+  if (uncacheable)
   {
     const_item_cache= 0;
-    used_tables_cache|= RAND_TABLE_BIT;
+    if (uncacheable & UNCACHEABLE_RAND)
+      used_tables_cache|= RAND_TABLE_BIT;
   }
   fixed= 1;
   thd->where= save_where;
@@ -155,7 +157,7 @@ void Item_subselect::fix_length_and_dec()
 
 table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->dependent() ? used_tables_cache : 0L);
+  return (table_map) (engine->uncacheable() ? used_tables_cache : 0L);
 }
 
 
@@ -558,7 +560,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
   if ((abort_on_null || (upper_not && upper_not->top_level())) &&
-      !select_lex->master_unit()->dependent && !func->eqne_op())
+      !select_lex->master_unit()->uncacheable && !func->eqne_op())
   {
     if (substitution)
     {
@@ -644,10 +646,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
-    unit->dependent= unit->uncacheable= 1;
+    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
-  select_lex->dependent= select_lex->uncacheable= 1;
+  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   Item *item;
 
   item= (Item*) select_lex->item_list.head();
@@ -768,12 +770,12 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
-    unit->dependent= unit->uncacheable= 1;
+    unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
   uint n= left_expr->cols();
 
-  select_lex->dependent= select_lex->uncacheable= 1;
+  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   select_lex->setup_ref_array(thd,
 			      select_lex->order_list.elements +
 			      select_lex->group_list.elements);
@@ -1047,7 +1049,7 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(1);
     }
   }
-  if ((select_lex->dependent || select_lex->uncacheable) && executed)
+  if (select_lex->uncacheable && executed)
   {
     if (join->reinit())
     {
@@ -1199,24 +1201,13 @@ uint subselect_union_engine::cols()
 }
 
 
-bool subselect_single_select_engine::dependent()
-{
-  return select_lex->dependent;
-}
-
-bool subselect_union_engine::dependent()
-{
-  return unit->dependent;
-}
-
-
-bool subselect_single_select_engine::uncacheable()
+uint8 subselect_single_select_engine::uncacheable()
 {
   return select_lex->uncacheable;
 }
 
 
-bool subselect_union_engine::uncacheable()
+uint8 subselect_union_engine::uncacheable()
 {
   return unit->uncacheable;
 }
