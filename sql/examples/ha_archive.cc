@@ -405,7 +405,6 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
       rc= 1;
     if (my_close(share->meta_file, MYF(0)))
       rc= 1;
-    my_close(share->meta_file,MYF(0));
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);
