@@ -277,11 +277,11 @@ CREATE TABLE t2 (ID INTEGER NOT NULL PRIMARY KEY, Value2 VARCHAR(255));
 INSERT INTO t1 VALUES (1, 'A');
 INSERT INTO t2 VALUES (1, 'B');
 SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND (Value1 = 'A' AND Value2 <> 'B');
-ID	Value1	ID	Value2
+ID	Value1	Value2
 SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND Value1 = 'A' AND Value2 <> 'B';
-ID	Value1	ID	Value2
+ID	Value1	Value2
 SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
-ID	Value1	ID	Value2
+ID	Value1	Value2
 drop table t1,t2;
 create table t1 (i int);
 create table t2 (i int);
