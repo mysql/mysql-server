@@ -72,60 +72,55 @@ static double total_time;
 
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
-static void check_errcode(const unsigned int err);
 static void client_disconnect();
 
 #define myerror(msg) print_error(msg)
 #define mysterror(stmt, msg) print_st_error(stmt, msg)
-#define myerrno(n) check_errcode(n)
-
-#define myassert(exp) assert(exp)
-#define myassert_r(exp) assert(!(exp))
 
 #define myquery(r) \
 { \
 if (r) \
   myerror(NULL); \
- myassert(r == 0); \
+ assert(r == 0); \
 }
 
 #define myquery_r(r) \
 { \
 if (r) \
   myerror(NULL); \
-myassert_r(r == 0); \
+assert(r != 0); \
 }
 
 #define mystmt(stmt,r) \
 { \
 if (r) \
   mysterror(stmt,NULL); \
-myassert(r == 0);\
+assert(r == 0);\
 }
 
 #define mystmt_r(stmt,r) \
 { \
 if (r) \
   mysterror(stmt,NULL); \
-myassert_r(r == 0);\
+assert(r != 0);\
 }
 
 #define mystmt_init(stmt) \
 { \
 if ( stmt == 0) \
   myerror(NULL); \
-myassert(stmt != 0); \
+assert(stmt != 0); \
 }
 
 #define mystmt_init_r(stmt) \
 { \
 if (stmt == 0) \
   myerror(NULL);\
-myassert(stmt == 0);\
+assert(stmt == 0);\
 } 
 
-#define mytest(x) if (!x) {myerror(NULL);myassert(TRUE);}
-#define mytest_r(x) if (x) {myerror(NULL);myassert(TRUE);}
+#define mytest(x) if (!x) {myerror(NULL);assert(TRUE);}
+#define mytest_r(x) if (x) {myerror(NULL);assert(TRUE);}
 
 /********************************************************
 * print the error message                               *
@@ -141,16 +136,6 @@ static void print_error(const char *msg)
     fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
   }
   else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
-}
-
-static void check_errcode(const unsigned int err)
-{  
-  if (mysql->server_version)
-    fprintf(stdout,"\n [MySQL-%s]",mysql->server_version);
-  else
-    fprintf(stdout,"\n [MySQL]");
-  fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
-  myassert(mysql_errno(mysql) == err);
 }
 
 static void print_st_error(MYSQL_STMT *stmt, const char *msg)
@@ -523,7 +508,7 @@ static void verify_col_data(const char *table, const char *col,
   }
   fprintf(stdout,"\n obtained: `%s` (expected: `%s`)", 
     row[field], exp_data);
-  myassert(strcmp(row[field],exp_data) == 0);
+  assert(strcmp(row[field],exp_data) == 0);
   mysql_free_result(result);
 }
 
@@ -556,15 +541,15 @@ static void verify_prepare_field(MYSQL_RES *result,
   fprintf(stdout,"\n    charsetnr:`%d`", field->charsetnr);
   fprintf(stdout,"\n    default  :`%s`\t(expected: `%s`)", field->def ? field->def : "(null)", def ? def: "(null)");
   fprintf(stdout,"\n");
-  myassert(strcmp(field->name,name) == 0);
-  myassert(strcmp(field->org_name,org_name) == 0);
-  myassert(field->type == type);
-  myassert(strcmp(field->table,table) == 0);
-  myassert(strcmp(field->org_table,org_table) == 0);
-  myassert(strcmp(field->db,db) == 0);
-  myassert(field->length == length);
+  assert(strcmp(field->name,name) == 0);
+  assert(strcmp(field->org_name,org_name) == 0);
+  assert(field->type == type);
+  assert(strcmp(field->table,table) == 0);
+  assert(strcmp(field->org_table,org_table) == 0);
+  assert(strcmp(field->db,db) == 0);
+  assert(field->length == length);
   if (def)
-    myassert(strcmp(field->def,def) == 0);
+    assert(strcmp(field->def,def) == 0);
 }
 
 /*
@@ -575,7 +560,7 @@ static void verify_param_count(MYSQL_STMT *stmt, long exp_count)
   long param_count= mysql_param_count(stmt);
   fprintf(stdout,"\n total parameters in stmt: `%ld` (expected: `%ld`)",
                   param_count, exp_count);
-  myassert(param_count == exp_count);
+  assert(param_count == exp_count);
 }
 
 /*
@@ -586,7 +571,7 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
   ulonglong affected_rows= mysql_stmt_affected_rows(stmt);
   fprintf(stdout,"\n total affected rows: `%lld` (expected: `%lld`)",
           affected_rows, exp_count);
-  myassert(affected_rows == exp_count);
+  assert(affected_rows == exp_count);
 }
 
 /*
@@ -597,7 +582,7 @@ static void verify_affected_rows(ulonglong exp_count)
   ulonglong affected_rows= mysql_affected_rows(mysql);
   fprintf(stdout,"\n total affected rows: `%lld` (expected: `%lld`)",
           affected_rows, exp_count);
-  myassert(affected_rows == exp_count);
+  assert(affected_rows == exp_count);
 }
 
 /*
@@ -608,7 +593,7 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
   uint field_count= mysql_num_fields(result);
   fprintf(stdout,"\n total fields in the result set: `%d` (expected: `%d`)",
           field_count, exp_count);
-  myassert(field_count == exp_count);
+  assert(field_count == exp_count);
 }
 
 /*
@@ -630,7 +615,7 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
   fprintf(stdout,"\n total affected rows: `%lld` (expected: `%lld`)",
           affected_rows, exp_count);
 
-  myassert(affected_rows == exp_count);
+  assert(affected_rows == exp_count);
   mysql_stmt_close(stmt);
 }
 
@@ -1174,7 +1159,7 @@ static void test_prepare()
   myquery(rc);
 
   /* test the results now, only one row should exists */
-  myassert(tiny_data == (char) my_stmt_result("SELECT * FROM my_prepare",50));
+  assert(tiny_data == (char) my_stmt_result("SELECT * FROM my_prepare",50));
       
   stmt = mysql_prepare(mysql,"SELECT * FROM my_prepare",50);
   mystmt_init(stmt);
@@ -1212,27 +1197,27 @@ static void test_prepare()
 
     fprintf(stdout, "\n\t str    : %s (%lu)", str_data, length[1]);
 
-    myassert(tiny_data == o_tiny_data);
-    myassert(is_null[0] == 0);
-    myassert(length[0] == 1);
+    assert(tiny_data == o_tiny_data);
+    assert(is_null[0] == 0);
+    assert(length[0] == 1);
 
-    myassert(int_data == o_int_data);
-    myassert(length[2] == 4);
+    assert(int_data == o_int_data);
+    assert(length[2] == 4);
     
-    myassert(small_data == o_small_data);
-    myassert(length[3] == 2);
+    assert(small_data == o_small_data);
+    assert(length[3] == 2);
     
-    myassert(big_data == o_big_data);
-    myassert(length[4] == 8);
+    assert(big_data == o_big_data);
+    assert(length[4] == 8);
     
-    myassert(real_data == o_real_data);
-    myassert(length[5] == 4);
+    assert(real_data == o_real_data);
+    assert(length[5] == 4);
     
-    myassert(double_data == o_double_data);
-    myassert(length[6] == 8);
+    assert(double_data == o_double_data);
+    assert(length[6] == 8);
     
-    myassert(strcmp(data,str_data) == 0);
-    myassert(length[1] == len);
+    assert(strcmp(data,str_data) == 0);
+    assert(length[1] == len);
     
     o_int_data += 25;
     o_small_data += 10;
@@ -1242,7 +1227,7 @@ static void test_prepare()
   }
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 
@@ -1333,7 +1318,7 @@ static void test_double_compare()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert((int)tiny_data == my_process_result_set(result));
+  assert((int)tiny_data == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -1408,7 +1393,7 @@ static void test_null()
   myquery(rc);
 
   nData*= 2;
-  myassert(nData == my_stmt_result("SELECT * FROM test_null", 30));
+  assert(nData == my_stmt_result("SELECT * FROM test_null", 30));
 
   /* Fetch results */
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -1431,12 +1416,12 @@ static void test_null()
   is_null[0]= is_null[1]= 0;
   while (mysql_fetch(stmt) != MYSQL_NO_DATA)
   {
-    myassert(is_null[0]);
-    myassert(is_null[1]);
+    assert(is_null[0]);
+    assert(is_null[1]);
     rc++;
     is_null[0]= is_null[1]= 0;
   }
-  myassert(rc == (int)nData);
+  assert(rc == (int)nData);
   mysql_stmt_close(stmt);
 }
 
@@ -1490,7 +1475,7 @@ static void test_fetch_null()
 
   strmov((char *)query , "SELECT * FROM test_fetch_null");
 
-  myassert(3 == my_stmt_result(query,50));
+  assert(3 == my_stmt_result(query,50));
 
   stmt = mysql_prepare(mysql, query, 50);
   mystmt_init(stmt);
@@ -1509,14 +1494,14 @@ static void test_fetch_null()
     {
       fprintf(stdout, "\n data[%d] : %s", i, 
               is_null[i] ? "NULL" : "NOT NULL");
-      myassert(is_null[i]);
+      assert(is_null[i]);
     }
     fprintf(stdout, "\n data[%d]: %d", i, nData);
-    myassert(nData == 1000 || nData == 88 || nData == 389789);
-    myassert(is_null[i] == 0);
-    myassert(length[i] == 4);
+    assert(nData == 1000 || nData == 88 || nData == 389789);
+    assert(is_null[i] == 0);
+    assert(length[i] == 4);
   }
-  myassert(rc == 3);
+  assert(rc == 3);
   mysql_stmt_close(stmt);
 }
 
@@ -1651,7 +1636,7 @@ static void test_select_prepare()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   mysql_stmt_close(stmt);
 
   rc = mysql_query(mysql,"DROP TABLE test_select");
@@ -1681,7 +1666,7 @@ static void test_select_prepare()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   mysql_stmt_close(stmt);
 }
 
@@ -1757,7 +1742,7 @@ static void test_select()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 1);
+  assert(my_process_stmt_result(stmt) == 1);
 
   mysql_stmt_close(stmt);
 }
@@ -1808,7 +1793,7 @@ session_id  char(9) NOT NULL, \
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 1);
+  assert(my_process_stmt_result(stmt) == 1);
 
   strmov(szData,(char *)"venu");
   bind[0].buffer_type=FIELD_TYPE_STRING;
@@ -1824,7 +1809,7 @@ session_id  char(9) NOT NULL, \
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 0);
+  assert(my_process_stmt_result(stmt) == 0);
 
   strmov(szData,(char *)"abc");
   bind[0].buffer_type=FIELD_TYPE_STRING;
@@ -1840,7 +1825,7 @@ session_id  char(9) NOT NULL, \
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 1);
+  assert(my_process_stmt_result(stmt) == 1);
 
   mysql_stmt_close(stmt);
 }
@@ -1886,7 +1871,7 @@ static void test_bug1180()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 0);
+  assert(my_process_stmt_result(stmt) == 0);
 
   strmov(szData,(char *)"1111");
   bind[0].buffer_type=FIELD_TYPE_STRING;
@@ -1902,7 +1887,7 @@ static void test_bug1180()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 1);
+  assert(my_process_stmt_result(stmt) == 1);
 
   strmov(szData,(char *)"abc");
   bind[0].buffer_type=FIELD_TYPE_STRING;
@@ -1918,7 +1903,7 @@ static void test_bug1180()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) == 0);
+  assert(my_process_stmt_result(stmt) == 0);
 
   mysql_stmt_close(stmt);
 }
@@ -1998,7 +1983,7 @@ static void test_bug1644()
   result= mysql_store_result(mysql);
   mytest(result);
 
-  myassert(3 == my_process_result_set(result));
+  assert(3 == my_process_result_set(result));
 
   mysql_data_seek(result, 0);
 
@@ -2006,19 +1991,19 @@ static void test_bug1644()
   mytest(row);
   for (i = 0 ; i < 4 ; i++)
   {
-    myassert(strcmp(row[i], "22") == 0);
+    assert(strcmp(row[i], "22") == 0);
   }
   row= mysql_fetch_row(result);
   mytest(row);
   for (i = 0 ; i < 4 ; i++)
   {
-    myassert(row[i] == 0);
+    assert(row[i] == 0);
   }
   row= mysql_fetch_row(result);
   mytest(row);
   for (i = 0 ; i < 4 ; i++)
   {
-    myassert(strcmp(row[i], "88") == 0);
+    assert(strcmp(row[i], "88") == 0);
   }
   row= mysql_fetch_row(result);
   mytest_r(row);
@@ -2084,7 +2069,7 @@ static void test_select_show()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   mysql_stmt_close(stmt);
 }
 
@@ -2170,7 +2155,7 @@ static void test_simple_update()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -2256,7 +2241,7 @@ static void test_long_data()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
   verify_col_data("test_long_data","col1","999");
@@ -2346,7 +2331,7 @@ static void test_long_data_str()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
   my_sprintf(data,(data,"%d", i*5));
@@ -2435,7 +2420,7 @@ static void test_long_data_str1()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
   my_sprintf(data,(data,"%ld",(long)i*length));
@@ -2526,7 +2511,7 @@ static void test_long_data_bin()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -2614,7 +2599,7 @@ static void test_simple_delete()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(0 == my_process_result_set(result));
+  assert(0 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -2720,7 +2705,7 @@ static void test_update()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -2770,7 +2755,7 @@ static void test_prepare_noparam()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -2840,17 +2825,17 @@ static void test_bind_result()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %d,%s(%lu)",nData, szData, length1);
-  myassert(nData == 10);
-  myassert(strcmp(szData,"venu")==0);
-  myassert(length1 == 4);
+  assert(nData == 10);
+  assert(strcmp(szData,"venu")==0);
+  assert(length1 == 4);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 2: %d,%s(%lu)",nData, szData, length1);
-  myassert(nData == 20);
-  myassert(strcmp(szData,"MySQL")==0);
-  myassert(length1 == 5);
+  assert(nData == 20);
+  assert(strcmp(szData,"MySQL")==0);
+  assert(length1 == 5);
 
   length=99;
   rc = mysql_fetch(stmt);
@@ -2858,12 +2843,12 @@ static void test_bind_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  myassert(is_null[0]);
-  myassert(strcmp(szData,"monty")==0);
-  myassert(length1 == 5);
+  assert(is_null[0]);
+  assert(strcmp(szData,"monty")==0);
+  assert(length1 == 5);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -2972,19 +2957,19 @@ static void test_bind_result_ext()
   fprintf(stdout, "\n data (bin)    : %s(%lu)", bData, bLength);
 
 
-  myassert(t_data == 19);
-  myassert(s_data == 2999);
-  myassert(i_data == 3999);
-  myassert(b_data == 4999999);
-  /*myassert(f_data == 2345.60);*/
-  /*myassert(d_data == 5678.89563);*/
-  myassert(strcmp(szData,"venu")==0);
-  myassert(strncmp(bData,"mysql",5)==0);
-  myassert(szLength == 4);
-  myassert(bLength == 5);
+  assert(t_data == 19);
+  assert(s_data == 2999);
+  assert(i_data == 3999);
+  assert(b_data == 4999999);
+  /*assert(f_data == 2345.60);*/
+  /*assert(d_data == 5678.89563);*/
+  assert(strcmp(szData,"venu")==0);
+  assert(strncmp(bData,"mysql",5)==0);
+  assert(szLength == 4);
+  assert(bLength == 5);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -3096,23 +3081,23 @@ static void test_bind_result_ext1()
   fprintf(stdout, "\n data (bin)    : %ld(%lu)", bData, length[6]);
   fprintf(stdout, "\n data (str)    : %g(%lu)", szData, length[7]);
 
-  myassert(strcmp(t_data,"120")==0);
-  myassert(i_data == 3999);
-  myassert(f_data == 2);
-  myassert(strcmp(d_data,"58.89")==0);
-  myassert(b_data == 54);
+  assert(strcmp(t_data,"120")==0);
+  assert(i_data == 3999);
+  assert(f_data == 2);
+  assert(strcmp(d_data,"58.89")==0);
+  assert(b_data == 54);
 
-  myassert(length[0] == 3);
-  myassert(length[1] == 4);
-  myassert(length[2] == 2);
-  myassert(length[3] == 1);
-  myassert(length[4] == 4);
-  myassert(length[5] == 5);
-  myassert(length[6] == 4);
-  myassert(length[7] == 8);
+  assert(length[0] == 3);
+  assert(length[1] == 4);
+  assert(length[2] == 2);
+  assert(length[3] == 1);
+  assert(length[4] == 4);
+  assert(length[5] == 5);
+  assert(length[6] == 4);
+  assert(length[7] == 8);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -3165,7 +3150,7 @@ static void bind_fetch(int row_count)
 
   mysql_stmt_close(stmt);
 
-  myassert(row_count == (int)
+  assert(row_count == (int)
            my_stmt_result("SELECT * FROM test_bind_fetch",50));
 
   stmt = mysql_prepare(mysql,"SELECT * FROM test_bind_fetch",50);
@@ -3220,33 +3205,33 @@ static void bind_fetch(int row_count)
     rc= 10+row_count;
     for (i=0; i < 4; i++)
     {
-      myassert(data[i] == rc+i);
-      myassert(length[i] == bit);
+      assert(data[i] == rc+i);
+      assert(length[i] == bit);
       bit<<= 1;
       rc+= 12;
     }
 
     /* FLOAT */
     rc+= i;
-    myassert((int)f_data == rc);
-    myassert(length[4] == 4);
+    assert((int)f_data == rc);
+    assert(length[4] == 4);
 
     /* DOUBLE */
     rc+= 13;
-    myassert((int)d_data == rc);
-    myassert(length[5] == 8);
+    assert((int)d_data == rc);
+    assert(length[5] == 8);
 
     /* CHAR */
     rc+= 13;
     {
       char buff[20];
       long len= my_sprintf(buff, (buff, "%d", rc));
-      myassert(strcmp(s_data,buff)==0);
-      myassert(length[6] == (ulong) len);
+      assert(strcmp(s_data,buff)==0);
+      assert(length[6] == (ulong) len);
     }
   }
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -3336,7 +3321,7 @@ static void test_fetch_date()
   bind[6].buffer_length= sizeof(ts_6);
   bind[6].length= &ts6_length;
 
-  myassert(1 == my_stmt_result("SELECT * FROM test_bind_result",50));
+  assert(1 == my_stmt_result("SELECT * FROM test_bind_result",50));
 
   stmt = mysql_prepare(mysql, "SELECT * FROM test_bind_result", 50);
   mystmt_init(stmt);
@@ -3359,29 +3344,29 @@ static void test_fetch_date()
   fprintf(stdout, "\n ts(4)  : %s(%lu)", ts_4, ts4_length);
   fprintf(stdout, "\n ts(6)  : %s(%lu)", ts_6, ts6_length);
 
-  myassert(strcmp(date,"2002-01-02")==0);
-  myassert(d_length == 10);
+  assert(strcmp(date,"2002-01-02")==0);
+  assert(d_length == 10);
 
-  myassert(strcmp(time,"12:49:00")==0);
-  myassert(t_length == 8);
+  assert(strcmp(time,"12:49:00")==0);
+  assert(t_length == 8);
 
-  myassert(strcmp(ts,"2002-01-02 17:46:59")==0);
-  myassert(ts_length == 19);
+  assert(strcmp(ts,"2002-01-02 17:46:59")==0);
+  assert(ts_length == 19);
 
-  myassert(year == 2010);
-  myassert(y_length == 4);
+  assert(year == 2010);
+  assert(y_length == 4);
   
-  myassert(strcmp(dt,"2010-07-10 00:00:00")==0);
-  myassert(dt_length == 19);
+  assert(strcmp(dt,"2010-07-10 00:00:00")==0);
+  assert(dt_length == 19);
 
-  myassert(ts_4[0] == '\0');
-  myassert(ts4_length == 0);
+  assert(ts_4[0] == '\0');
+  assert(ts4_length == 0);
 
-  myassert(strcmp(ts_6,"1999-12-29 00:00:00")==0);
-  myassert(ts6_length == 19);
+  assert(strcmp(ts_6,"1999-12-29 00:00:00")==0);
+  assert(ts6_length == 19);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -3726,7 +3711,7 @@ static void test_prepare_ext()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(nData == (int)my_process_stmt_result(stmt));
+  assert(nData == (int)my_process_stmt_result(stmt));
 
   mysql_stmt_close(stmt);
 }
@@ -3769,7 +3754,7 @@ static void test_field_names()
   result = mysql_use_result(mysql);
   mytest(result);
 
-  myassert(0 == my_process_result_set(result));
+  assert(0 == my_process_result_set(result));
   mysql_free_result(result);
 
   /* with table name included with TRUE column name */
@@ -3779,7 +3764,7 @@ static void test_field_names()
   result = mysql_use_result(mysql);
   mytest(result);
 
-  myassert(0 == my_process_result_set(result));
+  assert(0 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -3805,7 +3790,7 @@ static void test_warnings()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -3908,7 +3893,7 @@ static void test_insert()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert((int)tiny_data == my_process_result_set(result));
+  assert((int)tiny_data == my_process_result_set(result));
   mysql_free_result(result);
 
 }
@@ -4074,18 +4059,18 @@ static void test_stmt_close()
 
   rc= mysql_stmt_close(stmt1);
   fprintf(stdout,"\n mysql_close_stmt(1) returned: %d", rc);
-  myassert(rc == 0);
+  assert(rc == 0);
   
   mysql_close(lmysql); /* it should free all open stmts(stmt3, 2 and 1) */
  
 #if NOT_VALID
   rc= mysql_stmt_close(stmt3);
   fprintf(stdout,"\n mysql_close_stmt(3) returned: %d", rc);
-  myassert( rc == 1);
+  assert( rc == 1);
   
   rc= mysql_stmt_close(stmt2);
   fprintf(stdout,"\n mysql_close_stmt(2) returned: %d", rc);
-  myassert( rc == 1);
+  assert( rc == 1);
 #endif
 
   count= 100;
@@ -4105,7 +4090,7 @@ static void test_stmt_close()
 
   rc= mysql_stmt_close(stmt_x);
   fprintf(stdout,"\n mysql_close_stmt(x) returned: %d", rc);
-  myassert( rc == 0);
+  assert( rc == 0);
 
   rc = mysql_query(mysql,"SELECT id FROM test_stmt_close");
   myquery(rc);
@@ -4113,7 +4098,7 @@ static void test_stmt_close()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -4161,9 +4146,9 @@ static void test_set_variable()
   fprintf(stdout, "\n max_error_count(default): %d", get_count);
   def_count= get_count;
 
-  myassert(strcmp(var,"max_error_count") == 0);
+  assert(strcmp(var,"max_error_count") == 0);
   rc = mysql_fetch(stmt1);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   stmt = mysql_prepare(mysql, "set max_error_count=?", 50);
   mystmt_init(stmt);
@@ -4189,10 +4174,10 @@ static void test_set_variable()
   mystmt(stmt1, rc);
 
   fprintf(stdout, "\n max_error_count         : %d", get_count);
-  myassert(get_count == set_count);
+  assert(get_count == set_count);
 
   rc = mysql_fetch(stmt1);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   
   /* restore back to default */
   set_count= def_count;
@@ -4206,10 +4191,10 @@ static void test_set_variable()
   mystmt(stmt1, rc);
 
   fprintf(stdout, "\n max_error_count(default): %d", get_count);
-  myassert(get_count == set_count);
+  assert(get_count == set_count);
 
   rc = mysql_fetch(stmt1);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   
   mysql_stmt_close(stmt);
   mysql_stmt_close(stmt1);
@@ -4265,12 +4250,12 @@ static void test_insert_meta()
   field= mysql_fetch_field(result);
   mytest(field);
   fprintf(stdout, "\n obtained: `%s` (expected: `%s`)", field->name, "col1");
-  myassert(strcmp(field->name,"col1")==0);
+  assert(strcmp(field->name,"col1")==0);
 
   field= mysql_fetch_field(result);
   mytest(field);
   fprintf(stdout, "\n obtained: `%s` (expected: `%s`)", field->name, "col3");
-  myassert(strcmp(field->name,"col3")==0);
+  assert(strcmp(field->name,"col3")==0);
 
   field= mysql_fetch_field(result);
   mytest_r(field);
@@ -4329,15 +4314,15 @@ static void test_update_meta()
   mytest(field);
   fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col1");
   fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_update");
-  myassert(strcmp(field->name,"col1")==0);
-  myassert(strcmp(field->table,"test_prep_update")==0);
+  assert(strcmp(field->name,"col1")==0);
+  assert(strcmp(field->table,"test_prep_update")==0);
 
   field= mysql_fetch_field(result);
   mytest(field);
   fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col3");
   fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_update");
-  myassert(strcmp(field->name,"col3")==0);
-  myassert(strcmp(field->table,"test_prep_update")==0);
+  assert(strcmp(field->name,"col3")==0);
+  assert(strcmp(field->table,"test_prep_update")==0);
 
   field= mysql_fetch_field(result);
   mytest_r(field);
@@ -4394,15 +4379,15 @@ static void test_select_meta()
   mytest(field);
   fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col1");
   fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_select");
-  myassert(strcmp(field->name,"col1")==0);
-  myassert(strcmp(field->table,"test_prep_select")==0);
+  assert(strcmp(field->name,"col1")==0);
+  assert(strcmp(field->table,"test_prep_select")==0);
 
   field= mysql_fetch_field(result);
   mytest(field);
   fprintf(stdout, "\n col obtained: `%s` (expected: `%s`)", field->name, "col2");
   fprintf(stdout, "\n tab obtained: `%s` (expected: `%s`)", field->table, "test_prep_select");
-  myassert(strcmp(field->name,"col2")==0);
-  myassert(strcmp(field->table,"test_prep_select")==0);
+  assert(strcmp(field->name,"col2")==0);
+  assert(strcmp(field->table,"test_prep_select")==0);
 
   field= mysql_fetch_field(result);
   mytest_r(field);
@@ -4448,7 +4433,7 @@ static void test_func_fields()
   mytest(field);
   fprintf(stdout,"\n table name: `%s` (expected: `%s`)", field->table,
                   "test_dateformat");
-  myassert(strcmp(field->table, "test_dateformat")==0);
+  assert(strcmp(field->table, "test_dateformat")==0);
 
   field = mysql_fetch_field(result);
   mytest_r(field); /* no more fields */
@@ -4465,7 +4450,7 @@ static void test_func_fields()
   field = mysql_fetch_field(result);
   mytest(field);
   fprintf(stdout,"\n table name: `%s` (expected: `%s`)", field->table, "");
-  myassert(field->table[0] == '\0');
+  assert(field->table[0] == '\0');
 
   field = mysql_fetch_field(result);
   mytest_r(field); /* no more fields */
@@ -4483,8 +4468,8 @@ static void test_func_fields()
   mytest(field);
   fprintf(stdout,"\n field name: `%s` (expected: `%s`)", field->name, "YEAR");
   fprintf(stdout,"\n field org name: `%s` (expected: `%s`)",field->org_name,"");
-  myassert(strcmp(field->name, "YEAR")==0);
-  myassert(field->org_name[0] == '\0');
+  assert(strcmp(field->name, "YEAR")==0);
+  assert(field->org_name[0] == '\0');
 
   field = mysql_fetch_field(result);
   mytest_r(field); /* no more fields */
@@ -4552,11 +4537,11 @@ static void test_multi_stmt()
 
   fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
-  myassert(id == 10);
-  myassert(strcmp(name,"mysql")==0);
+  assert(id == 10);
+  assert(strcmp(name,"mysql")==0);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   /* alter the table schema now */
   stmt1 = mysql_prepare(mysql,"DELETE FROM test_multi_table WHERE id = ? AND name=?",100);
@@ -4580,11 +4565,11 @@ static void test_multi_stmt()
 
   fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
-  myassert(id == 10);
-  myassert(strcmp(name,"updated")==0);
+  assert(id == 10);
+  assert(strcmp(name,"updated")==0);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   rc = mysql_execute(stmt1);
   mystmt(stmt1, rc);
@@ -4597,9 +4582,9 @@ static void test_multi_stmt()
   mystmt(stmt, rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
-  myassert(0 == my_stmt_result("SELECT * FROM test_multi_table",50));
+  assert(0 == my_stmt_result("SELECT * FROM test_multi_table",50));
 
   mysql_stmt_close(stmt);
   mysql_stmt_close(stmt2);
@@ -4750,7 +4735,7 @@ static void test_manual_sample()
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
     exit(0);
   }
-  myassert(2 == my_stmt_result("SELECT * FROM test_table",50));
+  assert(2 == my_stmt_result("SELECT * FROM test_table",50));
 
   /* DROP THE TABLE */
   if (mysql_query(mysql,"DROP TABLE test_table"))
@@ -4811,87 +4796,135 @@ static void test_prepare_alter()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(4 == my_stmt_result("SELECT * FROM test_prep_alter",50));
+  assert(4 == my_stmt_result("SELECT * FROM test_prep_alter",50));
 
   mysql_stmt_close(stmt);
 }
 
 /********************************************************
-* to test the support of multi-query executions         *
+* to test the support of multi-statement executions         *
 *********************************************************/
-static void test_multi_query()
+
+static void test_multi_statements()
 {
-  MYSQL *l_mysql, *org_mysql;
+  MYSQL *mysql_local;
   MYSQL_RES *result;
   int    rc;
 
-  const char *query= "DROP TABLE IF EXISTS test_multi_tab;\
-                  CREATE TABLE test_multi_tab(id int,name char(20));\
-                  INSERT INTO test_multi_tab(xxxx) VALUES(10);\
-                  UPDATE test_multi_tab SET id=10 WHERE unkown_col=10;\
-                  CREATE TABLE test_multi_tab(id int,name char(20));\
-                  INSERT INTO test_multi_tab(id) VALUES(10),(20);\
-                  INSERT INTO test_multi_tab VALUES(20,'insert;comma');\
-                  SELECT * FROM test_multi_tab;\
-                  UPDATE test_multi_tab SET unknown_col=100 WHERE id=100;\
-                  UPDATE test_multi_tab SET name='new;name' WHERE id=20;\
-                  DELETE FROM test_multi_tab WHERE name='new;name';\
-                  SELECT * FROM test_multi_tab;\
-                  DELETE FROM test_multi_tab WHERE id=10;\
-                  SELECT * FROM test_multi_tab;\
-                  DROP TABLE test_multi_tab;\
-                  DROP TABLE test_multi_tab;\
-                  DROP TABLE IF EXISTS test_multi_tab";
-  uint  count, rows[16]={0,1054,1054,1050,2,1,3,1054,2,2,1,1,0,0,1051,0}, exp_value;
-  
-  myheader("test_multi_query");
+  const char *query="\
+DROP TABLE IF EXISTS test_multi_tab;\
+CREATE TABLE test_multi_tab(id int,name char(20));\
+INSERT INTO test_multi_tab(id) VALUES(10),(20);\
+INSERT INTO test_multi_tab VALUES(20,'insert;comma');\
+SELECT * FROM test_multi_tab;\
+UPDATE test_multi_tab SET name='new;name' WHERE id=20;\
+DELETE FROM test_multi_tab WHERE name='new;name';\
+SELECT * FROM test_multi_tab;\
+DELETE FROM test_multi_tab WHERE id=10;\
+SELECT * FROM test_multi_tab;\
+DROP TABLE test_multi_tab;\
+select 1;\
+DROP TABLE IF EXISTS test_multi_tab";
+  uint count, exp_value;
+  uint rows[]= {0, 0, 2, 1, 3, 2, 2, 1, 1, 0, 0, 1, 0};
 
+  myheader("test_multi_statements");
+
+  /*
+    First test that we get an error for multi statements
+    (Becasue default connection is not opened with CLIENT_MULTI_STATEMENTS)
+  */
   rc = mysql_query(mysql, query); /* syntax error */
   myquery_r(rc);
 
-  myassert(0 == mysql_next_result(mysql));
-  myassert(0 == mysql_more_results(mysql));
+  assert(-1 == mysql_next_result(mysql));
+  assert(0 == mysql_more_results(mysql));
 
-  if (!(l_mysql = mysql_init(NULL)))
+  if (!(mysql_local = mysql_init(NULL)))
   { 
     fprintf(stdout,"\n mysql_init() failed");
     exit(1);
   }
-  if (!(mysql_real_connect(l_mysql,opt_host,opt_user,
-			   opt_password, current_db, opt_port,
-			   opt_unix_socket, CLIENT_MULTI_STATEMENTS))) /* enable multi queries */
-  {
-    fprintf(stdout,"\n connection failed(%s)", mysql_error(l_mysql));    
-    exit(1);
-  }    
-  org_mysql= mysql;
-  mysql= l_mysql;
 
-  rc = mysql_query(mysql, query);
+  /* Create connection that supprot multi statements */
+  if (!(mysql_real_connect(mysql_local,opt_host,opt_user,
+			   opt_password, current_db, opt_port,
+			   opt_unix_socket, CLIENT_MULTI_STATEMENTS)))
+  {
+    fprintf(stdout,"\n connection failed(%s)", mysql_error(mysql_local));
+    exit(1);
+  }
+
+  rc = mysql_query(mysql_local, query);
   myquery(rc);
 
-  count= exp_value= 0;
-  while (mysql_more_results(mysql) && count < array_elements(rows))
+  for (count=0 ; count < array_elements(rows) ; count++)
   {
     fprintf(stdout,"\n Query %d: ", count);
-    if ((rc= mysql_next_result(mysql)))
+    if ((result= mysql_store_result(mysql_local)))
+      my_process_result_set(result);
+    else
+      fprintf(stdout,"OK, %lld row(s) affected, %d warning(s)\n",
+	      mysql_affected_rows(mysql_local),
+	      mysql_warning_count(mysql_local));
+
+    exp_value= (uint) mysql_affected_rows(mysql_local);
+    if (rows[count] !=  exp_value)
     {
-      exp_value= mysql_errno(mysql);
-      fprintf(stdout, "ERROR %d: %s", exp_value, mysql_error(mysql));
+      fprintf(stdout, "row %d  had affected rows: %d, should be %d\n",
+	      count, exp_value, rows[count]);
+      exit(1);
+    }
+    if (count != array_elements(rows) -1)
+    {
+      if (!(rc= mysql_more_results(mysql_local)))
+      {
+	fprintf(stdout,
+		"mysql_more_result returned wrong value: %d for row %d\n",
+		rc, count);
+	exit(1);
+      }
+      if ((rc= mysql_next_result(mysql_local)))
+      {
+	exp_value= mysql_errno(mysql_local);
+
+	exit(1);
+      }
     }
     else
     {
-      if ((result= mysql_store_result(mysql)))
-        my_process_result_set(result);
-      else
-        fprintf(stdout,"OK, %lld row(s) affected, %d warning(s)",   
-                        mysql_affected_rows(mysql),
-                        mysql_warning_count(mysql));
-      exp_value= (uint) mysql_affected_rows(mysql);
+      assert(mysql_more_results(mysql_local) == 0);
+      assert(mysql_next_result(mysql_local) == -1);
     }
-    myassert(rows[count++] == exp_value);    
   }
-  mysql= org_mysql;
+
+  /* check that errors abort multi statements */
+
+  rc= mysql_query(mysql_local, "select 1+1+a;select 1+1");
+  myquery_r(rc);
+  assert(mysql_more_results(mysql_local) == 0);
+  assert(mysql_next_result(mysql_local) == -1);
+
+  rc= mysql_query(mysql_local, "select 1+1;select 1+1+a;select 1");
+  myquery(rc);
+  result= mysql_store_result(mysql_local);
+  mytest(result);
+  mysql_free_result(result);
+  assert(mysql_more_results(mysql_local) == 1);
+  assert(mysql_next_result(mysql_local) > 0);
+
+  /*
+    Ensure that we can now do a simple query (this checks that the server is
+    not trying to send us the results for the last 'select 1'
+  */
+  rc= mysql_query(mysql_local, "select 1+1+1");
+  myquery(rc);
+  result= mysql_store_result(mysql_local);
+  mytest(result);
+  my_process_result_set(result);
+  mysql_free_result(result);
+
+  mysql_close(mysql_local);
 }
 
 
@@ -4961,17 +4994,17 @@ static void test_store_result()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %ld,%s(%lu)", nData, szData, length1);
-  myassert(nData == 10);
-  myassert(strcmp(szData,"venu")==0);
-  myassert(length1 == 4);
+  assert(nData == 10);
+  assert(strcmp(szData,"venu")==0);
+  assert(length1 == 4);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 2: %ld,%s(%lu)",nData, szData, length1);
-  myassert(nData == 20);
-  myassert(strcmp(szData,"mysql")==0);
-  myassert(length1 == 5);
+  assert(nData == 20);
+  assert(strcmp(szData,"mysql")==0);
+  assert(length1 == 5);
 
   length=99;
   rc = mysql_fetch(stmt);
@@ -4979,12 +5012,12 @@ static void test_store_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  myassert(is_null[0]);
-  myassert(strcmp(szData,"monty")==0);
-  myassert(length1 == 5);
+  assert(is_null[0]);
+  assert(strcmp(szData,"monty")==0);
+  assert(length1 == 5);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -4996,17 +5029,17 @@ static void test_store_result()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %ld,%s(%lu)",nData, szData, length1);
-  myassert(nData == 10);
-  myassert(strcmp(szData,"venu")==0);
-  myassert(length1 == 4);
+  assert(nData == 10);
+  assert(strcmp(szData,"venu")==0);
+  assert(length1 == 4);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 2: %ld,%s(%lu)",nData, szData, length1);
-  myassert(nData == 20);
-  myassert(strcmp(szData,"mysql")==0);
-  myassert(length1 == 5);
+  assert(nData == 20);
+  assert(strcmp(szData,"mysql")==0);
+  assert(length1 == 5);
 
   length=99;
   rc = mysql_fetch(stmt);
@@ -5014,12 +5047,12 @@ static void test_store_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  myassert(is_null[0]);
-  myassert(strcmp(szData,"monty")==0);
-  myassert(length1 == 5);
+  assert(is_null[0]);
+  assert(strcmp(szData,"monty")==0);
+  assert(length1 == 5);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -5069,7 +5102,7 @@ static void test_store_result1()
   while (mysql_fetch(stmt) != MYSQL_NO_DATA)
     rc++;
   fprintf(stdout, "\n total rows: %d", rc);
-  myassert(rc == 3);
+  assert(rc == 3);
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -5081,7 +5114,7 @@ static void test_store_result1()
   while (mysql_fetch(stmt) != MYSQL_NO_DATA)
     rc++;
   fprintf(stdout, "\n total rows: %d", rc);
-  myassert(rc == 3);
+  assert(rc == 3);
 
   mysql_stmt_close(stmt);
 }
@@ -5148,10 +5181,10 @@ static void test_store_result2()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %d",nData);
-  myassert(nData == 10);
+  assert(nData == 10);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   nData = 20;
   rc = mysql_execute(stmt);
@@ -5165,10 +5198,10 @@ static void test_store_result2()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %d",nData);
-  myassert(nData == 20);
+  assert(nData == 20);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   mysql_stmt_close(stmt);
 }
 
@@ -5242,11 +5275,11 @@ static void test_subselect()
 
   mysql_stmt_close(stmt);
 
-  myassert(3 == my_stmt_result("SELECT * FROM test_sub2",50));
+  assert(3 == my_stmt_result("SELECT * FROM test_sub2",50));
 
   strmov((char *)query , "SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=?)");
-  myassert(1 == my_stmt_result("SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=8)",100));
-  myassert(1 == my_stmt_result("SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=7)",100));
+  assert(1 == my_stmt_result("SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=8)",100));
+  assert(1 == my_stmt_result("SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=7)",100));
 
   stmt = mysql_prepare(mysql, query, 150);
   mystmt_init(stmt);
@@ -5265,10 +5298,10 @@ static void test_subselect()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %d",id);
-  myassert(id == 1);
+  assert(id == 1);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   
   id= 8;
   rc = mysql_execute(stmt);
@@ -5278,10 +5311,10 @@ static void test_subselect()
   mystmt(stmt,rc);
 
   fprintf(stdout,"\n row 1: %d",id);
-  myassert(id == 0);
+  assert(id == 0);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 #endif
@@ -5356,7 +5389,7 @@ static void test_bind_date_conv(uint row_count)
 
   mysql_stmt_close(stmt);
 
-  myassert(row_count == my_stmt_result("SELECT * FROM test_date",50));
+  assert(row_count == my_stmt_result("SELECT * FROM test_date",50));
 
   stmt = mysql_prepare(mysql,"SELECT * FROM test_date",50);
   myquery(rc);
@@ -5384,23 +5417,23 @@ static void test_bind_date_conv(uint row_count)
                       tm[i].hour, tm[i].minute, tm[i].second,
                       tm[i].second_part);                      
 
-      myassert(tm[i].year == 0 || tm[i].year == year+count);
-      myassert(tm[i].month == 0 || tm[i].month == month+count);
-      myassert(tm[i].day == 0 || tm[i].day == day+count);
+      assert(tm[i].year == 0 || tm[i].year == year+count);
+      assert(tm[i].month == 0 || tm[i].month == month+count);
+      assert(tm[i].day == 0 || tm[i].day == day+count);
 
-      myassert(tm[i].hour == 0 || tm[i].hour == hour+count);
+      assert(tm[i].hour == 0 || tm[i].hour == hour+count);
       /* 
          minute causes problems from date<->time, don't assert, instead
          validate separatly in another routine
        */
-      /*myassert(tm[i].minute == 0 || tm[i].minute == minute+count);
-      myassert(tm[i].second == 0 || tm[i].second == sec+count);*/
+      /*assert(tm[i].minute == 0 || tm[i].minute == minute+count);
+      assert(tm[i].second == 0 || tm[i].second == sec+count);*/
 
-      myassert(tm[i].second_part == 0 || tm[i].second_part == second_part+count);
+      assert(tm[i].second_part == 0 || tm[i].second_part == second_part+count);
     }
   }
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -5673,9 +5706,9 @@ static void test_buffers()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   fprintf(stdout, "\n data: %s (%lu)", buffer, length);
-  myassert(buffer[0] == 'M');
-  myassert(buffer[1] == 'X');
-  myassert(length == 5);
+  assert(buffer[0] == 'M');
+  assert(buffer[1] == 'X');
+  assert(length == 5);
 
   bind[0].buffer_length=8;
   rc = mysql_bind_result(stmt, bind);/* re-bind */
@@ -5684,8 +5717,8 @@ static void test_buffers()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   fprintf(stdout, "\n data: %s (%lu)", buffer, length);
-  myassert(strncmp(buffer,"Database",8) == 0);
-  myassert(length == 8);
+  assert(strncmp(buffer,"Database",8) == 0);
+  assert(length == 8);
   
   bind[0].buffer_length=12;
   rc = mysql_bind_result(stmt, bind);/* re-bind */
@@ -5694,8 +5727,8 @@ static void test_buffers()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   fprintf(stdout, "\n data: %s (%lu)", buffer, length);
-  myassert(strcmp(buffer,"Open-Source") == 0);
-  myassert(length == 11);
+  assert(strcmp(buffer,"Open-Source") == 0);
+  assert(length == 11);
   
   bind[0].buffer_length=6;
   rc = mysql_bind_result(stmt, bind);/* re-bind */
@@ -5704,8 +5737,8 @@ static void test_buffers()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   fprintf(stdout, "\n data: %s (%lu)", buffer, length);
-  myassert(strncmp(buffer,"Popula",6) == 0);
-  myassert(length == 7);
+  assert(strncmp(buffer,"Popula",6) == 0);
+  assert(length == 7);
   
   mysql_stmt_close(stmt);
 }
@@ -5736,7 +5769,7 @@ static void test_open_direct()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(0 == my_process_result_set(result));
+  assert(0 == my_process_result_set(result));
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -5749,7 +5782,7 @@ static void test_open_direct()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -5762,7 +5795,7 @@ static void test_open_direct()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(2 == my_process_result_set(result));
+  assert(2 == my_process_result_set(result));
   mysql_stmt_close(stmt);
 
   /* run a direct query in the middle of a fetch */
@@ -5828,7 +5861,7 @@ static void test_fetch_nobuffs()
     rc++;
 
   fprintf(stdout, "\n total rows        : %d", rc);
-  myassert(rc == 1);
+  assert(rc == 1);
 
   bind[0].buffer_type= MYSQL_TYPE_STRING;
   bind[0].buffer= (char *)str[0];
@@ -5856,7 +5889,7 @@ static void test_fetch_nobuffs()
     fprintf(stdout, "\n CURRENT_TIME()    : %s", str[3]);
   }
   fprintf(stdout, "\n total rows        : %d", rc);
-  myassert(rc == 1);
+  assert(rc == 1);
 
   mysql_stmt_close(stmt);
 }
@@ -5927,20 +5960,20 @@ static void test_ushort_bug()
   fprintf(stdout,"\n longlong : %lld (%ld)", longlong_value, ll_length);
   fprintf(stdout,"\n tinyint  : %d   (%ld)", tiny_value, t_length);
   
-  myassert(short_value == 35999);
-  myassert(s_length == 2);
+  assert(short_value == 35999);
+  assert(s_length == 2);
   
-  myassert(long_value == 35999);
-  myassert(l_length == 4);
+  assert(long_value == 35999);
+  assert(l_length == 4);
 
-  myassert(longlong_value == 35999);
-  myassert(ll_length == 8);
+  assert(longlong_value == 35999);
+  assert(ll_length == 8);
 
-  myassert(tiny_value == 200);
-  myassert(t_length == 1);
+  assert(tiny_value == 200);
+  assert(t_length == 1);
   
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -6011,20 +6044,20 @@ static void test_sshort_bug()
   fprintf(stdout,"\n longlong : %lld (%ld)", longlong_value, ll_length);
   fprintf(stdout,"\n tinyint  : %d   (%ld)", tiny_value, t_length);
   
-  myassert(short_value == -5999);
-  myassert(s_length == 2);
+  assert(short_value == -5999);
+  assert(s_length == 2);
   
-  myassert(long_value == -5999);
-  myassert(l_length == 4);
+  assert(long_value == -5999);
+  assert(l_length == 4);
 
-  myassert(longlong_value == 35999);
-  myassert(ll_length == 8);
+  assert(longlong_value == 35999);
+  assert(ll_length == 8);
 
-  myassert(tiny_value == 200);
-  myassert(t_length == 1);
+  assert(tiny_value == 200);
+  assert(t_length == 1);
   
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -6095,20 +6128,20 @@ static void test_stiny_bug()
   fprintf(stdout,"\n longlong : %lld  (%ld)", longlong_value, ll_length);
   fprintf(stdout,"\n tinyint  : %d    (%ld)", tiny_value, t_length);
   
-  myassert(short_value == -128);
-  myassert(s_length == 2);
+  assert(short_value == -128);
+  assert(s_length == 2);
   
-  myassert(long_value == -127);
-  myassert(l_length == 4);
+  assert(long_value == -127);
+  assert(l_length == 4);
 
-  myassert(longlong_value == 255);
-  myassert(ll_length == 8);
+  assert(longlong_value == 255);
+  assert(ll_length == 8);
 
-  myassert(tiny_value == 0);
-  myassert(t_length == 1);
+  assert(tiny_value == 0);
+  assert(t_length == 1);
   
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -6133,7 +6166,7 @@ static void test_field_misc()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
   
   verify_prepare_field(result,0,
                        "@@autocommit","",   /* field and its org name */
@@ -6152,7 +6185,7 @@ static void test_field_misc()
   result = mysql_get_metadata(stmt);
   mytest(result);
   
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   
   verify_prepare_field(result,0,
                        "@@autocommit","",   /* field and its org name */
@@ -6183,7 +6216,7 @@ static void test_field_misc()
   fprintf(stdout,"\n default table type: %s(%ld)", table_type, type_length);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 
@@ -6196,7 +6229,7 @@ static void test_field_misc()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   
   verify_prepare_field(result,0,
                        "@@table_type","",   /* field and its org name */
@@ -6216,7 +6249,7 @@ static void test_field_misc()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   
   verify_prepare_field(result,0,
                        "@@max_error_count","",   /* field and its org name */
@@ -6236,7 +6269,7 @@ static void test_field_misc()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   
   verify_prepare_field(result,0,
                        "@@max_allowed_packet","",   /* field and its org name */
@@ -6256,7 +6289,7 @@ static void test_field_misc()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(1 == my_process_stmt_result(stmt));
+  assert(1 == my_process_stmt_result(stmt));
   
   verify_prepare_field(result,0,
                        "@@sql_warnings","",   /* field and its org name */
@@ -6303,7 +6336,7 @@ static void test_set_option()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(2 == my_process_result_set(result));
+  assert(2 == my_process_result_set(result));
 
   mysql_free_result(result);
   
@@ -6314,7 +6347,7 @@ static void test_set_option()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(2 == my_process_stmt_result(stmt));
+  assert(2 == my_process_stmt_result(stmt));
 
   mysql_stmt_close(stmt);
 
@@ -6329,7 +6362,7 @@ static void test_set_option()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert(4 == my_process_stmt_result(stmt));
+  assert(4 == my_process_stmt_result(stmt));
 
   mysql_stmt_close(stmt);
 }
@@ -6400,7 +6433,7 @@ static void test_prepare_grant()
     execute_prepare_query("INSERT INTO test_grant(a) VALUES(NULL)",1);    
     execute_prepare_query("INSERT INTO test_grant VALUES(NULL)",1);
     execute_prepare_query("UPDATE test_grant SET a=9 WHERE a=1",1);
-    myassert(4 == my_stmt_result("SELECT a FROM test_grant",50));
+    assert(4 == my_stmt_result("SELECT a FROM test_grant",50));
     
     rc = mysql_query(mysql,"DELETE FROM test_grant");
     myquery_r(rc);
@@ -6411,18 +6444,18 @@ static void test_prepare_grant()
     rc = mysql_execute(stmt);
     myquery_r(rc);
     
-    myassert(4 == my_stmt_result("SELECT * FROM test_grant",50));
+    assert(4 == my_stmt_result("SELECT * FROM test_grant",50));
     
     mysql_close(lmysql);        
     mysql= org_mysql;
 
     rc = mysql_query(mysql,"delete from mysql.user where User='test_grant'");
     myquery(rc);
-    myassert(1 == mysql_affected_rows(mysql));
+    assert(1 == mysql_affected_rows(mysql));
 
     rc = mysql_query(mysql,"delete from mysql.tables_priv where User='test_grant'");
     myquery(rc);
-    myassert(1 == mysql_affected_rows(mysql));
+    assert(1 == mysql_affected_rows(mysql));
 
   }
 }
@@ -6476,7 +6509,7 @@ static void test_frm_bug()
   fprintf(stdout,"\n data directory: %s", data_dir);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   strxmov(test_frm,data_dir,"/",current_db,"/","test_frm_bug.frm",NullS);
 
@@ -6496,7 +6529,7 @@ static void test_frm_bug()
   result = mysql_store_result(mysql);
   mytest(result);/* It can't be NULL */
 
-  myassert(1 == my_process_result_set(result));
+  assert(1 == my_process_result_set(result));
 
   mysql_data_seek(result,0);
 
@@ -6504,7 +6537,7 @@ static void test_frm_bug()
   mytest(row);
 
   fprintf(stdout,"\n Comment: %s", row[16]);
-  myassert(row[16] != 0);
+  assert(row[16] != 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -6562,10 +6595,10 @@ static void test_decimal_bug()
   mystmt(stmt,rc);
 
   fprintf(stdout, "\n data: %g", data);
-  myassert(data == 8.0);
+  assert(data == 8.0);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   data= 5.61;
   rc = mysql_execute(stmt);
@@ -6579,17 +6612,17 @@ static void test_decimal_bug()
   mystmt(stmt,rc);
 
   fprintf(stdout, "\n data: %g", data);
-  myassert(data == 5.61);
+  assert(data == 5.61);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   is_null= 1;
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   data= 10.22; is_null= 0;
   rc = mysql_execute(stmt);
@@ -6603,10 +6636,10 @@ static void test_decimal_bug()
   mystmt(stmt,rc);
 
   fprintf(stdout, "\n data: %g", data);
-  myassert(data == 10.22);
+  assert(data == 10.22);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -6639,14 +6672,14 @@ static void test_explain_bug()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert( 2 == my_process_stmt_result(stmt));  
+  assert( 2 == my_process_stmt_result(stmt));  
 
   result = mysql_get_metadata(stmt);
   mytest(result);
 
   fprintf(stdout, "\n total fields in the result: %d", 
           mysql_num_fields(result));
-  myassert(6 == mysql_num_fields(result));
+  assert(6 == mysql_num_fields(result));
 
   verify_prepare_field(result,0,"Field","",MYSQL_TYPE_VAR_STRING,
                        "","","",NAME_LEN,0);
@@ -6675,14 +6708,14 @@ static void test_explain_bug()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert( 1 == my_process_stmt_result(stmt)); 
+  assert( 1 == my_process_stmt_result(stmt)); 
 
   result = mysql_get_metadata(stmt);
   mytest(result);
 
   fprintf(stdout, "\n total fields in the result: %d", 
           mysql_num_fields(result));
-  myassert(10 == mysql_num_fields(result));
+  assert(10 == mysql_num_fields(result));
 
   verify_prepare_field(result,0,"id","",MYSQL_TYPE_LONGLONG,
                        "","","",3,0);
@@ -6718,10 +6751,25 @@ static void test_explain_bug()
   mysql_stmt_close(stmt);
 }
 
+#ifdef NOT_YET_WORKING
+
 /*
   To test math functions
   bug #148 (reported by salle@mysql.com).
 */
+
+#define myerrno(n) check_errcode(n)
+
+static void check_errcode(const unsigned int err)
+{  
+  if (mysql->server_version)
+    fprintf(stdout,"\n [MySQL-%s]",mysql->server_version);
+  else
+    fprintf(stdout,"\n [MySQL]");
+  fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
+  assert(mysql_errno(mysql) == err);
+}
+
 static void test_drop_temp()
 {
   int rc;
@@ -6814,18 +6862,19 @@ static void test_drop_temp()
 
     rc = mysql_query(mysql,"drop database test_drop_temp_db");
     myquery(rc);
-    myassert(1 == mysql_affected_rows(mysql));
+    assert(1 == mysql_affected_rows(mysql));
 
     rc = mysql_query(mysql,"delete from mysql.user where User='test_temp'");
     myquery(rc);
-    myassert(1 == mysql_affected_rows(mysql));
+    assert(1 == mysql_affected_rows(mysql));
 
 
     rc = mysql_query(mysql,"delete from mysql.tables_priv where User='test_temp'");
     myquery(rc);
-    myassert(1 == mysql_affected_rows(mysql));
+    assert(1 == mysql_affected_rows(mysql));
   }
 }
+#endif
 
 /*
   To test warnings for cuted rows
@@ -6851,14 +6900,14 @@ static void test_cuted_rows()
 
   count= mysql_warning_count(mysql);
   fprintf(stdout, "\n total warnings: %d", count);
-  myassert(count == 0);
+  assert(count == 0);
 
   rc = mysql_query(mysql, "INSERT INTO t2 SELECT * FROM t1");
   myquery(rc);
 
   count= mysql_warning_count(mysql);
   fprintf(stdout, "\n total warnings: %d", count);
-  myassert(count == 2);
+  assert(count == 2);
 
   rc = mysql_query(mysql, "SHOW WARNINGS");
   myquery(rc);
@@ -6866,7 +6915,7 @@ static void test_cuted_rows()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(2 == my_process_result_set(result));
+  assert(2 == my_process_result_set(result));
   mysql_free_result(result);
 
   rc = mysql_query(mysql, "INSERT INTO t1 VALUES('junk'),(876789)");
@@ -6874,7 +6923,7 @@ static void test_cuted_rows()
 
   count= mysql_warning_count(mysql);
   fprintf(stdout, "\n total warnings: %d", count);
-  myassert(count == 2);
+  assert(count == 2);
 
   rc = mysql_query(mysql, "SHOW WARNINGS");
   myquery(rc);
@@ -6882,7 +6931,7 @@ static void test_cuted_rows()
   result = mysql_store_result(mysql);
   mytest(result);
 
-  myassert(2 == my_process_result_set(result));
+  assert(2 == my_process_result_set(result));
   mysql_free_result(result);
 }
 
@@ -6985,44 +7034,44 @@ static void test_logs()
   fprintf(stdout, "\n id    : %d", id);
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
-  myassert(id == 9876);  
-  myassert(length == 19); /* Due to VARCHAR(20) */
-  myassert(strcmp(data,"MySQL - Open Source")==0); 
+  assert(id == 9876);  
+  assert(length == 19); /* Due to VARCHAR(20) */
+  assert(strcmp(data,"MySQL - Open Source")==0); 
 
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
-  myassert(length == 1);
-  myassert(strcmp(data,"'")==0); 
+  assert(length == 1);
+  assert(strcmp(data,"'")==0); 
 
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
-  myassert(length == 1);
-  myassert(strcmp(data,"\"")==0); 
+  assert(length == 1);
+  assert(strcmp(data,"\"")==0); 
 
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
-  myassert(length == 7);
-  myassert(strcmp(data,"my\'sql\'")==0); 
+  assert(length == 7);
+  assert(strcmp(data,"my\'sql\'")==0); 
 
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
-  myassert(length == 7);
-  /*myassert(strcmp(data,"my\"sql\"")==0); */
+  assert(length == 7);
+  /*assert(strcmp(data,"my\"sql\"")==0); */
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 
@@ -7089,10 +7138,10 @@ static void test_nstmts()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
   fprintf(stdout, "\n total rows: %d", i);
-  myassert( i == total_stmts);
+  assert( i == total_stmts);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
   
@@ -7189,7 +7238,7 @@ static void test_fetch_seek()
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -7249,17 +7298,17 @@ static void test_fetch_offset()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s (%ld)", data, length);
-  myassert(strncmp(data,"abcd",4) == 0 && length == 10);
+  assert(strncmp(data,"abcd",4) == 0 && length == 10);
   
   rc = mysql_fetch_column(stmt,bind,0,5);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s (%ld)", data, length);
-  myassert(strncmp(data,"fg",2) == 0 && length == 10);  
+  assert(strncmp(data,"fg",2) == 0 && length == 10);  
 
   rc = mysql_fetch_column(stmt,bind,0,9);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %s (%ld)", data, length);
-  myassert(strncmp(data,"j",1) == 0 && length == 10);  
+  assert(strncmp(data,"j",1) == 0 && length == 10);  
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
@@ -7269,10 +7318,10 @@ static void test_fetch_offset()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
 
-  myassert(is_null == 1);
+  assert(is_null == 1);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt_r(stmt,rc);
@@ -7342,13 +7391,13 @@ static void test_fetch_column()
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
-  myassert(strncmp(c2,"venu",4)==0 && l2 == 4);
+  assert(strncmp(c2,"venu",4)==0 && l2 == 4);
   
   c2[0]= '\0'; l2= 0;
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
-  myassert(strcmp(c2,"venu")==0 && l2 == 4);  
+  assert(strcmp(c2,"venu")==0 && l2 == 4);  
 
   c1= 0;     
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -7360,7 +7409,7 @@ static void test_fetch_column()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
-  myassert(c1 == 1 && l1 == 4);
+  assert(c1 == 1 && l1 == 4);
 
   rc = mysql_fetch_column(stmt,bind,10,0);
   mystmt_r(stmt,rc);
@@ -7380,13 +7429,13 @@ static void test_fetch_column()
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
-  myassert(strncmp(c2,"mysq",4)==0 && l2 == 5);
+  assert(strncmp(c2,"mysq",4)==0 && l2 == 5);
   
   c2[0]= '\0'; l2= 0;
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %si(%ld)", c2, l2);
-  myassert(strcmp(c2,"mysql")==0 && l2 == 5);  
+  assert(strcmp(c2,"mysql")==0 && l2 == 5);  
 
   c1= 0;     
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -7398,10 +7447,10 @@ static void test_fetch_column()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
-  myassert(c1 == 2 && l1 == 4);
+  assert(c1 == 2 && l1 == 4);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   rc = mysql_fetch_column(stmt,bind,1,0);
   mystmt_r(stmt,rc);
@@ -7427,7 +7476,7 @@ static void test_list_fields()
   result = mysql_list_fields(mysql, "test_list_fields",NULL);
   mytest(result);
 
-  myassert( 0 == my_process_result_set(result));
+  assert( 0 == my_process_result_set(result));
   
   verify_prepare_field(result,0,"c1","c1",MYSQL_TYPE_LONG,
                        "test_list_fields","test_list_fields",current_db,11,"0");
@@ -7486,7 +7535,7 @@ static void test_mem_overun()
   rc = mysql_query(mysql,"select * from t_mem_overun");
   myquery(rc);
 
-  myassert(1 == my_process_result(mysql));
+  assert(1 == my_process_result(mysql));
   
   stmt = mysql_prepare(mysql, "select * from t_mem_overun",30);
   mystmt_init(stmt);
@@ -7498,7 +7547,7 @@ static void test_mem_overun()
   mytest(field_res);
 
   fprintf(stdout,"\n total fields : %d", mysql_num_fields(field_res));
-  myassert( 1000 == mysql_num_fields(field_res));
+  assert( 1000 == mysql_num_fields(field_res));
 
   rc = mysql_stmt_store_result(stmt);
   mystmt(stmt,rc);
@@ -7507,7 +7556,7 @@ static void test_mem_overun()
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
 }
@@ -7562,7 +7611,7 @@ static void test_free_result()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %s(%ld)", c2, l2);
-  myassert(strncmp(c2,"1",1)==0 && l2 == 1);
+  assert(strncmp(c2,"1",1)==0 && l2 == 1);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);  
@@ -7577,7 +7626,7 @@ static void test_free_result()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
-  myassert(c1 == 2 && l2 == 4);  
+  assert(c1 == 2 && l2 == 4);  
 
   rc = mysql_query(mysql,"drop table test_free_result");
   myquery_r(rc); /* error should be, COMMANDS OUT OF SYNC */
@@ -7644,7 +7693,7 @@ static void test_free_store_result()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
-  myassert(strncmp(c2,"1",1)==0 && l2 == 1);
+  assert(strncmp(c2,"1",1)==0 && l2 == 1);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);  
@@ -7659,7 +7708,7 @@ static void test_free_store_result()
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
-  myassert(c1 == 2 && l2 == 4);
+  assert(c1 == 2 && l2 == 4);
 
   rc = mysql_stmt_free_result(stmt);
   mystmt(stmt,rc);
@@ -7770,7 +7819,7 @@ static void test_sqlmode()
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   fprintf(stdout,"\n  returned 1 row\n");
 
   mysql_stmt_close(stmt);
@@ -7793,7 +7842,7 @@ static void test_sqlmode()
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
+  assert(rc == MYSQL_NO_DATA);
   fprintf(stdout,"\n  returned 1 row");
 
   mysql_stmt_close(stmt);
@@ -7872,7 +7921,7 @@ static void test_ts()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  myassert( 2== my_process_stmt_result(stmt));
+  assert( 2== my_process_stmt_result(stmt));
   field_count= mysql_num_fields(prep_res);
 
   mysql_free_result(prep_res);
@@ -7899,7 +7948,7 @@ static void test_ts()
       row_count++;
 
     fprintf(stdout, "\n   returned '%d' rows", row_count);
-    myassert(row_count == 2);
+    assert(row_count == 2);
     mysql_stmt_close(stmt);
   }
 }
@@ -8108,7 +8157,7 @@ int main(int argc, char **argv)
     test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
-    test_multi_query();     /* test multi query execution */
+    test_multi_statements(); /* test multi statement execution */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
