@@ -42,11 +42,6 @@ void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
 static char *ndbConnectString = 0;
 static int theNoOfNdbObjects = 0;
 static Ndb_cluster_connection *global_ndb_cluster_connection= 0;
-#if defined NDB_WIN32 || defined SCO
-static NdbMutex & createNdbMutex = * NdbMutex_Create();
-#else
-static NdbMutex createNdbMutex = NDB_MUTEX_INITIALIZER;
-#endif
 
 
 /***************************************************************************
@@ -58,7 +53,6 @@ Remark:        Connect to the database.
 Ndb::Ndb( const char* aDataBase , const char* aSchema) {
   DBUG_ENTER("Ndb::Ndb()");
   DBUG_PRINT("enter",("(old)Ndb::Ndb this=0x%x", this));
-  NdbMutex_Lock(&createNdbMutex);
   if (theNoOfNdbObjects < 0)
     abort(); // old and new Ndb constructor used mixed
   theNoOfNdbObjects++;
@@ -66,7 +60,6 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
     global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
     global_ndb_cluster_connection->connect();
   }
-  NdbMutex_Unlock(&createNdbMutex);
   setup(global_ndb_cluster_connection, aDataBase, aSchema);
   DBUG_VOID_RETURN;
 }
@@ -171,8 +164,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                             sizeof(prefixName) - 1);
 
-  NdbMutex_Lock(&createNdbMutex);
-  
   theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
 
   // Signal that the constructor has finished OK
@@ -190,8 +181,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     }
     theGlobalEventBufferHandle = h;
   }
-
-  NdbMutex_Unlock(&createNdbMutex);
 
   theDictionary = new NdbDictionaryImpl(*this);
   if (theDictionary == NULL) {
@@ -232,8 +221,6 @@ Ndb::~Ndb()
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
   
-  NdbMutex_Lock(&createNdbMutex);
-
   if (global_ndb_cluster_connection != 0) {
     theNoOfNdbObjects--;
     if(theNoOfNdbObjects == 0){
@@ -242,8 +229,6 @@ Ndb::~Ndb()
     }
   }//if
 
-  NdbMutex_Unlock(&createNdbMutex);
-  
 //  if (theSchemaConToNdbList != NULL)
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
