@@ -29,7 +29,7 @@
 #include <my_bitmap.h>
 
 #ifdef __EMX__
-#undef write  // remove pthread.h macro definition for EMX
+#undef write  /* remove pthread.h macro definition for EMX */
 #endif
 
 typedef ulong table_map;		/* Used for table bits in join */
