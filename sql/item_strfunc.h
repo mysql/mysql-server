@@ -153,7 +153,7 @@ public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   void fix_length_and_dec()
   { 
-    set_charset(*args[0]);
+    collation.set(args[0]->collation);
     max_length = args[0]->max_length;
   }
 };
@@ -335,12 +335,11 @@ public:
 class Item_func_database :public Item_str_func
 {
 public:
-  Item_func_database() { set_charset(DERIVATION_IMPLICIT); }
+  Item_func_database() { collation.set(system_charset_info,DERIVATION_IMPLICIT); }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
     max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen; 
-    set_charset(system_charset_info);
   }
   const char *func_name() const { return "database"; }
 };
@@ -348,12 +347,11 @@ public:
 class Item_func_user :public Item_str_func
 {
 public:
-  Item_func_user() { set_charset(DERIVATION_IMPLICIT); }
+  Item_func_user() { collation.set(system_charset_info, DERIVATION_IMPLICIT); }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
     max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*system_charset_info->mbmaxlen; 
-    set_charset(system_charset_info);
   }
   const char *func_name() const { return "user"; }
 };
@@ -417,7 +415,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
   }
   const char *func_name() const { return "format"; }
@@ -431,7 +429,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     maybe_null=0; max_length=arg_count;
   }
   const char *func_name() const { return "char"; }
@@ -481,7 +479,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0; max_length=64; 
   }
 };
@@ -496,7 +494,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0; max_length=args[0]->max_length*2;
   }
 };
@@ -517,7 +515,7 @@ public:
   }
   void fix_length_and_dec() 
   { 
-    set_charset(&my_charset_bin); 
+    collation.set(&my_charset_bin); 
     max_length=args[0]->max_length; 
   }
   void print(String *str) { print_op(str); }
@@ -533,7 +531,7 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
+    collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
@@ -570,7 +568,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    set_charset(*args[0]);
+    collation.set(args[0]->collation);
     max_length= args[0]->max_length * 2 + 2; 
   }
 };
@@ -615,7 +613,7 @@ public:
   void fix_length_and_dec() 
   {
      max_length=40; // should be enough
-     set_charset(default_charset());
+     collation.set(system_charset_info);
   };
 };
 
@@ -628,6 +626,6 @@ public:
   void fix_length_and_dec() 
   {
      max_length=40; // should be enough
-     set_charset(default_charset());
+     collation.set(system_charset_info);
   };
 };

@@ -788,6 +788,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	DBUG_RETURN(0);
       }
       table->query_id=thd->query_id;
+      table->clear_query_id=1;
       thd->tmp_table_used= 1;
       goto reset;
     }
@@ -2175,8 +2176,9 @@ bool setup_tables(TABLE_LIST *tables)
       table->keys_in_use_for_query &= ~map;
     }
     table->used_keys &= table->keys_in_use_for_query;
-    if (table_list->shared)
+    if (table_list->shared  || table->clear_query_id)
     {
+      table->clear_query_id= 0;
       /* Clear query_id that may have been set by previous select */
       for (Field **ptr=table->field ; *ptr ; ptr++)
 	(*ptr)->query_id=0;
