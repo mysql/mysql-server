@@ -10,8 +10,8 @@ reset slave;
 show slave status;
 change master to master_host='127.0.0.1';
 show slave status;
-change master to master_host='127.0.0.1',master_user='root',
- master_password='',master_port=9306;
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
 show slave status;
 slave start;
 sync_with_master;
