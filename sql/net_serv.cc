@@ -251,7 +251,7 @@ my_bool
 my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
-  if (unlikely(!net->vio))                      /* nowhere to write */
+  if (unlikely(!net->vio)) /* nowhere to write */
     return 0;
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
