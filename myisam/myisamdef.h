@@ -267,7 +267,7 @@ struct st_myisam_info {
   my_bool quick_mode;
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
-  my_bool use_packed_key;		/* For MYISAMMRG */
+  my_bool once_flags;           /* For MYISAMMRG */
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
@@ -275,7 +275,41 @@ struct st_myisam_info {
   int     rtree_recursion_depth;
 };
 
+typedef struct st_buffpek {
+  my_off_t file_pos;                    /* Where we are in the sort file */
+  uchar *base,*key;                     /* Key pointers */
+  ha_rows count;                        /* Number of rows in table */
+  ulong mem_count;                      /* numbers of keys in memory */
+  ulong max_keys;                       /* Max keys in buffert */
+} BUFFPEK;
 
+typedef struct st_mi_sort_param
+{
+  pthread_t  thr;
+  IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
+  DYNAMIC_ARRAY buffpek;
+  ulonglong unique[MI_MAX_KEY_SEG+1];
+  my_off_t pos,max_pos,filepos,start_recpos;
+  uint key, key_length,real_key_length,sortbuff_size;
+  uint maxbuffers, keys, find_length, sort_keys_length;
+  my_bool fix_datafile, master;
+  MI_KEYDEF *keyinfo;
+  SORT_INFO *sort_info;
+  uchar **sort_keys;
+  byte *rec_buff;
+  void *wordlist, *wordptr;
+  char *record;
+  MY_TMPDIR *tmpdir;
+  int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
+  int (*key_read)(struct st_mi_sort_param *,void *);
+  int (*key_write)(struct st_mi_sort_param *, const void *);
+  void (*lock_in_memory)(MI_CHECK *);
+  NEAR int (*write_keys)(struct st_mi_sort_param *, register uchar **,
+                     uint , struct st_buffpek *, IO_CACHE *);
+  NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+  NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,char *,
+                       uint, uint);
+} MI_SORT_PARAM;
 	/* Some defines used by isam-funktions */
 
 #define USE_WHOLE_KEY	MI_MAX_KEY_BUFF*2 /* Use whole key in _mi_search() */
@@ -287,6 +321,10 @@ struct st_myisam_info {
 
 #define WRITEINFO_UPDATE_KEYFILE	1
 #define WRITEINFO_NO_UNLOCK		2
+
+        /* once_flags */
+#define USE_PACKED_KEYS         1
+#define RRND_PRESERVE_LASTINX   2
 
 	/* bits in state.changed */
 
@@ -657,6 +695,9 @@ int thr_write_keys(MI_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_decl(thr_find_all_keys,arg);
 #endif
+
+int sort_write_record(MI_SORT_PARAM *sort_param);
+int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
 
 #ifdef __cplusplus
 }

@@ -7,7 +7,7 @@
 
    Bash is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    Bash is distributed in the hope that it will be useful, but WITHOUT
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with Bash; see the file COPYING.  If not, write to the Free
-   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
+   Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #if !defined (_RL_STDC_H_)
 #define _RL_STDC_H_
@@ -26,58 +26,20 @@
 
 /* A function can be defined using prototypes and compile on both ANSI C
    and traditional C compilers with something like this:
-	extern char *func __P((char *, char *, int)); */
+	extern char *func PARAMS((char *, char *, int)); */
 
-#if defined (__STDC__) || defined(__cplusplus)
+#if !defined (PARAMS)
+#  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
+#    define PARAMS(protos) protos
+#  else
+#    define PARAMS(protos) ()
+#  endif
+#endif
 
-#  if !defined (__P)
-#    define __P(protos) protos
+#ifndef __attribute__
+#  if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 8) || __STRICT_ANSI__
+#    define __attribute__(x)
 #  endif
-#  define __STRING(x) #x
-
-#  if !defined (__GNUC__) && !defined(__cplusplus) && !defined(inline)
-#    define inline
-#  endif
-
-#else /* !__STDC__ */
-
-#  if !defined (__P)
-#    define __P(protos) ()
-#  endif
-#  define __STRING(x) "x"
-
-#if defined (__GNUC__)		/* gcc with -traditional */
-#  if !defined (const)
-#    define const  __const
-#  endif
-#  if !defined (inline)
-#    define inline __inline
-#  endif
-#  if !defined (signed)
-#    define signed __signed
-#  endif
-#  if !defined (volatile)
-#    define volatile __volatile
-#  endif
-#else /* !__GNUC__ */
-#  if !defined (const)
-#    define const
-#  endif
-#  if !defined (inline)
-#    define inline
-#  endif
-#  if !defined (signed)
-#    define signed
-#  endif
-#  if !defined (volatile)
-#    define volatile
-#  endif
-#endif /* !__GNUC__ */
-
-#endif /* !__STDC__ */
-
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
 #endif
 
 #endif /* !_RL_STDC_H_ */

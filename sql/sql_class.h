@@ -507,7 +507,6 @@ public:
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     safe_to_cache_query;
   bool	     volatile killed;
   bool       prepare_command;
 

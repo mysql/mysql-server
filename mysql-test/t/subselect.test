@@ -15,6 +15,12 @@ SELECT (SELECT 1), a;
 SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a));
+SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
+-- error 1239
+SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT 1,1);
+SELECT 1 IN (SELECT 1);
+SELECT 1 FROM (SELECT 1 as a) WHERE 1 IN (SELECT (SELECT a));
+
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -50,6 +56,22 @@ select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2
 explain select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 select * from t3 where not exists (select * from t2 where t2.b=t3.a);
+select * from t3 where a in (select b from t2);
+select * from t3 where a not in (select b from t2);
+select * from t3 where a = some (select b from t2);
+select * from t3 where a <> any (select b from t2);
+select * from t3 where a = all (select b from t2);
+select * from t3 where a <> all (select b from t2);
+insert into t2 values (100, 5);
+select * from t3 where a < any (select b from t2);
+select * from t3 where a < all (select b from t2);
+select * from t3 where a >= any (select b from t2);
+select * from t3 where a >= all (select b from t2);
+delete from t2 where a=100;
+-- error 1239
+select * from t3 where a in (select a,b from t2);
+-- error 1239
+select * from t3 where a in (select * from t2);
 insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9);
 select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
 from t2 where t2.b=t4.b);
@@ -112,7 +134,7 @@ SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo LIKE '%jo
 
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 
-#searchconthardwarefr3
+#searchconthardwarefr3 forumconthardwarefr7
 CREATE TABLE `t1` (
   `topic` mediumint(8) unsigned NOT NULL default '0',
   `date` date NOT NULL default '0000-00-00',
@@ -155,10 +177,21 @@ select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1);
-drop table t1, t2;
+-- error 1054
+SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic IN (SELECT SUM(topic) FROM t1);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
+SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);
+drop table t1,t2;
 
 #forumconthardwarefr7
-drop table if exists t1;
 CREATE TABLE `t1` (
   `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
   `maxnumrep` int(10) unsigned NOT NULL default '0',
@@ -200,7 +233,98 @@ EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 
 EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 drop table t1;
+
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
 SELECT 1 FROM (SELECT a FROM t1) HAVING (SELECT a)=1;
 drop table t1;
+
+#update with subselects
+create table t1 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t1 values (0, 10),(1, 11),(2, 12);
+insert into t2 values (1, 21),(2, 22),(3, 23);
+select * from t1;
+update t1 set b= (select b from t2 where t1.a = t2.a);
+select * from t1;
+drop table t1, t2;
+
+#delete with subselects
+create table t1 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t1 values (0, 10),(1, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t1;
+select * from t1 where b = (select b from t2 where t1.a = t2.a);
+delete from t1 where b = (select b from t2 where t1.a = t2.a);
+select * from t1;
+drop table t1, t2;
+
+#multi-delete with subselects
+drop table if exists t11, t12, t2;
+create table t11 (a int NOT NULL, b int, primary key (a));
+create table t12 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t11 values (0, 10),(1, 11),(2, 12);
+insert into t12 values (33, 10),(22, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t11;
+select * from t12;
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
+select * from t11;
+select * from t12;
+drop table t11, t12, t2;
+
+#insert with subselects
+CREATE TABLE t1 (x int);
+create table t2 (a int);
+insert into t2 values (1);
+INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
+select * from t1;
+insert into t2 values (1);
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
+-- sleep 1
+select * from t1;
+INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
+select * from t1;
+-- error 1093
+INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t1));
+-- sleep 1
+select * from t1;
+drop table t1, t2;
+
+#replace with subselects
+CREATE TABLE t1 (x int not null, y int, primary key (x));
+create table t2 (a int);
+insert into t2 values (1);
+select * from t1;
+replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
+select * from t1;
+replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
+select * from t1;
+replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a FROM t2));
+-- sleep 1
+select * from t1;
+replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2));
+-- sleep 1
+select * from t1;
+replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
+select * from t1;
+drop table t1, t2;
+
+-- error 1096
+SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT *);
+drop table if exists t;
+CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t VALUES (1),(2);
+SELECT * FROM t WHERE id IN (SELECT 1);
+EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1);
+SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+SELECT * FROM t WHERE id IN (SELECT 1+(select 1));
+EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1+(select 1));
+EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 3);
+SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
+drop table if exists t;
+

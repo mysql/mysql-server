@@ -99,7 +99,7 @@ int GTextReadStream::get_next_number(double *d)
 
   char *endptr;
 
-  *d = my_strtod(my_charset_latin1, cur, &endptr);
+  *d = strtod(cur, &endptr);
 
   if(endptr)
   {

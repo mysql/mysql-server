@@ -743,6 +743,29 @@ void close_temporary_tables(THD *thd)
   thd->temporary_tables=0;
 }
 
+/*
+  Find first suitable table in given list.
+
+  SYNOPSIS
+    find_table_in_list()
+    table - pointer to table list
+    db_name - data base name or 0 for any
+    table_name - table name or 0 for any
+
+  RETURN VALUES
+    NULL	Table not found
+    #		Pointer to found table.
+*/
+
+TABLE_LIST * find_table_in_list(TABLE_LIST *table,
+				const char *db_name, const char *table_name)
+{
+  for (; table; table= table->next)
+    if ((!db_name || !strcmp(table->db, db_name)) &&
+	(!table_name || !strcmp(table->alias, table_name)))
+      break;
+  return table;
+}
 
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
@@ -1625,6 +1648,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
+
   if (table)
   {
 #if defined( __WIN__) || defined(OS2)
@@ -2058,7 +2082,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   while ((item=it++))
   {
-    if (item->type() == Item::FIELD_ITEM &&
+    if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*')
     {
       uint elem= fields.elements;
@@ -2077,7 +2101,8 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     }
     else
     {
-      if (item->fix_fields(thd, tables, it.ref()))
+      if (item->check_cols(1) ||
+	  item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
       item= *(it.ref()); //Item can be chenged in fix fields
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
@@ -2086,7 +2111,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       thd->used_tables|=item->used_tables();
     }
   }
-  DBUG_RETURN(test(thd->fatal_error));
+  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
 }
 
 
@@ -2231,7 +2256,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   if (*conds)
   {
     thd->where="where clause";
-    if ((*conds)->fix_fields(thd, tables, conds))
+    if ((*conds)->check_cols(1) || (*conds)->fix_fields(thd, tables, conds))
       DBUG_RETURN(1);
   }
 
@@ -2242,7 +2267,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     {
       /* Make a join an a expression */
       thd->where="on clause";
-      if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+      if (table->on_expr->check_cols(1) ||
+	  table->on_expr->fix_fields(thd, tables, &table->on_expr))
 	DBUG_RETURN(1);
       thd->cond_count++;
 
@@ -2300,7 +2326,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
-  DBUG_RETURN(test(thd->fatal_error));
+  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
 }
 
 

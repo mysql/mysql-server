@@ -83,7 +83,7 @@ Item *create_func_ceiling(Item* a)
 Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   return new Item_int("CONNECTION_ID()",(longlong) thd->thread_id,10);
 }
 
@@ -156,7 +156,7 @@ Item *create_func_floor(Item* a)
 Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   return new Item_int("FOUND_ROWS()",(longlong) thd->found_rows(),21);
 }
 
@@ -167,7 +167,7 @@ Item *create_func_from_days(Item* a)
 
 Item *create_func_get_lock(Item* a, Item *b)
 {
-  current_thd->safe_to_cache_query=0;
+  current_thd->lex.safe_to_cache_query=0;
   return new Item_func_get_lock(a, b);
 }
 
@@ -315,7 +315,7 @@ Item *create_func_radians(Item *a)
 
 Item *create_func_release_lock(Item* a)
 {
-  current_thd->safe_to_cache_query=0;
+  current_thd->lex.safe_to_cache_query=0;
   return new Item_func_release_lock(a);
 }
 
@@ -423,13 +423,13 @@ Item *create_func_year(Item* a)
 
 Item *create_load_file(Item* a)
 {
-  current_thd->safe_to_cache_query=0;
+  current_thd->lex.safe_to_cache_query=0;
   return new Item_load_file(a);
 }
 
 Item *create_wait_for_master_pos(Item* a, Item* b)
 {
-  current_thd->safe_to_cache_query=0;
+  current_thd->lex.safe_to_cache_query=0;
   return new Item_master_pos_wait(a, b);
 }
 
@@ -439,6 +439,7 @@ Item *create_func_cast(Item *a, Item_cast cast_type)
   LINT_INIT(res);
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
+  case ITEM_CAST_CHAR:	 	res= new Item_char_typecast(a); break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
   case ITEM_CAST_UNSIGNED_INT:  res= new Item_func_unsigned(a); break;
   case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;
@@ -450,7 +451,7 @@ Item *create_func_cast(Item *a, Item_cast cast_type)
 
 Item *create_func_is_free_lock(Item* a)
 {
-  current_thd->safe_to_cache_query=0;
+  current_thd->lex.safe_to_cache_query=0;
   return new Item_func_is_free_lock(a);
 }
 

@@ -46,7 +46,10 @@ int mi_rrnd(MI_INFO *info, byte *buf, register my_off_t filepos)
       filepos= info->nextpos;
   }
 
-  info->lastinx= -1;				/* Can't forward or backward */
+  if (info->once_flags & RRND_PRESERVE_LASTINX)
+    info->once_flags&= ~RRND_PRESERVE_LASTINX;
+  else
+    info->lastinx= -1;                          /* Can't forward or backward */
   /* Init all but update-flag */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 

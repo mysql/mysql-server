@@ -34,7 +34,7 @@ public:
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
-             SUBSELECT_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -86,14 +86,69 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
-  virtual CHARSET_INFO *thd_charset() const;
-  virtual CHARSET_INFO *charset() const { return str_value.charset(); };
-  virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
-  virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
   virtual bool check_loop(uint id);
   virtual void top_level_item() {}
+
+  virtual bool binary() const
+  { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  CHARSET_INFO *thd_charset() const;
+  CHARSET_INFO *charset() const { return str_value.charset(); };
+  void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+
+  // Row emulation
+  virtual uint cols() { return 1; }
+  virtual Item* el(uint i) { return this; }
+  virtual bool check_cols(uint c);
 };
 
+
+/*
+  Wrapper base class
+*/
+
+class Item_wrapper :public Item
+{
+protected:
+  Item *item;
+public:
+  /* 
+     Following methods should not be used, because fix_fields exclude this 
+     item (it assign '*ref' with field 'item' in derived classes)
+  */
+  enum Type type() const         { return item->type(); }
+  double val()                   { return item->val(); }
+  longlong val_int()             { return item->val_int(); }
+  String* val_str(String* s)     { return item->val_str(s); }
+  void make_field(Send_field* f) { item->make_field(f); }
+  bool check_cols(uint col)      { return item->check_cols(col); }
+};
+
+
+/*
+  Save context of name resolution for Item, used in subselect transformer.
+*/
+class Item_outer_select_context_saver :public Item_wrapper
+{
+public:
+  Item_outer_select_context_saver(Item *it)
+  {
+    item= it;
+  }
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
+
+/*
+  To resolve '*' field moved to condition
+*/
+class Item_asterisk_remover :public Item_wrapper
+{
+public:
+  Item_asterisk_remover(Item *it)
+  {
+    item= it;
+  }
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
 
 class st_select_lex;
 class Item_ident :public Item
@@ -471,6 +526,7 @@ public:
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"
+#include "item_row.h"
 
 class Item_copy_string :public Item
 {
@@ -487,9 +543,9 @@ public:
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()
-  { return null_value ? 0.0 : atof(str_value.c_ptr()); }
+  { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
   longlong val_int()
-  { return null_value ? LL(0) : strtoll(str_value.c_ptr(),(char**) 0,10); }
+  { return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10); }
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();

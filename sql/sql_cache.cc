@@ -289,7 +289,7 @@ TODO list:
 
       if (thd->temp_tables || global_merge_table_count)
 
-    - Another option would be to set thd->safe_to_cache_query to 0
+    - Another option would be to set thd->lex.safe_to_cache_query to 0
       in 'get_lock_data' if any of the tables was a tmp table or a
       MRG_ISAM table.
       (This could be done with almost no speed penalty)
@@ -900,7 +900,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
-  if (!thd->safe_to_cache_query)
+  if (!thd->lex.safe_to_cache_query)
   {
     DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
@@ -994,7 +994,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 		  table_list.db, table_list.alias));
       refused++;				// This is actually a hit
       STRUCT_UNLOCK(&structure_guard_mutex);
-      thd->safe_to_cache_query=0;		// Don't try to cache this
+      thd->lex.safe_to_cache_query=0;		// Don't try to cache this
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
     }
@@ -1003,7 +1003,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->safe_to_cache_query=0;		// Don't try to cache this
+      thd->lex.safe_to_cache_query=0;		// Don't try to cache this
       goto err_unlock;				// Parse query
     }
   }
@@ -2457,7 +2457,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))) &&
-      thd->safe_to_cache_query)
+      lex->safe_to_cache_query)
   {
     my_bool has_transactions = 0;
     DBUG_PRINT("qcache", ("options %lx %lx, type %u",

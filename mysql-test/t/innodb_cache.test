@@ -48,3 +48,10 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 commit;
 show status like "Qcache_queries_in_cache";
+
+drop table if exists t1;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY  (id)) TYPE=InnoDB;
+select count(*) from t1;
+insert into t1 (id) values (0);
+select count(*) from t1;
+drop table t1;

@@ -33,7 +33,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item_result_field(), engine_owner(1), value_assigned(0)
+  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0)
 {
   assign_null();
   /*
@@ -44,12 +44,13 @@ Item_subselect::Item_subselect():
 }
 
 void Item_subselect::init(THD *thd, st_select_lex *select_lex,
-		     select_subselect *result)
+			  select_subselect *result)
 {
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
+  DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
 
+  select_transformer(select_lex);
   if (select_lex->next_select())
     engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
 				       this);
@@ -64,6 +65,13 @@ Item_subselect::~Item_subselect()
   if (engine_owner)
     delete engine;
 }
+
+void Item_subselect::select_transformer(st_select_lex *select_lex) 
+{
+  DBUG_ENTER("Item_subselect::select_transformer");
+  DBUG_VOID_RETURN;
+}
+
 
 void Item_subselect::make_field (Send_field *tmp_field)
 {
@@ -81,6 +89,14 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  if (substitution)
+  {
+    (*ref)= substitution;
+    substitution->name= name;
+    engine->exclude();
+    return substitution->fix_fields(thd, tables, ref);
+  }
+
   char const *save_where= thd->where;
   int res= engine->prepare();
   if (!res)
@@ -88,7 +104,7 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {  
-      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      my_error(ER_CARDINALITY_COL, MYF(0), 1);
       return 1;
     }
     fix_length_and_dec();
@@ -121,9 +137,11 @@ Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 						   st_select_lex *select_lex):
   Item_subselect()
 {
+  DBUG_ENTER("Item_singleval_subselect::Item_singleval_subselect");
   init(thd, select_lex, new select_singleval_subselect(this));
   max_columns= 1;
   maybe_null= 1;
+  DBUG_VOID_RETURN;
 }
 
 void Item_singleval_subselect::fix_length_and_dec()
@@ -171,18 +189,55 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
 					     st_select_lex *select_lex):
   Item_subselect()
 {
+  DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
   init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
   value= 0;
-  select_lex->select_limit= 1; // we need only 1 row to determinate existence
+  // We need only 1 row to determinate existence
+  select_lex->master_unit()->global_parameters->select_limit= 1;
+  DBUG_VOID_RETURN;
 }
+
+Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
+				     st_select_lex *select_lex):
+  Item_exists_subselect()
+{
+  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  left_expr= left_exp;
+  init(thd, select_lex, new select_exists_subselect(this));
+  max_columns= UINT_MAX;
+  null_value= 0; //can't be NULL
+  maybe_null= 0; //can't be NULL
+  value= 0;
+  // We need only 1 row to determinate existence
+  select_lex->master_unit()->global_parameters->select_limit= 1;
+  DBUG_VOID_RETURN;
+}
+
+Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
+					     compare_func_creator f,
+					     st_select_lex *select_lex):
+  Item_in_subselect()
+{
+  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  left_expr= left_exp;
+  func= f;
+  init(thd, select_lex, new select_exists_subselect(this));
+  max_columns= UINT_MAX;
+  null_value= 0; //can't be NULL
+  maybe_null= 0; //can't be NULL
+  value= 0;
+  // We need only 1 row to determinate existence
+  select_lex->master_unit()->global_parameters->select_limit= 1;
+  DBUG_VOID_RETURN;
+}
+
 
 void Item_exists_subselect::fix_length_and_dec()
 {
   max_length= 1;
-  
 }
 
 double Item_exists_subselect::val () 
@@ -216,6 +271,108 @@ String *Item_exists_subselect::val_str(String *str)
   return str;
 }
 
+Item_in_subselect::Item_in_subselect(Item_in_subselect *item):
+  Item_exists_subselect(item)
+{
+  left_expr= item->left_expr;
+}
+
+Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
+  Item_in_subselect(item)
+{
+  func= item->func;
+}
+
+void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
+						 Item *left_expr,
+						 compare_func_creator func)
+{
+  DBUG_ENTER("Item_in_subselect::single_value_transformer");
+  for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  {
+    Item *item;
+    if (sl->item_list.elements > 1)
+    {
+      my_error(ER_CARDINALITY_COL, MYF(0), 1);
+      DBUG_VOID_RETURN;
+    }
+    else
+      item= (Item*) sl->item_list.pop();
+
+    Item *expr= new Item_outer_select_context_saver(left_expr);
+
+    if (sl->having || sl->with_sum_func || sl->group_list.first ||
+	sl->order_list.first)
+    {
+      sl->item_list.push_back(item);
+      item= (*func)(expr, new Item_ref(sl->item_list.head_ref(),
+					    0, (char*)"<result>"));
+      if (sl->having || sl->with_sum_func || sl->group_list.first)
+	if (sl->having)
+	  sl->having= new Item_cond_and(sl->having, item);
+	else
+	  sl->having= item;
+      else
+	if (sl->where)
+	  sl->where= new Item_cond_and(sl->having, item);
+	else
+	  sl->where= item;
+    }
+    else
+    {
+      sl->item_list.empty();
+      sl->item_list.push_back(new Item_int(1));
+      if (sl->table_list.elements)
+      {
+	item= (*func)(expr, new Item_asterisk_remover(item));
+	if (sl->where)
+	  sl->where= new Item_cond_and(sl->where, item);
+	else
+	  sl->where= item;
+      }
+      else
+      {
+	if (item->type() == Item::FIELD_ITEM &&
+	    ((Item_field*) item)->field_name[0] == '*')
+	{
+	  my_error(ER_NO_TABLES_USED, MYF(0));
+	  DBUG_VOID_RETURN;
+	}
+	if (select_lex->next_select())
+	{
+	  // it is in union => we should perform it
+	  sl->having= (*func)(expr, item);
+	}
+	else
+	{
+	  // it is single select without tables => possible optimization
+	  item= (*func)(left_expr, item);
+	  substitution= item;
+	  THD *thd= current_thd;
+	  if (thd->lex.describe)
+	  {
+	    char warn_buff[MYSQL_ERRMSG_SIZE];
+	    sprintf(warn_buff, ER(ER_SELECT_REDUCED), sl->select_number);
+	    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			 ER_SELECT_REDUCED, warn_buff);
+	  }
+	}
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+void Item_in_subselect::select_transformer(st_select_lex *select_lex)
+{
+  single_value_transformer(select_lex, left_expr,
+			   &Item_bool_func2::eq_creator);
+}
+
+void Item_allany_subselect::select_transformer(st_select_lex *select_lex)
+{
+  single_value_transformer(select_lex, left_expr, func);
+}
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
 							       st_select_lex *select,
@@ -297,7 +454,7 @@ void subselect_union_engine::fix_length_and_dec()
 {
   uint32 mlen= 0, len;
   Item *sel_item= 0;
-  for(SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
   {
     List_iterator_fast<Item> li(sl->item_list);
     Item *s_item= li++;
@@ -390,4 +547,18 @@ bool subselect_union_engine::check_loop(uint id)
     if (sl->join && sl->join->check_loop(id))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+void subselect_single_select_engine::exclude()
+{
+  select_lex->master_unit()->exclude_level();
+  //if (current_thd->lex->describe)
+}
+
+void subselect_union_engine::exclude()
+{
+  unit->exclude_level();
+  // for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  //  if (sl->join && sl->join->check_loop(id))
+  //    DBUG_RETURN(1);
 }

@@ -54,14 +54,14 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? atof(res->c_ptr()) : 0.0;
+  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
 }
 
 longlong Item_str_func::val_int()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? strtoll(res->c_ptr(),NULL,10) : (longlong) 0;
+  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),NULL,10) : (longlong) 0;
 }
 
 
@@ -1377,17 +1377,19 @@ String *Item_func_decode::val_str(String *str)
 
 String *Item_func_database::val_str(String *str)
 {
-  if (!current_thd->db)
+  THD *thd= current_thd;
+  if (!thd->db)
     str->length(0);
   else
-    str->copy((const char*) current_thd->db,(uint) strlen(current_thd->db), system_charset_info, thd_charset());
+    str->copy((const char*) thd->db,(uint) strlen(thd->db),
+	      system_charset_info, thd->thd_charset);
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=thd->thd_charset;
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
   
@@ -1917,9 +1919,9 @@ String *Item_func_conv::val_str(String *str)
   }
   null_value=0;
   if (from_base < 0)
-    dec= strtoll(res->c_ptr(),&endptr,-from_base);
+    dec= my_strntoll(res->charset(),res->ptr(),res->length(),&endptr,-from_base);
   else
-    dec= (longlong) strtoull(res->c_ptr(),&endptr,from_base);
+    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),&endptr,from_base);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
     return &empty_string;
@@ -2073,7 +2075,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args))
+  if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
   const_item_cache=args[0]->const_item();
@@ -2106,7 +2108,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args))
+  if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
   set_charset(set_collation);
@@ -2144,7 +2146,8 @@ String *Item_func_charset::val_str(String *str)
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
-  str->copy(res->charset()->name,strlen(res->charset()->name),my_charset_latin1,thd_charset());
+  str->copy(res->charset()->name,strlen(res->charset()->name),
+	    my_charset_latin1, thd_charset());
   return str;
 }
 

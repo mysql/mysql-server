@@ -22,9 +22,8 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ \
-			-I$(srcdir)/../include \
-			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include -I. $(openssl_includes)
+			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
+			-I$(srcdir) $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
@@ -46,7 +45,8 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
-			item_create.h item_subselect.h mysql_priv.h \
+			item_create.h item_subselect.h item_row.h \
+			mysql_priv.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			field.h handler.h \
@@ -61,7 +61,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
-			thr_malloc.cc item_create.cc item_subselect.cc\
+			thr_malloc.cc item_create.cc item_subselect.cc \
+			item_row.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \

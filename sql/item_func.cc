@@ -39,7 +39,8 @@ eval_const_cond(COND *cond)
 }
 
 
-Item_func::Item_func(List<Item> &list)
+Item_func::Item_func(List<Item> &list):
+  allowed_arg_cols(1)
 {
   arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -111,7 +112,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       set_charset((*args)->charset());
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if ((*arg)->check_cols(allowed_arg_cols) ||
+	  (*arg)->fix_fields(thd, tables, arg))
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
@@ -248,6 +250,10 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
       res= new Field_blob(max_length, maybe_null, name, t_arg, charset());
     else
       res= new Field_string(max_length, maybe_null, name, t_arg, charset());
+    break;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
     break;
   }
   return res;
@@ -890,6 +896,11 @@ String *Item_func_min_max::val_str(String *str)
     }
     return res;
   }
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0;
+
   }
   return 0;					// Keep compiler happy
 }
@@ -1297,7 +1308,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if ((*arg)->check_cols(1) || (*arg)->fix_fields(thd, tables, arg))
 	return 1;
       if ((*arg)->binary())
 	func->set_charset(my_charset_bin);
@@ -1426,6 +1437,10 @@ bool udf_handler::get_arguments()
 	to+= ALIGN_SIZE(sizeof(double));
       }
       break;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      ;
     }
   }
   return 0;
@@ -1878,6 +1893,10 @@ longlong Item_func_benchmark::val_int()
     case STRING_RESULT:
       (void) args[0]->val_str(&tmp);
       break;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      return 0;
     }
   }
   return 0;
@@ -2004,9 +2023,15 @@ Item_func_set_user_var::update()
     (void) val_int();
     break;
   case STRING_RESULT:
+  {
     char buffer[MAX_FIELD_WIDTH];
     String tmp(buffer,sizeof(buffer),default_charset_info);
     (void) val_str(&tmp);
+    break;
+  }
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
     break;
   }
   return current_thd->fatal_error;
@@ -2083,6 +2108,10 @@ Item_func_get_user_var::val_str(String *str)
       return NULL;
     }
     break;
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    break;
   }
   return str;
 }
@@ -2100,6 +2129,10 @@ double Item_func_get_user_var::val()
     return (double) *(longlong*) entry->value;
   case STRING_RESULT:
     return atof(entry->value);			// This is null terminated
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0; 
   }
   return 0.0;					// Impossible
 }
@@ -2117,6 +2150,10 @@ longlong Item_func_get_user_var::val_int()
     return *(longlong*) entry->value;
   case STRING_RESULT:
     return strtoull(entry->value,NULL,10);	// String is null terminated
+  case ROW_RESULT:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0;
   }
   return LL(0);					// Impossible
 }
@@ -2277,7 +2314,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 
   while ((item=li++))
   {
-    if (item->fix_fields(thd, tlist, li.ref()))
+    if (item->check_cols(1) || item->fix_fields(thd, tlist, li.ref()))
       return 1;
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);
@@ -2471,7 +2508,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2497,7 +2534,7 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   item->set_name(item_name);		// Will use original name
   return item;
 }

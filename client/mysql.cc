@@ -1049,8 +1049,8 @@ static bool add_line(String &buffer,char *line,char *in_string)
 
 #ifdef HAVE_READLINE
 
-static char *new_command_generator(char *text, int);
-static char **new_mysql_completion (char *text, int start, int end);
+static char *new_command_generator(const char *text, int);
+static char **new_mysql_completion (const char *text, int start, int end);
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -1058,8 +1058,8 @@ static char **new_mysql_completion (char *text, int start, int end);
   if not.
 */
 
-char **no_completion (char *text __attribute__ ((unused)),
-		      char *word __attribute__ ((unused)))
+char *no_completion (const char *text __attribute__ ((unused)),
+		      int )
 {
   return 0;					/* No filename completion */
 }
@@ -1070,9 +1070,13 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-  /* rl_attempted_completion_function = (CPPFunction *)mysql_completion;*/
-  rl_attempted_completion_function = (CPPFunction *) new_mysql_completion;
-  rl_completion_entry_function=(Function *) no_completion;
+#if RL_READLINE_VERSION > 0x0400
+  rl_attempted_completion_function = &new_mysql_completion;
+  rl_completion_entry_function= &no_completion;
+#else
+  rl_attempted_completion_function =(CPPFunction *)new_mysql_completion;
+  rl_completion_entry_function= (Function *)no_completion;
+#endif
 }
 
 /*
@@ -1082,17 +1086,21 @@ static void initialize_readline (char *name)
   array of matches, or NULL if there aren't any.
 */
 
-static char **new_mysql_completion (char *text,
+static char **new_mysql_completion (const char *text,
 				    int start __attribute__((unused)),
 				    int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
-    return completion_matches(text, (CPFunction*) new_command_generator);
+#if RL_READLINE_VERSION > 0x0400
+    return rl_completion_matches(text, new_command_generator);
+#else
+    return completion_matches((char *)text, (CPFunction *)new_command_generator);
+#endif
   else
     return (char**) 0;
 }
 
-static char *new_command_generator(char *text,int state)
+static char *new_command_generator(const char *text,int state)
 {
   static int textlen;
   char *ptr;

@@ -19,7 +19,10 @@
 /* Written by Alexander Barkov <bar@udm.net> */
 
 #include <my_global.h>
-#include <m_ctype.h>
+#include "m_string.h"
+#include "m_ctype.h"
+#include "my_sys.h"			/* defines errno */
+#include <errno.h>
 
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
@@ -1986,11 +1989,11 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
-    my_strtol_8bit,
-    my_strtoul_8bit,
-    my_strtoll_8bit,
-    my_strtoull_8bit,
-    my_strtod_8bit
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit
 };
 
 
@@ -2115,7 +2118,7 @@ static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)) ,
                  my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
-    return MY_CS_ILSEQ;
+    return MY_CS_TOOFEW(0);
   
   *pwc= ((unsigned char)s[0]) * 256  + ((unsigned char)s[1]);
   return 2;
@@ -2439,34 +2442,469 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
 }
 
 
-static long my_strtol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+long        my_strntol_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtol(s,e,base);
+  int      negative=0;
+  int      overflow;
+  int      cnv;
+  my_wc_t  wc;
+  register unsigned int cutlim;
+  register ulong cutoff;
+  register ulong res;
+  register const char *s=nptr;
+  register const char *e=nptr+l;
+  const char *save;
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      switch (wc)
+      {
+        case ' ' : break;
+        case '\t': break;
+        case '-' : negative= !negative; break;
+        case '+' : break;
+        default  : goto bs;
+      }
+    } 
+    else /* No more characters or bad multibyte sequence */
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      return 0;
+    } 
+    s+=cnv;
+  } while (1);
+  
+bs:
+  
+  if (base <= 0 || base == 1 || base > 36)
+    base = 10;
+  
+  overflow = 0;
+  res = 0;
+  save = s;
+  cutoff = ((ulong)~0L) / (unsigned long int) base;
+  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      s+=cnv;
+      if ( wc>='0' && wc<='9')
+        wc -= '0';
+      else if ( wc>='A' && wc<='Z')
+        wc = wc - 'A' + 10;
+      else if ( wc>='a' && wc<='z')
+        wc = wc - 'a' + 10;
+      else
+        break;
+      if ((int)wc >= base)
+        break;
+      if (res > cutoff || (res == cutoff && wc > cutlim))
+        overflow = 1;
+      else
+      {
+        res *= (ulong) base;
+        res += wc;
+      }
+    }
+    else if (cnv==MY_CS_ILSEQ)
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno=EILSEQ;
+      return 0;
+    } 
+    else
+    {
+      /* No more characters */
+      break;
+    }
+  } while(1);
+  
+  if (endptr != NULL)
+    *endptr = (char *) s;
+  
+  if (s == save)
+  {
+    my_errno=EDOM;
+    return 0L;
+  }
+  
+  if (negative)
+  {
+    if (res > (ulong) LONG_MIN)
+      overflow = 1;
+  }
+  else if (res > (ulong) LONG_MAX)
+    overflow = 1;
+  
+  if (overflow)
+  {
+    my_errno=(ERANGE);
+    return negative ? LONG_MIN : LONG_MAX;
+  }
+  
+  return (negative ? -((long) res) : (long) res);
 }
 
-static ulong my_strtoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoul(s,e,base);
+  int      negative=0;
+  int      overflow;
+  int      cnv;
+  my_wc_t  wc;
+  register unsigned int cutlim;
+  register ulong cutoff;
+  register ulong res;
+  register const char *s=nptr;
+  register const char *e=nptr+l;
+  const char *save;
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      switch (wc)
+      {
+        case ' ' : break;
+        case '\t': break;
+        case '-' : negative= !negative; break;
+        case '+' : break;
+        default  : goto bs;
+      }
+    } 
+    else /* No more characters or bad multibyte sequence */
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      return 0;
+    } 
+    s+=cnv;
+  } while (1);
+  
+bs:
+  
+  if (base <= 0 || base == 1 || base > 36)
+    base = 10;
+  
+  overflow = 0;
+  res = 0;
+  save = s;
+  cutoff = ((ulong)~0L) / (unsigned long int) base;
+  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      s+=cnv;
+      if ( wc>='0' && wc<='9')
+        wc -= '0';
+      else if ( wc>='A' && wc<='Z')
+        wc = wc - 'A' + 10;
+      else if ( wc>='a' && wc<='z')
+        wc = wc - 'a' + 10;
+      else
+        break;
+      if ((int)wc >= base)
+        break;
+      if (res > cutoff || (res == cutoff && wc > cutlim))
+        overflow = 1;
+      else
+      {
+        res *= (ulong) base;
+        res += wc;
+      }
+    }
+    else if (cnv==MY_CS_ILSEQ)
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno=EILSEQ;
+      return 0;
+    } 
+    else
+    {
+      /* No more characters */
+      break;
+    }
+  } while(1);
+  
+  if (endptr != NULL)
+    *endptr = (char *) s;
+  
+  if (s == save)
+  {
+    my_errno=EDOM;
+    return 0L;
+  }
+  
+  if (overflow)
+  {
+    my_errno=(ERANGE);
+    return ((ulong)~0L);
+  }
+  
+  return (negative ? -((long) res) : (long) res);
+  
 }
 
-static longlong my_strtoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+
+longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoll(s,e,base);
+  int      negative=0;
+  int      overflow;
+  int      cnv;
+  my_wc_t  wc;
+  register ulonglong    cutoff;
+  register unsigned int cutlim;
+  register ulonglong    res;
+  register const char *s=nptr;
+  register const char *e=nptr+l;
+  const char *save;
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      switch (wc)
+      {
+        case ' ' : break;
+        case '\t': break;
+        case '-' : negative= !negative; break;
+        case '+' : break;
+        default  : goto bs;
+      }
+    } 
+    else /* No more characters or bad multibyte sequence */
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      return 0;
+    } 
+    s+=cnv;
+  } while (1);
+  
+bs:
+  
+  if (base <= 0 || base == 1 || base > 36)
+    base = 10;
+  
+  overflow = 0;
+  res = 0;
+  save = s;
+  cutoff = (~(ulonglong) 0) / (unsigned long int) base;
+  cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
+
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      s+=cnv;
+      if ( wc>='0' && wc<='9')
+        wc -= '0';
+      else if ( wc>='A' && wc<='Z')
+        wc = wc - 'A' + 10;
+      else if ( wc>='a' && wc<='z')
+        wc = wc - 'a' + 10;
+      else
+        break;
+      if ((int)wc >= base)
+        break;
+      if (res > cutoff || (res == cutoff && wc > cutlim))
+        overflow = 1;
+      else
+      {
+        res *= (ulonglong) base;
+        res += wc;
+      }
+    }
+    else if (cnv==MY_CS_ILSEQ)
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno=EILSEQ;
+      return 0;
+    } 
+    else
+    {
+      /* No more characters */
+      break;
+    }
+  } while(1);
+  
+  if (endptr != NULL)
+    *endptr = (char *) s;
+  
+  if (s == save)
+  {
+    my_errno=EDOM;
+    return 0L;
+  }
+  
+  if (negative)
+  {
+    if (res  > (ulonglong) LONGLONG_MIN)
+      overflow = 1;
+  }
+  else if (res > (ulonglong) LONGLONG_MAX)
+    overflow = 1;
+  
+  if (overflow)
+  {
+    my_errno=(ERANGE);
+    return negative ? LONGLONG_MIN : LONGLONG_MAX;
+  }
+  
+  return (negative ? -((longlong)res) : (longlong)res);
 }
 
-static ulonglong my_strtoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+
+
+ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoul(s,e,base);
+  int      negative=0;
+  int      overflow;
+  int      cnv;
+  my_wc_t  wc;
+  register ulonglong    cutoff;
+  register unsigned int cutlim;
+  register ulonglong    res;
+  register const char *s=nptr;
+  register const char *e=nptr+l;
+  const char *save;
+  
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      switch (wc)
+      {
+        case ' ' : break;
+        case '\t': break;
+        case '-' : negative= !negative; break;
+        case '+' : break;
+        default  : goto bs;
+      }
+    } 
+    else /* No more characters or bad multibyte sequence */
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      return 0;
+    } 
+    s+=cnv;
+  } while (1);
+  
+bs:
+  
+  if (base <= 0 || base == 1 || base > 36)
+    base = 10;
+  
+  overflow = 0;
+  res = 0;
+  save = s;
+  cutoff = (~(ulonglong) 0) / (unsigned long int) base;
+  cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
+
+  do {
+    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    {
+      s+=cnv;
+      if ( wc>='0' && wc<='9')
+        wc -= '0';
+      else if ( wc>='A' && wc<='Z')
+        wc = wc - 'A' + 10;
+      else if ( wc>='a' && wc<='z')
+        wc = wc - 'a' + 10;
+      else
+        break;
+      if ((int)wc >= base)
+        break;
+      if (res > cutoff || (res == cutoff && wc > cutlim))
+        overflow = 1;
+      else
+      {
+        res *= (ulonglong) base;
+        res += wc;
+      }
+    }
+    else if (cnv==MY_CS_ILSEQ)
+    {
+      if (endptr !=NULL )
+        *endptr = (char*)s;
+      my_errno=EILSEQ;
+      return 0;
+    } 
+    else
+    {
+      /* No more characters */
+      break;
+    }
+  } while(1);
+  
+  if (endptr != NULL)
+    *endptr = (char *) s;
+  
+  if (s == save)
+  {
+    my_errno=EDOM;
+    return 0L;
+  }
+  
+  if (overflow)
+  {
+    my_errno=(ERANGE);
+    return (~(ulonglong) 0);
+  }
+
+  return (negative ? -((longlong) res) : (longlong) res);
 }
 
-double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e)
+
+double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *nptr, uint l, char **endptr)
 {
-  return strtod(s,e);
+  char     buf[256];
+  double   res;
+  register char *b=buf;
+  register const char *s=nptr;
+  register const char *e=nptr+l;
+  my_wc_t  wc;
+  int      cnv;
+  
+  if((l+1)>sizeof(buf))
+  {
+    if (endptr)
+      *endptr=(char*)nptr;
+    my_errno=ERANGE;
+    return 0;
+  }
+  
+  while ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+  {
+    s+=cnv;
+    if (wc < 128)
+    {
+      *b++=wc;
+    }
+    else
+      break;
+  }
+  *b='\0';
+  
+  res=strtod(buf,endptr);
+  if (endptr)
+    *endptr=(char*) (*endptr-buf+nptr);
+  return res;
 }
 
 
@@ -2504,11 +2942,11 @@ CHARSET_INFO my_charset_ucs2 =
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
-    my_strtol_ucs2,
-    my_strtoul_ucs2,
-    my_strtoll_ucs2,
-    my_strtoull_ucs2,
-    my_strtod_ucs2
+    my_strntol_ucs2,
+    my_strntoul_ucs2,
+    my_strntoll_ucs2,
+    my_strntoull_ucs2,
+    my_strntod_ucs2
 };
 
 

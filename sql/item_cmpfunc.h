@@ -37,18 +37,34 @@ protected:
 public:
   Item_bool_func2(Item *a,Item *b) :Item_int_func(a,b) {}
   void fix_length_and_dec();
-  void set_cmp_func(Item_result type);
-  int (Item_bool_func2::*cmp_func)();
-  int compare_string();				/* compare arg[0] & arg[1] */
-  int compare_real();				/* compare arg[0] & arg[1] */
-  int compare_int();				/* compare arg[0] & arg[1] */
+  void set_cmp_func()
+  {
+    arg_store.set_compare_func(this);
+  }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+
+  static Item_bool_func2* eq_creator(Item *a, Item *b);
+  static Item_bool_func2* ne_creator(Item *a, Item *b);
+  static Item_bool_func2* gt_creator(Item *a, Item *b);
+  static Item_bool_func2* lt_creator(Item *a, Item *b);
+  static Item_bool_func2* ge_creator(Item *a, Item *b);
+  static Item_bool_func2* le_creator(Item *a, Item *b);
+
+  friend class  Arg_comparator;
 };
 
+class Item_bool_rowready_func2 :public Item_bool_func2
+{
+public:
+  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b)
+  {
+    allowed_arg_cols= a->cols();
+  }
+};
 
 class Item_func_not :public Item_bool_func
 {
@@ -58,10 +74,10 @@ public:
   const char *func_name() const { return "not"; }
 };
 
-class Item_func_eq :public Item_bool_func2
+class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
-  Item_func_eq(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { };
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
   enum Functype rev_functype() const { return EQ_FUNC; }
@@ -69,11 +85,10 @@ public:
   const char *func_name() const { return "="; }
 };
 
-class Item_func_equal :public Item_bool_func2
+class Item_func_equal :public Item_bool_rowready_func2
 {
-  Item_result cmp_result_type;
 public:
-  Item_func_equal(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {};
   longlong val_int();
   void fix_length_and_dec();
   enum Functype functype() const { return EQUAL_FUNC; }
@@ -83,10 +98,10 @@ public:
 };
 
 
-class Item_func_ge :public Item_bool_func2
+class Item_func_ge :public Item_bool_rowready_func2
 {
 public:
-  Item_func_ge(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_ge(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { };
   longlong val_int();
   enum Functype functype() const { return GE_FUNC; }
   enum Functype rev_functype() const { return LE_FUNC; }
@@ -95,10 +110,10 @@ public:
 };
 
 
-class Item_func_gt :public Item_bool_func2
+class Item_func_gt :public Item_bool_rowready_func2
 {
 public:
-  Item_func_gt(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_gt(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { };
   longlong val_int();
   enum Functype functype() const { return GT_FUNC; }
   enum Functype rev_functype() const { return LT_FUNC; }
@@ -107,10 +122,10 @@ public:
 };
 
 
-class Item_func_le :public Item_bool_func2
+class Item_func_le :public Item_bool_rowready_func2
 {
 public:
-  Item_func_le(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_le(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { };
   longlong val_int();
   enum Functype functype() const { return LE_FUNC; }
   enum Functype rev_functype() const { return GE_FUNC; }
@@ -119,10 +134,10 @@ public:
 };
 
 
-class Item_func_lt :public Item_bool_func2
+class Item_func_lt :public Item_bool_rowready_func2
 {
 public:
-  Item_func_lt(Item *a,Item *b) :Item_bool_func2(a,b) { }
+  Item_func_lt(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { }
   longlong val_int();
   enum Functype functype() const { return LT_FUNC; }
   enum Functype rev_functype() const { return GT_FUNC; }
@@ -131,10 +146,10 @@ public:
 };
 
 
-class Item_func_ne :public Item_bool_func2
+class Item_func_ne :public Item_bool_rowready_func2
 {
 public:
-  Item_func_ne(Item *a,Item *b) :Item_bool_func2(a,b) { }
+  Item_func_ne(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { }
   longlong val_int();
   enum Functype functype() const { return NE_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
@@ -179,7 +194,8 @@ public:
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd, tlist, &item) || 
+    return (item->check_cols(1) || 
+	    item->fix_fields(thd, tlist, &item) || 
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
@@ -419,7 +435,8 @@ class Item_func_in :public Item_int_func
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd, tlist, &item) ||
+    return (item->check_cols(1) ||
+	    item->fix_fields(thd, tlist, &item) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();

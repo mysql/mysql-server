@@ -214,7 +214,11 @@ int st_select_lex_unit::exec()
   if (dependent || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
+    {
       item->assigned(0); // We will reinit & rexecute unit
+      item->assign_null();
+      table->file->delete_all_rows();
+    }
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       thd->lex.current_select= sl;

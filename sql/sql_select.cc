@@ -158,7 +158,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
-  fix_tables_pointers(select_lex);
+  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd,lex,result);
   else
@@ -262,7 +262,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
     thd->where="having clause";
     thd->allow_sum_func=1;
     select_lex->having_fix_field= 1;
-    bool having_fix_rc= having->fix_fields(thd, tables_list, &having);
+    bool having_fix_rc= (having->check_cols(1) ||
+			 having->fix_fields(thd, tables_list, &having));
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -3340,8 +3341,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(item_cmp_type(func->arguments()[0]->result_type(),
-				       func->arguments()[1]->result_type()));
+      func->set_cmp_func();
     }
   }
   else if (left_item->eq(field,0) && right_item != value)
@@ -3361,8 +3361,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(item_cmp_type(func->arguments()[0]->result_type(),
-				       func->arguments()[1]->result_type()));
+      func->set_cmp_func();
     }
   }
 }
@@ -3702,6 +3701,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				 item->name,table,item->charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->charset());
+      case ROW_RESULT:
+	// This case should never be choosen
+	DBUG_ASSERT(0);
+	return 0;
       }
     }
     thd->fatal_error=1;
@@ -3757,6 +3760,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       else
 	new_field= new Field_string(item->max_length,maybe_null,
 				    item->name,table,item->str_value.charset());
+      break;
+    case ROW_RESULT: 
+      // This case should never be choosen
+      DBUG_ASSERT(0);
       break;
     }
     if (copy_func)
@@ -5716,6 +5723,9 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
 static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
+  if (!table->reginfo.join_tab)
+    return (Item*) 0;             // field from outer non-select (UPDATE,...)
+
   uint ref_parts=table->reginfo.join_tab->ref.key_parts;
   if (ref_parts)
   {
@@ -6642,7 +6652,9 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     return 0;
   }
   order->in_field_list=0;
-  if ((*order->item)->fix_fields(thd, tables, order->item) || thd->fatal_error)
+  Item *it= *order->item;
+  if (it->check_cols(1) || it->fix_fields(thd, tables, order->item) ||
+      thd->fatal_error)
     return 1;					// Wrong field
   all_fields.push_front(*order->item);		// Add new field to field list
   order->item=(Item**) all_fields.head_ref();
@@ -7511,7 +7523,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex.select_lex)==sl)?
-			       ((sl->next_select_in_list())?"PRIMARY":
+			       ((thd->lex.all_selects_list != sl)?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?

@@ -61,6 +61,8 @@ typedef int my_socket;
 #define CHECK_EXTRA_ARGUMENTS
 #endif
 
+#include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
+
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 
@@ -213,6 +215,8 @@ typedef struct st_mysql
   struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
  /* needed for send/read/store/use result to work correctly with replication */
   struct st_mysql* last_used_con;
+
+  LIST  *stmts;                     /* list of all statements */
 } MYSQL;
 
 
@@ -457,6 +461,7 @@ typedef struct st_mysql_stmt
   MYSQL_RES	*result;		/* resultset */
   MYSQL_BIND	*bind;			/* row binding */
   MYSQL_FIELD	*fields;		/* prepare meta info */
+  LIST          list;                   /* list to keep track of all stmts */
   char		*query;			/* query buffer */
   MEM_ROOT	mem_root;		/* root allocations */
   MYSQL_RES	tmp_result;		/* Used by mysql_prepare_result */
@@ -469,8 +474,8 @@ typedef struct st_mysql_stmt
   char		last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   my_bool	long_alloced;		/* flag to indicate long alloced */
   my_bool	send_types_to_server;	/* to indicate types supply to server */
-  my_bool param_buffers;    /* to indicate the param bound buffers */
-  my_bool res_buffers;      /* to indicate the result bound buffers */
+  my_bool       param_buffers;          /* to indicate the param bound buffers */
+  my_bool       res_buffers;            /* to indicate the output bound buffers */
 } MYSQL_STMT;
 
 
@@ -478,8 +483,8 @@ MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
 				   unsigned long length);
 int STDCALL mysql_execute(MYSQL_STMT * stmt);
 unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
-my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bind);
-my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bind);
+my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
