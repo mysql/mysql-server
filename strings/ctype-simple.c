@@ -773,31 +773,10 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		       char *str, uint length,
 		       char **end, int *err)
 {
-  char end_char;
-  double result;
-
-  errno= 0;					/* Safety */
-
-  /*
-    The following define is to avoid warnings from valgrind as str[length]
-    may not be defined (which is not fatal in real life)
-  */
-
-#ifdef HAVE_purify
   if (length == INT_MAX32)
-#else
-  if (length == INT_MAX32 || str[length] == 0)
-#endif
-    result= my_strtod(str, end);
-  else
-  {
-    end_char= str[length];
-    str[length]= 0;
-    result= my_strtod(str, end);
-    str[length]= end_char;			/* Restore end char */
-  }
-  *err= errno;
-  return result;
+    length= 65535;                          /* Should be big enough */
+  *end= str + length;
+  return my_strtod(str, end, err);
 }
 
 
