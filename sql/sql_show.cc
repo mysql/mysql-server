@@ -997,6 +997,19 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
+/* possible TODO: call find_keyword() from sql_lex.cc here */
+static bool require_quotes(const char *name, uint length)
+{
+  uint i, d, c;
+  for (i=0; i<length; i+=d)
+  {
+    c=((uchar *)name)[i];
+    d=my_mbcharlen(system_charset_info, c);
+    if (d==1 && !system_charset_info->ident_map[c])
+      return 1;
+  }
+  return 0;
+}
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
@@ -1007,7 +1020,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   else
     qtype= '`';
 
-  if (thd->options & OPTION_QUOTE_SHOW_CREATE)
+  if ((thd->options & OPTION_QUOTE_SHOW_CREATE) ||
+      require_quotes(name, length))
   {
     packet->append(&qtype, 1);
     packet->append(name, length, system_charset_info);
