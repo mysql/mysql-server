@@ -813,6 +813,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.28::                
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
@@ -19862,6 +19863,13 @@ The buffer that is allocated to cache index and rows for @code{BDB} tables.
 If you don't use @code{BDB} tables, you should set this to 0 or
 start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
 
+@item @code{bdb_lock_max}
+The maximum number of locks (1000 by default) you can have active on a BDB
+table. You should increase this if you get errors of type
+@code{bdb: Lock table is out of available locks} when you have do long
+transactions or when mysqld has to examine a lot of rows to calculate
+the query.
+
 @item @code{concurrent_inserts}
 If @code{ON} (the default), @strong{MySQL} will allow you to use @code{INSERT}
 on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
@@ -24669,13 +24677,17 @@ limits. Here are some examples:
 
 @multitable @columnfractions .5 .5
 @item @strong{Operating System} @tab @strong{File Size Limit}
-@item Linux-Intel @tab 2G (or 4G with reiserfs)
+@item Linux-Intel 32 bit@tab 2G, 4G or bigger depending on Linux version
 @item Linux-Alpha @tab 8T (?)
 @item Solaris 2.5.1 @tab 2G (possible 4G with patch)
 @item Solaris 2.6 @tab 4G
 @item Solaris 2.7 Intel @tab 4G
 @item Solaris 2.7 ULTRA-SPARC @tab 8T (?)
 @end multitable
+
+On Linux 2.2 you can get bigger tables than 2G by using the LFS patch for
+the ext2 file system.  On Linux 2.4 there exists also patches for ReiserFS
+to get support for big files.
 
 This means that the table size for @strong{MySQL} is normally limited by
 the operating system.
@@ -24690,13 +24702,14 @@ this), you should set the @code{AVG_ROW_LENGTH} and @code{MAX_ROWS}
 parameter when you create your table.  @xref{CREATE TABLE}.  You can
 also set these later with @code{ALTER TABLE}. @xref{ALTER TABLE}.
 
-If you need to have bigger tables than 2G / 4G
-
 If your big table is going to be read-only, you could use
 @code{myisampack} to merge and compress many tables to one.
 @code{myisampack} usually compresses a table by at least 50%, so you can
 have, in effect, much bigger tables.  @xref{myisampack, ,
 @code{myisampack}}.
+
+You can go around the operating system file limit for @code{MyISAM} data
+files by using the @code{RAID} option. @xref{CREATE TABLE}.
 
 Another solution can be the included MERGE library, which allows you to
 handle a collection of identical tables as one. @xref{MERGE, MERGE
@@ -25430,7 +25443,9 @@ multiple CPU machines one should use Solaris (because the threads works
 really nice) or Linux (because the 2.2 kernel has really good SMP
 support). Also on 32bit machines Linux has a 2G file size limit by
 default. Hopefully this will be fixed soon when new filesystems is
-released (XFS/Reiserfs).
+released (XFS/Reiserfs).  If you have a desperate need for files bigger
+tan 2G on Linux-intel 32 bit, you should get the LFS patch for the ext2
+file system.
 
 Because we have not run @strong{MySQL} in production on that many platforms we
 advice you to test your intended platform before choosing it, if possible.
@@ -38136,6 +38151,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
@@ -38166,7 +38182,16 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.27, News-3.23.26, News-3.23.x, News-3.23.x
+@node News-3.23.28, News-3.23.27, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.28
+@itemize @bullet
+@item
+Fixed bug in a BDB key compare function when comparing part keys.
+@item
+Added variable @code{bdb_lock_max} to @code{mysqld}.
+@end itemize
+
+@node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
 @appendixsubsec Changes in release 3.23.27
 @itemize @bullet
 @item
