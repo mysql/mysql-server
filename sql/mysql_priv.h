@@ -30,9 +30,114 @@
 #undef write  /* remove pthread.h macro definition for EMX */
 #endif
 
-typedef ulonglong table_map;		/* Used for table bits in join */
-typedef ulong key_map;			/* Used for finding keys */
-typedef ulong key_part_map;		/* Used for finding key parts */
+template <uint default_width> class Bitmap
+{
+  MY_BITMAP map;
+  uchar buffer[(default_width+7)/8];
+public:
+  Bitmap(uint prefix_to_set=0) { init(); set_prefix(prefix_to_set); }
+  Bitmap& init()
+  {
+    bitmap_init(&map, buffer, default_width, 0);
+    return *this;
+  }
+  uint length() const { return default_width; }
+  Bitmap& operator=(const Bitmap& map2)
+  {
+    init();
+    memcpy(buffer, map2.buffer, sizeof(buffer));
+    return *this;
+  }
+  Bitmap& set_bit(uint n) { bitmap_set_bit(&map, n); return *this; }
+  Bitmap& clear_bit(uint n) { bitmap_clear_bit(&map, n); return *this; }
+  Bitmap& set_prefix(uint n) { bitmap_set_prefix(&map, n); return *this; }
+  Bitmap& set_all() { bitmap_set_all(&map); return *this;}
+  Bitmap& clear_all() { bitmap_clear_all(&map); return *this; }
+  Bitmap& intersect(Bitmap& map2) { bitmap_intersect(&map, &map2.map); return *this; }
+  Bitmap& intersect(ulonglong map2buff)
+  {
+    MY_BITMAP map2;
+    bitmap_init(&map2, (uchar *)&map2buff, sizeof(ulonglong)*8, 0);
+    bitmap_intersect(&map, &map2);
+    return *this;
+  }
+  Bitmap& subtract(Bitmap& map2) { bitmap_subtract(&map, &map2.map); return *this; }
+  Bitmap& merge(Bitmap& map2) { bitmap_union(&map, &map2.map); return *this; }
+  my_bool is_set(uint n) const { return bitmap_is_set((MY_BITMAP*)&map, n); }
+  my_bool is_prefix(uint n) const { return bitmap_is_prefix((MY_BITMAP*)&map, n); }
+  my_bool is_clear_all() const { return bitmap_is_clear_all((MY_BITMAP*)&map); }
+  my_bool is_set_all() const { return bitmap_is_set_all((MY_BITMAP*)&map); }
+  my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset((MY_BITMAP*)&map, (MY_BITMAP*)&map2.map); }
+  my_bool operator==(const Bitmap& map2) const { return bitmap_cmp((MY_BITMAP*)&map, (MY_BITMAP*)&map2.map); }
+  char *print(char *buf) const
+  {
+    char *s=buf; int i;
+    for (i=sizeof(buffer)-1; i>=0 ; i--)
+    {
+      if ((*s=_dig_vec[buffer[i] >> 4]) != '0')
+        break;
+      if ((*s=_dig_vec[buffer[i] & 15]) != '0')
+        break;
+    }
+    for (s++, i-- ; i>=0 ; i--)
+    {
+      *s++=_dig_vec[buffer[i] >> 4];
+      *s++=_dig_vec[buffer[i] & 15];
+    }
+    *s=0;
+    return buf;
+  }
+  ulonglong to_ulonglong() const
+  {
+    if (sizeof(buffer) >= sizeof(ulonglong))
+      return *(ulonglong*)buffer;
+    ulonglong x=0;
+    memcpy(&x, buffer, sizeof(buffer));
+    return x;
+  }
+};
+
+template <> class Bitmap<64>
+{
+  longlong map;
+public:
+  Bitmap(uint prefix_to_set=0) { set_prefix(prefix_to_set); }
+  Bitmap<64>& init() { return *this; }
+  uint length() const { return 64; }
+  Bitmap<64>& set_bit(uint n) { map|= ((ulonglong)1) << n; return *this; }
+  Bitmap<64>& clear_bit(uint n) { map&= ~(((ulonglong)1) << n); return *this; }
+  Bitmap<64>& set_prefix(uint n)
+  {
+    if (n >= length())
+      set_all();
+    else
+      map= (((ulonglong)1) << n)-1;
+    return *this;
+  }
+  Bitmap<64>& set_all() { map=~(ulonglong)0; return *this;}
+  Bitmap<64>& clear_all() { map=(ulonglong)0; return *this; }
+  Bitmap<64>& intersect(Bitmap<64>& map2) { map&= map2.map; return *this; }
+  Bitmap<64>& intersect(ulonglong map2) { map&= map2; return *this; }
+  Bitmap<64>& subtract(Bitmap<64>& map2) { map&= ~map2.map; return *this; }
+  Bitmap<64>& merge(Bitmap<64>& map2) { map|= map2.map; return *this; }
+  my_bool is_set(uint n) const { return test(map & (((ulonglong)1) << n)); }
+  my_bool is_prefix(uint n) const { return map == (((ulonglong)1) << n)-1; }
+  my_bool is_clear_all() const { return map == (ulonglong)0; }
+  my_bool is_set_all() const { return map == ~(ulonglong)0; }
+  my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
+  my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
+  char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
+  ulonglong to_ulonglong() const { return map; }
+};
+
+/* TODO convert all these three maps to Bitmap classes */
+typedef ulonglong table_map;          /* Used for table bits in join */
+typedef Bitmap<64> key_map;           /* Used for finding keys */
+typedef ulong key_part_map;           /* Used for finding key parts */
+
+/* useful constants */
+extern const key_map key_map_empty;
+extern const key_map key_map_full;
 
 #include "mysql_com.h"
 #include <violite.h>
@@ -634,8 +739,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
 			  find_item_error_report_type report_error);
-key_map get_key_map_from_key_list(TABLE *table, 
-				  List<String> *index_list);
+void get_key_map_from_key_list(key_map *map, TABLE *table,
+                               List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
@@ -643,7 +748,7 @@ bool setup_tables(TABLE_LIST *tables);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
-		 List<Item> &item, bool set_query_id, 
+		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
 void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);

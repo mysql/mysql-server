@@ -168,7 +168,11 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw->word[0]=w.len;
         if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
+#ifdef TO_BE_REMOVED
+        /* after removing the following line,
+           ftb->with_scan handling can be simplified (no longer a bitmap) */
         ftb->with_scan|=(param.trunc & FTB_FLAG_TRUNC);
+#endif
         break;
       case 2: /* left bracket */
         ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
@@ -387,25 +391,34 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 }
 
 
-/* returns 1 if str0 contain str1 */
+/* returns 1 if str0 ~= /\<str1\>/ */
 static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)
 {
-  const byte *p;
+  const byte *p0, *p1;
+  my_bool s_after, e_before;
 
-  while (s0 < e0)
+  s_after=true_word_char(cs, s1[0]);
+  e_before=true_word_char(cs, e1[-1]);
+  p0=s0;
+
+  while (p0 < e0)
   {
-    while (s0 < e0 && cs->to_upper[(uint) (uchar) *s0++] !=
+    while (p0 < e0 && cs->to_upper[(uint) (uchar) *p0++] !=
 	   cs->to_upper[(uint) (uchar) *s1])
       /* no-op */;
-    if (s0 >= e0)
+    if (p0 >= e0)
       return 0;
-    p=s1+1;
-    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0] ==
-	   cs->to_upper[(uint) (uchar) *p])
-      s0++, p++;
-    if (p >= e1)
+
+    if (s_after && p0-1 > s0 && true_word_char(cs, p0[-2]))
+      continue;
+
+    p1=s1+1;
+    while (p0 < e0 && p1 < e1 && cs->to_upper[(uint) (uchar) *p0] ==
+	   cs->to_upper[(uint) (uchar) *p1])
+      p0++, p1++;
+    if (p1 == e1 && (!e_before || p0 == e0 || !true_word_char(cs, p0[0])))
       return 1;
   }
   return 0;
