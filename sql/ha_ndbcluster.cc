@@ -1236,19 +1236,19 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     DBUG_PRINT("info", ("primary key update, doing pk read+insert+delete"));
 
     // Get all old fields, since we optimize away fields not in query
-    int read_res = complemented_pk_read(old_data, new_data);
+    int read_res= complemented_pk_read(old_data, new_data);
     if (read_res)
     {
       DBUG_PRINT("info", ("pk read failed"));
       DBUG_RETURN(read_res);
     }
     // Insert new row
-    int insert_res = write_row(new_data);
+    int insert_res= write_row(new_data);
     if (!insert_res)
     {
       // Delete old row
       DBUG_PRINT("info", ("insert succeded"));
-      int delete_res = delete_row(old_data);
+      int delete_res= delete_row(old_data);
       if (!delete_res)
       {
 	DBUG_PRINT("info", ("insert+delete succeeded"));
