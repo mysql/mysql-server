@@ -126,6 +126,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open;				/* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
+  outparam->frm_version= head[2];
   outparam->db_type=ha_checktype((enum db_type) (uint) *(head+3));
   outparam->db_create_options=db_create_options=uint2korr(head+30);
   outparam->db_options_in_use=outparam->db_create_options;
