@@ -40,7 +40,7 @@ public:
    * severity  - DEBUG to ALERT (Type of log message)
    */  
   struct EventRepLogLevelMatrix {
-    EventReport::EventType        eventType;
+    Ndb_logevent_type        eventType;
     LogLevel::EventCategory   eventCategory;
     Uint32                        threshold;
     Logger::LoggerLevel            severity;

@@ -337,9 +337,9 @@ reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode){
 
 
   if(errorCode & 0x8000)
-    signal.theData[0] = EventReport::TransporterError;
+    signal.theData[0] = NDB_LE_TransporterError;
   else
-    signal.theData[0] = EventReport::TransporterWarning;
+    signal.theData[0] = NDB_LE_TransporterWarning;
   
   signal.theData[1] = nodeId;
   signal.theData[2] = errorCode;
@@ -363,7 +363,7 @@ reportSendLen(void * callbackObj,
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-  signal.theData[0] = EventReport::SendBytesStatistic;
+  signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
@@ -382,7 +382,7 @@ reportReceiveLen(void * callbackObj,
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-  signal.theData[0] = EventReport::ReceiveBytesStatistic;
+  signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);

@@ -735,7 +735,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
     return;
   
   Uint32 theData[25];
-  theData[0] = EventReport::InfoEvent;
+  theData[0] = NDB_LE_InfoEvent;
   char * buf = (char *)&(theData[1]);
   
   va_list ap;
@@ -776,7 +776,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
     return;
   
   Uint32 theData[25];
-  theData[0] = EventReport::WarningEvent;
+  theData[0] = NDB_LE_WarningEvent;
   char * buf = (char *)&(theData[1]);
   
   va_list ap;

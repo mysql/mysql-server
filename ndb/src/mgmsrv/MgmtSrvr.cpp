@@ -2079,10 +2079,10 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
   theData[1] = nodeId;
   if (alive) {
     m_started_nodes.push_back(nodeId);
-    theData[0] = EventReport::Connected;
+    theData[0] = NDB_LE_Connected;
   } else {
     handleStopReply(nodeId, 0);
-    theData[0] = EventReport::Disconnected;
+    theData[0] = NDB_LE_Disconnected;
   }
   eventReport(_ownNodeId, theData);
   DBUG_VOID_RETURN;
@@ -2402,7 +2402,7 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
-  EventReport::EventType type = eventReport->getEventType();
+  Ndb_logevent_type type = eventReport->getEventType();
   // Log event
   g_eventLogger.log(type, theData, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
