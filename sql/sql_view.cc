@@ -204,6 +204,26 @@ int mysql_create_view(THD *thd,
     }
   }
 
+  /* Test absence of duplicates names */
+  {
+    Item *item;
+    List_iterator_fast<Item> it(select_lex->item_list);
+    it++;
+    while((item= it++))
+    {
+      Item *check;
+      List_iterator_fast<Item> itc(select_lex->item_list);
+      while((check= itc++) && check != item)
+      {
+        if (strcmp(item->name, check->name) == 0)
+        {
+          my_error(ER_DUP_FIELDNAME, MYF(0), item->name);
+          DBUG_RETURN(-1);
+        }
+      }
+    }
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlaying tables

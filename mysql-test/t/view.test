@@ -894,3 +894,9 @@ drop table t1;
 -- error 1354
 select * from v1;
 drop view v1;
+
+#
+# check of duplication of column names
+#
+-- error 1060
+create view v1 (a,a) as select 'a','a';
