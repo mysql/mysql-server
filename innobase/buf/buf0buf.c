@@ -1904,7 +1904,7 @@ buf_print_io(
 		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old)));
 	} else {
 		buf += sprintf(buf,
-			"No buffer pool activity since the last printout\n");
+			"No buffer pool page gets since the last printout\n");
 	}
 
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
