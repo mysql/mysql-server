@@ -114,11 +114,11 @@ t
 delete from t1;
 insert into t1 values ("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
 Warnings:
-Warning	1264	Data truncated; out of range for column 't' at row 1
-Warning	1264	Data truncated; out of range for column 't' at row 2
-Warning	1264	Data truncated; out of range for column 't' at row 3
-Warning	1264	Data truncated; out of range for column 't' at row 4
-Warning	1264	Data truncated; out of range for column 't' at row 5
+Warning	1264	Out of range value adjusted for column 't' at row 1
+Warning	1264	Out of range value adjusted for column 't' at row 2
+Warning	1264	Out of range value adjusted for column 't' at row 3
+Warning	1264	Out of range value adjusted for column 't' at row 4
+Warning	1264	Out of range value adjusted for column 't' at row 5
 select * from t1;
 t
 0000-00-00 00:00:00
@@ -129,8 +129,8 @@ t
 delete from t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
-Warning	1264	Data truncated; out of range for column 't' at row 1
-Warning	1264	Data truncated; out of range for column 't' at row 2
+Warning	1264	Out of range value adjusted for column 't' at row 1
+Warning	1264	Out of range value adjusted for column 't' at row 2
 select * from t1;
 t
 0000-00-00 00:00:00

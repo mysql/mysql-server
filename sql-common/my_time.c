@@ -47,6 +47,43 @@ uchar days_in_month[]= {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0};
 static long my_time_zone=0;
 
 
+/* Calc days in one year. works with 0 <= year <= 99 */
+
+uint calc_days_in_year(uint year)
+{
+  return ((year & 3) == 0 && (year%100 || (year%400 == 0 && year)) ?
+          366 : 365);
+}
+
+/*
+  check date.
+
+  SYNOPOSIS
+    bool check_date()
+    time	Date to check.
+
+  NOTES
+    Here we assume that year and month is ok !
+    If month is 0 we allow any date. (This only happens if we allow zero
+    date parts in str_to_datetime())
+
+  RETURN
+    0  ok
+    1  errro
+*/
+
+bool check_date(MYSQL_TIME *ltime)
+{
+  if (ltime->month && ltime->day > days_in_month[ltime->month-1])
+  {
+    if (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
+        ltime->day != 29)
+      return 1;
+  }
+  return 0;
+}
+
+
 /*
   Convert a timestamp string to a MYSQL_TIME value.
 
@@ -58,8 +95,12 @@ static long my_time_zone=0;
     flags               Bitmap of following items
                         TIME_FUZZY_DATE    Set if we should allow partial dates
                         TIME_DATETIME_ONLY Set if we only allow full datetimes.
-    was_cut             Set to 1 if value was cut during conversion or to 0
-                        otherwise.
+                        TIME_NO_ZERO_IN_DATE	Don't allow partial dates
+                        TIME_NO_ZERO_DATE	Don't allow 0000-00-00 date
+                        TIME_INVALID_DATES	Allow 2000-02-31
+    was_cut             0	Value ok
+			1       If value was cut during conversion
+			2	Date part was withing ranges but date was wrong
 
   DESCRIPTION
     At least the following formats are recogniced (based on number of digits)
@@ -127,6 +168,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     *was_cut= 1;
     DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
   }
+  if (flags & TIME_NO_ZERO_IN_DATE)
+    flags&= ~TIME_FUZZY_DATE;
 
   is_internal_format= 0;
   /* This has to be changed if want to activate different timestamp formats */
@@ -343,10 +386,21 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       (l_time->month || l_time->day))
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
+  if (!not_zero_date && (flags & TIME_NO_ZERO_DATE))
+  {
+    /*
+      We don't set *was_cut here to signal that the problem was a zero date
+      and not an invalid date
+    */
+    goto err;
+  }
+
   if (number_of_fields < 3 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
       l_time->minute > 59 || l_time->second > 59 ||
-      (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 || l_time->day == 0)))
+      (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 ||
+                                      l_time->day == 0) &&
+       not_zero_date))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
@@ -360,13 +414,18 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         }
       }
     }
-    if (not_zero_date)
-      *was_cut= 1;
+    *was_cut= test(not_zero_date);
     goto err;
   }
 
   l_time->time_type= (number_of_fields <= 3 ?
                       MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+
+  if (not_zero_date && !(flags & TIME_INVALID_DATES) && check_date(l_time))
+  {
+    *was_cut= 2;                                /* Not correct date */
+    goto err;
+  }
 
   for (; str != end ; str++)
   {

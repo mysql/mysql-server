@@ -282,7 +282,7 @@ character-set=latin1
 "Row %ld doesn't contain data for all columns",
 "Row %ld was truncated; it contained more data than there were input columns",
 "Data truncated; NULL supplied to NOT NULL column '%s' at row %ld",
-"Data truncated; out of range for column '%s' at row %ld",
+"Out of range value adjusted for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
@@ -382,3 +382,6 @@ character-set=latin1
 "Trigger's '%-.64s' is view or temporary table"
 "Updating of %s row is not allowed in %strigger"
 "There is no %s row in %s trigger"
+"Field '%-.64s' doesn't have a default value",
+"Division by 0",
+"Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld",

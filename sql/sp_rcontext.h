@@ -123,7 +123,7 @@ class sp_rcontext : public Sql_alloc
 
   // Returns 1 if a handler was found, 0 otherwise.
   int
-  find_handler(uint sql_errno);
+  find_handler(uint sql_errno,MYSQL_ERROR::enum_warning_level level);
 
   // Returns handler type and sets *ip to location if one was found
   inline int
