@@ -24,6 +24,32 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
+static Item_result item_store_type(Item_result a,Item_result b)
+{
+  if (a == STRING_RESULT || b == STRING_RESULT)
+    return STRING_RESULT;
+  else if (a == REAL_RESULT || b == REAL_RESULT)
+    return REAL_RESULT;
+  else
+    return INT_RESULT;
+}
+
+static void agg_result_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_store_type(type[0], items[i]->result_type());
+}
+
+static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
+}
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
@@ -556,10 +582,7 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  cmp_type=item_cmp_type(args[0]->result_type(),
-           item_cmp_type(args[1]->result_type(),
-                         args[2]->result_type()));
-
+  agg_cmp_type(&cmp_type, args, 3);
   if (cmp_type == STRING_RESULT &&
       agg_arg_collations_for_comparison(cmp_collation, args, 3))
     return;
@@ -650,28 +673,17 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
-static Item_result item_store_type(Item_result a,Item_result b)
-{
-  if (a == STRING_RESULT || b == STRING_RESULT)
-    return STRING_RESULT;
-  else if (a == REAL_RESULT || b == REAL_RESULT)
-    return REAL_RESULT;
-  else
-    return INT_RESULT;
-}
-
 void
 Item_func_ifnull::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null;
   max_length=max(args[0]->max_length,args[1]->max_length);
   decimals=max(args[0]->decimals,args[1]->decimals);
-  if ((cached_result_type=item_store_type(args[0]->result_type(),
-					  args[1]->result_type())) !=
-      REAL_RESULT)
-    decimals= 0;
+  agg_result_type(&cached_result_type, args, 2);
   if (cached_result_type == STRING_RESULT)
     agg_arg_collations(collation, args, arg_count);
+  else if (cached_result_type != REAL_RESULT)
+    decimals= 0;
 }
 
 
@@ -744,19 +756,18 @@ Item_func_if::fix_length_and_dec()
     cached_result_type= arg1_type;
     set_charset(args[1]->charset());
   }
-  else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
-  {
-    cached_result_type = STRING_RESULT;
-    if (agg_arg_collations(collation, args+1, 2))
-      return;
-  }
   else
   {
-    set_charset(&my_charset_bin);	// Number
-    if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
-      cached_result_type = REAL_RESULT;
+    agg_result_type(&cached_result_type, args+1, 2);
+    if (cached_result_type == STRING_RESULT)
+    {
+      if (agg_arg_collations(collation, args+1, 2))
+      return;
+    }
     else
-      cached_result_type=arg1_type;		// Should be INT_RESULT
+    {
+      set_charset(&my_charset_bin);	// Number
+    }
   }
 }
 
@@ -800,7 +811,7 @@ Item_func_nullif::fix_length_and_dec()
   {
     max_length=args[0]->max_length;
     decimals=args[0]->decimals;
-    cached_result_type=args[0]->result_type();
+    agg_result_type(&cached_result_type, args, 2);
   }
 }
 
@@ -984,22 +995,6 @@ double Item_func_case::val()
   return res;
 }
 
-static void agg_result_type(Item_result *type, Item **items, uint nitems)
-{
-  uint i;
-  type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_store_type(type[0], items[i]->result_type());
-}
-
-static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
-{
-  uint i;
-  type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
-}
-
 void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
@@ -1109,13 +1104,11 @@ void Item_func_coalesce::fix_length_and_dec()
 {
   max_length= 0;
   decimals= 0;
-  cached_result_type = args[0]->result_type();
+  agg_result_type(&cached_result_type, args, arg_count);
   for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
-    cached_result_type=item_store_type(cached_result_type,
-				       args[i]->result_type());
   }
   if (cached_result_type == STRING_RESULT)
     agg_arg_collations(collation, args, arg_count);
