@@ -1703,6 +1703,8 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   time_t current_time;
   if (!is_open())
     return 0;
+  DBUG_ENTER("MYSQL_LOG::write");
+
   VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {						// Safety agains reopen
@@ -1712,7 +1714,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     if (!(thd->options & OPTION_UPDATE_LOG))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      return 0;
+      DBUG_RETURN(0);
     }
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
@@ -1812,7 +1814,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     }
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1832,16 +1834,19 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
+void MYSQL_LOG::wait_for_update(THD* thd, bool master_or_slave)
 {
-  const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
-                                        master_or_slave ?
-                                        "Has read all relay log; waiting for \
-the slave I/O thread to update it" : 
-                                        "Has sent all binlog to slave; \
-waiting for binlog to be updated"); 
+  const char *old_msg;
+  DBUG_ENTER("wait_for_update");
+  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
+                           master_or_slave ?
+                           "Has read all relay log; waiting for the slave I/O "
+                           "thread to update it" : 
+                           "Has sent all binlog to slave; waiting for binlog "
+                           "to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2197,6 +2202,15 @@ void MYSQL_LOG::report_pos_in_innodb()
 #endif
   DBUG_VOID_RETURN;
 }
+
+
+void MYSQL_LOG::signal_update()
+{
+  DBUG_ENTER("MYSQL_LOG::signal_update");
+  pthread_cond_broadcast(&update_cond);
+  DBUG_VOID_RETURN;
+}
+
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
