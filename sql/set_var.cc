@@ -323,6 +323,9 @@ static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 					                &SV::default_week_format);
 
+sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
+                                                         &SV::group_concat_max_len);
+
 /*
   List of all variables for initialisation and storage in hash
   This is sorted in alphabetical order to make it easy to add new variables
@@ -354,6 +357,7 @@ sys_var *sys_variables[]=
   &sys_flush,
   &sys_flush_time,
   &sys_foreign_key_checks,
+  &sys_group_concat_max_len,
   &sys_identity,
   &sys_insert_id,
   &sys_interactive_timeout,
