@@ -39125,13 +39125,13 @@ integer that can be stored in the specified integer type.
 @subsection File Space Management and Disk I/O
 
 @menu
-* InnoDB Disk i/o::             Disk I/O
+* InnoDB Disk I/O::             Disk I/O
 * InnoDB File space::           File Space Management
 * InnoDB File Defragmenting::   Defragmenting a Table
 @end menu
 
 
-@node InnoDB Disk i/o, InnoDB File space, File space management, File space management
+@node InnoDB Disk I/O, InnoDB File space, File space management, File space management
 @subsubsection Disk I/O
 
 In disk I/O InnoDB uses asynchronous I/O. On Windows NT
@@ -39193,7 +39193,7 @@ fully read into the buffer pool. Then InnoDB posts the remaining
 reads to the I/O system.
 
 
-@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
+@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk I/O, File space management
 @subsubsection File Space Management
 
 The data files you define in the configuration file form the tablespace
