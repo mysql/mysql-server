@@ -12,6 +12,12 @@ typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
   ulonglong pos,pending;
+  int event_len; /* Added by Heikki: InnoDB internally stores the
+                    master log position it has processed so far; the
+                    position to store is really the sum
+		    pos + pending + event_len
+		    here since we must store the pos of the END of the
+                    current log event */
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   // the variables below are needed because we can change masters on the fly
