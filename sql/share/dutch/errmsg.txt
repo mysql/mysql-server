@@ -8,6 +8,7 @@
    2002-04-11 - Arjen Lentz (arjen@mysql.com)
    2002-06-13 - Arjen Lentz (arjen@mysql.com)
    2002-08-08 - Arjen Lentz (arjen@mysql.com)
+   2002-08-22 - Arjen Lentz (arjen@mysql.com)
    Translated new error messages.
 */
 
@@ -247,4 +248,4 @@
 "Variabele '%-.64s' kan alleen worden gewijzigd, niet gelezen",
 "Foutieve toepassing/plaatsing van '%s'",
 "Deze versie van MySQL ondersteunt nog geen '%s'",
-"Got fatal error %d: '%-.128s' from master when reading data from binary log",
+"Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log",
