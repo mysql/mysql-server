@@ -318,14 +318,8 @@ my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
-int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 
-/*
-  If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
-  and are treated as aliases for each other
-*/
-
-static bool kill_in_progress=FALSE;
+static bool kill_in_progress=0, segfaulted= 0;
 struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 static int cleanup_done;
 static char **defaults_argv;
@@ -379,7 +373,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
  {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
 #ifdef HAVE_SMEM
 char *shared_memory_base_name=default_shared_memory_base_name;
-bool opt_enable_shared_memory = 0;
+my_bool opt_enable_shared_memory = 0;
 #endif
 
 volatile ulong cached_thread_count=0;
