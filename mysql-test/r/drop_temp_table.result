@@ -11,8 +11,8 @@ get_lock("a",10)
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
-master-bin.000001	79	Query	1	79	use `test`; create database `drop-temp+table-test`
-master-bin.000001	152	Query	1	152	use `drop-temp+table-test`; create temporary table `table:name` (a int)
-master-bin.000001	246	Query	1	246	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `drop-temp+table-test`.`table:name`
-master-bin.000001	375	Query	1	375	use `drop-temp+table-test`; DO RELEASE_LOCK("a")
+master-bin.000001	79	Query	1	79	create database `drop-temp+table-test`
+master-bin.000001	168	Query	1	168	use `drop-temp+table-test`; create temporary table `table:name` (a int)
+master-bin.000001	262	Query	1	262	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `drop-temp+table-test`.`table:name`
+master-bin.000001	391	Query	1	391	use `drop-temp+table-test`; DO RELEASE_LOCK("a")
 drop database `drop-temp+table-test`;

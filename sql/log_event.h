@@ -264,6 +264,19 @@ struct sql_ex_info
 */
 #define LOG_EVENT_THREAD_SPECIFIC_F 0x4 
 
+/*
+  Suppress the generation of 'USE' statements before the actual
+  statement. This flag should be set for any events that does not need
+  the current database set to function correctly. Most notable cases
+  are 'CREATE DATABASE' and 'DROP DATABASE'.
+
+  This flags should only be used in exceptional circumstances, since
+  it introduce a significant change in behaviour regarding the
+  replication logic together with the flags --binlog-do-db and
+  --replicated-do-db.
+ */
+#define LOG_EVENT_SUPPRESS_USE_F    0x8
+
 enum Log_event_type
 {
   UNKNOWN_EVENT= 0, START_EVENT= 1, QUERY_EVENT= 2, STOP_EVENT= 3,
@@ -331,8 +344,9 @@ public:
 
   /*
     Some 16 flags. Only one is really used now; look above for
-    LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F
-    for notes.
+    LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F,
+    LOG_EVENT_THREAD_SPECIFIC_F, and LOG_EVENT_SUPPRESS_USE_F for
+    notes.
   */
   uint16 flags;
 
@@ -465,7 +479,7 @@ public:
 #ifndef MYSQL_CLIENT
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-		  bool using_trans);
+		  bool using_trans, bool suppress_use);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
