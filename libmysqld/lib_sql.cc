@@ -224,7 +224,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(net,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  strcpy(thd->priv_host, LOCAL_HOST);
+  strmake(thd->priv_host, LOCAL_HOST, sizeof(thd->priv_host)-1);
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble,
                                  &thd->priv_user, thd->priv_host,
