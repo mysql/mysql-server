@@ -705,7 +705,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 {
   uint len;
   KEY_CACHE_VAR *old_key_cache;
-  KEY_CACHE_VAR *new_key_cache;                           
+  KEY_CACHE_VAR *new_key_cache;
   const char *errmsg=0;
   int error= HA_ADMIN_OK;
   ulonglong map= ~(ulonglong) 0;
@@ -714,26 +714,27 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
                                   (const char *) table_list->option :
                                   DEFAULT_KEY_CACHE_NAME;
   KEY_CACHE_ASMT *key_cache_asmt= table->key_cache_asmt;
-  bool triggered= key_cache_asmt->triggered; 
-  
+  bool triggered= key_cache_asmt->triggered;
+
   DBUG_ENTER("ha_myisam::assign_to_keycache");
 
   VOID(pthread_mutex_lock(&LOCK_assign));
 
   old_key_cache= key_cache_asmt->key_cache;
 
-  /* Check validity of the index references */ 
+  /* Check validity of the index references */
   if (!triggered && table_list->use_index)
   {
-    key_map kmap= get_key_map_from_key_list(table, table_list->use_index);
-    if (kmap == ~(key_map) 0)
+    key_map kmap;
+    get_key_map_from_key_list(&kmap, table, table_list->use_index);
+    if (kmap.is_set_all())
     {
       errmsg= thd->net.last_error;
       error= HA_ADMIN_FAILED;
       goto err;
     }
-    if (kmap)
-      map= kmap;
+    if (!kmap.is_clear_all())
+      map= kmap.to_ulonglong();
   }
 
   len= strlen(new_key_cache_name);
@@ -743,14 +744,14 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
     /* Nothing to do: table is assigned to the same key cache */
     goto ok;
   }
-                                                         
+
   if (!new_key_cache ||
-      (!new_key_cache->cache && ha_key_cache(new_key_cache)))  
+      (!new_key_cache->cache && ha_key_cache(new_key_cache)))
   {
     if (key_cache_asmt->triggered)
       error= HA_ERR_OUT_OF_MEM;
-    else         
-    { 
+    else
+    {
       char buf[ERRMSGSIZE];
       my_snprintf(buf, ERRMSGSIZE,
                   "Failed to create key cache %s", new_key_cache_name);
@@ -761,7 +762,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   }
 
   reassign_key_cache(key_cache_asmt, new_key_cache);
-       
+
   VOID(pthread_mutex_unlock(&LOCK_assign));
   error= mi_assign_to_keycache(file, map, new_key_cache, &LOCK_assign);
   VOID(pthread_mutex_lock(&LOCK_assign));

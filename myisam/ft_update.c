@@ -324,8 +324,8 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
   mi_putint(info->buff,length+2,0);
   memcpy(info->buff+2, key_ptr, length);
   info->buff_used=info->page_changed=1;           /* info->buff is used */
-  if ((root= _mi_new(info,keyinfo)) == HA_OFFSET_ERROR ||
-      _mi_write_keypage(info,keyinfo,root,info->buff))
+  if ((root= _mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
+      _mi_write_keypage(info,keyinfo,root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */
