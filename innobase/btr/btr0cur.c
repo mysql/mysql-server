@@ -2351,6 +2351,7 @@ btr_estimate_n_rows_in_range(
 	btr_path_t*	slot1;
 	btr_path_t*	slot2;
 	ibool		diverged;
+	ulint           divergence_level;           
 	ulint		n_rows;
 	ulint		i;
 	mtr_t		mtr;
@@ -2393,6 +2394,7 @@ btr_estimate_n_rows_in_range(
 
 	n_rows = 1;
 	diverged = FALSE;
+	divergence_level = 1000000;
 	
 	for (i = 0; ; i++) {
 		ut_ad(i < BTR_PATH_ARRAY_N_SLOTS);
@@ -2403,6 +2405,13 @@ btr_estimate_n_rows_in_range(
 		if (slot1->nth_rec == ULINT_UNDEFINED
 				|| slot2->nth_rec == ULINT_UNDEFINED) {
 
+		        if (i > divergence_level + 1) {
+		                /* In trees whose height is > 1 our algorithm
+		                tends to underestimate: multiply the estimate
+		                by 2: */
+
+		                n_rows = n_rows * 2;
+		        }
 			return(n_rows);
 		}
 
@@ -2416,6 +2425,8 @@ btr_estimate_n_rows_in_range(
 
 				return(10);
 			}
+
+			divergence_level = i;
 
 			diverged = TRUE;
 		} else if (diverged) {

@@ -678,6 +678,8 @@ trx_purge_choose_next_log(void)
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
+	min_trx_no = ut_dulint_max;
+
 	min_rseg = NULL;
 	
 	while (rseg) {
