@@ -495,9 +495,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-	else
-	    ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_COMMIT, MYF(0));
         error=1;
       }
       if (trans == &thd->transaction.all)
@@ -564,9 +562,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);	  
-	else
-	  ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));	  
         error=1;
       }
       trans->ndb_tid = 0;
