@@ -27,7 +27,6 @@
 #include <signaldata/SetLogLevelOrd.hpp>
 #include "ConfigInfo.hpp"
 
-extern "C" 
 #include <version.h>
 
 
