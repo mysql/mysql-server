@@ -28333,15 +28333,15 @@ edited version that you can reinstall.
 @code{mysql_multi_mysqld} is meant for managing several @code{mysqld}
 processes running in different UNIX sockets and TCP/IP ports.
 
-The program will search for group(s) named [mysqld#] from my.cnf (or
-the given --config-file=...), where # can be any positive number
-starting from 1. These groups should be the same as the usual [mysqld]
-group (e.g. options to mysqld, see MySQL manual for detailed
-information about this group), but with those port, socket
-etc. options that are wanted for each separate mysqld processes. The
-number in the group name has another function; it can be used for
-starting, stopping, or reporting some specific mysqld servers with
-this program. See the usage and options below for more information.
+The program will search for group(s) named [mysqld#] from my.cnf (or the
+given --config-file=...), where # can be any positive number starting
+from 1. These groups should be the same as the usual @code{[mysqld]}
+group (e.g. options to mysqld, see @strong{MySQL} manual for detailed
+information about this group), but with those port, socket etc. options
+that are wanted for each separate @code{mysqld} processes. The number in
+the group name has another function; it can be used for starting,
+stopping, or reporting some specific @code{mysqld} servers with this
+program. See the usage and options below for more information.
 
 @example
 Usage: mysql_multi_mysqld [OPTIONS] @{start|stop|report@} [GNR,GNR,GNR...]
@@ -28362,8 +28362,9 @@ list. Anything after a white space are ignored.
 @cindex config-file option
 @item --config-file=...  
 Alternative config file. NOTE: This will not affect this program's own
-options (group [mysql_multi_mysqld]), but only groups [mysqld#]. Without
-this option everything will be searched from the ordinary my.cnf file.
+options (group @code{[mysql_multi_mysqld]}), but only groups
+[mysqld#]. Without this option everything will be searched from the
+ordinary my.cnf file.
 @cindex example option
 @item --example
 Give an example of a config file.
@@ -28376,28 +28377,29 @@ Log file. Full path to and the name for the log file. NOTE: If the file
 exists, everything will be appended.
 @cindex mysqladmin option
 @item --mysqladmin=...
-mysqladmin binary to be used for a server shutdown.
+@code{mysqladmin} binary to be used for a server shutdown.
 @cindex mysqld option
 @item --mysqld=...
-mysqld binary to be used. Note that you can give safe_mysqld to this
-option also. The options are passed to mysqld. Just make sure you have
-mysqld in your PATH or fix safe_mysqld.
+@code{mysqld} binary to be used. Note that you can give
+@code{safe_mysqld} to this option also. The options are passed to
+@code{mysqld}. Just make sure you have @code{mysqld} in your environment
+variable @code{PATH} or fix @code{safe_mysqld}.
 @cindex no-log option
 @item --no-log
 Print to stdout instead of the log file. By default the log file is
 turned on.
 @cindex password option
 @item --password=...
-Password for user for mysqladmin.
+Password for user for @code{mysqladmin}.
 @cindex tcp-ip option
 @item --tcp-ip
-Connect to the MySQL server(s) via the TCP/IP port instead of the UNIX
-socket. This affects stopping and reporting.  If a socket file is
-missing, the server may still be running, but can be accessed only via
-the TCP/IP port.  By default connecting is done via the UNIX socket.
+Connect to the @strong{MySQL} server(s) via the TCP/IP port instead of
+the UNIX socket. This affects stopping and reporting.  If a socket file
+is missing, the server may still be running, but can be accessed only
+via the TCP/IP port.  By default connecting is done via the UNIX socket.
 @cindex user option
 @item --user=...
-MySQL user for mysqladmin.
+@strong{MySQL} user for @code{mysqladmin}.
 @cindex version option
 @item --version
 Print the version number and exit.
@@ -28430,8 +28432,10 @@ should have it's own @code{pid-file}. The advantage using
 it, if a @code{mysqld} process fails due to signal kill -9, or
 similar. (Like segmentation fault, which @strong{MySQL} should never do,
 of course ;) Please note that @code{safe_mysqld} script may require that
-you start it from a certain place. If you have problems starting, please
-see the script. Check especially the lines:
+you start it from a certain place. This means that you may have to CD to
+a certain directory, before you start the @code{mysql_multi_mysqld}. If
+you have problems starting, please see the @code{safe_mysqld}
+script. Check especially the lines:
 @example
 --------------------------------------------------------------------------
 MY_PWD=`pwd` Check if we are starting this relative (for the binary
@@ -28452,18 +28456,19 @@ the example.  You may have 'gaps' in the config file. This gives you
 more flexibility.  The order in which the @code{mysqlds} are started or
 stopped depends on the order in which they appear in the config file.
 @item
-When you want to refer to a certain group with GNR with this program,
-just use the number in the end of the group name ( [mysqld# <== )
+When you want to refer to a certain group using GNR with this program,
+just use the number in the end of the group name ( [mysqld# <== ).
 @item
 You may want to use option '--user' for @code{mysqld}, but in order to
-do this you need to be root when you start this script. Having the
-option in the config file doesn't matter; you will just get a warning,
-if you are no the superuser and the @code{mysqlds} are started under
-@strong{YOUR} UNIX account. @strong{IMPORTANT}: Make sure that the
-@code{pid-file} and the data directory is read+write(+execute for the
-latter one) accessible for @strong{THAT} UNIX user, who the specific
-@code{mysqld} process is started as. @strong{DON'T} use the UNIX root
-account for this, unless you @strong{KNOW} what you are doing!
+do this you need to be root when you start the @code{mysql_multi_mysqld}
+script. Having the option in the config file doesn't matter; you will
+just get a warning, if you are not the superuser and the @code{mysqlds}
+are started under @strong{YOUR} UNIX account. @strong{IMPORTANT}: Make
+sure that the @code{pid-file} and the data directory are
+read+write(+execute for the latter one) accessible for @strong{THAT}
+UNIX user, who the specific @code{mysqld} process is started
+as. @strong{DON'T} use the UNIX root account for this, unless you
+@strong{KNOW} what you are doing!
 @item
 @strong{MOST IMPORTANT}: Make sure that you understand the meanings of
 the options that are passed to the @code{mysqlds} and why @strong{WOULD
