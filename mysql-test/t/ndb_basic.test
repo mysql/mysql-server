@@ -507,3 +507,18 @@ c127 int,
 c128 int,
 primary key(c1)) engine=ndb;
 drop table t1;
+
+#
+# test max size of attribute name and truncation
+#
+
+create table t1 (
+a1234567890123456789012345678901234567890 int primary key,
+a12345678901234567890123456789a1234567890 int,
+index(a12345678901234567890123456789a1234567890)
+) engine=ndb;
+show tables;
+insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
+explain select * from t1 where a12345678901234567890123456789a1234567890=2;
+select * from t1 where a12345678901234567890123456789a1234567890=2;
+drop table t1;
