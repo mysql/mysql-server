@@ -1338,7 +1338,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" ENGINE=", 8);
+    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+      packet->append(" TYPE=", 6);
+    else
+      packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&
