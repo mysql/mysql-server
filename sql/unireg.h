@@ -70,11 +70,6 @@
 #define FERR		-1			/* Error from my_functions */
 #define CREATE_MODE	0			/* Default mode on new files */
 #define NAMES_SEP_CHAR	'\377'			/* Char to sep. names */
-#ifdef MSDOS
-#define EXTRA_FIELD_CHAR (char) '\234'		/* Interchangebly with '#' */
-#else
-#define EXTRA_FIELD_CHAR '#'			/* Interchangebly with '#' */
-#endif
 
 #define READ_RECORD_BUFFER	(uint) (IO_SIZE*8) /* Pointer_buffer_size */
 #define DISK_BUFFER_SIZE	(uint) (IO_SIZE*16) /* Size of diskbuffer */
