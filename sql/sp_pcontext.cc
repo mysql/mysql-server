@@ -65,13 +65,12 @@ sp_pcontext::find_pvar(LEX_STRING *name)
 
   while (i-- > 0)
   {
-    uint len= m_pvar[i].name->const_string()->length();
+    uint len= (m_pvar[i].name.length > name->length ?
+	       m_pvar[i].name.length : name->length);
 
-    if (name->length > len)
-      len= name->length;
     if (my_strncasecmp(system_charset_info,
 		       name->str,
-		       m_pvar[i].name->const_string()->ptr(),
+		       m_pvar[i].name.str,
 		       len) == 0)
     {
       return m_pvar + i;
@@ -90,8 +89,8 @@ sp_pcontext::push(LEX_STRING *name, enum enum_field_types type,
   {
     if (m_i == m_framesize)
       m_framesize += 1;
-    m_pvar[m_i].name= new Item_string(name->str, name->length,
-				      default_charset_info);
+    m_pvar[m_i].name.str= name->str;
+    m_pvar[m_i].name.length= name->length,
     m_pvar[m_i].type= type;
     m_pvar[m_i].mode= mode;
     m_pvar[m_i].offset= m_i;

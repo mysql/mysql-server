@@ -35,7 +35,7 @@ List of what's implemented:
     Is parsed, but a no-op (as there are no characteristics implemented yet).
     CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
 
-  - DROP PROCEDURE|FUNCTION name
+  - DROP PROCEDURE|FUNCTION [IF EXISTS] name
     CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
 
   - CALL name (args)

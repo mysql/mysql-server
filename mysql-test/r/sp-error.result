@@ -25,6 +25,9 @@ drop function foo;
 FUNCTION foo does not exist
 call foo();
 PROCEDURE foo does not exist
+drop procedure if exists foo;
+Warnings:
+Warning	1256	PROCEDURE foo does not exist
 create procedure foo()
 foo: loop
 leave bar;

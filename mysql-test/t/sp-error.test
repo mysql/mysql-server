@@ -48,6 +48,7 @@ drop procedure foo|
 drop function foo|
 --error 1256
 call foo()|
+drop procedure if exists foo|
 
 # LEAVE/ITERATE with no match
 --error 1259
