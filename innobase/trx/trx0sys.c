@@ -191,7 +191,7 @@ start_again:
 "InnoDB: PROCESSLIST shows that you have ended all other connections\n"
 "InnoDB: to mysqld, then purge and the insert buffer merge have been\n"
 "InnoDB: completed.\n"
-"InnoDB: If you have already created .ibd tables in >= 4.1.1, then those\n"
+"InnoDB: If you have already created tables in >= 4.1.1, then those\n"
 "InnoDB: tables cannot be used under 4.0.\n"
 "InnoDB: NOTE THAT this downgrade procedure has not been properly tested!\n"
 "InnoDB: The safe way to downgrade is to dump all InnoDB tables and recreate\n"
