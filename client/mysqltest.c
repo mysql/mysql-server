@@ -3046,7 +3046,7 @@ static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
 {
   MYSQL_FIELD *field_end;
   dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\t"
-                "Column_alias\tName\tType\tLength\tMax length\tIs_null\t"
+                "Column_alias\tType\tLength\tMax length\tIs_null\t"
                 "Flags\tDecimals\tCharsetnr\n");
 
   for (field_end= field+num_fields ;
