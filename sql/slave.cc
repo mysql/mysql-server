@@ -1293,9 +1293,19 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      sql_print_error("Slave thread killed while reading event");
 	      goto err;
 	    }
-	  
+
+	  	  
 	  if (event_len == packet_error)
 	  {
+	    if(mc_mysql_errno(mysql) == ER_NET_PACKET_TOO_LARGE)
+	      {
+		sql_print_error("Log entry on master is longer than \
+max_allowed_packet on slave. Slave thread will be aborted. If the entry is \
+really supposed to be that long, restart the server with a higher value of \
+max_allowed_packet. The current value is %ld", max_allowed_packet);
+		goto err;
+	      }
+	    
 	    thd->proc_info = "Waiting to reconnect after a failed read";
 	    if(mysql->net.vio)
  	      vio_close(mysql->net.vio);
