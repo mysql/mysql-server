@@ -5,6 +5,7 @@
 # 2001-11-20 Fixups by arjen@mysql.com, 2 keywords and 15 synonyms were missing
 # 2001-12-07 Fixup by arjen@mysql.com, add column headings for multitable.
 # 2002-05-01 Fixup by arjen@mysql.com, use 3 columns instead of 4.
+# 2002-05-03 Fixup by arjen@mysql.com, fill last row to full # of columns.
 
 print STDERR "Scanning lex.h for symbols..\n";
 open LEX, "<../sql/lex.h";
@@ -28,11 +29,6 @@ while(($line = <YACC>) =~ /[\s|]+([A-Z_]+)/) {
 close YACC;
 
 
-$list = sprintf("\@c Reserved word list updated %s by %s.\n".
-                "\@c To regenerate, use Support/update-reserved-words.pl.\n\n",
-                &pretty_date, $ENV{USER});
-
-
 print STDERR "Copying reserved words to an array...\n";
 foreach(keys %words) { push @words, $words{$_}; };
 
@@ -42,11 +38,15 @@ print STDERR "Sorting array...\n";
 printf STDERR "There are %i reserved words.\n", scalar @words;
 
 @pre  = ("\@item", " \@tab", " \@tab");
-@post = ("\n", "\n", "\n");
 
+$list = "";
 for($i=0; $word = shift(@words); $i++) {
-  $list .= sprintf "%s %-30s %s", $pre[$i%3], "\@code\{$word\}", $post[$i%3];
-}; $list .= "\n";
+  $list .= sprintf "%s %s\n", $pre[$i%3], "\@code\{$word\}";
+}
+# Fill last row to full # of columns.
+for( ; $i%3; $i++) {
+  $list .= sprintf "%s\n", $pre[$i%3];
+}
 
 open OLD, "<manual.texi";
 open NEW, ">manual-tmp.texi";
@@ -54,10 +54,14 @@ open NEW, ">manual-tmp.texi";
 print STDERR "Copying beginning of manual.texi...\n";
 while(($line = <OLD>) !~ /START_OF_RESERVED_WORDS/) { print NEW $line; };
 print NEW "\@c START_OF_RESERVED_WORDS\n\n";
+printf NEW "\@c Reserved word list updated %s by %s.\n".
+           "\@c To regenerate, use Support/update-reserved-words.pl.\n\n",
+           &pretty_date, $ENV{USER};
+
 print STDERR "Inserting list of reserved words...\n";
 # Ensure the fractions add up to 100% otherwise it looks funny in print:
 print NEW "\@multitable \@columnfractions .33 .33 .34\n";
-print NEW "\@item \@strong{Word} \@tab \@strong{Word} \@tab \@strong{Word}\n";
+print NEW "\@item \@strong{Word}\n \@tab \@strong{Word}\n \@tab \@strong{Word}\n";
 print NEW $list;
 print NEW "\@end multitable\n";
 print STDERR "Skipping over old list...\n";

@@ -6929,7 +6929,7 @@ install MySQL, create some tables, then reconfigure
 MySQL to use a different character set and reinstall it.)
 
 With the option @code{--with-extra-charset=LIST} you can define
-which additional character sets should be incompiled in the server.
+which additional character sets should be compiled into the server.
 
 Here @code{LIST} is either a list of character
 sets separated with spaces,
@@ -8139,7 +8139,7 @@ version 4.0;
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
 these columns).
 @item
-Use @code{ORDER BY column DESC} now always sorts @code{NULL} values
+@code{ORDER BY column DESC} now always sorts @code{NULL} values
 first; in 3.23 this was not always consistent.
 @item
 @code{SHOW INDEX} has 2 columns more (@code{Null} and @code{Index_type})
@@ -8188,8 +8188,8 @@ it is preferable to change the client to use the new 4.0 API.
 @item
 In the @code{MYSQL_FIELD} structure, @code{length} and @code{max_length} have
 changed from @code{unsigned int} to @code{unsigned long}. This should not
-cause any other problems than some warnings if you use these to
-@code{printf()} type function.
+cause any problems, except that they may generate warning messages when
+used as arguments in the @code{printf()} class of functions.
 @item
 You should use @code{TRUNCATE TABLE} when you want to delete all rows
 from a table and you don't care how many rows were deleted.
@@ -8315,8 +8315,8 @@ MySQL Version 3.22 and Version 3.23, you should not use the
 
 @item
 Check all your calls to @code{DATE_FORMAT()} to make sure there is a
-@samp{%} before each format character.  (Later MySQL Version 3.22
-did allow this syntax.)
+@samp{%} before each format character.
+(MySQL Version 3.22 and later already allowed this syntax.)
 
 @item
 @code{mysql_fetch_fields_direct} is now a function (it was a macro) and
@@ -8986,8 +8986,8 @@ You can avoid using @file{libg++.a} by running @code{configure} like this:
 shell> CXX=gcc ./configure
 @end example
 
-If you are running gcc 3.0 and above, you can't use the above trick with
-setting to CXX=gcc.
+If you are running gcc 3.0 or above, you can't use the aforementioned trick
+of setting CXX=gcc.
 
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
@@ -9078,7 +9078,7 @@ work).  You must also use the @code{egcs} C++ compiler
 @node Linux-IA64,  , Linux-MIPS, Linux
 @subsubsection Linux IA64 Notes
 
-To get MySQL to compile on Linux Ia64, we use the following compile line:
+To get MySQL to compile on Linux IA64, we use the following compile line:
 Using @code{gcc-2.96}:
 
 @example
@@ -9088,7 +9088,7 @@ CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors \
 "--with-comment=Official MySQL binary" --with-extra-charsets=complex
 @end example
 
-On Ia64 the MySQL client binaries are using shared libraries. This means
+On IA64 the MySQL client binaries are using shared libraries. This means
 that if you install our binary distribution in some other place than
 @file{/usr/local/mysql} you need to either modify @file{/etc/ld.so.conf}
 or add the path to the directory where you have @file{libmysqlclient.so}
@@ -9368,8 +9368,9 @@ C:\> mysqladmin --user=root --password=your_password shutdown
 
 If you are using the old shareware version of MySQL Version
 3.21 under Windows, the above command will fail with an error:
-@code{parse error near 'SET OPTION password'}.  The fix is in to upgrade
-to the current MySQL version, which is freely available.
+@code{parse error near 'SET OPTION password'}.  The solution for
+this is to download and upgrade to the latest MySQL version,
+which is now freely available.
 
 With the current MySQL versions you can easily add new users
 and change privileges with @code{GRANT} and @code{REVOKE} commands.
@@ -10402,7 +10403,7 @@ PHKL_22840 Streams cumulative
 PHNE_22397 ARPA cumulative
 @end example
 
-This will solve a problem that one gets @code{EWOULDBLOCK} from @code{recv()}
+This will solve the problem of getting @code{EWOULDBLOCK} from @code{recv()}
 and @code{EBADF} from @code{accept()} in threaded applications.
 
 If you are using @code{gcc} 2.95.1 on an unpatched HP-UX 11.x system,
@@ -21535,7 +21536,7 @@ binaries includes:
 @item HP-UX 11.0 @tab N @tab Y
 @item Linux-Alpha @tab N	@tab Y
 @item Linux-Intel @tab Y @tab Y
-@item Linux-Ia64 @tab N @tab Y
+@item Linux-IA64 @tab N @tab Y
 @item Solaris-Intel @tab N @tab Y
 @item Solaris-SPARC @tab Y @tab Y
 @item Caldera (SCO) OSR5 @tab Y @tab Y
@@ -28247,196 +28248,199 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@multitable @columnfractions .33 .33 .34
-@item @strong{Word} @tab @strong{Word} @tab @strong{Word}
-@c Reserved word list updated Wed May  1 10:50:08 2002 by arjen.
+@c Reserved word list updated Fri May  3 08:41:00 2002 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
-@item @code{ADD}                     
- @tab @code{ALL}                     
- @tab @code{ALTER}                   
-@item @code{ANALYZE}                 
- @tab @code{AND}                     
- @tab @code{AS}                      
-@item @code{ASC}                     
- @tab @code{AUTO_INCREMENT}          
- @tab @code{BDB}                     
-@item @code{BERKELEYDB}              
- @tab @code{BETWEEN}                 
- @tab @code{BIGINT}                  
-@item @code{BINARY}                  
- @tab @code{BLOB}                    
- @tab @code{BOTH}                    
-@item @code{BY}                      
- @tab @code{CASCADE}                 
- @tab @code{CASE}                    
-@item @code{CHANGE}                  
- @tab @code{CHAR}                    
- @tab @code{CHARACTER}               
-@item @code{COLUMN}                  
- @tab @code{COLUMNS}                 
- @tab @code{CONSTRAINT}              
-@item @code{CREATE}                  
- @tab @code{CROSS}                   
- @tab @code{CURRENT_DATE}            
-@item @code{CURRENT_TIME}            
- @tab @code{CURRENT_TIMESTAMP}       
- @tab @code{DATABASE}                
-@item @code{DATABASES}               
- @tab @code{DAY_HOUR}                
- @tab @code{DAY_MINUTE}              
-@item @code{DAY_SECOND}              
- @tab @code{DEC}                     
- @tab @code{DECIMAL}                 
-@item @code{DEFAULT}                 
- @tab @code{DELAYED}                 
- @tab @code{DELETE}                  
-@item @code{DESC}                    
- @tab @code{DESCRIBE}                
- @tab @code{DISTINCT}                
-@item @code{DISTINCTROW}             
- @tab @code{DOUBLE}                  
- @tab @code{DROP}                    
-@item @code{ELSE}                    
- @tab @code{ENCLOSED}                
- @tab @code{ESCAPED}                 
-@item @code{EXISTS}                  
- @tab @code{EXPLAIN}                 
- @tab @code{FIELDS}                  
-@item @code{FLOAT}                   
- @tab @code{FOR}                     
- @tab @code{FOREIGN}                 
-@item @code{FROM}                    
- @tab @code{FULLTEXT}                
- @tab @code{FUNCTION}                
-@item @code{GRANT}                   
- @tab @code{GROUP}                   
- @tab @code{HAVING}                  
-@item @code{HIGH_PRIORITY}           
- @tab @code{HOUR_MINUTE}             
- @tab @code{HOUR_SECOND}             
-@item @code{IF}                      
- @tab @code{IGNORE}                  
- @tab @code{IN}                      
-@item @code{INDEX}                   
- @tab @code{INFILE}                  
- @tab @code{INNER}                   
-@item @code{INNODB}                  
- @tab @code{INSERT}                  
- @tab @code{INSERT_ID}               
-@item @code{INT}                     
- @tab @code{INTEGER}                 
- @tab @code{INTERVAL}                
-@item @code{INTO}                    
- @tab @code{IS}                      
- @tab @code{JOIN}                    
-@item @code{KEY}                     
- @tab @code{KEYS}                    
- @tab @code{KILL}                    
-@item @code{LAST_INSERT_ID}          
- @tab @code{LEADING}                 
- @tab @code{LEFT}                    
-@item @code{LIKE}                    
- @tab @code{LIMIT}                   
- @tab @code{LINES}                   
-@item @code{LOAD}                    
- @tab @code{LOCK}                    
- @tab @code{LONG}                    
-@item @code{LONGBLOB}                
- @tab @code{LONGTEXT}                
- @tab @code{LOW_PRIORITY}            
-@item @code{MASTER_SERVER_ID}        
- @tab @code{MATCH}                   
- @tab @code{MEDIUMBLOB}              
-@item @code{MEDIUMINT}               
- @tab @code{MEDIUMTEXT}              
- @tab @code{MIDDLEINT}               
-@item @code{MINUTE_SECOND}           
- @tab @code{MRG_MYISAM}              
- @tab @code{NATURAL}                 
-@item @code{NOT}                     
- @tab @code{NULL}                    
- @tab @code{NUMERIC}                 
-@item @code{ON}                      
- @tab @code{OPTIMIZE}                
- @tab @code{OPTION}                  
-@item @code{OPTIONALLY}              
- @tab @code{OR}                      
- @tab @code{ORDER}                   
-@item @code{OUTER}                   
- @tab @code{OUTFILE}                 
- @tab @code{PARTIAL}                 
-@item @code{PRECISION}               
- @tab @code{PRIMARY}                 
- @tab @code{PRIVILEGES}              
-@item @code{PROCEDURE}               
- @tab @code{PURGE}                   
- @tab @code{READ}                    
-@item @code{REAL}                    
- @tab @code{REFERENCES}              
- @tab @code{REGEXP}                  
-@item @code{RENAME}                  
- @tab @code{REPLACE}                 
- @tab @code{REQUIRE}                 
-@item @code{RESTRICT}                
- @tab @code{RETURNS}                 
- @tab @code{REVOKE}                  
-@item @code{RIGHT}                   
- @tab @code{RLIKE}                   
- @tab @code{SELECT}                  
-@item @code{SET}                     
- @tab @code{SHOW}                    
- @tab @code{SMALLINT}                
-@item @code{SONAME}                  
- @tab @code{SQL_AUTO_IS_NULL}        
- @tab @code{SQL_BIG_RESULT}          
-@item @code{SQL_BIG_SELECTS}         
- @tab @code{SQL_BIG_TABLES}          
- @tab @code{SQL_BUFFER_RESULT}       
-@item @code{SQL_CALC_FOUND_ROWS}     
- @tab @code{SQL_LOG_BIN}             
- @tab @code{SQL_LOG_OFF}             
-@item @code{SQL_LOG_UPDATE}          
- @tab @code{SQL_LOW_PRIORITY_UPDATES} 
- @tab @code{SQL_MAX_JOIN_SIZE}       
-@item @code{SQL_QUOTE_SHOW_CREATE}   
- @tab @code{SQL_SAFE_UPDATES}        
- @tab @code{SQL_SELECT_LIMIT}        
-@item @code{SQL_SLAVE_SKIP_COUNTER}  
- @tab @code{SQL_SMALL_RESULT}        
- @tab @code{SQL_WARNINGS}            
-@item @code{SSL}                     
- @tab @code{STARTING}                
- @tab @code{STRAIGHT_JOIN}           
-@item @code{STRIPED}                 
- @tab @code{TABLE}                   
- @tab @code{TABLES}                  
-@item @code{TERMINATED}              
- @tab @code{THEN}                    
- @tab @code{TINYBLOB}                
-@item @code{TINYINT}                 
- @tab @code{TINYTEXT}                
- @tab @code{TO}                      
-@item @code{TRAILING}                
- @tab @code{UNION}                   
- @tab @code{UNIQUE}                  
-@item @code{UNLOCK}                  
- @tab @code{UNSIGNED}                
- @tab @code{UPDATE}                  
-@item @code{USAGE}                   
- @tab @code{USE}                     
- @tab @code{USING}                   
-@item @code{VALUES}                  
- @tab @code{VARBINARY}               
- @tab @code{VARCHAR}                 
-@item @code{VARYING}                 
- @tab @code{WHEN}                    
- @tab @code{WHERE}                   
-@item @code{WITH}                    
- @tab @code{WRITE}                   
- @tab @code{YEAR_MONTH}              
-@item @code{ZEROFILL}                
-
+@multitable @columnfractions .33 .33 .34
+@item @strong{Word}
+ @tab @strong{Word}
+ @tab @strong{Word}
+@item @code{ADD}
+ @tab @code{ALL}
+ @tab @code{ALTER}
+@item @code{ANALYZE}
+ @tab @code{AND}
+ @tab @code{AS}
+@item @code{ASC}
+ @tab @code{AUTO_INCREMENT}
+ @tab @code{BDB}
+@item @code{BERKELEYDB}
+ @tab @code{BETWEEN}
+ @tab @code{BIGINT}
+@item @code{BINARY}
+ @tab @code{BLOB}
+ @tab @code{BOTH}
+@item @code{BY}
+ @tab @code{CASCADE}
+ @tab @code{CASE}
+@item @code{CHANGE}
+ @tab @code{CHAR}
+ @tab @code{CHARACTER}
+@item @code{COLUMN}
+ @tab @code{COLUMNS}
+ @tab @code{CONSTRAINT}
+@item @code{CREATE}
+ @tab @code{CROSS}
+ @tab @code{CURRENT_DATE}
+@item @code{CURRENT_TIME}
+ @tab @code{CURRENT_TIMESTAMP}
+ @tab @code{DATABASE}
+@item @code{DATABASES}
+ @tab @code{DAY_HOUR}
+ @tab @code{DAY_MINUTE}
+@item @code{DAY_SECOND}
+ @tab @code{DEC}
+ @tab @code{DECIMAL}
+@item @code{DEFAULT}
+ @tab @code{DELAYED}
+ @tab @code{DELETE}
+@item @code{DESC}
+ @tab @code{DESCRIBE}
+ @tab @code{DISTINCT}
+@item @code{DISTINCTROW}
+ @tab @code{DOUBLE}
+ @tab @code{DROP}
+@item @code{ELSE}
+ @tab @code{ENCLOSED}
+ @tab @code{ESCAPED}
+@item @code{EXISTS}
+ @tab @code{EXPLAIN}
+ @tab @code{FIELDS}
+@item @code{FLOAT}
+ @tab @code{FOR}
+ @tab @code{FOREIGN}
+@item @code{FROM}
+ @tab @code{FULLTEXT}
+ @tab @code{FUNCTION}
+@item @code{GRANT}
+ @tab @code{GROUP}
+ @tab @code{HAVING}
+@item @code{HIGH_PRIORITY}
+ @tab @code{HOUR_MINUTE}
+ @tab @code{HOUR_SECOND}
+@item @code{IF}
+ @tab @code{IGNORE}
+ @tab @code{IN}
+@item @code{INDEX}
+ @tab @code{INFILE}
+ @tab @code{INNER}
+@item @code{INNODB}
+ @tab @code{INSERT}
+ @tab @code{INSERT_ID}
+@item @code{INT}
+ @tab @code{INTEGER}
+ @tab @code{INTERVAL}
+@item @code{INTO}
+ @tab @code{IS}
+ @tab @code{JOIN}
+@item @code{KEY}
+ @tab @code{KEYS}
+ @tab @code{KILL}
+@item @code{LAST_INSERT_ID}
+ @tab @code{LEADING}
+ @tab @code{LEFT}
+@item @code{LIKE}
+ @tab @code{LIMIT}
+ @tab @code{LINES}
+@item @code{LOAD}
+ @tab @code{LOCK}
+ @tab @code{LONG}
+@item @code{LONGBLOB}
+ @tab @code{LONGTEXT}
+ @tab @code{LOW_PRIORITY}
+@item @code{MASTER_SERVER_ID}
+ @tab @code{MATCH}
+ @tab @code{MEDIUMBLOB}
+@item @code{MEDIUMINT}
+ @tab @code{MEDIUMTEXT}
+ @tab @code{MIDDLEINT}
+@item @code{MINUTE_SECOND}
+ @tab @code{MRG_MYISAM}
+ @tab @code{NATURAL}
+@item @code{NOT}
+ @tab @code{NULL}
+ @tab @code{NUMERIC}
+@item @code{ON}
+ @tab @code{OPTIMIZE}
+ @tab @code{OPTION}
+@item @code{OPTIONALLY}
+ @tab @code{OR}
+ @tab @code{ORDER}
+@item @code{OUTER}
+ @tab @code{OUTFILE}
+ @tab @code{PARTIAL}
+@item @code{PRECISION}
+ @tab @code{PRIMARY}
+ @tab @code{PRIVILEGES}
+@item @code{PROCEDURE}
+ @tab @code{PURGE}
+ @tab @code{READ}
+@item @code{REAL}
+ @tab @code{REFERENCES}
+ @tab @code{REGEXP}
+@item @code{RENAME}
+ @tab @code{REPLACE}
+ @tab @code{REQUIRE}
+@item @code{RESTRICT}
+ @tab @code{RETURNS}
+ @tab @code{REVOKE}
+@item @code{RIGHT}
+ @tab @code{RLIKE}
+ @tab @code{SELECT}
+@item @code{SET}
+ @tab @code{SHOW}
+ @tab @code{SMALLINT}
+@item @code{SONAME}
+ @tab @code{SQL_AUTO_IS_NULL}
+ @tab @code{SQL_BIG_RESULT}
+@item @code{SQL_BIG_SELECTS}
+ @tab @code{SQL_BIG_TABLES}
+ @tab @code{SQL_BUFFER_RESULT}
+@item @code{SQL_CALC_FOUND_ROWS}
+ @tab @code{SQL_LOG_BIN}
+ @tab @code{SQL_LOG_OFF}
+@item @code{SQL_LOG_UPDATE}
+ @tab @code{SQL_LOW_PRIORITY_UPDATES}
+ @tab @code{SQL_MAX_JOIN_SIZE}
+@item @code{SQL_QUOTE_SHOW_CREATE}
+ @tab @code{SQL_SAFE_UPDATES}
+ @tab @code{SQL_SELECT_LIMIT}
+@item @code{SQL_SLAVE_SKIP_COUNTER}
+ @tab @code{SQL_SMALL_RESULT}
+ @tab @code{SQL_WARNINGS}
+@item @code{SSL}
+ @tab @code{STARTING}
+ @tab @code{STRAIGHT_JOIN}
+@item @code{STRIPED}
+ @tab @code{TABLE}
+ @tab @code{TABLES}
+@item @code{TERMINATED}
+ @tab @code{THEN}
+ @tab @code{TINYBLOB}
+@item @code{TINYINT}
+ @tab @code{TINYTEXT}
+ @tab @code{TO}
+@item @code{TRAILING}
+ @tab @code{UNION}
+ @tab @code{UNIQUE}
+@item @code{UNLOCK}
+ @tab @code{UNSIGNED}
+ @tab @code{UPDATE}
+@item @code{USAGE}
+ @tab @code{USE}
+ @tab @code{USING}
+@item @code{VALUES}
+ @tab @code{VARBINARY}
+ @tab @code{VARCHAR}
+@item @code{VARYING}
+ @tab @code{WHEN}
+ @tab @code{WHERE}
+@item @code{WITH}
+ @tab @code{WRITE}
+ @tab @code{YEAR_MONTH}
+@item @code{ZEROFILL}
+ @tab
+ @tab
 @end multitable
 
 @c END_OF_RESERVED_WORDS
@@ -36491,21 +36495,31 @@ Transactional @code{InnoDB} tables that have been changed will be invalidated
 when a @code{COMMIT} is performed.
 
 A query cannot be cached if it contains one of the functions:
-@multitable @columnfractions .25 .25 .25 .25
-@item @strong{Function} @tab @strong{Function}
- @tab @strong{Function} @tab @strong{Function}
-@item @code{User-Defined Functions} @tab @code{CONNECTION_ID}
- @tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
-@item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
- @tab @code{MASTER_POS_WAIT} @tab @code{NOW}
-@item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
- @tab @code{CURDATE} @tab @code{CURRENT_DATE}
-@item @code{CURTIME} @tab @code{CURRENT_TIME}
- @tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
-@item @code{LAST_INSERT_ID} @tab @code{RAND}
- @tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
-@item @code{BENCHMARK} @tab
- @tab @tab
+@multitable @columnfractions .33 .33 .34
+@item @strong{Function}
+ @tab @strong{Function}
+ @tab @strong{Function}
+@item @code{User-Defined Functions}
+ @tab @code{CONNECTION_ID}
+ @tab @code{FOUND_ROWS}
+@item @code{GET_LOCK}
+ @tab @code{RELEASE_LOCK}
+ @tab @code{LOAD_FILE}
+@item @code{MASTER_POS_WAIT}
+ @tab @code{NOW}
+ @tab @code{SYSDATE}
+@item @code{CURRENT_TIMESTAMP}
+ @tab @code{CURDATE}
+ @tab @code{CURRENT_DATE}
+@item @code{CURTIME}
+ @tab @code{CURRENT_TIME}
+ @tab @code{DATABASE}
+@item @code{ENCRYPT} (with one parameter)
+ @tab @code{LAST_INSERT_ID}
+ @tab @code{RAND}
+@item @code{UNIX_TIMESTAMP} (without parameters)
+ @tab @code{USER}
+ @tab @code{BENCHMARK}
 @end multitable
 
 Nor can a query be cached if it contains user variables,
@@ -51224,7 +51238,7 @@ Fixed that open transactions in @code{BDB} tables are rolled back if the
 connection is closed unexpectedly.
 @item
 Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
-(Ia64) in @code{gen_lex_hash.c}.
+(IA64) in @code{gen_lex_hash.c}.
 @item
 Fixed memory leak in the client library when using @code{host=} in the
 @file{my.cnf} file.
