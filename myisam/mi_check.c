@@ -3682,10 +3682,7 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
     key_maxlength+=ft_max_word_len_for_sort-HA_FT_MAXLEN;
   return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
-	   (ulonglong) myisam_max_temp_length ||
-	   (ulonglong) rows * (key_maxlength - key->minlength) / 2 >
-	   myisam_max_extra_temp_length ||
-	   (rows == 0 && (key_maxlength / key->minlength) > 2)));
+	   (ulonglong) myisam_max_temp_length));
 }
 
 
