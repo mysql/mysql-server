@@ -54,6 +54,8 @@ INSERT INTO t1 VALUES (1);
 CREATE DATABASE mysqltest_sisyfos;
 USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
 SHOW BINLOG EVENTS;
 SHOW DATABASES;
 sync_slave_with_master;

@@ -42,7 +42,7 @@ USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: 4.1.8-debug-log, Binlog ver: 3
+master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
 master-bin.000001	79	Query	1	79	DROP DATABASE IF EXISTS mysqltest_prometheus
 master-bin.000001	174	Query	1	174	DROP DATABASE IF EXISTS mysqltest_sisyfos
 master-bin.000001	263	Query	1	263	CREATE DATABASE mysqltest_prometheus
