@@ -1240,6 +1240,16 @@ int decimal_cmp(decimal *from1, decimal *from2)
   return from1->sign > from2->sign ? -1 : 1;
 }
 
+int decimal_is_zero(decimal *from)
+{
+  dec1 *buf1=from->buf,
+       *end=buf1+ROUND_UP(from->intg)+ROUND_UP(from->frac);
+  while (buf1 < end)
+    if (*buf1++)
+      return 0;
+  return 1;
+}
+
 /*
   multiply two decimals
 
