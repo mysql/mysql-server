@@ -1182,7 +1182,7 @@ int Field_tiny::store(double nr)
       error= 1;
     }
     else
-      *ptr=(char) nr;
+      *ptr=(char) (int) nr;
   }
   return error;
 }
@@ -1313,9 +1313,9 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (tmp > (uint16) ~0)
+    else if (tmp > UINT_MAX16)
     {
-      tmp=(uint16) ~0;
+      tmp=UINT_MAX16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -1364,9 +1364,9 @@ int Field_short::store(double nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > (double) (uint16) ~0)
+    else if (nr > (double) UINT_MAX16)
     {
-      res=(int16) (uint16) ~0;
+      res=(int16) UINT_MAX16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -1388,7 +1388,7 @@ int Field_short::store(double nr)
       error= 1;
     }
     else
-      res=(int16) nr;
+      res=(int16) (int) nr;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1413,9 +1413,9 @@ int Field_short::store(longlong nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > (longlong) (uint16) ~0)
+    else if (nr > (longlong) UINT_MAX16)
     {
-      res=(int16) (uint16) ~0;
+      res=(int16) UINT_MAX16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -1884,7 +1884,7 @@ int Field_long::store(double nr)
       error= 1;
     }
     else
-      res=(int32) nr;
+      res=(int32) (longlong) nr;
   }
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -2123,7 +2123,7 @@ int Field_longlong::store(double nr)
       res=0;
       error= 1;
     }
-    else if (nr >= (double) ~ (ulonglong) 0)
+    else if (nr >= (double) ULONGLONG_MAX)
     {
       res= ~(longlong) 0;
       error= 1;
@@ -2133,15 +2133,15 @@ int Field_longlong::store(double nr)
   }
   else
   {
-    if (nr < (double) LONGLONG_MIN)
+    if (nr <= (double) LONGLONG_MIN)
     {
       res= LONGLONG_MIN;
-      error= 1;
+      error= (nr < (double) LONGLONG_MIN);
     }
-    else if (nr > (double) LONGLONG_MAX)
+    else if (nr >= (double) LONGLONG_MAX)
     {
       res= LONGLONG_MAX;
-      error= 1;
+      error= (nr > (double) LONGLONG_MAX);
     }
     else
       res=(longlong) nr;
