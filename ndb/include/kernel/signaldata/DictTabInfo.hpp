@@ -85,10 +85,6 @@ public:
     MaxLoadFactor      = 11, //Default 80
     KeyLength          = 12, //Default 1  (No of words in primary key)
     FragmentTypeVal    = 13, //Default AllNodesSmallTable
-    TableStorageVal    = 14, //Default StorageType::MainMemory
-    ScanOptimised      = 15, //Default updateOptimised
-    FragmentKeyTypeVal = 16, //Default PrimaryKey
-    SecondTableId      = 17, //Mandatory between DICT's otherwise not allowed
     TableTypeVal       = 18, //Default TableType::UserTable
     PrimaryTable       = 19, //Mandatory for index otherwise RNIL
     PrimaryTableId     = 20, //ditto
@@ -110,10 +106,7 @@ public:
     AttributeKeyFlag       = 1006, //Default noKey
     AttributeStorage       = 1007, //Default MainMemory
     AttributeNullableFlag  = 1008, //Default NotNullable
-    AttributeDGroup        = 1009, //Default NotDGroup
     AttributeDKey          = 1010, //Default NotDKey
-    AttributeStoredInd     = 1011, //Default NotStored
-    AttributeGroup         = 1012, //Default 0
     AttributeExtType       = 1013, //Default 0 (undefined)
     AttributeExtPrecision  = 1014, //Default 0
     AttributeExtScale      = 1015, //Default 0
@@ -127,12 +120,7 @@ public:
   // have a default value. Thus the default values are part of the protocol.
   // ----------------------------------------------------------------------
 
-  // FragmentKeyType constants
-  enum FragmentKeyType { 
-    PrimaryKey = 0,
-    DistributionKey = 1,
-    DistributionGroup = 2
-  };
+
   
   // FragmentType constants
   enum FragmentType {
@@ -142,12 +130,6 @@ public:
     SingleFragment = 3
   };
   
-  // TableStorage AND AttributeStorage constants
-  enum StorageType {
-    MainMemory = 0,
-    DiskMemory = 1
-  };
-
   // TableType constants + objects
   enum TableType {
     UndefTableType = 0,
@@ -219,10 +201,6 @@ public:
     StorePermanent = 2
   };
   
-  // ScanOptimised constants
-  STATIC_CONST( updateOptimised = 0 );
-  STATIC_CONST( scanOptimised = 1 );
-  
   // AttributeType constants
   STATIC_CONST( SignedType = 0 );
   STATIC_CONST( UnSignedType = 1 );
@@ -236,24 +214,11 @@ public:
   STATIC_CONST( a32Bit = 5 );
   STATIC_CONST( a64Bit = 6 );
   STATIC_CONST( a128Bit = 7 );
-  
-  // AttributeDGroup constants
-  STATIC_CONST( NotDGroup = 0 );
-  STATIC_CONST( DGroup = 1 );
-  
-  // AttributeDKey constants
-  STATIC_CONST( NotDKey = 0 );
-  STATIC_CONST( DKey = 1 );
-  
-  // AttributeStoredInd constants
-  STATIC_CONST( NotStored = 0 );
-  STATIC_CONST( Stored = 1 );
- 
+    
   // Table data interpretation
   struct Table {
     char   TableName[MAX_TAB_NAME_SIZE];
     Uint32 TableId;
-    Uint32 SecondTableId;
     char   PrimaryTable[MAX_TAB_NAME_SIZE]; // Only used when "index"
     Uint32 PrimaryTableId;
     Uint32 TableLoggedFlag;
@@ -267,8 +232,6 @@ public:
     Uint32 KeyLength;
     Uint32 FragmentType;
     Uint32 TableStorage;
-    Uint32 ScanOptimised;
-    Uint32 FragmentKeyType;
     Uint32 TableType;
     Uint32 TableVersion;
     Uint32 IndexState;
@@ -323,12 +286,8 @@ public:
     Uint32 AttributeSize;
     Uint32 AttributeArraySize;
     Uint32 AttributeKeyFlag;
-    Uint32 AttributeStorage;
     Uint32 AttributeNullableFlag;
-    Uint32 AttributeDGroup;
     Uint32 AttributeDKey;
-    Uint32 AttributeStoredInd;
-    Uint32 AttributeGroup;
     Uint32 AttributeExtType;
     Uint32 AttributeExtPrecision;
     Uint32 AttributeExtScale;
@@ -460,9 +419,7 @@ public:
       fprintf(out, "AttributeKeyFlag = %d\n", AttributeKeyFlag);
       fprintf(out, "AttributeStorage = %d\n", AttributeStorage);
       fprintf(out, "AttributeNullableFlag = %d\n", AttributeNullableFlag);
-      fprintf(out, "AttributeDGroup = %d\n", AttributeDGroup);
       fprintf(out, "AttributeDKey = %d\n", AttributeDKey);
-      fprintf(out, "AttributeStoredInd = %d\n", AttributeStoredInd);
       fprintf(out, "AttributeGroup = %d\n", AttributeGroup);
       fprintf(out, "AttributeAutoIncrement = %d\n", AttributeAutoIncrement);
       fprintf(out, "AttributeExtType = %d\n", AttributeExtType);
@@ -496,6 +453,22 @@ private:
    */
   
   Uint32 tabInfoData[DataLength];
+
+public:
+  enum Depricated 
+  {
+    AttributeDGroup    = 1009, //Default NotDGroup
+    AttributeStoredInd = 1011, //Default NotStored
+    SecondTableId      = 17, //Mandatory between DICT's otherwise not allowed
+    FragmentKeyTypeVal = 16 //Default PrimaryKey
+  };
+  
+  enum Unimplemented 
+  {
+    TableStorageVal    = 14, //Default StorageType::MainMemory
+    ScanOptimised      = 15, //Default updateOptimised
+    AttributeGroup     = 1012 //Default 0
+  };
 };
 
 #endif

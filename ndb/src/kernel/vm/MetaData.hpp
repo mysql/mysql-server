@@ -86,14 +86,8 @@ public:
     /* Primary table of index otherwise RNIL */
     Uint32 primaryTableId;
 
-    /* Type of storage (memory/disk, not used) */
-    DictTabInfo::StorageType storageType;
-
     /* Type of fragmentation (small/medium/large) */
     DictTabInfo::FragmentType fragmentType;
-
-    /* Key type of fragmentation (pk/dist key/dist group) */
-    DictTabInfo::FragmentKeyType fragmentKeyType;
 
     /* Global checkpoint identity when table created */
     Uint32 gciTableCreated;

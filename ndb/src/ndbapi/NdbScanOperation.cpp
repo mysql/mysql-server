@@ -919,6 +919,8 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
       TcKeyReq::setTakeOverScanFragment(scanInfo, tTakeOverFragment);
       TcKeyReq::setTakeOverScanInfo(scanInfo, tScanInfo);
       newOp->theScanInfo = scanInfo;
+      newOp->theDistrKeyIndicator_ = 1;
+      newOp->theDistributionKey = tTakeOverFragment;
     }
 
     // Copy the first 8 words of key info from KEYINF20 into TCKEYREQ
