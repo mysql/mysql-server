@@ -75,15 +75,8 @@ void Item_subselect::make_field (Send_field *tmp_field)
   }
 }
 
-bool Item_subselect::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-
-  if (thd->having_fix_field)
-  {
-    //TODO: subselects in having do not suported now
-    my_printf_error(ER_SYNTAX_ERROR, ER(ER_SYNTAX_ERROR), MYF(0));
-    return 1;
-  }
   // Is it one field subselect?
   if (select_lex->item_list.elements > max_columns)
   {  

@@ -446,12 +446,13 @@ String *Item_copy_string::val_str(String *str)
 
 /* ARGSUSED */
 bool Item::fix_fields(THD *thd,
-		      struct st_table_list *list)
+		      struct st_table_list *list,
+		      Item ** ref)
 {
   return 0;
 }
 
-bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
@@ -467,7 +468,7 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
-      SELECT_LEX *last;
+      SELECT_LEX *last= 0;
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
 	   sl && !tmp;
 	   sl= sl->outer_select())
@@ -476,6 +477,8 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
       if (!tmp)
 	return 1;
       else
+      {
+	depended_from= last;
 	/*
 	  Mark all selects from resolved to 1 before select where was 
 	  found table as depended (of select where was found table)
@@ -493,6 +496,7 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 		 tbl= tbl->next)
 	      tbl->shared= 1;
 	  }
+      }
     }
     set_field(tmp);
   }
@@ -503,6 +507,14 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys&=field->part_of_key;
+  }
+  if (depended_from != 0 && depended_from->having_fix_field)
+  {
+    *ref= new Item_ref((char *)db_name, (char *)table_name,
+		       (char *)field_name);
+    if (!*ref)
+      return 1;
+    return (*ref)->fix_fields(thd, tables, ref);
   }
   return 0;
 }
@@ -787,12 +799,50 @@ bool Item_null::send(THD *thd, String *packet)
   Find field in select list having the same name
  */
 
-bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    if (!(ref=find_item_in_list(this,thd->lex.select->item_list)))
-      return 1;
+        if (!(ref= find_item_in_list(this,thd->lex.select->item_list)))
+    {
+      /*
+	We can't find table field in table list of current select, 
+	consequently we have to find it in outer subselect(s).
+	We can't join lists of outer & current select, because of scope 
+	of view rules. For example if both tables (outer & current) have 
+	field 'field' it is not mistake to refer to this field without 
+	mention of table name, but if we join tables in one list it will
+	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+      */
+      SELECT_LEX *last=0;
+      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+	   sl && !ref;
+	   sl= sl->outer_select())
+	ref= find_item_in_list(this, (last= sl)->item_list);
+      if (!ref)
+	return 1;
+      else
+      {
+	depended_from= last;
+	/*
+	  Mark all selects from resolved to 1 before select where was 
+	  found table as depended (of select where was found table)
+	*/
+	for (SELECT_LEX *s= thd->lex.select;
+	     s &&s != last;
+	     s= s->outer_select())
+	  if( !s->depended )
+	  {
+	    s->depended= 1; //Select is depended of outer select
+	    //Tables will be reopened many times
+	    for (TABLE_LIST *tbl= 
+		   (TABLE_LIST*)s->table_list.first;
+		 tbl;
+		 tbl= tbl->next)
+	      tbl->shared= 1;
+	  }
+      }
+    }
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
