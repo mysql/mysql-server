@@ -575,7 +575,7 @@ error:
 int ha_archive::write_row(byte * buf)
 {
   z_off_t written;
-  uint *ptr, *end;
+  uint *bptr, *end;
   DBUG_ENTER("ha_archive::write_row");
 
   if (share->crashed)
@@ -596,16 +596,16 @@ int ha_archive::write_row(byte * buf)
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
   */
-  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
-       ptr != end ;
-       ptr++)
+  for (bptr= table->s->blob_field, end=bptr + table->s->blob_fields ;
+       bptr != end ;
+       bptr++)
   {
     char *ptr;
-    uint32 size= ((Field_blob*) table->field[*ptr])->get_length();
+    uint32 size= ((Field_blob*) table->field[*bptr])->get_length();
 
     if (size)
     {
-      ((Field_blob*) table->field[*ptr])->get_ptr(&ptr);
+      ((Field_blob*) table->field[*bptr])->get_ptr(&ptr);
       written= gzwrite(share->archive_write, ptr, (unsigned)size);
       if (written != size)
         goto error;
