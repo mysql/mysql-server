@@ -5,7 +5,7 @@ dist-hook:
 	  test -d $(distdir)/$$dir || mkdir $(distdir)/$$dir; \
 	  $(INSTALL_DATA) $(srcdir)/$$dir/*.* $(distdir)/$$dir; \
 	done; \
-	sleep ; touch $(srcdir)/*/errmsg.sys
+	sleep 1 ; touch $(srcdir)/*/errmsg.sys
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/Index $(distdir)/charsets
 
