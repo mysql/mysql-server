@@ -1,7 +1,9 @@
-make -k clean
-/bin/rm -f */.deps/*.P */*.o
-/bin/rm -f config.cache
-aclocal; autoheader; aclocal; automake; autoconf
+#! /bin/sh
 
-CFLAGS="-O6 -fomit-frame-pointer -mcpu=ev6 -Wa,-mev6" CXX=gcc CXXFLAGS="-O6 -mcpu=ev6 -Wa,-mev6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex
-make
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$alpha_cflags $fast_cflags"
+extra_configs="$alpha_configs"
+
+. "$path/FINISH.sh"
