@@ -2400,7 +2400,8 @@ static void test_long_data_str()
   MYSQL_STMT *stmt;
   int        rc, i;
   char       data[255];
-  long       length, length1;
+  long       length;
+  ulong	     length1;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   my_bool    is_null[2];
@@ -2495,8 +2496,8 @@ static void test_long_data_str1()
   MYSQL_STMT *stmt;
   int        rc, i;
   char       data[255];
-  long       length, length1;
-  ulong	     max_blob_length, blob_length;
+  long       length;
+  ulong	     max_blob_length, blob_length, length1;
   my_bool    true_value;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
@@ -3084,7 +3085,7 @@ static void test_bind_result_ext()
   char       szData[20], bData[20];
   ulong       szLength, bLength;
   MYSQL_BIND bind[8];
-  long	     length[8];
+  ulong	     length[8];
   my_bool    is_null[8];
 
   myheader("test_bind_result_ext");
@@ -5376,7 +5377,7 @@ static void test_store_result2()
   MYSQL_STMT *stmt;
   int        rc;
   int        nData;
-  long       length;
+  ulong      length;
   MYSQL_BIND bind[1];
 
   myheader("test_store_result2");
@@ -8094,7 +8095,7 @@ static void test_ts()
   MYSQL_TIME ts;
   MYSQL_RES  *prep_res;
   char       strts[30];
-  long       length;
+  ulong      length;
   int        rc, field_count;
   char       name;
 
@@ -8974,7 +8975,8 @@ static void test_multi()
   char *query;
   MYSQL_BIND bind[1];
   int rc, i;
-  long param= 1, length= 1;
+  long param= 1;
+  ulong length= 1;
   myheader("test_multi");
 
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -9100,7 +9102,7 @@ static void test_bind_nagative()
   int rc;
   MYSQL_BIND      bind[1];
   long            my_val = 0L;
-  long            my_length = 0L;
+  ulong           my_length = 0L;
   long            my_null = 0L;
   myheader("test_insert_select");
 
@@ -9141,7 +9143,7 @@ static void test_derived()
   int rc, i;
   MYSQL_BIND      bind[1];
   long            my_val = 0L;
-  long            my_length = 0L;
+  ulong            my_length = 0L;
   long            my_null = 0L;
   const char *query=
     "select count(1) from (select f.id from t1 f where f.id=?) as x";
