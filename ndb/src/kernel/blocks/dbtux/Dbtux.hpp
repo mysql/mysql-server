@@ -83,6 +83,9 @@
 #define jamEntry()      jamEntryLine(90000 + __LINE__)
 #endif
 
+#undef max
+#undef min
+
 class Configuration;
 
 class Dbtux : public SimulatedBlock {

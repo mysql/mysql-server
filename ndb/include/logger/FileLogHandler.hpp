@@ -19,7 +19,7 @@
 
 #include "LogHandler.hpp"
 
-class File;
+class File_class;
 
 /**
  * Logs messages to a file. The log file will be archived depending on
@@ -104,7 +104,7 @@ private:
   int m_maxNoFiles;
   long m_maxFileSize;
   unsigned int m_maxLogEntries;
-  File* m_pLogFile;
+  File_class* m_pLogFile;
 };
 
 #endif
