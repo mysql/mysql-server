@@ -1181,10 +1181,11 @@ static uint max_bit(register uint value)
 /*****************************************************************************
 	Some redefined functions to handle files when we are using memmap
 *****************************************************************************/
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
 
 #ifdef HAVE_MMAP
-
-#include <sys/mman.h>
 
 static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,byte *buf);
 static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
@@ -1211,7 +1212,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
       DBUG_RETURN(0);
     }
     file_map=(byte*)
-      mmap(0,share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN,PROT_READ,
+      my_mmap(0,share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN,PROT_READ,
 	   MAP_SHARED | MAP_NORESERVE,info->dfile,0L);
     if (file_map == (byte*) MAP_FAILED)
     {
@@ -1230,7 +1231,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(munmap((caddr_t) info->s->file_map,
+  VOID(my_munmap((caddr_t) info->s->file_map,
 	      (size_t) info->s->state.state.data_file_length+
 	      MEMMAP_EXTRA_MARGIN));
 }
