@@ -2615,6 +2615,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		rec_t*		rec;
 		const byte*	field;
 		ulint		len;
+		ulint		root_page_no;
 
 		if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
 			/* The end of SYS_INDEXES has been reached. */
@@ -2633,11 +2634,33 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 
 		if (rec_get_deleted_flag(rec, FALSE)) {
 			/* The index has been dropped. */
-			continue;
+			goto next_rec;
 		}
 
-		dict_truncate_index_tree(table, rec, &mtr);
+		btr_pcur_store_position(&pcur, &mtr);
 
+		/* This call may commit and restart mtr. */
+		root_page_no = dict_truncate_index_tree(table, rec, &mtr);
+
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
+		rec = btr_pcur_get_rec(&pcur);
+
+		if (root_page_no != FIL_NULL) {
+			page_rec_write_index_page_no(rec,
+					DICT_SYS_INDEXES_PAGE_NO_FIELD,
+					root_page_no, &mtr);
+			/* We will need to commit and restart the
+			mini-transaction in order to avoid deadlocks.
+			The dict_truncate_index_tree() call has allocated
+			a page in this mini-transaction, and the rest of
+			this loop could latch another index page. */
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+			btr_pcur_restore_position(BTR_MODIFY_LEAF,
+							&pcur, &mtr);
+		}
+
+	next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 

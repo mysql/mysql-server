@@ -435,15 +435,6 @@ rec_offs_size(
 				/* out: size */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
-Returns the total size of a physical record.  */
-
-ulint
-rec_get_size(
-/*=========*/
-				/* out: size */
-	rec_t*		rec,	/* in: physical record */
-	dict_index_t*	index);	/* in: record descriptor */
-/**************************************************************
 Returns a pointer to the start of the record. */
 UNIV_INLINE
 byte*
