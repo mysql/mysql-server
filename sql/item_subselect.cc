@@ -51,6 +51,12 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
+  if (!join || !result)
+  {
+    //out of memory
+    thd->fatal_error= 1;
+    my_printf_error(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  } 
   this->select_lex= select_lex;
   assign_null();
   /*
@@ -172,7 +178,7 @@ String *Item_singleval_subselect::val_str (String *str)
 
 Item_exists_subselect::Item_exists_subselect(THD *thd,
 					     st_select_lex *select_lex):
-  Item_subselect(thd, select_lex, new select_singleval_subselect(this))
+  Item_subselect(thd, select_lex, new select_exists_subselect(this))
 {
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
