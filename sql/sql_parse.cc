@@ -176,6 +176,7 @@ end:
 
 }
 
+#ifndef EMBEDDED_LIBRARY
 
 /*
     Check if user exist and password supplied is correct. 
@@ -350,6 +351,9 @@ static int check_user(THD *thd, enum enum_server_command command,
                   passwd_len ? ER(ER_YES) : ER(ER_NO));
   DBUG_RETURN(-1);
 }
+
+#endif // EMBEDDED_LIBRARY
+
 
 /*
   Check for maximum allowable user connections, if the mysqld server is
