@@ -23,37 +23,32 @@ parse_arguments() {
   # We only need to pass arguments through to the server if we don't
   # handle them here.  So, we collect unrecognized options (passed on
   # the command line) into the args variable.
-  pick_args=
-  if test "$1" = PICK-ARGS-FROM-ARGV
-  then
-    pick_args=1
-    shift
-  fi
+  pick_args=$1; shift
 
   for arg do
     case "$arg" in
       # these get passed explicitly to mysqld
-      --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
-      --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
-      --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
-      --user=*)    user=`echo "$arg" | sed -e "s;--user=;;"` ;;
+      --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --user=*)    user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
 
       # these two might have been set in a [safe_mysqld] section of my.cnf
       # they get passed via environment variables to safe_mysqld
-      --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
-      --port=*)    MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
+      --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --port=*)    MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
 
-      # safe_mysqld-specific options - must be set in my.cnf ([safe_mysqld])!
-      --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
-      --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
+      # safe_mysqld-specific options
+      --ledir=*)   ledir=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --err-log=*) err_log=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
       # QQ The --open-files should be removed
-      --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
-      --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
-      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
-      --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
-      --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--mysqld=;;"` ;;
+      --open-files=*) open_files=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
+      --timezone=*) TZ=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; export TZ; ;;
+      --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
       --mysqld-version=*)
-	tmp=`echo "$arg" | sed -e "s;--mysqld-version=;;"`
+	tmp=`echo "$arg" | sed -e "s;--[^=]*=;;"`
 	if test -n "$tmp"
 	then
 	  MYSQLD="mysqld-$tmp"
@@ -62,7 +57,7 @@ parse_arguments() {
 	fi
 	;;
       *)
-        if test -n "$pick_args"
+        if test $pick_args -eq 1
         then
           # This sed command makes sure that any special chars are quoted,
           # so the arg gets passed exactly to the server.
@@ -130,8 +125,8 @@ else
 fi
 
 args=
-parse_arguments `$print_defaults $defaults mysqld server safe_mysqld`
-parse_arguments PICK-ARGS-FROM-ARGV "$@"
+parse_arguments 0 `$print_defaults $defaults mysqld server safe_mysqld`
+parse_arguments 1 "$@"
 
 if test ! -x $ledir/$MYSQLD
 then
