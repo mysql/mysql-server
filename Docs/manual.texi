@@ -17834,7 +17834,7 @@ if no @code{PRIMARY KEY} was specified explicitly.)
 
 @findex ORDER BY
 @item
-@code {ORDER BY} allows you to create the new table with the rows in a
+@code{ORDER BY} allows you to create the new table with the rows in a
 specific order.  Note that the table will not remain in this order after
 inserts and deletes.  In some cases, it may make sorting easier for 
 @strong{MySQL} if the table is in order by the column that you wish to
