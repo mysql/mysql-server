@@ -166,6 +166,12 @@ bool Item_subselect::const_item() const
   return const_item_cache;
 }
 
+Item *Item_subselect::get_tmp_table_item(THD *thd)
+{
+  if (!with_sum_func && !const_item())
+    return new Item_field(result_field);
+  return copy_or_same(thd);
+}
 
 void Item_subselect::update_used_tables()
 {
