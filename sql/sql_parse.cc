@@ -4024,9 +4024,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
   }
 
-  if (new_field->length > MAX_FIELD_CHARLENGTH ||
+  if ((new_field->length > MAX_FIELD_CHARLENGTH && type != FIELD_TYPE_SET && 
+       type != FIELD_TYPE_ENUM) ||
       (!new_field->length && !(new_field->flags & BLOB_FLAG) &&
-       type != FIELD_TYPE_STRING && 
+       type != FIELD_TYPE_STRING &&
        type != FIELD_TYPE_VAR_STRING && type != FIELD_TYPE_GEOMETRY))
   {
     net_printf(thd,ER_TOO_BIG_FIELDLENGTH,field_name,
