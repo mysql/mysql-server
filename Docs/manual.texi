@@ -25600,6 +25600,11 @@ InnoDB has been designed for maximum performance when processing
 large data volumes. Its CPU efficiency is probably not
 matched by any other disk-based relational database engine.
 
+You can find the latest information about InnoDB at
+@uref{http://www.innodb.com}. The most up-to-date version of the
+InnoDB manual is always placed there, and you can also order commercial
+support for InnoDB.
+
 Technically, InnoDB is a database backend placed under @strong{MySQL}. InnoDB
 has its own buffer pool for caching data and indexes in main
 memory. InnoDB stores its tables and indexes in a tablespace, which
@@ -26828,11 +26833,11 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 @node InnoDB contact information,  , InnoDB restrictions, InnoDB
 @subsection InnoDB contact information
 
-Contact information of Innobase Oy, producer of the InnoDB engine:
+Contact information of Innobase Oy, producer of the InnoDB engine.
+Website: @uref{http://www.innodb.com}. Email:
+@email{Heikki.Tuuri@@innodb.com}
 
 @example
-Website: www.innodb.com
-Heikki.Tuuri@@innodb.com
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
 InnoDB Oy Inc.
 World Trade Center Helsinki
