@@ -57,7 +57,11 @@ private:
   */
   int crashed;
   pthread_mutex_t LOCK_instance;
-  pthread_cond_t COND_instance_restarted;
+  /*
+    This condition variable is used to wake threads waiting for instance to
+    stop in Instance::stop()
+  */
+  pthread_cond_t COND_instance_stopped;
   Instance_map *instance_map;
 };
 

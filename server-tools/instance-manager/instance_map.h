@@ -57,7 +57,6 @@ public:
 public:
   /* returns a pointer to the instance or NULL, if there is no such instance */
   Instance *find(const char *name, uint name_len);
-  Instance *find(uint instance_number);
 
   int flush_instances();
   int lock();

@@ -31,6 +31,7 @@
 #include "instance_map.h"
 #include "log.h"
 #include "mysql_connection.h"
+#include "priv.h"
 
 
 /*
@@ -82,6 +83,12 @@ void Listener_thread::run()
   int arg= 1;                             /* value to be set by setsockopt */
   int unix_socket;
   uint im_port;
+  /* we use this var to check whether we are running on LinuxThreads */
+  pid_t thread_pid;
+
+  thread_pid= getpid();
+  /* set global variable */
+  linuxthreads= (thread_pid != manager_pid);
 
   thread_registry.register_thread(&thread_info);
 

@@ -79,7 +79,7 @@ int Instance_options::get_pid_filename(char *result)
   const char *pid_file= mysqld_pid_file;
   char datadir[MAX_PATH_LEN];
 
-  if (mysqld_datadir == NULL)
+  if (!(mysqld_datadir))
   {
     /* we might get an error here if we have wrong path to the mysqld binary */
     if (get_default_option(datadir, sizeof(datadir), "--datadir"))
@@ -128,16 +128,22 @@ int Instance_options::complete_initialization(const char *default_path,
 {
   const char *tmp;
 
-  if (mysqld_path == NULL)
+  if (!(mysqld_path))
   {
     if (!(mysqld_path= strdup_root(&alloc, default_path)))
       goto err;
   }
 
+  if (mysqld_port)
+    mysqld_port_val= atoi(strchr(mysqld_port, '=') + 1);
+
+  if (shutdown_delay)
+    shutdown_delay_val= atoi(shutdown_delay);
+
   if (!(tmp= strdup_root(&alloc, "--no-defaults")))
     goto err;
 
-  if (mysqld_pid_file == NULL)
+  if (!(mysqld_pid_file))
   {
     char pidfilename[MAX_PATH_LEN];
     char hostname[MAX_PATH_LEN];
@@ -265,7 +271,7 @@ int Instance_options::add_to_argv(const char* option)
 {
   DBUG_ASSERT(filled_default_options < MAX_NUMBER_OF_DEFAULT_OPTIONS);
 
-  if (option != NULL)
+  if ((option))
     argv[filled_default_options++]= (char *) option;
   return 0;
 }
