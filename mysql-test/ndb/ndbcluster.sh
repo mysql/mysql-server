@@ -300,26 +300,20 @@ do_ndb_test ()
   test_result=$fs_result/${test_name}.result
   test_reject=$fs_result/${test_name}.reject
 
-  cp $clusterlog $test_log_result
-  cat ndb/${test_name}_log.result >> $test_log_result
+  clean_log='s/.*\[MgmSrvr\]//'
+
+  cat $clusterlog ndb/${test_name}_log.result | sed -e $clean_log > $test_log_result
 
   cp ndb/${test_name}.result $test_result
 
   cat ndb/${test_name}.test | $exec_mgmtclient > $test_reject
-  cp $clusterlog $test_log_reject
-  r=`diff -C 5 $test_result $test_reject`
-  if [ $r ] ; then
-    t="fail"
-  else
-    t="pass"
-  fi
+  cat $clusterlog | sed -e $clean_log > $test_log_reject
+
+  t="pass"
+  diff -C 5 $test_result $test_reject || t="fail"
   printf "ndb_mgm output    %20s [%s]\n" $test_name $t
-  r=`diff -C 5 $test_log_result $test_log_reject`
-  if [ $r ] ; then
-    t="fail"
-  else
-    t="pass"
-  fi
+  t="pass"
+  diff -C 5 $test_log_result $test_log_reject || t="fail"
   printf "clusterlog output %20s [%s]\n" $test_name $t
 }
 
