@@ -108,7 +108,7 @@ public:
   static void *
   operator new(size_t size);
 
-  static void 
+  static void
   operator delete(void *ptr, size_t size);
 
   sp_head();
@@ -123,7 +123,7 @@ public:
 
   int
   create(THD *thd);
-  
+
   virtual ~sp_head();
 
   // Free memory
@@ -142,11 +142,8 @@ public:
   int
   show_create_function(THD *thd);
 
-  inline void
-  add_instr(sp_instr *i)
-  {
-    insert_dynamic(&m_instr, (gptr)&i);
-  }
+  void
+  add_instr(sp_instr *instr);
 
   inline uint
   instructions()
@@ -249,13 +246,15 @@ class sp_instr : public Sql_alloc
 
 public:
 
+  Item *free_list;              // My Items
+
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip)
-    : Sql_alloc(), m_ip(ip)
+    :Sql_alloc(), free_list(0), m_ip(ip)
   {}
 
   virtual ~sp_instr()
-  {}
+  { free_items(free_list); }
 
   // Execute this instrution. '*nextp' will be set to the index of the next
   // instruction to execute. (For most instruction this will be the
