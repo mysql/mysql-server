@@ -1497,7 +1497,7 @@ void subselect_uniquesubquery_engine::print(String *str)
   str->append("<primary_index_lookup>(", 23);
   tab->ref.items[0]->print(str);
   str->append(" in ", 4);
-  str->append(tab->table->real_name);
+  str->append(tab->table->s->table_name);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(" on ", 4);
   str->append(key_info->name);
@@ -1515,7 +1515,7 @@ void subselect_indexsubquery_engine::print(String *str)
   str->append("<index_lookup>(", 15);
   tab->ref.items[0]->print(str);
   str->append(" in ", 4);
-  str->append(tab->table->real_name);
+  str->append(tab->table->s->table_name);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(" on ", 4);
   str->append(key_info->name);

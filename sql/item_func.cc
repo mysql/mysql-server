@@ -3198,7 +3198,7 @@ bool Item_func_match::fix_index()
   if (key == NO_SUCH_KEY)
     return 0;
 
-  for (keynr=0 ; keynr < table->keys ; keynr++)
+  for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (table->keys_in_use_for_query.is_set(keynr)))

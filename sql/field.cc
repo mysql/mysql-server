@@ -351,10 +351,8 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
 }
 
 
-/****************************************************************************
-** Functions for the base classes
-** This is an unpacked number.
-****************************************************************************/
+/* This is used as a table name when the table structure is not set up */
+const char *unknown_table_name= 0;
 
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
@@ -362,7 +360,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     struct st_table *table_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
    table(table_arg),orig_table(table_arg),
-   table_name(table_arg ? table_arg->table_name : 0),
+   table_name(table_arg ? &table_arg->alias : &unknown_table_name),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
@@ -407,35 +405,24 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
     res.append(" zerofill");
 }
 
-void Field_num::make_field(Send_field *field)
+void Field::make_field(Send_field *field)
 {
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name=field->org_col_name=field_name;
+  field->db_name= orig_table->s->table_cache_key;
+  field->org_table_name= orig_table->s->table_name;
+  field->table_name= orig_table->alias;
+  field->col_name= field->org_col_name= field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals=dec;
+  field->decimals= 0;
 }
 
 
-void Field_str::make_field(Send_field *field)
+void Field_num::make_field(Send_field *field)
 {
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name=field->org_col_name=field_name;
-  field->charsetnr= charset()->number;
-  field->length=field_length;
-  field->type=type();
-  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals=0;
+  Field::make_field(field);
+  field->decimals= dec;
 }
 
 
@@ -448,7 +435,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   {
     copy->blob_field=(Field_blob*) this;
     copy->strip=0;
-    copy->length-=table->blob_ptr_size;
+    copy->length-= table->s->blob_ptr_size;
     return copy->length;
   }
   else if (!zero_pack() &&
@@ -5189,7 +5176,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 {
   flags|= BLOB_FLAG;
   if (table)
-    table->blob_fields++;
+    table->s->blob_fields++;
 }
 
 
@@ -6295,22 +6282,6 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
 }
 
 
-void Field_bit::make_field(Send_field *field)
-{
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name= field->org_col_name= field_name;
-  field->charsetnr= charset()->number;
-  field->length= field_length;
-  field->type= type();
-  field->flags= table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals= 0;
-}
-
-
 int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   int delta;
@@ -6776,7 +6747,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
 
   /* Fix if the original table had 4 byte pointer blobs */
   if (flags & BLOB_FLAG)
-    pack_length= (pack_length- old_field->table->blob_ptr_size +
+    pack_length= (pack_length- old_field->table->s->blob_ptr_size +
 		  portable_sizeof_char_ptr);
 
   switch (sql_type) {
@@ -6824,19 +6795,20 @@ create_field::create_field(Field *old_field,Field *orig_field)
       old_field->ptr && orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff), charset);
+    String tmp(buff,sizeof(buff), charset), *res;
+    my_ptrdiff_t diff;
 
     /* Get the value from default_values */
-    my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
+    diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
+                          orig_field->table->record[0]);
     orig_field->move_field(diff);		// Points now at default_values
     bool is_null=orig_field->is_real_null();
-    orig_field->val_str(&tmp);
+    res= orig_field->val_str(&tmp);
     orig_field->move_field(-diff);		// Back to record[0]
     if (!is_null)
     {
-      pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
-      pos[tmp.length()]=0;
-      def= new Item_string(pos, tmp.length(), charset);
+      pos= (char*) sql_strmake(res->ptr(), res->length());
+      def= new Item_string(pos, res->length(), charset);
     }
   }
 }
