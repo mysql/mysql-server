@@ -30,7 +30,7 @@
 
 CHARSET_INFO *system_charset_info= &my_charset_utf8;
 CHARSET_INFO *files_charset_info= &my_charset_utf8;
-CHARSET_INFO *national_charset_info= &my_charset_latin1;
+CHARSET_INFO *national_charset_info= &my_charset_utf8;
 
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
