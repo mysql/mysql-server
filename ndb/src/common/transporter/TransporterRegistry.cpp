@@ -157,8 +157,17 @@ TransporterRegistry::init(NodeId nodeId) {
   
   DEBUG("TransporterRegistry started node: " << localNodeId);
   
-  //  return allocateLongSignalMemoryPool(nLargeSegments);
-  return true;
+#ifdef NDB_SHM_TRANSPORTER
+  /**
+   * Make sure to block SIGUSR1
+   *   TransporterRegistry::init is run from "main" thread
+   */
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+  pthread_sigmask(SIG_BLOCK, &mask, 0);
+#endif
+return true;
 }
 
 bool
@@ -1347,6 +1356,9 @@ TransporterRegistry::startReceiving()
 #ifdef NDB_SHM_TRANSPORTER
   m_shm_own_pid = getpid();
   struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sigaddset(&sa.sa_mask, SIGUSR1);
+  pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, 0);
   sa.sa_handler = shm_sig_handler;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;

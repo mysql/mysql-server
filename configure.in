@@ -1922,7 +1922,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
-  shmget shmat shmdt shmctl sigaction \
+  shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
@@ -2709,7 +2709,10 @@ if test "$ac_cv_func_shmget" = "yes" &&
    test "$ac_cv_func_shmat" = "yes" &&
    test "$ac_cv_func_shmdt" = "yes" &&
    test "$ac_cv_func_shmctl" = "yes" &&
-   test "$ac_cv_func_sigaction" = "yes"
+   test "$ac_cv_func_sigaction" = "yes" &&
+   test "$ac_cv_func_sigemptyset" = "yes" &&
+   test "$ac_cv_func_sigaddset" = "yes" &&
+   test "$ac_cv_func_pthread_sigmask" = "yes"
 then
    AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
              [Including Ndb Cluster DB shared memory transporter])
