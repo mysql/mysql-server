@@ -1403,6 +1403,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   Field **tmp_field;
   ulong priv;
+  uint next_field;
   for (tmp_field= table->field+3, priv = SELECT_ACL;
        *tmp_field && (*tmp_field)->real_type() == FIELD_TYPE_ENUM &&
 	 ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
@@ -1411,56 +1412,59 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (priv & rights)				 // set requested privileges
       (*tmp_field)->store(&what,1);
   }
-  rights=get_access(table,3,0);
+  rights= get_access(table, 3, &next_field);
   DBUG_PRINT("info",("table->fields: %d",table->fields));
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
     /* We write down SSL related ACL stuff */
     switch (thd->lex.ssl_type) {
     case SSL_TYPE_ANY:
-      table->field[24]->store("ANY",3);
-      table->field[25]->store("",0);
-      table->field[26]->store("",0);
-      table->field[27]->store("",0);
+      table->field[next_field]->store("ANY", 3);
+      table->field[next_field+1]->store("", 0);
+      table->field[next_field+2]->store("", 0);
+      table->field[next_field+3]->store("", 0);
       break;
     case SSL_TYPE_X509:
-      table->field[24]->store("X509",4);
-      table->field[25]->store("",0);
-      table->field[26]->store("",0);
-      table->field[27]->store("",0);
+      table->field[next_field]->store("X509", 4);
+      table->field[next_field+1]->store("", 0);
+      table->field[next_field+2]->store("", 0);
+      table->field[next_field+3]->store("", 0);
       break;
     case SSL_TYPE_SPECIFIED:
-      table->field[24]->store("SPECIFIED",9);
-      table->field[25]->store("",0);
-      table->field[26]->store("",0);
-      table->field[27]->store("",0);
+      table->field[next_field]->store("SPECIFIED", 9);
+      table->field[next_field+1]->store("", 0);
+      table->field[next_field+2]->store("", 0);
+      table->field[next_field+3]->store("", 0);
       if (thd->lex.ssl_cipher)
-	table->field[25]->store(thd->lex.ssl_cipher,
-				strlen(thd->lex.ssl_cipher));
+        table->field[next_field+1]->store(thd->lex.ssl_cipher,
+                                          strlen(thd->lex.ssl_cipher));
       if (thd->lex.x509_issuer)
-	table->field[26]->store(thd->lex.x509_issuer,
-				strlen(thd->lex.x509_issuer));
+        table->field[next_field+2]->store(thd->lex.x509_issuer,
+                                          strlen(thd->lex.x509_issuer));
       if (thd->lex.x509_subject)
-	table->field[27]->store(thd->lex.x509_subject,
-				strlen(thd->lex.x509_subject));
+        table->field[next_field+3]->store(thd->lex.x509_subject,
+                                          strlen(thd->lex.x509_subject));
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
     case SSL_TYPE_NONE:
-      table->field[24]->store("",0);
-      table->field[25]->store("",0);
-      table->field[26]->store("",0);
-      table->field[27]->store("",0);
+      table->field[next_field]->store("", 0);
+      table->field[next_field+1]->store("", 0);
+      table->field[next_field+2]->store("", 0);
+      table->field[next_field+3]->store("", 0);
       break;
     }
 
+    /* Skip over SSL related fields to first user limits related field */
+    next_field+= 4;
+
     USER_RESOURCES mqh = thd->lex.mqh;
     if (mqh.bits & 1)
-      table->field[28]->store((longlong) mqh.questions);
+      table->field[next_field]->store((longlong) mqh.questions);
     if (mqh.bits & 2)
-      table->field[29]->store((longlong) mqh.updates);
+      table->field[next_field+1]->store((longlong) mqh.updates);
     if (mqh.bits & 4)
-      table->field[30]->store((longlong) mqh.connections);
+      table->field[next_field+2]->store((longlong) mqh.connections);
     mqh_used = mqh_used || mqh.questions || mqh.updates || mqh.connections;
   }
   if (old_row_exists)
