@@ -274,8 +274,6 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_ACC_SCANREF, &Dblqh::execACC_SCANREF);
   addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
   addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
-  addRecSignal(GSN_ACC_SCAN_INFO, &Dblqh::execACC_SCAN_INFO);
-  addRecSignal(GSN_ACC_SCAN_INFO24, &Dblqh::execACC_SCAN_INFO24);
   addRecSignal(GSN_STORED_PROCCONF, &Dblqh::execSTORED_PROCCONF);
   addRecSignal(GSN_STORED_PROCREF, &Dblqh::execSTORED_PROCREF);
   addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
