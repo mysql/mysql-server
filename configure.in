@@ -135,13 +135,19 @@ if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version");
   AC_MSG_RESULT("$CC $CC_VERSION")
+else
+CC_VERSION=""
 fi
 CXX_VERSION=`$CXX --version`
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C++ compiler version");
   AC_MSG_RESULT("$CXX $CXX_VERSION")
+else
+CXX_VERSION=""
 fi
+AC_SUBST(CXX_VERSION)
+AC_SUBST(CC_VERSION)
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -1228,7 +1234,7 @@ then
 #	CC="$CC -Kthread -DOpenUNIX8";
 #	CXX="$CXX -Kthread -DOpenUNIX8";
 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
