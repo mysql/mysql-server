@@ -16,7 +16,8 @@ create table t1 (f1 char(20) not null) type = gemini;
 insert into t1 (f1) values ("test2"), ("bar");
 connection master1;
 set transaction isolation level serializable;
-!$-1217 select * from t1;
+--error 1218
+select * from t1;
 connection master;
 commit;
 
