@@ -1139,7 +1139,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
 	  List<Item> fields;
 	  lev->set_fields(fields);
-	  thd->slave_proxy_id = thd->thread_id;
+	  thd->slave_proxy_id = thread_id;
 	  thd->net.vio = net->vio;
 	  // mysql_load will use thd->net to read the file
 	  thd->net.pkt_nr = net->pkt_nr;
