@@ -60,7 +60,7 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{MySQL Reference Manual}
 @sp 10
-@center Copyright @copyright{} 1997-2001 MySQL AB
+@center Copyright @copyright{} 1995-2002 MySQL AB
 @c blank page after title page makes page 1 be a page front.
 @c also makes the back of the title page blank.
 @page
