@@ -30,7 +30,17 @@ connect (con3,localhost,zedjzlcsjhd,,);
 connection con3;
 --error 1227
 SET @@session.pseudo_thread_id=100;
+# While we are here we also test that SQL_LOG_BIN can't be set
+--error 1227
+SET @@session.sql_log_bin=0;
+# Now as root, to be sure it works
+connection con2;
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
 
+connection con3;
 let $VERSION=`select version()`;
 
 --disable_warnings
