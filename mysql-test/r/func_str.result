@@ -167,6 +167,9 @@ length(quote(concat(char(0),"test")))
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))))
 27E0E3E6E7E8EAEB27
+select concat('a', quote(NULL));
+concat('a', quote(NULL))
+aNULL
 select reverse("");
 reverse("")
 
@@ -278,7 +281,7 @@ insert into t1 values ('one'),(NULL),('two'),('four');
 select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
 a	quote(a)	isnull(quote(a))	quote(a) is null	ifnull(quote(a), 'n')
 one	'one'	0	0	'one'
-NULL	NULL	1	1	n
+NULL	NULL	0	0	NULL
 two	'two'	0	0	'two'
 four	'four'	0	0	'four'
 drop table t1;
