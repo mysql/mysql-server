@@ -811,6 +811,7 @@ sub vacuum
   {
     foreach $table (@tables)
     {
+      $dbh->do("vacuum analyze $table") || die "Got error: $DBI::errstr when executing 'vacuum analyze $table'\n";
       $dbh->do("vacuum $table") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
     }
   }
@@ -818,6 +819,7 @@ sub vacuum
   {
 #    $dbh->do("vacuum pg_attributes") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
 #    $dbh->do("vacuum pg_index") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+    $dbh->do("vacuum analyze") || die "Got error: $DBI::errstr when executing 'vacuum analyze'\n";
     $dbh->do("vacuum") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
   }
   $end_time=new Benchmark;
