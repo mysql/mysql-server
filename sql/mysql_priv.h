@@ -328,6 +328,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table,COND *conds,ha_rows rows,
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
+TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_table(TABLE *table,bool locked=0);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
