@@ -46929,6 +46929,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Fixed that @code{--skip-show-databases} doesn't reset the @code{--port} option.
+@item
 Small fix in @code{safe_mysqld} for some shells.
 @item
 Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
