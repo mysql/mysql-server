@@ -398,7 +398,16 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result && result->prepare(fields_list, unit_arg))
+  /*
+    We must not yet prepare the result table if it is the same as one of the 
+    source tables (INSERT SELECT). This is checked in mysql_execute_command()
+    and OPTION_BUFFER_RESULT is added to the select_options. A temporary 
+    table is then used to hold the result. The preparation may disable 
+    indexes on the result table, which may be used during the select, if it
+    is the same table (Bug #6034). Do the preparation after the select phase.
+  */
+  if (! procedure && ! test(select_options & OPTION_BUFFER_RESULT) &&
+      result && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
@@ -1042,6 +1051,13 @@ JOIN::exec()
       thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
     }
+  }
+  else if (test(select_options & OPTION_BUFFER_RESULT) &&
+           result && result->prepare(fields_list, unit))
+  {
+    error= 1;
+    thd->limit_found_rows= thd->examined_row_count= 0;
+    DBUG_VOID_RETURN;
   }
 
   if (!tables_list)
