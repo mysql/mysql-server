@@ -20484,13 +20484,13 @@ strings before doing the comparison:
 ß  ->  ss
 @end example
 
-All accented characters, except @code{'é'} and @code{É} are converted to
-their un-accented counterpart.  All letters are converted to uppercase.
+All accented characters, are converted to their un-accented uppercase
+counterpart.  All letters are converted to uppercase.
 
 When comparing strings with @code{LIKE} the one -> two character mapping
 is not done. All letters are converted to uppercase. Accent are removed
-from all letters except: @code{Ü}, @code{ü}, @code{É}, @code{é}, @code{Ö},
-@code{ö}, @code{Ä} and @code{ä}.
+from all letters except: @code{Ü}, @code{ü}, @code{Ö}, @code{ö},
+@code{Ä} and @code{ä}.
 
 
 @node Languages, Adding character set, Character sets, Localization
