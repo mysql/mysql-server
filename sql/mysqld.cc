@@ -3085,9 +3085,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   printf(ER(ER_READY),my_progname,server_version,
 	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysqld_unix_port),
-	 mysqld_port);
-  if (MYSQL_COMPILATION_COMMENT[0] != '\0')
-    fputs("  " MYSQL_COMPILATION_COMMENT, stdout);
+	 mysqld_port, MYSQL_COMPILATION_COMMENT);
   putchar('\n');
   fflush(stdout);
 
