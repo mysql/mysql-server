@@ -202,7 +202,7 @@ if ($opt_stage == 0)
 safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
-  $md5_result= safe_system("my_md5sum -c ${opt_distribution}.md5");
+  $md5_result= safe_system("./my_md5sum -c ${opt_distribution}.md5");
 
   if ($md5_result != 0)
   {
@@ -332,7 +332,7 @@ $tar_file=<$pwd/$host/mysql*.t*gz>;
 abort ("Could not find tarball!") unless ($tar_file);
 
 # Generate the MD5 for the binary distribution
-safe_system("my_md5sum $tar_file > ${tar_file}.md5}");
+safe_system("./my_md5sum $tar_file > ${tar_file}.md5}");
 
 #
 # Unpack the binary distribution
