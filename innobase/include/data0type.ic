@@ -354,6 +354,7 @@ dtype_get_fixed_size(
 	case DATA_INT:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
+			return(dtype_get_len(type));
 	case DATA_MYSQL:
 			if (type->prtype & DATA_BINARY_TYPE) {
 				return(dtype_get_len(type));
@@ -438,6 +439,7 @@ dtype_get_min_size(
 	case DATA_INT:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
+			return(type->len);
 	case DATA_MYSQL:
 			if ((type->prtype & DATA_BINARY_TYPE)
 					|| type->mbminlen == type->mbmaxlen) {
@@ -446,6 +448,7 @@ dtype_get_min_size(
 			/* this is a variable-length character set */
 			ut_a(type->mbminlen > 0);
 			ut_a(type->mbmaxlen > type->mbminlen);
+			ut_a(type->len % type->mbmaxlen == 0);
 			return(type->len * type->mbminlen / type->mbmaxlen);
 	case DATA_VARCHAR:
 	case DATA_BINARY:

@@ -2233,7 +2233,9 @@ row_sel_field_store_in_mysql_format(
 			are not in themselves stored here: the caller must
 			allocate and copy the BLOB into buffer before, and pass
 			the pointer to the BLOB in 'data' */
-	const mysql_row_templ_t* templ,	/* in: MySQL column template */
+	const mysql_row_templ_t* templ,	/* in: MySQL column template.
+			Its following fields are referenced:
+			type, is_unsigned, mysql_col_len, mbminlen, mbmaxlen */
 	byte*	data,	/* in: data to store */
 	ulint	len)	/* in: length of the data */
 {
@@ -2280,16 +2282,17 @@ row_sel_field_store_in_mysql_format(
 
 		row_mysql_store_blob_ref(dest, templ->mysql_col_len,
 							data, len);
-	} else {
+	} else if (templ->type == DATA_MYSQL) {
 		memcpy(dest, data, len);
 
-		ut_ad(templ->mysql_col_len >= len);
-		ut_ad(templ->mbmaxlen >= templ->mbminlen);
+		ut_a(templ->mysql_col_len >= len);
+		ut_a(templ->mbmaxlen >= templ->mbminlen);
 
-		ut_ad(templ->mbmaxlen > templ->mbminlen
+		ut_a(templ->mbmaxlen > templ->mbminlen
 			|| templ->mysql_col_len == len);
-		ut_ad(!templ->mbmaxlen
+		ut_a(!templ->mbmaxlen
 			|| !(templ->mysql_col_len % templ->mbmaxlen));
+		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
 		if (templ->mbminlen != templ->mbmaxlen) {
 			/* Pad with spaces.  This undoes the stripping
@@ -2297,6 +2300,16 @@ row_sel_field_store_in_mysql_format(
 			row_mysql_store_col_in_innobase_format(). */
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
+	} else {
+		ut_a(templ->type == DATA_CHAR
+			|| templ->type == DATA_FIXBINARY
+			/*|| templ->type == DATA_SYS_CHILD
+			|| templ->type == DATA_SYS*/
+			|| templ->type == DATA_FLOAT
+			|| templ->type == DATA_DOUBLE
+			|| templ->type == DATA_DECIMAL);
+		ut_ad(templ->mysql_col_len == len);
+		memcpy(dest, data, len);
 	}
 }
 
