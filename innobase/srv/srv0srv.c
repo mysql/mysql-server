@@ -86,7 +86,7 @@ ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
 						 the max size auto-extending
 						 may increase the last data
 						 file size */
-ulint	srv_auto_extend_increment = 8;		 /* If the last data file is
+ulong	srv_auto_extend_increment = 8;		 /* If the last data file is
 						 auto-extended, we add this
 						 many pages to it at a time */
 ulint*  srv_data_file_is_raw_partition = NULL;
@@ -849,7 +849,7 @@ srv_general_init(void)
 /*======================= InnoDB Server FIFO queue =======================*/
 
 /* Maximum allowable purge history length.  <=0 means 'infinite'. */
-ulint	srv_max_purge_lag		= 0;
+ulong	srv_max_purge_lag		= 0;
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
