@@ -311,6 +311,7 @@ ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
 
 double log_10[32];			/* 10 potences */
+double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 time_t start_time;
 
@@ -3706,7 +3707,9 @@ enum options_mysqld
   OPT_DATE_FORMAT,
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
-  OPT_LOG_QUERIES_NOT_USING_INDEXES
+  OPT_LOG_QUERIES_NOT_USING_INDEXES,
+  OPT_PLAN_SEARCH_DEPTH,
+  OPT_HEURISTIC
 };
 
 
@@ -4308,6 +4311,11 @@ log and this option does nothing anymore.",
     "Use stopwords from this file instead of built-in list.",
     (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"heuristic", OPT_HEURISTIC,
+   "Controls the heuristic(s) applied during query optimization to prune less-promising partial plans from the optimizer search space. Meaning: 0 - do not apply any heuristic, thus perform exhaustive search; 1 - prune plans based on rows and read time.",
+   (gptr*) &global_system_variables.heuristic,
+   (gptr*) &max_system_variables.heuristic,
+   0, GET_ULONG, OPT_ARG, 1, 0, 1, 0, 1, 0},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_mirrored_log_groups", OPT_INNODB_MIRRORED_LOG_GROUPS,
    "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
@@ -4542,6 +4550,11 @@ The minimum value for this variable is 4096.",
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 65535, 0, 1, 0},
+  {"plan_search_depth", OPT_PLAN_SEARCH_DEPTH,
+   "Maximum depth of search performed by the query optimizer. Values larger than the number of relations in a query result in better query plans, but take longer to compile a query. Smaller values than the number of tables in a relation result in faster optimization, but may produce very bad query plans. If set to 0, the system will automatically pick a reasonable value; if set to MAX_TABLES+2, the optimizer will switch to the original find_best (used for testing/comparison).",
+   (gptr*) &global_system_variables.plan_search_depth,
+   (gptr*) &max_system_variables.plan_search_depth,
+   0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
     (gptr*) &global_system_variables.preload_buff_size,
@@ -4887,6 +4900,7 @@ struct show_var_st status_vars[]= {
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {NullS, NullS, SHOW_LONG}
 };
 
