@@ -189,7 +189,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	      tables->table_list->table=tables->table;
 	  }
 	  else
-	    unit->exclude();
+	    unit->exclude_level();
 	  org_table_list->db= (char *)"";
 #ifndef DBUG_OFF
 	  /* Try to catch errors if this is accessed */

@@ -1000,7 +1000,7 @@ CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(17) NOT NULL default '0'
+  `a` bigint(1) NOT NULL default '0'
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 create table t1 (a int);
