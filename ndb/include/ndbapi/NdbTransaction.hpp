@@ -181,6 +181,7 @@ public:
 #endif
   };
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Get an NdbOperation for a table.
    * Note that the operation has to be defined before it is executed.
@@ -192,6 +193,7 @@ public:
    * @return  Pointer to an NdbOperation object if successful, otherwise NULL.
    */
   NdbOperation* getNdbOperation(const char* aTableName);
+#endif
 
   /**
    * Get an NdbOperation for a table.
@@ -206,6 +208,7 @@ public:
    */
   NdbOperation* getNdbOperation(const NdbDictionary::Table * aTable);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Get an operation from NdbScanOperation idlelist and 
    * get the NdbTransaction object which
@@ -215,6 +218,7 @@ public:
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbScanOperation* getNdbScanOperation(const char* aTableName);
+#endif
 
   /**
    * Get an operation from NdbScanOperation idlelist and 
@@ -227,6 +231,7 @@ public:
    */
   NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * aTable);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Get an operation from NdbIndexScanOperation idlelist and 
    * get the NdbTransaction object which
@@ -238,6 +243,9 @@ public:
    */
   NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,
 						  const char* aTableName);
+  NdbIndexScanOperation* getNdbIndexScanOperation
+  (const NdbDictionary::Index *anIndex, const NdbDictionary::Table *aTable);
+#endif
   
   /**
    * Get an operation from NdbIndexScanOperation idlelist and 
@@ -246,14 +254,12 @@ public:
    *
    * @param  anIndex  
              An index object (fetched by NdbDictionary::Dictionary::getIndex).
-   * @param  aTable 
-             A table object (fetched by NdbDictionary::Dictionary::getTable).
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbIndexScanOperation* getNdbIndexScanOperation
-  (const NdbDictionary::Index * anIndex,
-   const NdbDictionary::Table * aTable);
+  (const NdbDictionary::Index *anIndex);
   
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Get an operation from NdbIndexOperation idlelist and 
    * get the NdbTransaction object that
@@ -266,21 +272,21 @@ public:
    */
   NdbIndexOperation* getNdbIndexOperation(const char*  anIndexName,
                                           const char*  aTableName);
+  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *anIndex,
+					  const NdbDictionary::Table *aTable);
+#endif
 
   /**
    * Get an operation from NdbIndexOperation idlelist and 
    * get the NdbTransaction object that
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param   anIndex   
+   * @param   anIndex
    *          An index object (fetched by NdbDictionary::Dictionary::getIndex).
-   * @param   aTable    
-   *          A table object (fetched by NdbDictionary::Dictionary::getTable).
    * @return              Pointer to an NdbIndexOperation object if 
    *                      successful, otherwise NULL
    */
-  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index * anIndex,
-					  const NdbDictionary::Table * aTable);
+  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *anIndex);
 
   /** 
    * @name Execute Transaction

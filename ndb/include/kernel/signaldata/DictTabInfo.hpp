@@ -96,6 +96,8 @@ public:
     FrmLen             = 26,
     FrmData            = 27,
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
+    FragmentDataLen    = 129,
+    FragmentData       = 130, // CREATE_FRAGMENTATION reply
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -236,7 +238,9 @@ public:
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
-
+    Uint32 FragmentDataLen;
+    Uint16 FragmentData[(MAX_FRAGMENT_DATA_BYTES+1)/2];
+    
     void init();
   };
 

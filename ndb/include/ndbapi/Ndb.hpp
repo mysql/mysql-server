@@ -115,33 +115,39 @@
    
    This first example uses an NdbOperation:
    @code
-     // 1. Create
-     MyOperation= MyTransaction->getNdbOperation("MYTABLENAME");
-    
-     // 2. Define type of operation and lock mode
-     MyOperation->readTuple(NdbOperation::LM_Read);
+     // 1. Retrieve table object
+     myTable= myDict->getTable("MYTABLENAME");
 
-     // 3. Specify Search Conditions
-     MyOperation->equal("ATTR1", i);
+     // 2. Create
+     myOperation= myTransaction->getNdbOperation(myTable);
     
-     // 4. Attribute Actions
-     MyRecAttr= MyOperation->getValue("ATTR2", NULL);
+     // 3. Define type of operation and lock mode
+     myOperation->readTuple(NdbOperation::LM_Read);
+
+     // 4. Specify Search Conditions
+     myOperation->equal("ATTR1", i);
+    
+     // 5. Attribute Actions
+     myRecAttr= myOperation->getValue("ATTR2", NULL);
    @endcode
    For additional examples of this sort, see @ref ndbapi_simple.cpp.
 
    The second example uses an NdbIndexOperation:
    @code
-     // 1. Create
-     MyOperation= MyTransaction->getNdbIndexOperation("MYINDEX","MYTABLENAME");
+     // 1. Retrieve index object
+     myIndex= myDict->getIndex("MYINDEX", "MYTABLENAME");
 
-     // 2. Define type of operation and lock mode
-     MyOperation->readTuple(NdbOperation::LM_Read);
+     // 2. Create
+     myOperation= myTransaction->getNdbIndexOperation(myIndex);
 
-     // 3. Specify Search Conditions
-     MyOperation->equal("ATTR1", i);
+     // 3. Define type of operation and lock mode
+     myOperation->readTuple(NdbOperation::LM_Read);
 
-     // 4. Attribute Actions 
-     MyRecAttr = MyOperation->getValue("ATTR2", NULL);
+     // 4. Specify Search Conditions
+     myOperation->equal("ATTR1", i);
+
+     // 5. Attribute Actions 
+     myRecAttr = myOperation->getValue("ATTR2", NULL);
    @endcode
    Another example of this second type can be found in 
    @ref ndbapi_simple_index.cpp.
@@ -230,38 +236,44 @@
    
    This first example performs a table scan, using an NdbScanOperation:
    @code
-     // 1. Create
-     MyOperation= MyTransaction->getNdbScanOperation("MYTABLENAME");
+     // 1. Retrieve table object
+     myTable= myDict->getTable("MYTABLENAME");
     
-     // 2. Define type of operation and lock mode
-     MyOperation->readTuples(NdbOperation::LM_Read);
+     // 2. Create
+     myOperation= myTransaction->getNdbScanOperation(myTable);
+    
+     // 3. Define type of operation and lock mode
+     myOperation->readTuples(NdbOperation::LM_Read);
 
-     // 3. Specify Search Conditions
-     NdbScanFilter sf(MyOperation);
+     // 4. Specify Search Conditions
+     NdbScanFilter sf(myOperation);
      sf.begin(NdbScanFilter::OR);
      sf.eq(0, i);   // Return rows with column 0 equal to i or
      sf.eq(1, i+1); // column 1 equal to (i+1)
      sf.end();
 
-     // 4. Attribute Actions
-     MyRecAttr= MyOperation->getValue("ATTR2", NULL);
+     // 5. Attribute Actions
+     myRecAttr= myOperation->getValue("ATTR2", NULL);
    @endcode
 
    Our second example uses an NdbIndexScanOperation to perform an index scan:
    @code
-     // 1. Create
-     MyOperation= MyTransaction->getNdbIndexScanOperation("MYORDEREDINDEX", "MYTABLENAME");
+     // 1. Retrieve index object
+     myIndex= myDict->getIndex("MYORDEREDINDEX", "MYTABLENAME");
 
-     // 2. Define type of operation and lock mode
-     MyOperation->readTuples(NdbOperation::LM_Read);
+     // 2. Create
+     myOperation= myTransaction->getNdbIndexScanOperation(myIndex);
 
-     // 3. Specify Search Conditions
+     // 3. Define type of operation and lock mode
+     myOperation->readTuples(NdbOperation::LM_Read);
+
+     // 4. Specify Search Conditions
      // All rows with ATTR1 between i and (i+1)
-     MyOperation->setBound("ATTR1", NdbIndexScanOperation::BoundGE, i);
-     MyOperation->setBound("ATTR1", NdbIndexScanOperation::BoundLE, i+1);    
+     myOperation->setBound("ATTR1", NdbIndexScanOperation::BoundGE, i);
+     myOperation->setBound("ATTR1", NdbIndexScanOperation::BoundLE, i+1);
 
-     // 4. Attribute Actions 
-     MyRecAttr = MyOperation->getValue("ATTR2", NULL);
+     // 5. Attribute Actions 
+     myRecAttr = MyOperation->getValue("ATTR2", NULL);
    @endcode
 
    Some additional discussion of each step required to perform a scan follows:
@@ -583,7 +595,8 @@
    
    As noted previously, the application programmer can provide hints to the NDB API as to 
    which transaction co-ordinator it should use. This is done by
-   providing a <em>partition key</em> (usually the primary key).
+   providing a <em>table</em> and <em>partition key</em> 
+   (usually the primary key).
    By using the primary key as the partition key, 
    the transaction will be placed on the node where the primary replica
    of that record resides.
@@ -1236,16 +1249,17 @@ public:
    *       The transaction must be closed independent of its outcome, i.e.
    *       even if there is an error.
    *
-   * @param  prio     Not implemented
-   * @param  keyData  Pointer to partition key to be used for deciding
+   * @param  table    Pointer to table object used for deciding 
    *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Pointer to partition key corresponding to
+   *                  <var>table</var>
    * @param  keyLen   Length of partition key expressed in bytes
    * 
    * @return NdbTransaction object, or NULL on failure.
    */
-  NdbTransaction* startTransaction(Uint32        prio = 0, 
-				  const char *  keyData = 0, 
-				  Uint32        keyLen = 0);
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
+				   const char  *keyData = 0, 
+				   Uint32       keyLen = 0);
 
   /**
    * Close a transaction.

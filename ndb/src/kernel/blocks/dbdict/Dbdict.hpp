@@ -1582,7 +1582,8 @@ private:
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
 			     AttributeRecordPtr & attrPtr);
   void packTableIntoPages(Signal* signal, Uint32 tableId, Uint32 pageId);
-  void packTableIntoPagesImpl(SimpleProperties::Writer &, TableRecordPtr);
+  void packTableIntoPagesImpl(SimpleProperties::Writer &, TableRecordPtr,
+			      Signal* signal= 0);
   
   void sendGET_TABINFOREQ(Signal* signal,
                           Uint32 tableId);

@@ -151,18 +151,24 @@ static void create_table(MYSQL &mysql)
  **************************************************************************/
 static void do_insert(Ndb &myNdb)
 {
+  const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   for (int i = 0; i < 5; i++) {
     NdbTransaction *myTransaction= myNdb.startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
     
-    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i);
     myOperation->setValue("ATTR2", i);
 
-    myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    myOperation= myTransaction->getNdbOperation(myTable);
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
 
     myOperation->insertTuple();
@@ -181,11 +187,17 @@ static void do_insert(Ndb &myNdb)
  *****************************************************************/
 static void do_update(Ndb &myNdb)
 {
+  const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   for (int i = 0; i < 10; i+=2) {
     NdbTransaction *myTransaction= myNdb.startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
     
-    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->updateTuple();
@@ -204,10 +216,16 @@ static void do_update(Ndb &myNdb)
  *************************************************/
 static void do_delete(Ndb &myNdb)
 {
+  const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   NdbTransaction *myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
   
-  NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+  NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
   if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
   
   myOperation->deleteTuple();
@@ -224,13 +242,19 @@ static void do_delete(Ndb &myNdb)
  *****************************/
 static void do_read(Ndb &myNdb)
 {
+  const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   std::cout << "ATTR1 ATTR2" << std::endl;
   
   for (int i = 0; i < 10; i++) {
     NdbTransaction *myTransaction= myNdb.startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
     
-    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->readTuple(NdbOperation::LM_Read);

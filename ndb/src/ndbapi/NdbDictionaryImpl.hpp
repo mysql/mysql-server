@@ -117,7 +117,14 @@ public:
   Vector<Uint32> m_columnHash;
   Vector<NdbColumnImpl *> m_columns;
   void buildColumnHash(); 
-  
+
+  /**
+   * Fragment info
+   */
+  Uint32 m_hashValueMask;
+  Uint32 m_hashpointerValue;
+  Vector<Uint16> m_fragments;
+
   bool m_logging;
   int m_kvalue;
   int m_minLoadFactor;
@@ -144,6 +151,8 @@ public:
   Uint8 m_noOfKeys;
   Uint8 m_noOfDistributionKeys;
   Uint8 m_noOfBlobs;
+  
+  Uint8 m_replicaCount;
 
   /**
    * Equality/assign
@@ -156,6 +165,11 @@ public:
   static NdbTableImpl & getImpl(NdbDictionary::Table & t);
   static NdbTableImpl & getImpl(const NdbDictionary::Table & t);
   NdbDictionary::Table * m_facade;
+  
+  /**
+   * Return count
+   */
+  Uint32 get_nodes(Uint32 hashValue, const Uint16** nodes) const ;
 };
 
 class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
@@ -169,6 +183,7 @@ public:
   void setTable(const char * table);
   const char * getTable() const;
   const NdbTableImpl * getIndexTable() const;
+  const NdbTableImpl * getBaseTable() const;
 
   Uint32 m_indexId;
   BaseString m_internalName;
