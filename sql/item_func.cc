@@ -2703,17 +2703,17 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  
+
   error= get_var_with_binlog(thd, name, &var_entry);
-  
-  if (!var_entry)
-    null_value= 1;
-  else
+
+  if (var_entry)
     collation.set(var_entry->collation);
- 
+  else
+    null_value= 1;
+
   if (error)
     thd->fatal_error();
-      
+
   return;
 }
 

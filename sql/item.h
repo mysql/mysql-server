@@ -489,6 +489,7 @@ public:
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
   void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
+  bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*
     Assign placeholder value from bind data.

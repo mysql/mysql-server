@@ -348,6 +348,7 @@ inline THD *_current_thd(void)
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+class user_var_entry;
 #include "item.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
