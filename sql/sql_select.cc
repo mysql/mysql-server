@@ -4252,7 +4252,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
     {
       memcpy((gptr) join->best_positions,(gptr) join->positions,
 	     sizeof(POSITION)*idx);
-      join->best_read=read_time;
+      join->best_read= read_time - 0.001;
     }
     return;
   }
@@ -11654,8 +11654,21 @@ calc_group_buffer(JOIN *join,ORDER *group)
       key_length+=sizeof(double);
     else if ((*group->item)->result_type() == INT_RESULT)
       key_length+=sizeof(longlong);
+    else if ((*group->item)->result_type() == STRING_RESULT)
+    {
+      /*
+        Group strings are taken as varstrings and require an length field.
+        A field is not yet created by create_tmp_field()
+        and the sizes should match up.
+      */
+      key_length+= (*group->item)->max_length + HA_KEY_BLOB_LENGTH;
+    }
     else
-      key_length+=(*group->item)->max_length;
+    {
+      /* This case should never be choosen */
+      DBUG_ASSERT(0);
+      current_thd->fatal_error();
+    }
     parts++;
     if ((*group->item)->maybe_null)
       null_parts++;
