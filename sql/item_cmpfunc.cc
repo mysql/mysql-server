@@ -1625,17 +1625,41 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   }
 }
 
+
+/*
+  Make a logical XOR of the arguments.
+
+  SYNOPSIS
+    val_int()
+
+  DESCRIPTION
+  If either operator is NULL, return NULL.
+
+  NOTE
+    As we don't do any index optimization on XOR this is not going to be
+    very fast to use.
+
+  TODO (low priority)
+    Change this to be optimized as:
+      A XOR B   ->  (A) == 1 AND (B) <> 1) OR (A <> 1 AND (B) == 1)
+    To be able to do this, we would however first have to extend the MySQL
+    range optimizer to handle OR better.
+*/
+
 longlong Item_cond_xor::val_int()
 {
   List_iterator<Item> li(list);
   Item *item;
   int result=0;	
-  null_value=1;
+  null_value=0;
   while ((item=li++))
   {
-    result ^= (item->val_int() != 0);
-    if (!item->null_value)
-      null_value=0;
+    result^= (item->val_int() != 0);
+    if (item->null_value)
+    {
+      null_value=1;
+      return 0;
+    }
   }
-  return result;
+  return (longlong) result;
 }
