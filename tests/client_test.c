@@ -10251,7 +10251,7 @@ static void test_bug5194()
   /* Number of columns per row */
   const int COLUMN_COUNT= sizeof(float_array)/sizeof(*float_array);
   /* Number of rows per bulk insert to start with */
-  const int MIN_ROWS_PER_INSERT= 260;
+  const int MIN_ROWS_PER_INSERT= 262;
   /* Max number of rows per bulk insert to end with */
   const int MAX_ROWS_PER_INSERT= 300;
   const int MAX_PARAM_COUNT= COLUMN_COUNT*MAX_ROWS_PER_INSERT;
@@ -10388,6 +10388,34 @@ static void test_bug5194()
   stmt_text= "drop table t1";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
+}
+
+
+static void test_bug5315()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug5315");
+
+  stmt_text= "SELECT 1";
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  DBUG_ASSERT(rc == 0);
+  mysql_change_user(mysql, opt_user, opt_password, current_db);
+  rc= mysql_stmt_execute(stmt);
+  DBUG_ASSERT(rc != 0);
+  if (rc)
+    printf("Got error (as expected):\n%s", mysql_stmt_error(stmt));
+  /* check that connection is OK */
+  mysql_stmt_close(stmt);
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  DBUG_ASSERT(rc == 0);
+  rc= mysql_stmt_execute(stmt);
+  DBUG_ASSERT(rc == 0);
+  mysql_stmt_close(stmt);
 }
 
 
@@ -10694,6 +10722,8 @@ int main(int argc, char **argv)
     test_bug5399();         /* check that statement id uniquely identifies
                                statement */
     test_bug5194();         /* bulk inserts in prepared mode */
+    test_bug5315();         /* check that mysql_change_user closes all
+                               prepared statements */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.

@@ -1831,7 +1831,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_SCI_HOSTNAME_1,
+    CFG_CONNECTION_HOSTNAME_1,
     "HostName1",
     "SCI",
     "Name/IP of computer on one side of the connection",
@@ -1842,7 +1842,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_SCI_HOSTNAME_2,
+    CFG_CONNECTION_HOSTNAME_2,
     "HostName2",
     "SCI",
     "Name/IP of computer on one side of the connection",

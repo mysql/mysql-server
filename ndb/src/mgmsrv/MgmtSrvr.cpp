@@ -401,7 +401,7 @@ MgmtSrvr::getPort() const {
 /* Constructor */
 MgmtSrvr::MgmtSrvr(NodeId nodeId,
 		   const BaseString &configFilename,
-		   const BaseString &ndb_config_filename,
+		   LocalConfig &local_config,
 		   Config * config):
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
@@ -409,7 +409,9 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  m_statisticsListner(this){
+  m_statisticsListner(this),
+  m_local_config(local_config)
+{
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
@@ -424,7 +426,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   m_newConfig = NULL;
   m_configFilename = configFilename;
-  m_localNdbConfigFilename = ndb_config_filename;
 
   m_nextConfigGenerationNumber = 0;
 
@@ -514,7 +515,7 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   {
     DBUG_PRINT("info", ("verifyConfig"));
-    ConfigRetriever cr(NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
+    ConfigRetriever cr(m_local_config, NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
     if (!cr.verifyConfig(config->m_configValues, _ownNodeId)) {
       ndbout << cr.getErrorString() << endl;
       exit(-1);
@@ -2419,7 +2420,17 @@ void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
   m_lastBackupEvent = event;
-  theWaitState = NO_WAIT;
+  switch(event.Event){
+  case BackupEvent::BackupFailedToStart:
+  case BackupEvent::BackupAborted:
+  case BackupEvent::BackupCompleted:
+    theWaitState = NO_WAIT;
+    break;
+  case BackupEvent::BackupStarted:
+    if(theWaitState == WAIT_BACKUP_STARTED)
+      theWaitState = NO_WAIT;
+  }
+  return;
 }
 
 

@@ -28,7 +28,7 @@
  */
 class ConfigRetriever {
 public:
-  ConfigRetriever(Uint32 version, Uint32 nodeType);
+  ConfigRetriever(LocalConfig &local_config, Uint32 version, Uint32 nodeType);
   ~ConfigRetriever();
 
   /**
@@ -55,16 +55,6 @@ public:
   const char * getErrorString();
 
   /**
-   * Sets connectstring which can be used instead of local config file
-   */
-  void setConnectString(const char * connectString);
-
-  /**
-   * Sets name of local config file (usually not needed)
-   */
-  void setLocalConfigFileName(const char * connectString);
-
-  /**
    * @return Node id of this node (as stated in local config or connectString)
    */
   Uint32 allocNodeId();
@@ -83,6 +73,9 @@ public:
    * Verify config
    */
   bool verifyConfig(const struct ndb_mgm_configuration *, Uint32 nodeid);
+
+  Uint32 get_mgmd_port() const {return m_mgmd_port;};
+  const char *get_mgmd_host() const {return m_mgmd_host;};
 private:
   BaseString errorString;
   enum ErrorType {
@@ -93,12 +86,11 @@ private:
   
   void setError(ErrorType, const char * errorMsg);
   
-  BaseString            _localConfigFileName;
-  struct LocalConfig    _localConfig;
+  struct LocalConfig&   _localConfig;
   Uint32                _ownNodeId;
-  
-  BaseString            m_connectString;
-  
+  Uint32      m_mgmd_port;
+  const char *m_mgmd_host;
+
   Uint32 m_version;
   Uint32 m_node_type;
   NdbMgmHandle m_handle;
