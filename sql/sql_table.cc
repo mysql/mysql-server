@@ -1395,11 +1395,11 @@ mysql_rename_table(enum db_type base,
   {
     /* Table handler expects to get all file names as lower case */
     strmov(tmp_from, old_name);
-    my_casedn_str(system_charset_info, tmp_from);
+    my_casedn_str(files_charset_info, tmp_from);
     old_name= tmp_from;
 
     strmov(tmp_to, new_name);
-    my_casedn_str(system_charset_info, tmp_to);
+    my_casedn_str(files_charset_info, tmp_to);
     new_name= tmp_to;
   }
   my_snprintf(from, sizeof(from), "%s/%s/%s",
@@ -2467,14 +2467,10 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
 		      TABLE_LIST *table_list,
-		      List<create_field> &fields,
-		      List<Key> &keys,List<Alter_drop> &drop_list,
-		      List<Alter_column> &alter_list,
-		      uint order_num, ORDER *order, uint alter_flags,
+		      List<create_field> &fields, List<Key> &keys,
+		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      enum enum_enable_or_disable keys_onoff,
-		      enum tablespace_op_type tablespace_op,
-		      bool simple_alter)
+		      ALTER_INFO *alter_info)
 {
   TABLE *table,*new_table;
   int error;
@@ -2499,9 +2495,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   mysql_ha_closeall(thd, table_list);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
-  if (tablespace_op != NO_TABLESPACE_OP)
+  if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-						   tablespace_op));
+						   alter_info->tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -2514,10 +2510,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (lower_case_table_names != 2)
       {
-	my_casedn_str(system_charset_info, new_name_buff);
+	my_casedn_str(files_charset_info, new_name_buff);
 	new_alias= new_name;			// Create lower case table name
       }
-      my_casedn_str(system_charset_info, new_name);
+      my_casedn_str(files_charset_info, new_name);
     }
     if (new_db == db &&
 	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
@@ -2570,7 +2566,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->row_type=table->row_type;
 
   thd->proc_info="setup";
-  if (simple_alter && !table->tmp_table)
+  if (alter_info->is_simple && !table->tmp_table)
   {
     error=0;
     if (new_name != table_name || new_db != db)
@@ -2596,7 +2592,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (!error)
     {
-      switch (keys_onoff) {
+      switch (alter_info->keys_onoff) {
       case LEAVE_AS_IS:
 	break;
       case ENABLE:
@@ -2656,9 +2652,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->default_table_charset= table->table_charset;
 
   restore_record(table,default_values);		// Empty record for DEFAULT
-  List_iterator<Alter_drop> drop_it(drop_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<create_field> def_it(fields);
-  List_iterator<Alter_column> alter_it(alter_list);
+  List_iterator<Alter_column> alter_it(alter_info->alter_list);
   List<create_field> create_list;		// Add new fields here
   List<Key> key_list;				// Add new keys here
   create_field *def;
@@ -2762,9 +2758,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       find_it.after(def);			// Put element after this
     }
   }
-  if (alter_list.elements)
+  if (alter_info->alter_list.elements)
   {
-    my_error(ER_BAD_FIELD_ERROR,MYF(0),alter_list.head()->name,table_name);
+    my_error(ER_BAD_FIELD_ERROR,MYF(0),alter_info->alter_list.head()->name,
+	     table_name);
     DBUG_RETURN(-1);
   }
   if (!create_list.elements)
@@ -2864,14 +2861,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-  if (drop_list.elements)
+  if (alter_info->drop_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),drop_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),
+	     alter_info->drop_list.head()->name);
     goto err;
   }
-  if (alter_list.elements)
+  if (alter_info->alter_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),alter_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),
+	     alter_info->alter_list.head()->name);
     goto err;
   }
 
@@ -2880,7 +2879,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	      current_pid, thd->thread_id);
   /* Safety fix for innodb */
   if (lower_case_table_names)
-    my_casedn_str(system_charset_info, tmp_name);
+    my_casedn_str(files_charset_info, tmp_name);
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment=table->comment;

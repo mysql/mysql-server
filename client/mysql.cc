@@ -371,10 +371,16 @@ int main(int argc,char *argv[])
       !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
   {
     free_defaults(defaults_argv);
+    my_end(0);
+    exit(1);
+  }
+  if (mysql_server_init(0, NULL, (char**) server_default_groups))
+  {
+    free_defaults(defaults_argv);
+    my_end(0);
     exit(1);
   }
   glob_buffer.realloc(512);
-  mysql_server_init(0, NULL, (char**) server_default_groups);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
   bzero((char*) &mysql, sizeof(mysql));

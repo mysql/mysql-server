@@ -123,7 +123,7 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 				BEGIN(INITIAL);
 				yylval = sym_tab_add_str_lit(
 					pars_sym_tab_global,
-					stringbuf, stringbuf_len);
+					(byte*) stringbuf, stringbuf_len);
 				return(PARS_STR_LIT);
 			}
 }
@@ -137,7 +137,7 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 "SQL"		{
 			/* Implicit cursor name */
 			yylval = sym_tab_add_str_lit(pars_sym_tab_global,
-							yytext, yyleng);
+							(byte*) yytext, yyleng);
 			return(PARS_SQL_TOKEN);
 }
 

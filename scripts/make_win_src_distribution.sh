@@ -326,6 +326,10 @@ fi
 if [ -f scripts/mysql_install_db ]; then
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
+  if test "$?" = 1
+  then
+    exit 1;
+  fi
 fi
 
 #
