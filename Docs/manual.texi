@@ -37751,8 +37751,6 @@ is close to 2 GB or exceeds 2 GB. Each thread will use a stack
 additional memory.
 
 @strong{How to tune other @file{mysqld} server parameters?}
-For detailed information on how to tune other MySQL server
-parameters, see the MySQL <a href="http://www.mysql.com/doc/">manual</a>.
 Typical values which suit most users are:
 @example
 set-variable = max_connections=200
@@ -38069,7 +38067,7 @@ foreign key constraint to a table through
 ALTER TABLE yourtablename ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
 @end example
 Remember to create the required indexes first, though.
-                                          
+                           
 Starting from version 3.23.50, InnoDB does not check foreign key
 constraints on those foreign key or referenced key values
 which contain a NULL column.
