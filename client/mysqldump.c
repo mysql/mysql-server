@@ -185,7 +185,10 @@ static struct my_option my_long_options[] =
   {"first-slave", 'x', "Locks all tables across all databases.",
    (gptr*) &opt_first_slave, (gptr*) &opt_first_slave, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"flush-logs", 'F', "Flush logs file in server before starting dump.",
+  {"flush-logs", 'F', "Flush logs file in server before starting dump. "
+    "Note that if you dump many databases at once (using the option "
+    "--databases= or --all-databases), the logs will be flushed for "
+    "each database dumped.",
    (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
@@ -1721,7 +1724,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (opt_xml)
     fputs("</database>\n", md_result_file);
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_selected_tables */
 

@@ -290,7 +290,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-		return(HA_WRONG_CREATE_OPTION);
+    		return(HA_ERR_ROW_IS_REFERENCED);
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
@@ -552,7 +552,7 @@ innobase_query_caching_of_table_permitted(
 
 	if (thd->variables.tx_isolation == ISO_SERIALIZABLE) {
 		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
-		plain SELECT */
+		plain SELECT if AUTOCOMMIT is not on. */
 	
 		return((my_bool)FALSE);
 	}
@@ -3467,7 +3467,7 @@ ha_innobase::create(
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
-	        return(HA_ERR_TO_BIG_ROW);
+	     DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	} 
 
 	/* Get the transaction associated with the current thd, or create one
@@ -3681,6 +3681,7 @@ ha_innobase::delete_table(
 	int	error;
 	trx_t*	parent_trx;
 	trx_t*	trx;
+	THD	*thd= current_thd;
 	char	norm_name[1000];
 
  	DBUG_ENTER("ha_innobase::delete_table");
@@ -3705,6 +3706,14 @@ ha_innobase::delete_table(
 
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
+
+	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
+	if (thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+		trx->check_unique_secondary = FALSE;
+	}
 
 	name_len = strlen(name);
 
@@ -4399,7 +4408,28 @@ ha_innobase::get_foreign_key_create_info(void)
         prebuilt->trx->op_info = (char*)"";
 
   	return(str);
-}			
+}
+
+/***********************************************************************
+Checks if a table is referenced by a foreign key. The MySQL manual states that
+a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a
+delete is then allowed internally to resolve a duplicate key conflict in
+REPLACE, not an update. */
+
+uint
+ha_innobase::referenced_by_foreign_key(void)
+/*========================================*/
+			/* out: > 0 if referenced by a FOREIGN KEY */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+
+	if (dict_table_referenced_by_foreign_key(prebuilt->table)) {
+
+		return(1);
+	}
+
+	return(0);
+}
 
 /***********************************************************************
 Frees the foreign key create info for a table stored in InnoDB, if it is
@@ -4617,11 +4647,17 @@ ha_innobase::external_lock(
 		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
-		    && prebuilt->select_lock_type == LOCK_NONE) {
+		    && prebuilt->select_lock_type == LOCK_NONE
+		    && (thd->options
+				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		    	/* To get serializable execution we let InnoDB
+		    	/* To get serializable execution, we let InnoDB
 		    	conceptually add 'LOCK IN SHARE MODE' to all SELECTs
-			which otherwise would have been consistent reads */
+			which otherwise would have been consistent reads. An
+			exception is consistent reads in the AUTOCOMMIT=1 mode:
+			we know that they are read-only transactions, and they
+			can be serialized also if performed as consistent
+			reads. */
 
 			prebuilt->select_lock_type = LOCK_S;
 		}

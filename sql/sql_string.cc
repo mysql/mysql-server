@@ -699,11 +699,56 @@ void String::qs_append(const char &c)
 }
 
 
-int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
+/*
+  Compare strings according to collation, without end space.
+
+  SYNOPSIS
+    sortcmp()
+    s		First string
+    t		Second string
+    cs		Collation
+
+  NOTE:
+    Normally this is case sensitive comparison
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
 {
-  return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
+ return cs->coll->strnncollsp(cs,
+                             (unsigned char *) s->ptr(),s->length(),
+			     (unsigned char *) t->ptr(),t->length());
+}
+
+
+/*
+  Compare strings byte by byte. End spaces are also compared.
+
+  SYNOPSIS
+    stringcmp()
+    s		First string
+    t		Second string
+
+  NOTE:
+    Strings are compared as a stream of unsigned chars
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int stringcmp(const String *s,const String *t)
+{
+  uint32 s_len=s->length(),t_len=t->length(),len=min(s_len,t_len);
+  int cmp= memcmp(s->ptr(), t->ptr(), len);
+  return (cmp) ? cmp : (int) (s_len - t_len);
 }
 
 

@@ -206,7 +206,7 @@ character-set=koi8r
 "Эту операцию невозможно выполнить при работающем потоке подчиненного сервера. Сначала выполните STOP SLAVE",
 "Для этой операции требуется работающий подчиненный сервер. Сначала выполните START SLAVE",
 "Этот сервер не настроен как подчиненный. Внесите исправления в конфигурационном файле или с помощью CHANGE MASTER TO",
-"Невозможно инициализировать структуру для информации о головном сервере. Проверьте права на файл master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Невозможно создать поток подчиненного сервера. Проверьте системные ресурсы",
 "У пользователя %-.64s уже больше чем 'max_user_connections' активных соединений",
 "Вы можете использовать в SET только константные выражения",
@@ -243,6 +243,7 @@ character-set=koi8r
 "Эта версия MySQL пока еще не поддерживает '%s'",
 "Получена неисправимая ошибка %d: '%-.128s' от головного сервера в процессе выборки данных из двоичного журнала",
 "Slave SQL thread ignored the query because of replicate-*-table rules",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Операнд должен содержать %d колонок",
@@ -293,5 +294,5 @@ character-set=koi8r
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
 "Таблица %-.100s в %s не может изменятся",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

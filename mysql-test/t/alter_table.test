@@ -244,6 +244,23 @@ LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
+#
+# Bug #2628: 'alter table t1 rename mysqltest.t1' silently drops mysqltest.t1 
+# if it exists
+#
+create table t1 (name char(15));
+insert into t1 (name) values ("current");
+create database mysqltest;
+create table mysqltest.t1 (name char(15));
+insert into mysqltest.t1 (name) values ("mysqltest");
+select * from t1;
+select * from mysqltest.t1;
+--error 1050
+alter table t1 rename mysqltest.t1;
+select * from t1;
+select * from mysqltest.t1;
+drop table t1;
+drop database mysqltest;
 
 #
 # Bug 2361

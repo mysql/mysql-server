@@ -83,7 +83,7 @@ set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'аб');
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 s1	hex(s1)	char_length(s1)	octet_length(s1)
 а	D0B0	1	2

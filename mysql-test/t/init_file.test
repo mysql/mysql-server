@@ -1,0 +1,7 @@
+#
+# This is a regression test for bug #2526 "--init-file crashes MySQL if it
+# contains a large select"
+#
+# See mysql-test/std_data/init_file.dat and
+# mysql-test/t/init_file-master.opt for the actual test
+# 

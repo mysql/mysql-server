@@ -96,6 +96,8 @@ static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
+static void fix_thd_mem_root(THD *thd, enum_var_type type);
+static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -260,13 +262,17 @@ sys_var_long_ptr	sys_query_cache_size("query_cache_size",
 sys_var_thd_ulong	sys_range_alloc_block_size("range_alloc_block_size",
 						   &SV::range_alloc_block_size);
 sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
-						   &SV::query_alloc_block_size);
+						   &SV::query_alloc_block_size,
+						   fix_thd_mem_root);
 sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
-						&SV::query_prealloc_size);
+						&SV::query_prealloc_size,
+						fix_thd_mem_root);
 sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
-						   &SV::trans_alloc_block_size);
+						   &SV::trans_alloc_block_size,
+						   fix_trans_mem_root);
 sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
-						&SV::trans_prealloc_size);
+						&SV::trans_prealloc_size,
+						fix_trans_mem_root);
 
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
@@ -653,7 +659,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
-  {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_MY_BOOL},
+  {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
   {sys_max_binlog_size.name,    (char*) &sys_max_binlog_size,	    SHOW_SYS},
@@ -1016,6 +1022,24 @@ static void fix_max_connections(THD *thd, enum_var_type type)
   resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
 }
 
+
+static void fix_thd_mem_root(THD *thd, enum_var_type type)
+{
+  if (type != OPT_GLOBAL)
+    reset_root_defaults(&thd->mem_root,
+                        thd->variables.query_alloc_block_size,
+                        thd->variables.query_prealloc_size);
+}
+
+
+static void fix_trans_mem_root(THD *thd, enum_var_type type)
+{
+  if (type != OPT_GLOBAL)
+    reset_root_defaults(&thd->transaction.mem_root,
+                        thd->variables.trans_alloc_block_size,
+                        thd->variables.trans_prealloc_size);
+}
+
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -1332,9 +1356,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   {
     if (var_type != OPT_DEFAULT)
     {
-      net_printf(thd,
-		 var_type == OPT_GLOBAL ? ER_LOCAL_VARIABLE :
-		 ER_GLOBAL_VARIABLE, name);
+      net_printf(thd, ER_INCORRECT_GLOBAL_LOCAL_VAR,
+		 name, var_type == OPT_GLOBAL ? "LOCAL" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */

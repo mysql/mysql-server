@@ -101,6 +101,24 @@ Note	1003	select high_priority pi() AS `pi()`,sin((pi() / 2)) AS `sin(pi()/2)`,c
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.2831853071796
+SELECT ACOS(1.0);
+ACOS(1.0)
+0.000000
+SELECT ASIN(1.0);
+ASIN(1.0)
+1.570796
+SELECT ACOS(0.2*5.0);
+ACOS(0.2*5.0)
+0.000000
+SELECT ACOS(0.5*2.0);
+ACOS(0.5*2.0)
+0.000000
+SELECT ASIN(0.8+0.2);
+ASIN(0.8+0.2)
+1.570796
+SELECT ASIN(1.2-0.2);
+ASIN(1.2-0.2)
+1.570796
 explain extended select degrees(pi()),radians(360);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

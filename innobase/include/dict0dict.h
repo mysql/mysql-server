@@ -26,6 +26,14 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+/************************************************************************
+Get the database name length in a table name. */
+
+ulint
+dict_get_db_name_len(
+/*=================*/
+			/* out: database name length */
+	char*	name);	/* in: table name in the form dbname '/' tablename */
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
 
@@ -216,6 +224,15 @@ dict_foreign_add_to_cache(
 /*======================*/
 					/* out: DB_SUCCESS or error code */
 	dict_foreign_t*	foreign);	/* in, own: foreign key constraint */
+/*************************************************************************
+Checks if a table is referenced by foreign keys. */
+
+ibool
+dict_table_referenced_by_foreign_key(
+/*=================================*/
+				/* out: TRUE if table is referenced by a
+				foreign key */
+	dict_table_t*	table);	/* in: InnoDB table */
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function

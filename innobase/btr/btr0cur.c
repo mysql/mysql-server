@@ -2709,7 +2709,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
-	ulint*		n_diff;
+	ib_longlong*	n_diff;
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
@@ -2781,7 +2781,8 @@ btr_estimate_number_of_different_key_vals(
 
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j] =
-				(n_diff[j] * index->stat_n_leaf_pages
+				(n_diff[j]
+				 * (ib_longlong)index->stat_n_leaf_pages
 				 + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
 				 + total_external_size
 				 + not_empty_flag)

@@ -534,7 +534,14 @@ int write_record(TABLE *table,COPY_INFO *info)
       }
       else /* DUP_REPLACE */
       {
-        if (last_uniq_key(table,key_nr))
+	/*
+	  The manual defines the REPLACE semantics that it is either
+	  an INSERT or DELETE(s) + INSERT; FOREIGN KEY checks in
+	  InnoDB do not function in the defined way if we allow MySQL
+	  to convert the latter operation internally to an UPDATE.
+	*/
+	if (last_uniq_key(table,key_nr) &&
+	    !table->file->referenced_by_foreign_key())
         {
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
@@ -1552,8 +1559,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_create::prepare");
 
   unit= u;
-  table=create_table_from_items(thd, create_info, db, name,
-				extra_fields, keys, &values, &lock);
+  table= create_table_from_items(thd, create_info, db, name,
+				 extra_fields, keys, &values, &lock);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 

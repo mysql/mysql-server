@@ -357,14 +357,14 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
   return cmp ? cmp : (int) (slen - tlen);
 }
 
-static int my_strnncollsp_mb_bin(CHARSET_INFO * cs,
-                               const uchar *s, uint slen,
-                               const uchar *t, uint tlen)
+static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+				 const uchar *s, uint slen,
+				 const uchar *t, uint tlen)
 {
   int len, cmp;
 
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
 
   len  = ( slen > tlen ) ? tlen : slen;
 

@@ -66,8 +66,8 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
   uchar *map= cs->sort_order;
   int len;
   
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   
   len  = ( slen > tlen ) ? tlen : slen;
   
@@ -186,9 +186,9 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 }
 
 
-long        my_strntol_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, int base,
-			   char **endptr, int *err)
+long my_strntol_8bit(CHARSET_INFO *cs,
+		     const char *nptr, uint l, int base,
+		     char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -309,9 +309,9 @@ noconv:
 }
 
 
-ulong      my_strntoul_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, int base,
-			   char **endptr, int *err)
+ulong my_strntoul_8bit(CHARSET_INFO *cs,
+		       const char *nptr, uint l, int base,
+		       char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -423,9 +423,9 @@ noconv:
 }
 
 
-longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *nptr, uint l, int base,
-			   char **endptr,int *err)
+longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			  const char *nptr, uint l, int base,
+			  char **endptr,int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -825,7 +825,7 @@ cnv:
 #define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
 #endif
 
-#define INC_PTR(cs,A,B) A++
+#define INC_PTR(cs,A,B) (A)++
 
 
 int my_wildcmp_8bit(CHARSET_INFO *cs,
@@ -833,7 +833,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  int result= -1;				/* Not found, using wildcards */
+  int result= -1;			/* Not found, using wildcards */
 
   while (wildstr != wildend)
   {
@@ -845,7 +845,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
       if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
 	return(1);				/* No match */
       if (wildstr == wildend)
-	return (str != str_end);		/* Match if both are at end */
+	return(str != str_end);		/* Match if both are at end */
       result=1;					/* Found an anchor char     */
     }
     if (*wildstr == w_one)
@@ -853,7 +853,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
       do
       {
 	if (str == str_end)			/* Skip one char if possible */
-	  return (result);
+	  return(result);
 	INC_PTR(cs,str,str_end);
       } while (++wildstr < wildend && *wildstr == w_one);
       if (wildstr == wildend)
@@ -872,7 +872,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 	if (*wildstr == w_one)
 	{
 	  if (str == str_end)
-	    return (-1);
+	    return(-1);
 	  INC_PTR(cs,str,str_end);
 	  continue;
 	}
@@ -881,28 +881,29 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
       if (wildstr == wildend)
 	return(0);				/* Ok if w_many is last */
       if (str == str_end)
-	return -1;
+	return(-1);
       
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
 
-      INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
-      cmp=likeconv(cs,cmp);   
+      INC_PTR(cs,wildstr,wildend);	/* This is compared trough cmp */
+      cmp=likeconv(cs,cmp);
       do
       {
-          while (str != str_end && likeconv(cs,*str) != cmp)
-            str++;
-          if (str++ == str_end) return (-1);
+	while (str != str_end && (uchar) likeconv(cs,*str) != cmp)
+	  str++;
+	if (str++ == str_end) return(-1);
 	{
-	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,
+				  w_many);
 	  if (tmp <= 0)
-	    return (tmp);
+	    return(tmp);
 	}
       } while (str != str_end && wildstr[0] != w_many);
       return(-1);
     }
   }
-  return (str != str_end ? 1 : 0);
+  return(str != str_end ? 1 : 0);
 }
 
 
@@ -924,11 +925,11 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 */
 
 my_bool my_like_range_simple(CHARSET_INFO *cs,
-				const char *ptr,uint ptr_length,
-				int escape, int w_one, int w_many,
-				uint res_length,
-				char *min_str,char *max_str,
-				uint *min_length,uint *max_length)
+			     const char *ptr,uint ptr_length,
+			     pbool escape, pbool w_one, pbool w_many,
+			     uint res_length,
+			     char *min_str,char *max_str,
+			     uint *min_length,uint *max_length)
 {
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
@@ -953,7 +954,7 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
       do {
-	*min_str++ = ' ';			/* Because if key compression */
+	*min_str++ = ' ';		/* Because if key compression */
 	*max_str++ = cs->max_sort_char;
       } while (min_str != min_end);
       return 0;
@@ -970,7 +971,7 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
   }
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		/* Because if key compression */
+    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
   return 0;
 }
 

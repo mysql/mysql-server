@@ -1840,8 +1840,8 @@ int my_strnncollsp_utf8(CHARSET_INFO * cs,
 			const uchar *s, uint slen, 
 			const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_utf8(cs,s,slen,t,tlen);
 }
 
