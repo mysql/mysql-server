@@ -564,11 +564,10 @@ end|
 
 # This isn't the fastest way in the world to compute prime numbers, so
 # don't be too ambition. ;-)
-#QQ Something broke after the last merge. :-(  /2003-03-19
-#QQ call ip(200)|
+call ip(200)|
 # We don't want to select the entire table here, just pick a few
 # examples.
-#QQ select * from primes where i=45 or i=100 or i=199|
+select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|

@@ -50,10 +50,15 @@ sp_map_result_type(enum enum_field_types type)
 static Item *
 eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 {
+  DBUG_ENTER("eval_func_item");
   it= it->this_item();
+  DBUG_PRINT("info", ("type: %d", type));
 
   if (it->fix_fields(thd, 0, NULL))
-    return it;			// Shouldn't happen?
+  {
+    DBUG_PRINT("info", ("fix_fields() failed"));
+    DBUG_RETURN(it);		// Shouldn't happen?
+  }
 
   /* QQ How do we do this? Is there some better way? */
   if (type == MYSQL_TYPE_NULL)
@@ -62,9 +67,11 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   {
     switch (sp_map_result_type(type)) {
     case INT_RESULT:
+      DBUG_PRINT("info", ("INT_RESULT: %d", it->val_int()));
       it= new Item_int(it->val_int());
       break;
     case REAL_RESULT:
+      DBUG_PRINT("info", ("REAL_RESULT: %g", it->val()));
       it= new Item_real(it->val());
       break;
     default:
@@ -73,6 +80,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	String tmp(buffer, sizeof(buffer), it->charset());
 	String *s= it->val_str(&tmp);
 
+	DBUG_PRINT("info", ("default result: %*s", s->length(), s->c_ptr_quick()))
 	it= new Item_string(sql_strmake(s->c_ptr_quick(), s->length()),
 			    s->length(), it->charset());
 	break;
@@ -80,7 +88,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
     }
   }
 
-  return it;
+  DBUG_RETURN(it);
 }
 
 sp_head::sp_head(LEX_STRING *name, LEX *lex)
@@ -209,7 +217,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       else
       {
 	if (pvar->mode == sp_param_out)
-	  nctx->push_item(it->this_item()); // OUT
+	  nctx->push_item(NULL); // OUT
 	else
 	  nctx->push_item(eval_func_item(thd, it, pvar->type)); // IN or INOUT
 	// Note: If it's OUT or INOUT, it must be a variable.

@@ -65,10 +65,14 @@ sp_pcontext::find_pvar(LEX_STRING *name)
 
   while (i-- > 0)
   {
+    uint len= m_pvar[i].name->const_string()->length();
+
+    if (name->length > len)
+      len= name->length;
     if (my_strncasecmp(system_charset_info,
 		       name->str,
 		       m_pvar[i].name->const_string()->ptr(),
-		       name->length) == 0)
+		       len) == 0)
     {
       return m_pvar + i;
     }
