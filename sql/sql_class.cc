@@ -746,7 +746,7 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
-  if (!thd->net.vio)
+  if (!thd->vio_ok())
     DBUG_RETURN(0);
   if (!thd->net.report_error)
     DBUG_RETURN(protocol->write());
