@@ -53,6 +53,14 @@ static void pretty_print_str(FILE* file, char* str, int len)
 
 #ifndef MYSQL_CLIENT
 
+static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
+{
+  thd->query_error = 0;
+  thd->clear_error();
+  *rli->last_slave_error = 0;
+  rli->last_slave_errno = 0;
+}
+
 inline int ignored_error_code(int err_code)
 {
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
@@ -1803,8 +1811,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 #else
   rli->future_group_master_log_pos= log_pos;
 #endif
-  thd->query_error= 0;			// clear error
-  thd->clear_error();
+  clear_all_errors(thd, rli);
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -1817,84 +1824,93 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->slave_proxy_id = thread_id;		// for temp tables
 	
-    /*
-      Sanity check to make sure the master did not get a really bad
-      error on the query.
-    */
-    if (ignored_error_code((expected_error = error_code)) ||
-	!check_expected_error(thd,rli,expected_error))
-    {
-      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
-      DBUG_PRINT("query",("%s",thd->query));
+    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+    DBUG_PRINT("query",("%s",thd->query));
+    if (ignored_error_code(expected_error = error_code) ||
+        !check_expected_error(thd,rli,expected_error))
       mysql_parse(thd, thd->query, q_len);
-
+    else
+    {
       /*
-	Set a flag if we are inside an transaction so that we can restart
-	the transaction from the start if we are killed
-
-	This will only be done if we are supporting transactional tables
-	in the slave.
+        The query got a really bad error on the master (thread killed etc),
+        which could be inconsistent. Parse it to test the table names: if the
+        replicate-*-do|ignore-table rules say "this query must be ignored" then
+        we exit gracefully; otherwise we warn about the bad error and tell DBA
+        to check/fix it.
       */
-      if (!strcmp(thd->query,"BEGIN"))
-	rli->inside_transaction= opt_using_transactions;
-      else if (!(strcmp(thd->query,"COMMIT") && strcmp(thd->query,"ROLLBACK")))
-	rli->inside_transaction=0;
-
-      /*
-        If we expected a non-zero error code, and we don't get the same error
-        code, and none of them should be ignored.
-      */
-      if ((expected_error != (actual_error = thd->net.last_errno)) &&
-	  expected_error &&
-	  !ignored_error_code(actual_error) &&
-	  !ignored_error_code(expected_error))
+      if (mysql_test_parse_for_slave(thd, thd->query, q_len))
+        /* Can ignore query */
+        clear_all_errors(thd, rli);
+      else
       {
-	slave_print_error(rli, 0,
-                          "\
+        slave_print_error(rli,expected_error, 
+                          "query '%s' partially completed on the master \
+(error on master: %d) \
+and was aborted. There is a chance that your master is inconsistent at this \
+point. If you are sure that your master is ok, run this query manually on the\
+ slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
+ START SLAVE; .", thd->query, expected_error);
+        thd->query_error= 1;
+      }
+      goto end;
+    }
+
+    /*
+      Set a flag if we are inside an transaction so that we can restart
+      the transaction from the start if we are killed
+      
+      This will only be done if we are supporting transactional tables
+      in the slave.
+    */
+    if (!strcmp(thd->query,"BEGIN"))
+      rli->inside_transaction= opt_using_transactions;
+    else if (!(strcmp(thd->query,"COMMIT") && strcmp(thd->query,"ROLLBACK")))
+      rli->inside_transaction=0;
+    
+    /*
+      If we expected a non-zero error code, and we don't get the same error
+      code, and none of them should be ignored.
+    */
+    if ((expected_error != (actual_error = thd->net.last_errno)) &&
+        expected_error &&
+        !ignored_error_code(actual_error) &&
+        !ignored_error_code(expected_error))
+    {
+      slave_print_error(rli, 0,
+                        "\
 Query '%s' caused different errors on master and slave. \
 Error on master: '%s' (%d), Error on slave: '%s' (%d). \
 Default database: '%s'",
-                          query,
-                          ER_SAFE(expected_error),
-                          expected_error,
-                          actual_error ? thd->net.last_error: "no error",
-                          actual_error,
-                          print_slave_db_safe(db));
-	thd->query_error= 1;
-      }
-      /*
-        If we get the same error code as expected, or they should be ignored. 
-      */
-      else if (expected_error == actual_error ||
-	       ignored_error_code(actual_error))
-      {
-	thd->query_error = 0;
-        thd->clear_error();
-	*rli->last_slave_error = 0;
-	rli->last_slave_errno = 0;
-      }
-      /*
-        Other cases: mostly we expected no error and get one.
-      */
-      else if (thd->query_error || thd->fatal_error)
-      {
-        slave_print_error(rli,actual_error,
-			  "Error '%s' on query '%s'. Default database: '%s'",
-                          (actual_error ? thd->net.last_error :
-			   "unexpected success or fatal error"),
-			  query,
-                          print_slave_db_safe(db));
-        thd->query_error= 1;
-      }
-    } 
-    /* 
-       End of sanity check. If the test was wrong, the query got a really bad
-       error on the master, which could be inconsistent, abort and tell DBA to
-       check/fix it. check_expected_error() already printed the message to
-       stderr and rli, and set thd->query_error to 1.
+                        query,
+                        ER_SAFE(expected_error),
+                        expected_error,
+                        actual_error ? thd->net.last_error: "no error",
+                        actual_error,
+                        print_slave_db_safe(db));
+      thd->query_error= 1;
+    }
+    /*
+      If we get the same error code as expected, or they should be ignored. 
     */
+    else if (expected_error == actual_error ||
+             ignored_error_code(actual_error))
+      clear_all_errors(thd, rli);
+    /*
+      Other cases: mostly we expected no error and get one.
+    */
+    else if (thd->query_error || thd->fatal_error)
+    {
+      slave_print_error(rli,actual_error,
+                        "Error '%s' on query '%s'. Default database: '%s'",
+                        (actual_error ? thd->net.last_error :
+                         "unexpected success or fatal error"),
+                        query,
+                        print_slave_db_safe(db));
+      thd->query_error= 1;
+    }
   } /* End of if (db_ok(... */
 
+end:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
@@ -1939,8 +1955,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
-  thd->query_error = 0;
-  thd->clear_error();
+  clear_all_errors(thd, rli);
 
   if (!use_rli_only_for_errors)
   {
