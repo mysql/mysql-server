@@ -797,9 +797,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
       we can use same item for all selects.
     */
-    expr= new Item_ref((Item**)optimizer->get_cache(),
-		       (char *)"<no matter>",
-		       (char *)in_left_expr_name);
+    expr= new Item_direct_ref((Item**)optimizer->get_cache(),
+			      (char *)"<no matter>",
+			      (char *)in_left_expr_name);
 
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
@@ -993,9 +993,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 					   (char *) "<no matter>",
 					   (char *) "<list ref>");
       func=
-	eq_creator.create(new Item_ref((*optimizer->get_cache())->addr(i),
-				       (char *)"<no matter>",
-				     (char *)in_left_expr_name),
+	eq_creator.create(new Item_direct_ref((*optimizer->get_cache())->
+					      addr(i),
+					      (char *)"<no matter>",
+					      (char *)in_left_expr_name),
 			  func);
       item= and_items(item, func);
     }

@@ -889,6 +889,49 @@ public:
   void print(String *str);
 };
 
+
+/*
+  The same as Item_ref, but get value from val_* family of method to get
+  value of item on which it referred instead of result* family.
+*/
+class Item_direct_ref :public Item_ref
+{
+public:
+  Item_direct_ref(Item **item, const char *table_name_par,
+                  const char *field_name_par)
+    :Item_ref(item, table_name_par, field_name_par) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  double val()
+  {
+    double tmp=(*ref)->val();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  longlong val_int()
+  {
+    longlong tmp=(*ref)->val_int();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  String *val_str(String* tmp)
+  {
+    tmp=(*ref)->val_str(tmp);
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  bool is_null()
+  {
+    (void) (*ref)->val_int();
+    return (*ref)->null_value;
+  }
+  bool get_date(TIME *ltime,uint fuzzydate)
+  {
+    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  }
+};
+
+
 class Item_in_subselect;
 class Item_ref_null_helper: public Item_ref
 {

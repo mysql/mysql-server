@@ -1418,7 +1418,7 @@ JOIN::exec()
 	  WHERE clause for any tables after the sorted one.
 	*/
 	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[tables];
+	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables];
 	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
