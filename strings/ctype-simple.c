@@ -17,7 +17,6 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
-#include "my_sys.h"			/* defines errno */
 #include <errno.h>
 
 #include "stdarg.h"
@@ -203,7 +202,8 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 
 
 long        my_strntol_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -303,14 +303,14 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONG_MIN : LONG_MAX;
   }
   
   return (negative ? -((long) i) : (long) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -318,7 +318,8 @@ noconv:
 
 
 ulong      my_strntoul_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -409,14 +410,14 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return ((ulong)~0L);
   }
   
   return (negative ? -((long) i) : (long) i);
   
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -424,7 +425,8 @@ noconv:
 
 
 longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr,int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -524,14 +526,14 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONGLONG_MIN : LONGLONG_MAX;
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -539,7 +541,8 @@ noconv:
 
 
 ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -631,14 +634,14 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return (~(ulonglong) 0);
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -667,7 +670,8 @@ noconv:
 
 
 double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		       char *str, uint length, char **end)
+		       char *str, uint length, 
+		       char **end, int *err __attribute__ ((unused)))
 {
   char end_char;
   double result;

@@ -840,15 +840,17 @@ int Field_decimal::store(longlong nr)
 
 double Field_decimal::val_real(void)
 {
-  return my_strntod(my_charset_bin, ptr, field_length, NULL);
+  int err;
+  return my_strntod(my_charset_bin, ptr, field_length, NULL, &err);
 }
 
 longlong Field_decimal::val_int(void)
 {
+  int err;
   if (unsigned_flag)
-    return my_strntoull(my_charset_bin, ptr, field_length, NULL, 10);
+    return my_strntoull(my_charset_bin, ptr, field_length, 10, NULL, &err);
   else
-    return my_strntoll( my_charset_bin, ptr, field_length, NULL, 10);
+    return my_strntoll( my_charset_bin, ptr, field_length, 10, NULL, &err);
 }
 
 
@@ -950,8 +952,9 @@ void Field_decimal::sql_type(String &res) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int err;
   char *end;
-  long tmp= my_strntol(cs, from, len, &end,10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &err);
   int error= 0;
 
   if (unsigned_flag)
@@ -1151,8 +1154,9 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int err;
   char *end;
-  long tmp= my_strntol(cs, from, len, &end, 10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &err);
   int error= 0;
   if (unsigned_flag)
   {
@@ -1423,8 +1427,9 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int err;
   char *end;
-  long tmp= my_strntol(cs, from, len, &end, 10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &err);
   int error= 0;
 
   if (unsigned_flag)
@@ -1659,16 +1664,15 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(long) my_strntoul(cs,from,len,&end,10);
+      tmp=(long) my_strntoul(cs,from,len,10,&end,&error);
   }
   else
-    tmp=my_strntol(cs,from,len,&end,10);
-  if (my_errno ||
+    tmp=my_strntol(cs,from,len,10,&end,&error);
+  if (error ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
   {
     current_thd->cuted_fields++;
-    error= 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1918,11 +1922,11 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(longlong) my_strntoull(cs,from,len,&end,10);
+      tmp=(longlong) my_strntoull(cs,from,len,10,&end,&error);
   }
   else
-    tmp=my_strntoll(cs,from,len,&end,10);
-  if (my_errno ||
+    tmp=my_strntoll(cs,from,len,10,&end,&error);
+  if (error ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
       current_thd->cuted_fields++;
@@ -2130,14 +2134,14 @@ void Field_longlong::sql_type(String &res) const
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  errno=0;					// my_strntod() changes errno
-  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL));
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int err=0;
+  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL,&err));
+  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     return 1;
   }
-  return (errno) ? 1 : 0;
+  return (err) ? 1 : 0;
 }
 
 
@@ -2403,19 +2407,17 @@ void Field_float::sql_type(String &res) const
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  errno=0;					// my_strntod() changes errno
-  int error= 0;
-  double j= my_strntod(cs,(char*) from,len,(char**)0);
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int err= 0;
+  double j= my_strntod(cs,(char*) from,len,(char**)0,&err);
+  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
-    error= 1;
   }
   if (unsigned_flag && j < 0)
   {
     current_thd->cuted_fields++;
     j=0;
-    error= 1;
+    err= 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2425,7 +2427,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     doublestore(ptr,j);
-  return error;
+  return err;
 }
 
 
@@ -3191,8 +3193,9 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
+  int  err;
   char *end;
-  long nr= my_strntol(cs, from, len, &end, 10);
+  long nr= my_strntol(cs, from, len, 10, &end, &err);
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
@@ -3929,15 +3932,17 @@ int Field_string::store(longlong nr)
 
 double Field_string::val_real(void)
 {
+  int err;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0);
+  return my_strntod(cs,ptr,field_length,(char**)0,&err);
 }
 
 
 longlong Field_string::val_int(void)
 {
+  int err;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,NULL,10);
+  return my_strntoll(cs,ptr,field_length,10,NULL,&err);
 }
 
 
@@ -4096,17 +4101,19 @@ int Field_varstring::store(longlong nr)
 
 double Field_varstring::val_real(void)
 {
+  int err;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr+2,length,(char**)0);
+  return my_strntod(cs,ptr+2,length,(char**)0,&err);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
+  int err;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr+2,length,NULL,10);
+  return my_strntoll(cs,ptr+2,length,10,NULL,&err);
 }
 
 
@@ -4414,24 +4421,26 @@ int Field_blob::store(longlong nr)
 
 double Field_blob::val_real(void)
 {
+  int err;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0);
+  return my_strntod(cs,blob,length,(char**)0,&err);
 }
 
 
 longlong Field_blob::val_int(void)
 {
+  int err;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0;
   uint32 length=get_length(ptr);
-  return my_strntoll(charset(),blob,length,NULL,10);
+  return my_strntoll(charset(),blob,length,10,NULL,&err);
 }
 
 
@@ -4846,7 +4855,7 @@ uint find_enum(TYPELIB *lib,const char *x, uint length)
 
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int err= 0;
   uint tmp=find_enum(typelib,from,length);
   if (!tmp)
   {
@@ -4854,20 +4863,18 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
     {
       /* This is for reading numbers with LOAD DATA INFILE */
       char *end;
-      my_errno=0;
-      tmp=(uint) my_strntoul(cs,from,length,&end,10);
-      if (my_errno || end != from+length || tmp > typelib->count)
+      tmp=(uint) my_strntoul(cs,from,length,10,&end,&err);
+      if (err || end != from+length || tmp > typelib->count)
       {
 	tmp=0;
 	current_thd->cuted_fields++;
-	error=1;
       }
     }
     else
       current_thd->cuted_fields++;
   }
   store_type((ulonglong) tmp);
-  return error;
+  return err;
 }
 
 
@@ -5052,7 +5059,7 @@ ulonglong find_set(TYPELIB *lib, const char *x, uint length, char **err_pos,
 
 int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int err= 0;
   char *not_used;
   uint not_used2;
 
@@ -5061,19 +5068,17 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
     char *end;
-    my_errno=0;
-    tmp=my_strntoull(cs,from,length,&end,10);
-    if (my_errno || end != from+length ||
+    tmp=my_strntoull(cs,from,length,10,&end,&err);
+    if (err || end != from+length ||
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;
-      error=1;
     }
     else
       current_thd->cuted_fields--;		// Remove warning from find_set
   }
   store_type(tmp);
-  return error;
+  return err;
 }
 
 
