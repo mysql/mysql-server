@@ -429,6 +429,7 @@ static SYMBOL sql_functions[] = {
   { "AREA",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_area)},
   { "ASIN",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_asin)},
   { "ASTEXT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_as_text)},
+  { "ASWKB",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_as_wkb)},
   { "ATAN",		SYM(ATAN),0,0},
   { "ATAN2",		SYM(ATAN),0,0},
   { "BENCHMARK",	SYM(BENCHMARK_SYM),0,0},
