@@ -23,14 +23,15 @@ struct my_optarg
 };
 
 
-enum get_opt_var_type { GET_NO_ARG, GET_INT, GET_LL, GET_STR };
+enum get_opt_var_type { GET_NO_ARG, GET_LONG, GET_LL, GET_STR };
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
 struct my_option
 {
   const char *name;                     /* Name of the option */
   const char *comment;                  /* option comment, for autom. --help */
-  char       *value;                    /* The variable value */
+  gptr       *value;                    /* The variable value */
+  gptr       *u_max_value;              /* The user def. max variable value */
   const char **str_values;              /* Pointer to possible values */
   enum get_opt_var_type var_type;
   enum get_opt_arg_type arg_type;
@@ -41,6 +42,6 @@ struct my_option
   longlong   sub_size;                  /* Subtract this from given value */
   long       block_size;                /* Value should be a mult. of this */
   int        app_type;                  /* To be used by an application */
-  my_bool    changeable_var;            /* If true, the option is a variable */
+  my_bool    opt_is_var;                /* If true, the option is a variable */
 };
 

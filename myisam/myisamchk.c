@@ -142,31 +142,6 @@ int main(int argc, char **argv)
 #endif
 } /* main */
 
-
-static CHANGEABLE_VAR changeable_vars[] = {
-  { "key_buffer_size",(long*) &check_param.use_buffers,(long) USE_BUFFER_INIT,
-    (long) MALLOC_OVERHEAD, (long) ~0L,(long) MALLOC_OVERHEAD,(long) IO_SIZE },
-  { "myisam_block_size", (long*) &opt_myisam_block_size,
-      MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
-    0, MI_MIN_KEY_BLOCK_LENGTH },
-  { "read_buffer_size", (long*) &check_param.read_buffer_length,(long) READ_BUFFER_INIT,
-      (long) MALLOC_OVERHEAD,(long) ~0L,(long) MALLOC_OVERHEAD,(long) 1L },
-  { "write_buffer_size", (long*) &check_param.write_buffer_length,(long) READ_BUFFER_INIT,
-      (long) MALLOC_OVERHEAD,(long) ~0L,(long) MALLOC_OVERHEAD,(long) 1L },
-  { "sort_buffer_size",(long*) &check_param.sort_buffer_length,(long) SORT_BUFFER_INIT,
-      (long) (MIN_SORT_BUFFER+MALLOC_OVERHEAD),(long) ~0L,
-      (long) MALLOC_OVERHEAD,(long) 1L },
-  { "sort_key_blocks",(long*) &check_param.sort_key_blocks,BUFFERS_WHEN_SORTING,4L,100L,0L,
-    1L },
-  { "decode_bits",(long*) &decode_bits,9L,4L,17L,0L,1L },
-  { "ft_min_word_len",         (long*) &ft_min_word_len,
-      4, 1, HA_FT_MAXLEN, 0, 1 },
-  { "ft_max_word_len",         (long*) &ft_max_word_len,
-      HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1 },
-  { "ft_max_word_len_for_sort",(long*) &ft_max_word_len_for_sort,
-      20, 4, HA_FT_MAXLEN, 0, 1 },
-  { NullS,(long*) 0,0L,0L,0L,0L,0L,} };
-
 enum options {
   OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS,
   OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE, OPT_MYISAM_BLOCK_SIZE,
@@ -177,63 +152,63 @@ enum options {
 
 static struct my_option my_long_options[] =
 {
-  {"analyze", "", 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0, 0, 0, 0, 0, 0},
-  {"block-search", "", 0, 0, GET_LL, REQUIRED_ARG, 'b', 0, 0, 0, 0, 0, 0, 0},
-  {"backup", "", 0, 0, GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", "", 0, 0, GET_STR, REQUIRED_ARG, OPT_CHARSETS_DIR, 0, 0, 0, 0, 0, 0, 0},
+  {"analyze", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0, 0, 0, 0, 0, 0},
+  {"block-search", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'b', 0, 0, 0, 0, 0, 0, 0},
+  {"backup", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", "", 0, 0, 0, GET_STR, REQUIRED_ARG, OPT_CHARSETS_DIR, 0, 0, 0, 0, 0, 0, 0},
 
-  {"check", "", 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0, 0, 0, 0, 0, 0},
-  {"check-only-changed", "", 0, 0, GET_NO_ARG, NO_ARG, 'C', 0, 0, 0, 0, 0, 0, 0},
+  {"check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0, 0, 0, 0, 0, 0},
+  {"check-only-changed", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'C', 0, 0, 0, 0, 0, 0, 0},
 
-  {"correct-checksum", "", 0, 0, GET_NO_ARG, NO_ARG, OPT_CORRECT_CHECKSUM, 0, 0, 0, 0, 0, 0, 0},
+  {"correct-checksum", "", 0, 0, 0, GET_NO_ARG, NO_ARG, OPT_CORRECT_CHECKSUM, 0, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", "", 0, 0, GET_STR, OPT_ARG, '#', 0, 0, 0, 0, 0, 0, 0},
+  {"debug", "", 0, 0, 0, GET_STR, OPT_ARG, '#', 0, 0, 0, 0, 0, 0, 0},
 #endif
-  {"description", "", 0, 0, GET_NO_ARG, NO_ARG, 'd', 0, 0, 0, 0, 0, 0, 0},
-  {"data-file-length", "", 0, 0, GET_LL, REQUIRED_ARG, 'D', 0, 0, 0, 0, 0, 0, 0},
-  {"extend-check", "", 0, 0, GET_NO_ARG, NO_ARG, 'e', 0, 0, 0, 0, 0, 0, 0},
-  {"fast", "", 0, 0, GET_NO_ARG, NO_ARG, 'F', 0, 0, 0, 0, 0, 0, 0},
-  {"force", "", 0, 0, GET_NO_ARG, NO_ARG, 'f', 0, 0, 0, 0, 0, 0, 0},
-  {"help", "", 0, 0, GET_NO_ARG, NO_ARG, '?', 0, 0, 0, 0, 0, 0, 0},
-  {"information", "", 0, 0, GET_NO_ARG, NO_ARG, 'i', 0, 0, 0, 0, 0, 0, 0},
-  {"keys-used", "", 0, 0, GET_LL, REQUIRED_ARG, 'k', 0, 0, 0, 0, 0, 0, 0},
-  {"medium-check", "", 0, 0, GET_NO_ARG, NO_ARG, 'm', 0, 0, 0, 0, 0, 0, 0},
-  {"quick", "", 0, 0, GET_NO_ARG, NO_ARG, 'q', 0, 0, 0, 0, 0, 0, 0},
-  {"read-only", "", 0, 0, GET_NO_ARG, NO_ARG, 'T', 0, 0, 0, 0, 0, 0, 0},
-  {"recover", "", 0, 0, GET_NO_ARG, NO_ARG, 'r', 0, 0, 0, 0, 0, 0, 0},
-  {"safe-recover", "", 0, 0, GET_NO_ARG, NO_ARG, 'o', 0, 0, 0, 0, 0, 0, 0},
-  {"start-check-pos", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_START_CHECK_POS, 0, 0, 0, 0, 0, 0, 0},
-  {"set-auto-increment", "", 0, 0, GET_LL, OPT_ARG, 'A', 0, 0, 0, 0, 0, 0, 0},
-  {"set-character-set", "", 0, 0, GET_STR, REQUIRED_ARG, OPT_SET_CHARSET, 0, 0, 0, 0, 0, 0, 0},
-  {"set-variable", "", 0, 0, GET_STR, REQUIRED_ARG, 'O', 0, 0, 0, 0, 0, 0, 0},
-  {"silent", "", 0, 0, GET_NO_ARG, NO_ARG, 's', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-index", "", 0, 0, GET_NO_ARG, NO_ARG, 'S', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-records", "", 0, 0, GET_INT, REQUIRED_ARG, 'R', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-recover", "", 0, 0, GET_NO_ARG, NO_ARG, 'n', 0, 0, 0, 0, 0, 0, 0},
-  {"tmpdir", "", 0, 0, GET_STR, REQUIRED_ARG, 't', 0, 0, 0, 0, 0, 0, 0},
-  {"update-state", "", 0, 0, GET_NO_ARG, NO_ARG, 'U', 0, 0, 0, 0, 0, 0, 0},
-  {"unpack", "", 0, 0, GET_NO_ARG, NO_ARG, 'u', 0, 0, 0, 0, 0, 0, 0},
-  {"verbose", "", 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0, 0, 0},
-  {"version", "", 0, 0, GET_NO_ARG, NO_ARG, 'V', 0, 0, 0, 0, 0, 0, 0},
-  {"wait", "", 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0, 0, 0, 0, 0, 0},
+  {"description", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'd', 0, 0, 0, 0, 0, 0, 0},
+  {"data-file-length", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'D', 0, 0, 0, 0, 0, 0, 0},
+  {"extend-check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'e', 0, 0, 0, 0, 0, 0, 0},
+  {"fast", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'F', 0, 0, 0, 0, 0, 0, 0},
+  {"force", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'f', 0, 0, 0, 0, 0, 0, 0},
+  {"help", "", 0, 0, 0, GET_NO_ARG, NO_ARG, '?', 0, 0, 0, 0, 0, 0, 0},
+  {"information", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'i', 0, 0, 0, 0, 0, 0, 0},
+  {"keys-used", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'k', 0, 0, 0, 0, 0, 0, 0},
+  {"medium-check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'm', 0, 0, 0, 0, 0, 0, 0},
+  {"quick", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'q', 0, 0, 0, 0, 0, 0, 0},
+  {"read-only", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'T', 0, 0, 0, 0, 0, 0, 0},
+  {"recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'r', 0, 0, 0, 0, 0, 0, 0},
+  {"safe-recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'o', 0, 0, 0, 0, 0, 0, 0},
+  {"start-check-pos", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, OPT_START_CHECK_POS, 0, 0, 0, 0, 0, 0, 0},
+  {"set-auto-increment", "", 0, 0, 0, GET_LONG, OPT_ARG, 'A', 0, 0, 0, 0, 0, 0, 0},
+  {"set-character-set", "", 0, 0, 0, GET_STR, REQUIRED_ARG, OPT_SET_CHARSET, 0, 0, 0, 0, 0, 0, 0},
+  {"set-variable", "", 0, 0, 0, GET_STR, REQUIRED_ARG, 'O', 0, 0, 0, 0, 0, 0, 0},
+  {"silent", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 's', 0, 0, 0, 0, 0, 0, 0},
+  {"sort-index", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'S', 0, 0, 0, 0, 0, 0, 0},
+  {"sort-records", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'R', 0, 0, 0, 0, 0, 0, 0},
+  {"sort-recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'n', 0, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", "", 0, 0, 0, GET_STR, REQUIRED_ARG, 't', 0, 0, 0, 0, 0, 0, 0},
+  {"update-state", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'U', 0, 0, 0, 0, 0, 0, 0},
+  {"unpack", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'u', 0, 0, 0, 0, 0, 0, 0},
+  {"verbose", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0, 0, 0},
+  {"version", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'V', 0, 0, 0, 0, 0, 0, 0},
+  {"wait", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0, 0, 0, 0, 0, 0},
   /* variables begin here */
-  { "key_buffer_size", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_KEY_BUFFER_SIZE, 0, 0, 0, 0, 0, 0, 1}, 
-  { "myisam_block_size", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_MYISAM_BLOCK_SIZE, 0, 0, 0, 0, 0, 0, 1}, 
-  { "read_buffer_size", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_READ_BUFFER_SIZE, 0, 0, 0, 0, 0, 0, 1}, 
-  { "write_buffer_size", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_WRITE_BUFFER_SIZE, 0, 0, 0, 0, 0, 0, 1}, 
-  { "sort_buffer_size", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_SORT_BUFFER_SIZE, 0, 0, 0, 0, 0, 0, 1}, 
-  { "sort_key_blocks", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_SORT_KEY_BLOCKS, 0, 0, 0, 0, 0, 0, 1},
-  { "decode_bits", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_DECODE_BITS, 0, 0, 0, 0, 0, 0, 1},
-  { "ft_min_word_len", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 0, 0, 0, 0, 0, 0, 1},
-  { "ft_max_word_len", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, 0, 0, 0, 0, 0, 0, 1},
-  { "ft_max_word_len_for_sort", "", 0, 0, GET_LL, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN_FOR_SORT, 0, 0, 0, 0, 0, 0, 1},
+  { "key_buffer_size", "", (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0, GET_LONG, REQUIRED_ARG, OPT_KEY_BUFFER_SIZE, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0, 1}, 
+  { "myisam_block_size", "", (gptr*) &opt_myisam_block_size, (gptr*) &opt_myisam_block_size, 0, GET_LONG, REQUIRED_ARG, OPT_MYISAM_BLOCK_SIZE, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0, 1}, 
+  { "read_buffer_size", "", (gptr*) &check_param.read_buffer_length, (gptr*) &check_param.read_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_READ_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
+  { "write_buffer_size", "", (gptr*) &check_param.write_buffer_length, (gptr*) &check_param.write_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_WRITE_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
+  { "sort_buffer_size", "", (gptr*) &check_param.sort_buffer_length, (gptr*) &check_param.sort_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_SORT_BUFFER_SIZE, (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
+  { "sort_key_blocks", "", (gptr*) &check_param.sort_key_blocks, (gptr*) &check_param.sort_key_blocks, 0, GET_LONG, REQUIRED_ARG, OPT_SORT_KEY_BLOCKS, BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0, 1},
+  { "decode_bits", "", (gptr*) &decode_bits, (gptr*) &decode_bits, 0, GET_LONG, REQUIRED_ARG, OPT_DECODE_BITS, 9L, 4L, 17L, 0L, 1L, 0, 1},
+  { "ft_min_word_len", "", (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 4, 1, HA_FT_MAXLEN, 0, 1, 0, 1},
+  { "ft_max_word_len", "", (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0, 1},
+  { "ft_max_word_len_for_sort", "", (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN_FOR_SORT, 20, 4, HA_FT_MAXLEN, 0, 1, 0, 1},
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.1 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.2 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -323,10 +298,14 @@ static void usage(void)
 
   print_defaults("my",load_default_groups);
   printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (i=0; changeable_vars[i].name ; i++)
-    printf("%-20s  current value: %lu\n",
-	   changeable_vars[i].name,
-	   *changeable_vars[i].varptr);
+  for (i=0; my_long_options[i].name ; i++)
+  {
+    if (!my_long_options[i].opt_is_var)
+      continue;
+    printf("%-20s  current value: %lu\n", my_long_options[i].name, 
+	   *my_long_options[i].value);
+  }
+
 }
 
 
@@ -417,27 +396,6 @@ static my_bool get_one_option(int optid, const struct my_option *opt,
     check_param.testflag|= T_VERBOSE;
     check_param.verbose++;
     break;
-  case 'O':
-    /* this is a temporary fix for variables to work until my_getopt */
-    /* can my_set_changeable_vars */
-  case OPT_KEY_BUFFER_SIZE:
-  case OPT_MYISAM_BLOCK_SIZE:
-  case OPT_READ_BUFFER_SIZE: 
-  case OPT_WRITE_BUFFER_SIZE:
-  case OPT_SORT_BUFFER_SIZE:
-  case OPT_SORT_KEY_BLOCKS:
-  case OPT_DECODE_BITS:
-  case OPT_FT_MIN_WORD_LEN:
-  case OPT_FT_MAX_WORD_LEN:
-  case OPT_FT_MAX_WORD_LEN_FOR_SORT:
-    end= buff;
-    end= strmov(strmov(strmov(end, opt->name), "="), argument);
-    if (set_changeable_var(buff, changeable_vars))
-    {
-      usage();
-      exit(1);
-    }
-    break;
   case 'R':				/* Sort records */
     old_testflag=check_param.testflag;
     check_param.testflag|= T_SORT_RECORDS;
@@ -492,11 +450,10 @@ static my_bool get_one_option(int optid, const struct my_option *opt,
 
 static void get_options(register int *argc,register char ***argv)
 {
-  int c,option_index=0;
+  int c, option_index=0;
 
-  load_defaults("my",load_default_groups,argc,argv);
+  load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
-  set_all_changeable_vars(changeable_vars);
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
