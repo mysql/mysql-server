@@ -1693,9 +1693,9 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
   for (; q < q_end; ++q)
   {
     char c;
-    if (my_isalpha(system_charset_info, (c= *q)))
+    if (my_isalpha(&my_charset_latin1, (c= *q)))
     {
-      switch (my_tolower(system_charset_info,c)) {
+      switch (my_tolower(&my_charset_latin1,c)) {
       case 'i':  /* insert */
       case 'u':  /* update or unlock tables */
       case 'l':  /* lock tables or load data infile */
@@ -1703,10 +1703,10 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
       case 'a':  /* alter */
 	return MYSQL_RPL_MASTER;
       case 'c':  /* create or check */
-	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
+	return my_tolower(&my_charset_latin1,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
 	  MYSQL_RPL_MASTER;
       case 's': /* select or show */
-	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
+	return my_tolower(&my_charset_latin1,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
 	  MYSQL_RPL_SLAVE;
       case 'f': /* flush */
       case 'r': /* repair */
@@ -4842,40 +4842,40 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   switch(param->buffer_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,
+    uchar data= (uchar)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     *buffer= data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,
+    short data= (short)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,
+    int32 data= (int32)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     int4store(buffer, data);    
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= my_strntoll(system_charset_info,value,length,10,NULL,&err);
+    longlong data= my_strntoll(&my_charset_latin1,value,length,10,NULL,&err);
     int8store(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data = (float)my_strntod(system_charset_info,value,length,NULL,&err);
+    float data = (float)my_strntod(&my_charset_latin1,value,length,NULL,&err);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(system_charset_info,value,length,NULL,&err);
+    double data= my_strntod(&my_charset_latin1,value,length,NULL,&err);
     float8store(buffer, data);
     break;
   }

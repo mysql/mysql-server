@@ -408,7 +408,6 @@ char *get_charsets_dir(char *buf)
 
 CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
-CHARSET_INFO *system_charset_info  = &my_charset_latin1;
 
 #define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
 

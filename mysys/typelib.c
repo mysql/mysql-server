@@ -48,8 +48,8 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     for (i=x ; 
-    	*i && my_toupper(system_charset_info,*i) == 
-    		my_toupper(system_charset_info,*j) ; i++, j++) ;
+    	*i && my_toupper(&my_charset_latin1,*i) == 
+    		my_toupper(&my_charset_latin1,*j) ; i++, j++) ;
     if (! *j)
     {
       while (*i == ' ')
