@@ -34,6 +34,14 @@ concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*')
 :my:sql:
 TRIM("foo" FROM "foo")	TRIM("foo" FROM "foook")	TRIM("foo" FROM "okfoo")
 	ok	ok
+concat_ws(', ','monty','was here','again')
+monty, was here, again
+concat_ws(NULL,'a')	concat_ws(',',NULL,'')
+NULL	
+concat_ws(',','',NULL,'a')
+a
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"')
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
 this	is a	test
 replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
@@ -96,3 +104,9 @@ domain
 hello.de
 domain
 test.de
+CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"')
+"Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4"
+CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"')
+"Link";"1";"1";"1";"0";"4"
+CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter)
+Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4

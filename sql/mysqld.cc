@@ -281,7 +281,9 @@ char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
+
 #ifdef HAVE_GEMINI_DB
 const char *gemini_recovery_options_str="FULL";
 #endif
@@ -2819,6 +2821,7 @@ struct show_var_st init_vars[]= {
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"transaction_isolation",   (char*) &default_tx_isolation_name,   SHOW_CHAR_PTR},
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
@@ -3672,6 +3675,7 @@ static void get_options(int argc,char **argv)
   }
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
+  default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
 }
 
 
