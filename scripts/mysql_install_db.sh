@@ -25,7 +25,7 @@ do
                 ;;
        --force) force=1
                 ;;
-       --no-defaults=*)   defaults="$1"; CONFIG_FILES=/nonexistent
+       --no-defaults)     defaults="$1"; CONFIG_FILES=/nonexistent
                 ;;
        --defaults-file=*) defaults="$1"; CONFIG_FILES="$eqvalue"
                 ;;
