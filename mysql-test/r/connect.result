@@ -30,6 +30,7 @@ show tables;
 Tables_in_test
 update mysql.user set password=old_password("gambling2") where user="test";
 flush privileges;
+set password=old_password('gambling3');
 show tables;
 Tables_in_mysql
 columns_priv
