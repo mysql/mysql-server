@@ -101,10 +101,8 @@ if (defined $opt_log)
 		}
 	}
 }
-else
-{
-  $LOGFILE= $PWD . "/Bootstrap-" . $REPO . ".log";
-}
+
+$LOGFILE= $PWD . "/Bootstrap-" . $REPO . ".log" unless ($LOGFILE);
 
 &logger("Starting build");
 &abort("The directory \"$REPO\" could not be found!") if (!-d $REPO);
