@@ -541,7 +541,6 @@ bool add_field_to_list(char *field_name, enum enum_field_types type,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
-void set_lock_for_tables(thr_lock_type lock_type);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
 bool add_proc_to_list(Item *item);

@@ -1159,11 +1159,12 @@ int Load_log_event::write_data_body(IO_CACHE* file)
 Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       const char *db_arg, const char *table_name_arg,
 			       List<Item> &fields_arg,
-			       enum enum_duplicates handle_dup)
-  :Log_event(thd_arg),thread_id(thd_arg->thread_id), num_fields(0),fields(0),
-  field_lens(0),field_block_len(0),
-  table_name(table_name_arg ? table_name_arg : ""),
-  db(db_arg), fname(ex->file_name)
+			       enum enum_duplicates handle_dup,
+			       bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
+   num_fields(0), fields(0), field_lens(0),field_block_len(0),
+   table_name(table_name_arg ? table_name_arg : ""),
+   db(db_arg), fname(ex->file_name)
 {
   time_t end_time;
   time(&end_time);

@@ -35,7 +35,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   SQL_SELECT	*select=0;
   READ_RECORD	info;
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool	        using_transactions, log_delayed, safe_update, const_cond;
+  bool		transactional_table, log_delayed, safe_update, const_cond; 
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 

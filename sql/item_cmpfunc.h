@@ -213,10 +213,10 @@ public:
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
     args[0]->top_level_item();
-    return Item_func::fix_fields(thd,tlist);
+    return Item_func::fix_fields(thd, tlist, ref);
   }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }

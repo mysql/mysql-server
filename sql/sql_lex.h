@@ -239,7 +239,7 @@ public:
 					thr_lock_type flags= TL_UNLOCK,
 					List<String> *use_index= 0,
 					List<String> *ignore_index= 0);
-
+  virtual void set_lock_for_tables(thr_lock_type lock_type) {}
   void mark_as_dependent(st_select_lex *last);
 private:
   void fast_exclude();
@@ -364,6 +364,7 @@ public:
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
 				List<String> *ignore_index= 0);
+  void set_lock_for_tables(thr_lock_type lock_type);
   inline void init_order()
   {
     order_list.elements= 0;
