@@ -189,9 +189,9 @@ end:
 
 static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count,
-                       bool do_send_error, char* crypted_scramble,
-                       bool had_password,uint *cur_priv_version,
-                       ACL_USER** hint_user)
+                       bool simple_connect, bool do_send_error, 
+                       char* crypted_scramble, bool had_password,
+                       uint *cur_priv_version, ACL_USER** hint_user)
 {
   thd->db=0;
   thd->db_length=0;
@@ -222,14 +222,23 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   {
     if (do_send_error)
     {
-      net_printf(thd, ER_ACCESS_DENIED_ERROR,
-      	       thd->user,
-	       thd->host_or_ip,
-	       had_password ? ER(ER_YES) : ER(ER_NO));
-      mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
-		    thd->user,
-		    thd->host_or_ip,
-		    had_password ? ER(ER_YES) : ER(ER_NO));
+      /* Old client should get nicer error message if password version is not supported*/
+      if (simple_connect && *hint_user && (*hint_user)->pversion)
+      {
+        net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+        mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+      }
+      else
+      {
+        net_printf(thd, ER_ACCESS_DENIED_ERROR,
+      	         thd->user,
+	         thd->host_or_ip,
+	         had_password ? ER(ER_YES) : ER(ER_NO));
+        mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
+	              thd->user,
+                      thd->host_or_ip,
+	              had_password ? ER(ER_YES) : ER(ER_NO));
+      }                
       return(1);					// Error already given
     }
     else
@@ -638,8 +647,9 @@ check_connections(THD *thd)
   /* Store information if we used password. passwd will be dammaged */
   bool using_password=test(passwd[0]);
   /* Check user permissions. If password failure we'll get scramble back */
-  if (check_user(thd,COM_CONNECT, user, passwd, db, 1, simple_connect,
-      prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
+  if (check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
+      simple_connect, prepared_scramble, using_password, &cur_priv_version,
+      &cached_user)<0)
   {
     /* If The client is old we just have to return error */
     if (simple_connect)
@@ -679,7 +689,7 @@ check_connections(THD *thd)
       }
     /* Final attempt to check the user based on reply */
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-        tmp_db, 1, 1,prepared_scramble,using_password,&cur_priv_version,
+        tmp_db, 1, 0, 1, prepared_scramble, using_password, &cur_priv_version,
         &cached_user))
       return -1;
   }
@@ -1077,7 +1087,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
      Do not retry if we already have sent error (result>0)
     */
     if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
-        prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
+        simple_connect, prepared_scramble, using_password, &cur_priv_version,
+        &cached_user)<0)
     {
       /* If The client is old we just have to have auth failure */
       if (simple_connect)
@@ -1112,7 +1123,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       /* Final attempt to check the user based on reply */
       if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*)net->read_pos,
-          tmp_db, 0, 1,prepared_scramble,using_password,&cur_priv_version,
+          tmp_db, 0, 0, 1, prepared_scramble, using_password, &cur_priv_version,
           &cached_user))
         goto restore_user;
     }

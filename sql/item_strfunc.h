@@ -262,6 +262,7 @@ class Item_func_password :public Item_str_func
   char tmp_value[64]; /* This should be enough for new password format */
 public:
   Item_func_password(Item *a) :Item_str_func(a) {}
+  Item_func_password(Item *a, Item *b) :Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { max_length = get_password_length(opt_old_passwords); }
   const char *func_name() const { return "password"; }

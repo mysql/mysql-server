@@ -1271,18 +1271,52 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
+/*
+ Password() function can have 2 args now. Second argument can be used
+ to make results repeatable
+*/ 
 
 String *Item_func_password::val_str(String *str)
 {
-  String *res  =args[0]->val_str(str);
+  struct rand_struct rand_st; // local structure for 2 param version
+  ulong  seed=0;              // seed to initialise random generator to
+  
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length() == 0)
-    return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
-                          &current_thd->rand);
-  str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
-  return str;
+    
+  if (arg_count == 1)
+  {    
+    String *res  =args[0]->val_str(str);
+    if (res->length() == 0)
+      return &empty_string;
+    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+                            &current_thd->rand);
+    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    return str;
+  }
+  else
+  {
+    /* Check second argument for NULL value. First one is already checked */
+    if ((null_value=args[1]->null_value))
+      return 0;
+    /* Generate the seed first this allows to avoid double allocation */  
+    char* seed_ptr=args[1]->val_str(str)->c_ptr();
+    while (*seed_ptr)
+    {
+      seed=seed*211+*seed_ptr; /* Use simple hashing */
+      seed_ptr++;
+    }
+    /* Use constants which allow nice random values even with small seed */
+    randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
+    
+    String *res  =args[0]->val_str(str);
+    if (res->length() == 0)
+      return &empty_string;
+    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+                            &rand_st);
+    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    return str;
+  }       
 }
 
 String *Item_func_old_password::val_str(String *str)
