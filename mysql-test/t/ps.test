@@ -178,4 +178,31 @@ drop table t1;
 prepare stmt1 from ' create table t1 (m int) as select ? as m ' ;
 execute stmt1 using @arg00;
 select m from t1;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# eq() for parameters
+#
+create table t1 (id int(10) unsigned NOT NULL default '0',
+                 name varchar(64) NOT NULL default '',
+                 PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
+prepare stmt1 from 'select name from t1 where id=? or id=?';
+set @id1=1,@id2=6;
+execute stmt1 using @id1, @id2;
+select name from t1 where id=1 or id=6;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# SHOW TABLE STATUS test
+#
+create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+prepare stmt1 from ' show table status from test like ''t1%'' ';
+--replace_column 12 # 13 # 14 #
+execute stmt1;
+--replace_column 12 # 13 # 14 #
+show table status from test like 't1%' ;
+deallocate prepare stmt1 ;
 drop table t1;

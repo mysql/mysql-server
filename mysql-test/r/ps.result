@@ -191,4 +191,31 @@ execute stmt1 using @arg00;
 select m from t1;
 m
 1
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (id int(10) unsigned NOT NULL default '0',
+name varchar(64) NOT NULL default '',
+PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
+prepare stmt1 from 'select name from t1 where id=? or id=?';
+set @id1=1,@id2=6;
+execute stmt1 using @id1, @id2;
+name
+1
+6
+select name from t1 where id=1 or id=6;
+name
+1
+6
+deallocate prepare stmt1;
+drop table t1;
+create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+prepare stmt1 from ' show table status from test like ''t1%'' ';
+execute stmt1;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	0	0	0	4294967295	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+show table status from test like 't1%' ;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	0	0	0	4294967295	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+deallocate prepare stmt1 ;
 drop table t1;
