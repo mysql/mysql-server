@@ -111,6 +111,7 @@ static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 				    ulong options);
+static Next_select_func setup_end_select_func(JOIN *join);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
@@ -1638,6 +1639,8 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
+    result->send_fields(*curr_fields_list,
+                        Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
     thd->examined_row_count= curr_join->examined_rows;
@@ -1776,12 +1779,7 @@ Cursor::open(JOIN *join_arg)
   thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
 
   /* Prepare JOIN for reading rows. */
-
-  Next_select_func end_select= join->sort_and_group || join->procedure &&
-    join->procedure->flags & PROC_GROUP ?
-    end_send_group : end_send;
-
-  join->join_tab[join->tables-1].next_select= end_select;
+  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
   join->send_records= 0;
   join->fetch_limit= join->unit->offset_limit_cnt;
 
@@ -1802,6 +1800,11 @@ Cursor::open(JOIN *join_arg)
   */
   DBUG_ASSERT(join_tab->table->null_row == 0);
 
+  /*
+    There is always at least one record in the table, as otherwise we
+    wouldn't have opened the cursor. Therefore a failure is the only
+    reason read_first_record can return not 0.
+  */
   DBUG_RETURN(join_tab->read_first_record(join_tab));
 }
 
@@ -8733,36 +8736,24 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 }
 
 
-/****************************************************************************
-  Make a join of all tables and write it on socket or to table
-  Return:  0 if ok
-           1 if error is sent
-          -1 if error should be sent
-****************************************************************************/
+/*
+  SYNOPSIS
+    setup_end_select_func()
+    join   join to setup the function for.
 
-static int
-do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
+  DESCRIPTION
+    Rows produced by a join sweep may end up in a temporary table or be sent
+    to a client. Setup the function of the nested loop join algorithm which
+    handles final fully constructed and matched records.
+
+  RETURN
+    end_select function to use. This function can't fail.
+*/
+
+static Next_select_func setup_end_select_func(JOIN *join)
 {
-  int error= 0;
-  JOIN_TAB *join_tab;
+  TABLE *table= join->tmp_table;
   Next_select_func end_select;
-  DBUG_ENTER("do_select");
-
-  join->procedure=procedure;
-  /*
-    Tell the client how many fields there are in a row
-  */
-  if (!table)
-    join->result->send_fields(*fields,
-                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-  else
-  {
-    VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
-    empty_record(table);
-  }
-  join->tmp_table= table;			/* Save for easy recursion */
-  join->fields= fields;
-
   /* Set up select_end */
   if (table)
   {
@@ -8772,8 +8763,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       {
 	DBUG_PRINT("info",("Using end_update"));
 	end_select=end_update;
-        if (!table->file->inited)
-          table->file->ha_index_init(0);
       }
       else
       {
@@ -8807,7 +8796,38 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     else
       end_select= end_send;
   }
-  join->join_tab[join->tables-1].next_select=end_select;
+  return end_select;
+}
+
+
+/****************************************************************************
+  Make a join of all tables and write it on socket or to table
+  Return:  0 if ok
+           1 if error is sent
+          -1 if error should be sent
+****************************************************************************/
+
+static int
+do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
+{
+  int error= 0;
+  JOIN_TAB *join_tab;
+  DBUG_ENTER("do_select");
+
+  join->procedure=procedure;
+  join->tmp_table= table;			/* Save for easy recursion */
+  join->fields= fields;
+
+  if (table)
+  {
+    VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
+    empty_record(table);
+    if (table->group && join->tmp_table_param.sum_func_count &&
+        table->s->keys && !table->file->inited)
+      table->file->ha_index_init(0);
+  }
+  /* Set up select_end */
+  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
 
   join_tab=join->join_tab+join->const_tables;
   join->send_records=0;
@@ -8819,6 +8839,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     */
     if (!join->conds || join->conds->val_int())
     {
+      Next_select_func end_select= join->join_tab[join->tables-1].next_select;
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
     }
