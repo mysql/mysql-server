@@ -59,6 +59,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
+	$(INSTALL_DATA) $(srcdir)/*.supp $(distdir)/
 
 install-data-local:
 	$(mkinstalldirs) \
