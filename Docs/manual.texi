@@ -49458,6 +49458,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed a bug in optimiser with merge tables when non-uniques values are 
+used in summing up. 
+This consistently crashed MySQL.
+@item
+Fixed a bug in optimiser when a range specified makes index grouping impossible. 
+This consistently crashed MySQL.
+@item
+Fixed a rare bug when fulltext index is present and no tables are used
+@item
 Added privileges @code{CREATE TEMPORARY TABLES}, @code{LOCK TABLES},
 @code{REPLICATION CLIENT}, @code{REPLICATION SLAVE},
 @code{SHOW DATABASES} and @code{SUPER}. To use these, you must have
