@@ -4572,8 +4572,7 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
- 	if (lock_type != F_UNLCK && prebuilt->table->ibd_file_missing
-	    && !current_thd->tablespace_op) {
+ 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to use a table handle but the .ibd file for\n"
