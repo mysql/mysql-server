@@ -6498,9 +6498,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     return 0;
   }
   const char *save_where=thd->where;
-  thd->where=0;					// No error if not found
-  Item **item=find_item_in_list(*order->item,fields);
-  thd->where=save_where;
+  Item **item=find_item_in_list(*order->item, fields, 0);
   if (item)
   {
     order->item=item;				// use it
@@ -6598,17 +6596,15 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   DBUG_ENTER("setup_new_fields");
 
   thd->set_query_id=1;				// Not really needed, but...
-  thd->where=0;					// Don't give error
   for (; new_field ; new_field=new_field->next)
   {
-    if ((item=find_item_in_list(*new_field->item,fields)))
+    if ((item= find_item_in_list(*new_field->item, fields, 0)))
       new_field->item=item;			/* Change to shared Item */
     else
     {
       thd->where="procedure list";
       if ((*new_field->item)->fix_fields(thd, tables, new_field->item))
 	DBUG_RETURN(1); /* purecov: inspected */
-      thd->where=0;
       all_fields.push_front(*new_field->item);
       new_field->item=all_fields.head_ref();
     }
@@ -7400,7 +7396,8 @@ static void describe_info(JOIN *join, const char *info)
 {
   THD *thd= join->thd;
 
-  if (thd->lex.select->next_select())			/* If in UNION */
+  /* If lex.select belong to UNION */
+  if (thd->lex.select->master_unit()->first_select()->next_select())
   {
     select_describe(join,FALSE,FALSE,FALSE,info);
     return;
