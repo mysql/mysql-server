@@ -285,8 +285,8 @@ ulint	srv_test_n_mutexes	= ULINT_MAX;
 /* Array of English strings describing the current state of an
 i/o handler thread */
 
-char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
-char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
+const char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
+const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 time_t	srv_last_monitor_time;
 
@@ -514,6 +514,20 @@ are indexed by the type of the thread. */
 ulint	srv_n_threads_active[SRV_MASTER + 1];
 ulint	srv_n_threads[SRV_MASTER + 1];
 
+/*************************************************************************
+Sets the info describing an i/o thread current state. */
+
+void
+srv_set_io_thread_op_info(
+/*======================*/
+	ulint		i,	/* in: the 'segment' of the i/o thread */
+	const char*	str)	/* in: constant char string describing the
+				state */
+{
+	ut_a(i < SRV_MAX_N_IO_THREADS);
+
+	srv_io_thread_op_info[i] = str;
+}
 
 /*************************************************************************
 Accessor function to get pointer to n'th slot in the server thread
