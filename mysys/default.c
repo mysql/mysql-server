@@ -83,7 +83,7 @@ static char *remove_end_comment(char *ptr);
   Process config files in default directories.
 
   SYNOPSIS
-  search_files()
+  my_search_option_files()
   conf_file                   Basename for configuration file to search for.
                               If this is a path, then only this file is read.
   argc                        Pointer to argc of original program
@@ -103,13 +103,13 @@ static char *remove_end_comment(char *ptr);
     1  given cinf_file doesn't exist
 */
 
-static int search_files(const char *conf_file, int *argc, char ***argv,
+int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                         uint *args_used, Process_option_func func,
                         void *func_ctx)
 {
   const char **dirs, *forced_default_file;
   int error= 0;
-  DBUG_ENTER("search_files");
+  DBUG_ENTER("my_search_option_files");
 
   /* Check if we want to force the use a specific default file */
   get_defaults_files(*argc, *argv,
@@ -177,40 +177,6 @@ err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
   exit(1);
   return 0;					/* Keep compiler happy */
-}
-
-
-/*
-  Simplified version of search_files (no argv, argc to process).
-
-  SYNOPSIS
-  process_default_option_files()
-  conf_file                   Basename for configuration file to search for.
-                              If this is a path, then only this file is read.
-  func                        Pointer to the function to process options
-  func_ctx                    It's context. Usually it is the structure to
-                              store additional options.
-
-  DESCRIPTION
-
-  Often we want only to get options from default config files. In this case we
-  don't want to provide any argc and argv parameters. This function is a
-  simplified variant of search_files which allows us to forget about
-  argc, argv.
-
-  RETURN
-    0  ok
-    1  given cinf_file doesn't exist
-*/
-
-int process_default_option_files(const char *conf_file,
-                                 Process_option_func func, void *func_ctx)
-{
-  int argc= 1;
-  /* this is a dummy variable for search_files() */
-  uint args_used;
-
-  return search_files(conf_file, &argc, NULL, &args_used, func, func_ctx);
 }
 
 
@@ -363,7 +329,7 @@ int load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
   
-  error= search_files(conf_file, argc, argv, &args_used,
+  error= my_search_option_files(conf_file, argc, argv, &args_used,
                       handle_default_option, (void *) &ctx);
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
