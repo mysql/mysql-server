@@ -40321,6 +40321,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
+Added new mysqld variable: bdb_version.
+@item
 Fixed bug when using expression of type
 @code{SELECT ... FROM t1 left join t2 on (t1.a=t2.a) WHERE t1.a=t2.a}. In this
 case the test in the @code{WHERE} clause was wrongly optimized away.
