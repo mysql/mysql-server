@@ -841,4 +841,13 @@ ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a')
 1
 select ROW(1, 1, 'a') IN (select b,a,c from t limit 2);
 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-drop table if exists t;
+drop table t;
+create table t (a int);
+insert into t values (1);
+do @a:=(SELECT a from t);
+select @a;
+@a
+1
+drop table t;
+do (SELECT a from t);
+Table 'test.t' doesn't exist

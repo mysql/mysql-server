@@ -1598,7 +1598,14 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_DO:
-    res=mysql_do(thd, *lex->insert_list);
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+		   (res= open_and_lock_tables(thd,tables))))
+	break;
+
+    fix_tables_pointers(lex->all_selects_list);
+    res= mysql_do(thd, *lex->insert_list);
+    if (thd->net.report_error)
+      res= -1;
     break;
 
   case SQLCOM_EMPTY_QUERY:
