@@ -549,6 +549,7 @@ check_connections(THD *thd)
   char *end, *user, *passwd, *db;
   char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
   ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
+  String convdb;
   DBUG_PRINT("info",("New connection received on %s",
 		     vio_description(net->vio)));
 
@@ -724,7 +725,12 @@ check_connections(THD *thd)
   db=0;
   using_password= test(passwd[0]);
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  {
     db=strend(passwd)+1;
+    convdb.copy(db, strlen(db), 
+		thd->variables.character_set_client, system_charset_info);
+    db= convdb.c_ptr();
+  }
 
   /* We can get only old hash at this point */
   if (using_password && strlen(passwd) != SCRAMBLE_LENGTH)
@@ -1125,10 +1131,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
-    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
-    if (!mysql_change_db(thd,packet))
-      mysql_log.write(thd,command,"%s",thd->db);
-    break;
+    {
+      String convname;
+      statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+      convname.copy(packet, strlen(packet),
+		    thd->variables.character_set_client, system_charset_info);
+      if (!mysql_change_db(thd,convname.c_ptr()))
+	mysql_log.write(thd,command,"%s",thd->db);
+      break;
+    }
 #ifndef EMBEDDED_LIBRARY
   case COM_REGISTER_SLAVE:
   {
@@ -3262,7 +3273,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(thd->master_access & SELECT_ACL) &&
 	(db && (!thd->db || strcmp(db,thd->db))))
       db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-			thd->priv_user, db); /* purecov: inspected */
+			thd->priv_user, db, test(want_access & GRANT_ACL));
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -3282,7 +3293,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, db); /* purecov: inspected */
+		      thd->priv_user, db, test(want_access & GRANT_ACL));
   else
     db_access=thd->db_access;
   // Remove SHOW attribute and access rights we already have
@@ -3558,6 +3569,7 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
+    // TODO: assign resolve_mode for fake subquery after merging with new tree
   }
   else
     select_lex->include_neighbour(lex->current_select);
@@ -3565,6 +3577,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->master_unit()->global_parameters= select_lex;
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
+  select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
   return 0;
 }
 

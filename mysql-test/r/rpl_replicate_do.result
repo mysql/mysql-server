@@ -26,3 +26,6 @@ n
 select * from t11;
 ERROR 42S02: Table 'test.t11' doesn't exist
 drop table if exists t1,t2,t11;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1281	slave-relay-bin.000002	1325	master-bin.000001	Yes	Yes			test.t1				0		0	1281	1329

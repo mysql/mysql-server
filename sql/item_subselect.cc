@@ -508,7 +508,7 @@ void Item_in_subselect::single_value_transformer(THD *thd,
     {
       sl->item_list.push_back(item);
       setup_ref_array(thd, &sl->ref_pointer_array,
-		      1 + sl->select_items +
+		      1 + sl->select_n_having_items +
 		      sl->order_list.elements + sl->group_list.elements);
       // To prevent crash on Item_ref_null_helper destruction in case of error
       sl->ref_pointer_array[0]= 0;
@@ -759,6 +759,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
       if (!(row[i]= Item_cache::get_cache(res_type)))
 	return STRING_RESULT; // we should return something
       row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
+      row[i]->collation.set(sel_item->collation);
     }
   }
   if (select_lex->item_list.elements > 1)
@@ -770,6 +771,7 @@ void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
   res_type= set_row(select_lex, item, row, &maybe_null);
+  item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
 }

@@ -83,6 +83,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 #ifdef EMBEDDED_LIBRARY
   net->last_errno= sql_errno;
   strmake(net->last_error, err, sizeof(net->last_error)-1);
+  strmov(net->sqlstate, mysql_errno_to_sqlstate(sql_errno));
 #else
 
   if (net->vio == 0)
@@ -230,11 +231,11 @@ net_printf(THD *thd, uint errcode, ...)
 #else
   net->last_errno= errcode;
   strmake(net->last_error, text_pos, length);
+  strmake(net->sqlstate, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
 #endif
   thd->is_fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
-
 
 /*
   Return ok to the client.
@@ -349,40 +350,6 @@ send_eof(THD *thd, bool no_flush)
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
-
-
-/****************************************************************************
-  Store a field length in logical packet
-  This is used to code the string length for normal protocol
-****************************************************************************/
-
-char *
-net_store_length(char *pkg, ulonglong length)
-{
-  uchar *packet=(uchar*) pkg;
-  if (length < LL(251))
-  {
-    *packet=(uchar) length;
-    return (char*) packet+1;
-  }
-  /* 251 is reserved for NULL */
-  if (length < LL(65536))
-  {
-    *packet++=252;
-    int2store(packet,(uint) length);
-    return (char*) packet+2;
-  }
-  if (length < LL(16777216))
-  {
-    *packet++=253;
-    int3store(packet,(ulong) length);
-    return (char*) packet+3;
-  }
-  *packet++=254;
-  int8store(packet,length);
-  return (char*) packet+8;
-}
-
 
 /*
   Faster net_store_length when we know length is a 32 bit integer

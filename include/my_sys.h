@@ -651,7 +651,7 @@ extern my_string my_path(my_string to,const char *progname,
 			 const char *own_pathname_part);
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr);
+extern int wild_compare(const char *str,const char *wildstr,pbool str_is_pattern);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);

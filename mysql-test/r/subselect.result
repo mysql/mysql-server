@@ -1225,3 +1225,17 @@ a	(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 an
 2	2
 1	2
 drop table t1,t2,t3;
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
+s1
+drop table t1,t2;
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
+ERROR 42S02: Unknown table 'x' in field list
+DROP TABLE t1, t2;
