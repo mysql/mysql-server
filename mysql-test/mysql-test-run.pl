@@ -94,6 +94,7 @@ require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_report.pl";
+require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 
@@ -1668,13 +1669,13 @@ sub mysqld_arguments ($$$$$) {
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
-    % FIXME slave get this option twice?!
+    # FIXME slave get this option twice?!
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     mtr_add_arg($args, "%s--log-bin=%s/var/log/slave%s-bin", $prefix,
                 $glob_mysql_test_dir, $sidx); # FIXME use own dir for binlogs
     mtr_add_arg($args, "%s--log-slave-updates", $prefix);
-    % FIXME option duplicated for slave
+    # FIXME option duplicated for slave
     mtr_add_arg($args, "%s--log=%s", $prefix,
                 $slave->[$idx]->{'path_mylog'});
     mtr_add_arg($args, "%s--master-retry-count=10", $prefix);
