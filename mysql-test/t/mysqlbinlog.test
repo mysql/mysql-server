@@ -1,7 +1,6 @@
 # We are using .opt file since we need small binlog size
 --disable_warnings
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2;
 --enable_warnings
 
 # we need this for getting fixed timestamps inside of this test
@@ -39,6 +38,7 @@ select "--- Local --" as "";
 # be time dependend. Better than nothing.
 #
 
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.001 
 # this should not fail but shouldn't produce any working statements
 --disable_query_log
@@ -50,12 +50,14 @@ select "--- Broken LOAD DATA --" as "";
 --disable_query_log
 select "--- --database --" as "";
 --enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --database=nottest $MYSQL_TEST_DIR/var/log/master-bin.001
 
 # this test for position option
 --disable_query_log
 select "--- --position --" as "";
 --enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --position=27 $MYSQL_TEST_DIR/var/log/master-bin.002
 
 # These are tests for remote binlog.

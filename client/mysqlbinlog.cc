@@ -202,7 +202,7 @@ const char *Load_log_processor::create_file(Create_file_log_event *ce)
       return 0;
     }
   }
-  ce->set_fname_outside_temp_buf(tmp,full_len);
+  ce->set_fname_outside_temp_buf(tmp,strlen(tmp));
   return tmp;
 }
 
@@ -622,10 +622,11 @@ Could not read entry at offset %s : Error in log format or read error",
           }
         }
         /*
-          We print the event, but with a leading '#': this is just to inform the
-          user of the original command; the command we want to execute will be a
-          derivation of this original command (we will change the filename and
-          use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' below.
+          We print the event, but with a leading '#': this is just to inform
+	  the user of the original command; the command we want to execute
+	  will be a derivation of this original command (we will change the
+	  filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT'
+	  below.
         */
 	ce->print(result_file, short_form, last_db, true);
 	load_processor.process(ce);
