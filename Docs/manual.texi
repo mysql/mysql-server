@@ -1361,15 +1361,19 @@ strict license
 See the documentation of the specific version for information.
 
 @item
-The manual is not distributed under a GPL/LGPL license, it is
-copyrighted material by MySQL AB. It is distributed electronically
-as part of the MySQL distribution, and may be freely read.
+The manual is not distributed under a GPL/LGPL license.
+Use of the manual is subject to the following terms:
+@itemize @bullet
+@item
 Conversion to other formats is allowed, but the actual content
 may not be altered or edited in any way.
-You may also create a printed copy for your own personal use.
+@item
+You may create a printed copy for your own personal use.
+@item
 For all other uses, such as selling printed copies or using
 (parts of) the manual in another publication, prior written
 agreement from MySQL AB is required.
+@end itemize
 Please e-mail @email{docs@@mysql.com} for more information or
 if you are interested in doing a translation.
 @end enumerate
