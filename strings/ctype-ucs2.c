@@ -403,7 +403,7 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
   *err= 0;
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
       {
@@ -438,7 +438,7 @@ bs:
   cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
   
   do {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
       if ( wc>='0' && wc<='9')
@@ -518,7 +518,7 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
   *err= 0;
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
       {
@@ -554,7 +554,7 @@ bs:
   
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
       if ( wc>='0' && wc<='9')
@@ -628,7 +628,7 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
   *err= 0;
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
       {
@@ -663,7 +663,7 @@ bs:
   cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
 
   do {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
       if ( wc>='0' && wc<='9')
@@ -745,7 +745,7 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   *err= 0;
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
       {
@@ -781,7 +781,7 @@ bs:
 
   do
   {
-    if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+    if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
       if ( wc>='0' && wc<='9')
@@ -853,7 +853,7 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     length= sizeof(buf)-1;
   end= s+length;
  
-  while ((cnv=cs->mb_wc(cs,&wc,s,end)) > 0)
+  while ((cnv=cs->cset->mb_wc(cs,&wc,s,end)) > 0)
   {
     s+=cnv;
     if (wc > (int) (uchar) 'e' || !wc)
@@ -913,7 +913,7 @@ int my_l10tostr_ucs2(CHARSET_INFO *cs,
   
   for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
   {
-    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],(uchar*) dst, (uchar*) de);
+    int cnvres=cs->cset->wc_mb(cs,(my_wc_t)p[0],(uchar*) dst, (uchar*) de);
     if (cnvres>0)
       dst+=cnvres;
     else
@@ -972,7 +972,7 @@ cnv:
   
   for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
   {
-    int cnvres=cs->wc_mb(cs, (my_wc_t) p[0], (uchar*) dst, (uchar*) de);
+    int cnvres=cs->cset->wc_mb(cs, (my_wc_t) p[0], (uchar*) dst, (uchar*) de);
     if (cnvres>0)
       dst+=cnvres;
     else
@@ -997,6 +997,44 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   return pos*2;
 }
 
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+    my_strnncoll_ucs2,
+    my_strnncoll_ucs2,
+    my_strnxfrm_ucs2,
+    my_like_range_simple,
+    my_wildcmp_mb,
+    my_strcasecmp_ucs2,
+    my_hash_sort_ucs2
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    my_ismbchar_ucs2,	/* ismbchar     */
+    my_mbcharlen_ucs2,	/* mbcharlen    */
+    my_numchars_ucs2,
+    my_charpos_ucs2,
+    my_ucs2_uni,	/* mb_wc        */
+    my_uni_ucs2,	/* wc_mb        */
+    my_caseup_str_ucs2,
+    my_casedn_str_ucs2,
+    my_caseup_ucs2,
+    my_casedn_ucs2,
+    my_snprintf_ucs2,
+    my_l10tostr_ucs2,
+    my_ll10tostr_ucs2,
+    my_fill_8bit,
+    my_strntol_ucs2,
+    my_strntoul_ucs2,
+    my_strntoll_ucs2,
+    my_strntoull_ucs2,
+    my_strntod_ucs2,
+    my_scan_8bit
+};
+
+
+
 CHARSET_INFO my_charset_ucs2_general_ci =
 {
     35,0,0,		/* number       */
@@ -1012,35 +1050,10 @@ CHARSET_INFO my_charset_ucs2_general_ci =
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
-    my_strnncoll_ucs2,	/* strnncoll    */
-    my_strnncoll_ucs2,
-    my_strnxfrm_ucs2,	/* strnxfrm     */
-    my_like_range_simple,/* like_range   */
-    my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
-    my_ismbchar_ucs2,	/* ismbchar     */
-    my_mbcharlen_ucs2,	/* mbcharlen    */
-    my_numchars_ucs2,
-    my_charpos_ucs2,
-    my_ucs2_uni,	/* mb_wc        */
-    my_uni_ucs2,	/* wc_mb        */
-    my_caseup_str_ucs2,
-    my_casedn_str_ucs2,
-    my_caseup_ucs2,
-    my_casedn_ucs2,
-    my_strcasecmp_ucs2,
-    my_hash_sort_ucs2,	/* hash_sort    */
     0,
-    my_snprintf_ucs2,
-    my_l10tostr_ucs2,
-    my_ll10tostr_ucs2,
-    my_fill_8bit,
-    my_strntol_ucs2,
-    my_strntoul_ucs2,
-    my_strntoll_ucs2,
-    my_strntoull_ucs2,
-    my_strntod_ucs2,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
 };
 
 

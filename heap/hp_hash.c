@@ -215,7 +215,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-       seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
+       seg->charset->coll->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
     }
     else
     {
@@ -250,7 +250,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
+      seg->charset->coll->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
     }
     else
     {

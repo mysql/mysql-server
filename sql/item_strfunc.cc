@@ -1489,7 +1489,7 @@ String *Item_func_user::val_str(String *str)
     null_value=1;
     return 0;
   }
-  res_length=cs->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
+  res_length=cs->cset->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
 			  thd->user, host);
   str->length(res_length);
   str->set_charset(cs);
@@ -2133,7 +2133,7 @@ String *Item_func_conv_charset3::val_str(String *str)
 
   while (1)
   {
-    cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
+    cnvres=from_charset->cset->mb_wc(from_charset,&wc,s,se);
     if (cnvres>0)
     {
       s+=cnvres;
@@ -2147,7 +2147,7 @@ String *Item_func_conv_charset3::val_str(String *str)
       break;
 
 outp:
-    cnvres=to_charset->wc_mb(to_charset,wc,d,de);
+    cnvres=to_charset->cset->wc_mb(to_charset,wc,d,de);
     if (cnvres>0)
     {
       d+=cnvres;

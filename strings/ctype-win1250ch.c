@@ -640,6 +640,17 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
+{
+    my_strnncoll_win1250ch,
+    my_strnncollsp_win1250ch,
+    my_strnxfrm_win1250ch,
+    my_like_range_win1250ch,
+    my_wildcmp_8bit,
+    my_strcasecmp_8bit,
+    my_hash_sort_simple
+};
+
 CHARSET_INFO my_charset_cp1250_czech_ci =
 {
     34,0,0,			/* number    */
@@ -655,35 +666,10 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
     idx_uni_cp1250,		/* tab_from_uni */
     "","",
     2,				/* strxfrm_multiply */
-    my_strnncoll_win1250ch,
-    my_strnncollsp_win1250ch,
-    my_strnxfrm_win1250ch,
-    my_like_range_win1250ch,
-    my_wildcmp_8bit,		/* wildcmp   */
     1,				/* mbmaxlen  */
-    NULL,			/* ismbchar  */
-    NULL,			/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_8bit,		/* mb_wc     */
-    my_wc_mb_8bit,		/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_8bit_handler,
+    &my_collation_czech_ci_handler
 };
 
 

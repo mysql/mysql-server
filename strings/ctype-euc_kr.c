@@ -8634,6 +8634,43 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+  my_strnncoll_simple,/* strnncoll  */
+  my_strnncollsp_simple,
+  my_strnxfrm_simple,	/* strnxfrm   */
+  my_like_range_simple,/* like_range */
+  my_wildcmp_mb,	/* wildcmp    */
+  my_strcasecmp_mb,
+  my_hash_sort_simple,
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+  ismbchar_euc_kr,
+  mbcharlen_euc_kr,
+  my_numchars_mb,
+  my_charpos_mb,
+  my_mb_wc_euc_kr,	/* mb_wc   */
+  my_wc_mb_euc_kr,	/* wc_mb   */
+  my_caseup_str_mb,
+  my_casedn_str_mb,
+  my_caseup_mb,
+  my_casedn_mb,
+  my_snprintf_8bit,
+  my_long10_to_str_8bit,
+  my_longlong10_to_str_8bit,
+  my_fill_8bit,
+  my_strntol_8bit,
+  my_strntoul_8bit,
+  my_strntoll_8bit,
+  my_strntoull_8bit,
+  my_strntod_8bit,
+  my_scan_8bit
+};
+
+
 CHARSET_INFO my_charset_euckr_korean_ci =
 {
     19,0,0,		/* number */
@@ -8649,35 +8686,10 @@ CHARSET_INFO my_charset_euckr_korean_ci =
     NULL,		/* tab_from_uni */
     "","",
     0,			/* strxfrm_multiply */
-    my_strnncoll_simple,/* strnncoll  */
-    my_strnncollsp_simple,
-    my_strnxfrm_simple,	/* strnxfrm   */
-    my_like_range_simple,/* like_range */
-    my_wildcmp_mb,	/* wildcmp    */
     2,			/* mbmaxlen   */
-    ismbchar_euc_kr,
-    mbcharlen_euc_kr,
-    my_numchars_mb,
-    my_charpos_mb,
-    my_mb_wc_euc_kr,	/* mb_wc   */
-    my_wc_mb_euc_kr,	/* wc_mb   */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_strcasecmp_mb,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
 };
 
 #endif

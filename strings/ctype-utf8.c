@@ -1950,6 +1950,44 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
   return 0; /* Illegal mb head */;
 }
 
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+    my_strnncoll_utf8,
+    my_strnncollsp_utf8,
+    my_strnxfrm_utf8,
+    my_like_range_simple,
+    my_wildcmp_mb,
+    my_strcasecmp_utf8,
+    my_hash_sort_utf8
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    my_ismbchar_utf8,
+    my_mbcharlen_utf8,
+    my_numchars_mb,
+    my_charpos_mb,
+    my_utf8_uni,
+    my_uni_utf8,
+    my_caseup_str_utf8,
+    my_casedn_str_utf8,
+    my_caseup_utf8,
+    my_casedn_utf8,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+
+
+
 CHARSET_INFO my_charset_utf8_general_ci =
 {
     33,0,0,		/* number       */
@@ -1965,35 +2003,10 @@ CHARSET_INFO my_charset_utf8_general_ci =
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
-    my_strnncoll_utf8,	/* strnncoll    */
-    my_strnncollsp_utf8,
-    my_strnxfrm_utf8,	/* strnxfrm     */
-    my_like_range_simple,/* like_range   */
-    my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
-    my_ismbchar_utf8,	/* ismbchar     */
-    my_mbcharlen_utf8,	/* mbcharlen    */
-    my_numchars_mb,
-    my_charpos_mb,
-    my_utf8_uni,	/* mb_wc        */
-    my_uni_utf8,	/* wc_mb        */
-    my_caseup_str_utf8,
-    my_casedn_str_utf8,
-    my_caseup_utf8,
-    my_casedn_utf8,
-    my_strcasecmp_utf8,
-    my_hash_sort_utf8,	/* hash_sort    */
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
 };
 
 
