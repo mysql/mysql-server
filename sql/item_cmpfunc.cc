@@ -1776,64 +1776,13 @@ void Item_func_in::fix_length_and_dec()
   
   agg_cmp_type(&cmp_type, args, arg_count);
 
+  if (cmp_type == STRING_RESULT &&
+      agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV))
+    return;
+
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
     const_itm&= arg[0]->const_item();
 
-
-  if (cmp_type == STRING_RESULT)
-  {
-    /*
-      We allow consts character set conversion for
-
-        item IN (const1, const2, const3, ...)
-
-      if item is in a superset for all arguments,
-      and if it is a stong side according to coercibility rules.
-   
-      TODO: add covnersion for non-constant IN values
-      via creating Item_func_conv_charset().
-    */
-
-    if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count,
-                                          MY_COLL_ALLOW_SUPERSET_CONV))
-      return;
-    if ((!my_charset_same(args[0]->collation.collation, 
-                          cmp_collation.collation) || !const_itm))
-    {
-      if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count))
-        return;
-    }
-    else
-    {
-      /* 
-         Conversion is possible:
-         All IN arguments are constants.
-      */
-      Item_arena *arena, backup;
-      arena= thd->change_arena_if_needed(&backup);
-
-      for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
-      {
-        if (!arg[0]->null_value &&
-            !my_charset_same(cmp_collation.collation,
-                             arg[0]->collation.collation))
-        {
-          Item_string *conv;
-          String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
-          uint dummy_errors;
-          cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
-                    cmp_collation.collation, &dummy_errors);
-          conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
-                                arg[0]->collation.derivation);
-          conv->str_value.copy();
-          arg[0]= conv;
-        }
-      }
-      if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
-    }
-  }
-  
   /*
     Row item with NULLs inside can return NULL or FALSE => 
     they can't be processed as static
