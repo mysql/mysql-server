@@ -51,7 +51,7 @@ int main(int argc, const char** argv){
   int _try_reconnect = 0;
   
   struct getargs args[] = {
-    { "try-reconnect", 0, arg_integer, &_try_reconnect, "", "" },
+    { "try-reconnect", 't', arg_integer, &_try_reconnect, "Specify number of retries for connecting to ndb_mgmd, default infinite", "#" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
   };
   int num_args = sizeof(args) / sizeof(args[0]); /* Number of arguments */

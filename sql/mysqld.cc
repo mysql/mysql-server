@@ -3893,7 +3893,7 @@ enum options_mysqld
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
-  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -4239,7 +4239,7 @@ Disable with --skip-isam.",
    "Log updates to file.# where # is a unique number if not given.",
    (gptr*) &opt_update_logname, (gptr*) &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-warnings", 'W', "Log some not critical warnings to the log file. Use this option twice, or --log-warnings=2 if you want 'Aborted connections' warning to be logged in the error log file.",
+  {"log-warnings", 'W', "Log some non-critical warnings to the error log file. Use this option twice or --log-warnings=2 if you also want 'Aborted connections' warnings.",
    (gptr*) &global_system_variables.log_warnings,
    (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
@@ -4318,6 +4318,11 @@ master-ssl",
 Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"ndb-connectstring", OPT_NDB_CONNECTSTRING, "Connect string for ndbcluster.",
+   (gptr*) &ndbcluster_connectstring, (gptr*) &ndbcluster_connectstring, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
@@ -5619,9 +5624,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:
     max_allowed_packet= atoi(argument);
+    global_system_variables.max_allowed_packet= max_allowed_packet;
     break;
   case OPT_NET_BUFFER_LENGTH:
     net_buffer_length=  atoi(argument);
+    global_system_variables.net_buffer_length= net_buffer_length;
     break;
 #endif
 #include <sslopt-case.h>
@@ -5970,15 +5977,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case OPT_BDB_SHARED:
     berkeley_init_flags&= ~(DB_PRIVATE);
-    berkeley_shared_data=1;
+    berkeley_shared_data= 1;
     break;
 #endif /* HAVE_BERKELEY_DB */
   case OPT_BDB:
 #ifdef HAVE_BERKELEY_DB
     if (opt_bdb)
-      have_berkeley_db=SHOW_OPTION_YES;
+      have_berkeley_db= SHOW_OPTION_YES;
     else
-      have_berkeley_db=SHOW_OPTION_DISABLED;
+      have_berkeley_db= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_ISAM:
@@ -5992,22 +5999,27 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_NDBCLUSTER:
 #ifdef HAVE_NDBCLUSTER_DB
     if (opt_ndbcluster)
-      have_ndbcluster=SHOW_OPTION_YES;
+      have_ndbcluster= SHOW_OPTION_YES;
     else
-      have_ndbcluster=SHOW_OPTION_DISABLED;
+      have_ndbcluster= SHOW_OPTION_DISABLED;
 #endif
     break;
+#ifdef HAVE_NDBCLUSTER_DB
+  case OPT_NDB_CONNECTSTRING:
+    have_ndbcluster= SHOW_OPTION_YES;
+    break;
+#endif
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
-      have_innodb=SHOW_OPTION_YES;
+      have_innodb= SHOW_OPTION_YES;
     else
-      have_innodb=SHOW_OPTION_DISABLED;
+      have_innodb= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
 #ifdef HAVE_INNOBASE_DB
-    innobase_data_file_path=argument;
+    innobase_data_file_path= argument;
 #endif
     break;
 #ifdef HAVE_INNOBASE_DB

@@ -396,7 +396,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not create database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
@@ -498,7 +498,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
-  if ((error=wait_if_global_read_lock(thd,0)))
+  if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
   /* Check directory */
@@ -565,7 +565,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not drop database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
