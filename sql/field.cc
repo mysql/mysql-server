@@ -752,25 +752,22 @@ bool Field::quote_data(String *unquoted_string)
 {
   char escaped_string[IO_SIZE];
   char *unquoted_string_buffer= (char *)(unquoted_string->ptr());
-  uint need_quotes;
   DBUG_ENTER("Field::quote_data");
 
-  // this is the same call that mysql_real_escape_string() calls
-  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
-    unquoted_string->ptr(), unquoted_string->length());
-
-  need_quotes= needs_quotes();
-
-  if (need_quotes == 0)
+  if (!needs_quotes())
     DBUG_RETURN(0);
+
+  // this is the same call that mysql_real_escape_string() calls
+  if (escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
+                              sizeof(escaped_string), unquoted_string->ptr(),
+                              unquoted_string->length()) == (ulong)~0)
+    DBUG_RETURN(1);
 
   // reset string, then re-append with quotes and escaped values
   unquoted_string->length(0);
-  if (unquoted_string->append('\''))
-    DBUG_RETURN(1);
-  if (unquoted_string->append((char *)escaped_string))
-    DBUG_RETURN(1);
-  if (unquoted_string->append('\''))
+  if (unquoted_string->append('\'') ||
+      unquoted_string->append((char *)escaped_string) ||
+      unquoted_string->append('\''))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -5725,12 +5722,12 @@ void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 {
   uint f_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint char_length= length / field_charset->mbmaxlen;
-  char_length= my_charpos(field_charset, ptr, ptr + length_bytes,
-                          char_length);
+  char *pos= ptr+length_bytes;
+  char_length= my_charpos(field_charset, pos, pos + f_length, char_length);
   set_if_smaller(f_length, char_length);
   /* Key is always stored with 2 bytes */
   int2store(buff,f_length);
-  memcpy(buff+HA_KEY_BLOB_LENGTH, ptr+length_bytes, f_length);
+  memcpy(buff+HA_KEY_BLOB_LENGTH, pos, f_length);
   if (f_length < length)
   {
     /*

@@ -3090,9 +3090,14 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 #ifdef OS2
   fflush( file);
 #endif
-  if (opt_outfile)
-    (void) vfprintf(OUTFILE, fmt, args);
   va_end(args);
+
+  if (opt_outfile)
+  {
+    va_start(args, fmt);
+    (void) vfprintf(OUTFILE, fmt, args);
+    va_end(args);
+  }
 }
 
 

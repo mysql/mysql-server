@@ -396,8 +396,9 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-	int		active_trans;	/* whether a transaction in MySQL
-					is active */
+	int		active_trans;	/* 1 - if a transaction in MySQL
+					is active. 2 - if prepare_commit_mutex
+                                        was taken */
 	void*           mysql_thd;      /* MySQL thread handle corresponding
 					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd

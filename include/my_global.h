@@ -121,18 +121,35 @@
 #endif
 
 /*
-  Solaris include file <sys/feature_tests.h> refers to X/Open document
+  Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
 
     System Interfaces and Headers, Issue 5
 
-  saying we should define _XOPEN_SOURCE=500 to get POSIX.1c prototypes
+  saying we should define _XOPEN_SOURCE=500 to get POSIX.1c prototypes,
   but apparently other systems (namely FreeBSD) don't agree.
-  Furthermore X/Open has since 2004 "System Interfaces, Issue 6"
-  that dictates _XOPEN_SOURCE=600, but Solaris checks for 500.
-  So, let's define 500 for solaris only.
+
+  On a newer Solaris 10, the above file recognizes also _XOPEN_SOURCE=600.
+  Furthermore, it tests that if a program requires older standard
+  (_XOPEN_SOURCE<600 or _POSIX_C_SOURCE<200112L) it cannot be
+  run on a new compiler (that defines _STDC_C99) and issues an #error.
+  It's also an #error if a program requires new standard (_XOPEN_SOURCE=600
+  or _POSIX_C_SOURCE=200112L) and a compiler does not define _STDC_C99.
+
+  To add more to this mess, Sun Studio C compiler defines _STDC_C99 while
+  C++ compiler does not!
+
+  So, in a desperate attempt to get correct prototypes for both
+  C and C++ code, we define either _XOPEN_SOURCE=600 or _XOPEN_SOURCE=500
+  depending on the compiler's announced C standard support.
+
+  Cleaner solutions are welcome.
 */
 #ifdef __sun
+#if __STDC_VERSION__ - 0 >= 199901L
+#define _XOPEN_SOURCE 600
+#else
 #define _XOPEN_SOURCE 500
+#endif
 #endif
 
 #if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
