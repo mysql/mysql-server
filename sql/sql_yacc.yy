@@ -561,6 +561,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  START_SYM
 %token  STATUS_SYM
 %token  STD_SYM
+%token  STDDEV_SAMP_SYM
 %token  STOP_SYM
 %token  STORAGE_SYM
 %token  STRAIGHT_JOIN
@@ -624,6 +625,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  UTC_DATE_SYM
 %token  UTC_TIMESTAMP_SYM
 %token  UTC_TIME_SYM
+%token  VAR_SAMP_SYM
 %token  VALUES
 %token  VALUE_SYM
 %token  VARBINARY
@@ -4754,9 +4756,13 @@ sum_expr:
 	| MAX_SYM '(' DISTINCT in_sum_expr ')'
 	  { $$=new Item_sum_max($4); }
 	| STD_SYM '(' in_sum_expr ')'
-	  { $$=new Item_sum_std($3); }
+	  { $$=new Item_sum_std($3, 0); }
 	| VARIANCE_SYM '(' in_sum_expr ')'
-	  { $$=new Item_sum_variance($3); }
+	  { $$=new Item_sum_variance($3, 0); }
+	| STDDEV_SAMP_SYM '(' in_sum_expr ')'
+	  { $$=new Item_sum_std($3, 1); }
+	| VAR_SAMP_SYM '(' in_sum_expr ')'
+	  { $$=new Item_sum_variance($3, 1); }
 	| SUM_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_sum($3); }
 	| SUM_SYM '(' DISTINCT in_sum_expr ')'
