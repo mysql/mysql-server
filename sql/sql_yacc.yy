@@ -4355,7 +4355,7 @@ param_marker:
         '?'
         {
 	  LEX *lex=Lex;
-          if (YYTHD->prepare_command)
+          if (YYTHD->command == COM_PREPARE)
           {
             lex->param_list.push_back($$=new Item_param((uint)(lex->tok_start-(uchar *)YYTHD->query)));
             lex->param_count++;
