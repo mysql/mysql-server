@@ -241,7 +241,7 @@ void hash_password(unsigned long *result, const char *password);
 
 /* Some other useful functions */
 
-void my_init(void);
+my_bool my_init(void);
 int load_defaults(const char *conf_file, const char **groups,
 		  int *argc, char ***argv);
 my_bool my_thread_init(void);
