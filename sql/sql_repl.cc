@@ -828,7 +828,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
-    send_error(&thd->net, 0, "Could not initialize master info");
+    send_error(&thd->net, ER_MASTER_INFO);
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
