@@ -22,6 +22,7 @@
 #endif
 
 #include <ft_global.h>
+#include <keycache.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -181,14 +182,13 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
-typedef struct st_key_cache_asmt KEY_CACHE_ASMT;
 
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE_VAR  *key_cache;	/* new key cache when changing key cache */
+  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
 
@@ -394,10 +394,10 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
-int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache);
-int ha_resize_key_cache(KEY_CACHE_VAR *key_cache);
-int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache);
-int ha_end_key_cache(KEY_CACHE_VAR *key_cache);
+int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+int ha_resize_key_cache(KEY_CACHE *key_cache);
+int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_end_key_cache(KEY_CACHE *key_cache);
 int ha_start_stmt(THD *thd);
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
@@ -411,5 +411,5 @@ int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
-int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			KEY_CACHE_VAR *new_key_cache);
+int ha_change_key_cache(KEY_CACHE *old_key_cache,
+			KEY_CACHE *new_key_cache);

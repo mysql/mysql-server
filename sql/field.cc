@@ -2850,7 +2850,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   struct tm tm_tmp;
 
   val_buffer->alloc(field_length+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  char *to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
@@ -3987,7 +3987,6 @@ longlong Field_string::val_int(void)
 String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
-  char *end=ptr+field_length;
   uint length= field_charset->cset->lengthsp(field_charset, ptr, field_length);
   val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;

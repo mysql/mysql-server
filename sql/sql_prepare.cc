@@ -1059,7 +1059,7 @@ void mysql_stmt_free(THD *thd, char *packet)
   PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_free");
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  if (!find_prepared_statement(thd, stmt_id, "close"))
   {
     send_error(thd); // Not seen by the client
     DBUG_VOID_RETURN;

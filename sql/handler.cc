@@ -1132,20 +1132,22 @@ void st_ha_check_opt::init()
 /* Init a key cache if it has not been initied before */
 
 
-int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
+int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_init_key_cache");
 
-  if (!key_cache->cache)
+  if (!key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
+    long tmp_buff_size= (long) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!init_key_cache(&key_cache->cache,
+    DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
-				key_cache));
+				division_limit, age_threshold));
   }
   DBUG_RETURN(0);
 }
@@ -1153,18 +1155,21 @@ int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
 
 /* Resize key cache */
 
-int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
+int ha_resize_key_cache(KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_resize_key_cache");
 
-  if (key_cache->cache)
+  if (key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
+    long tmp_buff_size= (long) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_key_cache(&key_cache->cache, tmp_block_size,
-				  tmp_buff_size));
+    DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
+				  tmp_buff_size,
+				  division_limit, age_threshold));
   }
   DBUG_RETURN(0);
 }
@@ -1172,29 +1177,31 @@ int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
 
 /* Change parameters for key cache (like size) */
 
-int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache)
+int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
-  if (key_cache->cache)
-    change_key_cache_param(key_cache->cache);
+  if (key_cache->key_cache_inited)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    change_key_cache_param(key_cache, division_limit, age_threshold);
+  }
   return 0;
 }
 
 /* Free memory allocated by a key cache */
 
-int ha_end_key_cache(KEY_CACHE_VAR *key_cache)
+int ha_end_key_cache(KEY_CACHE *key_cache)
 {
-  if (key_cache->cache)
-  {
-    end_key_cache(key_cache->cache, 1);		// Can never fail
-    key_cache->cache= 0;
-  }
+  end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
 /* Move all tables from one key cache to another one */
 
-int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			KEY_CACHE_VAR *new_key_cache)
+int ha_change_key_cache(KEY_CACHE *old_key_cache,
+			KEY_CACHE *new_key_cache)
 {
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;

@@ -29,6 +29,11 @@
 #define HIGHFIND 4
 #define HIGHUSED 8
 
+typedef struct st_hash_info {
+  uint next;					/* index to next key */
+  byte *data;					/* data for current entry */
+} HASH_LINK;
+
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);

@@ -1347,7 +1347,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_FLOAT:
   {
     float nr;
-    nr= val();
+    nr= (float) val();
     if (!null_value)
       result= protocol->store(nr, decimals, buffer);
     break;
