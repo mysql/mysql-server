@@ -118,7 +118,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   prepared= 1;
   res= 0;
   found_rows_for_union= 0;
-  TMP_TABLE_PARAM tmp_table_param;
+  TMP_TABLE_PARAM *tmp_table_param= (TMP_TABLE_PARAM *)sql_calloc(sizeof(TMP_TABLE_PARAM));
   this->result= result;
   t_and_f= tables_and_fields_initied;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
@@ -162,9 +162,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     t_and_f= 1;
   }
 
-  bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
-  tmp_table_param.field_count=item_list.elements;
-  if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
+  tmp_table_param->field_count=item_list.elements;
+  if (!(table= create_tmp_table(thd, tmp_table_param, item_list,
 				(ORDER*) 0, !union_option,
 				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
@@ -181,7 +180,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     goto err;
 
   union_result->not_describe=1;
-  union_result->tmp_table_param=&tmp_table_param;
+  union_result->tmp_table_param=tmp_table_param;
 
 /* 
    the following piece of code is placed here solely for the purpose of 
