@@ -73,7 +73,7 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			cdefs.h machdep.h signal.h __signal.h util.h
 
 # I hope this always does the right thing. Otherwise this is only test programs
-FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
 #
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)
@@ -81,17 +81,17 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 #
 
 test_thr_alarm: thr_alarm.c $(LIBRARIES)
-	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
-	$(LINK) $(FLAGS) -DMAIN ./test_thr_alarm.c $(LDADD) $(LIBS)
+	$(CP) -f $(srcdir)/thr_alarm.c ./test_thr_alarm.c
+	$(LINK) $(FLAGS) -DMAIN  ./test_thr_alarm.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_thr_alarm.*
 
 test_thr_lock: thr_lock.c $(LIBRARIES)
-	$(CP) $(srcdir)/thr_lock.c test_thr_lock.c
-	$(LINK) $(FLAGS) -DMAIN ./test_thr_lock.c $(LDADD) $(LIBS)
+	$(CP) -f $(srcdir)/thr_lock.c test_thr_lock.c
+	$(LINK) $(FLAGS) -DMAIN  ./test_thr_lock.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_thr_lock.*
 
 test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
-	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
+	$(CP) -f $(srcdir)/my_vsnprintf.c test_vsnprintf.c
 	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
 	$(RM) -f test_vsnprintf.*
 
@@ -101,7 +101,7 @@ test_dir: test_dir.c $(LIBRARIES)
 test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
-test_hash: test_hash.c $(LIBRARIES)
+testhash: testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
 
 # Don't update the files from bitkeeper

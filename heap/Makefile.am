@@ -19,6 +19,8 @@ LDADD =			libheap.a ../mysys/libmysys.a ../dbug/libdbug.a \
 			../strings/libmystrings.a
 pkglib_LIBRARIES =	libheap.a
 noinst_PROGRAMS	=	hp_test1 hp_test2
+hp_test1_LDFLAGS = @NOINST_LDFLAGS@
+hp_test2_LDFLAGS = @NOINST_LDFLAGS@
 noinst_HEADERS =	heapdef.h
 libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_rrnd.c hp_scan.c hp_update.c hp_write.c hp_delete.c \

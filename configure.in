@@ -390,6 +390,38 @@ then
   AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
+NOINST_LDFLAGS=
+
+AC_ARG_WITH(other-libc,
+ [ --with-other-libc=/path/to/other/libc/dir Link against libc and other standard libraries installed in the specified non-standard location overriding default. Originally added to be able to link against glibc 2.2 without making the user upgrade the standard libc installation ],
+ [
+   other_libc_include="$withval/include"
+   other_libc_lib="$withval/lib"
+   with_other_libc="yes"
+   enable_shared="no"
+   all_is_static="yes"
+   CFLAGS="$CFLAGS -I$other_libc_include"
+   CXXFLAGS="$CXXFLAGS -fpermissive -I$other_libc_include"
+#There seems to be a feature in gcc that treats system and libc headers
+#leniently when they violatate ANSI C++ standard, but it is strict otherwise
+#since gcc cannot now recognize that our headers are libc, we work around
+#by telling it to be permissive   
+   LDFLAGS="$LDFLAGS -static -L$other_libc_lib "
+   with_mysqld_ldflags="-all-static"
+   with_client_ldflags="-all-static"
+   NOINST_LDFLAGS="-all-static"
+#when linking against custom libc installed separately, we want to force all
+#binary builds to be static, including the build done by configure itself
+#to test for system features   
+ ],
+ [
+  other_libc_include=
+  other_libc_lib=
+  with_other_libc="no"
+ ]
+)
+AC_SUBST(NOINST_LDFLAGS)
+
 AC_ARG_WITH(server-suffix,
     [  --with-server-suffix    Append value to the version string.],
     # I heard that 'cut' isn't portable.  Isn't there a better way?
@@ -1163,7 +1195,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true"
+if test "$IS_LINUX" = "true" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
@@ -1318,7 +1350,10 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-if test "$ac_cv_prog_gxx" = "yes"
+#do not treat warnings as errors if we are linking agaist other libc
+#this is to work around gcc not being permissive on non-system includes
+#with respect to ANSI C++
+if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no" 
 then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
@@ -1350,7 +1385,7 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethostname_r routines], mysql_cv_gethostname_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-if test "$ac_cv_prog_gxx" = "yes"
+if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
@@ -1381,7 +1416,7 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([3 argument to gethostname_r routines], mysql_cv_gethostname_arg,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-if test "$ac_cv_prog_gxx" = "yes"
+if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
