@@ -2797,22 +2797,6 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-
-if test "$compile_readline" = "yes"
-then
-    AC_OUTPUT(cmd-line-utils/readline/Makefile)
-fi
-
-if test "$compile_libedit" = "yes"
-then
-    AC_OUTPUT(cmd-line-utils/libedit/Makefile)
-fi
-
-if [test "$compile_libedit" = "yes"] || [test "$compile_readline" = "yes"]
-then
-    AC_OUTPUT(cmd-line-utils/Makefile)
-fi 
-
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
@@ -2828,6 +2812,9 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  include/mysql_version.h dnl
+ cmd-line-utils/Makefile dnl
+ cmd-line-utils/libedit/Makefile dnl
+ cmd-line-utils/readline/Makefile dnl
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
  ])
