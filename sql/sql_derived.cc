@@ -168,13 +168,9 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     if ((derived_result=new select_union(table)))
     {
       derived_result->tmp_table_param=tmp_table_param;
-      unit->offset_limit_cnt= select_cursor->offset_limit;
-      unit->select_limit_cnt= select_cursor->select_limit+
-	select_cursor->offset_limit;
-      if (unit->select_limit_cnt < select_cursor->select_limit)
-	unit->select_limit_cnt= HA_POS_ERROR;
-      if (unit->select_limit_cnt == HA_POS_ERROR)
-	select_cursor->options&= ~OPTION_FOUND_ROWS;
+      unit->set_limit(select_cursor->select_limit,
+		      select_cursor->offset_limit,
+		      select_cursor);
 
       if (is_union)
 	res= mysql_union(thd, lex, derived_result, unit, 1);

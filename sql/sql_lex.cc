@@ -1008,6 +1008,7 @@ void st_select_lex_unit::init_query()
   union_result= 0;
   table= 0;
   fake_select_lex= 0;
+  found_rows_for_union= 0;
 }
 
 void st_select_lex::init_query()
@@ -1607,6 +1608,17 @@ void st_select_lex::print_limit(THD *thd, String *str)
       str->append(st);
     }
   }
+}
+
+void st_select_lex_unit::set_limit(ha_rows limit, ha_rows offset,
+				   SELECT_LEX *sl)
+{
+  offset_limit_cnt= offset;
+  select_limit_cnt= limit+offset;
+  if (select_limit_cnt < limit)
+    select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (select_limit_cnt == HA_POS_ERROR)
+    sl->options&= ~OPTION_FOUND_ROWS;
 }
 
 /*
