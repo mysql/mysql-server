@@ -1205,7 +1205,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
         memcpy(log_name, rev->new_log_ident,ident_len );
         log_name[ident_len] = 0;
       }
-      mi->pos = 4; // skip magic number
+      mi->pos = rev->pos; 
       mi->last_log_seq = ev->log_seq;
       pthread_cond_broadcast(&mi->cond);
       pthread_mutex_unlock(&mi->lock);

@@ -54,6 +54,7 @@
 #define QUERY_HEADER_LEN     (4 + 4 + 1 + 2)
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
 #define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
+#define ROTATE_HEADER_LEN    8
 
 /* event header offsets */
 
@@ -98,10 +99,14 @@
 #define L_NUM_FIELDS_OFFSET  14
 #define L_DATA_OFFSET    LOAD_HEADER_LEN
 
+/* Rotate event post-header */
+
+#define R_POS_OFFSET       0
+#define R_IDENT_OFFSET     8
 
 #define QUERY_EVENT_OVERHEAD  (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
 #define QUERY_DATA_OFFSET (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
-#define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
+#define ROTATE_EVENT_OVERHEAD (LOG_EVENT_HEADER_LEN+ROTATE_HEADER_LEN)
 #define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
 
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
@@ -111,7 +116,7 @@
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
-                      LOAD_EVENT=6, SLAVE_EVENT=7};
+                      LOAD_EVENT=6, SLAVE_EVENT=7, FILE_EVENT=8};
 enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID_EVENT = 2
  };
 
@@ -487,12 +492,15 @@ class Rotate_log_event: public Log_event
 public:
   const char* new_log_ident;
   uchar ident_len;
+  ulonglong pos;
   bool alloced;
   
-  Rotate_log_event(const char* new_log_ident_arg, uint ident_len_arg = 0) :
+  Rotate_log_event(const char* new_log_ident_arg, uint ident_len_arg = 0,
+		   ulonglong pos_arg = 4) :
     Log_event(time(NULL)),
     new_log_ident(new_log_ident_arg),
-    ident_len(ident_len_arg ? ident_len_arg : (uint) strlen(new_log_ident_arg)),
+    ident_len(ident_len_arg ? ident_len_arg :
+	      (uint) strlen(new_log_ident_arg)), pos(pos_arg),
     alloced(0)
   {}
   
@@ -503,7 +511,7 @@ public:
       my_free((gptr) new_log_ident, MYF(0));
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
-  int get_data_size() { return  ident_len;}
+  int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   int write_data(IO_CACHE* file);
   
   void print(FILE* file, bool short_form = 0, char* last_db = 0);

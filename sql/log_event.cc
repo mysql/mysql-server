@@ -190,7 +190,10 @@ void Load_log_event::pack_info(String* packet)
 void Rotate_log_event::pack_info(String* packet)
 {
   String tmp;
+  char buf[22];
   tmp.append(new_log_ident, ident_len);
+  tmp.append(";pos=");
+  tmp.append(llstr(pos,buf));
   if(flags & LOG_EVENT_FORCED_ROTATE_F)
     tmp.append("; forced by master");
   net_store_data(packet, tmp.ptr(), tmp.length());
@@ -492,6 +495,7 @@ void Stop_log_event::print(FILE* file, bool short_form, char* last_db)
 
 void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
 {
+  char buf[22];
   if (short_form)
     return;
 
@@ -500,7 +504,7 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
   if (new_log_ident)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
 	      MYF(MY_NABP | MY_WME));
-  fprintf(file, "\n");
+  fprintf(file, "pos=%s\n", llstr(pos, buf));
   fflush(file);
 }
 
@@ -530,8 +534,10 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len):
   if(event_len < ROTATE_EVENT_OVERHEAD)
     return;
 
+  pos = uint8korr(buf + R_POS_OFFSET + LOG_EVENT_HEADER_LEN);
   ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
-  if (!(new_log_ident = (char*) my_memdup((byte*) buf + LOG_EVENT_HEADER_LEN,
+  if (!(new_log_ident = (char*) my_memdup((byte*) buf + R_IDENT_OFFSET
+					  + LOG_EVENT_HEADER_LEN,
 					  (uint) ident_len, MYF(MY_WME))))
     return;
 
@@ -540,7 +546,10 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len):
 
 int Rotate_log_event::write_data(IO_CACHE* file)
 {
-  return my_b_write(file, (byte*) new_log_ident, (uint) ident_len) ? -1 :0;
+  char buf[ROTATE_HEADER_LEN];
+  int8store(buf, pos + R_POS_OFFSET);
+  return my_b_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
+    my_b_write(file, (byte*)new_log_ident, (uint) ident_len);
 }
 
 Query_log_event::Query_log_event(const char* buf, int event_len):
