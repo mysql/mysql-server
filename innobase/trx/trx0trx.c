@@ -262,6 +262,20 @@ trx_free(
 		putc('\n', stderr);
 	}
 
+	if (trx->n_mysql_tables_in_use != 0
+	    || trx->mysql_n_tables_locked != 0) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: MySQL is freeing a thd\n"
+"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
+"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
+			(ulong)trx->n_mysql_tables_in_use,
+			(ulong)trx->mysql_n_tables_locked);
+
+		trx_print(stderr, trx);		
+	}
+
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
 	trx->magic_n = 11112222;
@@ -272,9 +286,6 @@ trx_free(
 
 	ut_a(trx->insert_undo == NULL); 
 	ut_a(trx->update_undo == NULL); 
-
-	ut_a(trx->n_mysql_tables_in_use == 0);
-	ut_a(trx->mysql_n_tables_locked == 0);
 	
 	if (trx->undo_no_arr) {
 		trx_undo_arr_free(trx->undo_no_arr);

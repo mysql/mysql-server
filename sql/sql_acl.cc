@@ -3583,6 +3583,37 @@ err:
 }
 
 
+/*
+  Check if routine has any of the 
+  procedure level grants
+  
+  SYNPOSIS
+   bool    check_routine_level_acl()
+   thd	        Thread handler
+   db           Database name
+   name         Routine name
+
+  RETURN
+   1            error
+   0            Ok 
+*/
+
+bool check_routine_level_acl(THD *thd, char *db, char *name)
+{
+  bool no_routine_acl= 1;
+  if (grant_option)
+  {
+    GRANT_NAME *grant_proc;
+    rw_rdlock(&LOCK_grant);
+    if ((grant_proc= proc_hash_search(thd->priv_host, thd->ip, db,
+                                      thd->priv_user, name, 0)))
+      no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
+    rw_unlock(&LOCK_grant);
+  }
+  return no_routine_acl;
+}
+
+
 /*****************************************************************************
   Functions to retrieve the grant for a table/column  (for SHOW functions)
 *****************************************************************************/
