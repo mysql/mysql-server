@@ -1092,14 +1092,11 @@ public:
   void end_statement();
 };
 
-# define tmp_disable_binlog(A)                                          \
-  ulong save_options= (A)->options, save_master_access= (A)->master_access; \
-  (A)->options&= ~OPTION_BIN_LOG;                                       \
-  (A)->master_access|= SUPER_ACL; /* unneeded in 4.1 */                 
+#define tmp_disable_binlog(A)       \
+  ulong save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG;
 
-#define reenable_binlog(A)                      \
-  (A)->options= save_options;                   \
-  (A)->master_access= save_master_access;       
+#define reenable_binlog(A)          (A)->options= save_options;
 
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1
