@@ -131,7 +131,6 @@ case "${UNAME_MACHINE}" in
 	test -z "$VENDOR" && VENDOR=unknown
 	;;
 esac
-test -f /etc/SuSE-release && VENDOR=suse
 
 # Note: order is significant - the case branches are not exclusive.
 
