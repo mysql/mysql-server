@@ -1303,7 +1303,7 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
     }
     if (prev_pos)
       *prev_pos=0;				/* Terminate prev field */
-    prev_pos= (uchar *)pos;
+    prev_pos= pos;
   }
   row[field]=(char*) prev_pos+1;		/* End of last field */
   *prev_pos=0;					/* Terminate last field */

@@ -101,12 +101,14 @@ typedef struct st_mysql_field {
 typedef char **MYSQL_ROW;		/* return data as array of strings */
 typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 
+#ifndef _global_h
 #if defined(NO_CLIENT_LONG_LONG)
 typedef unsigned long my_ulonglong;
 #elif defined (__WIN__)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
+#endif
 #endif
 
 #define MYSQL_COUNT_ERROR (~(my_ulonglong) 0)
@@ -596,10 +598,6 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       unsigned long length, my_bool skip_check);
 unsigned long net_safe_read(MYSQL* mysql);
 void mysql_once_init(void);
-
-#ifdef _global_h
-my_ulonglong net_field_length_ll(uchar **packet);
-#endif
 
 #ifdef __NETWARE__
 #pragma pack(pop)		/* restore alignment */
