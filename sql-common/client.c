@@ -101,6 +101,10 @@
 
 const char	*unknown_sqlstate= "000000";
 
+#ifdef MYSQL_CLIENT
+extern my_bool stmt_close(MYSQL_STMT *stmt,my_bool skip_list);
+#endif
+
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
