@@ -103,6 +103,8 @@ srv_que_task_enqueue(
 {
 	ut_ad(thr);
 
+	ut_a(0);	/* Under MySQL this is never called */
+
 	mutex_enter(&kernel_mutex);
 	
 	srv_que_task_enqueue_low(thr);
