@@ -609,7 +609,7 @@ int stop_slave(THD* thd, bool net_report )
     thd->proc_info = "waiting for slave to die";
     while(slave_running)
     {
-      /* there is a small change that slave thread might miss the first
+      /* there is a small chance that slave thread might miss the first
 	 alarm. To protect againts it, resend the signal until it reacts
       */
 	 
