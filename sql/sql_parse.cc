@@ -53,7 +53,7 @@ const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
-  "Binlog Dump","Table Dump",  "Connect Out"
+  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave"
 };
 
 bool volatile abort_slave = 0;
@@ -766,6 +766,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!mysql_change_db(thd,packet))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
+  case COM_REGISTER_SLAVE:
+  {
+    if(register_slave(thd, (uchar*)packet, packet_length))
+      send_error(&thd->net);
+    else
+      send_ok(&thd->net);
+    break;
+  }
   case COM_TABLE_DUMP:
     {
       slow_command = TRUE;
@@ -1163,6 +1171,13 @@ mysql_execute_command(void)
       res = purge_master_logs(thd, lex->to_log);
       break;
     }
+  case SQLCOM_SHOW_SLAVE_HOSTS:
+  {
+    if(check_access(thd, FILE_ACL, any_db))
+      goto error;
+    res = show_slave_hosts(thd);
+    break;
+  }
   case SQLCOM_BACKUP_TABLE:
     {
       if (check_db_used(thd,tables) ||
