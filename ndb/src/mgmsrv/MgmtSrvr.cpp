@@ -55,7 +55,6 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 #include <m_string.h>
-#include <Transporter.hpp>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
@@ -2139,11 +2138,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
 	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
-	if (theFacade->get_registry()->get_transporter(i)->isConnected())
-	{
-	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
-	  connected_nodes.set(i);
-	}
+	connected_nodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
   }
