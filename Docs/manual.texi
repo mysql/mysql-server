@@ -17960,9 +17960,10 @@ If @code{QUICK} is given then MySQL will try to do a
 If you use @code{EXTENDED} then MySQL will create the index row
 by row instead of creating one index at a time with sorting; this may be
 better than sorting on fixed-length keys if you have long @code{CHAR}
-keys that compress very well.
+keys that compress very well.  This type of repair is like that done by
+@code{myisamchk --safe-recover}.
 
-As of @code{MySQL} 4.0.2 there is a @code{USE_FRM} mode for @code{REPAIR}.
+As of @code{MySQL} 4.0.2, there is a @code{USE_FRM} mode for @code{REPAIR}.
 Use it if the @file{.MYI} file is missing or if its header is corrupted.
 In this mode MySQL will recreate the table, using information from the
 @file{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
@@ -50342,10 +50343,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-Fixed bug in checking for output file name of the @code{tee} option
+Fixed bug in checking for output file name of the @code{tee} option.
 @end itemize
 
-@node News-4.0.3, News-4.0.2, News-4.0.x, News-4.0.x
+@node News-4.0.3, News-4.0.2, News-4.0.4, News-4.0.x
 @appendixsubsec Changes in release 4.0.3 (27 Aug 2002: Beta)
 
 @itemize @bullet
