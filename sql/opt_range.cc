@@ -932,7 +932,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1),default_charset_info),*res;
     uint length,offset,min_length,max_length;
 
-    if (!field->optimize_range((uint) key_part->key))
+    if (!field->optimize_range(param->real_keynr[key_part->key]))
       DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
@@ -1002,7 +1002,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     DBUG_RETURN(tree);
   }
 
-  if (!field->optimize_range((uint) key_part->key) &&
+  if (!field->optimize_range(param->real_keynr[key_part->key]) &&
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this
