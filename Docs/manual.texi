@@ -45921,6 +45921,14 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
 @item
+Fix a bug which could cause InnoDB to complain if it cannot find free blocks
+from the buffer cache during recovery.
+@item
+Fixed a bug in InnoDB insert buffer B-tree handling that could cause crashes.
+@item
+Fixed bug in @code{OPTIMIZE TABLE} that reset index cardinality if it
+was up to date.
+@item
 Fixed problem with @code{t1 LEFT_JOIN t2 ... WHERE t2.date_column IS NULL} when
 date_column was declared as @code{NOT NULL}.
 @item

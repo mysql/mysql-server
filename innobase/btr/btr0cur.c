@@ -2345,9 +2345,9 @@ btr_cur_pessimistic_delete(
 			heap = mem_heap_create(256);
 
 			node_ptr = dict_tree_build_node_ptr(
-						tree, page_rec_get_next(rec),
-						buf_frame_get_page_no(page),
-						heap);
+					tree, page_rec_get_next(rec),
+					buf_frame_get_page_no(page),
+       					heap, btr_page_get_level(page, mtr));
 
 			btr_insert_on_non_leaf_level(tree,
 					btr_page_get_level(page, mtr) + 1,
