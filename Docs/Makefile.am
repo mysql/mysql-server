@@ -24,6 +24,8 @@ BUILT_SOURCES =		$(targets) manual_toc.html include.texi
 EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 			INSTALL-BINARY reservedwords.texi 
 
+SUBDIRS =		Images
+
 all:			$(targets) txt_files
 
 txt_files:		../INSTALL-SOURCE ../COPYING ../EXCEPTIONS-CLIENT \
