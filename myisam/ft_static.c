@@ -57,11 +57,12 @@ const struct _ft_vft _ft_vft_boolean = {
 
 
 FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
-                        byte *query, uint query_len, byte *record)
+                        byte *query, uint query_len, CHARSET_INFO *cs,
+                        byte *record)
 {
   FT_INFO *res;
   if (flags & FT_BOOL)
-    res= ft_init_boolean_search((MI_INFO *)info, keynr, query, query_len);
+    res= ft_init_boolean_search((MI_INFO *)info, keynr, query, query_len,cs);
   else
     res= ft_init_nlq_search((MI_INFO *)info, keynr, query, query_len, flags,
 			    record);

@@ -409,8 +409,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
-  if (cond && ((!cond->fixed && 
-              cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
+  if (cond && ((!cond->fixed &&
+                cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
     goto err0;
 
   table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
@@ -495,7 +495,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
 	// 'item' can be changed by fix_fields() call
-	if ((!item->fixed && 
+        if ((!item->fixed &&
              item->fix_fields(thd, tables, it_ke.ref())) ||
 	    (item= *it_ke.ref())->check_cols(1))
 	  goto err;

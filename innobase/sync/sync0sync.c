@@ -215,6 +215,7 @@ mutex_create_func(
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
+#ifndef UNIV_HOTBACKUP
   mutex->cmutex_name=     cmutex_name;
   mutex->count_using=     0;
   mutex->mutex_type=      0;
@@ -224,7 +225,7 @@ mutex_create_func(
   mutex->count_spin_rounds=   0; 
   mutex->count_os_wait=   0;
   mutex->count_os_yield=  0;
-
+#endif /* !UNIV_HOTBACKUP */
 	
 	/* Check that lock_word is aligned; this is important on Intel */
 	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
@@ -372,9 +373,9 @@ mutex_spin_wait(
   ulint ltime_diff;
   ulint sec;
   ulint ms;
-
+#ifndef UNIV_HOTBACKUP
   uint timer_started = 0;
-
+#endif /* !UNIV_HOTBACKUP */
   ut_ad(mutex);
 
 mutex_loop:
@@ -388,8 +389,10 @@ mutex_loop:
   memory word. */
 
 spin_loop:
+#ifndef UNIV_HOTBACKUP
   mutex_spin_wait_count++;
   mutex->count_spin_loop++;
+#endif /* !UNIV_HOTBACKUP */
 
   while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS)
   {
@@ -403,6 +406,7 @@ spin_loop:
 
   if (i == SYNC_SPIN_ROUNDS)
   {
+#ifndef UNIV_HOTBACKUP
     mutex->count_os_yield++;
     if (timed_mutexes == 1 && timer_started==0)
     {
@@ -410,6 +414,7 @@ spin_loop:
       lstart_time= (ib_longlong)sec * 1000000 + ms;
       timer_started = 1;
     }
+#endif /* !UNIV_HOTBACKUP */
     os_thread_yield();
   }
 
@@ -422,7 +427,9 @@ spin_loop:
 
   mutex_spin_round_count += i;
 
+#ifndef UNIV_HOTBACKUP
   mutex->count_spin_rounds += i;
+#endif /* !UNIV_HOTBACKUP */
 
   if (mutex_test_and_set(mutex) == 0)
   {
@@ -504,8 +511,8 @@ Now there is no risk of infinite wait on the event. */
   mutex_system_call_count++;
   mutex_os_wait_count++;
 
+#ifndef UNIV_HOTBACKUP
   mutex->count_os_wait++;
-
   /*
     !!!!! Sometimes os_wait can be called without  os_thread_yield
   */
@@ -516,12 +523,13 @@ Now there is no risk of infinite wait on the event. */
     lstart_time= (ib_longlong)sec * 1000000 + ms;
     timer_started = 1;
   }
-
+#endif /* !UNIV_HOTBACKUP */
 
   sync_array_wait_event(sync_primary_wait_array, index);
   goto mutex_loop;  
 
 finish_timing:
+#ifndef UNIV_HOTBACKUP
   if (timed_mutexes == 1 && timer_started==1)
   {
     ut_usectime(&sec, &ms);
@@ -534,6 +542,7 @@ finish_timing:
       mutex->lmax_spent_time= ltime_diff;
     }
   }
+#endif /* !UNIV_HOTBACKUP */
   return;
 }
 

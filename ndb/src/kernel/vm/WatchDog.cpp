@@ -27,10 +27,7 @@
 extern "C" 
 void* 
 runWatchDog(void* w){
-  my_thread_init();
   ((WatchDog*)w)->run();
-  my_thread_end();
-  NdbThread_Exit(0);
   return NULL;
 }
 

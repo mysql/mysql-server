@@ -40,30 +40,30 @@ KEY (options,flags)
 );
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL		PRI	NULL	auto_increment		
-string	varchar(10)	latin1_swedish_ci	YES		hello			
-tiny	tinyint(4)	NULL		MUL	0			
-short	smallint(6)	NULL		MUL	1			
-medium	mediumint(8)	NULL		MUL	0			
-long_int	int(11)	NULL			0			
-longlong	bigint(13)	NULL		MUL	0			
-real_float	float(13,1)	NULL		MUL	0.0			
+auto	int(5) unsigned	NULL	NO	PRI	NULL	auto_increment		
+string	char(10)	latin1_swedish_ci	YES		hello			
+tiny	tinyint(4)	NULL	NO	MUL	0			
+short	smallint(6)	NULL	NO	MUL	1			
+medium	mediumint(8)	NULL	NO	MUL	0			
+long_int	int(11)	NULL	NO		0			
+longlong	bigint(13)	NULL	NO	MUL	0			
+real_float	float(13,1)	NULL	NO	MUL	0.0			
 real_double	double(16,4)	NULL	YES		NULL			
-utiny	tinyint(3) unsigned	NULL		MUL	0			
-ushort	smallint(5) unsigned zerofill	NULL		MUL	00000			
-umedium	mediumint(8) unsigned	NULL		MUL	0			
-ulong	int(11) unsigned	NULL		MUL	0			
-ulonglong	bigint(13) unsigned	NULL		MUL	0			
+utiny	tinyint(3) unsigned	NULL	NO	MUL	0			
+ushort	smallint(5) unsigned zerofill	NULL	NO	MUL	00000			
+umedium	mediumint(8) unsigned	NULL	NO	MUL	0			
+ulong	int(11) unsigned	NULL	NO	MUL	0			
+ulonglong	bigint(13) unsigned	NULL	NO	MUL	0			
 time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP			
 date_field	date	NULL	YES		NULL			
 time_field	time	NULL	YES		NULL			
 date_time	datetime	NULL	YES		NULL			
 blob_col	blob	NULL	YES		NULL			
 tinyblob_col	tinyblob	NULL	YES		NULL			
-mediumblob_col	mediumblob	NULL						
-longblob_col	longblob	NULL						
-options	enum('one','two','tree')	latin1_swedish_ci		MUL	one			
-flags	set('one','two','tree')	latin1_swedish_ci						
+mediumblob_col	mediumblob	NULL	NO					
+longblob_col	longblob	NULL	NO					
+options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	one			
+flags	set('one','two','tree')	latin1_swedish_ci	NO					
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE	
@@ -89,33 +89,33 @@ insert into t1 values (NULL,2,2,2,2,2,2,2,2,2,2,2,2,2,NULL,NULL,NULL,NULL,NULL,N
 insert into t1 values (0,1/3,3,3,3,3,3,3,3,3,3,3,3,3,NULL,'19970303','10:10:10','19970303101010','','','','3',3,3);
 insert into t1 values (0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,NULL,19970807,080706,19970403090807,-1,-1,-1,'-1',-1,-1);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'utiny' at row 1
-Warning	1264	Data truncated; out of range for column 'ushort' at row 1
-Warning	1264	Data truncated; out of range for column 'umedium' at row 1
-Warning	1264	Data truncated; out of range for column 'ulong' at row 1
+Warning	1264	Out of range value adjusted for column 'utiny' at row 1
+Warning	1264	Out of range value adjusted for column 'ushort' at row 1
+Warning	1264	Out of range value adjusted for column 'umedium' at row 1
+Warning	1264	Out of range value adjusted for column 'ulong' at row 1
 Warning	1265	Data truncated for column 'options' at row 1
 Warning	1265	Data truncated for column 'flags' at row 1
 insert into t1 values (0,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,NULL,0,0,0,-4294967295,-4294967295,-4294967295,'-4294967295',0,"one,two,tree");
 Warnings:
 Warning	1265	Data truncated for column 'string' at row 1
-Warning	1264	Data truncated; out of range for column 'tiny' at row 1
-Warning	1264	Data truncated; out of range for column 'short' at row 1
-Warning	1264	Data truncated; out of range for column 'medium' at row 1
-Warning	1264	Data truncated; out of range for column 'long_int' at row 1
-Warning	1264	Data truncated; out of range for column 'utiny' at row 1
-Warning	1264	Data truncated; out of range for column 'ushort' at row 1
-Warning	1264	Data truncated; out of range for column 'umedium' at row 1
-Warning	1264	Data truncated; out of range for column 'ulong' at row 1
+Warning	1264	Out of range value adjusted for column 'tiny' at row 1
+Warning	1264	Out of range value adjusted for column 'short' at row 1
+Warning	1264	Out of range value adjusted for column 'medium' at row 1
+Warning	1264	Out of range value adjusted for column 'long_int' at row 1
+Warning	1264	Out of range value adjusted for column 'utiny' at row 1
+Warning	1264	Out of range value adjusted for column 'ushort' at row 1
+Warning	1264	Out of range value adjusted for column 'umedium' at row 1
+Warning	1264	Out of range value adjusted for column 'ulong' at row 1
 Warning	1265	Data truncated for column 'options' at row 1
 insert into t1 values (0,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,NULL,0,0,0,4294967295,4294967295,4294967295,'4294967295',0,0);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'tiny' at row 1
-Warning	1264	Data truncated; out of range for column 'short' at row 1
-Warning	1264	Data truncated; out of range for column 'medium' at row 1
-Warning	1264	Data truncated; out of range for column 'long_int' at row 1
-Warning	1264	Data truncated; out of range for column 'utiny' at row 1
-Warning	1264	Data truncated; out of range for column 'ushort' at row 1
-Warning	1264	Data truncated; out of range for column 'umedium' at row 1
+Warning	1264	Out of range value adjusted for column 'tiny' at row 1
+Warning	1264	Out of range value adjusted for column 'short' at row 1
+Warning	1264	Out of range value adjusted for column 'medium' at row 1
+Warning	1264	Out of range value adjusted for column 'long_int' at row 1
+Warning	1264	Out of range value adjusted for column 'utiny' at row 1
+Warning	1264	Out of range value adjusted for column 'ushort' at row 1
+Warning	1264	Out of range value adjusted for column 'umedium' at row 1
 Warning	1265	Data truncated for column 'options' at row 1
 insert into t1 (tiny) values (1);
 select auto,string,tiny,short,medium,long_int,longlong,real_float,real_double,utiny,ushort,umedium,ulong,ulonglong,mod(floor(time_stamp/1000000),1000000)-mod(curdate(),1000000),date_field,time_field,date_time,blob_col,tinyblob_col,mediumblob_col,longblob_col from t1;
@@ -208,56 +208,56 @@ Warning	1265	Data truncated for column 'options' at row 6
 update t2 set string="changed" where auto=16;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL		MUL	NULL	auto_increment		
-string	varchar(10)	latin1_swedish_ci	YES		new defaul			
-tiny	tinyint(4)	NULL		MUL	0			
-short	smallint(6)	NULL		MUL	0			
-medium	mediumint(8)	NULL		MUL	0			
-long_int	int(11)	NULL			0			
-longlong	bigint(13)	NULL		MUL	0			
-real_float	float(13,1)	NULL		MUL	0.0			
+auto	int(5) unsigned	NULL	NO	MUL	NULL	auto_increment		
+string	char(10)	latin1_swedish_ci	YES		new defaul			
+tiny	tinyint(4)	NULL	NO	MUL	0			
+short	smallint(6)	NULL	NO	MUL	0			
+medium	mediumint(8)	NULL	NO	MUL	0			
+long_int	int(11)	NULL	NO		0			
+longlong	bigint(13)	NULL	NO	MUL	0			
+real_float	float(13,1)	NULL	NO	MUL	0.0			
 real_double	double(16,4)	NULL	YES		NULL			
-utiny	tinyint(3) unsigned	NULL			0			
-ushort	smallint(5) unsigned zerofill	NULL			00000			
-umedium	mediumint(8) unsigned	NULL		MUL	0			
-ulong	int(11) unsigned	NULL		MUL	0			
-ulonglong	bigint(13) unsigned	NULL		MUL	0			
+utiny	tinyint(3) unsigned	NULL	NO		0			
+ushort	smallint(5) unsigned zerofill	NULL	NO		00000			
+umedium	mediumint(8) unsigned	NULL	NO	MUL	0			
+ulong	int(11) unsigned	NULL	NO	MUL	0			
+ulonglong	bigint(13) unsigned	NULL	NO	MUL	0			
 time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP			
 date_field	char(10)	latin1_swedish_ci	YES		NULL			
 time_field	time	NULL	YES		NULL			
 date_time	datetime	NULL	YES		NULL			
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL			
 tinyblob_col	tinyblob	NULL	YES		NULL			
-mediumblob_col	mediumblob	NULL						
-options	enum('one','two','tree')	latin1_swedish_ci		MUL	one			
-flags	set('one','two','tree')	latin1_swedish_ci						
-new_field	char(10)	latin1_swedish_ci			new			
+mediumblob_col	mediumblob	NULL	NO					
+options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	one			
+flags	set('one','two','tree')	latin1_swedish_ci	NO					
+new_field	char(10)	latin1_swedish_ci	NO		new			
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL			0			
-string	varchar(10)	latin1_swedish_ci	YES		new defaul			
-tiny	tinyint(4)	NULL			0			
-short	smallint(6)	NULL			0			
-medium	mediumint(8)	NULL			0			
-long_int	int(11)	NULL			0			
-longlong	bigint(13)	NULL			0			
-real_float	float(13,1)	NULL			0.0			
+auto	int(5) unsigned	NULL	NO		0			
+string	char(10)	latin1_swedish_ci	YES		new defaul			
+tiny	tinyint(4)	NULL	NO		0			
+short	smallint(6)	NULL	NO		0			
+medium	mediumint(8)	NULL	NO		0			
+long_int	int(11)	NULL	NO		0			
+longlong	bigint(13)	NULL	NO		0			
+real_float	float(13,1)	NULL	NO		0.0			
 real_double	double(16,4)	NULL	YES		NULL			
-utiny	tinyint(3) unsigned	NULL			0			
-ushort	smallint(5) unsigned zerofill	NULL			00000			
-umedium	mediumint(8) unsigned	NULL			0			
-ulong	int(11) unsigned	NULL			0			
-ulonglong	bigint(13) unsigned	NULL			0			
+utiny	tinyint(3) unsigned	NULL	NO		0			
+ushort	smallint(5) unsigned zerofill	NULL	NO		00000			
+umedium	mediumint(8) unsigned	NULL	NO		0			
+ulong	int(11) unsigned	NULL	NO		0			
+ulonglong	bigint(13) unsigned	NULL	NO		0			
 time_stamp	timestamp	NULL	YES		0000-00-00 00:00:00			
 date_field	char(10)	latin1_swedish_ci	YES		NULL			
 time_field	time	NULL	YES		NULL			
 date_time	datetime	NULL	YES		NULL			
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL			
 tinyblob_col	tinyblob	NULL	YES		NULL			
-mediumblob_col	mediumblob	NULL						
-options	enum('one','two','tree')	latin1_swedish_ci			one			
-flags	set('one','two','tree')	latin1_swedish_ci						
-new_field	char(10)	latin1_swedish_ci			new			
+mediumblob_col	mediumblob	NULL	NO					
+options	enum('one','two','tree')	latin1_swedish_ci	NO		one			
+flags	set('one','two','tree')	latin1_swedish_ci	NO					
+new_field	char(10)	latin1_swedish_ci	NO		new			
 select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and ((t1.string<>t2.string and (t1.string is not null or t2.string is not null)) or (t1.tiny<>t2.tiny and (t1.tiny is not null or t2.tiny is not null)) or (t1.short<>t2.short and (t1.short is not null or t2.short is not null)) or (t1.medium<>t2.medium and (t1.medium is not null or t2.medium is not null)) or (t1.long_int<>t2.long_int and (t1.long_int is not null or t2.long_int is not null)) or (t1.longlong<>t2.longlong and (t1.longlong is not null or t2.longlong is not null)) or (t1.real_float<>t2.real_float and (t1.real_float is not null or t2.real_float is not null)) or (t1.real_double<>t2.real_double and (t1.real_double is not null or t2.real_double is not null)) or (t1.utiny<>t2.utiny and (t1.utiny is not null or t2.utiny is not null)) or (t1.ushort<>t2.ushort and (t1.ushort is not null or t2.ushort is not null)) or (t1.umedium<>t2.umedium and (t1.umedium is not null or t2.umedium is not null)) or (t1.ulong<>t2.ulong and (t1.ulong is not null or t2.ulong is not null)) or (t1.ulonglong<>t2.ulonglong and (t1.ulonglong is not null or t2.ulonglong is not null)) or (t1.time_stamp<>t2.time_stamp and (t1.time_stamp is not null or t2.time_stamp is not null)) or (t1.date_field<>t2.date_field and (t1.date_field is not null or t2.date_field is not null)) or (t1.time_field<>t2.time_field and (t1.time_field is not null or t2.time_field is not null)) or (t1.date_time<>t2.date_time and (t1.date_time is not null or t2.date_time is not null)) or (t1.new_blob_col<>t2.new_blob_col and (t1.new_blob_col is not null or t2.new_blob_col is not null)) or (t1.tinyblob_col<>t2.tinyblob_col and (t1.tinyblob_col is not null or t2.tinyblob_col is not null)) or (t1.mediumblob_col<>t2.mediumblob_col and (t1.mediumblob_col is not null or t2.mediumblob_col is not null)) or (t1.options<>t2.options and (t1.options is not null or t2.options is not null)) or (t1.flags<>t2.flags and (t1.flags is not null or t2.flags is not null)) or (t1.new_field<>t2.new_field and (t1.new_field is not null or t2.new_field is not null)));
 auto	auto
 16	16
@@ -265,23 +265,27 @@ select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and not (t1.string<=>t2.
 auto	auto
 16	16
 drop table t2;
-create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, "a" as t2, repeat("a",256) as t3, binary repeat("b",256) as t4 from t1;
+create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	bigint(17) unsigned	NULL		PRI	0			
-t1	bigint(1)	NULL			0			
-t2	char(1)	latin1_swedish_ci						
-t3	longtext	latin1_swedish_ci						
-t4	longblob	NULL						
-select * from t2;
-auto	t1	t2	t3	t4
-11	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-12	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-13	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-14	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-15	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-16	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-17	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+auto	bigint(17) unsigned	NULL	NO	PRI	0			
+t1	bigint(1)	NULL	NO		0			
+t2	varchar(1)	latin1_swedish_ci	NO					
+t3	varchar(256)	latin1_swedish_ci	NO					
+t4	varbinary(256)	NULL	NO					
+t5	longtext	latin1_swedish_ci	NO					
+t6	longblob	NULL	NO					
+t7	char(0)	latin1_swedish_ci	NO					
+t8	binary(0)	NULL	NO					
+select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
+t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
+1	a	256	256	4096	4096		
 drop table t1,t2;
 create table t1 (c int);
 insert into t1 values(1),(2);
@@ -293,7 +297,7 @@ show full columns from t3;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c1	int(11)	NULL	YES		NULL			
 c2	int(11)	NULL	YES		NULL			
-const	bigint(1)	NULL			0			
+const	bigint(1)	NULL	NO		0			
 drop table t1,t2,t3;
 create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
 drop table t1;
