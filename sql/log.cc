@@ -73,7 +73,7 @@ static int find_uniq_filename(char *name)
   DBUG_RETURN(0);
 }
 
-MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),
+MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
 			inited(0), opened(0), no_rotate(0)
 {
@@ -156,7 +156,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
 						&tmp_stat, MYF(0)));
   
-  if ((file=my_open(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+  if ((file=my_open(log_file_name,O_APPEND | O_WRONLY | O_BINARY|O_CREAT,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE,
 		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
@@ -203,11 +203,13 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
     if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
 	(index_file < 0 && 
-	 (index_file = my_open(index_file_name,O_APPEND | O_BINARY | O_RDWR,
+	 (index_file = my_open(index_file_name,
+			       O_APPEND | O_BINARY | O_RDWR |O_CREAT,
 			       MYF(MY_WME))) < 0))
       goto err;
     Start_log_event s;
     s.write(&log_file);
+    flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
     my_write(index_file, log_file_name,strlen(log_file_name), MYF(0));
     my_write(index_file, "\n",1, MYF(0));
@@ -242,7 +244,7 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
     return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
-  int log_name_len = (uint) strlen(log_name);
+  uint log_name_len = (uint) strlen(log_name);
   IO_CACHE io_cache;
 
   // mutex needed because we need to make sure the file pointer does not move
@@ -287,7 +289,7 @@ int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
 {
   // mutex needed because we need to make sure the file pointer does not move
   // from under our feet
-  if (!index_file) return LOG_INFO_INVALID;
+  if (index_file < 0) return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
   IO_CACHE io_cache;
@@ -323,14 +325,14 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   if (no_rotate) return LOG_INFO_PURGE_NO_ROTATE;
   int error;
   char fname[FN_REFLEN];
-  char* fname_end, *p;
+  char *p;
   uint fname_len, i;
   bool logs_to_purge_inited = 0, logs_to_keep_inited = 0, found_log = 0;
   DYNAMIC_ARRAY logs_to_purge, logs_to_keep;
   my_off_t purge_offset ;
   LINT_INIT(purge_offset);
   IO_CACHE io_cache;
-
+  
   pthread_mutex_lock(&LOCK_index);
   
   if (init_io_cache(&io_cache,index_file, IO_SIZE*2, READ_CACHE, (my_off_t) 0,
@@ -379,7 +381,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
       goto err;
     }
       
-    if (!(p = sql_memdup(fname, (uint)(fname_end - fname) + 1)) ||
+    if (!(p = sql_memdup(fname, fname_len+1)) ||
 	insert_dynamic(found_log ? &logs_to_keep : &logs_to_purge,
 		       (gptr) &p))
     {
@@ -418,7 +420,8 @@ during log purge for write");
 #else
   my_close(index_file, MYF(MY_WME));
   my_delete(index_file_name, MYF(MY_WME));
-  if(!(index_file = my_open(index_file_name, O_BINARY | O_RDWR | O_APPEND,
+  if(!(index_file = my_open(index_file_name,
+			    O_BINARY | O_RDWR | O_APPEND |O_CREAT,
 			    MYF(MY_WME))))
   {
     sql_print_error("Ouch! Could not re-open the binlog index file \
@@ -432,8 +435,8 @@ during log purge for write");
   {
     char* l;
     get_dynamic(&logs_to_keep, (gptr)&l, i);
-    if (my_write(index_file, l, strlen(l), MYF(MY_WME)) ||
-	my_write(index_file, "\n", 1, MYF(MY_WME)))
+    if (my_write(index_file, l, strlen(l), MYF(MY_WME|MY_NABP)) ||
+	my_write(index_file, "\n", 1, MYF(MY_WME|MY_NABP)))
     {
       error = LOG_INFO_FATAL;
       goto err;
@@ -819,7 +822,6 @@ void MYSQL_LOG::close(bool exiting)
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
-    log_type=LOG_CLOSED;
   }
   if (exiting && index_file >= 0)
   {
@@ -828,7 +830,8 @@ void MYSQL_LOG::close(bool exiting)
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
-    index_file=0;
+    index_file=-1;
+    log_type=LOG_CLOSED;
   }
   safeFree(name);
 }
