@@ -853,6 +853,7 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lcma"
     fi
+    AC_DEFINE(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
     ;;
   *hpux11.*)
     echo "Enabling pread/pwrite workaround for hpux 11"

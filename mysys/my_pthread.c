@@ -412,7 +412,7 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 /* Change functions on HP to work according to POSIX */
 
-#ifdef HAVE_DEC_THREADS
+#ifdef HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT
 #undef pthread_cond_timedwait
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond,
@@ -422,7 +422,7 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
   int error=pthread_cond_timedwait(cond,mutex,abstime);
   return error == EAGAIN ? ETIMEDOUT : error;
 }
-#endif /* HAVE_DEC_THREADS */
+#endif /* HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT */
 
 /*
   Emulate SOLARIS style calls, not because it's better, but just to make the
