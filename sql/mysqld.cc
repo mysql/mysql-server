@@ -5799,7 +5799,7 @@ static void mysql_init_variables(void)
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
-  opt_tc_log_file= "tc.log";      // no hostname in tc_log file name !
+  opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
