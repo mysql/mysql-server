@@ -77,11 +77,13 @@ int main(int argc, char** argv)
   }
 
   { // Do configuration
-    signal(SIGPIPE, SIG_IGN);
+#ifndef NDB_WIN32
+	signal(SIGPIPE, SIG_IGN);
+#endif
     theConfig->fetch_configuration(local_config);
   }
-  
-  chdir(NdbConfig_get_path(0));
+
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
   if (theConfig->getDaemonMode()) {
     // Become a daemon
@@ -95,6 +97,7 @@ int main(int argc, char** argv)
     }
   }
   
+#ifndef NDB_WIN32
   for(pid_t child = fork(); child != 0; child = fork()){
     /**
      * Parent
@@ -145,6 +148,9 @@ int main(int argc, char** argv)
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+#else
+  g_eventLogger.info("Ndb started");
+#endif
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
@@ -276,7 +282,7 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 
 void 
 catchsigs(bool ignore){
-#if ! defined NDB_SOFTOSE && !defined NDB_OSE 
+#if !defined NDB_WIN32 && !defined NDB_SOFTOSE && !defined NDB_OSE 
 
   static const int signals_shutdown[] = {
 #ifdef SIGBREAK
@@ -318,7 +324,6 @@ catchsigs(bool ignore){
     SIGTRAP
 #endif
   };
-#endif
 
   static const int signals_ignore[] = {
     SIGPIPE
@@ -331,6 +336,7 @@ catchsigs(bool ignore){
     handler_register(signals_error[i], handler_error, ignore);
   for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
     handler_register(signals_ignore[i], SIG_IGN, ignore);
+#endif
 }
 
 extern "C"
@@ -349,8 +355,10 @@ handler_error(int signum){
   if (thread_id != 0 && thread_id == my_thread_id())
   {
     // Shutdown thread received signal
-    signal(signum, SIG_DFL);
+#ifndef NDB_WIN32
+	signal(signum, SIG_DFL);
     kill(getpid(), signum);
+#endif
     while(true)
       NdbSleep_MilliSleep(10);
   }

@@ -2,16 +2,23 @@
 #ifndef NDBGLOBAL_H
 #define NDBGLOBAL_H
 
-#include <my_global.h>
-
-/** signal & SIG_PIPE */
-#include <my_alarm.h>
+#include <ndb_types.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32
+#include <winsock2.h>
+#include <my_global.h>
+#include <m_ctype.h>
+
+#define PATH_MAX 256
+#define DIR_SEPARATOR "\\"
+
+#pragma warning(disable: 4503 4786)
+
 #else
 #undef NDB_WIN32
-#endif
+#include <my_global.h>
+#include <my_alarm.h>
 
 #ifdef _AIX
 #undef _H_STRINGS
@@ -47,23 +54,22 @@
 #include <sys/mman.h>
 #endif
 
-#ifdef NDB_WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#define DIR_SEPARATOR "\\"
-#define PATH_MAX 256
-
-#pragma warning(disable: 4503 4786)
-#else
-
 #define DIR_SEPARATOR "/"
 
 #endif
 
+#ifndef HAVE_STRDUP
+extern char * strdup(const char *s);
+#endif
+
+#ifndef HAVE_STRCASECMP
+extern int strcasecmp(const char *s1, const char *s2);
+extern int strncasecmp(const char *s1, const char *s2, size_t n);
+#endif
+
 static const char table_name_separator =  '/';
 
-#if defined(_AIX) || defined(NDB_VC98)
+#if defined(_AIX) || defined(WIN32) || defined(NDB_VC98)
 #define STATIC_CONST(x) enum { x }
 #else
 #define STATIC_CONST(x) static const Uint32 x
@@ -83,15 +89,6 @@ extern "C" {
 extern int ndb_init(void);
 extern void ndb_end(int);
 #define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
-
-#ifndef HAVE_STRDUP
-extern char * strdup(const char *s);
-#endif
-
-#ifndef HAVE_STRCASECMP
-extern int strcasecmp(const char *s1, const char *s2);
-extern int strncasecmp(const char *s1, const char *s2, size_t n);
-#endif
 
 #ifdef SCO
 

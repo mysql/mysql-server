@@ -12944,7 +12944,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 nodeOrder[MAX_REPLICAS];
 	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
 	char buf[100];
-	snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
+	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
@@ -13155,7 +13155,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	getFragstore(tabPtr.p, fid, fragPtr);
 	
 	char buf[100], buf2[100];
-	snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
+	BaseString::snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
 		 fid, fragPtr.p->noLcpReplicas);
 	
 	Uint32 num=0;
