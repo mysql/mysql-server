@@ -274,7 +274,7 @@ void print_arrays()
 	  function_plus,function_mod);
 
   int *prva= (int*) my_alloca(sizeof(int)*function_mod);
-  for (i=0 ; i <= function_mod; i++)
+  for (i=0 ; i < function_mod; i++)
     prva[i]= max_symbol;
 
   for (i=0;i<size;i++)
