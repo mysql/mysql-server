@@ -126,8 +126,8 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), &my_charset_latin1, cs);
+    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    return copy(buff, len, &my_charset_latin1, cs);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -671,9 +671,8 @@ int String::reserve(uint32 space_needed, uint32 grow_by)
   return FALSE;
 }
 
-void String::qs_append(const char *str)
+void String::qs_append(const char *str, uint32 len)
 {
-  int len = strlen(str);
   memcpy(Ptr + str_length, str, len + 1);
   str_length += len;
 }
@@ -681,8 +680,7 @@ void String::qs_append(const char *str)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  sprintf(buff,"%.14g", d);
-  str_length += strlen(buff);
+  str_length+= my_sprintf(buff, (buff, "%.14g", d));
 }
 
 void String::qs_append(double *d)
@@ -690,12 +688,6 @@ void String::qs_append(double *d)
   double ld;
   float8get(ld, (char*) d);
   qs_append(ld);
-}
-
-void String::qs_append(const char &c)
-{
-  Ptr[str_length] = c;
-  str_length += sizeof(c);
 }
 
 
