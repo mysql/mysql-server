@@ -166,3 +166,73 @@ n	d
 2	20
 unlock tables;
 drop table t1,t2;
+set sql_safe_updates=1;
+create table t1 (n int(10), d int(10));
+create table t2 (n int(10), d int(10));
+insert into t1 values(1,1);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+set sql_safe_updates=0;
+drop table t1,t2;
+set timestamp=1038401397;
+create table t1 (n int(10) not null primary key, d int(10), t timestamp);
+create table t2 (n int(10) not null primary key, d int(10), t timestamp);
+insert into t1 values(1,1,NULL);
+insert into t2 values(1,10,NULL),(2,20,NULL);
+set timestamp=1038000000;
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+select * from t1;
+n	d	t
+1	10	20021123002000
+select * from t2;
+n	d	t
+1	10	20021127154957
+2	20	20021127154957
+UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
+You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
+drop table t1,t2;
+set timestamp=0;
+set sql_safe_updates=0;
+create table t1 (n int(10) not null primary key, d int(10));
+create table t2 (n int(10) not null primary key, d int(10));
+insert into t1 values(1,1), (3,3);
+insert into t2 values(1,10),(2,20);
+UPDATE t2 left outer join t1 on t1.n=t2.n  SET t1.d=t2.d;
+select * from t1;
+n	d
+1	10
+3	3
+select * from t2;
+n	d
+1	10
+2	20
+drop table t1,t2;
+create table t1 (n int(10), d int(10));
+create table t2 (n int(10), d int(10));
+insert into t1 values(1,1),(1,2);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+n	d
+1	10
+1	10
+select * from t2;
+n	d
+1	30
+2	20
+drop table t1,t2;
+create table t1 (n int(10), d int(10));
+create table t2 (n int(10), d int(10));
+insert into t1 values(1,1),(3,2);
+insert into t2 values(1,10),(1,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+n	d
+1	10
+3	2
+select * from t2;
+n	d
+1	30
+1	30
+drop table t1,t2;
