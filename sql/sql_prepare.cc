@@ -329,15 +329,22 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+/*
+  Read date/time/datetime parameter values from network (binary
+  protocol). See writing counterparts of these functions in
+  libmysql.c (store_param_{time,date,datetime}).
+*/
+
 static void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
-  ulong length;
-  uint day;
+  MYSQL_TIME tm;
+  ulong length= get_param_length(pos, len);
 
-  if ((length= get_param_length(pos, len)) >= 8)
+  if (length >= 8)
   {
     uchar *to= *pos;
-    TIME  tm;
+    uint day;
 
     tm.neg= (bool) to[0];
     day= (uint) sint4korr(to+1);
@@ -359,21 +366,22 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
       tm.second= 59;
     }
     tm.day= tm.year= tm.month= 0;
-
-    param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                    MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
+  else
+    set_zero_time(&tm);
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
+                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
 static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
-  uint length;
+  MYSQL_TIME tm;
+  ulong length= get_param_length(pos, len);
 
-  if ((length= get_param_length(pos, len)) >= 4)
+  if (length >= 4)
   {
     uchar *to= *pos;
-    TIME  tm;
 
     tm.neg=    0;
     tm.year=   (uint) sint2korr(to);
@@ -394,21 +402,22 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
       tm.hour= tm.minute= tm.second= 0;
 
     tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
-
-    param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME, 
-                    MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
+  else
+    set_zero_time(&tm);
+  param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
+                  MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
 static void set_param_date(Item_param *param, uchar **pos, ulong len)
 {
-  ulong length;
- 
-  if ((length= get_param_length(pos, len)) >= 4)
+  MYSQL_TIME tm;
+  ulong length= get_param_length(pos, len);
+
+  if (length >= 4)
   {
     uchar *to= *pos;
-    TIME tm;
     /*
       Note, that though ranges of hour, minute and second are not checked
       here we rely on them being < 256: otherwise
@@ -421,10 +430,11 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.hour= tm.minute= tm.second= 0;
     tm.second_part= 0;
     tm.neg= 0;
-
-    param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
-                    MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
+  else
+    set_zero_time(&tm);
+  param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
+                  MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
