@@ -1308,7 +1308,9 @@ else
       hardcode_direct=yes
     fi
     allow_undefined_flag=' ${wl}-berok'
-    archive_cmds="\$CC $shared_flag"' -o $objdir/$soname $libobjs $deplibs $linkopts ${wl}-bexpall ${wl}-bnoentry${allow_undefined_flag}'
+    # -qmkshrobj used to be -bexpall, but MySQL uses symbols which start with
+    # an underscore (e.g., _my_b_write), so -bexpall doesn't work.
+    archive_cmds="\$CC $shared_flag"' -o $objdir/$soname $libobjs $deplibs $linkopts ${wl}-qmkshrobj ${wl}-bnoentry${allow_undefined_flag}'
     archive_expsym_cmds="\$CC $shared_flag"' -o $objdir/$soname $libobjs $deplibs $linkopts ${wl}-bE:$export_symbols ${wl}-bnoentry${allow_undefined_flag}'
     case "$host_os" in aix4.[01]|aix4.[01].*)
       # According to Greg Wooledge, -bexpall is only supported from AIX 4.2 on
