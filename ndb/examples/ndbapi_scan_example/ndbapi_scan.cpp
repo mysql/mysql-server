@@ -187,7 +187,7 @@ int populate(Ndb * myNdb)
     myNdbOperation->setValue("COLOR", cars[i].color);
   }
 
-  int check = myTrans->execute(Commit);
+  int check = myTrans->execute(NdbTransaction::Commit);
 
   myTrans->close();
 
@@ -280,7 +280,7 @@ int scan_delete(Ndb* myNdb,
     /**
      * Start scan    (NoCommit since we are only reading at this stage);
      */     
-    if(myTrans->execute(NoCommit) != 0){      
+    if(myTrans->execute(NdbTransaction::NoCommit) != 0){      
       err = myTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
 	std::cout << myTrans->getNdbError().message << std::endl;
@@ -322,7 +322,7 @@ int scan_delete(Ndb* myNdb,
        */    
       if(check != -1)
       {
-	check = myTrans->execute(Commit);   
+	check = myTrans->execute(NdbTransaction::Commit);   
       }
 
       if(check == -1)
@@ -453,7 +453,7 @@ int scan_update(Ndb* myNdb,
     /**
      * Start scan    (NoCommit since we are only reading at this stage);
      */     
-    if(myTrans->execute(NoCommit) != 0)
+    if(myTrans->execute(NdbTransaction::NoCommit) != 0)
     {      
       err = myTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
@@ -501,7 +501,7 @@ int scan_update(Ndb* myNdb,
        */    
       if(check != -1)
       {
-	check = myTrans->execute(NoCommit);   
+	check = myTrans->execute(NdbTransaction::NoCommit);   
       }
 
       /**
@@ -525,7 +525,7 @@ int scan_update(Ndb* myNdb,
     /**
      * Commit all prepared operations
      */
-    if(myTrans->execute(Commit) == -1)
+    if(myTrans->execute(NdbTransaction::Commit) == -1)
     {
       if(err.status == NdbError::TemporaryError){
 	std::cout << myTrans->getNdbError().message << std::endl;
@@ -640,7 +640,7 @@ int scan_print(Ndb * myNdb)
     /**
      * Start scan   (NoCommit since we are only reading at this stage);
      */     
-    if(myTrans->execute(NoCommit) != 0){      
+    if(myTrans->execute(NdbTransaction::NoCommit) != 0){      
       err = myTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
 	std::cout << myTrans->getNdbError().message << std::endl;

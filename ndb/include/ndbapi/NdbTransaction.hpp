@@ -42,7 +42,7 @@ class NdbBlob;
 typedef void (* NdbAsynchCallback)(int, NdbTransaction*, void*);
 #endif
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 enum AbortOption {
   CommitIfFailFree= 0,         
   TryCommit= 0,

@@ -698,7 +698,7 @@ public:
 
     /** @} *******************************************************************/
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void setStoredTable(bool x) { setLogging(x); }
     bool getStoredTable() const { return getLogging(); }
 
@@ -1010,6 +1010,8 @@ public:
      * Fetch list of all objects, optionally restricted to given type.
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
+    int listObjects(const List & list,
+		    Object::Type type = Object::TypeUndefined) const;
 
     /**
      * Get the latest error
@@ -1048,6 +1050,7 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const char * tableName);
+    int listIndexes(const List & list, const char * tableName) const;
 
     /** @} *******************************************************************/
     /** 
