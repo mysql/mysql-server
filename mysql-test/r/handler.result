@@ -151,4 +151,6 @@ insert into t1 values (1), (2), (3);
 handler t1 open;
 handler t1 read a=(W);
 Unknown column 'W' in 'field list'
+handler t1 read a=(a);
+Wrong arguments to HANDLER ... READ
 drop table t1;
