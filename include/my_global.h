@@ -898,7 +898,13 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
 				  (((uint32) ((uchar) (A)[2])) << 16))
 #else
-#define uint3korr(A)	(long) (*((unsigned long *) (A)) & 0xFFFFFF)
+/*
+   ATTENTION !
+   
+    Please, note, uint3korr reads 4 bytes (not 3) !
+    It means, that you have to provide enough allocated space !
+*/
+#define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
 #endif
 #define uint4korr(A)	(*((unsigned long *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\

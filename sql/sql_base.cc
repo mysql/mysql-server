@@ -389,7 +389,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_close_list(thd, tables);
+    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info", ("Waiting for others threads to close their open tables"));
@@ -859,7 +859,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   }
 
   /* close handler tables which are marked for flush */
-  mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
 
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
@@ -1251,7 +1251,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
