@@ -94,3 +94,16 @@ CREATE TABLE t1 (d varchar(6), k int);
 INSERT INTO t1 VALUES (NULL, 2);
 SELECT GREATEST(d,d) FROM t1 WHERE k=2;
 DROP TABLE t1;
+
+#
+# Bug #6138: mod and doubles
+#
+
+select 1197.90 mod 50;
+select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
+
+#
+# Test for mod and signed integers
+#
+
+select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
