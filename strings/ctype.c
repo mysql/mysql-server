@@ -2848,8 +2848,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_big5,
     ismbhead_big5,
     mbcharlen_big5,
-    NULL,		/* mb_wc      */
-    NULL,		/* wc_mb      */
+    my_mb_wc_big5,	/* mb_wc      */
+    my_wc_mb_big5,	/* wc_mb      */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -3582,24 +3582,24 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_ujis
   {
-    12,    /* number */
-    "ujis",     /* name */
+    12,			/* number       */
+    "ujis",		/* name         */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
-    NULL,	/* tab_to_uni   */
-    NULL,	/* tab_from_uni */
-    0,	  /* strxfrm_multiply */
-    NULL,		 /* strnncoll  */
-    NULL,		 /* strnxfrm   */
-    NULL,		 /* like_range */
-    3,		/* mbmaxlen */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    0,			/* strxfrm_multiply */
+    NULL,		/* strnncoll    */
+    NULL,		/* strnxfrm     */
+    NULL,		/* like_range   */
+    3,			/* mbmaxlen     */
     ismbchar_ujis,
     ismbhead_ujis,
     mbcharlen_ujis,
-    NULL,		 /* mb_wc		*/
-    NULL,		 /* wc_mb      */
+    my_mb_wc_euc_jp,	 /* mb_wc       */
+    my_wc_mb_euc_jp,	 /* wc_mb       */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -3612,24 +3612,24 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_utf8
   {
-    33,			/* number    */
-    "utf8",		/* name      */
-    ctype_utf8,		/* ctype     */
-    to_lower_utf8,	/* to_lower  */
-    to_upper_utf8,	/* to_upper  */
-    to_upper_utf8,	/* sort_order */
+    33,			/* number       */
+    "utf8",		/* name         */
+    ctype_utf8,		/* ctype        */
+    to_lower_utf8,	/* to_lower     */
+    to_upper_utf8,	/* to_upper     */
+    to_upper_utf8,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
-    my_strnncoll_utf8,	/* strnncoll  */
-    my_strnxfrm_utf8,	/* strnxfrm   */
-    NULL,		/* like_range */
-    6,			/* mbmaxlen  */
-    my_ismbchar_utf8,	/* ismbchar  */
-    my_ismbhead_utf8,	/* ismbhead  */
-    my_mbcharlen_utf8,	/* mbcharlen */
-    my_utf8_uni,	/* mb_wc      */
-    my_uni_utf8,	/* wc_mb      */
+    my_strnncoll_utf8,	/* strnncoll    */
+    my_strnxfrm_utf8,	/* strnxfrm     */
+    NULL,		/* like_range   */
+    6,			/* mbmaxlen     */
+    my_ismbchar_utf8,	/* ismbchar     */
+    my_ismbhead_utf8,	/* ismbhead     */
+    my_mbcharlen_utf8,	/* mbcharlen    */
+    my_utf8_uni,	/* mb_wc        */
+    my_uni_utf8,	/* wc_mb        */
     my_caseup_str_utf8,
     my_casedn_str_utf8,
     my_caseup_utf8,
