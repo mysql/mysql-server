@@ -1416,10 +1416,21 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   DBT row;
   int error;
   KEY *key_info= &table->key_info[active_index];
+  int do_prev= 0;
   DBUG_ENTER("ha_berkeley::index_read");
 
   statistic_increment(ha_read_key_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
+  if (find_flag == HA_READ_BEFORE_KEY)
+  {
+    find_flag= HA_READ_KEY_OR_NEXT;
+    do_prev= 1;
+  }
+  else if (find_flag == HA_READ_PREFIX_LAST_OR_PREV)
+  {
+    find_flag= HA_READ_AFTER_KEY;
+    do_prev= 1;
+  }
   if (key_len == key_info->key_length)
   {
     error=read_row(cursor->c_get(cursor, pack_key(&last_key,
@@ -1453,6 +1464,12 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
 	error=HA_ERR_KEY_NOT_FOUND;
     }
   }
+  if (do_prev)
+  {
+    bzero((char*) &row, sizeof(row));
+    error= read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV),
+                         (char*) buf, active_index, &row, &last_key, 1);
+  }   
   DBUG_RETURN(error);
 }
 
