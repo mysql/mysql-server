@@ -435,14 +435,14 @@ trx_lists_init_at_db_start(void)
 
 				if (undo->state == TRX_UNDO_PREPARED) {
 
-					fprintf(stderr,
+ 					fprintf(stderr,
 "InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
 					ut_dulint_get_high(trx->id),
 					ut_dulint_get_low(trx->id));
 
-				/*	trx->conc_state = TRX_PREPARED; */
-				 	trx->conc_state =
-						TRX_ACTIVE;
+					trx->conc_state = TRX_ACTIVE;
+
+					/* trx->conc_state = TRX_PREPARED;*/
 				} else {
 					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
@@ -498,16 +498,15 @@ trx_lists_init_at_db_start(void)
 					commit or abort decision from MySQL */
 
 					if (undo->state == TRX_UNDO_PREPARED) {
-
-					fprintf(stderr,
+ 						fprintf(stderr,
 "InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
-					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id));
+						ut_dulint_get_high(trx->id),
+						ut_dulint_get_low(trx->id));
 
-					/* trx->conc_state = TRX_PREPARED; */
-					trx->conc_state =
-						TRX_ACTIVE;
+						trx->conc_state = TRX_ACTIVE;
 
+						/* trx->conc_state = 
+							TRX_PREPARED; */
 					} else {
 						trx->conc_state =
 						  TRX_COMMITTED_IN_MEMORY;
@@ -1638,8 +1637,11 @@ trx_print(
 			fputs(", not started", f);
 			break;
 		case TRX_ACTIVE:
-		case TRX_PREPARED:
 			fprintf(f, ", ACTIVE %lu sec",
+				(ulong)difftime(time(NULL), trx->start_time));
+                        break;
+		case TRX_PREPARED:
+			fprintf(f, ", ACTIVE (PREPARED) %lu sec",
 				(ulong)difftime(time(NULL), trx->start_time));
                         break;
 		case TRX_COMMITTED_IN_MEMORY:
@@ -1938,7 +1940,7 @@ trx_get_trx_by_xid(
 
 		if (xid->gtrid_length == trx->xid.gtrid_length &&
 		    xid->bqual_length == trx->xid.bqual_length &&
-		    memcmp(xid, &trx->xid, 
+		    memcmp(xid->data, trx->xid.data, 
 				xid->gtrid_length + 
 				xid->bqual_length) == 0) {
 			break;

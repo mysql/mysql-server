@@ -82,7 +82,6 @@ private:
 private:
   /* Names are conventionally the same as in mysqld */
   int check_connection();
-  int check_user(const char *user, const char *password);
   int do_command();
   int dispatch_command(enum enum_server_command command,
                        const char *text, uint len);
@@ -283,12 +282,6 @@ int Mysql_connection_thread::check_connection()
     return 1;
   }
   net_send_ok(&net, connection_id);
-  return 0;
-}
-
-
-int Mysql_connection_thread::check_user(const char *user, const char *password)
-{
   return 0;
 }
 

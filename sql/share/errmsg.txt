@@ -5326,3 +5326,5 @@ ER_PROC_AUTO_REVOKE_FAIL
 	eng "Failed to revoke all privileges to dropped routine"
 ER_DATA_TOO_LONG 22001
 	eng "Data too long for column '%s' at row %ld"
+ER_SP_BAD_SQLSTATE 42000
+	eng "Bad SQLSTATE: '%s'"

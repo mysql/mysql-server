@@ -78,4 +78,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	b	b	21	test.t1.b	6	Using where
 SET MAX_SEEKS_FOR_KEY=DEFAULT;
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+set local  max_join_size=8;
+select * from (select * from t1) x;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+set local  max_join_size=1;
+select * from (select * from t1 a, t1 b) x;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+set local  max_join_size=1;
+select * from (select 1 union select 2 union select 3) x;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+drop table t1;
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;

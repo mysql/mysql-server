@@ -67,6 +67,13 @@ static uchar bin_char_array[] =
 };
 
 
+static my_bool 
+my_coll_init_8bit_bin(CHARSET_INFO *cs,
+                      void *(*alloc)(uint) __attribute__((unused)))
+{
+  cs->max_sort_char=255; 
+  return FALSE;
+}
 
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
                                const uchar *s, uint slen,
@@ -443,7 +450,7 @@ skip:
 
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
-    NULL,			/* init */
+    my_coll_init_8bit_bin,
     my_strnncoll_8bit_bin,
     my_strnncollsp_8bit_bin,
     my_strnxfrm_8bit_bin,
