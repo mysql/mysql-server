@@ -283,6 +283,7 @@ public:
     }
     empty();
   }
+  inline void concat(List<T> *list) { base_list::concat(list); }
 };
 
 
