@@ -325,11 +325,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     file->rnd_init();
     file->extra(HA_EXTRA_CACHE);	/* Quicker reads */
   }
-  else if (quick_select)		// QQ For FULLTEXT
-  {					// QQ Should be removed soon
-    file->index_end();	
-    select->quick->init();
-  }
 
   for (;;)
   {
