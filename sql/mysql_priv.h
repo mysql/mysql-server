@@ -1329,7 +1329,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->s->keys_in_use;
-  table->maybe_null= test(table->outer_join= table_list->outer_join);
+  table->maybe_null= table_list->outer_join;
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
