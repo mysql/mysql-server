@@ -5289,6 +5289,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+    keyinfo->rec_per_key=0;
     if (null_pack_length)
     {
       key_part_info->null_bit=0;
@@ -8502,6 +8503,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
+  List<Item> extra_funcs;
   uint i, border= all_fields.elements - elements;
   DBUG_ENTER("setup_copy_fields");
 
@@ -8563,7 +8565,12 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       */
       if (!(pos=new Item_copy_string(pos)))
 	goto err;
-      if (param->copy_funcs.push_back(pos))
+      if (i < border)                           // HAVING, ORDER and GROUP BY
+      {
+        if (extra_funcs.push_back(pos))
+          goto err;
+      }
+      else if (param->copy_funcs.push_back(pos))
 	goto err;
     }
     res_all_fields.push_back(pos);
@@ -8575,6 +8582,12 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   for (i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
+  /*
+    Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
+    reference used in these will resolve to a item that is already calculated
+  */
+  param->copy_funcs.concat(&extra_funcs);
+
   DBUG_RETURN(0);
 
  err:

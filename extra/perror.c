@@ -113,11 +113,14 @@ static HA_ERRORS ha_errlist[]=
 };
 
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s Ver %s, for %s (%s)\n",my_progname,PERROR_VERSION,
 	 SYSTEM_TYPE,MACHINE_TYPE);
 }
+
 
 static void usage(void)
 {
@@ -129,6 +132,8 @@ static void usage(void)
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 
 static my_bool

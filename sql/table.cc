@@ -195,7 +195,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open; /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
-  outparam->max_key_length= outparam->total_key_length= 0;
   key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
@@ -251,11 +250,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
       key_part->store_length=key_part->length;
     }
-    set_if_bigger(outparam->max_key_length,keyinfo->key_length+
-		  keyinfo->key_parts);
-    outparam->total_key_length+= keyinfo->key_length;
-    if (keyinfo->flags & HA_NOSAME)
-      set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -685,6 +679,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	}
       }
       keyinfo->usable_key_parts=usable_parts; // Filesort
+
+      set_if_bigger(outparam->max_key_length,keyinfo->key_length+
+		    keyinfo->key_parts);
+      outparam->total_key_length+= keyinfo->key_length;
+      if (keyinfo->flags & HA_NOSAME)
+        set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
     }
     if (primary_key < MAX_KEY &&
 	(outparam->keys_in_use.is_set(primary_key)))
