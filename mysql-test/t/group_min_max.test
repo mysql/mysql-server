@@ -577,3 +577,13 @@ explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 drop table t1;
 drop table t2;
 drop table t3;
+
+#
+# Bug #6142: a problem with the empty innodb table
+#
+
+create table t1 (
+  a varchar(30), b varchar(30), primary key(a), key(b)
+) engine=innodb;
+select distinct a from t1;
+drop table t1;
