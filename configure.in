@@ -1694,7 +1694,7 @@ then
 else
   tools_dirs=""
 fi
-AC_SUBST([tools_dirs])
+AC_SUBST(tools_dirs)
 
 MYSQL_CHECK_CPU
 MYSQL_CHECK_MYSQLFS
