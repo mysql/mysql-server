@@ -55,7 +55,9 @@ link_sources:
 	  for f in $$ms $(mysysheaders); do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../mysys/$$f $(srcdir)/$$f; \
-	  done;
+	  done; \
+	  rm -f $(srcdir)/net.c; \
+	  @LN_CP_F@ $(srcdir)/../sql/net_serv.cc $(srcdir)/net.c
 
 # This part requires GNUmake
 #
