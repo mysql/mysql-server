@@ -73,12 +73,9 @@ insert into t2 values(1234);
 
 #same value on the master
 connection master;
-save_master_pos;
 set insert_id=1234;
 insert into t2 values(NULL);
 connection slave;
-sync_with_master;
-
 wait_for_slave_to_stop;
 
 #restart slave skipping one event
