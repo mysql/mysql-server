@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
-#else
-__RCSID("$NetBSD: term.c,v 1.32 2001/01/23 15:55:31 jdolecek Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * term.c: Editor/termcap-curses interface

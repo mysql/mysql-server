@@ -95,9 +95,10 @@ getline (char **lineptr, size_t *n, FILE *stream)
 char *fgetln(FILE *stream, size_t *len)
 {
   char *ptr = NULL;
-  int sz = 0;
+  int sz;
+  size_t length= 0;
 
-  sz = getline(&ptr,  &sz, stream);
+  sz = getline(&ptr,  &length, stream);
   if(len) {
     *len = sz;
   }

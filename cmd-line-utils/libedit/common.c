@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: common.c,v 1.10 2001/01/10 07:45:41 jdolecek Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * common.c: Common Editor functions
