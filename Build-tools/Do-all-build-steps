@@ -64,7 +64,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
  --with-berkeley-db \
- --with-innobase-db
+ --with-innobase
 
 gmake -j 2 
 

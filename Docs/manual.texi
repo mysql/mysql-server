@@ -512,6 +512,8 @@ BDB or Berkeley_db Tables
 INNOBASE Tables
 
 * INNOBASE overview::           
+* Innobase startup options::    
+* Using Innobase tables::       
 * INNOBASE restrictions::       
 
 MySQL Tutorial
@@ -580,7 +582,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -722,12 +724,12 @@ Problems and Common Errors
 
 Some Common Errors When Using MySQL
 
-* Error Access denied::         
+* Error Access denied::         @code{Access denied} Error
 * Gone away::                   @code{MySQL server has gone away} error
 * Can not connect to server::   @code{Can't connect to [local] MySQL server} error
 * Blocked host::                @code{Host '...' is blocked} error
 * Too many connections::        @code{Too many connections} error
-* Non-transactional tables::    @code{Some non-transactional changed tables couldn't be rolled back} Error  
+* Non-transactional tables::    @code{Some non-transactional changed tables couldn't be rolled back} Error
 * Out of memory::               @code{Out of memory} error
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
@@ -23308,18 +23310,17 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @node BDB overview, BDB install, BDB, BDB
 @subsection Overview over BDB tables
 
-Innobase is included in the @strong{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+BDB tables are included in the @strong{MySQL} source distribution
+starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+binary.
 
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction-safe table handler. This will survive
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
-transactions. In order to build MySQL Version 3.23.x (BDB support first
-appeared in Version 3.23.15) with support for @code{BDB} tables, you
-will need Berkeley DB Version 3.2.3h or newer which can be downloaded from
-@uref{http://www.mysql.com/downloads/mysql-3.23.html}.  This is a patched
-version of Berkeley DB that is only available from @strong{MySQL}; the
-standard Berkeley DB @strong{will not yet work with MySQL}.
+transactions. The @strong{MySQL} source distribution comes with a BDB
+distribution that has a couple of small patches to make it work more
+smoothly with @strong{MySQL}.  You can't use a not-patched @code{BDB}
+version with @strong{MySQL}.
 
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
@@ -23328,29 +23329,14 @@ If you have downloaded a binary version of @strong{MySQL} that includes
 support for Berkeley DB, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
-To compile MySQL with Berkeley DB support, first uncompress the
-@code{BDB} distribution into the @strong{MySQL} top-level source
-directory, and follow the instructions for building MySQL from
-source. Configure will automatically detect and use the Berkeley
-DB source you just uncompressed. @xref{Installing source}.
+To compile MySQL with Berkeley DB support, download @strong{MySQL}
+3.23.34 or newer and configure @code{MySQL} with the
+@code{--with-berkeley-db} option. @xref{Installing source}.
 
 @example
-cd /path/to/source/of/mysql-3.23.31
-gzip -cd /tmp/db-3.2.3h.tar.gz | tar xf -
-./configure             # this will use Berkeley DB automatically
+cd /path/to/source/of/mysql-3.23.34
+./configure --with-berkeley-db
 @end example
-
-If you would like to install Berkeley DB separately, to use with
-other applications and MySQL, this is possible.  Follow the directions
-for installing Berkeley DB in the Berkeley DB README file.  Then, pass
-the @code{--with-berkeley-db=DIR} option to @strong{MySQL}'s @code{configure},
-where @code{DIR} refers to the installation prefix used when installing
-Berkeley DB (by default it is
-/usr/local/BerkeleyDB.3.2). You can give additional options to
-@strong{MySQL} configure, @code{--with-berkeley-db-includes=DIR} and
-@code{--with-berkeley-db-libs=DIR}, if the @code{BDB} includes and/or libs
-directory is not under the first directory (by default they are).
-Then complete the @strong{MySQL} installation as normal.
 
 Please refer to the manual provided by @code{BDB} distribution for
 more/updated information.
@@ -23528,14 +23514,30 @@ not trivial).
 
 @menu
 * INNOBASE overview::           
+* Innobase startup options::    
+* Using Innobase tables::       
 * INNOBASE restrictions::       
 @end menu
 
-@node INNOBASE overview, INNOBASE restrictions, INNOBASE, INNOBASE
+@node INNOBASE overview, Innobase startup options, INNOBASE, INNOBASE
 @subsection INNOBASE Tables overview
 
-Innobase is included in the @strong{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+Innobase tables are included in the @strong{MySQL} source distribution
+starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+binary.
+
+If you have downloaded a binary version of @strong{MySQL} that includes
+support for Berkeley DB, simply follow the instructions for
+installing a binary version of @strong{MySQL}. @xref{Installing binary}.
+
+To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
+3.23.34 or newer and configure @code{MySQL} with the
+@code{--with-innobase} option. @xref{Installing source}.
+
+@example
+cd /path/to/source/of/mysql-3.23.34
+./configure --with-berkeley-db
+@end example
 
 Innobase provides MySQL with a transaction safe table handler with
 commit, rollback, and crash recovery capabilities.  Innobase does
@@ -23548,22 +23550,8 @@ Innobase is a table handler that is under the GNU GPL License Version 2
 (of June 1991). In the source distribution of MySQL, Innobase appears as
 a subdirectory.
 
-Technically, Innobase is a database backend placed under MySQL. Innobase
-has its own buffer pool for caching data and indexes in main
-memory. Innobase stores its tables and indexes in a tablespace, which
-may consist of several files. This is different from, for example,
-@code{MyISAM} tables where each table is stored as a separate file.
-
-To create a table in the Innobase format you must specify
-@code{TYPE = INNOBASE} in the table creation SQL command:
-
-@example
-CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNOBASE;
-@end example
-
-A consistent non-locking read is the default locking behavior when you
-do a @code{SELECT} from an Innobase table. For a searched update and an
-insert row level exclusive locking is performed.
+@node Innobase startup options, Using Innobase tables, INNOBASE overview, INNOBASE
+@subsection Innobase startup options
 
 To use Innobase tables you must specify configuration parameters
 in the MySQL configuration file in the @code{[mysqld]} section of
@@ -23659,6 +23647,26 @@ Innobase cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
 
+@node Using Innobase tables, INNOBASE restrictions, Innobase startup options, INNOBASE
+@subsection Using Innobase tables
+
+Technically, Innobase is a database backend placed under MySQL. Innobase
+has its own buffer pool for caching data and indexes in main
+memory. Innobase stores its tables and indexes in a tablespace, which
+may consist of several files. This is different from, for example,
+@code{MyISAM} tables where each table is stored as a separate file.
+
+To create a table in the Innobase format you must specify
+@code{TYPE = INNOBASE} in the table creation SQL command:
+
+@example
+CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNOBASE;
+@end example
+
+A consistent non-locking read is the default locking behavior when you
+do a @code{SELECT} from an Innobase table. For a searched update and an
+insert row level exclusive locking is performed.
+
 You can query the amount of free space in the Innobase tablespace (=
 data files you specified in my.cnf) by issuing the table status command
 of @strong{MySQL} for any table you have created with @code{TYPE =
@@ -23713,7 +23721,7 @@ P.O.Box 800
 Finland
 @end example
 
-@node INNOBASE restrictions,  , INNOBASE overview, INNOBASE
+@node INNOBASE restrictions,  , Using Innobase tables, INNOBASE
 @subsection Some restrictions on @code{INNOBASE} tables:
 
 @itemize @bullet
@@ -26464,7 +26472,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -41891,6 +41899,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Added the @code{INNOBASE} table handler and the @code{BDB} table handler
+to the @strong{MySQL} source distribution.
+@item
 @code{REPLACE} will not replace a row that conflicts with an
 @code{auto_increment} generated key.
 @item
@@ -41922,9 +41933,6 @@ Fixed problem in automatic repair that could let some threads in state
 Fixed bug when replicating timestamps.
 @item
 Fixed bug in bi-directonal replication.
-@item
-Added the @code{INNOBASE} table handler and the @code{BDB} table handler
-to the @strong{MySQL} source distribution.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
