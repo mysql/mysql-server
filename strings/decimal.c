@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#line __LINE__ "decimal.c"
+#line 18 "decimal.c"
 
 /*
 =======================================================================
@@ -113,8 +113,8 @@ typedef longlong      dec2;
 #define DIG_PER_DEC1 9
 #define DIG_MASK     100000000
 #define DIG_BASE     1000000000
-#define DIG_MAX      999999999
-#define DIG_BASE2    LL(1000000000000000000)
+#define DIG_MAX      (DIG_BASE-1)
+#define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
@@ -1415,6 +1415,11 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
       else
         *(++buf1)=DIG_BASE;
     }
+    else if (frac0+intg0==0)
+    {
+      decimal_make_zero(to);
+      return E_DEC_OK;
+    }
   }
   else
   {
@@ -2666,11 +2671,12 @@ int main()
   test_md("234.567","10.555","2.357", 0);
   test_md("-234.567","10.555","-2.357", 0);
   test_md("234.567","-10.555","2.357", 0);
-  if (full)
+  c.buf[1]=0x3ABECA;
+  test_md("99999999999999999999999999999999999999","3","0", 0);
+  if (c.buf[1] != 0x3ABECA)
   {
-    c.buf[1]=0x3ABECA;
-    test_md("99999999999999999999999999999999999999","3","0", 0);
-    printf("%X\n", c.buf[1]);
+    printf("%X - overflow\n", c.buf[1]);
+    exit(1);
   }
 
   printf("==== decimal2bin/bin2decimal ====\n");
@@ -2740,6 +2746,16 @@ int main()
   test_ro("-15.1",0,FLOOR,"-16", 0);
   test_ro("999999999999999999999.999", 0, CEILING,"1000000000000000000000", 0);
   test_ro("-999999999999999999999.999", 0, FLOOR,"-1000000000000000000000", 0);
+
+  b.buf[0]=DIG_BASE+1;
+  b.buf++;
+  test_ro(".3", 0, HALF_UP, "0", 0);
+  b.buf--;
+  if (b.buf[0] != DIG_BASE+1)
+  {
+    printf("%d - underflow\n", b.buf[0]);
+    exit(1);
+  }
 
   printf("==== max_decimal ====\n");
   test_mx(1,1,"0.9");
