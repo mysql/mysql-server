@@ -3056,6 +3056,9 @@ dump");
       }
 	  
       thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
+#ifdef SIGNAL_WITH_VIO_CLOSE
+      thd->clear_active_vio();
+#endif
       end_server(mysql);
       /*
 	First time retry immediately, assuming that we can recover
@@ -3129,6 +3132,9 @@ max_allowed_packet",
 	  goto err;
 	}
 	thd->proc_info = "Waiting to reconnect after a failed master event read";
+#ifdef SIGNAL_WITH_VIO_CLOSE
+        thd->clear_active_vio();
+#endif
 	end_server(mysql);
 	if (retry_count++)
 	{
@@ -4382,27 +4388,6 @@ end:
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
-
-
-#ifdef __WIN__
-extern "C" void clear_slave_vio( MYSQL* mysql )
-{
-	if (active_mi->mysql == mysql)
-		active_mi->io_thd->clear_active_vio();
-	/* TODO: use code like below when multi-master is in place */
-	/*	LIST *cur = &master_list;
-	if (((MASTER_INFO*)cur->data)->mysql == mysql)
-	{
-		MASTER_INFO *mi = (MASTER_INFO*)cur->data;
-		mi->io_thd->clear_active_vio();
-		return;
-	}
-	else
-		cur = cur->next;*/
-}
-#endif
-
-
 
 
 #endif /* HAVE_REPLICATION */
