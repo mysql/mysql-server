@@ -2,6 +2,7 @@
 # Test of group (Failed for Lars Hoss <lh@pbm.de>)
 #
 
+drop table if exists t1,t2;
 CREATE TABLE t1 (
   spID int(10) unsigned,
   userID int(10) unsigned,
@@ -208,3 +209,14 @@ select value,description,bug_id from t2 left join t1 on t2.program=t1.product an
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 
 drop table t1,t2;
+
+#
+# Problem with functions and group functions when no matching rows
+#
+
+create table t1 (foo int);
+insert into t1 values (1);
+select 1+1, "a",count(*) from t1 where foo in (2);
+insert into t1 values (1);
+select 1+1,"a",count(*) from t1 where foo in (2);
+drop table t1;

@@ -697,7 +697,9 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	      ** and that all key blocks are half full (normally things are
 	      ** much better)
 	      */
-	      uint keys_per_block= head->file->block_size/2/head->key_info[param.real_keynr[idx]].key_length+1;
+	      uint keys_per_block= head->file->block_size/2/
+		(head->key_info[param.real_keynr[idx]].key_length+
+		 head->file->ref_length) + 1;
 	      found_read_time=((double) (found_records+keys_per_block-1)/
 			       (double) keys_per_block);
 	    }

@@ -102,6 +102,7 @@ typedef struct st_join_table {
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   TABLE_REF	ref;
   JOIN_CACHE	cache;
+  JOIN		*join;
 } JOIN_TAB;
 
 

@@ -449,7 +449,7 @@ innobase_init(void)
 	if (!innobase_data_file_path)
 	{
 	  fprintf(stderr,
-       "Can't initialize InnoDB as 'innobase_data_file_path' is not set\n");
+       "Can't initialize InnoDB as 'innodb_data_file_path' is not set\n");
 	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
@@ -1868,7 +1868,7 @@ corresponding row to buf. */
 int
 ha_innobase::index_first(
 /*=====================*/
-				/* out: 0, HA_ERR_KEY_NOT_FOUND,
+				/* out: 0, HA_ERR_END_OF_FILE,
 				or error code */
 	mysql_byte*	buf)	/* in/out: buffer for the row */
 {
@@ -1878,6 +1878,12 @@ ha_innobase::index_first(
   	statistic_increment(ha_read_first_count, &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
+
+        /* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
+
+  	if (error == HA_ERR_KEY_NOT_FOUND) {
+  		error = HA_ERR_END_OF_FILE;
+  	}
 
   	DBUG_RETURN(error);
 }
@@ -1899,7 +1905,7 @@ ha_innobase::index_last(
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
-  	/* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
+        /* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
 
   	if (error == HA_ERR_KEY_NOT_FOUND) {
   		error = HA_ERR_END_OF_FILE;

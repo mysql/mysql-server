@@ -73,6 +73,7 @@
 #define HA_NOT_READ_AFTER_KEY	(HA_DROP_BEFORE_CREATE*2)
 #define HA_NOT_DELETE_WITH_CACHE (HA_NOT_READ_AFTER_KEY*2)
 #define HA_NO_TEMP_TABLES       (HA_NOT_DELETE_WITH_CACHE*2)
+#define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
@@ -265,6 +266,7 @@ public:
   virtual int extra(enum ha_extra_function operation)=0;
   virtual int reset()=0;
   virtual int external_lock(THD *thd, int lock_type)=0;
+  virtual int start_stmt(THD *thd) {return 0;}
   virtual int delete_all_rows();
   virtual longlong get_auto_increment();
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
@@ -344,6 +346,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_key_cache(void);
+int ha_start_stmt(THD *thd); 
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);

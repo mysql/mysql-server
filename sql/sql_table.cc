@@ -479,12 +479,16 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  }
 	}
 	else if (column->length > length ||
-	    (f_is_packed(sql_field->pack_flag) && column->length != length))
+		 ((f_is_packed(sql_field->pack_flag) || 
+		   ((file->option_flag() & HA_NO_PREFIX_CHAR_KEYS) &&
+		    (key_info->flags & HA_NOSAME))) &&
+		  column->length != length))
 	{
 	  my_error(ER_WRONG_SUB_KEY,MYF(0));
 	  DBUG_RETURN(-1);
 	}
-	length=column->length;
+	if (!(file->option_flag() & HA_NO_PREFIX_CHAR_KEYS))
+	  length=column->length;
       }
       else if (length == 0)
       {
@@ -1426,21 +1430,20 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				create_info,
 				create_list,key_list,1,1))) // no logging
     DBUG_RETURN(error);
+
+  if (table->tmp_table)
+    new_table=open_table(thd,new_db,tmp_name,tmp_name,0);
+  else
   {
-    if (table->tmp_table)
-      new_table=open_table(thd,new_db,tmp_name,tmp_name,0);
-    else
-    {
-      char path[FN_REFLEN];
-      (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,tmp_name);
-      fn_format(path,path,"","",4);
-      new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
-    }
-    if (!new_table)
-    {
-      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      goto err;
-    }
+    char path[FN_REFLEN];
+    (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,tmp_name);
+    fn_format(path,path,"","",4);
+    new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
+  }
+  if (!new_table)
+  {
+    VOID(quick_rm_table(new_db_type,new_db,tmp_name));
+    goto err;
   }
 
   save_time_stamp=new_table->time_stamp;
@@ -1633,6 +1636,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
+  ha_rows examined_rows;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -1668,7 +1672,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (from->found_records = filesort(&from, sortorder, length, 
-                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+					&examined_rows))
         == HA_POS_ERROR)
       goto err;
   };

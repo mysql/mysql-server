@@ -48,3 +48,20 @@ show index from t1;
 repair table t1;
 show index from t1;
 drop table t1;
+
+#
+# Test of SHOW CREATE
+#
+
+create temporary table t1 (a int not null);
+show create table t1;
+alter table t1 rename t2;
+show create table t2;
+drop table t2;
+
+create table t1 (
+  test_set set( 'val1', 'val2', 'val3' ) not null default '',
+  name char(20) default 'O''Brien'
+  ) comment = 'it\'s a table' ;
+show create table t1 ;
+drop table t1;

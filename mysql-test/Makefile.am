@@ -27,10 +27,10 @@ CLEANFILES = 		$(test_SCRIPTS)
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/t/*.test $(srcdir)/t/*.opt $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.test $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
-	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.001 $(distdir)/std_data
 
 install-data-local:
 	$(mkinstalldirs) \

@@ -303,7 +303,7 @@ static void do_resolve()
 	  uchar* addr = (uchar*)read_addr(&p);
 	  if(resolve_addr(addr, &se))
 	    fprintf(fp_out, "%p %s + %d\n", addr, se.symbol,
-		    addr - se.addr);
+		    (int) (addr - se.addr));
 	  else
 	    fprintf(fp_out, "%p (?)\n", addr);
 	    
