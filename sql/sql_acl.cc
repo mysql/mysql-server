@@ -264,10 +264,11 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       switch (password_len) {
       case 45: /* 4.1: to be removed */
-        sql_print_error("Found 4.1 style password for user '%s'. "
+        sql_print_error("Found 4.1 style password for user '%s@%s'. "
                         "Ignoring user. "
                         "You should change password for this user.",
-                        user.user ? user.user : "");
+                        user.user ? user.user : "",
+                        user.host.hostname ? user.host.hostname : "");
         break;
       default:
         sql_print_error("Found invalid password for user: '%s@%s'; "
@@ -526,23 +527,30 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 /*
     Seek ACL entry for a user, check password, SSL cypher, and if
     everything is OK, update THD user data and USER_RESOURCES struct.
+
+ IMPLEMENTATION
     This function does not check if the user has any sensible privileges:
     only user's existence and  validity is checked.
     Note, that entire operation is protected by acl_cache_lock.
+
   SYNOPSIS
-    thd          INOUT thread handle. If all checks are OK,
-                       thd->priv_user, thd->master_access are updated.
-                       thd->host, thd->ip, thd->user are used for checks.
-    mqh          OUT   user resources; on success mqh is reset, else
-                       unchanged
-    passwd       IN    scrambled & crypted password, recieved from client
-                       (to check): thd->scramble or thd->scramble_323 is
-                       used to decrypt passwd, so they must contain
-                       original random string,
-    passwd_len   IN    length of passwd, must be one of 0, 8,
-                       SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
+    acl_getroot()
+    thd         thread handle. If all checks are OK,
+                thd->priv_user, thd->master_access are updated.
+                thd->host, thd->ip, thd->user are used for checks.
+    mqh         user resources; on success mqh is reset, else
+                unchanged
+    passwd      scrambled & crypted password, recieved from client
+                (to check): thd->scramble or thd->scramble_323 is
+                used to decrypt passwd, so they must contain
+                original random string,
+    passwd_len  length of passwd, must be one of 0, 8,
+                SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
+    'thd' and 'mqh' are updated on success; other params are IN.
+  
  RETURN VALUE
-    0  success: thread data and mqh are updated
+    0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
+       updated
     1  user not found or authentification failure
     2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
    -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
@@ -553,9 +561,16 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 {
   DBUG_ENTER("acl_getroot");
 
-  if (!initialized) /* if no data allow anything */
-  { 
-    DBUG_RETURN(1);
+  if (!initialized)
+  {
+    /* 
+      here if mysqld's been started with --skip-grant-tables option.
+    */
+    thd->priv_user= (char *) "";                // privileges for
+    *thd->priv_host= '\0';                      // the user are unknown
+    thd->master_access= ~NO_ACCESS;             // everything is allowed
+    bzero(mqh, sizeof(*mqh));
+    DBUG_RETURN(0);
   }
 
   int res= 1;
@@ -582,7 +597,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
           if (user_i->salt_len == 0 ||
               user_i->salt_len == SCRAMBLE_LENGTH &&
               check_scramble(passwd, thd->scramble, user_i->salt) == 0 ||
-              check_scramble_323(passwd, thd->scramble_323,
+              check_scramble_323(passwd, thd->scramble,
                                  (ulong *) user_i->salt) == 0)
           {
             acl_user= user_i;
@@ -1346,8 +1361,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 {
   int error = -1;
   bool old_row_exists=0;
-  char empty_string[]= { '\0' };
-  char *password= empty_string;
+  const char *password= "";
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_user_table");

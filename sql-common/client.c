@@ -1641,9 +1641,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     Scramble is split into two parts because old clients does not understand
     long scrambles; here goes the first part.
   */
-  strmake(mysql->scramble_323, end, SCRAMBLE_LENGTH_323);
+  strmake(mysql->scramble, end, SCRAMBLE_LENGTH_323);
   end+= SCRAMBLE_LENGTH_323+1;
-  memcpy(mysql->scramble, mysql->scramble_323, SCRAMBLE_LENGTH_323);
 
   if (pkt_length >= (uint) (end+1 - (char*) net->read_pos))
     mysql->server_capabilities=uint2korr(end);
@@ -1842,7 +1841,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       end+= SCRAMBLE_LENGTH;
     }
     else
-      end= scramble_323(end, mysql->scramble_323, passwd) + 1;
+    {
+      scramble_323(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH_323 + 1;
+    }
   }
   else
     *end++= '\0';                               /* empty password */
@@ -1871,15 +1873,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
-  if (net->read_pos[0] == mysql->scramble_323[0] &&
-      pkt_length == SCRAMBLE_LENGTH_323 + 1 &&
+  if (pkt_length == 1 && net->read_pos[0] == 254 && 
       mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
     /*
       By sending this very specific reply server asks us to send scrambled
       password in old format. The reply contains scramble_323.
     */
-    scramble_323(buff, mysql->scramble_323, passwd);
+    scramble_323(buff, mysql->scramble, passwd);
     if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;

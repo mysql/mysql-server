@@ -626,7 +626,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
       end+= SCRAMBLE_LENGTH;
     }
     else
-      end= scramble_323(end, mysql->scramble_323, passwd);
+    {
+      scramble_323(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH_323 + 1;
+    }
   }
   else
     *end++= '\0';                               // empty password
@@ -642,15 +645,14 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (pkt_length == packet_error)
     goto error;
 
-  if (net->read_pos[0] == mysql->scramble_323[0] &&
-      pkt_length == SCRAMBLE_LENGTH_323 + 1 &&
+  if (pkt_length == 1 && net->read_pos[0] == 254 &&
       mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
     /*
       By sending this very specific reply server asks us to send scrambled
       password in old format. The reply contains scramble_323.
     */
-    scramble_323(buff, mysql->scramble_323, passwd);
+    scramble_323(buff, mysql->scramble, passwd);
     if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
