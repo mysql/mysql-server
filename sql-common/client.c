@@ -636,7 +636,7 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-static my_bool
+static my_bool STDCALL
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		 const char *header, ulong header_length,
 		 const char *arg, ulong arg_length, my_bool skip_check)
@@ -1008,7 +1008,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
   ulong *prev_length;
   byte *start=0;

@@ -48,7 +48,7 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-my_bool
+my_bool STDCALL
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check)
