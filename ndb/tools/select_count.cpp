@@ -26,6 +26,12 @@
 #include <getarg.h>
 #include <UtilTransactions.hpp>
  
+static int 
+select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
+	     int parallelism,
+	     int* count_rows,
+	     UtilTransactions::ScanLock lock,
+	     NdbConnection* pBuddyTrans=0);
 
 int main(int argc, const char** argv){
   const char* _dbname = "TEST_DB";
@@ -75,9 +81,8 @@ int main(int argc, const char** argv){
     }
 
     int rows = 0;
-    UtilTransactions utilTrans(*pTab);
-    if (utilTrans.selectCount(&MyNdb, _parallelism, &rows, 
-			      (UtilTransactions::ScanLock)_lock) != 0){
+    if (select_count(&MyNdb, pTab, _parallelism, &rows, 
+		     (UtilTransactions::ScanLock)_lock) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
@@ -86,5 +91,109 @@ int main(int argc, const char** argv){
   return NDBT_ProgramExit(NDBT_OK);
 }
 
+int 
+select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
+	     int parallelism,
+	     int* count_rows,
+	     UtilTransactions::ScanLock lock,
+	     NdbConnection* pBuddyTrans){
+  
+  int                  retryAttempt = 0;
+  const int            retryMax = 100;
+  int                  check;
+  NdbConnection	       *pTrans;
+  NdbOperation	       *pOp;
+
+  while (true){
+
+    if (retryAttempt >= retryMax){
+      g_info << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+
+    pTrans = pNdb->hupp(pBuddyTrans);
+    if (pTrans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      return NDBT_FAILED;
+    }
+    pOp = pTrans->getNdbOperation(pTab->getName());	
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    switch(lock){
+    case UtilTransactions::SL_ReadHold:
+      check = pOp->openScanReadHoldLock(parallelism);
+      break;
+    case UtilTransactions::SL_Exclusive:
+      check = pOp->openScanExclusive(parallelism);
+      break;
+    case UtilTransactions::SL_Read:
+    default:
+      check = pOp->openScanRead(parallelism);
+    }
+    
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+  
+    check = pTrans->executeScan();   
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    int eof;
+    int rows = 0;
+    eof = pTrans->nextScanResult();
+
+    while(eof == 0){
+      rows++;
+      eof = pTrans->nextScanResult();
+    }
+    if (eof == -1) {
+      const NdbError err = pTrans->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    pNdb->closeTransaction(pTrans);
+    
+    if (count_rows != NULL){
+      *count_rows = rows;
+    }
+    
+    return NDBT_OK;
+  }
+  return NDBT_FAILED;
+}
 
 

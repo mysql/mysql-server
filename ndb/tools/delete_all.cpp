@@ -23,19 +23,16 @@
 
 #include <getarg.h>
 
-#include <UtilTransactions.hpp>
+static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism=240);
 
 int main(int argc, const char** argv){
 
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
   int _help = 0;
-  int _ver2 = 1;
   
   struct getargs args[] = {
     { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "ver2", '2', arg_flag, &_ver2, "Use version 2 of clearTable (default)", "" },
-    { "ver2", '1', arg_negative_flag, &_ver2, "Use version 1 of clearTable", "" },
     { "database", 'd', arg_string, &_dbname, "dbname", 
       "Name of database table is in"}
   };
@@ -74,20 +71,111 @@ int main(int argc, const char** argv){
     }
     
     ndbout << "Deleting all from " << argv[i] << "...";
-    UtilTransactions utilTrans(*pTab);
-    int tmp = NDBT_OK;
-    if (_ver2 == 0){
-      if(utilTrans.clearTable(&MyNdb) == NDBT_FAILED)
-	tmp = NDBT_FAILED;
-    } else {
-      if(utilTrans.clearTable3(&MyNdb) == NDBT_FAILED)
-	tmp = NDBT_FAILED;
-    }
-    if(tmp == NDBT_FAILED){
-      res = tmp;
+    if(clear_table(&MyNdb, pTab) == NDBT_FAILED){
+      res = NDBT_FAILED;
       ndbout << "FAILED" << endl;
     }
   }
   return NDBT_ProgramExit(res);
 }
 
+
+int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
+{
+  // Scan all records exclusive and delete 
+  // them one by one
+  int                  retryAttempt = 0;
+  const int            retryMax = 10;
+  int deletedRows = 0;
+  int check;
+  NdbConnection *pTrans;
+  NdbScanOperation *pOp;
+  NdbError err;
+
+  int par = parallelism;
+  while (true){
+  restart:
+    if (retryAttempt++ >= retryMax){
+      g_info << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+    
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
+      err = pNdb->getNdbError();
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      goto failed;
+    }
+    
+    pOp = pTrans->getNdbScanOperation(pTab->getName());	
+    if (pOp == NULL) {
+      goto failed;
+    }
+    
+    NdbResultSet * rs = pOp->readTuplesExclusive(par);
+    if( rs == 0 ) {
+      goto failed;
+    }
+    
+    if(pTrans->execute(NoCommit) != 0){
+      err = pTrans->getNdbError();    
+      if(err.status == NdbError::TemporaryError){
+	ERR(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      goto failed;
+    }
+    
+    while((check = rs->nextResult(true)) == 0){
+      do {
+	if (rs->deleteTuple() != 0){
+	  goto failed;
+	}
+	deletedRows++;
+      } while((check = rs->nextResult(false)) == 0);
+      
+      if(check != -1){
+	check = pTrans->execute(Commit);   
+	pTrans->releaseCompletedOperations();
+      }
+      
+      err = pTrans->getNdbError();    
+      if(check == -1){
+	if(err.status == NdbError::TemporaryError){
+	  ERR(err);
+	  pNdb->closeTransaction(pTrans);
+	  NdbSleep_MilliSleep(50);
+	  par = 1;
+	  goto restart;
+	}
+	goto failed;
+      }
+    }
+    if(check == -1){
+      err = pTrans->getNdbError();    
+      if(err.status == NdbError::TemporaryError){
+	ERR(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	par = 1;
+	goto restart;
+      }
+      goto failed;
+    }
+    pNdb->closeTransaction(pTrans);
+    return NDBT_OK;
+  }
+  return NDBT_FAILED;
+  
+ failed:
+  if(pTrans != 0) pNdb->closeTransaction(pTrans);
+  ERR(err);
+  return (err.code != 0 ? err.code : NDBT_FAILED);
+}
