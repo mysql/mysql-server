@@ -5230,6 +5230,7 @@ shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R mysql /usr/local/mysql
 shell> chgrp -R mysql /usr/local/mysql
+shell> chown -R root /usr/local/mysql/bin/
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
@@ -13782,14 +13783,28 @@ This is a synonym for @code{INT}.
 
 A large integer. The signed range is @code{-9223372036854775808} to
 @code{9223372036854775807}. The unsigned range is @code{0} to
-@code{18446744073709551615}.  Note that all arithmetic is done using
-signed @code{BIGINT} or @code{DOUBLE} values, so you shouldn't use
-unsigned big integers larger than @code{9223372036854775807} (63 bits)
-except with bit functions!  Note that @samp{-}, @samp{+}, and @samp{*}
-will use @code{BIGINT} arithmetic when both arguments are @code{INTEGER}
-values!  This means that if you multiply two big integers (or results
-from functions that return integers) you may get unexpected results if
-the result is larger than @code{9223372036854775807}.
+@code{18446744073709551615}.
+
+Some things you should be aware about @code{BIGINT} columns:
+
+@itemize @bullet
+@item
+As all arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
+values, so you shouldn't use unsigned big integers larger than
+@code{9223372036854775807} (63 bits) except with bit functions! If you
+do that, some of the last digits in the result may be wrong because of
+rounding errors when converting the @code{BIGINT} to a @code{DOUBLE}.
+@item
+You can always store an exact integer value in a @code{BIGINT} column by
+storing it as a string, as there is in this case there will be no
+intermediate double representation.
+@item
+@samp{-}, @samp{+}, and @samp{*} will use @code{BIGINT} arithmetic when
+both arguments are @code{INTEGER} values!  This means that if you
+multiply two big integers (or results from functions that return
+integers) you may get unexpected results when the result is larger than
+@code{9223372036854775807}.
+@end itemize
 
 @cindex floating-point number
 @tindex FLOAT
@@ -15104,8 +15119,9 @@ All @strong{MySQL} column types can be indexed.  Use of indexes on the
 relevant columns is the best way to improve the performance of @code{SELECT}
 operations.
 
-A table may have up to 16 indexes.  The maximum index length is
-256 bytes, although this may be changed when compiling @strong{MySQL}.
+The maximum number of keys and the maximum index length is defined per
+table handler. @xref{Table types}. You can with all table handlers have
+at least 16 keys and a total index length of at least 256 bytes.
 
 For @code{CHAR} and @code{VARCHAR} columns, you can index a prefix of a
 column.  This is much faster and requires less disk space than indexing the
@@ -15137,6 +15153,7 @@ supported. See @ref{MySQL full-text search} for details.
 
 @cindex multi-column indexes
 @cindex indexes, multi-column
+@cindex keys, multi-column
 @node Multiple-column indexes, Other-vendor column types, Indexes, Column types
 @subsection Multiple-column Indexes
 
@@ -18169,6 +18186,7 @@ error occurs if you try to add a new row with a key that matches an existing
 row.
 
 @item
+@tindex PRIMARY KEY
 A @code{PRIMARY KEY} is a unique @code{KEY} with the extra constraint
 that all key columns must be defined as @code{NOT NULL}.  In @strong{MySQL}
 the key is named @code{PRIMARY}. A table can have only one @code{PRIMARY KEY}.
@@ -22471,8 +22489,8 @@ used them.
 
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
 table formats (@code{ISAM}, @code{HEAP} and @code{MyISAM}.  Newer
-@strong{MySQL} may support additional table type, depending on how you
-compile it.
+@strong{MySQL} may support additional table type (@code{BDB},
+@code{GEMINI} or @code{INNOBASE}), depending on how you compile it.
  
 When you create a new table, you can tell @strong{MySQL} which table
 type it should use for the table.  @strong{MySQL} will always create a
@@ -22547,8 +22565,10 @@ The following is new in @code{MyISAM}:
 
 @itemize @bullet
 @item
-If @code{mysqld} is started with @code{--myisam-recover}, @code{MyISAM} tables
-will automaticly be repaired on open if the table wasn't closed properly.
+There is a flag in the @code{MyISAM} file that indicates whether or not
+the table was closed correctly.  If @code{mysqld} is started with
+@code{--myisam-recover}, @code{MyISAM} tables will automaticly be
+checked and/or repaired on open if the table wasn't closed properly.
 @item
 You can @code{INSERT} new rows in a table without deleted rows,
 while other threads are reading from the table.
@@ -22590,16 +22610,12 @@ key. This will improve the space utilization in the key tree.
 @code{NULL} values are allowed in indexed columns.  This takes 0-1
 bytes/key.
 @item
-Maximum key length is now 500 bytes by default. In cases of keys longer
-than 250 bytes, a bigger key block size than the default of 1024 bytes
-is used for this key.
+Maximum key length is 500 bytes by default (can be changed by
+recompiling).  In cases of keys longer than 250 bytes, a bigger key
+block size than the default of 1024 bytes is used for this key.
 @item
-Maximum number of keys/table enlarged to 32 as default. This can be
-enlarged to 64 without having to recompile @code{myisamchk}.
-@item
-There is a flag in the @code{MyISAM} file that indicates whether or not the
-table was closed correctly.  This will soon be used for automatic repair
-in the @strong{MySQL} server.
+Maximum number of keys/table is 32 as default. This can be enlarged to 64 
+without having to recompile @code{myisamchk}.
 @item
 @code{myisamchk} will mark tables as checked if one runs it with
 @code{--update-state}. @code{myisamchk --fast} will only check those
@@ -35245,7 +35261,7 @@ If your are using the @strong{MySQL} perl DBD module you can read the options
 from the @strong{MySQL} option files. @xref{Option files}.
 
 @example
-$dsn = "DBI:mysql:test;mysql_read_default_group=client;"
+$dsn = "DBI:mysql:test;mysql_read_default_group=client;mysql_read_default_file=/usr/local/mysql/data/my.cnf"
 $dbh = DBI->connect($dsn, $user, $password);
 @end example
 
@@ -46447,9 +46463,6 @@ cache.
 The following problems are known and will be fixed in due time:
 
 @itemize @bullet
-@item
-@code{mysqldump} on a @code{MERGE} table doesn't include the current
-mapped tables.
 @item
 For the moment @code{MATCH} only works with @code{SELECT} statements.
 @item

@@ -156,6 +156,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
 			    limit != HA_POS_ERROR ? TL_WRITE_LOW_PRIORITY :
 			    lock_type)))
     DBUG_RETURN(-1);
+  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   if (use_generate_table)
     DBUG_RETURN(generate_table(thd,table_list,table));
