@@ -32,6 +32,19 @@ int HugoOperations::startTransaction(Ndb* pNdb){
   return NDBT_OK;
 }
 
+int HugoOperations::setTransaction(NdbTransaction* new_trans){
+  
+  if (pTrans != NULL){
+    ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
+    return NDBT_FAILED;
+  }
+  pTrans = new_trans;
+  if (pTrans == NULL) {
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::closeTransaction(Ndb* pNdb){
 
   if (pTrans != NULL){
@@ -145,26 +158,33 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
+    if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int 
+HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
+{
+  // Define primary keys
+  int a;
+  for(a = 0; a<tab.getNoOfColumns(); a++){
+    if (tab.getColumn(a)->getPrimaryKey() == true){
+      if(equalForAttr(pOp, a, rowId) != 0){
+	ERR(pTrans->getNdbError());
+	return NDBT_FAILED;
+      }
+    } else {
+      if(setValueForAttr(pOp, a, rowId, updateId ) != 0){ 
+	ERR(pTrans->getNdbError());
+	return NDBT_FAILED;
       }
     }
-    
-    // Define attributes to update
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == false){
-	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    } 
   }
+  
   return NDBT_OK;
 }
 
@@ -187,25 +207,10 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
+    if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
+    {
+      return NDBT_FAILED;
     }
-    
-    // Define attributes to update
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == false){
-	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    } 
   }
   return NDBT_OK;
 }
@@ -373,38 +378,11 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
     return NDBT_FAILED;
   }
     
-  int len = attr->getLength();
-  switch (attr->getType()){
-  case NdbDictionary::Column::Bit:
-    len = 4 * ((len + 31) >> 5);
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:{
-    char buf[8000];
-    memset(buf, 0, sizeof(buf));
-    check = pOp->equal( attr->getName(), 
-			calc.calcValue(rowId, attrId, 0, buf, len));
-    break;
-  }
-  case NdbDictionary::Column::Int:
-    check = pOp->equal( attr->getName(), (Int32)calc.calcValue(rowId, attrId, 0));
-    break;
-  case NdbDictionary::Column::Unsigned:
-    check = pOp->equal( attr->getName(), (Uint32)calc.calcValue(rowId, attrId, 0));
-    break;
-  case NdbDictionary::Column::Bigint:
-    check = pOp->equal( attr->getName(), (Int64)calc.calcValue(rowId, attrId, 0));
-    break;
-  case NdbDictionary::Column::Bigunsigned:    
-    check = pOp->equal( attr->getName(), (Uint64)calc.calcValue(rowId, attrId, 0));
-    break;
-  case NdbDictionary::Column::Float:
-    g_info << "Float not allowed as PK value" << endl;
-    check = -1;
-    break;
-  }
-  return check;
+  int len = attr->getSizeInBytes();
+  char buf[8000];
+  memset(buf, 0, sizeof(buf));
+  return pOp->equal( attr->getName(), 
+		     calc.calcValue(rowId, attrId, 0, buf, len));
 }
 
 int HugoOperations::setValueForAttr(NdbOperation* pOp,
@@ -414,47 +392,11 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
-  int len = attr->getLength();
-  switch (attr->getType()){
-  case NdbDictionary::Column::Bit:
-    len = 4 * ((len + 31) >> 5);
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:{
-    char buf[8000];
-    check = pOp->setValue( attr->getName(), 
-			   calc.calcValue(rowId, attrId, updateId, buf, len));
-    break;
-  }
-  case NdbDictionary::Column::Int:{
-    Int32 val = calc.calcValue(rowId, attrId, updateId);
-    check = pOp->setValue( attr->getName(), val);
-  }
-    break;
-  case NdbDictionary::Column::Bigint:{
-    Int64 val = calc.calcValue(rowId, attrId, updateId);
-    check = pOp->setValue( attr->getName(), 
-			   val);
-  }
-    break;
-  case NdbDictionary::Column::Unsigned:{
-    Uint32 val = calc.calcValue(rowId, attrId, updateId);
-    check = pOp->setValue( attr->getName(), val);
-  }
-    break;
-  case NdbDictionary::Column::Bigunsigned:{
-    Uint64 val = calc.calcValue(rowId, attrId, updateId);
-    check = pOp->setValue( attr->getName(), 
-			   val);
-  }
-    break;
-  case NdbDictionary::Column::Float:
-    check = pOp->setValue( attr->getName(), 
-			   (float)calc.calcValue(rowId, attrId, updateId));
-    break;
-  }
-  return check;
+  int len = attr->getSizeInBytes();
+  char buf[8000];
+  memset(buf, 0, sizeof(buf));
+  return pOp->setValue( attr->getName(), 
+			calc.calcValue(rowId, attrId, updateId, buf, len));
 }
 
 int
@@ -470,7 +412,7 @@ HugoOperations::verifyUpdatesValue(int updatesValue, int _numRows){
       result = NDBT_FAILED;
       continue;
     }
-
+    
     if(calc.getUpdatesValue(rows[i]) != updatesValue){
       result = NDBT_FAILED;
       g_err << "Invalid updates value for row " << i << endl
@@ -480,7 +422,7 @@ HugoOperations::verifyUpdatesValue(int updatesValue, int _numRows){
       continue;
     }
   }
-
+  
   if(_numRows == 0){
     g_err << "No rows -> Invalid updates value" << endl;
     return NDBT_FAILED;

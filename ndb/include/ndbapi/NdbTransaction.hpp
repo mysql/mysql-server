@@ -560,6 +560,11 @@ public:
    * ops are used (read, insert, update, delete).
    */
   int executePendingBlobOps(Uint8 flags = 0xFF);
+
+  /**
+   * Get nodeId of TC for this transaction
+   */
+  Uint32 getConnectedNodeId(); // Get Connected node id
 #endif
 
 private:						
@@ -593,7 +598,6 @@ private:
    */
   void setConnectedNodeId( Uint32 nodeId, Uint32 sequence); 
 
-  Uint32	getConnectedNodeId();	          // Get Connected node id
   void		setMyBlockReference( int );	  // Set my block refrerence
   void		setTC_ConnectPtr( Uint32 );	  // Sets TC Connect pointer
   int		getTC_ConnectPtr();		  // Gets TC Connect pointer
