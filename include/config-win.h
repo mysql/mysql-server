@@ -310,9 +310,6 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO
 
-#define HAME_MMAP               /* in mysys/my_mmap.c */
-#define HAVE_GETPAGESIZE        /* in mysys/my_mmap.c */
-
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf
@@ -353,6 +350,8 @@ inline double ulonglong2double(ulonglong value)
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
+#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
+#define thread_safe_dec_and_test(V, L) thread_safe_decrement(V,L)
 /* The following is only used for statistics, so it should be good enough */
 #ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
@@ -366,6 +365,7 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_add(V,C,L)	 (V)+=(C)
 #endif
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
+#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"

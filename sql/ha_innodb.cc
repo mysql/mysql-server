@@ -2652,7 +2652,7 @@ ha_innobase::write_row(
 			no need to re-acquire locks on it. */
 
 			/* Altering to InnoDB format */
-			innobase_commit(user_thd, prebuilt->trx);
+                        innobase_commit(user_thd, 1);
 			/* Note that this transaction is still active. */
 			prebuilt->trx->active_trans = 1;
 			/* We will need an IX lock on the destination table. */
@@ -2667,7 +2667,7 @@ ha_innobase::write_row(
 
 			/* Commit the transaction.  This will release the table
 			locks, so they have to be acquired again. */
-			innobase_commit(user_thd, prebuilt->trx);
+                        innobase_commit(user_thd, 1);
 			/* Note that this transaction is still active. */
 			prebuilt->trx->active_trans = 1;
 			/* Re-acquire the table lock on the source table. */
@@ -4247,7 +4247,7 @@ ha_innobase::delete_all_rows(void)
 		goto fallback;
 	}
 
-	innobase_commit(thd, trx);
+	innobase_commit(thd, 1);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
