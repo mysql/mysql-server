@@ -90,9 +90,9 @@ int my_error(int nr,myf MyFlags, ...)
 	register int iarg;
 	iarg = va_arg(ap, int);
 	if (*tpos == 'd')
-	  plen= (uint) (int2str((long) iarg,endpos, -10) - endpos);
+	  plen= (uint) (int10_to_str((long) iarg, endpos, -10) - endpos);
 	else
-	  plen= (uint) (int2str((long) (uint) iarg,endpos,10)- endpos);
+	  plen= (uint) (int10_to_str((long) (uint) iarg, endpos, 10) - endpos);
 	if (olen + plen < ERRMSGSIZE+2) /* Replace parameter if possible */
 	{
 	  endpos+=plen;
