@@ -50364,6 +50364,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug in guessing a field type out of the function. The error was 
+introduced in 4.0.3 so that field type depended on the first argument to
+the function instead of the function itself
+@item
 Fixed a bug with wildcarded fields in select list, which led to the wrong 
 number of elements in a list containing all fields
 @item
