@@ -106,7 +106,7 @@ select * from test2.t1 order by a;
 connection master;
 drop database test2;
 drop database test3;
-show binlog events from 79;
+show binlog events from 95;
 sync_slave_with_master;
 
 # Check that we can't change global.collation_server

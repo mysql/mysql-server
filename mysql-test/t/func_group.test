@@ -220,6 +220,7 @@ insert into t2 values('DEN','Denver','CO','BDL');
 insert into t2 values('SDC','San Diego','CA','TWU');
 insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
+insert into t2 values('AAA','AAA','AA','AME');
 
 # Show the table contents
 select * from t1;

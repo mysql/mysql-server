@@ -321,6 +321,7 @@ insert into t2 values('DEN','Denver','CO','BDL');
 insert into t2 values('SDC','San Diego','CA','TWU');
 insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
+insert into t2 values('AAA','AAA','AA','AME');
 select * from t1;
 a1	a2	a3	a4	a5
 AME	0	SEA	0.1	1942-02-19
@@ -345,6 +346,7 @@ DEN	Denver	CO	BDL
 SDC	San Diego	CA	TWU
 NOL	New Orleans	LA	GTM
 LAK	Los Angeles	CA	TWU
+AAA	AAA	AA	AME
 explain 
 select min(a1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

@@ -852,7 +852,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  int *killed= killed_ptr(info->sort_info->param->thd);
+  int *killed= killed_ptr(info->sort_info->param);
 
   DBUG_ENTER("merge_buffers");
 

@@ -131,7 +131,10 @@ public:
      optimisation changes in prepared statements
   */
   Item(THD *thd, Item *item);
-  virtual ~Item() { name=0; }		/*lint -e1509 */
+  virtual ~Item()
+  {
+    name=0;
+  }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup()
