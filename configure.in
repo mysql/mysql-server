@@ -974,8 +974,11 @@ case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
     CFLAGS="$CFLAGS -DBIG_TABLES"
     CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
+  *) ;;
+esac
+case $SYSTEM_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte compile problem for ndb
-  *solaris2.*-no)
+  *solaris*-no)
     ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
     ;;
   *) ;;
