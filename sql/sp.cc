@@ -37,7 +37,7 @@ create_string(THD *thd, ulong *lenp,
 
 enum
 {
-  MYSQL_PROC_FIELD_SCHEMA = 0,
+  MYSQL_PROC_FIELD_DB = 0,
   MYSQL_PROC_FIELD_NAME,
   MYSQL_PROC_FIELD_TYPE,
   MYSQL_PROC_FIELD_SPECIFIC_NAME,
@@ -64,12 +64,12 @@ db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   TABLE *table;
-  byte key[64+64+1];		// schema, name, type
+  byte key[64+64+1];		// db, name, type
   uint keylen;
   int ret;
 
   // Put the key together
-  memset(key, (int)' ', 64);	// QQ Empty schema for now
+  memset(key, (int)' ', 64);	// QQ Empty db for now
   keylen= namelen;
   if (keylen > 64)
     keylen= 64;

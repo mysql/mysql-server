@@ -289,7 +289,7 @@ fi
 if test ! -f $mdata/proc.frm
 then
   c_p="$c_p CREATE TABLE proc ("
-  c_p="$c_p   schema            char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   db                char(64) binary DEFAULT '' NOT NULL,"
   c_p="$c_p   name              char(64) binary DEFAULT '' NOT NULL,"
   c_p="$c_p   type              enum('FUNCTION','PROCEDURE') NOT NULL,"
   c_p="$c_p   specific_name     char(64) binary DEFAULT '' NOT NULL,"
@@ -326,7 +326,7 @@ then
   c_p="$c_p                         'NO_AUTO_VALUE_ON_ZERO'"
   c_p="$c_p                     ) DEFAULT 0 NOT NULL,"
   c_p="$c_p   comment           char(64) binary DEFAULT '' NOT NULL,"
-  c_p="$c_p   PRIMARY KEY (schema,name,type)"
+  c_p="$c_p   PRIMARY KEY (db,name,type)"
   c_p="$c_p ) comment='Stored Procedures';"
 fi
 

@@ -140,7 +140,7 @@ unique index (name)
 #
 
 CREATE TABLE IF NOT EXISTS proc (
-  schema            char(64) binary DEFAULT '' NOT NULL,
+  db                char(64) binary DEFAULT '' NOT NULL,
   name              char(64) binary DEFAULT '' NOT NULL,
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
   specific_name     char(64) binary DEFAULT '' NOT NULL,
@@ -177,5 +177,5 @@ CREATE TABLE IF NOT EXISTS proc (
                         'NO_AUTO_VALUE_ON_ZERO'
                     ) DEFAULT 0 NOT NULL,
   comment           char(64) binary DEFAULT '' NOT NULL,
-  PRIMARY KEY (schema,name,type)
+  PRIMARY KEY (db,name,type)
 ) comment='Stored Procedures';
