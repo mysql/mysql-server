@@ -830,7 +830,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(default_charset_info))
+    if (use_mb(a->str_charset))
     {
       start0=start;
       if (!binary_str)
@@ -843,7 +843,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary_str)
+  if (use_mb(a->str_charset) && !binary_str)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -862,7 +862,7 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(default_charset_info,ptr,strend))) ptr+=l;
+      if ((l=my_ismbchar(a->str_charset,ptr,strend))) ptr+=l;
       else ++ptr;
       ++start0;
     }
@@ -913,11 +913,10 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !args[0]->binary)
+  if (use_mb(res->str_charset) && !args[0]->binary)
   {
     register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(default_charset_info,
-                                       str,str+res->length());
+    register uint32 n=0, l=my_ismbchar(res->str_charset,str,str+res->length());
     if (!l) return (longlong)((uchar) *str);
     while (l--)
       n=(n<<8)|(uint32)((uchar) *str++);

@@ -170,33 +170,6 @@ extern my_bool ismbhead_ujis(uint);
 extern int     mbcharlen_ujis(uint);
 
 
-/* Don't include std ctype.h when this is included */
-#define _CTYPE_H
-#define _CTYPE_H_
-#define _CTYPE_INCLUDED
-#define __CTYPE_INCLUDED
-#define _CTYPE_USING   /* Don't put names in global namespace. */
-
-/* Fix things, if ctype.h would have been included before */
-#undef toupper
-#undef _toupper
-#undef _tolower
-#undef toupper
-#undef tolower
-#undef isalpha
-#undef isupper
-#undef islower
-#undef isdigit
-#undef isxdigit
-#undef isalnum
-#undef isspace
-#undef ispunct
-#undef isprint
-#undef isgraph
-#undef iscntrl
-#undef isascii
-#undef toascii
-
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */
 #define	_N	04	/* Numeral (digit) */
@@ -207,14 +180,10 @@ extern int     mbcharlen_ujis(uint);
 #define	_X	0200	/* heXadecimal digit */
 
 
-#define	isascii(c)	(!((c) & ~0177))
-#define	toascii(c)	((c) & 0177)
-#define tocntrl(c)	((c) & 31)
-#define toprint(c)	((c) | 64)
-
-#ifdef ctype
-#undef ctype
-#endif /* ctype */
+#define	my_isascii(c)	(!((c) & ~0177))
+#define	my_toascii(c)	((c) & 0177)
+#define my_tocntrl(c)	((c) & 31)
+#define my_toprint(c)	((c) | 64)
 
 #define my_toupper(s,c)	(char) ((s)->to_upper[(uchar) (c)])
 #define my_tolower(s,c)	(char) ((s)->to_lower[(uchar) (c)])

@@ -972,13 +972,13 @@ static bool add_line(String &buffer,char *line,char *in_string)
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
   {
-    if (my_isspace(default_charset_info,inchar) && out == line && 
+    if (my_isspace(system_charset_info,inchar) && out == line && 
         buffer.is_empty())
       continue;
 #ifdef USE_MB
     int l;
-    if (use_mb(default_charset_info) &&
-        (l = my_ismbchar(default_charset_info, pos, strend))) {
+    if (use_mb(system_charset_info) &&
+        (l = my_ismbchar(system_charset_info, pos, strend))) {
 	while (l--)
 	    *out++ = *pos++;
 	pos--;
@@ -1813,8 +1813,8 @@ safe_put_field(const char *pos,ulong length)
     {
 #ifdef USE_MB
       int l;
-      if (use_mb(default_charset_info) &&
-          (l = my_ismbchar(default_charset_info, pos, end))) {
+      if (use_mb(system_charset_info) &&
+          (l = my_ismbchar(system_charset_info, pos, end))) {
 	  while (l--)
 	    tee_putc(*pos++, PAGER);
 	  pos--;
@@ -2361,7 +2361,7 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
   tee_fprintf(stdout, "Client characterset:\t%s\n",
-	      default_charset_info->name);
+	      system_charset_info->name);
   tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);

@@ -510,7 +510,7 @@ String *Item_func_reverse::val_str(String *str)
   ptr = (char *) res->ptr();
   end=ptr+res->length();
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
   {
     String tmpstr;
     tmpstr.copy(*res);
@@ -518,7 +518,7 @@ String *Item_func_reverse::val_str(String *str)
     register uint32 l;
     while (ptr < end)
     {
-      if ((l=my_ismbchar(default_charset_info, ptr,end)))
+      if ((l=my_ismbchar(res->str_charset, ptr,end)))
         tmp-=l, memcpy(tmp,ptr,l), ptr+=l;
       else
         *--tmp=*ptr++;
@@ -561,8 +561,7 @@ String *Item_func_replace::val_str(String *str)
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   register uint32 l;
-  bool binary_str = (args[0]->binary || args[1]->binary ||
-		     !use_mb(default_charset_info));
+  bool binary_str; 
 #endif
 
   null_value=0;
@@ -572,6 +571,10 @@ String *Item_func_replace::val_str(String *str)
   res2=args[1]->val_str(&tmp_value);
   if (args[1]->null_value)
     goto null;
+
+#ifdef USE_MB
+  binary_str = (args[0]->binary || args[1]->binary || !use_mb(res->str_charset));
+#endif
 
   if (res2->length() == 0)
     return res;
@@ -618,7 +621,7 @@ redo:
           goto redo;
         }
 skipp:
-        if ((l=my_ismbchar(default_charset_info, ptr,strend))) ptr+=l;
+        if ((l=my_ismbchar(res->str_charset, ptr,strend))) ptr+=l;
         else ++ptr;
     }
   }
@@ -676,7 +679,7 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !args[0]->binary)
+  if (use_mb(res->str_charset) && !args[0]->binary)
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -748,7 +751,7 @@ String *Item_func_left::val_str(String *str)
   if (length <= 0)
     return &empty_string;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
     length = res->charpos(length);
 #endif
   if (res->length() > (ulong) length)
@@ -796,7 +799,7 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
   {
     uint start=res->numchars()-(uint) length;
     if (start<=0) return res;
@@ -829,7 +832,7 @@ String *Item_func_substr::val_str(String *str)
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -889,7 +892,7 @@ String *Item_func_substr_index::val_str(String *str)
     return &empty_string;		// Wrong parameters
 
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
   {
     const char *ptr=res->ptr();
     const char *strend = ptr+res->length();
@@ -914,7 +917,7 @@ String *Item_func_substr_index::val_str(String *str)
 	  continue;
 	}
     skipp:
-        if ((l=my_ismbchar(default_charset_info, ptr,strend))) ptr+=l;
+        if ((l=my_ismbchar(res->str_charset, ptr,strend))) ptr+=l;
         else ++ptr;
       } /* either not found or got total number when count<0 */
       if (pass == 0) /* count<0 */
@@ -1043,11 +1046,11 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(default_charset_info) && !binary)
+    if (use_mb(res->str_charset) && !binary)
     {
       while (ptr < end)
       {
-	if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l,p=ptr;
+	if ((l=my_ismbchar(res->str_charset, ptr,end))) ptr+=l,p=ptr;
 	else ++ptr;
       }
       ptr=p;
@@ -1060,12 +1063,12 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(default_charset_info) && !binary)
+    if (use_mb(res->str_charset) && !binary)
     {
   loop:
       while (ptr + remove_length < end)
       {
-	if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l;
+	if ((l=my_ismbchar(res->str_charset, ptr,end))) ptr+=l;
 	else ++ptr;
       }
       if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
@@ -1111,14 +1114,14 @@ String *Item_func_trim::val_str(String *str)
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->str_charset) && !binary)
   {
     char *p=ptr;
     register uint32 l;
  loop:
     while (ptr + remove_length < end)
     {
-      if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l;
+      if ((l=my_ismbchar(res->str_charset, ptr,end))) ptr+=l;
       else ++ptr;
     }
     if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
