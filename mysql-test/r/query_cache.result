@@ -1248,10 +1248,10 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	41
+Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	13
+Qcache_hits	1
 /**/ select * from t1;
 a
 /**/ select * from t1;
@@ -1261,8 +1261,8 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	42
+Qcache_inserts	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	14
+Qcache_hits	2
 drop table t1;

@@ -2009,7 +2009,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     before MY_INIT(). So we do it here.
   */
   mysql_log.init_pthread_objects();
-  mysql_update_log.init_pthread_objects();
   mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
   

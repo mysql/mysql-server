@@ -54,7 +54,7 @@ Item::Item():
     command => we should check thd->lex.current_select on zero (thd->lex
     can be uninitialised)
   */
-  if (thd->lex.current_select)
+  if (thd->lex->current_select)
   {
     SELECT_LEX_NODE::enum_parsing_place place= 
       thd->lex->current_select->parsing_place;

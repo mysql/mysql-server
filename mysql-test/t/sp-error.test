@@ -32,18 +32,18 @@ create function func1() returns int
   return 42|
 
 # Can't create recursively
---error 1270
+--error 1273
 create procedure foo()
   create procedure bar() set @x=3|
---error 1270
+--error 1273
 create procedure foo()
   create function bar() returns double return 2.3|
 
 # Already exists
---error 1271
+--error 1274
 create procedure proc1()
   set @x = 42|
---error 1271
+--error 1274
 create function func1() returns int
   return 42|
 
@@ -51,32 +51,32 @@ drop procedure proc1|
 drop function func1|
 
 # Does not exist
---error 1272
+--error 1275
 alter procedure foo|
---error 1272
+--error 1275
 alter function foo|
---error 1272
+--error 1275
 drop procedure foo|
---error 1272
+--error 1275
 drop function foo|
---error 1272
+--error 1275
 call foo()|
 drop procedure if exists foo|
 
 # LEAVE/ITERATE with no match
---error 1275
+--error 1278
 create procedure foo()
 foo: loop
   leave bar;
 end loop|
---error 1275
+--error 1278
 create procedure foo()
 foo: loop
   iterate bar;
 end loop|
 
 # Redefining label
---error 1276
+--error 1279
 create procedure foo()
 foo: loop
   foo: loop
@@ -85,14 +85,14 @@ foo: loop
 end loop foo|
 
 # End label mismatch
---error 1277
+--error 1280
 create procedure foo()
 foo: loop
   set @x=2;
 end loop bar|
 
 # Referring to undef variable
---error 1278
+--error 1281
 create procedure foo(out x int)
 begin
   declare y int;
@@ -106,17 +106,17 @@ begin
   select name from mysql.proc;
   select type from mysql.proc;
 end|
---error 1279
+--error 1282
 call foo()|
 drop procedure foo|
 
 # RETURN in FUNCTION only
---error 1280
+--error 1283
 create procedure foo()
   return 42|
 
 # Doesn't allow queries in FUNCTIONs (for now :-( )
---error 1281
+--error 1284
 create function foo() returns int
 begin
   declare x int;
@@ -130,13 +130,13 @@ create procedure p(x int)
 create function f(x int) returns int
   return x+42|
 
---error 1285
+--error 1288
 call p()|
---error 1285
+--error 1288
 call p(1, 2)|
---error 1285
+--error 1288
 select f()|
---error 1285
+--error 1288
 select f(1, 2)|
 
 drop procedure p|

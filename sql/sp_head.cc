@@ -77,12 +77,12 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
     default:
       {
 	char buffer[MAX_FIELD_WIDTH];
-	String tmp(buffer, sizeof(buffer), it->charset());
+	String tmp(buffer, sizeof(buffer), it->collation.collation);
 	String *s= it->val_str(&tmp);
 
 	DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
 	it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
-			    s->length(), it->charset());
+			    s->length(), it->collation.collation);
 	break;
       }
     }
