@@ -733,9 +733,10 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
       die("Empty variable");
     }
     length= (uint) (var_name - save_var_name);
+    if (length >= MAX_VAR_NAME)
+      die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)) &&
-        length < MAX_VAR_NAME)
+    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)))
     {
       char buff[MAX_VAR_NAME+1];
       strmake(buff, save_var_name, length);
