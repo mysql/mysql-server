@@ -406,3 +406,13 @@ set @a=@b, @b=@a;
 select @a, @b;
 @a	@b
 2	1
+set @@global.global.key_buffer_size= 1;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+set GLOBAL global.key_buffer_size= 1;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+SELECT @@global.global.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+SELECT @@global.session.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+SELECT @@global.local.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
