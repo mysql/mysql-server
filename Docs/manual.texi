@@ -41179,7 +41179,7 @@ not yet 100 % confident in this code.
 @item
 Added @code{--character-sets-dir} to @code{myisampack}.
 @item
-Removed warnings when running @code{REPAIR TABLE .. EXTENDED}.
+Removed warnings when running @code{REPAIR TABLE ... EXTENDED}.
 @item
 Fixed core-dump bug when using @code{GROUP BY} on an alias, where
 the alias was the same as an existing column name.
