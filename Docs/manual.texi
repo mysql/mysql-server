@@ -50922,6 +50922,8 @@ not yet 100% confident in this code.
 @item
 Fixed problem with @code{UNSIGNED BIGINT} on AIX (again).
 @item
+Fixed bug in pthread_mutex_trylock() on HPUX 11.0
+@item
 Multithreaded stress tests for InnoDB.
 @end itemize
 
