@@ -19,7 +19,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-class CONVERT;
 class Protocol;
 struct st_table_list;
 void item_init(void);			/* Init item functions */
@@ -64,10 +63,6 @@ public:
   virtual int save_safe_in_field(Field *field)
   { return save_in_field(field, 1); }
   virtual bool send(Protocol *protocol, String *str);
-#ifdef EMBEDDED_LIBRARY
-  virtual bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-			     char **result, ulong *length);
-#endif
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum_field_types field_type() const;
@@ -155,10 +150,6 @@ public:
   longlong val_int_result();
   String *str_result(String* tmp);
   bool send(Protocol *protocol, String *str_arg);
-#ifdef EMBEDDED_LIBRARY
-  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-		     char **result, ulong *length);
-#endif
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
@@ -192,10 +183,6 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   int save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
-#ifdef EMBEDDED_LIBRARY
-  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-		     char **result, ulong *length);
-#endif
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
@@ -499,11 +486,6 @@ public:
     return (null_value=(*ref)->get_date(ltime,fuzzydate));
   }
   bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
-#ifdef EMBEDDED_LIBRARY
-  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-		     char **result, ulong *length)
-    { return (*ref)->embedded_send(convert, charset, alloc, result, length); }
-#endif
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
   int save_in_field(Field *field, bool no_conversions)

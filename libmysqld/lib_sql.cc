@@ -345,81 +345,6 @@ void *create_embedded_thd(int client_flag, char *db)
 
 C_MODE_END
 
-bool send_fields(THD *thd, List<Item> &list, uint flag)
-{
-  List_iterator_fast<Item> it(list);
-  Item                     *item;
-  MEM_ROOT                 *alloc;
-  MYSQL_FIELD              *field, *client_field;
-  unsigned int             field_count= list.elements;
-  MYSQL                    *mysql= thd->mysql;
-  
-  if (!(mysql->result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
-				      sizeof(ulong) * (field_count + 1),
-				      MYF(MY_WME | MY_ZEROFILL))))
-    goto err;
-  mysql->result->lengths= (ulong *)(mysql->result + 1);
-
-  mysql->field_count=field_count;
-  alloc= &mysql->field_alloc;
-  field= (MYSQL_FIELD *)alloc_root(alloc, sizeof(MYSQL_FIELD)*list.elements);
-  if (!field)
-    goto err;
-
-  client_field= field;
-  while ((item= it++))
-  {
-    Send_field server_field;
-    item->make_field(&server_field);
-
-    client_field->table=  strdup_root(alloc, server_field.table_name);
-    client_field->name=   strdup_root(alloc,server_field.col_name);
-    client_field->length= server_field.length;
-    client_field->type=   server_field.type;
-    client_field->flags= server_field.flags;
-    client_field->decimals= server_field.decimals;
-
-    if (INTERNAL_NUM_FIELD(client_field))
-      client_field->flags|= NUM_FLAG;
-
-    if (flag & 2)
-    {
-      char buff[80];
-      String tmp(buff, sizeof(buff), default_charset_info), *res;
-
-      if (!(res=item->val_str(&tmp)))
-	client_field->def= strdup_root(alloc, "");
-      else
-	client_field->def= strdup_root(alloc, tmp.ptr());
-    }
-    else
-      client_field->def=0;
-    client_field->max_length= 0;
-    ++client_field;
-  }
-  mysql->result->fields = field;
-
-  if (!(mysql->result->data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-				       MYF(MY_WME | MY_ZEROFILL))))
-    goto err;
-
-  init_alloc_root(&mysql->result->data->alloc,8192,0);	/* Assume rowlength < 8192 */
-  mysql->result->data->alloc.min_malloc=sizeof(MYSQL_ROWS);
-  mysql->result->data->rows=0;
-  mysql->result->data->fields=field_count;
-  mysql->result->field_count=field_count;
-  mysql->result->data->prev_ptr= &mysql->result->data->data;
-
-  mysql->result->field_alloc=	mysql->field_alloc;
-  mysql->result->current_field=0;
-  mysql->result->current_row=0;
-
-  return 0;
- err:
-  send_error(thd, ER_OUT_OF_RESOURCES);	/* purecov: inspected */
-  return 1;					/* purecov: inspected */
-}
-
 bool Protocol::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
@@ -429,6 +354,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   
   DBUG_ENTER("send_fields");
 
+  field_count= list->elements;
   if (!(mysql->result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
 				      sizeof(ulong) * (field_count + 1),
 				      MYF(MY_WME | MY_ZEROFILL))))
@@ -495,90 +421,15 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
+bool Protocol::send_records_num(List<Item> *list, ulonglong records)
+{
+  return false;
+}
+
 bool Protocol::write()
 {
   *next_field= 0;
   return false;
-}
-
-
-/* Get the length of next field. Change parameter to point at fieldstart */
-static ulong
-net_field_length(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos < 251)
-  {
-    (*packet)++;
-    return (ulong) *pos;
-  }
-  if (*pos == 251)
-  {
-    (*packet)++;
-    return NULL_LENGTH;
-  }
-  if (*pos == 252)
-  {
-    (*packet)+=3;
-    return (ulong) uint2korr(pos+1);
-  }
-  if (*pos == 253)
-  {
-    (*packet)+=4;
-    return (ulong) uint3korr(pos+1);
-  }
-  (*packet)+=9;					/* Must be 254 when here */
-  return (ulong) uint4korr(pos+1);
-}
-
-
-bool select_send::send_data(List<Item> &items)
-{
-  List_iterator_fast<Item> li(items);
-  Item                     *item;
-  MYSQL_ROWS               *cur;
-  int                      n_fields= items.elements;
-  ulong                    len;
-  CONVERT                  *convert= thd->variables.convert_set;
-  CHARSET_INFO             *charset_info= thd->packet.charset();
-  MYSQL_DATA               *result= thd->mysql->result->data;
-  MEM_ROOT                 *alloc= &result->alloc;
-  MYSQL_ROW                cur_field;
-  MYSQL_FIELD              *mysql_fields= thd->mysql->result->fields;
-
-  DBUG_ENTER("send_data");
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-
-  result->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+(n_fields + 1) * sizeof(char *))))
-  {
-    my_error(ER_OUT_OF_RESOURCES,MYF(0));
-    DBUG_RETURN(1);
-  }
-  cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
-
-  *result->prev_ptr= cur;
-  result->prev_ptr= &cur->next;
-  cur_field=cur->data;
-  for (item=li++; item; item=li++, cur_field++, mysql_fields++)
-  {
-    if (item->embedded_send(convert, charset_info, alloc, cur_field, &len))
-    {
-      my_error(ER_OUT_OF_RESOURCES,MYF(0));
-      DBUG_RETURN(1);
-    }
-    if (mysql_fields->max_length < len)
-      mysql_fields->max_length=len;
-  }
-
-  *cur_field= 0;
-
-  DBUG_RETURN(0);
 }
 
 void
@@ -598,85 +449,7 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 void
 send_eof(THD *thd, bool no_flush)
 {
-/*  static char eof_buff[1]= { (char) 254 };
-  NET *net= &thd->net;
-  DBUG_ENTER("send_eof");
-  if (net->vio != 0)
-  {
-    if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
-    {
-      char buff[5];
-      uint tmp= min(thd->total_warn_count, 65535);
-      buff[0]=254;
-      int2store(buff+1, tmp);
-      int2store(buff+3, 0);			// No flags yet
-      VOID(my_net_write(net,buff,5));
-      VOID(net_flush(net));
-    }
-    else
-    {
-      VOID(my_net_write(net,eof_buff,1));
-      if (!no_flush)
-	VOID(net_flush(net));
-    }
-  }
-  DBUG_VOID_RETURN;
-*/
 }
-
-#ifdef DUMMY
-int embedded_send_row(THD *thd, int n_fields, const char *data, int data_len)
-{
-  MYSQL                    *mysql= thd->mysql;
-  MYSQL_DATA               *result= mysql->result->data;
-  MYSQL_ROWS               **prev_ptr= &mysql->result->data->data;
-  MYSQL_ROWS               *cur;
-  MEM_ROOT                 *alloc= &mysql->result->data->alloc;
-  char                     *to;
-  uchar                    *cp;
-  MYSQL_FIELD              *mysql_fields= mysql->result->fields;
-  MYSQL_ROW                cur_field, end_field;
-  ulong                    len;
-
-  DBUG_ENTER("embedded_send_row");
-
-  result->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS) + (n_fields + 1) * sizeof(MYSQL_ROW) + data_len)))
-  {
-    my_error(ER_OUT_OF_RESOURCES,MYF(0));
-    DBUG_RETURN(1);
-  }
-  cur->data= (MYSQL_ROW)(cur + 1);
-
-  *result->prev_ptr= cur;
-  result->prev_ptr= &cur->next;
-  to= (char*) (cur->data+n_fields+1);
-  cp= (uchar *)data;
-  end_field= cur->data + n_fields;
-  
-  for (cur_field=cur->data; cur_field<end_field; cur_field++, mysql_fields++)
-  {
-    if ((len= (ulong) net_field_length(&cp)) == NULL_LENGTH)
-    {
-      *cur_field = 0;
-    }
-    else
-    {
-      *cur_field= to;
-      memcpy(to,(char*) cp,len);
-      to[len]=0;
-      to+=len+1;
-      cp+=len;
-      if (mysql_fields->max_length < len)
-	mysql_fields->max_length=len;
-    }
-  }
-
-  *cur_field= to;
-
-  DBUG_RETURN(0);
-}
-#endif
 
 uint STDCALL mysql_warning_count(MYSQL *mysql)
 {
@@ -688,11 +461,10 @@ void Protocol_simple::prepare_for_resend()
   MYSQL_ROWS               *cur;
   ulong                    len;
   MYSQL_DATA               *result= thd->mysql->result->data;
-  MEM_ROOT                 *alloc= &result->alloc;
-  MYSQL_FIELD              *mysql_fields= thd->mysql->result->fields;
 
   DBUG_ENTER("send_data");
 
+  alloc= &result->alloc;
   result->rows++;
   if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+(field_count + 1) * sizeof(char *))))
   {
@@ -704,26 +476,44 @@ void Protocol_simple::prepare_for_resend()
   *result->prev_ptr= cur;
   result->prev_ptr= &cur->next;
   next_field=cur->data;
+  next_mysql_field= thd->mysql->result->fields;
 
   DBUG_VOID_RETURN;
 }
 
+bool Protocol_simple::store_null()
+{
+  *(next_field++)= NULL;
+  ++next_mysql_field;
+  return false;
+}
+
 bool Protocol::net_store_data(const char *from, uint length)
 {
-  MYSQL_FIELD *mysql_fields= thd->mysql->result->fields;
-  if (!length)
-  {
-    *next_field= NULL;
-  }
-  else
-  {
-    if (!(*next_field=alloc_root(alloc, length + 1)))
-      return true;
-    memcpy(*next_field, from, length);
-    (*next_field)[length]= 0;
-  }
+  if (!(*next_field=alloc_root(alloc, length + 1)))
+    return true;
+  memcpy(*next_field, from, length);
+  (*next_field)[length]= 0;
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length=length;
   ++next_field;
-  if (mysql_fields->max_length < length)
-    mysql_fields->max_length=length;
+  ++next_mysql_field;
+
+  return false;
+}
+
+/* The same as Protocol::net_store_data but does the converstion
+*/
+bool Protocol::convert_str(const char *from, uint length)
+{
+  if (!(*next_field=alloc_root(alloc, length + 1)))
+    return true;
+  convert->store_dest(*next_field, from, length);
+  (*next_field)[length]= 0;
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length=length;
+  ++next_field;
+  ++next_mysql_field;
+
   return false;
 }

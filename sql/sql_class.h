@@ -177,10 +177,13 @@ public:
   {
     convert_array(from_map, (uchar*) a,length);
   }
+  char *store_dest(char *to, const char *from, uint length)
+  {
+    for (const char *end=from+length ; from != end ; from++)
+      *to++= to_map[(uchar) *from];
+    return to;
+  }
   bool store(String *, const char *,uint);
-#ifdef EMBEDDED_LIBRARY
-  void convert_back(char *dest, const char *source, uint length) const;
-#endif
   inline uint number() { return numb; }
 };
 

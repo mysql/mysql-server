@@ -23,7 +23,9 @@
 class CONVERT;
 class i_string;
 class THD;
-
+#ifdef EMBEDDED_LIBRARY
+typedef struct st_mysql_field MYSQL_FIELD;
+#endif
 class Protocol
 {
 protected:
@@ -35,11 +37,12 @@ protected:
 #endif
   uint field_count;
   bool net_store_data(const char *from, uint length);
+  bool convert_str(const char *from, uint length);
 #ifdef EMBEDDED_LIBRARY
   char **next_field;
+  MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
-
 public:
   CONVERT *convert;
 
@@ -47,6 +50,7 @@ public:
   Protocol(THD *thd) { init(thd); }
   void init(THD* thd);
   bool send_fields(List<Item> *list, uint flag);
+  bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
   bool store(const char *from);
   String *storage_packet() { return packet; }

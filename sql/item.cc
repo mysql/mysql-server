@@ -1006,64 +1006,6 @@ bool Item_field::send(Protocol *protocol, String *buffer)
   return protocol->store(result_field);
 }
 
-#ifdef EMBEDDED_LIBRARY
-bool Item::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-			 char **result, ulong *length)
-{
-  char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff), charset), *value;
-  if (!(value=val_str(&s)))
-  {
-    *result= NULL;
-    *length= 0;
-    return false;
-  }
-  if (!(*result=alloc_root(alloc, value->length() + 1)))
-    return true;
-  *length= value->length();
-  if (convert)
-    convert->convert_back(*result, value->ptr(), *length);
-  else
-    memcpy(*result, value->ptr(), *length);
-  (*result)[*length]= 0;
-  return false;
-}
-
-bool Item_null::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-			     char **result, ulong *length)
-{
-  *result= NULL;
-  *length= 0;
-  return false;
-}
-
-bool Item_field::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
-			       char **result, ulong *length)
-{
-  if (result_field->is_null())
-  {
-    *result= NULL;
-    *length= 0;
-    return false;
-  }
-
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),default_charset_info);
-  result_field->val_str(&tmp,&tmp);
-
-  if (!(*result=alloc_root(alloc, tmp.length() + 1)))
-    return true;
-  *length= tmp.length();
-  if (convert)
-    convert->convert_back(*result, tmp.ptr(), *length);
-  else
-    memcpy(*result, tmp.ptr(), *length);
-  (*result)[*length]= 0;
-  return false;
-}
-
-#endif
-
 /*
   This is used for HAVING clause
   Find field in select list having the same name

@@ -41,6 +41,10 @@ bool Protocol::net_store_data(const char *from, uint length)
   return 0;
 }
 
+inline bool Protocol::convert_str(const char *from, uint length)
+{
+  convert->store(packet, from, length);
+}
 #endif
 
 
@@ -56,7 +60,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
-#ifndef EMBEDDED_LIBRARY
+#ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
   query_cache_abort(net);
 #endif
   thd->query_error=  1; // needed to catch query errors during replication
@@ -577,6 +581,15 @@ err:
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
+bool Protocol::send_records_num(List<Item> *list, ulonglong records)
+{
+  char *pos;
+  char buff[20];
+  pos=net_store_length(buff, (uint) list->elements);
+  pos=net_store_length(pos, records);
+  return my_net_write(&thd->net, buff,(uint) (pos-buff));
+}
+
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
@@ -652,7 +665,6 @@ void Protocol_simple::prepare_for_resend()
   field_pos= 0;
 #endif
 }
-#endif
 
 bool Protocol_simple::store_null()
 {
@@ -663,6 +675,7 @@ bool Protocol_simple::store_null()
   buff[0]= (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
 }
+#endif
 
 bool Protocol_simple::store(const char *from, uint length)
 {
@@ -674,7 +687,7 @@ bool Protocol_simple::store(const char *from, uint length)
   field_pos++;
 #endif
   if (convert)
-    return convert->store(packet, from, length);
+    return convert_str(from, length);
   return net_store_data(from, length);
 }
 
@@ -757,7 +770,7 @@ bool Protocol_simple::store(Field *field)
   String tmp(buff,sizeof(buff),default_charset_info);
   field->val_str(&tmp,&tmp);
   if (convert)
-    return convert->store(packet, tmp.ptr(), tmp.length());
+    return convert_str(tmp.ptr(), tmp.length());
   return net_store_data(tmp.ptr(), tmp.length());
 }
 
@@ -863,7 +876,7 @@ bool Protocol_prep::store(const char *from,uint length)
 #endif
   field_pos++;
   if (convert)
-    return convert->store(packet, from, length);
+    return convert_str(from, length);
   return net_store_data(from, length);
 }
 

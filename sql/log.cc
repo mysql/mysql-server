@@ -23,7 +23,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include <mysql.h>
 #include "sql_acl.h"
 #include "sql_repl.h"
 
@@ -203,7 +202,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   case LOG_NORMAL:
   {
     char *end;
-#ifdef __NT__
+#ifdef EMBEDDED_LIBRARY
+    sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
+#elif __NT__
     sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
 #else
     sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
