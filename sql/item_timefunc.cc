@@ -511,7 +511,7 @@ void Item_func_curtime::fix_length_and_dec()
 		    (ulong) (((uint) start->tm_min)*100L+
 			     (uint) start->tm_sec));
 
-  buff_length=cs->snprintf(cs,buff,sizeof(buff),"%02d:%02d:%02d",
+  buff_length=cs->cset->snprintf(cs,buff,sizeof(buff),"%02d:%02d:%02d",
 				 (int) start->tm_hour,
 				 (int) start->tm_min,
 				 (int) start->tm_sec);
@@ -543,7 +543,7 @@ void Item_func_now::fix_length_and_dec()
 		     (ulong) (((uint) start->tm_min)*100L+
 			    (uint) start->tm_sec)));
   
-  buff_length= (uint) cs->snprintf(cs,buff, sizeof(buff),
+  buff_length= (uint) cs->cset->snprintf(cs,buff, sizeof(buff),
 				   "%04d-%02d-%02d %02d:%02d:%02d",
 				   ((int) (start->tm_year+1900)) % 10000,
 				   (int) start->tm_mon+1,
@@ -950,7 +950,7 @@ String *Item_func_from_unixtime::val_str(String *str)
   l=20*cs->mbmaxlen+32;
   if (str->alloc(l))
     return str;					/* purecov: inspected */
-  l=cs->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
+  l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
 	  (int) start->tm_year+1900,
 	  (int) start->tm_mon+1,
 	  (int) start->tm_mday,
@@ -1134,7 +1134,7 @@ String *Item_date_add_interval::val_str(String *str)
     l=11*cs->mbmaxlen+32;
     if (str->alloc(l))
       goto null_date;
-    l=cs->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d",
+    l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d",
 	    ltime.year,ltime.month,ltime.day);
     str->length(l);
   }
@@ -1143,7 +1143,7 @@ String *Item_date_add_interval::val_str(String *str)
     l=20*cs->mbmaxlen+32;
     if (str->alloc(l))
       goto null_date;
-    l=cs->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
+    l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
 	    ltime.year,ltime.month,ltime.day,
 	    ltime.hour,ltime.minute,ltime.second);
     str->length(l);

@@ -4468,7 +4468,44 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_sjis =
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+  my_strnncoll_sjis,
+  my_strnncollsp_sjis,
+  my_strnxfrm_sjis,
+  my_like_range_sjis,
+  my_wildcmp_mb,	/* wildcmp  */
+  my_strcasecmp_8bit,
+  my_hash_sort_simple,
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+  ismbchar_sjis,
+  mbcharlen_sjis,
+  my_numchars_mb,
+  my_charpos_mb,
+  my_mb_wc_sjis,	/* mb_wc */
+  my_wc_mb_sjis,	/* wc_mb */
+  my_caseup_str_8bit,
+  my_casedn_str_8bit,
+  my_caseup_8bit,
+  my_casedn_8bit,
+  my_snprintf_8bit,
+  my_long10_to_str_8bit,
+  my_longlong10_to_str_8bit,
+  my_fill_8bit,
+  my_strntol_8bit,
+  my_strntoul_8bit,
+  my_strntoll_8bit,
+  my_strntoull_8bit,
+  my_strntod_8bit,
+  my_scan_8bit
+};
+
+
+CHARSET_INFO my_charset_sjis_japanese_ci=
 {
     13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -4481,37 +4518,35 @@ CHARSET_INFO my_charset_sjis =
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     1,			/* strxfrm_multiply */
-    my_strnncoll_sjis,
-    my_strnncollsp_sjis,
-    my_strnxfrm_sjis,
-    my_like_range_sjis,
-    my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
-    ismbchar_sjis,
-    mbcharlen_sjis,
-    my_numchars_mb,
-    my_charpos_mb,
-    my_mb_wc_sjis,	/* mb_wc */
-    my_wc_mb_sjis,	/* wc_mb */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
+};
+
+CHARSET_INFO my_charset_sjis_bin=
+{
+    88,0,0,		/* number */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "sjis",		/* cs name    */
+    "sjis_bin",		/* name */
+    "",			/* comment    */
+    ctype_sjis,
+    to_lower_sjis,
+    to_upper_sjis,
+    sort_order_sjis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 #endif

@@ -17,33 +17,29 @@ b
 
 drop table t1;
 create table t2 type=heap select * from t1;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 create table t2 select auto+1 from t1;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 create table t1 (b char(0) not null, index(b));
-The used storage engine can't index column 'b'
+ERROR 42000: The used storage engine can't index column 'b'
 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 create table t1 (a int not null,b text) type=heap;
-The used table type doesn't support BLOB/TEXT columns
-create table t1 (a int ,primary key(a)) type=heap;
-All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
-Incorrect table definition; There can only be one auto column and it must be defined as a key
-create table t1 (ordid int(8), primary key (ordid));
-All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
+ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 Got one of the listed errors
 create table `a/a` (a int);
-Incorrect table name 'a/a'
+ERROR 42000: Incorrect table name 'a/a'
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
-Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
-Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
@@ -65,11 +61,11 @@ create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
 create table `` (a int);
-Incorrect table name ''
+ERROR 42000: Incorrect table name ''
 drop table if exists ``;
-Incorrect table name ''
+ERROR 42000: Incorrect table name ''
 create table t1 (`` int);
-Incorrect column name ''
+ERROR 42000: Incorrect column name ''
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -86,50 +82,50 @@ drop table t1,t2;
 create table t1(x varchar(50) );
 create table t2 select x from t1 where 1=2;
 describe t1;
-Field	Type	Collation	Null	Key	Default	Extra
-x	varchar(50)	latin1_swedish_ci	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
 describe t2;
-Field	Type	Collation	Null	Key	Default	Extra
-x	char(50)	latin1_swedish_ci	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+x	char(50)	YES		NULL	
 drop table t2;
 create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
 describe t2;
-Field	Type	Collation	Null	Key	Default	Extra
-a	datetime	latin1_swedish_ci			0000-00-00 00:00:00	
-b	time	latin1_swedish_ci			00:00:00	
-c	date	latin1_swedish_ci			0000-00-00	
-d	bigint(17)	binary			0	
-e	double(18,1)	binary			0.0	
-f	bigint(17)	binary			0	
+Field	Type	Null	Key	Default	Extra
+a	datetime			0000-00-00 00:00:00	
+b	time			00:00:00	
+c	date			0000-00-00	
+d	bigint(17)			0	
+e	double(18,1)			0.0	
+f	bigint(17)			0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
-Field	Type	Collation	Null	Key	Default	Extra
-d	date	latin1_swedish_ci			0000-00-00	
-t	time	latin1_swedish_ci			00:00:00	
-dt	datetime	latin1_swedish_ci			0000-00-00 00:00:00	
+Field	Type	Null	Key	Default	Extra
+d	date			0000-00-00	
+t	time			00:00:00	
+dt	datetime			0000-00-00 00:00:00	
 drop table t1,t2;
 create table t1 (a tinyint);
 create table t2 (a int) select * from t1;
 describe t1;
-Field	Type	Collation	Null	Key	Default	Extra
-a	tinyint(4)	binary	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
 describe t2;
-Field	Type	Collation	Null	Key	Default	Extra
-a	int(11)	binary	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
 drop table if exists t2;
 create table t2 (a int, a float) select * from t1;
-Duplicate column name 'a'
+ERROR 42S21: Duplicate column name 'a'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 create table t2 (a int) select a as b, a+1 as b from t1;
-Duplicate column name 'b'
+ERROR 42S21: Duplicate column name 'b'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 create table t2 (b int) select a as b, a+1 as b from t1;
-Duplicate column name 'b'
+ERROR 42S21: Duplicate column name 'b'
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 't2'
@@ -180,6 +176,40 @@ select * from t1;
 if('2002'='2002','Y','N')
 Y
 drop table if exists t1;
+SET SESSION table_type="heap";
+SELECT @@table_type;
+@@table_type
+HEAP
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=HEAP CHARSET=latin1
+drop table t1;
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+@@table_type
+GEMINI
+CREATE TABLE t1 (a int not null);
+Warnings:
+Warning	1264	Using storage engine MYISAM for table 't1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM CHARSET=latin1
+SET SESSION table_type=default;
+drop table t1;
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+insert into t1 values ("c", NULL);
+ERROR 23000: Column 'k2' cannot be null
+insert into t1 values (NULL, 3);
+ERROR 23000: Column 'k1' cannot be null
+insert into t1 values (NULL, NULL);
+ERROR 23000: Column 'k1' cannot be null
+drop table t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
@@ -243,15 +273,15 @@ select * from t2;
 id	name
 create table t3 like t1;
 create table t3 like test_$1.t3;
-Table 't3' already exists
+ERROR 42S01: Table 't3' already exists
 create table non_existing_database.t1 like t1;
 Got one of the listed errors
 create table t3 like non_existing_table;
-Unknown table 'non_existing_table'
+ERROR 42S02: Unknown table 'non_existing_table'
 create temporary table t3 like t1;
-Table 't3' already exists
+ERROR 42S01: Table 't3' already exists
 create table t3 like `a/a`;
-Incorrect table name 'a/a'
+ERROR 42000: Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;

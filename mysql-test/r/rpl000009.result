@@ -21,7 +21,7 @@ n	m
 drop database mysqltest;
 drop database if exists mysqltest2;
 drop database mysqltest;
-Can't drop database 'mysqltest'. Database doesn't exist
+ERROR HY000: Can't drop database 'mysqltest'. Database doesn't exist
 drop database mysqltest2;
 set sql_log_bin = 0;
 create database mysqltest2;

@@ -36,7 +36,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 static uint calc_hash(HASH *hash,const byte *key,uint length)
 {
   ulong nr1=1, nr2=4;
-  hash->charset->hash_sort(hash->charset,key,length,&nr1,&nr2);
+  hash->charset->coll->hash_sort(hash->charset,key,length,&nr1,&nr2);
   return nr1;
 }
 

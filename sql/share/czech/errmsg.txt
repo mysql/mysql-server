@@ -114,7 +114,7 @@ v/*
 "Blob polo-B¾ka '%-.64s' nemù¾e mít defaultní hodnotu",
 "Nep-Bøípustné jméno databáze '%-.64s'",
 "Nep-Bøípustné jméno tabulky '%-.64s'",
-"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET OPTION SQL_BIG_SELECTS=1",
+"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET SQL_BIG_SELECTS=1",
 "Nezn-Bámá chyba",
 "Nezn-Bámá procedura %s",
 "Chybn-Bý poèet parametrù procedury %s",
@@ -259,7 +259,7 @@ v/*
 "Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
-"Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
+"Client does not support authentication protocol requested by server; consider upgrading MySQL client",
 "All parts of a SPATIAL KEY must be NOT NULL",
 "COLLATION '%s' is not valid for CHARACTER SET '%s'",
 "The slave was already running",
@@ -271,3 +271,7 @@ v/*
 "%d line(s) was(were) cut by group_concat()",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",

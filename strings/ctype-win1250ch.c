@@ -45,6 +45,16 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#else
+
+#include <stdio.h>
+#define uchar unsigned char
+
+#endif
+
+#ifdef HAVE_CHARSET_cp1250
+
+
 static uint16 tab_cp1250_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
@@ -250,12 +260,6 @@ static uchar NEAR to_upper_win1250ch[] = {
 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xff
 };
 
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 
 static uchar NEAR sort_order_win1250ch[] = {
@@ -286,7 +290,7 @@ static uchar NEAR _sort_order_win1250ch1[] = {
 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91,
 /* 0 ord 48 0x30 */
-0x92, 0x93, 0x94, 0x95, 0x95, 0x97, 0x98, 0x99,
+0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99,
 0x9a, 0x9b,
 	    /* colon ord 58 0x3a */
 	    0x9c, 0x9d, 0x9e, 0x9f, 0xa0, 0xa1,
@@ -640,7 +644,18 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-CHARSET_INFO my_charset_win1250ch =
+static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
+{
+    my_strnncoll_win1250ch,
+    my_strnncollsp_win1250ch,
+    my_strnxfrm_win1250ch,
+    my_like_range_win1250ch,
+    my_wildcmp_8bit,
+    my_strcasecmp_8bit,
+    my_hash_sort_simple
+};
+
+CHARSET_INFO my_charset_cp1250_czech_ci =
 {
     34,0,0,			/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
@@ -655,36 +670,13 @@ CHARSET_INFO my_charset_win1250ch =
     idx_uni_cp1250,		/* tab_from_uni */
     "","",
     2,				/* strxfrm_multiply */
-    my_strnncoll_win1250ch,
-    my_strnncollsp_win1250ch,
-    my_strnxfrm_win1250ch,
-    my_like_range_win1250ch,
-    my_wildcmp_8bit,		/* wildcmp   */
     1,				/* mbmaxlen  */
-    NULL,			/* ismbchar  */
-    NULL,			/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_8bit,		/* mb_wc     */
-    my_wc_mb_8bit,		/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_8bit_handler,
+    &my_collation_czech_ci_handler
 };
 
+
+#endif
 
 #endif

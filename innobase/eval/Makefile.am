@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libeval.a
+noinst_LIBRARIES =	libeval.a
 
 libeval_a_SOURCES =	eval0eval.c eval0proc.c
 

@@ -31,6 +31,14 @@
 #include <zlib.h>
 #endif
 
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
 /* return TRUE if item is a constant */
 
 bool
@@ -40,8 +48,8 @@ eval_const_cond(COND *cond)
 }
 
 
-Item_func::Item_func(List<Item> &list):
-  allowed_arg_cols(1)
+Item_func::Item_func(List<Item> &list)
+  :allowed_arg_cols(1)
 {
   arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -109,15 +117,18 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
+      Item *item;
+      /* We can't yet set item to *arg as fix_fields may change *arg */
       if ((*arg)->fix_fields(thd, tables, arg) ||
 	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
-      if ((*arg)->maybe_null)
+      item= *arg;
+      if (item->maybe_null)
 	maybe_null=1;
       
-      with_sum_func= with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&= (*arg)->const_item();
+      with_sum_func= with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&= item->const_item();
     }
   }
   fix_length_and_dec();
@@ -140,14 +151,15 @@ void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
-      (*arg)->split_sum_func(ref_pointer_array, fields);
-    else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
+    Item *item=* arg;
+    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+      item->split_sum_func(ref_pointer_array, fields);
+    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
-      fields.push_front(*arg);
-      ref_pointer_array[el]= *arg;
-      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+      fields.push_front(item);
+      ref_pointer_array[el]= item;
+      *arg= new Item_ref(ref_pointer_array + el, 0, item->name);
     }
   }
 }
@@ -855,14 +867,10 @@ void Item_func_min_max::fix_length_and_dec()
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
     if (i==0)
-      set_charset(args[i]->charset(), args[i]->coercibility);
-    else if (set_charset(charset(), coercibility, 
-			args[i]->charset(), args[i]->coercibility))
+      collation.set(args[0]->collation);
+    if (collation.aggregate(args[i]->collation))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
@@ -1034,13 +1042,21 @@ longlong Item_func_coercibility::val_int()
     return 0;
   }
   null_value= 0;
-  return (longlong) args[0]->coercibility;
+  return (longlong) args[0]->derivation();
+}
+
+void Item_func_locate::fix_length_and_dec()
+{
+  maybe_null=0; max_length=11;
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
+  bool binary_cmp= (cmp_collation.collation->state & MY_CS_BINSORT) ? 1 : 0;
   if (!a || !b)
   {
     null_value=1;
@@ -1055,7 +1071,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(a->charset()))
+    if (use_mb(cmp_collation.collation))
     {
       start0=start;
       if (!binary_cmp)
@@ -1068,7 +1084,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(a->charset()) && !binary_cmp)
+  if (use_mb(cmp_collation.collation) && !binary_cmp)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -1087,7 +1103,7 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(a->charset(),ptr,strend)))
+      if ((l=my_ismbchar(cmp_collation.collation,ptr,strend)))
 	ptr+=l;
       else ++ptr;
       ++start0;
@@ -1193,6 +1209,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 static const char separator=',';
@@ -1220,7 +1238,6 @@ longlong Item_func_find_in_set::val_int()
   null_value=0;
 
   int diff;
-  CHARSET_INFO *charset= find->charset();
   if ((diff=buffer->length() - find->length()) >= 0)
   {
     const char *f_pos=find->ptr();
@@ -1234,7 +1251,8 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (my_toupper(charset,*str) != my_toupper(charset,*pos))
+	if (my_toupper(cmp_collation.collation,*str) != 
+	    my_toupper(cmp_collation.collation,*pos))
 	  goto not_found;
 	str++;
 	pos++;
@@ -1250,47 +1268,6 @@ longlong Item_func_find_in_set::val_int()
   return 0;
 }
 
-static char nbits[256] = {
-  0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
-};
-
-uint count_bits(ulonglong v)
-{
-#if SIZEOF_LONG_LONG > 4
-  /* The following code is a bit faster on 16 bit machines than if we would
-     only shift v */
-  ulong v2=(ulong) (v >> 32);
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)] +
-                         nbits[(uchar) (v2)] +
-                         nbits[(uchar) (v2 >> 8)] +
-                         nbits[(uchar) (v2 >> 16)] +
-                         nbits[(uchar) (v2 >> 24)]);
-#else
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)]);
-#endif
-}
-
 longlong Item_func_bit_count::val_int()
 {
   ulonglong value= (ulonglong) args[0]->val_int();
@@ -1299,7 +1276,7 @@ longlong Item_func_bit_count::val_int()
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
-  return (longlong) count_bits(value);
+  return (longlong) my_count_bits(value);
 }
 
 
@@ -1373,16 +1350,17 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg) || (*arg)->check_cols(1))
+      Item *item= *arg;
+      if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
 	return 1;
-      if ((*arg)->binary())
+      if (item->binary())
 	func->set_charset(&my_charset_bin);
-      if ((*arg)->maybe_null)
+      if (item->maybe_null)
 	func->maybe_null=1;
-      func->with_sum_func= func->with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&=(*arg)->const_item();
-      f_args.arg_type[i]=(*arg)->result_type();
+      func->with_sum_func= func->with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&=item->const_item();
+      f_args.arg_type[i]=item->result_type();
     }
     if (!(buffers=new String[arg_count]) ||
 	!(f_args.args= (char**) sql_alloc(arg_count * sizeof(char *))) ||
@@ -2036,7 +2014,7 @@ Item_func_set_user_var::fix_length_and_dec()
 void Item_func_set_user_var::update_hash(void *ptr, uint length,
 					 Item_result type,
 					 CHARSET_INFO *cs,
-					 enum coercion coercibility)
+					 Derivation dv)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -2045,8 +2023,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    entry->var_charset=cs;
-    entry->var_coercibility= coercibility;
+    entry->collation.set(cs, dv);
   }
   else
   {
@@ -2077,8 +2054,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     memcpy(entry->value,ptr,length);
     entry->length= length;
     entry->type=type;
-    entry->var_charset=cs;
-    entry->var_coercibility= coercibility;
+    entry->collation.set(cs, dv);
   }
   return;
 
@@ -2121,7 +2097,7 @@ Item_func_set_user_var::val()
 {
   double value=args[0]->val();
   update_hash((void*) &value,sizeof(value), REAL_RESULT, 
-    &my_charset_bin, COER_NOCOLL);
+    &my_charset_bin, DERIVATION_NONE);
   return value;
 }
 
@@ -2130,7 +2106,7 @@ Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
   update_hash((void*) &value, sizeof(longlong), INT_RESULT,
-	      &my_charset_bin, COER_NOCOLL);
+	      &my_charset_bin, DERIVATION_NONE);
   return value;
 }
 
@@ -2139,10 +2115,10 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, COER_NOCOLL);
+    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, DERIVATION_NONE);
   else
     update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
-		res->charset(), args[0]->coercibility);
+		res->charset(), args[0]->derivation());
   return res;
 }
 
@@ -2183,7 +2159,7 @@ Item_func_get_user_var::val_str(String *str)
     str->set(*(longlong*) entry->value, &my_charset_bin);
     break;
   case STRING_RESULT:
-    if (str->copy(entry->value, entry->length, entry->var_charset))
+    if (str->copy(entry->value, entry->length, entry->collation.collation))
     {
       null_value=1;
       return NULL;
@@ -2272,7 +2248,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 	                     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
       user_var_event->user_var_event= var_entry;
       user_var_event->type= var_entry->type;
-      user_var_event->charset_number= var_entry->var_charset->number;
+      user_var_event->charset_number= var_entry->collation.collation->number;
       if (!var_entry->value)
       {
 	/* NULL value*/
@@ -2452,7 +2428,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
-  if (count_bits(used_tables_cache) != 1)
+  if (my_count_bits(used_tables_cache) != 1)
     key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
@@ -2626,10 +2602,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
 
   if (!(var= find_sys_var(name.str, name.length)))
-  {
-    net_printf(thd, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
     return 0;
-  }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
   thd->lex.uncacheable();
@@ -2718,140 +2691,4 @@ longlong Item_func_is_used_lock::val_int()
 
   null_value=0;
   return ull->thread_id;
-}
-
-
-
-/**************************************************************************
-  Spatial functions
-***************************************************************************/
-
-longlong Item_func_dimension::val_int()
-{
-  uint32 dim;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb || 
-	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       geom.dimension(&dim));
-  return (longlong) dim;
-}
-
-longlong Item_func_numinteriorring::val_int()
-{
-  uint32 num;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, num_interior_ring) || 
-	       geom.num_interior_ring(&num));
-  return (longlong) num;
-}
-
-longlong Item_func_numgeometries::val_int()
-{
-  uint32 num= 0;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, num_geometries) || 
-	       geom.num_geometries(&num));
-  return (longlong) num;
-}
-
-longlong Item_func_numpoints::val_int()
-{
-  uint32 num;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb ||
-	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) ||
-	       !GEOM_METHOD_PRESENT(geom, num_points) ||
-	       geom.num_points(&num));
-  return (longlong) num;
-}
-
-
-double Item_func_x::val()
-{
-  double res;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, get_x) || 
-	       geom.get_x(&res));
-  return res;
-}
-
-
-double Item_func_y::val()
-{
-  double res;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, get_y) || 
-	       geom.get_y(&res));
-  return res;
-}
-
-
-double Item_func_area::val()
-{
-  double res;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, area) || 
-	       geom.area(&res));
-  return res;
-}
-
-
-double Item_func_glength::val()
-{
-  double res;
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, length) || 
-	       geom.length(&res));
-  return res;
-}
-
-
-longlong Item_func_srid::val_int()
-{
-  String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
-  null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE));
-  uint32 res= uint4korr(swkb->ptr());
-  return (longlong) res;
 }

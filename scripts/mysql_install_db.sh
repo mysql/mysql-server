@@ -8,18 +8,8 @@
 # All unrecognized arguments to this script are passed to mysqld.
 
 in_rpm=0
-case "$1" in
-    --rpm)
-      in_rpm="1"; shift
-      ;;
-esac
 windows=0
-case "$1" in
-    --windows)
-      windows="1"; shift
-      ;;
-esac
-defaults=
+defaults=""
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
@@ -44,6 +34,8 @@ parse_arguments() {
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --verbose) verbose=1 ;;
+      --rpm) in_rpm=1 ;;
+      --windows) windows=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -61,6 +53,9 @@ parse_arguments() {
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
+elif test -x ./extra/my_print_defaults
+then
+  print_defaults="./extra/my_print_defaults"
 elif test -x @bindir@/my_print_defaults
 then
   print_defaults="@bindir@/my_print_defaults"
@@ -79,6 +74,7 @@ basedir=
 force=0
 verbose=0
 fill_help_tables=""
+
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
@@ -87,7 +83,7 @@ if test -z "$basedir"
 then
   basedir=@prefix@
   bindir=@bindir@
-  execdir=@libexecdir@ 
+  execdir=@libexecdir@
   pkgdatadir=@pkgdatadir@
 else
   bindir="$basedir/bin"
@@ -100,37 +96,43 @@ else
   else
     execdir="$basedir/bin"
   fi
-
-  # find fill_help_tables.sh
-  for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts @pkgdatadir@
-  do
-    if test -f $i/fill_help_tables.sql
-    then
-      pkgdatadir=$i
-    fi
-  done
 fi
+
+# find fill_help_tables.sh
+for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
+do
+  if test -f $i/fill_help_tables.sql
+  then
+    pkgdatadir=$i
+  fi
+done
 
 if test -f $pkgdatadir/fill_help_tables.sql
 then
   fill_help_tables=$pkgdatadir/fill_help_tables.sql
 else
-  if test $verbose -eq 1
-  then
-    echo "Could not find help file 'fill_help_tables.sql'".
-  fi
+  echo "Could not find help file 'fill_help_tables.sql' in @pkgdatadir@ or inside $basedir".
+  exit 1;
 fi
 
 mdata=$ldata/mysql
+mysqld=$execdir/mysqld
+mysqld_opt=""
 
-if test "$windows" -eq 0 -a ! -x $execdir/mysqld
+if test "$windows" = 1
+then
+  mysqld="./sql/mysqld"
+  mysqld_opt="--language=./sql/share/english"
+fi
+
+if test ! -x $mysqld
 then
   if test "$in_rpm" -eq 1
   then
-    echo "FATAL ERROR $execdir/mysqld not found!"
+    echo "FATAL ERROR $mysqld not found!"
     exit 1
   else
-    echo "Didn't find $execdir/mysqld"
+    echo "Didn't find $mysqld"
     echo "You should do a 'make install' before executing this script"
     exit 1
   fi
@@ -147,7 +149,8 @@ then
     resolved=`$bindir/resolveip localhost 2>&1`
     if [ $? -eq 0 ]
     then
-      echo "Sorry, the host '$hostname' could not be looked up."
+      echo "Neither host '$hostname' and 'localhost' could not be looked up with"
+      echo "$bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct hostname."
       echo "If you want to solve this at a later stage, restart this script with"
       echo "the --force option"
@@ -163,229 +166,48 @@ then
 fi
 
 # Create database directories mysql & test
-if test "$in_rpm" -eq 0 || "$windows" -eq 0
-then
+
   if test ! -d $ldata; then mkdir $ldata; chmod 700 $ldata ; fi
   if test ! -d $ldata/mysql; then mkdir $ldata/mysql;  chmod 700 $ldata/mysql ; fi
   if test ! -d $ldata/test; then mkdir $ldata/test;  chmod 700 $ldata/test ; fi
   if test -w / -a ! -z "$user"; then
     chown $user $ldata $ldata/mysql $ldata/test;
   fi
-fi
 
-# Initialize variables
-c_d="" i_d=""
-c_h="" i_h=""
-c_u="" i_u=""
-c_f="" i_f=""
-c_t="" c_c=""
-
-# Check for old tables
 if test ! -f $mdata/db.frm
 then
-  if test $verbose -eq 1 ; then 
-    echo "Preparing db table"
-  fi
-  # mysqld --bootstrap wants one command/line
-  c_d="$c_d CREATE TABLE db ("
-  c_d="$c_d   Host char(60) binary DEFAULT '' NOT NULL,"
-  c_d="$c_d   Db char(64) binary DEFAULT '' NOT NULL,"
-  c_d="$c_d   User char(16) binary DEFAULT '' NOT NULL,"
-  c_d="$c_d   Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Grant_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
-  c_d="$c_d KEY User (User)"
-  c_d="$c_d )"
-  c_d="$c_d comment='Database privileges';"
-  
-  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');
-  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');"
+  c_d="yes"
 fi
 
-if test ! -f $mdata/host.frm
+if test $verbose -eq 1
 then
-  if test $verbose -eq 1 ; then
-    echo "Preparing host table"
-  fi
-
-  c_h="$c_h CREATE TABLE host ("
-  c_h="$c_h  Host char(60) binary DEFAULT '' NOT NULL,"
-  c_h="$c_h  Db char(64) binary DEFAULT '' NOT NULL,"
-  c_h="$c_h  Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Grant_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_h="$c_h  PRIMARY KEY Host (Host,Db)"
-  c_h="$c_h )"
-  c_h="$c_h comment='Host privileges;  Merged with database privileges';"
+  create_option="verbose"
+else
+  create_option="real"
 fi
 
-if test ! -f $mdata/user.frm
+if test "$in_rpm" -eq 0 -a "$windows" -eq 0
 then
-  if test $verbose -eq 1 ; then
-    echo "Preparing user table"
-  fi
-
-  c_u="$c_u CREATE TABLE user ("
-  c_u="$c_u   Host char(60) binary DEFAULT '' NOT NULL,"
-  c_u="$c_u   User char(16) binary DEFAULT '' NOT NULL,"
-  c_u="$c_u   Password char(45) binary DEFAULT '' NOT NULL,"
-  c_u="$c_u   Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Reload_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Shutdown_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Process_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   File_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Grant_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Super_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') DEFAULT '' NOT NULL,"
-  c_u="$c_u   ssl_cipher BLOB NOT NULL,"
-  c_u="$c_u   x509_issuer BLOB NOT NULL,"
-  c_u="$c_u   x509_subject BLOB NOT NULL,"
-  c_u="$c_u   max_questions int(11) unsigned DEFAULT 0  NOT NULL,"
-  c_u="$c_u   max_updates int(11) unsigned DEFAULT 0  NOT NULL,"
-  c_u="$c_u   max_connections int(11) unsigned DEFAULT 0  NOT NULL,"
-  c_u="$c_u   PRIMARY KEY Host (Host,User)"
-  c_u="$c_u )"
-  c_u="$c_u comment='Users and global privileges';"
-
-  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-  
-  REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-  
-  INSERT INTO user (host,user) values ('localhost','');
-"
-
-  if test "$windows" -eq 0
-  then
-    i_u="$i_u INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-  
-  REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-  
-  INSERT INTO user (host,user) values ('$hostname','');"
-  fi
+  echo "Installing all prepared tables"
 fi
-
-if test ! -f $mdata/func.frm
-then
-  if test $verbose -eq 1 ; then
-    echo "Preparing func table"
-  fi
-
-  c_f="$c_f CREATE TABLE func ("
-  c_f="$c_f   name char(64) binary DEFAULT '' NOT NULL,"
-  c_f="$c_f   ret tinyint(1) DEFAULT '0' NOT NULL,"
-  c_f="$c_f   dl char(128) DEFAULT '' NOT NULL,"
-  c_f="$c_f   type enum ('function','aggregate') NOT NULL,"
-  c_f="$c_f   PRIMARY KEY (name)"
-  c_f="$c_f )"
-  c_f="$c_f   comment='User defined functions';"
-fi
-
-if test ! -f $mdata/tables_priv.frm
-then
-  if test $verbose -eq 1 ; then
-   echo "Preparing tables_priv table"
- fi
-
-  c_t="$c_t CREATE TABLE tables_priv ("
-  c_t="$c_t   Host char(60) binary DEFAULT '' NOT NULL,"
-  c_t="$c_t   Db char(64) binary DEFAULT '' NOT NULL,"
-  c_t="$c_t   User char(16) binary DEFAULT '' NOT NULL,"
-  c_t="$c_t   Table_name char(60) binary DEFAULT '' NOT NULL,"
-  c_t="$c_t   Grantor char(77) DEFAULT '' NOT NULL,"
-  c_t="$c_t   Timestamp timestamp(14),"
-  c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') DEFAULT '' NOT NULL,"
-  c_t="$c_t   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,"
-  c_t="$c_t   PRIMARY KEY (Host,Db,User,Table_name),"
-  c_t="$c_t   KEY Grantor (Grantor)"
-  c_t="$c_t )"
-  c_t="$c_t   comment='Table privileges';"
-fi
-
-if test ! -f $mdata/columns_priv.frm
-then
-  if test $verbose -eq 1 ; then
-    echo "Preparing columns_priv table"
-  fi
-
-  c_c="$c_c CREATE TABLE columns_priv ("
-  c_c="$c_c   Host char(60) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   Db char(64) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   User char(16) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   Table_name char(64) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   Column_name char(64) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   Timestamp timestamp(14),"
-  c_c="$c_c   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,"
-  c_c="$c_c   PRIMARY KEY (Host,Db,User,Table_name,Column_name)"
-  c_c="$c_c )"
-  c_c="$c_c   comment='Column privileges';"
-fi
-
-echo "Installing privilege tables"
 if (
-    cat << END_OF_DATA
-use mysql;
-$c_d
-$i_d
-
-$c_h
-$i_h
-
-$c_u
-$i_u
-
-$c_f
-$i_f
-
-$c_t
-$c_c
-END_OF_DATA
+   $pkgdatadir/mysql_create_system_tables $create_option $mdata $hostname $windows 
    if test -n "$fill_help_tables"
    then
      cat $fill_help_tables
    fi
-) | eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
+) | eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
-  echo ""
-  if test "$in_rpm" -eq 0 || "$windows" -eq 0
+  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
   then
+    echo ""
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
     echo "to the right place for your system"
     echo
   fi
+  if test "$windows" -eq 0
+  then
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "This is done with:"
   echo "$bindir/mysqladmin -u root password 'new-password'"
@@ -401,7 +223,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+  if test "$in_rpm" -eq 0
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
@@ -415,13 +237,14 @@ then
   echo "The latest information about MySQL is available on the web at"
   echo "http://www.mysql.com"
   echo "Support MySQL by buying support/licenses at https://order.mysql.com"
+  fi
   exit 0
 else
   echo "Installation of grant tables failed!"
   echo
   echo "Examine the logs in $ldata for more information."
   echo "You can also try to start the mysqld daemon with:"
-  echo "$execdir/mysqld --skip-grant &"
+  echo "$mysqld --skip-grant &"
   echo "You can use the command line tool"
   echo "$bindir/mysql to connect to the mysql"
   echo "database and look at the grant tables:"

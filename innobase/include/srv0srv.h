@@ -75,6 +75,9 @@ extern ulint	srv_lock_wait_timeout;
 extern char*    srv_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
 extern ulint   	srv_win_file_flush_method;
+
+extern ulint	srv_max_dirty_pages_pct;
+
 extern ulint	srv_force_recovery;
 extern ulint	srv_thread_concurrency;
 
@@ -207,6 +210,12 @@ Initializes the server. */
 
 void
 srv_init(void);
+/*==========*/
+/*************************************************************************
+Frees the OS fast mutex created in srv_init(). */
+
+void
+srv_free(void);
 /*==========*/
 /*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread

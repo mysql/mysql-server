@@ -98,7 +98,7 @@ int run_test(const char *filename)
     keyinfo[0].seg[i].length=key_length;
     keyinfo[0].seg[i].null_bit= null_fields ? 2 : 0;
     keyinfo[0].seg[i].null_pos=0;
-    keyinfo[0].seg[i].language=MY_CHARSET_CURRENT;
+    keyinfo[0].seg[i].language=default_charset_info->number;
   }
   
   

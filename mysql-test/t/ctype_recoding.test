@@ -26,3 +26,4 @@ SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 
 SET CHARACTER SET koi8r;
 DROP TABLE таблица;
+SET CHARACTER SET default;

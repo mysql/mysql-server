@@ -154,8 +154,26 @@ Warning	1258	1 line(s) was(were) cut by group_concat()
 show warnings;
 Level	Code	Message
 Warning	1258	1 line(s) was(were) cut by group_concat()
+set group_concat_max_len = 1024;
+drop table if exists T_URL;
+Warnings:
+Note	1051	Unknown table 'T_URL'
+create table T_URL ( URL_ID int(11), URL varchar(80));
+drop table if exists T_REQUEST;
+Warnings:
+Note	1051	Unknown table 'T_REQUEST'
+create table T_REQUEST ( REQ_ID int(11), URL_ID int(11));
+insert into T_URL values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
+insert into T_REQUEST values (1,4), (5,4), (5,5);
+select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where 
+T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
+REQ_ID	URL
+1	www.host.com
+5	www.host.com,www.google.com,www.help.com
+drop table T_URL;
+drop table T_REQUEST;
 select group_concat(sum(a)) from t1 group by grp;
-Invalid use of group function
+ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
-Unknown column '2' in 'group statement'
-drop table if exists t1;
+ERROR 42S22: Unknown column '2' in 'group statement'
+drop table t1;

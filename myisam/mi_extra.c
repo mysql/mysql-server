@@ -367,6 +367,9 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (!share->state.header.uniques)
       info->opt_flag|= OPT_NO_ROWS;
     break;
+  case HA_EXTRA_PRELOAD_BUFFER_SIZE:
+    info->preload_buff_size= *((ulong *) extra_arg); 
+    break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
   default:

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libusr.a
+noinst_LIBRARIES =	libusr.a
 
 libusr_a_SOURCES =	usr0sess.c
 

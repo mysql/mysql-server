@@ -162,19 +162,19 @@ KEY tig (ticket),
 fulltext index tix (inhalt)
 );
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
-Wrong arguments to AGAINST
+ERROR HY000: Wrong arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
-Can't find FULLTEXT index matching the column list
+ERROR HY000: Can't find FULLTEXT index matching the column list
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
-Wrong arguments to MATCH
+ERROR HY000: Wrong arguments to MATCH
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 id int(11)  auto_increment,
 title varchar(100)  default '',
 PRIMARY KEY  (id),
-KEY ind5 (title),
-FULLTEXT KEY FT1 (title)
+KEY ind5 (title)
 ) TYPE=MyISAM;
+CREATE FULLTEXT INDEX ft1 ON t1(title);
 insert into t1 (title) values ('this is a test');
 select * from t1 where match title against ('test' in boolean mode);
 id	title
@@ -215,4 +215,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 select * from t1 where match (a) against ('aaaa');
 a
+drop table t1;
+create table t1 ( ref_mag text not null, fulltext (ref_mag));
+insert into t1 values ('test');
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+ref_mag
+test
+alter table t1 change ref_mag ref_mag char (255) not null;
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+ref_mag
+test
 drop table t1;

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	liblog.a
+noinst_LIBRARIES =	liblog.a
 
 liblog_a_SOURCES =	log0log.c log0recv.c
 

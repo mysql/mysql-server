@@ -20,7 +20,7 @@ typedef struct log_group_struct	log_group_t;
 extern	ibool	log_do_write;
 extern 	ibool	log_debug_writes;
 
-/* Wait modes for log_flush_up_to */
+/* Wait modes for log_write_up_to */
 #define LOG_NO_WAIT		91
 #define LOG_WAIT_ONE_GROUP	92
 #define	LOG_WAIT_ALL_GROUPS	93
@@ -157,26 +157,21 @@ log_io_complete(
 /*============*/
 	log_group_t*	group);	/* in: log group */
 /**********************************************************
-Flushes the log files to the disk, using, for example, the Unix fsync.
-This function does the flush even if the user has set
-srv_flush_log_at_trx_commit = FALSE. */
-
-void
-log_flush_to_disk(void);
-/*===================*/
-/**********************************************************
 This function is called, e.g., when a transaction wants to commit. It checks
-that the log has been flushed to disk up to the last log entry written by the
-transaction. If there is a flush running, it waits and checks if the flush
-flushed enough. If not, starts a new flush. */
+that the log has been written to the log file up to the last log entry written
+by the transaction. If there is a flush running, it waits and checks if the
+flush flushed enough. If not, starts a new flush. */
 
 void
-log_flush_up_to(
+log_write_up_to(
 /*============*/
 	dulint	lsn,	/* in: log sequence number up to which the log should
-			be flushed, ut_dulint_max if not specified */
-	ulint	wait);	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
+			be written, ut_dulint_max if not specified */
+	ulint	wait,	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 			or LOG_WAIT_ALL_GROUPS */
+	ibool	flush_to_disk);
+			/* in: TRUE if we want the written log also to be
+			flushed to disk */
 /********************************************************************
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only
@@ -741,27 +736,37 @@ struct log_struct{
 					be advanced, it is enough that the
 					write i/o has been completed for all
 					log groups */
-	dulint		flush_lsn;	/* end lsn for the current flush */
-	ulint		flush_end_offset;/* the data in buffer has been flushed
+	dulint		write_lsn;	/* end lsn for the current running 
+					write */
+	ulint		write_end_offset;/* the data in buffer has been written
 					up to this offset when the current
-					flush ends: this field will then
+					write ends: this field will then
 					be copied to buf_next_to_write */
-	ulint		n_pending_writes;/* number of currently pending flush
-					writes */
+	dulint		current_flush_lsn;/* end lsn for the current running 
+					write + flush operation */
+	dulint		flushed_to_disk_lsn;
+					/* how far we have written the log
+					AND flushed to disk */
+	ulint		n_pending_writes;/* number of currently pending flushes
+					or writes */
+	/* NOTE on the 'flush' in names of the fields below: starting from
+	4.0.14, we separate the write of the log file and the actual fsync()
+	or other method to flush it to disk. The names below shhould really
+	be 'flush_or_write'! */
 	os_event_t	no_flush_event;	/* this event is in the reset state
-					when a flush is running; a thread
-					should wait for this without owning
-					the log mutex, but NOTE that to set or
-					reset this event, the thread MUST own
-					the log mutex! */
+					when a flush or a write is running;
+					a thread should wait for this without
+					owning the log mutex, but NOTE that
+					to set or reset this event, the
+					thread MUST own the log mutex! */
 	ibool		one_flushed;	/* during a flush, this is first FALSE
 					and becomes TRUE when one log group
-					has been flushed */
+					has been written or flushed */
 	os_event_t	one_flushed_event;/* this event is reset when the
-					flush has not yet completed for any
-					log group; e.g., this means that a
-					transaction has been committed when
-					this is set; a thread should wait
+					flush or write has not yet completed
+					for any log group; e.g., this means
+					that a transaction has been committed
+					when this is set; a thread should wait
 					for this without owning the log mutex,
 					but NOTE that to set or reset this
 					event, the thread MUST own the log

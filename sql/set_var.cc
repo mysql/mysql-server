@@ -87,6 +87,9 @@ static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 
@@ -101,15 +104,14 @@ sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
-sys_var_str		sys_charset("character_set_server",
+sys_var_character_set_server	sys_character_set_server("character_set_server");
+sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
-sys_var_str		sys_charset_system("character_set_system",
-				    sys_check_charset,
-				    sys_update_charset,
-				    sys_set_default_charset);
+sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
+sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
@@ -166,7 +168,11 @@ sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
+/* 
+   sys_pseudo_thread_id has its own class (instead of sys_var_thd_ulong) because
+   we want a check() function.
+*/
+sys_var_pseudo_thread_id sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id);
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
@@ -188,8 +194,9 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
-sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size);
-sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size);
+sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
+sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
+sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 sys_var_thd_ulong	sys_net_buffer_length("net_buffer_length",
 					      &SV::net_buffer_length);
@@ -203,8 +210,11 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
+                                              &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
+sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 #ifdef HAVE_REPLICATION
@@ -253,6 +263,11 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
+					     
+#ifdef HAVE_INNOBASE_DB
+sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
+                                                        &srv_max_buf_pool_modified_pct);
+#endif 					     
 /*
   Variables that are bits in THD
 */
@@ -271,7 +286,7 @@ static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables",
 #endif
 static sys_var_thd_bit	sys_big_selects("sql_big_selects",
 					set_option_bit,
-					OPTION_BIG_TABLES);
+					OPTION_BIG_SELECTS);
 static sys_var_thd_bit	sys_log_off("sql_log_off",
 				    set_option_bit,
 				    OPTION_LOG_OFF);
@@ -353,7 +368,10 @@ sys_var *sys_variables[]=
   &sys_binlog_cache_size,
   &sys_buffer_results,
   &sys_bulk_insert_buff_size,
+  &sys_character_set_server,
+  &sys_character_set_database,
   &sys_character_set_client,
+  &sys_character_set_connection,
   &sys_character_set_results,
   &sys_collation_connection,
   &sys_concurrent_insert,
@@ -399,6 +417,7 @@ sys_var *sys_variables[]=
   &sys_max_write_lock_count,
   &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
+  &sys_myisam_repair_threads,
   &sys_myisam_sort_buffer_size,
   &sys_net_buffer_length,
   &sys_net_read_timeout,
@@ -406,6 +425,7 @@ sys_var *sys_variables[]=
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_new_mode,
+  &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
@@ -430,6 +450,7 @@ sys_var *sys_variables[]=
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
 #endif
+  &sys_readonly,
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -443,6 +464,9 @@ sys_var *sys_variables[]=
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_tx_isolation,
+#ifdef HAVE_INNOBASE_DB
+  &sys_innodb_max_dirty_pages_pct,
+#endif    
   &sys_unique_checks,
   &sys_warning_count
 };
@@ -467,9 +491,11 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
-  {sys_charset.name, 	      (char*) &sys_charset,		    SHOW_SYS},
+  {sys_character_set_server.name, (char*) &sys_character_set_server,SHOW_SYS},
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
+  {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client,SHOW_SYS},
+  {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
@@ -518,6 +544,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
+  {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
@@ -554,13 +581,14 @@ struct show_var_st init_vars[]= {
   {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
-  {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,   	    SHOW_SYS},
+  {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
   {sys_myisam_max_extra_sort_file_size.name,
    (char*) &sys_myisam_max_extra_sort_file_size,
    SHOW_SYS},
-  {sys_myisam_max_sort_file_size.name,
-   (char*) &sys_myisam_max_sort_file_size,
+  {sys_myisam_max_sort_file_size.name, (char*) &sys_myisam_max_sort_file_size,
+   SHOW_SYS},
+  {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
@@ -575,10 +603,12 @@ struct show_var_st init_vars[]= {
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"port",                    (char*) &mysql_port,                  SHOW_INT},
+  {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
+  {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
@@ -599,12 +629,13 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_REPLICATION
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
 #endif
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
 #ifdef HAVE_SYS_UN_H
-  {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
+  {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
@@ -664,6 +695,21 @@ static void fix_low_priority_updates(THD *thd, enum_var_type type)
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
 }
 
+
+static void
+fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_extra_temp_length=
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
+}
+
+
+static void
+fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_temp_length=
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+}
 
 /*
   Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR
@@ -915,15 +961,22 @@ byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
+  ulonglong tmp= var->value->val_int();
+
+  if ((ulonglong) tmp > max_system_variables.*offset)
+    tmp= max_system_variables.*offset;
+
+  if (option_limits)
+    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= var->value->val_int();
+    global_system_variables.*offset= (ulonglong) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= var->value->val_int();
+    thd->variables.*offset= (ulonglong) tmp;
   return 0;
 }
 
@@ -1125,40 +1178,6 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
-{
-  ulong val;
-  char buff[256];
-  String tmp(buff, sizeof(buff), &my_charset_latin1);
-  my_bool found= 0;
-
-  tmp.length(0);
-  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-        thd->variables.*offset);
-  for (uint i= 0; val; val>>= 1, i++)
-  {
-    if (val & 1)
-    {
-      tmp.append(enum_names->type_names[i]);
-      tmp.append(',');
-    }
-  }
-  if (tmp.length())
-    tmp.length(tmp.length() - 1);
-  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
-}
-
-
-void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
-{
-  if (type == OPT_GLOBAL)
-    global_system_variables.*offset= 0;
-  else
-    thd->variables.*offset= global_system_variables.*offset;
-}
-
-
-
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
   int res= (*update_func)(thd, var);
@@ -1237,9 +1256,15 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
-
-  if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
+  { 
+    if (!nullable)
+    {
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "NULL");
+      return 1;
+    }
+    tmp= NULL;
+  }
+  else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
       !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
@@ -1249,21 +1274,42 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_character_set_client::update(THD *thd, set_var *var)
+bool sys_var_character_set::update(THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.character_set_client= var->save_result.charset;
-  else
-    thd->variables.character_set_client= var->save_result.charset;
+  ci_ptr(thd,var->type)[0]= var->save_result.charset;
   return 0;
 }
 
-byte *sys_var_character_set_client::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type)
 {
-  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.character_set_client :
-		  thd->variables.character_set_client);
+  CHARSET_INFO *cs= ci_ptr(thd,type)[0];
   return cs ? (byte*) cs->csname : (byte*) "NULL";
+}
+
+
+CHARSET_INFO ** sys_var_character_set_connection::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.collation_connection;
+  else
+    return &thd->variables.collation_connection;
+}
+
+void sys_var_character_set_connection::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_connection= default_charset_info;
+ else
+   thd->variables.collation_connection= global_system_variables.collation_connection;
+}
+
+
+CHARSET_INFO ** sys_var_character_set_client::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_client;
+  else
+    return &thd->variables.character_set_client;
 }
 
 void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
@@ -1274,6 +1320,53 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
    thd->variables.character_set_client= global_system_variables.character_set_client;
 }
 
+CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_results;
+  else
+    return &thd->variables.character_set_results;
+}
+
+void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_results= default_charset_info;
+ else
+   thd->variables.character_set_results= global_system_variables.character_set_results;
+}
+
+CHARSET_INFO ** sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_server;
+  else
+    return &thd->variables.character_set_server;
+}
+
+void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_server= default_charset_info;
+ else
+   thd->variables.character_set_server= global_system_variables.character_set_server;
+}
+
+CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_database;
+  else
+    return &thd->variables.character_set_database;
+}
+
+void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+    global_system_variables.character_set_database= default_charset_info;
+  else
+    thd->variables.character_set_database= thd->db_charset;
+}
 
 bool sys_var_collation_connection::update(THD *thd, set_var *var)
 {
@@ -1300,30 +1393,6 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
    thd->variables.collation_connection= global_system_variables.collation_connection;
 }
 
-bool sys_var_character_set_results::update(THD *thd, set_var *var)
-{
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.character_set_results= var->save_result.charset;
-  else
-    thd->variables.character_set_results= var->save_result.charset;
-  return 0;
-}
-
-byte *sys_var_character_set_results::value_ptr(THD *thd, enum_var_type type)
-{
-  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.character_set_results :
-		  thd->variables.character_set_results);
-  return cs ? (byte*) cs->csname : (byte*) "NULL";
-}
-
-void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
-{
- if (type == OPT_GLOBAL)
-   global_system_variables.character_set_results= NULL;
- else
-   thd->variables.character_set_results= global_system_variables.character_set_results;
-}
 
 
 /*****************************************************************************
@@ -1391,6 +1460,17 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 {
   return (byte*) &thd->current_insert_id;
+}
+
+bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
+{
+  if (thd->master_access & SUPER_ACL)
+    return 0;
+  else
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
 }
 
 
@@ -1658,7 +1738,7 @@ sys_var *find_sys_var(const char *str, uint length)
 int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
   int error= 0;
-  List_iterator<set_var_base> it(*var_list);
+  List_iterator_fast<set_var_base> it(*var_list);
 
   set_var_base *var;
   while ((var=it++))
@@ -1764,7 +1844,105 @@ int set_var_password::update(THD *thd)
 	  1 : 0);
 }
 
+/****************************************************************************
+ Functions to handle sql_mode
+****************************************************************************/
 
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
+{
+  ulong val;
+  char buff[256];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  my_bool found= 0;
+
+  tmp.length(0);
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(enum_names->type_names[i]);
+      tmp.append(',');
+    }
+  }
+  if (tmp.length())
+    tmp.length(tmp.length() - 1);
+  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
+}
+
+
+void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= 0;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
+void fix_sql_mode_var(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.sql_mode=
+      fix_sql_mode(global_system_variables.sql_mode);
+  else
+    thd->variables.sql_mode= fix_sql_mode(thd->variables.sql_mode);
+}
+
+/* Map database specific bits to function bits */
+
+ulong fix_sql_mode(ulong sql_mode)
+{
+  /*
+    Note that we dont set 
+    MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
+    to allow one to get full use of MySQL in this mode.
+  */
+
+  if (sql_mode & MODE_ANSI)
+    sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
+  if (sql_mode & MODE_ORACLE)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MSSQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MSSQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_POSTGRESQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_DB2)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_DB2)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_SAPDB)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MYSQL40)
+    sql_mode|= MODE_NO_FIELD_OPTIONS;
+  if (sql_mode & MODE_MYSQL323)
+    sql_mode|= MODE_NO_FIELD_OPTIONS;
+  return sql_mode;
+}
 
 
 
@@ -1774,5 +1952,5 @@ int set_var_password::update(THD *thd)
 
 #ifdef __GNUC__
 template class List<set_var_base>;
-template class List_iterator<set_var_base>;
+template class List_iterator_fast<set_var_base>;
 #endif

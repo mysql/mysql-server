@@ -77,7 +77,7 @@
 
 #endif
 
-#ifdef HAVE_CHARSET_czech
+#ifdef HAVE_CHARSET_latin2
 
 /*
 	These are four tables for four passes of the algorithm. Please see
@@ -604,8 +604,18 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
   return my_strnncoll_czech(cs,s,slen,t,tlen);
 }
 
+static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
+{
+  my_strnncoll_czech,
+  my_strnncollsp_czech,
+  my_strnxfrm_czech,
+  my_like_range_czech,
+  my_wildcmp_8bit,
+  my_strcasecmp_8bit,
+  my_hash_sort_simple,
+};
 
-CHARSET_INFO my_charset_czech =
+CHARSET_INFO my_charset_latin2_czech_ci =
 {
     2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
@@ -620,36 +630,12 @@ CHARSET_INFO my_charset_czech =
     idx_uni_8859_2,	/* tab_from_uni */
     "","",
     4,			/* strxfrm_multiply */
-    my_strnncoll_czech,
-    my_strnncollsp_czech,
-    my_strnxfrm_czech,
-    my_like_range_czech,
-    my_wildcmp_8bit,
     1,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_8bit_handler,
+    &my_collation_latin2_czech_ci_handler
 };
+
 
 #endif
 

@@ -23,6 +23,7 @@
 #endif
 #include <hash.h>
 #include <myisam.h>
+#include <my_dir.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -480,7 +481,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     if (!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset : thd->db_charset;
+			   create_info->table_charset :
+			   thd->variables.character_set_database;
     
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
@@ -716,6 +718,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
+      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
+         ft code anyway, and 0 (set to column width later) for char's.
+         it has to be correct col width for char's, as char data are not
+         prefixed with length (unlike blobs, where ft code takes data length
+         from a data prefix, ignoring column->length).
+      */
+      if (key->type == Key::FULLTEXT)
+        column->length=test(f_is_blob(sql_field->pack_flag));
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->table_flags() & HA_BLOB_KEY))
@@ -726,15 +736,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	}
 	if (!column->length)
 	{
-          if (key->type == Key::FULLTEXT)
-            column->length=1; /* ft-code ignores it anyway :-) */
-          else
-          {
-            my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-                            ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-                            column->field_name);
-            DBUG_RETURN(-1);
-          }
+          my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
+                          ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
+                          column->field_name);
+          DBUG_RETURN(-1);
 	}
       }
       if (key->type  == Key::SPATIAL)
@@ -752,8 +757,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       {
 	if (key->type == Key::PRIMARY)
 	{
-	  my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-	  DBUG_RETURN(-1);
+	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+	  sql_field->flags|= NOT_NULL_FLAG;
+	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
 	}
 	if (!(file->table_flags() & HA_NULL_KEY))
 	{
@@ -1076,49 +1082,77 @@ mysql_rename_table(enum db_type base,
 }
 
 /*
-  close table in this thread and force close + reopen in other threads
-  This assumes that the calling thread has lock on LOCK_open
-  Win32 clients must also have a WRITE LOCK on the table !
+  Force all other threads to stop using the table
+
+  SYNOPSIS
+    wait_while_table_is_used()
+    thd			Thread handler
+    table		Table to remove from cache
+
+  NOTES
+   When returning, the table will be unusable for other threads until
+   the table is closed.
+
+  PREREQUISITES
+    Lock on LOCK_open
+    Win32 clients must also have a WRITE LOCK on the table !
 */
 
-bool close_cached_table(THD *thd,TABLE *table)
+static void wait_while_table_is_used(THD *thd,TABLE *table)
 {
-  bool result=0;
-  DBUG_ENTER("close_cached_table");
+  DBUG_PRINT("enter",("table: %s", table->real_name));
+  DBUG_ENTER("wait_while_table_is_used");
   safe_mutex_assert_owner(&LOCK_open);
 
-  if (table)
+  VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Close all data files
+  /* Mark all tables that are in use as 'old' */
+  mysql_lock_abort(thd, table);			// end threads waiting on lock
+
+  /* Wait until all there are no other threads that has this table open */
+  while (remove_table_from_cache(thd,table->table_cache_key,
+				 table->real_name))
   {
-    DBUG_PRINT("enter",("table: %s", table->real_name));
-    VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Close all data files
-    /* Mark all tables that are in use as 'old' */
-    mysql_lock_abort(thd,table);		 // end threads waiting on lock
-
-#if defined(USING_TRANSACTIONS) || defined( __WIN__) || defined( __EMX__) || !defined(OS2)
-    /* Wait until all there are no other threads that has this table open */
-    while (remove_table_from_cache(thd,table->table_cache_key,
-				   table->real_name))
-    {
-      dropping_tables++;
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      dropping_tables--;
-    }
-#else
-    (void) remove_table_from_cache(thd,table->table_cache_key,
-				   table->real_name);
-#endif
-    /* When lock on LOCK_open is freed other threads can continue */
-    pthread_cond_broadcast(&COND_refresh);
-
-    /* Close lock if this is not got with LOCK TABLES */
-    if (thd->lock)
-    {
-      mysql_unlock_tables(thd, thd->lock); thd->lock=0;	// Start locked threads
-    }
-    /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
-    thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
+    dropping_tables++;
+    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    dropping_tables--;
   }
-  DBUG_RETURN(result);
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Close a cached table
+
+  SYNOPSIS
+    clsoe_cached_table()
+    thd			Thread handler
+    table		Table to remove from cache
+
+  NOTES
+    Function ends by signaling threads waiting for the table to try to
+    reopen the table.
+
+  PREREQUISITES
+    Lock on LOCK_open
+    Win32 clients must also have a WRITE LOCK on the table !
+*/
+  
+static bool close_cached_table(THD *thd, TABLE *table)
+{
+  DBUG_ENTER("close_cached_table");
+  
+  wait_while_table_is_used(thd,table);
+  /* Close lock if this is not got with LOCK TABLES */
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;			// Start locked threads
+  }
+  /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
+  thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
+
+  /* When lock on LOCK_open is freed other threads can continue */
+  pthread_cond_broadcast(&COND_refresh);
+  DBUG_RETURN(0);
 }
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
@@ -1199,69 +1233,108 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 }
 
 
-static int prepare_for_repair(THD* thd, TABLE_LIST* table,
+static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 			      HA_CHECK_OPT *check_opt)
 {
+  int error= 0;
+  TABLE tmp_table, *table;
   DBUG_ENTER("prepare_for_repair");
 
   if (!(check_opt->sql_flags & TT_USEFRM))
-  {
     DBUG_RETURN(0);
-  }
-  else
+
+  if (!(table= table_list->table))		/* if open_ltable failed */
   {
+    char name[FN_REFLEN];
+    strxmov(name, mysql_data_home, "/", table_list->db, "/",
+	    table_list->real_name, NullS);
+    if (openfrm(name, "", 0, 0, 0, &tmp_table))
+      DBUG_RETURN(0);				// Can't open frm file
+    table= &tmp_table;
+  }
 
-    char from[FN_REFLEN],tmp[FN_REFLEN];
-    char* db = thd->db ? thd->db : table->db;
+  /*
+    User gave us USE_FRM which means that the header in the index file is
+    trashed.
+    In this case we will try to fix the table the following way:
+    - Rename the data file to a temporary name
+    - Truncate the table
+    - Replace the new data file with the old one
+    - Run a normal repair using the new index file and the old data file
+  */
 
-    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->real_name);
-    fn_format(from, from, "", MI_NAME_DEXT, 4);
-    sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+  char from[FN_REFLEN],tmp[FN_REFLEN+32];
+  const char **ext= table->file->bas_ext();
+  MY_STAT stat_info;
 
+  /*
+    Check if this is a table type that stores index and data separately,
+    like ISAM or MyISAM
+  */
+  if (!ext[0] || !ext[1])
+    goto end;					// No data file
+
+  strxmov(from, table->path, ext[1], NullS);	// Name of data file
+  if (!my_stat(from, &stat_info, MYF(0)))
+    goto end;				// Can't use USE_FRM flag
+
+  sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+
+  /* If we could open the table, close it */
+  if (table_list->table)
+  {
     pthread_mutex_lock(&LOCK_open);
-    close_cached_table(thd,table->table);
+    close_cached_table(thd, table);
     pthread_mutex_unlock(&LOCK_open);
-
-    if (lock_and_wait_for_table_name(thd,table))
-      DBUG_RETURN(-1);
-
-    if (my_rename(from, tmp, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed renaming .MYD file"));
-    }
-    if (mysql_truncate(thd, table, 1))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed generating table from .frm file"));
-    }
-    if (my_rename(tmp, from, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed restoring .MYD file"));
-    }
+  }
+  if (lock_and_wait_for_table_name(thd,table_list))
+  {
+    error= -1;
+    goto end;
+  }
+  if (my_rename(from, tmp, MYF(MY_WME)))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed renaming data file");
+    goto end;
+  }
+  if (mysql_truncate(thd, table_list, 1))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed generating table from .frm file");
+    goto end;
+  }
+  if (my_rename(tmp, from, MYF(MY_WME)))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed restoring .MYD file");
+    goto end;
   }
 
   /*
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
   {
     pthread_mutex_lock(&LOCK_open);
-    unlock_table_name(thd, table);
+    unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
   }
-  DBUG_RETURN(0);
+
+end:
+  if (table == &tmp_table)
+    closefrm(table);				// Free allocated memory
+  DBUG_RETURN(error);
 }
 
 
@@ -1331,6 +1404,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	goto err;
       continue;
     }
+    table->table->pos_in_table_list= table;
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
@@ -1483,6 +1557,28 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,
 				&handler::optimize));
+}
+
+
+/*
+  Preload specified indexes for a table into key cache
+
+  SYNOPSIS
+    mysql_preload_keys()
+    thd	        Thread object
+    tables      Table list (one table only)
+
+  RETURN VALUES
+    0	  ok
+   -1	  error
+*/
+
+int mysql_preload_keys(THD* thd, TABLE_LIST* tables)
+{
+  DBUG_ENTER("mysql_preload_keys");
+  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
+				"preload_keys", TL_READ, 0, 0, 0,
+				&handler::preload_keys));
 }
 
 
@@ -1680,10 +1776,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
       my_casedn_str(system_charset_info,new_name);
-    if ((lower_case_table_names &&
-	 !my_strcasecmp(system_charset_info, new_name_buff,table_name)) ||
-	(!lower_case_table_names &&
-	 !strcmp(new_name_buff,table_name)))
+    if (!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
       new_name=table_name;			// No. Make later check easier
     else
     {
@@ -1746,11 +1839,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
         *fn_ext(new_name)=0;
-        close_cached_table(thd,table);
+        close_cached_table(thd, table);
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
 	  error= -1;
       }
-      VOID(pthread_cond_broadcast(&COND_refresh));
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
     if (!error)
@@ -1759,10 +1851,18 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       case LEAVE_AS_IS:
 	break;
       case ENABLE:
-	error=table->file->activate_all_index(thd);
+	VOID(pthread_mutex_lock(&LOCK_open));
+	wait_while_table_is_used(thd, table);
+	VOID(pthread_mutex_unlock(&LOCK_open));
+	error= table->file->activate_all_index(thd);
+	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
+	VOID(pthread_mutex_lock(&LOCK_open));
+	wait_while_table_is_used(thd, table);
+	VOID(pthread_mutex_unlock(&LOCK_open));
 	table->file->deactivate_non_unique_index(HA_POS_ERROR);
+	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
     }
@@ -2197,7 +2297,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       close the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
-    if (close_cached_table(thd,table))
+    if (close_cached_table(thd, table))
     {						// Aborted
       VOID(quick_rm_table(new_db_type,new_db,tmp_name));
       VOID(pthread_mutex_unlock(&LOCK_open));
@@ -2231,7 +2331,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       This shouldn't happen.  We solve this the safe way by
       closing the locked table.
     */
-    close_cached_table(thd,table);
+    if (table)
+      close_cached_table(thd,table);
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
@@ -2241,7 +2342,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Not table locking or alter table with rename
       free locks and remove old table
     */
-    close_cached_table(thd,table);
+    if (table)
+      close_cached_table(thd,table);
     VOID(quick_rm_table(old_db_type,db,old_name));
   }
   else
@@ -2261,7 +2363,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (close_data_tables(thd,db,table_name) ||
 	reopen_tables(thd,1,0))
     {						// This shouldn't happen
-      close_cached_table(thd,table);		// Remove lock for table
+      if (table)
+	close_cached_table(thd,table);		// Remove lock for table
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;
     }

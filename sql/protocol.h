@@ -60,6 +60,8 @@ public:
   { return store_longlong((longlong) from, 0); }
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
+  inline bool store(String *str)
+  { return store(str->c_ptr(),str->length(),str->charset()); }
 
   virtual bool prepare_for_send(List<Item> *item_list) 
   {
@@ -162,7 +164,6 @@ void net_printf(THD *thd,uint sql_errno, ...);
 void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd, bool no_flush=0);
-void net_send_error(NET *net, uint sql_errno, const char *err);
 char *net_store_length(char *packet,ulonglong length);
 char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -266,7 +266,7 @@ C_MODE_END
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
-#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT)
+#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT) && !defined(__OpenBSD__)
 #define crypt unistd_crypt
 #endif
 #include <unistd.h>
@@ -287,6 +287,10 @@ C_MODE_END
 #include <asm/atomic.h>
 #endif
 #include <errno.h>				/* Recommended by debian */
+/* We need the following to go around a problem with openssl on solaris */
+#if defined(HAVE_CRYPT_H)
+#include <crypt.h>
+#endif
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
@@ -306,9 +310,7 @@ C_MODE_END
 /* This has to be after include limits.h */
 #define HAVE_ERRNO_AS_DEFINE
 #define HAVE_FCNTL_LOCK
-#undef  HAVE_SYS_UN_H
 #undef  HAVE_FINITE
-#undef  HAVE_RINT
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #endif
@@ -377,7 +379,7 @@ typedef unsigned short ushort;
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 #ifndef HAVE_RINT
-#define rint(A) floor((A)+0.5)
+#define rint(A) floor((A)+(((A) < 0)? -0.5 : 0.5))
 #endif
 
 /* Define some general constants */
@@ -652,7 +654,13 @@ extern double		my_atof(const char*);
   Max size that must be added to a so that we know Size to make
   adressable obj.
 */
+#if SIZEOF_CHARP == 4
 typedef long		my_ptrdiff_t;
+#else
+typedef long long	my_ptrdiff_t;
+#endif
+
+
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
@@ -729,6 +737,8 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 
+/* typedef used for length of string;  Should be unsigned! */
+typedef ulong		size_str;
 
 #ifdef USE_RAID
 /*
@@ -867,7 +877,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 
 /* Optimized store functions for Intel x86 */
-#ifdef __i386__
+#if defined(__i386__) && !defined(_WIN64)
 #define sint2korr(A)	(*((int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \

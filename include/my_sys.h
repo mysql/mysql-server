@@ -643,6 +643,8 @@ extern int init_key_cache(ulong use_mem);
 extern int resize_key_cache(ulong use_mem);
 extern byte *key_cache_read(File file,my_off_t filepos,byte* buff,uint length,
 			    uint block_length,int return_buffer);
+extern int key_cache_insert(File file, my_off_t filepos,
+                            byte *buff, uint length);
 extern int key_cache_write(File file,my_off_t filepos,byte* buff,uint length,
 			   uint block_length,int force_write);
 extern int flush_key_blocks(int file, enum flush_type type);
@@ -743,6 +745,7 @@ extern my_bool my_uncompress(byte *, ulong *, ulong *);
 extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ulong checksum(const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
+uint my_count_bits(ulonglong v);
 extern void my_sleep(ulong m_seconds);
 
 #ifdef __WIN__

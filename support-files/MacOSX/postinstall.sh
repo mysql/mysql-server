@@ -10,7 +10,7 @@
 
 if cd @prefix@ ; then
 	if [ ! -f data/mysql/db.frm ] ; then
-		./scripts/mysql_install_db
+		./scripts/mysql_install_db -IN-RPM
 	fi
 
 	if [ -d data ] ; then

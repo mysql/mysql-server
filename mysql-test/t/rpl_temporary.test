@@ -19,6 +19,14 @@ connection master;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
+connect (con3,localhost,,,);
+
+# We are going to use SET PSEUDO_THREAD_ID in this test;
+# check that it requires the SUPER privilege.
+
+connection con3;
+--error 1227
+SET @@session.pseudo_thread_id=100;
 
 let $VERSION=`select version()`;
 

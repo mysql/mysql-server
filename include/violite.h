@@ -165,7 +165,7 @@ my_bool vio_ssl_should_retry(Vio* vio);
 int vio_ssl_close(Vio* vio);
 /* Return last error number */
 int vio_ssl_errno(Vio *vio);
-my_bool vio_ssl_peer_addr(Vio* vio, char *buf);
+my_bool vio_ssl_peer_addr(Vio* vio, char *buf, uint16 *port);
 void vio_ssl_in_addr(Vio *vio, struct in_addr *in);
 int vio_ssl_blocking(Vio * vio, my_bool set_blocking_mode, my_bool *old_mode);
 
@@ -242,7 +242,7 @@ struct st_vio
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);
   int     (*fastsend)(Vio*);
-  my_bool (*peer_addr)(Vio*, gptr, uint16*);
+  my_bool (*peer_addr)(Vio*, char *, uint16*);
   void    (*in_addr)(Vio*, struct in_addr*);
   my_bool (*should_retry)(Vio*);
   int     (*vioclose)(Vio*);

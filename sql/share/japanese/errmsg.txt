@@ -107,7 +107,7 @@
 "BLOB column '%-.64s' can't have a default value",
 "指定した database 名 '%-.100s' が間違っています",
 "指定した table 名 '%-.100s' はまちがっています",
-"The SELECT would examine too many records and probably take a very long time. Check your WHERE and use SET OPTION SQL_BIG_SELECTS=1 if the SELECT is ok",
+"The SELECT would examine more rows than MAX_JOIN_SIZE. Check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is ok",
 "Unknown error",
 "Unknown procedure '%-.64s'",
 "Incorrect parameter count to procedure '%-.64s'",
@@ -252,7 +252,7 @@
 "Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
-"Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
+"Client does not support authentication protocol requested by server; consider upgrading MySQL client",
 "All parts of a SPATIAL KEY must be NOT NULL",
 "COLLATION '%s' is not valid for CHARACTER SET '%s'",
 "The slave was already running",
@@ -264,3 +264,7 @@
 "%d line(s) was(were) cut by group_concat()",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",

@@ -76,7 +76,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(table->field,values);
+  fill_record(table->field, values, 1);
   if (thd->net.report_error || write_record(table,&info))
   {
     if (thd->net.last_errno == ER_RECORD_FILE_FULL)
@@ -159,7 +159,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;
     if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
-			(item_list.elements + select_cursor->with_sum_func +
+			(item_list.elements + select_cursor->select_items +
 			 select_cursor->order_list.elements + 
 			 select_cursor->group_list.elements)) ||
 	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
@@ -389,7 +389,7 @@ int st_select_lex_unit::cleanup()
     JOIN *join;
     if ((join= sl->join))
     {
-      error|= sl->join->cleanup(thd);
+      error|= sl->join->cleanup();
       delete join;
     }
   }

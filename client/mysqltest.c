@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.27"
+#define MTEST_VERSION "1.28"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -523,8 +523,12 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 
   if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
-  if (!eval_result && stat_info.st_size != ds->length)
+  if (!eval_result && (uint) stat_info.st_size != ds->length)
+  {
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
+		       ds->length, stat_info.st_size));
     DBUG_RETURN(2);
+  }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
 
@@ -939,16 +943,16 @@ int do_system(struct st_query* q)
   var_init(&v, 0, 0, 0, 0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
-    {
-      char expr_buf[512];
-      if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
-	v.str_val_len = sizeof(expr_buf) - 1;
-      memcpy(expr_buf, v.str_val, v.str_val_len);
-      expr_buf[v.str_val_len] = 0;
-      DBUG_PRINT("info", ("running system command '%s'", expr_buf));
-      if (system(expr_buf) && q->abort_on_error)
-	die("system command '%s' failed", expr_buf);
-    }
+  {
+    char expr_buf[512];
+    if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
+      v.str_val_len = sizeof(expr_buf) - 1;
+    memcpy(expr_buf, v.str_val, v.str_val_len);
+    expr_buf[v.str_val_len] = 0;
+    DBUG_PRINT("info", ("running system command '%s'", expr_buf));
+    if (system(expr_buf) && q->abort_on_error)
+      die("system command '%s' failed", expr_buf);
+  }
   var_free(&v);
   return 0;
 }
@@ -1804,34 +1808,34 @@ int read_query(struct st_query** q_ptr)
 
 static struct my_option my_long_options[] =
 {
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
+  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
    (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"big-test", 'B', "Define BIG_TEST to 1", (gptr*) &opt_big_test,
+  {"big-test", 'B', "Define BIG_TEST to 1.", (gptr*) &opt_big_test,
    (gptr*) &opt_big_test, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", 'C', "Use the compressed server/client protocol",
+  {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging",
+  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
    (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
-  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging",
+  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
    (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging",
+  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging",
+  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging.",
    (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
    MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
   {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
-   "Undocumented: Used for debugging", (gptr*) &manager_wait_timeout,
+   "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
    (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1844,16 +1848,16 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"server-arg", 'A', "Send enbedded server this as a paramenter",
+  {"server-arg", 'A', "Send enbedded server this as a paramenter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-file", 'F', "Read embedded server arguments from file",
+  {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"sleep", 'T', "Sleep always this many seconds on sleep commands",
+  {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
    (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
@@ -1862,7 +1866,7 @@ static struct my_option my_long_options[] =
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"tmpdir", 't', "Temporary directory where sockets are put",
+  {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1872,7 +1876,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
 
 static void print_version(void)
 {
@@ -2147,6 +2150,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
+	    dynstr_append_mem(ds,"ERROR ",6);
+	    replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				      strlen(mysql_sqlstate(mysql)));
+	    dynstr_append_mem(ds,": ",2);
 	    replace_dynstr_append_mem(ds,mysql_error(mysql),
 				      strlen(mysql_error(mysql)));
 	    dynstr_append_mem(ds,"\n",1);
@@ -2284,7 +2291,7 @@ void get_query_type(struct st_query* q)
     q->type=(enum enum_commands) type;		/* Found command */
 }
 
-static byte* get_var_key(const byte* var, uint* len,
+static byte *get_var_key(const byte* var, uint* len,
 			 my_bool __attribute__((unused)) t)
 {
   register char* key;
@@ -2293,11 +2300,11 @@ static byte* get_var_key(const byte* var, uint* len,
   return (byte*)key;
 }
 
-static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
+static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
 		     int val_len)
 {
   int val_alloc_len;
-  VAR* tmp_var;
+  VAR *tmp_var;
   if (!name_len && name)
     name_len = strlen(name);
   if (!val_len && val)
@@ -2327,7 +2334,7 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
   return tmp_var;
 }
 
-static void var_free(void* v)
+static void var_free(void *v)
 {
   my_free(((VAR*) v)->str_val, MYF(MY_WME));
   if (((VAR*)v)->alloced)
@@ -2335,10 +2342,10 @@ static void var_free(void* v)
 }
 
 
-static void var_from_env(const char* name, const char* def_val)
+static void var_from_env(const char *name, const char *def_val)
 {
-  const char* tmp;
-  VAR* v;
+  const char *tmp;
+  VAR *v;
   if (!(tmp = getenv(name)))
     tmp = def_val;
 
@@ -2347,9 +2354,9 @@ static void var_from_env(const char* name, const char* def_val)
 }
 
 
-static void init_var_hash()
+static void init_var_hash(MYSQL *mysql)
 {
-  VAR* v;
+  VAR *v;
   DBUG_ENTER("init_var_hash");
   if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
@@ -2358,16 +2365,19 @@ static void init_var_hash()
   var_from_env("SLAVE_MYPORT", "9307");
   var_from_env("MYSQL_TEST_DIR", "/tmp");
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
-  v=var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "63",0);
-  hash_insert(&var_hash, (byte*)v);
+  v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
+  hash_insert(&var_hash, (byte*) v);
+  v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
+  hash_insert(&var_hash, (byte*) v);
+  
   DBUG_VOID_RETURN;
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
   int error = 0;
-  struct st_query* q;
+  struct st_query *q;
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -2402,7 +2412,6 @@ int main(int argc, char** argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
-  init_var_hash();
   if (cur_file == file_stack)
     *++cur_file = stdin;
   *lineno=1;
@@ -2421,13 +2430,13 @@ int main(int argc, char** argv)
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
 
-  cur_con->name = my_strdup("default", MYF(MY_WME));
-  if (!cur_con->name)
+  if (!(cur_con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  if (safe_connect(&cur_con->mysql, host,
-			 user, pass, db, port, unix_sock))
+  if (safe_connect(&cur_con->mysql, host, user, pass, db, port, unix_sock))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
+
+  init_var_hash(&cur_con->mysql);
 
   while (!read_query(&q))
   {
@@ -2596,7 +2605,7 @@ int main(int argc, char** argv)
 */
 
 
-static int read_server_arguments(const char* name)
+static int read_server_arguments(const char *name)
 {
   char argument[1024],buff[FN_REFLEN], *str=0;
   FILE *file;

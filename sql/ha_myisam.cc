@@ -499,7 +499,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   param.thd = thd;
   param.op_name = (char*) "repair";
   param.testflag = ((check_opt->flags & ~(T_EXTEND)) |
-		    T_SILENT | T_FORCE_CREATE |
+		    T_SILENT | T_FORCE_CREATE | T_CALC_CHECKSUM |
 		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   start_records=file->state->records;
@@ -592,10 +592,24 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     {
       local_testflag|= T_STATISTICS;
       param.testflag|= T_STATISTICS;		// We get this for free
-      thd->proc_info="Repair by sorting";
       statistics_done=1;
-      error = mi_repair_by_sort(&param, file, fixed_name,
-				param.testflag & T_QUICK);
+      if (current_thd->variables.myisam_repair_threads>1)
+      {
+        char buf[40];
+        /* TODO: respect myisam_repair_threads variable */
+        my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
+        thd->proc_info=buf;
+        error = mi_repair_parallel(&param, file, fixed_name,
+            param.testflag & T_QUICK);
+        thd->proc_info="Repair done"; // to reset proc_info, as
+                                      // it was pointing to local buffer
+      }
+      else
+      {
+        thd->proc_info="Repair by sorting";
+        error = mi_repair_by_sort(&param, file, fixed_name,
+            param.testflag & T_QUICK);
+      }
     }
     else
     {
@@ -673,6 +687,72 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }
 
+
+/*
+  Preload pages of the index file for a table into the key cache.
+*/
+
+int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  int error;
+  const char *errmsg;
+  ulonglong map= ~(ulonglong) 0;
+  TABLE_LIST *table_list= table->pos_in_table_list;
+  my_bool ignore_leaves= table_list->ignore_leaves;
+
+  DBUG_ENTER("ha_myisam::preload_keys");
+
+  /* Check validity of the index references */ 
+  if (table_list->use_index)
+  {
+    key_map kmap= get_key_map_from_key_list(table, table_list->use_index);
+    if (kmap == ~(key_map) 0)
+    {
+      errmsg= thd->net.last_error;
+      error= HA_ADMIN_FAILED;
+      goto err;
+    }
+    if (kmap)
+      map= kmap;
+  }
+  
+  mi_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
+           (void *) &thd->variables.preload_buff_size);
+
+  if ((error= mi_preload(file, map, ignore_leaves)))
+  {
+    switch (error) {
+    case HA_ERR_NON_UNIQUE_BLOCK_SIZE:
+      errmsg= "Indexes use different block sizes";
+      break;
+    case HA_ERR_OUT_OF_MEM:
+      errmsg= "Failed to allocate buffer";
+      break;
+    default: 
+      char buf[ERRMSGSIZE+20];
+      my_snprintf(buf, ERRMSGSIZE, 
+                  "Failed to read from index file (errno: %d)", my_errno);
+      errmsg= buf;
+    }
+    error= HA_ADMIN_FAILED;
+    goto err;
+  }
+  
+  DBUG_RETURN(HA_ADMIN_OK);
+
+ err:
+  {
+    MI_CHECK param;
+    myisamchk_init(&param);
+    param.thd= thd;
+    param.op_name= (char*)"preload_keys";
+    param.db_name= table->table_cache_key;
+    param.table_name= table->table_name;
+    param.testflag= 0;
+    mi_check_print_error(&param, errmsg);
+    DBUG_RETURN(error);
+  }
+}
 
 /*
   Deactive all not unique index that can be recreated fast

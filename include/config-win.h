@@ -138,6 +138,11 @@ typedef uint rf_SetTimer;
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
+#ifdef _WIN64
+#define SIZEOF_CHARP		8
+#else
+#define SIZEOF_CHARP		4
+#endif
 #define HAVE_BROKEN_NETINET_INCLUDES
 #ifdef __NT__
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
@@ -152,6 +157,9 @@ typedef uint rf_SetTimer;
 #define USE_MB 1
 #define USE_MB_IDENT 1
 #define USE_STRCOLL 1
+
+/* If LOAD DATA LOCAL INFILE should be enabled by default */
+#define ENABLED_LOCAL_INFILE 1
 
 /* Convert some simple functions to Posix */
 
@@ -200,6 +208,7 @@ inline double ulonglong2double(ulonglong value)
 
 /* Optimized store functions for Intel x86 */
 
+#ifndef _WIN64
 #define sint2korr(A)	(*((int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
@@ -240,7 +249,7 @@ inline double ulonglong2double(ulonglong value)
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
-
+#endif /* _WIN64 */
 
 #define HAVE_PERROR
 #define HAVE_VFPRINT
@@ -330,3 +339,5 @@ inline double ulonglong2double(ulonglong value)
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
+#define MYSQL_DEFAULT_CHARSET_NAME "latin1"
+#define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"

@@ -28,15 +28,8 @@
 #include <floatingpoint.h>
 #endif
 
-CHARSET_INFO *system_charset_info= &my_charset_utf8;
-CHARSET_INFO *files_charset_info= &my_charset_utf8;
-CHARSET_INFO *national_charset_info= &my_charset_utf8;
-
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
-static uint32
-copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-		 const char *from, uint32 from_length, CHARSET_INFO *from_cs);
 
 #include "sql_string.h"
 
@@ -104,7 +97,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) (cs->longlong10_to_str)(cs,Ptr,l,-10,num);
+  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,-10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -115,7 +108,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) (cs->longlong10_to_str)(cs,Ptr,l,10,num);
+  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -268,9 +261,9 @@ bool String::copy(const char *str, uint32 arg_length,
 
 */
 
-bool String::set_latin1(const char *str, uint32 arg_length)
+bool String::set_ascii(const char *str, uint32 arg_length)
 {
-  if (str_charset->mbmaxlen == 1)
+  if (!(str_charset->state & MY_CS_NONTEXT))
   {
     set(str, arg_length, str_charset);
     return 0;
@@ -399,13 +392,13 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 
 uint32 String::numchars()
 {
-  return str_charset->numchars(str_charset, Ptr, Ptr+str_length);
+  return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
 int String::charpos(int i,uint32 offset)
 {
   if (i<0) return i;
-  return str_charset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
+  return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 
 int String::strstr(const String &s,uint32 offset)
@@ -583,7 +576,7 @@ void String::qs_append(const char &c)
 
 int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
 {
-  return cs->strnncollsp(cs,
+  return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }
@@ -630,7 +623,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 
-static uint32
+uint32
 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
 		 const char *from, uint32 from_length, CHARSET_INFO *from_cs)
 {
@@ -642,7 +635,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 
   while (1)
   {
-    if ((cnvres=from_cs->mb_wc(from_cs, &wc, (uchar*) from, from_end)) > 0)
+    if ((cnvres=from_cs->cset->mb_wc(from_cs, &wc, (uchar*) from, from_end)) > 0)
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
     {
@@ -653,7 +646,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       break;					// Impossible char.
 
 outp:
-    if ((cnvres= to_cs->wc_mb(to_cs, wc, (uchar*) to, to_end)) > 0)
+    if ((cnvres= to_cs->cset->wc_mb(to_cs, wc, (uchar*) to, to_end)) > 0)
       to+= cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?')
     {

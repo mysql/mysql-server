@@ -114,7 +114,7 @@
 "BLOB-Feld '%-.64s' kann keinen Vorgabewert (Default-Value) besitzen.",
 "Unerlaubter Datenbankname '%-.64s'.",
 "Unerlaubter Tabellenname '%-.64s'.",
-"Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange daueren. Bitte WHERE überprüfen oder gegebenenfalls SET OPTION SQL_BIG_SELECTS=1 verwenden.",
+"Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange daueren. Bitte WHERE überprüfen oder gegebenenfalls SET SQL_BIG_SELECTS=1 verwenden.",
 "Unbekannter Fehler.",
 "Unbekannte Procedure %-.64s.",
 "Falsche Parameterzahl für Procedure %-.64s.",
@@ -259,7 +259,7 @@
 "Für jede abgeleitete Tabelle muss ein eigener Alias angegeben werden.",
 "Select %u wurde während der Optimierung reduziert.",
 "Tabelle '%-.64s', die in einem der SELECT-Befehle verwendet wurde kann nicht in %-.32s verwendet werden",
-"Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
+"Client does not support authentication protocol requested by server; consider upgrading MySQL client",
 "All parts of a SPATIAL KEY must be NOT NULL",
 "COLLATION '%s' is not valid for CHARACTER SET '%s'",
 "The slave was already running",
@@ -271,3 +271,7 @@
 "%d line(s) was(were) cut by group_concat()",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",

@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=6;
   keyinfo[0].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[0].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[0].seg[0].language= default_charset_info->number;
   keyinfo[0].seg[0].flag=(uint8) pack_seg;
   keyinfo[0].seg[0].null_bit=0;
   keyinfo[0].seg[0].null_pos=0;
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].start=0;
   keyinfo[3].seg[0].length=reclength-(use_blob ? 8 : 0);
   keyinfo[3].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[3].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[3].seg[0].language=default_charset_info->number;
   keyinfo[3].seg[0].flag=(uint8) pack_seg;
   keyinfo[3].seg[0].null_bit=0;
   keyinfo[3].seg[0].null_pos=0;
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
   keyinfo[4].seg[0].start=0;
   keyinfo[4].seg[0].length=5;
   keyinfo[4].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[4].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[4].seg[0].language=default_charset_info->number;
   keyinfo[4].seg[0].flag=0;
   keyinfo[4].seg[0].null_bit=0;
   keyinfo[4].seg[0].null_pos=0;
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
   keyinfo[5].seg[0].start=0;
   keyinfo[5].seg[0].length=4;
   keyinfo[5].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[5].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[5].seg[0].language=default_charset_info->number;
   keyinfo[5].seg[0].flag=pack_seg;
   keyinfo[5].seg[0].null_bit=0;
   keyinfo[5].seg[0].null_pos=0;
@@ -645,14 +645,14 @@ int main(int argc, char *argv[])
       if ((long) range_records < (long) records*7/10-2 ||
 	  (long) range_records > (long) records*14/10+2)
       {
-	printf("mi_records_range for key: %d returned %ld; Should be about %ld\n",
-	       i, (long) range_records, (long) records);
+	printf("mi_records_range for key: %d returned %lu; Should be about %lu\n",
+	       i, (ulong) range_records, (ulong) records);
 	goto end;
       }
       if (verbose && records)
       {
-	printf("mi_records_range returned %ld;  Exact is %ld  (diff: %4.2g %%)\n",
-	       (long) range_records, (long) records,
+	printf("mi_records_range returned %lu;  Exact is %lu  (diff: %4.2g %%)\n",
+	       (ulong) range_records, (ulong) records,
 	       labs((long) range_records-(long) records)*100.0/records);
 
       }
@@ -666,8 +666,8 @@ int main(int argc, char *argv[])
       || info.keys != keys)
   {
     puts("Wrong info from mi_info");
-    printf("Got: records: %ld  delete: %ld  i_keys: %d\n",
-	   (long) info.records, (long) info.deleted,info.keys);
+    printf("Got: records: %lu  delete: %lu  i_keys: %d\n",
+	   (ulong) info.records, (ulong) info.deleted, info.keys);
   }
   if (verbose)
   {

@@ -28,7 +28,7 @@ Item *create_func_bit_length(Item* a);
 Item *create_func_coercibility(Item* a);
 Item *create_func_ceiling(Item* a);
 Item *create_func_char_length(Item* a);
-Item *create_func_cast(Item *a, Item_cast cast_type);
+Item *create_func_cast(Item *a, Item_cast cast_type, CHARSET_INFO *cs);
 Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
 Item *create_func_cos(Item* a);
@@ -104,7 +104,7 @@ Item *create_func_is_used_lock(Item* a);
 Item *create_func_quote(Item* a);
 
 Item *create_func_geometry_from_text(Item *a);
-Item *create_func_as_text(Item *a);
+Item *create_func_as_wkt(Item *a);
 Item *create_func_as_wkb(Item *a);
 Item *create_func_srid(Item *a);
 Item *create_func_startpoint(Item *a);

@@ -44,4 +44,3 @@ os_fast_mutex_trylock(
 #endif
 #endif
 }
-

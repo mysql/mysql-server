@@ -31,6 +31,8 @@
 #ifndef _my_semaphore_h_
 #define _my_semaphore_h_
 
+#ifdef THREAD
+
 C_MODE_START
 #ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>
@@ -56,4 +58,7 @@ int sem_getvalue(sem_t * sem, unsigned int * sval);
 #endif /* !__bsdi__ */
 
 C_MODE_END
+
+#endif /* THREAD */
+
 #endif /* !_my_semaphore_h_ */

@@ -8257,7 +8257,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int c1,c2,c3;
   
-  if (s>e)
+  if (s >= e)
     return MY_CS_TOOFEW(0);
   
   c1=s[0];
@@ -8425,7 +8425,45 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   return MY_CS_ILUNI;
 }
 
-CHARSET_INFO my_charset_ujis =
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+    my_strnncoll_simple,/* strnncoll    */
+    my_strnncollsp_simple,
+    my_strnxfrm_simple,	/* strnxfrm     */
+    my_like_range_simple,/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
+    my_strcasecmp_mb,
+    my_hash_sort_simple,
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    ismbchar_ujis,
+    mbcharlen_ujis,
+    my_numchars_mb,
+    my_charpos_mb,
+    my_mb_wc_euc_jp,	 /* mb_wc       */
+    my_wc_mb_euc_jp,	 /* wc_mb       */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+
+
+
+CHARSET_INFO my_charset_ujis_japanese_ci=
 {
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
@@ -8440,35 +8478,32 @@ CHARSET_INFO my_charset_ujis =
     NULL,		/* tab_from_uni */
     "","",
     0,			/* strxfrm_multiply */
-    my_strnncoll_simple,/* strnncoll    */
-    my_strnncollsp_simple,
-    my_strnxfrm_simple,	/* strnxfrm     */
-    my_like_range_simple,/* like_range   */
-    my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
-    ismbchar_ujis,
-    mbcharlen_ujis,
-    my_numchars_mb,
-    my_charpos_mb,
-    my_mb_wc_euc_jp,	 /* mb_wc       */
-    my_wc_mb_euc_jp,	 /* wc_mb       */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_strcasecmp_mb,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
+};
+
+
+CHARSET_INFO my_charset_ujis_bin=
+{
+    91,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */
+    "ujis",		/* cs name    */
+    "ujis_bin",		/* name         */
+    "",			/* comment      */
+    ctype_ujis,
+    to_lower_ujis,
+    to_upper_ujis,
+    sort_order_ujis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "","",
+    0,			/* strxfrm_multiply */
+    3,			/* mbmaxlen     */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 

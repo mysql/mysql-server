@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="83">
+<charsets max-id="91">
 
 <description>
 This file lists all of the available character sets.
@@ -19,7 +19,11 @@ To make maintaining easier please:
   <alias>csbig5</alias>
   <collation name="big5_chinese_ci"	id="1"	order="Chinese">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="big5_bin"	id="84"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
@@ -96,7 +100,10 @@ To make maintaining easier please:
   <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="latin1_danish_ci"	id="15"	order="Danish"/>
   <collation name="latin1_german2_ci"	id="31"	order="German Phonebook"	flag="compiled"/>
-  <collation name="latin1_bin"		id="47"	order="Binary"			flag="binary"/>
+  <collation name="latin1_bin"		id="47"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
   <collation name="latin1_general_ci"	id="48">
     <order>Dutch</order>
     <order>English</order>
@@ -169,7 +176,14 @@ To make maintaining easier please:
   <family>Japanese</family>
   <description>EUC-JP Japanese</description>
   <alias>euc-jp</alias>
-  <collation name="ujis_japanese_ci"	id="12"	order="Japanese"	flag="primary"/>
+  <collation name="ujis_japanese_ci"	id="12"	order="Japanese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="ujis_bin"	id="91"	order="Japanese">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="sjis">
@@ -178,7 +192,14 @@ To make maintaining easier please:
   <alias>s-jis</alias>
   <alias>shift-jis</alias>
   <alias>x-sjis</alias>
-  <collation name="sjis_japanese_ci" 	id="13"	order="Japanese"	flag="primary"/>
+  <collation name="sjis_japanese_ci" 	id="13"	order="Japanese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="sjis_bin" 	id="88"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="cp1251">
@@ -187,7 +208,7 @@ To make maintaining easier please:
   <alias>windows-1251</alias>
   <alias>ms-cyr</alias>
   <alias>ms-cyrillic</alias>
-  <collation name="cp1251_bulgarian_ci"	id="14"	flag="primary">
+  <collation name="cp1251_bulgarian_ci"	id="14">
     <order>Belarusian</order>
     <order>Bulgarian</order>
     <order>Macedonian</order>
@@ -198,7 +219,7 @@ To make maintaining easier please:
   </collation>
   <collation name="cp1251_ukrainian_ci"	id="23"	order="Ukrainian"/>
   <collation name="cp1251_bin"		id="50"	order="Binary"	flag="binary"/>
-  <collation name="cp1251_general_ci"	id="51">
+  <collation name="cp1251_general_ci"	id="51" flag="primary">
     <order>Belarusian</order>
     <order>Bulgarian</order>
     <order>Macedonian</order>
@@ -236,6 +257,10 @@ To make maintaining easier please:
     <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
+  <collation name="tis620_bin"	id="89"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="euckr">
@@ -245,7 +270,11 @@ To make maintaining easier please:
   <alias>euc-kr</alias>
   <collation name="euckr_korean_ci"	id="19"	order="Korean">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="euckr_bin"	id="85">
+    <flag>binary</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
@@ -255,7 +284,7 @@ To make maintaining easier please:
   <alias>BalticRim</alias>
   <alias>iso-8859-13</alias>
   <alias>l7</alias>
-  <collation name="latin7_estonian_ci"	id="20">
+  <collation name="latin7_estonian_cs"	id="20">
     <order>Estonian</order>
   </collation>
   <collation name="latin7_general_ci"	id="41">
@@ -285,7 +314,11 @@ To make maintaining easier please:
   <alias>iso-ir-58</alias>
   <collation name="gb2312_chinese_ci"	id="24"	order="Chinese">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="gb2312_bin"	id="86">
+    <flag>binary</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
@@ -315,7 +348,9 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="cp1250_czech_ci"	id="34"	order="Czech"/>
+  <collation name="cp1250_czech_ci"	id="34"	order="Czech">
+    <flag>compiled</flag>
+  </collation>
   <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
 </charset>
 
@@ -325,6 +360,10 @@ To make maintaining easier please:
   <alias>cp936</alias>
   <collation name="gbk_chinese_ci"	id="28"	order="Chinese">
     <flag>primary</flag>	
+    <flag>compiled</flag>
+  </collation>
+  <collation name="gbk_bin"	id="87"	order="Binary">
+    <flag>binary</flag>	
     <flag>compiled</flag>
   </collation>
 </charset>
@@ -369,14 +408,27 @@ To make maintaining easier please:
   <family>Unicode</family>
   <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>
-  <collation name="utf8_general_ci"	id="33"	flag="primary"/>
-  <collation name="utf8_bin"		id="83"	flag="binary"/>
+  <collation name="utf8_general_ci"	id="33">
+   <flag>primary</flag>
+   <flag>compiled</flag>
+  </collation>
+  <collation name="utf8_bin"		id="83">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="ucs2">
   <family>Unicode</family>
   <description>UCS-2 Unicode</description>
-  <collation name="ucs2_general_ci"	id="35"	flag="primary"/>
+  <collation name="ucs2_general_ci"	id="35">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="ucs2_bin"	id="90">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="cp866">

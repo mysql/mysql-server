@@ -32,7 +32,7 @@
 
 *****************************************************************************/
 
-extern ulong slave_net_timeout, master_retry_count;
+extern ulong master_retry_count;
 extern MY_BITMAP slave_error_mask;
 extern bool use_slave_mask;
 extern char* slave_load_tmpdir;
@@ -42,6 +42,10 @@ extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
+
+extern "C" {
+  extern ulong slave_net_timeout;
+};
 
 /*
   TODO: this needs to be redone, but for now it does not matter since
@@ -304,8 +308,6 @@ typedef struct st_master_info
   bool old_format;			/* master binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
-  bool ignore_stop_event;
-  
   
   st_master_info()
     :fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),

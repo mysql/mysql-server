@@ -108,17 +108,14 @@ show global variables like 'table_type';
 Variable_name	Value
 table_type	INNODB
 set GLOBAL query_cache_size=100000;
-set myisam_max_sort_file_size=10000, GLOBAL myisam_max_sort_file_size=20000;
-show variables like 'myisam_max_sort_file_size';
-Variable_name	Value
-myisam_max_sort_file_size	10000
+set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
-myisam_max_sort_file_size	20000
-set myisam_max_sort_file_size=default;
+myisam_max_sort_file_size	1048576
+set GLOBAL myisam_max_sort_file_size=default;
 show variables like 'myisam_max_sort_file_size';
 Variable_name	Value
-myisam_max_sort_file_size	20000
+myisam_max_sort_file_size	FILE_SIZE
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
 set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
@@ -167,38 +164,42 @@ select ROUND(RAND(),5);
 ROUND(RAND(),5)
 0.02887
 set big_tables=OFFF;
-Variable 'big_tables' can't be set to the value of 'OFFF'
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
 set big_tables="OFFF";
-Variable 'big_tables' can't be set to the value of 'OFFF'
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
 set unknown_variable=1;
-Unknown system variable 'unknown_variable'
+ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
-Wrong argument type to variable 'max_join_size'
+ERROR 42000: Wrong argument type to variable 'max_join_size'
 set table_type=UNKNOWN_TABLE_TYPE;
-Variable 'table_type' can't be set to the value of 'UNKNOWN_TABLE_TYPE'
+ERROR 42000: Variable 'table_type' can't be set to the value of 'UNKNOWN_TABLE_TYPE'
 set table_type=INNODB, big_tables=2;
-Variable 'big_tables' can't be set to the value of '2'
+ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'table_type';
 Variable_name	Value
 table_type	HEAP
 set SESSION query_cache_size=10000;
-Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set GLOBAL table_type=DEFAULT;
-Variable 'table_type' doesn't have a default value
+ERROR 42000: Variable 'table_type' doesn't have a default value
 set character_set_client=UNKNOWN_CHARACTER_SET;
-Unknown character set: 'UNKNOWN_CHARACTER_SET'
+ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set global autocommit=1;
-Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.timestamp;
-Variable 'timestamp' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'timestamp' is a LOCAL variable and can't be used with SET GLOBAL
 set @@version='';
-Unknown system variable 'version'
+ERROR HY000: Unknown system variable 'version'
 set @@concurrent_insert=1;
-Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
 set @@global.sql_auto_is_null=1;
-Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.sql_auto_is_null;
-Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+set myisam_max_sort_file_size=100;
+ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+set myisam_max_extra_sort_file_size=100;
+ERROR HY000: Variable 'myisam_max_extra_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set autocommit=1;
 set big_tables=1;
 select @@autocommit, @@big_tables;
@@ -252,11 +253,11 @@ select @@max_user_connections;
 @@max_user_connections
 100
 set global max_write_lock_count=100;
-set myisam_max_extra_sort_file_size=100;
+set global myisam_max_extra_sort_file_size=100;
 select @@myisam_max_extra_sort_file_size;
 @@myisam_max_extra_sort_file_size
 100
-set myisam_max_sort_file_size=100;
+set global myisam_max_sort_file_size=100;
 set myisam_sort_buffer_size=100;
 set net_buffer_length=100;
 set net_read_timeout=100;
@@ -323,3 +324,8 @@ test.t1	check	status	OK
 test.t2	check	status	OK
 select max(a) +1, max(a) +2 into @xx,@yy from t1;
 drop table t1,t2;
+select @@xxxxxxxxxx;
+ERROR HY000: Unknown system variable 'xxxxxxxxxx'
+select 1;
+1
+1

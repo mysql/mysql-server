@@ -10,15 +10,29 @@ Created 9/6/1995 Heikki Tuuri
 #define os0sync_h
 
 #include "univ.i"
+#include "ut0lst.h"
 
 #ifdef __WIN__
 
 #define os_fast_mutex_t CRITICAL_SECTION
-typedef void*		os_event_t;
 
+typedef HANDLE          os_native_event_t;
+
+typedef struct os_event_struct os_event_struct_t;
+typedef os_event_struct_t*     os_event_t;
+
+struct os_event_struct {
+	os_native_event_t		  handle;
+					/* Windows event */
+	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
+					/* list of all created events */
+};
 #else
-
 typedef pthread_mutex_t	os_fast_mutex_t;
+
+typedef struct os_event_struct os_event_struct_t;
+typedef os_event_struct_t*     os_event_t;
+
 struct os_event_struct {
 	os_fast_mutex_t	os_mutex;	/* this mutex protects the next
 					fields */
@@ -26,9 +40,9 @@ struct os_event_struct {
 					not reserved */
 	pthread_cond_t	cond_var;	/* condition variable is used in
 					waiting for the event */
+	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
+					/* list of all created events */
 };
-typedef struct os_event_struct os_event_struct_t;
-typedef os_event_struct_t*     os_event_t;
 #endif
 
 typedef struct os_mutex_struct	os_mutex_str_t;
@@ -38,10 +52,32 @@ typedef os_mutex_str_t*		os_mutex_t;
 
 #define OS_SYNC_TIME_EXCEEDED	1
 
+/* Mutex protecting counts and the event and OS 'slow' mutex lists */
+extern os_mutex_t	os_sync_mutex;
+
+/* This is incremented by 1 in os_thread_create and decremented by 1 in
+os_thread_exit */
+extern ulint		os_thread_count;
+
+extern ulint		os_event_count;
+extern ulint		os_mutex_count;
+extern ulint		os_fast_mutex_count;
+
 /*************************************************************
-Creates an event semaphore, i.e., a semaphore which may
-just have two states: signaled and nonsignaled.
-The created event is manual reset: it must be reset
+Initializes global event and OS 'slow' mutex lists. */
+
+void
+os_sync_init(void);
+/*==============*/
+/*************************************************************
+Frees created events and OS 'slow' mutexes. */
+
+void
+os_sync_free(void);
+/*==============*/
+/************************************************************* 
+Creates an event semaphore, i.e., a semaphore which may just have two states:
+signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event. */
 
 os_event_t
@@ -50,10 +86,10 @@ os_event_create(
 			/* out: the event handle */
 	char*	name);	/* in: the name of the event, if NULL
 			the event is created without a name */
+#ifdef __WIN__
 /*************************************************************
-Creates an auto-reset event semaphore, i.e., an event
-which is automatically reset when a single thread is
-released. */
+Creates an auto-reset event semaphore, i.e., an event which is automatically
+reset when a single thread is released. Works only in Windows. */
 
 os_event_t
 os_event_create_auto(
@@ -61,6 +97,7 @@ os_event_create_auto(
 			/* out: the event handle */
 	char*	name);	/* in: the name of the event, if NULL
 			the event is created without a name */
+#endif
 /**************************************************************
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
@@ -85,7 +122,10 @@ os_event_free(
 /*==========*/
 	os_event_t	event);	/* in: event to free */
 /**************************************************************
-Waits for an event object until it is in the signaled state. */
+Waits for an event object until it is in the signaled state. If
+srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
+waiting thread when the event becomes signaled (or immediately if the
+event is already in the signaled state). */
 
 void
 os_event_wait(
@@ -93,7 +133,7 @@ os_event_wait(
 	os_event_t	event);	/* in: event to wait */
 /**************************************************************
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded. */
+a timeout is exceeded. In Unix the timeout is always infinite. */
 
 ulint
 os_event_wait_time(
@@ -104,8 +144,9 @@ os_event_wait_time(
 	os_event_t	event,	/* in: event to wait */
 	ulint		time);	/* in: timeout in microseconds, or
 				OS_SYNC_INFINITE_TIME */
+#ifdef __WIN__
 /**************************************************************
-Waits for any event in an event array. Returns if even a single
+Waits for any event in an OS native event array. Returns if even a single
 one is signaled or becomes signaled. */
 
 ulint
@@ -113,14 +154,15 @@ os_event_wait_multiple(
 /*===================*/
 					/* out: index of the event
 					which was signaled */
-	ulint		n,		/* in: number of events in the
+	ulint		        n,	/* in: number of events in the
 					array */
-	os_event_t* 	event_array);	/* in: pointer to an array of event
+	os_native_event_t* 	native_event_array);
+					/* in: pointer to an array of event
 					handles */
+#endif
 /*************************************************************
-Creates an operating system mutex semaphore.
-Because these are slow, the mutex semaphore of the database
-itself (sync_mutex_t) should be used where possible. */
+Creates an operating system mutex semaphore. Because these are slow, the
+mutex semaphore of InnoDB itself (mutex_t) should be used where possible. */
 
 os_mutex_t
 os_mutex_create(

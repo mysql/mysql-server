@@ -266,7 +266,7 @@ Item *create_func_lpad(Item* a, Item *b, Item *c)
 
 Item *create_func_ltrim(Item* a)
 {
-  return new Item_func_ltrim(a,new Item_string(" ",1,default_charset_info));
+  return new Item_func_ltrim(a);
 }
 
 Item *create_func_md5(Item* a)
@@ -321,10 +321,10 @@ Item *create_func_current_user()
   char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   uint length;
 
-  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
+  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->priv_host, NullS) -
 		  buff);
   return new Item_string(NullS, thd->memdup(buff, length), length,
-			 default_charset_info);
+			 system_charset_info);
 }
 
 Item *create_func_quarter(Item* a)
@@ -365,7 +365,7 @@ Item *create_func_rpad(Item* a, Item *b, Item *c)
 
 Item *create_func_rtrim(Item* a)
 {
-  return new Item_func_rtrim(a,new Item_string(" ",1,default_charset_info));
+  return new Item_func_rtrim(a);
 }
 
 Item *create_func_sec_to_time(Item* a)
@@ -390,7 +390,20 @@ Item *create_func_sha(Item* a)
     
 Item *create_func_space(Item *a)
 {
-  return new Item_func_repeat(new Item_string(" ",1,default_charset_info),a);
+  CHARSET_INFO *cs= current_thd->variables.collation_connection;
+  Item *sp;
+  
+  if (cs->state & MY_CS_NONTEXT)
+  {
+    sp= new Item_string("",0,cs);
+    if (sp)
+      sp->str_value.copy(" ",1,&my_charset_latin1,cs);
+  }
+  else
+  {
+    sp= new Item_string(" ",1,cs);
+  }
+  return new Item_func_repeat(sp, a);
 }
 
 Item *create_func_soundex(Item* a)
@@ -437,7 +450,7 @@ Item *create_func_version(void)
 {
   return new Item_string(NullS,server_version, 
 			 (uint) strlen(server_version),
-			 system_charset_info);
+			 system_charset_info, DERIVATION_IMPLICIT);
 }
 
 Item *create_func_weekday(Item* a)
@@ -457,13 +470,16 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Item_cast cast_type)
+Item *create_func_cast(Item *a, Item_cast cast_type, CHARSET_INFO *cs)
 {
   Item *res;
   LINT_INIT(res);
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
-  case ITEM_CAST_CHAR:	 	res= new Item_char_typecast(a); break;
+  case ITEM_CAST_CHAR:
+    res= (cs == NULL) ? (Item*) new Item_char_typecast(a) : 
+			(Item*) new Item_func_conv_charset(a,cs);
+    break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
   case ITEM_CAST_UNSIGNED_INT:  res= new Item_func_unsigned(a); break;
   case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;
@@ -490,9 +506,9 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
-Item *create_func_as_text(Item *a)
+Item *create_func_as_wkt(Item *a)
 {
-  return new Item_func_as_text(a);
+  return new Item_func_as_wkt(a);
 }
 
 Item *create_func_as_wkb(Item *a)

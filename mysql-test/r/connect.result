@@ -4,6 +4,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
@@ -19,6 +20,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
@@ -34,6 +36,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
@@ -41,3 +44,5 @@ tables_priv
 user
 show tables;
 Tables_in_test
+delete from mysql.user where user="test";
+flush privileges;

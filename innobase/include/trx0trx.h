@@ -157,6 +157,15 @@ trx_commit_for_mysql(
 			/* out: 0 or error number */
 	trx_t*	trx);	/* in: trx handle */
 /**************************************************************************
+If required, flushes the log to disk if we called trx_commit_for_mysql()
+with trx->flush_log_later == TRUE. */
+
+ulint
+trx_commit_complete_for_mysql(
+/*==========================*/
+			/* out: 0 or error number */
+	trx_t*	trx);	/* in: trx handle */
+/**************************************************************************
 Marks the latest SQL statement ended. */
 
 void
@@ -343,6 +352,11 @@ struct trx_struct{
 	dulint		no;		/* transaction serialization number ==
 					max trx id when the transaction is 
 					moved to COMMITTED_IN_MEMORY state */
+	ibool		flush_log_later;/* when we commit the transaction
+					in MySQL's binlog write, we will
+					flush the log to disk later in
+					a separate call */
+	dulint		commit_lsn;	/* lsn at the time of the commit */
 	ibool		dict_operation;	/* TRUE if the trx is used to create
 					a table, create an index, or drop a
 					table */
@@ -418,10 +432,6 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
-        ibool           ignore_duplicates_in_insert;
-                                        /* in an insert roll back only insert
-                                        of the latest row in case
-                                        of a duplicate key error */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

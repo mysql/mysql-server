@@ -6,7 +6,7 @@ latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
 CREATE TABLE t2 (
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r_general_ci NOT NULL
 );
-COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 INSERT INTO t1 (latin1_f) VALUES (_latin1'A');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'a');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'AD');
@@ -180,7 +180,7 @@ z
 å
 ü
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
-COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 A
@@ -298,7 +298,7 @@ z
 å
 ü
 SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
 latin1_f	count(*)
 A	2
@@ -390,7 +390,7 @@ z	1
 å	1
 ü	1
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
-COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT DISTINCT latin1_f                           FROM t1;
 latin1_f
 A
@@ -482,15 +482,15 @@ y
 Z
 z
 SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
-COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
+ERROR 42000: COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32)	latin1_swedish_ci				
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)				
 ALTER TABLE t1 CHANGE latin1_f 
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
@@ -499,8 +499,8 @@ t1	CREATE TABLE `t1` (
   `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32) character set latin1	latin1_bin	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
 ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -508,8 +508,8 @@ t1	CREATE TABLE `t1` (
   `latin1_f` char(32) collate latin1_bin default NULL
 ) TYPE=MyISAM CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32)	latin1_bin	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
 SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
 Variable_name	Value
@@ -524,5 +524,5 @@ SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET 'DEFAULT';
-Unknown character set: 'DEFAULT'
+ERROR 42000: Unknown character set: 'DEFAULT'
 DROP TABLE t1;

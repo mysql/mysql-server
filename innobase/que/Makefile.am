@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libque.a
+noinst_LIBRARIES =	libque.a
 
 libque_a_SOURCES =	que0que.c
 

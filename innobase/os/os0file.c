@@ -80,6 +80,8 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
+        os_event_t	event;		/* event object we need in the
+					OVERLAPPED struct */
 	OVERLAPPED	control;	/* Windows control block for the
 					aio request */
 #elif defined(POSIX_ASYNC_IO)
@@ -107,11 +109,14 @@ struct os_aio_array_struct{
 	ulint		n_reserved;/* Number of reserved slots in the
 				  aio array outside the ibuf segment */
 	os_aio_slot_t* 	slots;	  /* Pointer to the slots in the array */
-	os_event_t*	events;	  /* Pointer to an array of event handles
-				  where we copied the handles from slots,
-				  in the same order. This can be used in
-				  WaitForMultipleObjects; used only in
+#ifdef __WIN__
+	os_native_event_t* native_events;	 
+				  /* Pointer to an array of OS native event
+				  handles where we copied the handles from
+				  slots, in the same order. This can be used
+				  in WaitForMultipleObjects; used only in
 				  Windows */
+#endif
 };
 
 /* Array of events used in simulated aio */
@@ -214,9 +219,14 @@ os_file_get_last_error(void)
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 
@@ -252,9 +262,14 @@ os_file_get_last_error(void)
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory.\n");
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means or use the perror program of MySQL.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 
@@ -285,7 +300,8 @@ os_file_handle_error(
 				/* out: TRUE if we should retry the
 				operation */
 	os_file_t	file,	/* in: file pointer */
-	char*		name)	/* in: name of a file or NULL */
+	char*		name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
 {
 	ulint	err;
 
@@ -328,6 +344,7 @@ os_file_handle_error(
 	                fprintf(stderr, "InnoDB: File name %s\n", name);
 	        }
 	  
+		fprintf(stderr, "InnoDB: System call %s.\n", operation);
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
 		fflush(stderr);
@@ -409,8 +426,9 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -450,8 +468,9 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -511,10 +530,11 @@ try_again:
 		}
 #endif			
 #ifdef UNIV_NON_BUFFERED_IO
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		if (type == OS_LOG_FILE) {
 		        /* Do not use unbuffered i/o to log files because
-		        value 2 denotes that we do not flush the log at every
-		        commit, but only once per second */
+		        to allow group commit to work when MySQL binlogging
+			is used we must separate log file write and log
+			file flush to disk. */
 		} else {
 			if (srv_win_file_flush_method ==
 					SRV_WIN_IO_UNBUFFERED) {
@@ -557,8 +577,9 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -604,8 +625,9 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name);
-
+		retry = os_file_handle_error(file, name,
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -638,7 +660,7 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "close");
 	return(FALSE);
 #else
 	int	ret;
@@ -646,7 +668,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(file, NULL);
+		os_file_handle_error(file, NULL, "close");
 		return(FALSE);
 	}
 
@@ -741,7 +763,12 @@ os_file_set_size(
 
 	offset = 0;
 	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
 				
+		fprintf(stderr, "InnoDB: Progress in MB:");
+	}
+
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 512) {
 	        	n_bytes = (ulint)(low - offset);
@@ -757,7 +784,22 @@ os_file_set_size(
 			ut_free(buf2);
 	         	goto error_handling;
 	        }
+				
+		/* Print about progress for each 100 MB written */
+		if ((offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
+
+		        fprintf(stderr, " %lu00",
+				(ulint)((offset + n_bytes)
+					/ (ib_longlong)(100 * 1024 * 1024)));
+		}
+		
 	        offset += n_bytes;
+	}
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+				
+		fprintf(stderr, "\n");
 	}
 
 	ut_free(buf2);
@@ -794,7 +836,7 @@ os_file_flush(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -827,7 +869,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(file, NULL);
+	os_file_handle_error(file, NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1068,7 +1110,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(file, NULL); 
+	retry = os_file_handle_error(file, NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -1264,7 +1306,6 @@ os_aio_array_create(
 #endif	
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
-	ut_a(n % n_segments == 0);
 
 	array = ut_malloc(sizeof(os_aio_array_t));
 
@@ -1278,19 +1319,22 @@ os_aio_array_create(
 	array->n_segments	= n_segments;
 	array->n_reserved	= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
-	array->events		= ut_malloc(n * sizeof(os_event_t));
-	
+#ifdef __WIN__
+	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+#endif	
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
+		slot->event = os_event_create(NULL);
+
 		over = &(slot->control);
 
-		over->hEvent = os_event_create(NULL);
+		over->hEvent = slot->event->handle;
 
-		*((array->events) + i) = over->hEvent;
+		*((array->native_events) + i) = over->hEvent;
 #endif
 	}
 	
@@ -1372,6 +1416,50 @@ os_aio_init(
 
 	pthread_sigmask(SIG_BLOCK, &sigset, NULL); */
 #endif
+}
+
+#ifdef WIN_ASYNC_IO
+/****************************************************************************
+Wakes up all async i/o threads in the array in Windows async i/o at
+shutdown. */
+static
+void
+os_aio_array_wake_win_aio_at_shutdown(
+/*==================================*/
+	os_aio_array_t*	array)	/* in: aio array */
+{
+	ulint	i;
+
+	for (i = 0; i < array->n_slots; i++) {
+
+	        os_event_set((array->slots + i)->event);
+	}
+}
+#endif
+
+/****************************************************************************
+Wakes up all async i/o threads so that they know to exit themselves in
+shutdown. */
+
+void
+os_aio_wake_all_threads_at_shutdown(void)
+/*=====================================*/
+{
+	ulint	i;
+
+#ifdef WIN_ASYNC_IO
+        /* This code wakes up all ai/o threads in Windows native aio */
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_read_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_write_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_ibuf_array);
+	os_aio_array_wake_win_aio_at_shutdown(os_aio_log_array);
+#endif
+	/* This loop wakes up all simulated ai/o threads */
+
+	for (i = 0; i < os_aio_n_segments; i++) {
+	    	
+		os_event_set(os_aio_segment_wait_events[i]);
+	}	
 }
 				
 /****************************************************************************
@@ -1604,7 +1692,7 @@ loop:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(control->hEvent);
+	os_event_reset(slot->event);
 
 #elif defined(POSIX_ASYNC_IO)
 
@@ -1662,7 +1750,7 @@ os_aio_array_free_slot(
 	}
 
 #ifdef WIN_ASYNC_IO		
-	os_event_reset(slot->control.hEvent);
+	os_event_reset(slot->event);
 #endif
 	os_mutex_exit(array->mutex);
 }
@@ -1787,7 +1875,7 @@ os_aio(
 				offset where to read or write */
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
-	ulint		n,	/* in: number of bytes to read or write */	
+	ulint		n,	/* in: number of bytes to read or write */
 	void*		message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
@@ -1831,7 +1919,8 @@ os_aio(
 		wait in the Windows case. */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read(file, buf, offset, offset_high, n));
+			return(os_file_read(file, buf, offset,
+							offset_high, n));
 		}
 
 		ut_a(type == OS_FILE_WRITE);
@@ -1909,8 +1998,7 @@ try_again:
 #ifdef WIN_ASYNC_IO
 	if (os_aio_use_native_aio) {
 		if ((ret && len == n)
-			|| (!ret && GetLastError() == ERROR_IO_PENDING)) {	
-
+		    || (!ret && GetLastError() == ERROR_IO_PENDING)) {
 			/* aio was queued successfully! */
 		
 	    		if (mode == OS_AIO_SYNC) {
@@ -1940,8 +2028,8 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name);
-
+	retry = os_file_handle_error(file, name,
+			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
 		goto try_again;
@@ -2006,15 +2094,15 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		srv_io_thread_op_info[orig_seg] = "wait Windows aio for 1 page";
-
-		ut_ad(pos < array->n_slots); 
-		os_event_wait(array->events[pos]);
+		srv_io_thread_op_info[orig_seg] =
+						"wait Windows aio for 1 page";
+		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
 		i = pos;
 	} else {
 		srv_io_thread_op_info[orig_seg] =
 						"wait Windows aio";
-		i = os_event_wait_multiple(n, (array->events) + segment * n);
+		i = os_event_wait_multiple(n,
+				(array->native_events) + segment * n);
 	}
 
 	os_mutex_enter(array->mutex);
@@ -2039,7 +2127,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name);
+		os_file_handle_error(slot->file, slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  

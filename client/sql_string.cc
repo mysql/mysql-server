@@ -97,13 +97,13 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->snprintf == my_snprintf_8bit)
+  if (cs->cset->snprintf == my_snprintf_8bit)
   {
     str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
   }
   else
   {
-    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
   }
   str_charset=cs;
   return FALSE;
@@ -115,13 +115,13 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->snprintf == my_snprintf_8bit)
+  if (cs->cset->snprintf == my_snprintf_8bit)
   {
     str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
   }
   else
   {
-    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
   }
   str_charset=cs;
   return FALSE;
@@ -255,7 +255,7 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET
   
   for (str_length=new_length ; s < se && d < de ; )
   {
-    if ((cnvres=from->mb_wc(from,&wc,s,se)) > 0 )
+    if ((cnvres=from->cset->mb_wc(from,&wc,s,se)) > 0 )
     {
       s+=cnvres;
     }
@@ -268,7 +268,7 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET
       break;
 
 outp:
-    if((cnvres=to->wc_mb(to,wc,d,de)) >0 )
+    if((cnvres=to->cset->wc_mb(to,wc,d,de)) >0 )
     {
       d+=cnvres;
     }

@@ -111,7 +111,8 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
-  lex->select_lex.create_refs=lex->in_comment=0;
+  lex->select_lex.parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  lex->in_comment=0;
   lex->length=0;
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.expr_list.empty();
@@ -962,6 +963,8 @@ int yylex(void *arg, void *yythd)
 
 void st_select_lex_node::init_query()
 {
+  options= 0;
+  linkage= UNSPECIFIED_TYPE;
   no_table_names_allowed= uncacheable= dependent= 0;
   ref_pointer_array= 0;
 }
@@ -973,14 +976,15 @@ void st_select_lex_node::init_select()
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
+  select_items= 0;
   with_sum_func= 0;
-  create_refs= 0;
+  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 void st_select_lex_unit::init_query()
 {
-  linkage= GLOBAL_OPTIONS_TYPE;
   st_select_lex_node::init_query();
+  linkage= GLOBAL_OPTIONS_TYPE;
   global_parameters= this;
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
@@ -994,11 +998,10 @@ void st_select_lex_unit::init_query()
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
-  table_list.elements= 0;
-  table_list.first= 0; 
-  table_list.next= (byte**) &table_list.first;
+  table_list.empty();
   item_list.empty();
   join= 0;
+  where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   insert_select= having_fix_field= 0;
   with_wild= 0;
@@ -1007,11 +1010,15 @@ void st_select_lex::init_query()
 void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
-  group_list.elements= 0;
-  group_list.first= 0;
-  group_list.next= (byte**) &group_list.first;
+  group_list.empty();
+  type= db= db1= table1= db2= table2= 0;
+  having= 0;
+  group_list.empty();
+  use_index_ptr= ignore_index_ptr= 0;
+  table_join_options= 0;
+  in_sum_expr= with_wild= 0;
   options= 0;
-  where= having= 0;
+  braces= 0;
   when_list.empty(); 
   expr_list.empty();
   interval_list.empty(); 

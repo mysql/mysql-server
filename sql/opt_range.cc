@@ -283,7 +283,7 @@ typedef struct st_qsel_param {
   KEY_PART *key_parts,*key_parts_end,*key[MAX_KEY];
   MEM_ROOT *mem_root;
   table_map prev_tables,read_tables,current_table;
-  uint baseflag,keys,max_key_part;
+  uint baseflag, keys, max_key_part, range_count;
   uint real_keynr[MAX_KEY];
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
@@ -379,8 +379,8 @@ SQL_SELECT::~SQL_SELECT()
 #undef index					// Fix for Unixware 7
 
 QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
-  :dont_free(0),error(0),index(key_nr),max_used_key_length(0),head(table),
-   it(ranges),range(0)
+  :dont_free(0),error(0),index(key_nr),max_used_key_length(0),
+   used_key_parts(0), head(table), it(ranges),range(0)
 {
   if (!no_alloc)
   {
@@ -709,8 +709,10 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 			       (double) keys_per_block);
 	    }
 	    else
-	      found_read_time= head->file->read_time(found_records)+
-		(double) found_records / TIME_FOR_COMPARE;
+	      found_read_time= (head->file->read_time(keynr,
+						      param.range_count,
+						      found_records)+
+				(double) found_records / TIME_FOR_COMPARE);
 	    if (read_time > found_read_time)
 	    {
 	      read_time=found_read_time;
@@ -2074,11 +2076,12 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
 
   if (!tree)
     DBUG_RETURN(HA_POS_ERROR);			// Can't use it
+  param->max_key_part=0;
+  param->range_count=0;
   if (tree->type == SEL_ARG::IMPOSSIBLE)
     DBUG_RETURN(0L);				// Impossible select. return
   if (tree->type != SEL_ARG::KEY_RANGE || tree->part != 0)
     DBUG_RETURN(HA_POS_ERROR);				// Don't use tree
-  param->max_key_part=0;
   records=check_quick_keys(param,idx,tree,param->min_key,0,param->max_key,0);
   if (records != HA_POS_ERROR)
   {
@@ -2146,6 +2149,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   }
 
   keynr=param->real_keynr[idx];
+  param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
       (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
       (param->table->key_info[keynr].flags & HA_NOSAME) &&
@@ -2322,6 +2326,7 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
 			 flag);
   set_if_bigger(quick->max_used_key_length,range->min_length);
   set_if_bigger(quick->max_used_key_length,range->max_length);
+  set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
   if (!range)					// Not enough memory
     return 1;
   quick->ranges.push_back(range);
