@@ -20,7 +20,6 @@
 
 #include "mysql_priv.h"
 
-#ifdef CLEAN_DUP
 /*
   Function called by my_net_init() to set some check variables
 */
@@ -38,7 +37,6 @@ void my_net_local_init(NET *net)
 #endif
 }
 }
-#endif /*CLEAN_DUP*/
 
 extern "C" {
 void mysql_once_init(void)

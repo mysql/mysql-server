@@ -18,11 +18,6 @@
 #include <mysql_com.h>
 #include <mysql.h>
 
-ulong 		net_buffer_length=8192;
-ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  NET_READ_TIMEOUT;
-ulong		net_write_timeout= NET_WRITE_TIMEOUT;
-
 /* Get the length of next field. Change parameter to point at fieldstart */
 ulong STDCALL net_field_length(uchar **packet)
 {
@@ -81,19 +76,6 @@ my_ulonglong net_field_length_ll(uchar **packet)
 #else
   return (my_ulonglong) uint8korr(pos+1);
 #endif
-}
-
-/*
-  Functions called my my_net_init() to set some application specific variables
-*/
-
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) net_buffer_length;
-  net->read_timeout= (uint) net_read_timeout;
-  net->write_timeout=(uint) net_write_timeout;
-  net->retry_count=  1;
-  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
 }
 
 char *
