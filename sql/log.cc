@@ -1254,7 +1254,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (flush_io_cache(file))
 	goto err;
  
-      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
+      if (opt_using_transactions &&
+          !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
       {
         /*
           LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
