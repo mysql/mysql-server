@@ -24,9 +24,9 @@ pkginclude_HEADERS =	readline/readline.h
 
 noinst_HEADERS =	chared.h el.h histedit.h key.h parse.h refresh.h sig.h \
 			sys.h tokenizer.h config.h hist.h map.h prompt.h read.h \
-			search.h tty.h
+			search.h tty.h libedit_term.h term.h
 
-EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c np/fgetln.c
+EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/vis.h np/strlcat.c np/fgetln.c
 
 CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
 
