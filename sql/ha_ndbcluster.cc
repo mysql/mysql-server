@@ -3402,7 +3402,9 @@ longlong ha_ndbcluster::get_auto_increment()
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   int cache_size= 
-    (rows_to_insert > autoincrement_prefetch) ? 
+    (rows_to_insert - rows_inserted < autoincrement_prefetch) ?
+    rows_to_insert - rows_inserted 
+    : (rows_to_insert > autoincrement_prefetch) ? 
     rows_to_insert 
     : autoincrement_prefetch;
   Uint64 auto_value= 
