@@ -1702,6 +1702,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
 
   if (field_translation)
   {
+    DBUG_PRINT("info", ("there are already translation table"));
     /* prevent look up in SELECTs tree */
     thd->lex->current_select= &thd->lex->select_lex;
     thd->lex->select_lex.no_wrap_view_item= 1;
@@ -1727,7 +1728,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
     if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
       goto err;
     if (check_option && !check_option->fixed &&
-        check_option->fix_fields(thd, ancestor, &where))
+        check_option->fix_fields(thd, ancestor, &check_option))
       goto err;
     restore_want_privilege();
 
@@ -1767,11 +1768,11 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   {
     /* save original name of view column */
     char *name= item->name;
-    if (!item->fixed && item->fix_fields(thd, ancestor, &item))
+    transl[i].item= item;
+    if (!item->fixed && item->fix_fields(thd, ancestor, &transl[i].item))
       goto err;
     /* set new item get in fix fields and original column name */
-    transl[i].name= name;
-    transl[i++].item= item;
+    transl[i++].name= name;
   }
   field_translation= transl;
   /* TODO: sort this list? Use hash for big number of fields */
