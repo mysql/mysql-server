@@ -765,6 +765,7 @@ public:
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     bool res= udf.fix_fields(thd, tables, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
@@ -1000,6 +1001,7 @@ public:
   void cleanup()
   {
     DBUG_ENTER("Item_func_match");
+    Item_real_func::cleanup();
     if (!master && ft_handler)
     {
       ft_handler->please->close_search(ft_handler);

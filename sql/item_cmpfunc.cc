@@ -502,7 +502,6 @@ bool Item_in_optimizer::fix_left(THD *thd,
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
   const_item_cache= args[0]->const_item();
-  fixed= 1;
   return 0;
 }
 
@@ -510,7 +509,8 @@ bool Item_in_optimizer::fix_left(THD *thd,
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
-  if (fix_left(thd, tables, ref))
+  DBUG_ASSERT(fixed == 0);
+  if (!args[0]->fixed && fix_left(thd, tables, ref))
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
@@ -529,6 +529,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
+  fixed= 1;
   return 0;
 }
 
@@ -1755,6 +1756,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 bool
 Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
 #ifndef EMBEDDED_LIBRARY
@@ -1878,14 +1880,27 @@ void Item_cond::print(String *str)
 }
 
 
-void Item_cond::neg_arguments()
+void Item_cond::neg_arguments(THD *thd)
 {
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))		/* Apply not transformation to the arguments */
   {
-    Item *new_item= item->neg_transformer();
-    VOID(li.replace(new_item ? new_item : new Item_func_not(item)));
+    Item *new_item= item->neg_transformer(thd);
+    if (!new_item)
+    {
+      new_item= new Item_func_not(item);
+      /*
+	We can use 0 as tables list because Item_func_not do not use it
+	on fix_fields and its arguments are already fixed.
+
+	We do not check results of fix_fields, because there are not way
+	to return error in this functions interface, thd->net.report_error
+	will be checked on upper level call.
+      */
+      new_item->fix_fields(thd, 0, &new_item);
+    }
+    VOID(li.replace(new_item));
   }
 }
 
@@ -2097,6 +2112,7 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 
 bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
@@ -2150,6 +2166,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
       args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
     return 1;					/* purecov: inspected */
@@ -2518,6 +2535,7 @@ longlong Item_cond_xor::val_int()
 
   SYNPOSIS
     neg_transformer()
+    thd		thread handler
 
   DESCRIPTION
     Transform the item using next rules:
@@ -2541,62 +2559,116 @@ longlong Item_cond_xor::val_int()
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
 */
 
-Item *Item_func_not::neg_transformer()		/* NOT(x)  ->  x */
+Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
-  /* We should apply negation elimination to the argument of the NOT function */
-  return eliminate_not_funcs(args[0]);
+  // We should apply negation elimination to the argument of the NOT function
+  return eliminate_not_funcs(thd, args[0]);
 }
 
-Item *Item_func_eq::neg_transformer()		/* a = b  ->  a != b */
+
+Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
-  return new Item_func_ne(args[0], args[1]);	
+  Item *item= negated_item();
+  if (item)
+  {
+    /*
+      We can use 0 as tables list because Item_func* family do not use it
+      on fix_fields and its arguments are already fixed.
+      
+      We do not check results of fix_fields, because there are not way
+      to return error in this functions interface, thd->net.report_error
+      will be checked on upper level call.
+    */
+    item->fix_fields(thd, 0, &item);
+  }
+  return item;
 }
 
-Item *Item_func_ne::neg_transformer()		/* a != b  ->  a = b */
+
+/* a IS NULL  ->  a IS NOT NULL */
+Item *Item_func_isnull::neg_transformer(THD *thd)
+{
+  Item *item= new Item_func_isnotnull(args[0]);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+/* a IS NOT NULL  ->  a IS NULL */
+Item *Item_func_isnotnull::neg_transformer(THD *thd)
+{
+  Item *item= new Item_func_isnull(args[0]);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_cond_and::neg_transformer(THD *thd)	/* NOT(a AND b AND ...)  -> */
+					/* NOT a OR NOT b OR ... */
+{
+  neg_arguments(thd);
+  Item *item= new Item_cond_or(list);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
+					/* NOT a AND NOT b AND ... */
+{
+  neg_arguments(thd);
+  Item *item= new Item_cond_and(list);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_func_eq::negated_item()		/* a = b  ->  a != b */
+{
+  return new Item_func_ne(args[0], args[1]);
+}
+
+
+Item *Item_func_ne::negated_item()		/* a != b  ->  a = b */
 {
   return new Item_func_eq(args[0], args[1]);
 }
 
-Item *Item_func_lt::neg_transformer()		/* a < b  ->  a >= b */
+
+Item *Item_func_lt::negated_item()		/* a < b  ->  a >= b */
 {
   return new Item_func_ge(args[0], args[1]);
 }
 
-Item *Item_func_ge::neg_transformer()		/* a >= b  ->  a < b */
+
+Item *Item_func_ge::negated_item()		/* a >= b  ->  a < b */
 {
   return new Item_func_lt(args[0], args[1]);
 }
 
-Item *Item_func_gt::neg_transformer()		/* a > b  ->  a <= b */
+
+Item *Item_func_gt::negated_item()		/* a > b  ->  a <= b */
 {
   return new Item_func_le(args[0], args[1]);
 }
 
-Item *Item_func_le::neg_transformer()		/* a <= b  ->  a > b */
+
+Item *Item_func_le::negated_item()		/* a <= b  ->  a > b */
 {
   return new Item_func_gt(args[0], args[1]);
 }
 
-Item *Item_func_isnull::neg_transformer()	/* a IS NULL  ->  a IS NOT NULL */
+// just fake method, should never be called
+Item *Item_bool_rowready_func2::negated_item()
 {
-  return new Item_func_isnotnull(args[0]);
-}
-
-Item *Item_func_isnotnull::neg_transformer()	/* a IS NOT NULL  ->  a IS NULL */
-{
-  return new Item_func_isnull(args[0]);
-}
-
-Item *Item_cond_and::neg_transformer()		/* NOT(a AND b AND ...)  -> */
-					/* NOT a OR NOT b OR ... */
-{
-  neg_arguments();
-  return new Item_cond_or(list);
-}
-
-Item *Item_cond_or::neg_transformer()		/* NOT(a OR b OR ...)  -> */
-					/* NOT a AND NOT b AND ... */
-{
-  neg_arguments();
-  return new Item_cond_and(list);
+  DBUG_ASSERT(0);
+  return 0;
 }

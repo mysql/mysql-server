@@ -55,6 +55,7 @@ void Item_row::illegal_method_call(const char *method)
 
 bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   null_value= 0;
   maybe_null= 0;
   Item **arg, **arg_end;
@@ -78,6 +79,7 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
     maybe_null|= item->maybe_null;
     with_sum_func= with_sum_func || item->with_sum_func;
   }
+  fixed= 1;
   return 0;
 }
 

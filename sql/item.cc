@@ -103,20 +103,32 @@ void Item::print_item_w_name(String *str)
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
-  :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par),
+  :changed_during_fix_field(0), db_name(db_name_par),
+   table_name(table_name_par), field_name(field_name_par),
    depended_from(0)
 {
   name = (char*) field_name_par;
 }
 
 // Constructor used by Item_field & Item_ref (see Item comment)
-Item_ident::Item_ident(THD *thd, Item_ident *item):
-  Item(thd, item),
-  db_name(item->db_name),
-  table_name(item->table_name),
-  field_name(item->field_name),
-  depended_from(item->depended_from)
+Item_ident::Item_ident(THD *thd, Item_ident *item)
+  :Item(thd, item),
+   changed_during_fix_field(0),
+   db_name(item->db_name),
+   table_name(item->table_name),
+   field_name(item->field_name),
+   depended_from(item->depended_from)
 {}
+
+void Item_ident::cleanup()
+{
+  Item::cleanup();
+  if (changed_during_fix_field)
+  {
+    *changed_during_fix_field= this;
+    changed_during_fix_field= 0;
+  }
+}
 
 bool Item_ident::remove_dependence_processor(byte * arg)
 {
@@ -289,11 +301,14 @@ bool DTCollation::aggregate(DTCollation &dt)
   return 0;
 }
 
-Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
+Item_field::Item_field(Field *f)
+  :Item_ident(NullS, f->table_name, f->field_name)
+#ifndef DBUG_OFF
+  ,double_fix(0)
+#endif
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
-  fixed= 1; // This item is not needed in fix_fields
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -301,6 +316,9 @@ Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
    field(item->field),
    result_field(item->result_field)
+#ifndef DBUG_OFF
+  ,double_fix(0)
+#endif
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -786,6 +804,9 @@ bool Item::fix_fields(THD *thd,
 		      struct st_table_list *list,
 		      Item ** ref)
 {
+
+  // We do not check fields which are fixed during construction
+  DBUG_ASSERT(fixed == 0 || type() == INT_ITEM || type() == CACHE_ITEM);
   fixed= 1;
   return 0;
 }
@@ -847,6 +868,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0 || double_fix == 0);
   if (!field)					// If field is not checked
   {
     TABLE_LIST *where= 0;
@@ -952,6 +974,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			       ref,
 			       (char *)table_name,
 			       (char *)field_name);
+	register_item_tree_changing(ref);
 	if (!rf)
 	  return 1;
 	/*
@@ -1005,6 +1028,11 @@ void Item_field::cleanup()
 {
   DBUG_ENTER("Item_field::cleanup");
   Item_ident::cleanup();
+  /*
+    Even if this object was created by direct link to field in setup_wild()
+    it will be linked correctly next tyme by name of field and table alias.
+    I.e. we can drop 'field'.
+   */
   field= result_field= 0;
   DBUG_VOID_RETURN;
 }
@@ -1480,6 +1508,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
+  DBUG_ASSERT(fixed == 0);
   uint counter;
   if (!ref)
   {
@@ -1585,6 +1614,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
+	register_item_tree_changing(reference);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
@@ -1696,6 +1726,7 @@ bool Item_default_value::fix_fields(THD *thd,
 				    struct st_table_list *table_list,
 				    Item **items)
 {
+  DBUG_ASSERT(fixed == 0);
   if (!arg)
     return 0;
   if (arg->fix_fields(thd, table_list, &arg))
@@ -1744,6 +1775,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   struct st_table_list *table_list,
 				   Item **items)
 {
+  DBUG_ASSERT(fixed == 0);
   if (arg->fix_fields(thd, table_list, &arg))
     return 1;
 
