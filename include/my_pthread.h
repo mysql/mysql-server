@@ -20,6 +20,10 @@
 #ifndef _my_pthread_h
 #define _my_pthread_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <errno.h>
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
@@ -612,4 +616,9 @@ extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 #endif /* SAFE_STATISTICS */
 #endif /* HAVE_ATOMIC_ADD */
 #endif /* thread_safe_increment */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* _my_ptread_h */
