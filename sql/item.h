@@ -237,7 +237,8 @@ public:
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
-  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
+  virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
+                              List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
@@ -781,20 +782,13 @@ class Item_ref :public Item_ident
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
-  Item **hook_ptr;                       /* These two to restore  */
-  Item *orig_item;                       /* things in 'cleanup()' */
-  Item_ref(Item **hook, Item *original,const char *db_par,
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),ref(0), hook_ptr(hook),
-    orig_item(original) {}
-  Item_ref(Item **item, Item **hook, 
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),
-    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
-  // Constructor need to process subselect with temporary tables (see Item)
-  Item_ref(THD *thd, Item_ref *item, Item **hook)
-    :Item_ident(thd, item), ref(item->ref), 
-    hook_ptr(hook), orig_item(hook ? *hook : 0) {}
+  Item_ref(const char *db_par, const char *table_name_par,
+           const char *field_name_par)
+    :Item_ident(db_par, table_name_par, field_name_par), ref(0) {}
+  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
+    :Item_ident(NullS, table_name_par, field_name_par), ref(item) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
@@ -845,7 +839,6 @@ public:
   }
   Item *real_item() { return *ref; }
   void print(String *str);
-  void cleanup();
 };
 
 class Item_in_subselect;
@@ -856,7 +849,7 @@ protected:
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
 		       const char *table_name_par, const char *field_name_par):
-    Item_ref(item, NULL, table_name_par, field_name_par), owner(master) {}
+    Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);

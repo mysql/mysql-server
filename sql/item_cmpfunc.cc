@@ -2018,7 +2018,8 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
-void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
+void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
+                               List<Item> &fields)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -2027,13 +2028,15 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   while ((item=li++))
   {
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(ref_pointer_array, fields);
+      item->split_sum_func(thd, ref_pointer_array, fields);
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
+      Item **ref= li.ref();
       uint el= fields.elements;
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      li.replace(new Item_ref(ref_pointer_array + el, li.ref(), 0, item->name));
+      thd->register_item_tree_change(ref, *ref, &thd->mem_root);
+      li.replace(new Item_ref(ref_pointer_array + el, 0, item->name));
     }
     item->update_used_tables();
     used_tables_cache|=item->used_tables();

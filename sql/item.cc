@@ -1334,7 +1334,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 	Item_ref *rf;
 	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
-			       0,
 			       (char *)table_name,
 			       (char *)field_name);
         thd->register_item_tree_change(ref, this, &thd->mem_root);
@@ -1357,10 +1356,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	{
 	  Item_ref *rf;
           thd->register_item_tree_change(ref, *ref, &thd->mem_root);
-	  *ref= rf= new Item_ref(ref, 0,
-				 (where->db[0]?where->db:0), 
-				 (char *)where->alias,
-				 (char *)field_name);
+          *ref= rf= new Item_ref((where->db[0] ? where->db : 0),
+                                 (char*) where->alias, (char*) field_name);
 	  if (!rf)
 	    return 1;
 	  /*
@@ -2058,16 +2055,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
-}
-
-
-void Item_ref::cleanup()
-{
-  DBUG_ENTER("Item_ref::cleanup");
-  Item_ident::cleanup();
-  if (hook_ptr)
-    *hook_ptr= orig_item;
-  DBUG_VOID_RETURN;
 }
 
 
