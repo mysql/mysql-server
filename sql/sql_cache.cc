@@ -897,7 +897,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
-  if (!thd->lex.safe_to_cache_query)
+  if (!thd->lex->safe_to_cache_query)
   {
     DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
@@ -1000,7 +1000,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 		  table_list.db, table_list.alias));
       refused++;				// This is actually a hit
       STRUCT_UNLOCK(&structure_guard_mutex);
-      thd->lex.safe_to_cache_query=0;		// Don't try to cache this
+      thd->lex->safe_to_cache_query=0;		// Don't try to cache this
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
     }
@@ -1009,7 +1009,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->lex.safe_to_cache_query= 0;		// Don't try to cache this
+      thd->lex->safe_to_cache_query= 0;		// Don't try to cache this
       goto err_unlock;				// Parse query
     }
     if (check_tables && !handler::caching_allowed(thd, table->db(), 
@@ -1019,7 +1019,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->lex.safe_to_cache_query= 0;          // Don't try to cache this
+      thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
       goto err_unlock;				// Parse query
     }
     else
@@ -2959,7 +2959,7 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
   if (thd)
-    thd->killed = 1;
+    thd->killed= THD::KILL_CONNECTION;
   cache_dump();
   /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();

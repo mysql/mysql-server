@@ -31,6 +31,10 @@
 #include <zlib.h>
 #endif
 
+#include "sp_head.h"
+#include "sp_rcontext.h"
+#include "sp.h"
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
@@ -2334,7 +2338,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if ((var_entry= get_variable(&thd->user_vars, name, 0)))
   {
-    if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
+    if (opt_bin_log && is_update_query(thd->lex->sql_command) &&
 	var_entry->used_query_id != thd->query_id)
     {
       uint size;
@@ -2710,7 +2714,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     return 0;
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->lex.uncacheable();
+  thd->lex->uncacheable();
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2736,7 +2740,7 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
     return 0;						// Impossible
-  thd->lex.uncacheable();
+  thd->lex->uncacheable();
   item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }
@@ -2796,4 +2800,75 @@ longlong Item_func_is_used_lock::val_int()
 
   null_value=0;
   return ull->thread_id;
+}
+
+int
+Item_func_sp::execute(Item **itp)
+{
+  DBUG_ENTER("Item_func_sp::execute");
+  THD *thd= current_thd;
+
+  if (! m_sp)
+    m_sp= sp_find_function(thd, &m_name);
+  if (! m_sp)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+}
+
+enum enum_field_types
+Item_func_sp::field_type() const
+{
+  DBUG_ENTER("Item_func_sp::field_type");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
+    DBUG_RETURN(m_sp->m_returns);
+  }
+  DBUG_RETURN(MYSQL_TYPE_STRING);
+}
+
+Item_result
+Item_func_sp::result_type() const
+{
+  DBUG_ENTER("Item_func_sp::result_type");
+  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_RETURN(m_sp->result());
+  }
+  DBUG_RETURN(STRING_RESULT);
+}
+
+void
+Item_func_sp::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, &m_name);
+  if (m_sp)
+  {
+    switch (m_sp->result()) {
+    case STRING_RESULT:
+      maybe_null= 1;
+      max_length= 0;
+      break;
+    case REAL_RESULT:
+      decimals= NOT_FIXED_DEC;
+      max_length= float_length(decimals);
+      break;
+    case INT_RESULT:
+      decimals= 0;
+      max_length= 21;
+      break;
+    }
+  }
+  DBUG_VOID_RETURN;
 }

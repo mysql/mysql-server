@@ -351,7 +351,6 @@ INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
 select * from t1;
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
--- error 1093
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 -- error 1054
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
@@ -503,6 +502,9 @@ select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
 drop table t1;
 
+#
+# DO & SET
+#
 create table t1 (a int);
 insert into t1 values (1);
 do @a:=(SELECT a from t1);
@@ -515,6 +517,7 @@ drop table t1;
 do (SELECT a from t1);
 -- error 1146
 set @a:=(SELECT a from t1);
+
 
 CREATE TABLE t1 (a int, KEY(a)); 
 HANDLER t1 OPEN;

@@ -21,6 +21,9 @@
 class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
+class sp_head;
+class sp_instr;
+class sp_pcontext;
 
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -72,6 +75,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL,
+  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
+  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
 
   /* This should be the last !!! */
   SQLCOM_END
@@ -323,7 +328,7 @@ public:
   int exec();
   int cleanup();
   
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
@@ -419,7 +424,7 @@ public:
     order_list.next= (byte**) &order_list.first;
   }
   
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   st_select_lex(struct st_lex *lex);
   st_select_lex() {}
   void make_empty_select(st_select_lex *last_select)
@@ -445,6 +450,7 @@ typedef struct st_lex
   SELECT_LEX_NODE *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
+  uchar *buf;			/* The beginning of string, used by SPs */
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -504,7 +510,22 @@ typedef struct st_lex
   CHARSET_INFO *charset;
   char *help_arg;
   SQL_LIST *gorder_list;
-  st_lex() {}
+  sp_head *sphead;
+  bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
+  sp_pcontext *spcont;
+  HASH spfuns;		/* Called functions */
+
+  st_lex()
+  {
+    bzero((char *)&spfuns, sizeof(spfuns));
+  }
+  
+  ~st_lex()
+  {
+    if (spfuns.array.buffer)
+      hash_free(&spfuns);
+  }
+
   inline void uncacheable()
   {
     safe_to_cache_query= 0;
@@ -535,4 +556,4 @@ extern pthread_key(LEX*,THR_LEX);
 
 extern LEX_STRING tmp_table_alias;
 
-#define current_lex (&current_thd->lex)
+#define current_lex (current_thd->lex)

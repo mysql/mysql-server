@@ -115,7 +115,7 @@ bool select_union::flush()
 int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
-  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX_NODE *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -129,7 +129,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
-  thd->lex.current_select= select_cursor= first_select_in_union();
+  thd->lex->current_select= select_cursor= first_select_in_union();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
   {
@@ -194,14 +194,14 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     or derived table ...
   */
 
-  if (thd->lex.describe)
+  if (thd->lex->describe)
   {
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       JOIN *join= new JOIN(thd, sl->item_list, 
 			   sl->options | thd->options | SELECT_NO_UNLOCK,
 			   union_result);
-      thd->lex.current_select= sl;
+      thd->lex->current_select= sl;
       offset_limit_cnt= sl->offset_limit;
       select_limit_cnt= sl->select_limit+sl->offset_limit;
       if (select_limit_cnt < sl->select_limit)
@@ -227,7 +227,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   }
 
   item_list.empty();
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   {
     List_iterator<Item> it(select_cursor->item_list);
     Field **field;
@@ -242,7 +242,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 
   DBUG_RETURN(res || thd->is_fatal_error ? 1 : 0);
 err:
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   DBUG_RETURN(-1);
 }
 
@@ -250,7 +250,7 @@ err:
 int st_select_lex_unit::exec()
 {
   int do_print_slow= 0;
-  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX_NODE *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   DBUG_ENTER("st_select_lex_unit::exec");
 
@@ -275,7 +275,7 @@ int st_select_lex_unit::exec()
 	JOIN *join= new JOIN(thd, sl->item_list, 
 			     sl->options | thd->options | SELECT_NO_UNLOCK,
 			     union_result);
-	thd->lex.current_select= sl;
+	thd->lex->current_select= sl;
 	offset_limit_cnt= sl->offset_limit;
 	select_limit_cnt= sl->select_limit+sl->offset_limit;
 	if (select_limit_cnt < sl->select_limit)
@@ -297,7 +297,7 @@ int st_select_lex_unit::exec()
 	t_and_f=0;
 	if (res | thd->is_fatal_error)
 	{
-	  thd->lex.current_select= lex_select_save;
+	  thd->lex->current_select= lex_select_save;
 	  DBUG_RETURN(res);
 	}
 	res= sl->join->optimize();
@@ -308,13 +308,13 @@ int st_select_lex_unit::exec()
 	res= sl->join->error;
 	if (!res && union_result->flush())
 	{
-	  thd->lex.current_select= lex_select_save;
+	  thd->lex->current_select= lex_select_save;
 	  DBUG_RETURN(1);
 	}
       }
       if (res)
       {
-	thd->lex.current_select= lex_select_save;
+	thd->lex->current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
       do_print_slow|= select_cursor->options;
@@ -325,7 +325,7 @@ int st_select_lex_unit::exec()
   /* Send result to 'result' */
 
   // to correct ORDER BY reference resolving
-  thd->lex.current_select= select_cursor;
+  thd->lex->current_select= select_cursor;
   res= -1;
   {
     List<Item_func_match> empty_list;
@@ -333,7 +333,7 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
-      SELECT_LEX *fake_select  = new SELECT_LEX(&thd->lex);
+      SELECT_LEX *fake_select  = new SELECT_LEX(thd->lex);
       offset_limit_cnt= (select_cursor->braces ?
 			 global_parameters->offset_limit : 0);
       select_limit_cnt= (select_cursor->braces ?
@@ -368,7 +368,7 @@ int st_select_lex_unit::exec()
 				QUERY_NO_GOOD_INDEX_USED));
     }
   }
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   DBUG_RETURN(res);
 }
 
