@@ -1086,6 +1086,10 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     thd->query_length=length;
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
+    /*
+      We don't need to obtain LOCK_thread_count here because in bootstrap
+      mode we have only one thread.
+    */
     thd->query_id=query_id++;
     if (mqh_used && thd->user_connect && check_mqh(thd, SQLCOM_END))
     {

@@ -7,8 +7,9 @@ connect (con1root,localhost,root,,);
 connection con1root;
 use test;
 
-# Create dummy user with no particular access rights
-grant usage on *.* to dummy@localhost;
+# Create user user1 with no particular access rights
+grant usage on *.* to user1@localhost;
+flush privileges;
 
 --disable_warnings
 drop database if exists db1_secret;
@@ -30,13 +31,13 @@ show procedure status like 'stamp';
 call stamp(1);
 select * from t1;
 
-connect (con2dummy,localhost,dummy,,);
+connect (con2user1,localhost,user1,,);
 connect (con3anon,localhost,anon,,);
 
 #
-# Dummy can
+# User1 can
 #
-connection con2dummy;
+connection con2user1;
 
 # This should work...
 call stamp(2);
@@ -75,9 +76,9 @@ call stamp(4);
 select * from t1;
 
 #
-# Dummy cannot
+# User1 cannot
 #
-connection con2dummy;
+connection con2user1;
 
 # This should not work
 --error 1044
@@ -92,9 +93,65 @@ connection con3anon;
 --error 1044
 call stamp(6);
 
+
+#
+# BUG#2777
+#
+
+connection con1root;
+--disable_warnings
+drop database if exists db2;
+--enable_warnings
+create database db2;
+
+use db2;
+
+create table t2 (s1 int);
+insert into t2 values (0);
+
+grant usage on db2.* to user1@localhost;
+grant select on db2.* to user1@localhost;
+grant usage on db2.* to user2@localhost;
+grant select,insert,update,delete on db2.* to user2@localhost;
+flush privileges;
+
+connection con2user1;
+use db2;
+
+create procedure p () insert into t2 values (1);
+
+# Check that this doesn't work.
+--error 1044
+call p();
+
+connect (con4user2,localhost,user2,,);
+
+connection con4user2;
+use db2;
+
+# This should not work, since p is executed with definer's (user1's) rights.
+--error 1044
+call p();
+select * from t2;
+
+create procedure q () insert into t2 values (2);
+
+call q();
+select * from t2;
+
+connection con2user1;
+use db2;
+
+# This should work
+call q();
+select * from t2;
+
 # Clean up
 connection con1root;
 drop procedure stamp;
+drop procedure p;
+drop procedure q;
 use test;
 drop database db1_secret;
-delete from mysql.user where user='dummy';
+drop database db2;
+delete from mysql.user where user='user1' or user='user2';
