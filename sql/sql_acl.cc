@@ -251,9 +251,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       global_system_variables.old_passwords= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      sql_print_error("mysql.user table is not updated to new password format; "
-                      "Disabling new password usage until "
-                      "mysql_fix_privilege_tables is run");
+      sql_print_warning("mysql.user table is not updated to new password format; "
+                        "Disabling new password usage until "
+                        "mysql_fix_privilege_tables is run");
     }
     thd->variables.old_passwords= 1;
   }

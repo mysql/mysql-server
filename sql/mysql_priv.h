@@ -783,10 +783,10 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 bool init_errmessage(void);
 void sql_perror(const char *message);
 
-void vprint_msg_to_log( enum loglevel level, const char *format, va_list args );
-void sql_print_error( const char *format, ... );
-void sql_print_warning( const char *format, ...); 
-void sql_print_information( const char *format, ...); 
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+void sql_print_error(const char *format, ...);
+void sql_print_warning(const char *format, ...);
+void sql_print_information(const char *format, ...);
 
 
 
