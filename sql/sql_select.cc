@@ -665,7 +665,6 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
-  order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
@@ -1585,8 +1584,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
 	//here is EXPLAIN of subselect or derived table
-	join->result= result;
-	if (!join->procedure && result->prepare(join->fields_list, unit))
+	if (join->change_result(result))
 	{
 	  DBUG_RETURN(-1);
 	}
@@ -6162,8 +6160,8 @@ join_read_prev_same(READ_RECORD *info)
 
   if ((error=table->file->index_prev(table->record[0])))
     return report_error(table, error);
-  if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
-	      tab->ref.key_length))
+  if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
+                      tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
     error= -1;
@@ -9123,7 +9121,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   THD *thd=join->thd;
   select_result *result=join->result;
   Item *item_null= new Item_null();
-  CHARSET_INFO *cs= &my_charset_latin1;
+  CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -9190,7 +9188,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name);
+            tmp1.append(table->key_info[j].name, 0, system_charset_info);
           }
         }
       }
@@ -9209,7 +9207,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name());
+	  tmp2.append((*ref)->name(), 0, system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }
@@ -9370,23 +9368,23 @@ void st_select_lex::print(THD *thd, String *str)
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
-  if ((thd->lex->lock_option & TL_READ_HIGH_PRIORITY) &&
+  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
       (this == &thd->lex->select_lex))
     str->append("high_priority ", 14);
   if (options & SELECT_DISTINCT)
     str->append("distinct ", 9);
   if (options & SELECT_SMALL_RESULT)
-    str->append("small_result ", 13);
+    str->append("sql_small_result ", 17);
   if (options & SELECT_BIG_RESULT)
-    str->append("big_result ", 11);
+    str->append("sql_big_result ", 15);
   if (options & OPTION_BUFFER_RESULT)
-    str->append("buffer_result ", 14);
+    str->append("sql_buffer_result ", 18);
   if (options & OPTION_FOUND_ROWS)
-    str->append("calc_found_rows ", 16);
+    str->append("sql_calc_found_rows ", 20);
   if (!thd->lex->safe_to_cache_query)
-    str->append("no_cache ", 9);
+    str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;
@@ -9513,4 +9511,28 @@ void st_select_lex::print(THD *thd, String *str)
   print_limit(thd, str);
 
   // PROCEDURE unsupported here
+}
+
+
+/*
+  change select_result object of JOIN
+
+  SYNOPSIS
+    JOIN::change_result()
+    res		new select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int JOIN::change_result(select_result *res)
+{
+  DBUG_ENTER("JOIN::change_result");
+  result= res;
+  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  {
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }

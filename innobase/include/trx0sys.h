@@ -258,7 +258,7 @@ replication has proceeded. */
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	char*		file_name,/* in: MySQL log file name */
+	const char*	file_name,/* in: MySQL log file name */
 	ib_longlong	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */

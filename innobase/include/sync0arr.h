@@ -51,7 +51,7 @@ sync_array_reserve_cell(
         sync_array_t*	arr,	/* in: wait array */
         void*   	object, /* in: pointer to the object to wait for */
         ulint		type,	/* in: lock request type */
-        char*		file,	/* in: file where requested */
+	const char*	file,	/* in: file where requested */
         ulint		line,	/* in: line where requested */
         ulint*   	index); /* out: index of the reserved cell */
 /**********************************************************************
