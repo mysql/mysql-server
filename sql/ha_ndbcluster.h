@@ -38,6 +38,7 @@ class NdbBlob;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
+extern ulong ndb_cache_check_time;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -59,6 +60,7 @@ typedef struct st_ndbcluster_share {
   pthread_mutex_t mutex;
   char *table_name;
   uint table_name_length,use_count;
+  uint commit_count;
 } NDB_SHARE;
 
 /*
