@@ -97,6 +97,7 @@ enum enum_server_command
 #define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
+#define CLIENT_SECURE_CONNECTION 32768   /* New 4.1 authentication */
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
