@@ -1,11 +1,11 @@
 drop table if exists t1, t2, t3, t4;
 drop table if exists t1, t2, t3, t4;
 slave start;
-Could not initialize master info structure, check permisions on master.info
+Could not initialize master info structure, more error messages can be found in the MySQL error log
 slave start;
-Could not initialize master info structure, check permisions on master.info
+Could not initialize master info structure, more error messages can be found in the MySQL error log
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
-Could not initialize master info structure, check permisions on master.info
+Could not initialize master info structure, more error messages can be found in the MySQL error log
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
