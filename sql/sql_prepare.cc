@@ -1628,7 +1628,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 #endif
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt);
-  thd->lex->unit.cleanup();
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
   DBUG_VOID_RETURN;
 
@@ -1670,7 +1669,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
     send_error(thd);
   }
-
   execute_stmt(thd, stmt);
   DBUG_VOID_RETURN;
 }
@@ -1689,6 +1687,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   mysql_execute_command(thd);
+  thd->lex->unit.cleanup();
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
