@@ -248,3 +248,15 @@ INSERT INTO t1 VALUES (0,1,0),(0,1,0),(0,1,0);
 SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
 SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
 DROP TABLE t1;
+
+#
+# BUG#2295 - range on blob
+#
+
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
+insert into t1 values('807780', '477', '165');
+insert into t1 values('807780', '477', '162');
+insert into t1 values('807780', '472', '162');
+select * from t1 where a='807780' and b='477' and c='165';
+drop table t1;
+
