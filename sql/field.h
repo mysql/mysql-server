@@ -198,7 +198,8 @@ public:
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
-  virtual CHARSET_INFO *charset(void) { return my_charset_bin; }
+  virtual CHARSET_INFO *charset(void) const { return my_charset_bin; }
+  virtual void set_charset(CHARSET_INFO *charset) { }
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -260,9 +261,9 @@ public:
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
-  CHARSET_INFO *charset(void) { return field_charset; }
+  CHARSET_INFO *charset(void) const { return field_charset; }
 
-  inline void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
+  void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
   inline int cmp_image(char *buff,uint length)
     {
@@ -886,7 +887,7 @@ public:
   inline bool copy()
   { char *tmp;
     get_ptr(&tmp);
-    if (value.copy(tmp,get_length()))
+    if (value.copy(tmp,get_length(),charset()))
     {
       Field_blob::reset();
       return 1;

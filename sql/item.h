@@ -84,6 +84,7 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
+  virtual CHARSET_INFO *thd_charset() const;
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
   virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
@@ -195,14 +196,14 @@ public:
   void set_null();
   void set_int(longlong i);
   void set_double(double i);
-  void set_value(const char *str, uint length);  
-  void set_long_str(const char *str, ulong length);
-  void set_long_binary(const char *str, ulong length);
-  void set_longdata(const char *str, ulong length);
-  void set_long_end(); 
+  void set_value(const char *str, uint length, CHARSET_INFO *cs);
+  void set_long_str(const char *str, ulong length, CHARSET_INFO *cs);
+  void set_long_binary(const char *str, ulong length, CHARSET_INFO *cs);
+  void set_longdata(const char *str, ulong length, CHARSET_INFO *cs);
+  void set_long_end();
   void reset() {}
   enum Item_result result_type () const
-  { return item_result_type; }  
+  { return item_result_type; }
   Item *new_item() { return new Item_param(name); }
 };
 

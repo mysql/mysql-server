@@ -14,11 +14,68 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+
+The idea of presented algorithm see in 
+"The Art of Computer Programming" by Donald E. Knuth
+Volume 3 "Sorting and searching"
+(chapter 6.3 "Digital searching" - name and number of chapter 
+   is back translation from Russian edition :))
+
+as illustration of data structures, imagine next table:
+
+static SYMBOL symbols[] = {
+  { "ADD",              SYM(ADD),0,0},
+  { "AND",              SYM(AND),0,0},
+  { "DAY",              SYM(DAY_SYM),0,0},
+};
+
+for this structure, presented program generate next searching-structure:
+
++-----------+-+-+-+
+|       len |1|2|3|
++-----------+-+-+-+
+|first_char |0|0|a|
+|last_char  |0|0|d|
+|link       |0|0|+|
+                 |
+                 V
+       +----------+-+-+-+--+
+       |    1 char|a|b|c|d |
+       +----------+-+-+-+--+
+       |first_char|b|0|0|0 |
+       |last_char |n|0|0|-1|
+       |link      |+|0|0|+ |
+                   |     |
+                   |     V
+                   |  symbols[2] ( "DAY" )
+                   V
++----------+--+-+-+-+-+-+-+-+-+-+--+
+|    2 char|d |e|f|j|h|i|j|k|l|m|n |
++----------+--+-+-+-+-+-+-+-+-+-+--+
+|first_char|0 |0|0|0|0|0|0|0|0|0|0 |
+|last_char |-1|0|0|0|0|0|0|0|0|0|-1|
+|link      |+ |0|0|0|0|0|0|0|0|0|+ |
+            |                    |
+            V                    V
+         symbols[0] ( "ADD" )  symbols[1] ( "AND" )
+
+for optimization, link is the 16-bit index in 'symbols' or 'sql_functions'
+or search-array..
+
+So, we can read full search-structure as 32-bit word
+
+TODO:
+1. use instead to_upper_lex, special array 
+   (substitute chars) without skip codes..
+2. try use reverse order of comparing..
+       
+*/
 
 #define NO_YACC_SYMBOLS
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include "my_global.h"
+#include "my_sys.h"
+#include "m_string.h"
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__				// Skip warnings in getopt.h
 #endif
@@ -26,324 +83,228 @@
 #include "mysql_version.h"
 #include "lex.h"
 
-my_bool opt_search;
-int  opt_verbose;
-ulong opt_count;
-
-#define max_allowed_array 16000	// Don't generate bigger arrays than this
-#define max_symbol	  32767	// Use this for 'not found'
-#define how_much_for_plus  8	// 2-8
-#define type_count	   1	// 1-5
-#define char_table_count   5
-#define total_symbols  (sizeof(symbols)/sizeof(SYMBOL) +\
-			sizeof(sql_functions)/sizeof(SYMBOL))
-
-#define how_much_and INT_MAX24
-
-/*
-  The following only have to work with characters in the set
-  used by SQL commands
-*/
-
-#undef tolower
-#define tolower(a) ((a) >= 'A' && (a) <= 'Z') ? ((a)- 'A' + 'a') : (a)
-
-static uint how_long_symbols,function_plus,function_mod,function_type;
-static uint char_table[256];
-static uchar unique_length[256];
-static uchar bits[how_much_and/8+1];
-static uint primes[max_allowed_array+1];
-static ulong hash_results[type_count][how_much_for_plus+1][total_symbols];
-static ulong start_value=0;
-static uint best_type;
-static ulong best_t1,best_t2, best_start_value;
-
 static struct my_option my_long_options[] =
 {
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 'c', "Try count times to find a optimal hash table",
-   (gptr*) &opt_count, (gptr*) &opt_count, 0, GET_ULONG, REQUIRED_ARG,
-   100000, 0, 0, 0, 0, 0},
-  {"search", 'S', "Search after good rnd1 and rnd2 values",
-   (gptr*) &opt_search, (gptr*) &opt_search, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-   0, 0},
-  {"verbose", 'v', "Write some information while the program executes",
-   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, GET_INT, NO_ARG, 0, 0, 0,
-   0, 0, 0},
   {"version", 'V', "Output version information and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-struct rand_struct {
-  unsigned long seed1,seed2,max_value;
-  double max_value_dbl;
+struct hash_lex_struct
+{
+  char first_char;
+  char last_char;
+  union{
+    hash_lex_struct *char_tails;
+    int iresult;
+  };
+  int ithis;
+};
+				
+hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len, 
+					    int len, int *max_len)
+{
+  if (*max_len<len){
+    *root_by_len= (hash_lex_struct *)realloc((char*)*root_by_len,
+			    sizeof(hash_lex_struct)*len);
+    hash_lex_struct *cur, *end= *root_by_len + len;
+    for (cur= *root_by_len + *max_len; cur<end; cur++)
+      cur->first_char= 0;
+    *max_len= len;
+  }
+  return (*root_by_len)+(len-1);
+}
+
+void insert_into_hash(hash_lex_struct *root, const char *name, 
+		      int len_from_begin, int index, int function)
+{
+  hash_lex_struct *end, *cur, *tails;
+
+  if (!root->first_char){
+    root->first_char= -1;
+    root->iresult= index;
+    return;
+  }
+
+  if (root->first_char==-1){
+    int index2= root->iresult;
+    const char *name2= 
+      (index2<0 ? sql_functions[-index2-1] : symbols[index2]).name + len_from_begin;
+    root->first_char= name2[0];
+    root->last_char= root->first_char;
+    tails= (hash_lex_struct*)malloc(sizeof(hash_lex_struct));
+    root->char_tails= tails;
+    tails->first_char= -1;
+    tails->iresult= index2;
+  }
+
+  size_t real_size= (root->last_char-root->first_char+1);
+
+  if (root->first_char>(*name)){
+    size_t new_size= root->last_char-(*name)+1;
+    if (new_size<real_size) printf("error!!!!\n");
+    tails= root->char_tails;
+    tails= (hash_lex_struct*)realloc((char*)tails,
+				       sizeof(hash_lex_struct)*new_size);
+    root->char_tails= tails;
+    memmove(tails+(new_size-real_size),tails,real_size*sizeof(hash_lex_struct));
+    end= tails + new_size - real_size;
+    for (cur= tails; cur<end; cur++)
+      cur->first_char= 0;
+    root->first_char= (*name);
+  }
+
+  if (root->last_char<(*name)){
+    size_t new_size= (*name)-root->first_char+1;
+    if (new_size<real_size) printf("error!!!!\n");
+    tails= root->char_tails;
+    tails= (hash_lex_struct*)realloc((char*)tails,
+				    sizeof(hash_lex_struct)*new_size);
+    root->char_tails= tails;
+    end= tails + new_size;
+    for (cur= tails+real_size; cur<end; cur++)
+      cur->first_char= 0;
+    root->last_char= (*name);
+  }
+
+  insert_into_hash (root->char_tails+(*name)-root->first_char,
+		    name+1,len_from_begin+1,index,function);
+}
+
+hash_lex_struct *root_by_len= 0;
+int max_len=0;
+
+hash_lex_struct *root_by_len2= 0;
+int max_len2=0;
+
+void insert_symbols()
+{
+  size_t i= 0;
+  SYMBOL *cur;
+  for (cur= symbols; i<array_elements(symbols); cur++, i++){
+    hash_lex_struct *root= 
+      get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
+    insert_into_hash(root,cur->name,0,i,0);
+  }
+}
+
+void insert_sql_functions()
+{
+  size_t i= 0;
+  SYMBOL *cur;
+  for (cur= sql_functions; i<array_elements(sql_functions); cur++, i++){
+    hash_lex_struct *root= 
+      get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
+    insert_into_hash(root,cur->name,0,-i-1,1);
+  }
+}
+
+void generate_find_structs()
+{
+  root_by_len= 0;
+  max_len=0;
+  size_t i;
+
+  SYMBOL *cur, *end= symbols + array_elements(symbols);
+  for (cur= symbols; cur < end; cur++)
+    cur->length=(uchar) strlen(cur->name);
+  end= sql_functions + array_elements(sql_functions);
+  for (cur= sql_functions; cur<end; cur++)
+    cur->length=(uchar) strlen(cur->name);
+  
+  insert_symbols();
+
+  root_by_len2= root_by_len;
+  max_len2= max_len;
+
+  root_by_len= 0;
+  max_len= 0;
+
+  insert_symbols();
+  insert_sql_functions();
+}
+
+char *hash_map= 0;
+int size_hash_map= 0;
+
+void add_struct_to_map(hash_lex_struct *st)
+{
+  st->ithis= size_hash_map/4;
+  size_hash_map+= 4;
+  hash_map= (char*)realloc((char*)hash_map,size_hash_map);
+  hash_map[size_hash_map-4]= st->first_char==-1 ? 0 : st->first_char;
+  hash_map[size_hash_map-3]= 
+    st->first_char==-1 || st->first_char==0 ? 0 : st->last_char;
+  if (st->first_char==-1)
+  {
+    hash_map[size_hash_map-2]= ((unsigned int)(int16)st->iresult)&255;
+    hash_map[size_hash_map-1]= ((unsigned int)(int16)st->iresult)>>8;
+  }
+  else if (st->first_char==0)
+  {
+    hash_map[size_hash_map-2]= ((unsigned int)(int16)array_elements(symbols))&255;
+    hash_map[size_hash_map-1]= ((unsigned int)(int16)array_elements(symbols))>>8;
+  }
 };
 
-void randominit(struct rand_struct *rand_st,ulong seed1, ulong seed2)
-{						/* For mysql 3.21.# */
-  rand_st->max_value= 0x3FFFFFFFL;
-  rand_st->max_value_dbl=(double) rand_st->max_value;
-  rand_st->seed1=seed1%rand_st->max_value ;
-  rand_st->seed2=seed2%rand_st->max_value;
+void add_structs_to_map(hash_lex_struct *st, int len)
+{
+  hash_lex_struct *cur, *end= st+len;
+  for (cur= st; cur<end; cur++)
+    add_struct_to_map(cur);
+  for (cur= st; cur<end; cur++)
+    if (cur->first_char && cur->first_char!=-1)
+      add_structs_to_map(cur->char_tails,cur->last_char-cur->first_char+1);
 }
 
-double rnd(struct rand_struct *rand_st)
+void set_links(hash_lex_struct *st, int len)
 {
-  rand_st->seed1=(rand_st->seed1*3+rand_st->seed2) % rand_st->max_value;
-  rand_st->seed2=(rand_st->seed1+rand_st->seed2+33) % rand_st->max_value;
-  return (((double) rand_st->seed1)/rand_st->max_value_dbl);
+  hash_lex_struct *cur, *end= st+len;
+  for (cur= st; cur<end; cur++)
+    if (cur->first_char!=0 && cur->first_char!=-1){
+      int ilink= cur->char_tails->ithis;
+      hash_map[cur->ithis*4+2]= ilink%256;
+      hash_map[cur->ithis*4+3]= ilink/256;
+      set_links(cur->char_tails,cur->last_char-cur->first_char+1);
+    }
 }
 
-
-static void make_char_table(ulong t1,ulong t2,int type)
+void print_hash_map(const char *name)
 {
-  uint i;
-  struct rand_struct rand_st;
-  randominit(&rand_st,t1,t2);
-
-  for (i=0 ; i < 256 ; i++)
-  {
-    switch (type) {
-    case 0: char_table[i]= i + (i << 8);		break;
-    case 1: char_table[i]= i + ((i ^255 ) << 8);	break;
-    case 2: char_table[i]= i;				break;
-    case 3: char_table[i]= i + ((uint) (rnd(&rand_st)*255) << 8); break;
-    case 4: char_table[i]= (uint) (rnd(&rand_st)*255) + (i << 8); break;
+  printf("uchar %s[%d]= {\n",name,size_hash_map);
+  char *cur;
+  int i;
+  for (i=0, cur= hash_map; i<size_hash_map; i++, cur++){
+    switch(i%4){
+    case 0: case 1:
+      if (!*cur)
+	printf("0,   ");
+      else
+	printf("\'%c\', ",*cur);
+      break;
+    case 2: printf("%u, ",(uint)(uchar)*cur); break;
+    case 3: printf("%u,\n",(uint)(uchar)*cur); break;
     }
   }
-  char_table[0]|=1+257;				// Avoid problems with 0
-  for (i=0 ; i < 256 ; i++)
-  {
-    uint tmp=(uint) (rnd(&rand_st)*255);
-    swap(uint,char_table[i],char_table[tmp]);
-  }
-  /* lower characters should be mapped to upper */
-  for (i= 'a' ; i <= 'z' ; i++)
-  {
-    /* This loop is coded with extra variables to avoid a bug in gcc 2.96 */
-    uchar tmp= (uchar) (i - 'a');	// Assume ascii
-    tmp+='A';
-    char_table[i]=char_table[tmp];
-  }
+  printf("};\n");
 }
 
-/* Fill array primes with primes between start and 'max_allowed_array' */
-
-static void make_prime_array(uint start)
+void print_find_structs()
 {
-  uint i,j,*to;
-  uint max_index=(uint) sqrt((double) max_allowed_array);
+  add_structs_to_map(root_by_len,max_len);
+  set_links(root_by_len,max_len);
+  print_hash_map("sql_functions_map");
 
-  bzero((char*) primes,sizeof(primes[0])*max_allowed_array);
+  hash_map= 0;
+  size_hash_map= 0;
 
-  i=2;
-  while (i < max_index)
-  {
-    for (j=i+i ; j <= max_allowed_array ; j+=i)
-      primes[j]=1;
-    while (primes[++i]) ;
-  }
+  printf("\n");
 
-  to=primes;
-  for (i=start ; i <= max_allowed_array ; i++)
-    if (!primes[i])
-      *to++=i;
-  *to=0;					// end marker
+  add_structs_to_map(root_by_len2,max_len2);
+  set_links(root_by_len2,max_len2);
+  print_hash_map("symbols_map");
 }
-
-#define USE_char_table
-
-static ulong tab_index_function(const char *s,uint add, uint type)
-{
-  register ulong nr=start_value+char_table[(uchar) *s]; // Nice value
-  ulong pos=3;
-  uint tmp_length=unique_length[(uchar) *s]-1;
-  while (*++s && tmp_length-- > 0)
-  {
-    switch (type) {
-    case 0:
-      nr= (nr ^ (char_table[(uchar) *s] + (nr << add)));
-      break;
-    case 1:
-      nr= (nr + (char_table[(uchar) *s] + (nr << add)));
-      break;
-    case 2:
-      nr= (nr ^ (char_table[(uchar) *s] ^ (nr << add)));
-      break;
-    case 3:
-      nr= (char_table[(uchar) *s] ^ (nr << add));
-      break;
-    case 4:
-      nr+= nr+nr+((nr & 63)+pos)*((ulong) char_table[(uchar) *s]);
-      pos+=add;
-      break;
-    }
-  }
-  return nr & INT_MAX24;
-}
-
-static int search(bool write_warning)
-{
-  uint size_symbols = sizeof(symbols)/sizeof(SYMBOL);
-  uint size_functions = sizeof(sql_functions)/sizeof(SYMBOL);
-  uint size=size_symbols + size_functions;
-  uint i=0,found,*prime,type;
-  int igra[max_allowed_array],test_count=INT_MAX;
-  uint possible_plus[how_much_for_plus*type_count+type_count];
-
-  how_long_symbols = sizeof(symbols)/sizeof(SYMBOL);
-
-  bzero((char*) possible_plus,sizeof(possible_plus));
-  found=0;
-
-  /* Check first which function_plus are possible */
-  for (type=0 ; type < type_count ; type ++)
-  {
-    for (function_plus = 1;
-	 function_plus <= how_much_for_plus;
-	 function_plus++)
-    {
-      bzero((char*) bits,sizeof(bits));
-      for (i=0; i < size; i++)
-      {
-	ulong order= tab_index_function ((i < how_long_symbols) ?
-					 symbols[i].name :
-					 sql_functions[i-how_long_symbols].name,
-					 function_plus, type);
-	hash_results[type][function_plus][i]=order;
-	uint pos=order/8;
-	uint bit=order & 7;
-	if (bits[pos] & (1 << bit))
-	  break;
-	bits[pos]|=1 << bit;
-      }
-      if (i == size)
-      {
-	possible_plus[found++]=function_plus;
-      }
-    }
-    possible_plus[found++]=0;			// End marker
-  }
-  if (found == type_count)
-  {
-    if (write_warning)
-      fprintf(stderr,"\
-The hash function didn't return a unique value for any parameter\n\
-You have to change gen_lex_code.cc, function 'tab_index_function' to\n\
-generate unique values for some parameter.  When you have succeeded in this,\n\
-you have to change 'main' to print out the new function\n");
-    return(1);
-  }
-
-  if (opt_verbose > 1)
-    fprintf (stderr,"Info: Possible add values: %d\n",found-type_count);
-
-  for (prime=primes; (function_mod=*prime) ; prime++)
-  {
-    uint *plus_ptr=possible_plus;
-    for (type=0 ; type < type_count ; type++ )
-    {
-      while ((function_plus= *plus_ptr++))
-      {
-	ulong *order_pos= &hash_results[type][function_plus][0];
-	if (test_count++ == INT_MAX)
-	{
-	  test_count=1;
-	  bzero((char*) igra,sizeof(igra));
-	}
-	for (i=0; i<size ;i++)
-	{
-	  ulong order;
-	  order = *order_pos++ % function_mod;
-	  if (igra[order] == test_count)
-	    break;
-	  igra[order] = test_count;
-	}
-	if (i == size)
-	{
-	  *prime=0;				// Mark this used
-	  function_type=type;
-	  return 0;				// Found ok value
-	}
-      }
-    }
-  }
-
-  function_mod=max_allowed_array;
-  if (write_warning)
-    fprintf (stderr,"Fatal error when generating hash for symbols\n\
-Didn't find suitable values for perfect hashing:\n\
-You have to edit gen_lex_hash.cc to generate a new hashing function.\n\
-You can try running gen_lex_hash with --search to find a suitable value\n\
-Symbol array size = %d\n",function_mod);
-  return -1;
-}
-
-
-void print_arrays()
-{
-  uint size_symbols = sizeof(symbols)/sizeof(SYMBOL);
-  uint size_functions = sizeof(sql_functions)/sizeof(SYMBOL);
-  uint size=size_symbols + size_functions;
-  uint i;
-
-  fprintf(stderr,"Symbols: %d  Functions: %d;  Total: %d\nShifts per char: %d,  Array size: %d\n",
-	  size_symbols,size_functions,size_symbols+size_functions,
-	  function_plus,function_mod);
-
-  int *prva= (int*) my_alloca(sizeof(int)*function_mod);
-  for (i=0 ; i <= function_mod; i++)
-    prva[i]= max_symbol;
-
-  for (i=0;i<size;i++)
-  {
-    const char *name= ((i < how_long_symbols) ?
-		       symbols[i].name :
-		       sql_functions[i - how_long_symbols].name);
-    ulong order = tab_index_function(name,function_plus,function_type);
-    order %= function_mod;
-    /* This should never be true */
-    if (prva[order] != max_symbol)
-    {
-      fprintf(stderr,"Error: Got duplicate value for symbol '%s'\n",name);
-      exit(1);
-    }
-    prva [order] = i;
-  }
-
-#ifdef USE_char_table
-  printf("static uint16 char_table[] = {\n");
-  for (i=0; i < 255 ;i++)			// < 255 is correct
-  {
-    printf("%u,",char_table[i]);
-    if (((i+1) & 15) == 0)
-      puts("");
-  }
-  printf("%d\n};\n\n\n",char_table[i]);
-#endif
-
-  printf("static uchar unique_length[] = {\n");
-  for (i=0; i < 255 ;i++)			// < 255 is correct
-  {
-    printf("%u,",unique_length[i]);
-    if (((i+1) & 15) == 0)
-      puts("");
-  }
-  printf("%d\n};\n\n\n",unique_length[i]);
-
-  printf("static uint16 my_function_table[] = {\n");
-  for (i=0; i < function_mod-1 ;i++)
-  {
-    printf("%d,",prva[i]);
-    if (((i+1) % 12) == 0)
-      puts("");
-  }
-  printf("%d\n};\n\n\n",prva[i]);
-  my_afree((gptr) prva);
-}
-
 
 static void usage(int version)
 {
@@ -351,23 +312,19 @@ static void usage(int version)
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
-  puts("Copyright (C) 2001 MySQL AB, by Sinisa and Monty");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts("Copyright (C) 2001 MySQL AB, by VVA and Monty");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n");
   puts("This program generates a perfect hashing function for the sql_lex.cc");
   printf("Usage: %s [OPTIONS]\n\n", my_progname);
   my_print_help(my_long_options);
-  my_print_variables(my_long_options);
 }
-
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument __attribute__((unused)))
 {
-  switch (optid) {
-  case 'v':
-    opt_verbose++;
-    break;
+  switch(optid) {
   case 'V':
     usage(1);
     exit(0);
@@ -379,7 +336,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-
 static int get_options(int argc, char **argv)
 {
   int ho_error;
@@ -389,138 +345,18 @@ static int get_options(int argc, char **argv)
 
   if (argc >= 1)
   {
-    fprintf(stderr,"%s: Too many arguments\n", my_progname);
     usage(0);
-    exit(1);
+     exit(1);
   }
   return(0);
 }
 
-static uint max_prefix(const char *name)
-{
-  uint i;
-  uint max_length=1;
-  for (i=0 ; i < sizeof(symbols)/sizeof(SYMBOL) ; i++)
-  {
-    const char *str=symbols[i].name;
-    if (str != name)
-    {
-      const char *str2=name;
-      uint length;
-      while (*str && *str == *str2)
-      {
-	str++;
-	str2++;
-      }
-      length=(uint) (str2 - name)+1;
-      if (length > max_length)
-	max_length=length;
-    }
-  }
-  for (i=0 ; i < sizeof(sql_functions)/sizeof(SYMBOL) ; i++)
-  {
-    const char *str=sql_functions[i].name;
-    if (str != name)
-    {
-      const char *str2=name;
-      uint length;
-      while (*str && *str == *str2)
-      {
-	str++;
-	str2++;
-      }
-      length=(uint) (str2 - name)+1;
-      if (length > max_length)
-	max_length=length;
-    }
-  }
-  return max_length;
-}
-
-
-static void make_max_length_table(void)
-{
-  uint i;
-  for (i=0 ; i < sizeof(symbols)/sizeof(SYMBOL) ; i++)
-  {
-    uint length=max_prefix(symbols[i].name);
-    if (length > unique_length[(uchar) symbols[i].name[0]])
-    {
-      unique_length[(uchar) symbols[i].name[0]]=length;
-      unique_length[(uchar) tolower(symbols[i].name[0])]=length;
-    }
-  }
-  for (i=0 ; i < sizeof(sql_functions)/sizeof(SYMBOL) ; i++)
-  {
-    uint length=max_prefix(sql_functions[i].name);
-    if (length > unique_length[(uchar) sql_functions[i].name[0]])
-    {
-      unique_length[(uchar) sql_functions[i].name[0]]=length;
-      unique_length[(uchar) tolower(sql_functions[i].name[0])]=length;
-    }
-  }
-}
-
-
 int main(int argc,char **argv)
 {
-  struct rand_struct rand_st;
-  static uint best_mod,best_add,best_functype;
-  int error;
-
   MY_INIT(argv[0]);
-  start_value=2925024L; best_t1=654916L;  best_t2=1723390L;  best_type=3; /* mode=4943  add=1  type: 0 */
+
   if (get_options(argc,(char **) argv))
     exit(1);
-
-  make_max_length_table();
-  make_char_table(best_t1,best_t2,best_type);
-  make_prime_array(sizeof(symbols)/sizeof(SYMBOL) +
-		   sizeof(sql_functions)/sizeof(SYMBOL));
-
-  if ((error=search(1)) > 0 || error && !opt_search)
-    exit(1);					// This should work
-  best_mod=function_mod; best_add=function_plus; best_functype=function_type;
-
-  if (opt_search)
-  {
-    time_t start_time=time((time_t*) 0);
-    randominit(&rand_st,start_time,start_time/2); // Some random values
-    printf("start_value=%ldL;  best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d type: %d */\n",
-	   start_value, best_t1,best_t2,best_type,best_mod,best_add,
-	   best_functype);
-    best_start_value=start_value;
-    for (uint i=1 ; i <= opt_count ; i++)
-    {
-      if (i % 10 == 0)
-      {
-	putchar('.');
-	fflush(stdout);
-      }
-      ulong t1=(ulong) (rnd(&rand_st)*INT_MAX24);
-      ulong t2=(ulong) (rnd(&rand_st)*INT_MAX24);
-      uint type=(int) (rnd(&rand_st)*char_table_count);
-      start_value=(ulong) (rnd(&rand_st)*INT_MAX24);
-      make_char_table(t1,t2,type);
-      if (!search(0))
-      {
-	best_mod=function_mod; best_add=function_plus;
-	best_functype=function_type;
-	best_t1=t1; best_t2=t2; best_type=type;
-	best_start_value=start_value;
-	printf("\nstart_value=%ldL; best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d  type: %d */\n",
-	       best_start_value,best_t1,best_t2,best_type,best_mod,best_add,
-	       best_functype);
-      }
-      if (opt_verbose && (i % 20000) == 0)
-	printf("\nstart_value=%ldL; best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d  type: %d */\n",
-	       best_start_value,best_t1,best_t2,best_type,best_mod,best_add,
-	       best_functype);
-    }
-  }
-
-  function_mod=best_mod; function_plus=best_add;
-  make_char_table(best_t1,best_t2,best_type);
 
   printf("/* Copyright (C) 2001 MySQL AB\n\
    This program is free software; you can redistribute it and/or modify\n\
@@ -533,38 +369,84 @@ int main(int argc,char **argv)
    GNU General Public License for more details.\n\n\
    You should have received a copy of the GNU General Public License\n\
    along with this program; if not, write to the Free Software\n\
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */\n\n");
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307\
+  USA */\n\n");
 
-printf("/* This code is generated by gen_lex_hash.cc that seeks for a perfect\nhash function */\n\n");
+  printf("/* This code is generated by gen_lex_hash.cc that seeks for\
+ a perfect\nhash function */\n\n");
   printf("#include \"lex.h\"\n\n");
 
-  print_arrays();
+  generate_find_structs();
+  print_find_structs();
 
-  printf("/* start_value=%ldL;  best_t1=%ldL;  best_t2=%ldL;  best_type=%d; */ /* mode=%d  add=%d  type: %d */\n\n",
-	 best_start_value, best_t1, best_t2, best_type,
-	 best_mod, best_add, best_functype);
+  printf("\nunsigned int sql_functions_max_len=%d;\n",max_len);
+  printf("\nunsigned int symbols_max_len=%d;\n\n",max_len2);
 
-  printf("inline SYMBOL *get_hash_symbol(const char *s,unsigned int length,bool function)\n\
+  printf
+(
+"inline SYMBOL *get_hash_symbol(const char *s,\n\
+                                    unsigned int len,bool function)\n\
 {\n\
-  ulong idx = %lu+char_table[(uchar) *s];\n\
-  SYMBOL *sim;\n\
-  const char *start=s;\n\
-  int i=unique_length[(uchar) *s++];\n\
-  if (i > (int) length) i=(int) length;\n\
-  while (--i > 0)\n\
-    idx= (idx ^ (char_table[(uchar) *s++] + (idx << %d)));\n\
-  idx=my_function_table[(idx & %d) %% %d];\n\
-  if (idx >= %d)\n\
-  {\n\
-    if (!function || idx >= %d) return (SYMBOL*) 0;\n\
-    sim=sql_functions + (idx - %d);\n\
+  register uchar *hash_map;\n\
+  register const char *cur_str= s;\n\
+  if (function){\n\
+    if (len>sql_functions_max_len) return 0;\n\
+    hash_map= sql_functions_map;\n\
+    register uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
+\n\
+    for(;;){\n\
+      register uchar first_char= (uchar)cur_struct;\n\
+\n\
+      if (first_char==0){\n\
+        register int16 ires= (int16)(cur_struct>>16);\n\
+        if (ires==array_elements(symbols)) return 0;\n\
+        register SYMBOL *res;\n\
+        if (ires>=0) \n\
+          res= symbols+ires;\n\
+        else\n\
+          res= sql_functions-ires-1;\n\
+        register uint count= cur_str-s;\n\
+        return lex_casecmp(cur_str,res->name+count,len-count) ? 0 : res;\n\
+      }\n\
+\n\
+      register uchar cur_char= (uchar)to_upper_lex[(uchar)*cur_str];\n\
+      if (cur_char<first_char) return 0;\n\
+      cur_struct>>=8;\n\
+      if (cur_char>(uchar)cur_struct) return 0;\n\
+\n\
+      cur_struct>>=8;\n\
+      cur_struct= uint4korr(hash_map+\n\
+                        (((uint16)cur_struct + cur_char - first_char)*4));\n\
+      cur_str++;\n\
+    }\n\
+  }else{\n\
+    if (len>symbols_max_len) return 0;\n\
+    hash_map= symbols_map;\n\
+    register uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
+\n\
+    for(;;){\n\
+      register uchar first_char= (uchar)cur_struct;\n\
+\n\
+      if (first_char==0){\n\
+        register int16 ires= (int16)(cur_struct>>16);\n\
+        if (ires==array_elements(symbols)) return 0;\n\
+        register SYMBOL *res= symbols+ires;\n\
+        register uint count= cur_str-s;\n\
+        return lex_casecmp(cur_str,res->name+count,len-count)!=0 ? 0 : res;\n\
+      }\n\
+\n\
+      register uchar cur_char= (uchar)to_upper_lex[(uchar)*cur_str];\n\
+      if (cur_char<first_char) return 0;\n\
+      cur_struct>>=8;\n\
+      if (cur_char>(uchar)cur_struct) return 0;\n\
+\n\
+      cur_struct>>=8;\n\
+      cur_struct= uint4korr(hash_map+\n\
+                        (((uint16)cur_struct + cur_char - first_char)*4));\n\
+      cur_str++;\n\
+    }\n\
   }\n\
-  else\n\
-    sim=symbols + idx;\n\
-  if ((length != sim->length) || lex_casecmp(start,sim->name,length))\n\
-    return  (SYMBOL *)0;\n\
-  return sim;\n\
-}\n",(ulong) start_value,(int) function_plus,(int) how_much_and,function_mod,how_long_symbols,max_symbol,how_long_symbols);
-  exit(0);
-  return 0;
+}\n"
+);
 }
+

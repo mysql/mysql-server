@@ -1387,7 +1387,7 @@ String *Item_func_database::val_str(String *str)
 String *Item_func_user::val_str(String *str)
 {
   THD *thd=current_thd;
-  if (str->copy((const char*) thd->user,(uint) strlen(thd->user)) ||
+  if (str->copy((const char*) thd->user,(uint) strlen(thd->user), system_charset_info) ||
       str->append('@') ||
       str->append(thd->host ? thd->host : thd->ip ? thd->ip : ""))
     return &empty_string;
@@ -1483,7 +1483,7 @@ String *Item_func_format::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
-  str->set(nr,decimals,my_thd_charset);
+  str->set(nr,decimals,thd_charset());
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
@@ -1651,7 +1651,7 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
 #ifdef USE_MB
-      if (use_mb(default_charset_info))
+      if (use_mb(charset()))
       {
         if (num&0xFF000000L) {
            str->append((char)(num>>24));
@@ -1913,7 +1913,7 @@ String *Item_func_conv::val_str(String *str)
   else
     dec= (longlong) strtoull(res->c_ptr(),&endptr,from_base);
   ptr= longlong2str(dec,ans,to_base);
-  if (str->copy(ans,(uint32) (ptr-ans)))
+  if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
     return &empty_string;
   return str;
 }
@@ -2134,7 +2134,7 @@ String *Item_func_charset::val_str(String *str)
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
-  str->copy(res->charset()->name,strlen(res->charset()->name));
+  str->copy(res->charset()->name,strlen(res->charset()->name),default_charset_info);
   return str;
 }
 
@@ -2149,7 +2149,7 @@ String *Item_func_hex::val_str(String *str)
     if ((null_value= args[0]->null_value))
       return 0;
     ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans)))
+    if (str->copy(ans,(uint32) (ptr-ans),default_charset_info))
       return &empty_string;			// End of memory
     return str;
   }
@@ -2468,7 +2468,9 @@ String *Item_func_geometry_type::val_str(String *str)
   if ((null_value=(args[0]->null_value ||
                    geom.create_from_wkb(wkt->ptr(),wkt->length()))))
     return 0;
-  str->copy(geom.get_class_info()->m_name,strlen(geom.get_class_info()->m_name));
+  str->copy(geom.get_class_info()->m_name,
+	    strlen(geom.get_class_info()->m_name),
+	    default_charset_info);
   return str;
 }
 
