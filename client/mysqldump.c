@@ -90,6 +90,10 @@ extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
 FILE  *md_result_file;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
 
 static struct my_option my_long_options[] =
 {
@@ -200,6 +204,8 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with a `",
@@ -208,6 +214,11 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -338,7 +349,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
-    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
   case 'T':
@@ -365,6 +376,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+   break;
+  }
   }
   return 0;
 }
@@ -473,6 +493,12 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (opt_use_ssl)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
@@ -1471,6 +1497,9 @@ int main(int argc, char **argv)
 		      MYF(0), mysql_error(sock));
   }
   else if (opt_single_transaction) /* Just to make it beautiful enough */
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   {
     /*
       In case we were locking all tables, we did not start transaction
