@@ -54,10 +54,13 @@ mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
  
 chmod o-rwx $BASE/data $BASE/data/*
 
-for i in sql/ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         Docs/manual.html Docs/manual.txt Docs/manual_toc.html
+for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
+         LICENSE Docs/manual.html Docs/manual.txt Docs/manual_toc.html
 do
-  $CP $i $BASE
+  if [ -f $i ]
+  then
+    $CP $i $BASE
+  fi
 done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
