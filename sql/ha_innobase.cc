@@ -617,6 +617,7 @@ innobase_end(void)
 
 	err = innobase_shutdown_for_mysql();
 	hash_free(&innobase_open_tables);
+	my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
 
 	if (err != DB_SUCCESS) {
 
