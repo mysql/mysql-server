@@ -2823,6 +2823,8 @@ make_join_readinfo(JOIN *join,uint options)
 {
   uint i;
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -2907,7 +2909,8 @@ make_join_readinfo(JOIN *join,uint options)
       {
 	select_lex->options|=QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
-	statistic_increment(select_range_check_count, &LOCK_status);
+	if (statistics)
+	  statistic_increment(select_range_check_count, &LOCK_status);
       }
       else
       {
@@ -2916,24 +2919,28 @@ make_join_readinfo(JOIN *join,uint options)
 	{
 	  if (tab->select && tab->select->quick)
 	  {
-	    statistic_increment(select_range_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_range_count, &LOCK_status);
 	  }
 	  else
 	  {
 	    select_lex->options|=QUERY_NO_INDEX_USED;
-	    statistic_increment(select_scan_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
 	else
 	{
 	  if (tab->select && tab->select->quick)
 	  {
-	    statistic_increment(select_full_range_join_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_full_range_join_count, &LOCK_status);
 	  }
 	  else
 	  {
 	    select_lex->options|=QUERY_NO_INDEX_USED;
-	    statistic_increment(select_full_join_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
 	if (!table->no_keyread)
