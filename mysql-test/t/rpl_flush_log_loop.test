@@ -1,0 +1,19 @@
+# Testing if "flush logs" command bouncing resulting in logs created in a loop 
+# in case of bi-directional replication
+
+source include/master-slave.inc
+
+connection slave;
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
+slave start;
+connection master;
+slave stop;
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$SLAVE_MYPORT;
+slave start;
+flush logs;
+sleep 5;
+show slave status;
+
+ 
