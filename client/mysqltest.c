@@ -1879,7 +1879,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
-   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
