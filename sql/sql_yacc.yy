@@ -449,6 +449,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BETWEEN_SYM
 %token	BIT_AND
 %token	BIT_OR
+%token  BIT_XOR
 %token	CASE_SYM
 %token	CONCAT
 %token	CONCAT_WS
@@ -2846,6 +2847,8 @@ sum_expr:
 	  { $$=new Item_sum_and($3); }
 	| BIT_OR  '(' in_sum_expr ')'
 	  { $$=new Item_sum_or($3); }
+	| BIT_XOR  '(' in_sum_expr ')'
+	  { $$=new Item_sum_xor($3); }
 	| COUNT_SYM '(' opt_all '*' ')'
 	  { $$=new Item_sum_count(new Item_int((int32) 0L,1)); }
 	| COUNT_SYM '(' in_sum_expr ')'
