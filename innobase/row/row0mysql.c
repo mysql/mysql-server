@@ -324,6 +324,9 @@ row_create_prebuilt(
 	prebuilt->mysql_has_locked = FALSE;
 
 	prebuilt->index = NULL;
+
+	prebuilt->used_in_HANDLER = FALSE;
+
 	prebuilt->n_template = 0;
 	prebuilt->mysql_template = NULL;
 

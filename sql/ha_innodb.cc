@@ -601,7 +601,7 @@ innobase_invalidate_query_cache(
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
 over a transaction commit! Then you should call this before every operation,
-fecth next etc. This function inits the necessary things even after a
+fetch next etc. This function inits the necessary things even after a
 transaction commit. */
 
 void
@@ -648,6 +648,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	we???? */
 
         prebuilt->read_just_key = FALSE;
+
+	prebuilt->used_in_HANDLER = TRUE;
 }
 
 /*************************************************************************
@@ -4047,6 +4049,8 @@ ha_innobase::external_lock(
 		if (trx->n_mysql_tables_in_use == 0) {
 
 		  	trx->mysql_n_tables_locked = 0;
+
+			prebuilt->used_in_HANDLER = FALSE;
 
 			/* Here we release the search latch and InnoDB
 			thread FIFO ticket if they were reserved. */

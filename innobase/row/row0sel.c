@@ -2690,9 +2690,9 @@ row_search_for_mysql(
 
 		/* MySQL sometimes seems to do fetch next or fetch prev even
 		if the search condition is unique; this can, for example,
-		happen with the HANDLER commands; we do not store pcur position
-		in this case, so we cannot restore cursor position, and must
-		return immediately */
+		happen with the HANDLER commands; we do not always store the
+		pcur position in this case, so we cannot restore cursor
+		position, and must return immediately */
 
 		/* printf("%s record not found 1\n", index->name); */
 	
@@ -2703,13 +2703,13 @@ row_search_for_mysql(
 	mtr_start(&mtr);
 
 	/* In a search where at most one record in the index may match, we
-	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete
+	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete-
 	marked matching record.
 
-	Note that in a unique secondary index there may be different delete
+	Note that in a unique secondary index there may be different delete-
 	marked versions of a record where only the primary key values differ:
 	thus in a secondary index we must use next-key locks when locking
-	delete marked records. */
+	delete-marked records. */
 	
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
@@ -2730,10 +2730,9 @@ row_search_for_mysql(
 	if (unique_search	
 	    && index->type & DICT_CLUSTERED
 	    && !prebuilt->templ_contains_blob
+	    && !prebuilt->used_in_HANDLER
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
 
-		ut_a(direction == 0);	/* We cannot do fetch prev, as we have
-					not stored the cursor position */
 		mode = PAGE_CUR_GE;
 
 		unique_search_from_clust_index = TRUE;
@@ -3217,11 +3216,16 @@ rec_loop:
 		}
 	}
 got_row:
-	/* TODO: should we in every case store the cursor position, even
-	if this is just a join, for example? */
+	/* We have an optimization to save CPU time: if this is a consistent
+	read on a unique condition on the clustered index, then we do not
+	store the pcur position, because any fetch next or prev will anyway
+	return 'end of file'. An exception is the MySQL HANDLER command
+	where the user can move the cursor with PREV or NEXT even after
+	a unique search. */
 
 	if (!unique_search_from_clust_index
-				|| prebuilt->select_lock_type == LOCK_X) {
+				|| prebuilt->select_lock_type == LOCK_X
+				|| prebuilt->used_in_HANDLER) {
 
 		/* Inside an update always store the cursor position */
 
