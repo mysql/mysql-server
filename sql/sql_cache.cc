@@ -1422,10 +1422,10 @@ ulong Query_cache::init_cache()
 
   DUMP(this);
 
-  VOID(hash_init(&queries,system_charset_info,def_query_hash_size, 0, 0,
+  VOID(hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
 #ifndef FN_NO_CASE_SENCE
-  VOID(hash_init(&tables,system_charset_info,def_table_hash_size, 0, 0,
+  VOID(hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 #else
   // windows, OS/2 or other case insensitive file names work around
