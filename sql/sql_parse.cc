@@ -674,16 +674,19 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   table_list->real_name = table_list->alias = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
   table_list->next = 0;
-  remove_escape(table_list->real_name);
-
-  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
-    DBUG_RETURN(1);
 
   if (!db || check_db_name(db))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
     goto err;
   }
+  if (lower_case_table_names)
+    casedn_str(tbl_name);
+  remove_escape(tbl_name);
+
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+    DBUG_RETURN(1);
+
   if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
     goto err;
   if (grant_option && check_grant(thd, SELECT_ACL, table_list))
@@ -859,6 +862,8 @@ bool do_command(THD *thd)
     table_list.alias= table_list.real_name= thd->strdup(packet+1);
     thd->query=fields=thd->strdup(strend(packet+1)+1);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
+    if (lower_case_table_names)
+      casedn_str(table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
@@ -888,8 +893,6 @@ bool do_command(THD *thd)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet+1);
@@ -906,8 +909,6 @@ bool do_command(THD *thd)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(db);
       if (check_access(thd,DROP_ACL,db,0,1) || end_active_trans(thd))
 	break;
       mysql_log.write(thd,command,db);
@@ -1944,8 +1945,6 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(lex->name);
       if (check_access(thd,CREATE_ACL,lex->name,0,1))
 	break;
       mysql_create_db(thd,lex->name,lex->create_info.options);
@@ -1958,8 +1957,6 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(lex->name);
       if (check_access(thd,DROP_ACL,lex->name,0,1) ||
 	  end_active_trans(thd))
 	break;
@@ -2773,11 +2770,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     if (!(alias_str=sql_strmake(alias_str,table->table.length)))
       DBUG_RETURN(0);
   if (lower_case_table_names)
-  {
     casedn_str(table->table.str);
-    if (table->db.str)
-      casedn_str(table->db.str);
-  }
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   ptr->db= table->db.str;
