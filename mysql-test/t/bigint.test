@@ -71,3 +71,36 @@ drop table t1;
 # atof() behaviour is different of different systems. to be fixed in 4.1
 SELECT '0x8000000000000001'+0;
 
+# Test for BUG#8562: joins over BIGINT UNSIGNED value + constant propagation
+create table t1 (
+ value64  bigint unsigned  not null,
+ value32  integer          not null,
+ primary key(value64, value32)
+);
+
+create table t2 (
+ value64  bigint unsigned  not null,
+ value32  integer          not null,
+ primary key(value64, value32)
+);
+
+insert into t1 values(17156792991891826145, 1);
+insert into t1 values( 9223372036854775807, 2);
+insert into t2 values(17156792991891826145, 3);
+insert into t2 values( 9223372036854775807, 4);
+
+select * from t1;
+select * from t2;
+
+select * from t1, t2 where t1.value64=17156792991891826145 and
+t2.value64=17156792991891826145;
+select * from t1, t2 where t1.value64=17156792991891826145 and
+t2.value64=t1.value64;
+
+select * from t1, t2 where t1.value64= 9223372036854775807 and
+t2.value64=9223372036854775807;
+select * from t1, t2 where t1.value64= 9223372036854775807 and
+t2.value64=t1.value64;
+
+drop table t1, t2;
+
