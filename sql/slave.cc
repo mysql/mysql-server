@@ -289,6 +289,9 @@ err:
   pthread_cond_broadcast(&rli->data_cond);
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
+
+  /* Isn't this strange: if !need_data_lock, we broadcast with no lock ?? */
+
   pthread_mutex_unlock(log_lock);
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
@@ -1778,6 +1781,13 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
      the master info. To catch this, these commands
      modify abort_pos_wait ; we just monitor abort_pos_wait
      and see if it has changed.
+     Why do we have this mechanism instead of simply monitoring slave_running in
+     the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that the
+     SQL thread be stopped? This is in case 
+     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
+     happens very quickly between the moment pthread_cond_wait() wakes up and
+     the while() is evaluated: in that case slave_running is again 1 when the
+     while() is evaluated.
   */
   init_abort_pos_wait= abort_pos_wait;
 
@@ -1814,7 +1824,12 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   //"compare and wait" main loop
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
-         mi->slave_running)
+         /* 
+            formerly we tested mi->slave_running, but what we care about is
+            rli->slave_running (because this concerns the SQL thread, while
+            mi->slave_running concerns the I/O thread). 
+         */
+         slave_running)
   {
     bool pos_reached;
     int cmp_result= 0;
@@ -1852,6 +1867,10 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
                                       "Waiting for master update");
+    /*
+      We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
+      will wake us up.
+    */
     if (timeout > 0)
     {
       /*
@@ -1869,6 +1888,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     else
       pthread_cond_wait(&data_cond, &data_lock);
+    DBUG_PRINT("info",("Got signal of master update"));
     thd->exit_cond(msg);
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -1877,6 +1897,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     error=0;
     event_count++;
+    DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
   }
 
 err:
@@ -1885,11 +1906,11 @@ err:
 improper_arguments: %d  timed_out: %d",
                      (int) thd->killed,
                      (int) (init_abort_pos_wait != abort_pos_wait),
-                     (int) mi->slave_running,
+                     (int) slave_running,
                      (int) (error == -2),
                      (int) (error == -1)));
   if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
-      !mi->slave_running) 
+      !slave_running) 
   {
     error= -2;
   }
@@ -2596,8 +2617,15 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
+  /* We need data_lock, at least to wake up any waiting master_pos_wait() */
+  pthread_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
-  rli->slave_running = 0;
+  /* When master_pos_wait() wakes up it will check this and terminate */
+  rli->slave_running= 0; 
+  /* Wake up master_pos_wait() */
+  pthread_mutex_unlock(&rli->data_lock);
+  DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
+  pthread_cond_broadcast(&rli->data_cond);
   rli->save_temporary_tables = thd->temporary_tables;
 
   /*
