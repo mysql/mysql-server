@@ -93,3 +93,14 @@ INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ce
 REPAIR TABLE t1;
 CHECK TABLE t1;
 drop table t1;
+
+#
+# Test of OPTIMIZE of locked and modified tables
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO  t1 VALUES (1), (2), (3);
+LOCK TABLES t1 WRITE;
+INSERT INTO  t1 VALUES (1), (2), (3);
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
