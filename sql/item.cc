@@ -45,7 +45,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  collation.set(default_charset(), DERIVATION_COERCIBLE);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
 
