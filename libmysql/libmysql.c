@@ -3170,7 +3170,7 @@ void my_net_local_init(NET *net)
   encoded string, not including the terminating null character.
 */
 
-unsigned long
+ulong STDCALL
 mysql_hex_string(char *to, const char *from, unsigned long length)
 {
   char *to0= to;

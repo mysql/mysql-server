@@ -11,6 +11,7 @@ EXPORTS
 	mysql_errno
 	mysql_error
 	mysql_escape_string
+	mysql_hex_string
 	mysql_fetch_field
 	mysql_fetch_field_direct
 	mysql_fetch_fields
