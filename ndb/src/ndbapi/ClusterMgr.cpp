@@ -14,6 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <ndb_limits.h>
+#include <ndb_version.h>
+
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
@@ -23,12 +27,8 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-#include <ndb_limits.h>
 
-#include <stdio.h>
-#include <assert.h>
 
-#include <ndb_version.h>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>

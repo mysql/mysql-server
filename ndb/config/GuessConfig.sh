@@ -11,6 +11,11 @@ then
 	NDB_SCI=N
 fi
 
+if [ -z "$NDB_SHM" ]
+then
+	NDB_SHM=N
+fi
+
 os=`uname -s`
 case $os in
 Linux)

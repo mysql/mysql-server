@@ -23,9 +23,7 @@
 #include <kernel_types.h>
 
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 #include <ndb_limits.h>
-#include <NdbConstant.hpp>
 #include <Properties.hpp>
 
 /**

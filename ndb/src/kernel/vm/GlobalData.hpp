@@ -17,11 +17,10 @@
 #ifndef GLOBAL_DATA_H
 #define GLOBAL_DATA_H
 
+#include <ndb_global.h>
 #include <kernel_types.h>
 #include "Prio.hpp"
 #include "VMSignal.hpp"
-#include <stdlib.h>
-#include <assert.h>
 
 #include <BlockNumbers.h>
 #include <NodeState.hpp>

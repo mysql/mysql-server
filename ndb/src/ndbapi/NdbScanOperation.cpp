@@ -26,6 +26,7 @@
  * Adjust:  2002-04-01  UABMASD   First version.
  ****************************************************************************/
 
+#include <ndb_global.h>
 #include <Ndb.hpp>
 #include <NdbScanOperation.hpp>
 #include <NdbConnection.hpp>
@@ -33,12 +34,6 @@
 #include "NdbApiSignal.hpp"
 #include <NdbOut.hpp>
 #include "NdbDictionaryImpl.hpp"
-#include <NdbString.h>
-#ifndef NDB_MACOSX
-#include <malloc.h>
-#else
-#include <stdlib.h>
-#endif
 
 NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   NdbCursorOperation(aNdb),
@@ -637,6 +632,24 @@ SetValueRecList::callSetValueFn(SetValueRec& aSetValueRec, NdbOperation& oper)
     oper.setValue(aSetValueRec.anAttrId, aSetValueRec.aDoubleValue);
     break;
   }
+}
+
+SetValueRec::~SetValueRec() 
+{
+  if ((stype == SET_STRING_ATTR1) ||
+      (stype == SET_INT32_ATTR1)  ||
+      (stype == SET_UINT32_ATTR1) ||
+      (stype == SET_INT64_ATTR1) ||
+      (stype == SET_UINT64_ATTR1) ||
+      (stype == SET_FLOAT_ATTR1) ||
+      (stype == SET_DOUBLE_ATTR1))
+    free(anAttrName);
+
+  if ((stype == SET_STRING_ATTR1) ||
+      (stype == SET_STRING_ATTR2))
+    free(stringStruct.aStringValue);
+  if (next) delete next;
+  next = 0;
 }
 
 int

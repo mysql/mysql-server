@@ -24,8 +24,6 @@
 
 #include <NdbRestarter.hpp>
 #include <NDBT.hpp>
-#include <assert.h>
-#include <NdbStdio.h>
 
 int main(int argc, const char** argv){
 

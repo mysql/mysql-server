@@ -16,8 +16,7 @@
 
 
 
-#include <stdio.h>
-#include <unistd.h>
+#include <ndb_global.h>
 #include <sys/time.h>
 #include <sys/mman.h>
 long long getMilli();

@@ -17,8 +17,6 @@
 #include "LogHandlerList.hpp"
 
 #include <LogHandler.hpp>
-#include <NdbStdio.h>
-#include <ndb_types.h>
 
 //
 // PUBLIC

@@ -157,8 +157,8 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr *getValue(const char *anAttrName, char *aValue = NULL);
-  NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = NULL);
+  NdbRecAttr *getValue(const char *anAttrName, char *aValue = 0);
+  NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
 
   /**
    * Retrieves event resultset if available, inserted into the NdbRecAttrs
@@ -172,7 +172,7 @@ public:
    * overflow and *pOverRun will indicate the number of events that have
    * overwritten.
    */
-  int next(int *pOverRun=NULL);
+  int next(int *pOverRun=0);
 
   /**
    * In the current implementation a nodefailiure may cause loss of events,

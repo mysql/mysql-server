@@ -2376,7 +2376,10 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case INT_RESULT:
     return *(longlong*) value;
   case STRING_RESULT:
-    return strtoull(value,NULL,10);		// String is null terminated
+  {
+    int error;
+    return my_strtoll10(value, (char**) 0, &error);// String is null terminated
+  }
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;

@@ -17,7 +17,7 @@
 #ifndef __CPCD_COMMON_HPP_INCLUDED__
 #define __CPCD_COMMON_HPP_INCLUDED__
 
-#include <stdio.h>
+#include <ndb_global.h>
 #include <logger/Logger.hpp>
 #include <getarg.h>
 

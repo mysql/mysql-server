@@ -24,7 +24,6 @@
 #include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
-#include <NdbString.h>
 
 #include <getarg.h>
 

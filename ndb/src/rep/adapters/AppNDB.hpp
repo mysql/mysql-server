@@ -18,13 +18,9 @@
 #define APPNDB_HPP
 #include "NdbApi.hpp"
 
-#include <string.h>
-#include <assert.h>
-
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <NdbStdio.h>
 #include <NdbTick.h>
 
 #include <NdbThread.h>

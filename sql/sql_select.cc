@@ -367,7 +367,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       {
 	if (item->with_sum_func)
 	  flag|=1;
-	else if (!(flag & 2) && !item->const_item())
+	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
       }
       if (flag == 3)

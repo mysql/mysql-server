@@ -16,6 +16,8 @@
 
 #include "Interval.hpp"
 
+#undef min
+#undef max
 Uint32 max(Uint32 a, Uint32 b)  { return a > b ? a : b; }
 Uint32 min(Uint32 a, Uint32 b)  { return a < b ? a : b; }
 

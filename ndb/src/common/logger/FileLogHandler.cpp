@@ -14,15 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "FileLogHandler.hpp"
+#include <FileLogHandler.hpp>
 
 #include <File.hpp>
-
-#include <NdbStdio.h>
-#include <sys/param.h>
-
-#include <errno.h>
-#include <string.h>
 
 //
 // PUBLIC
@@ -35,7 +29,7 @@ FileLogHandler::FileLogHandler() :
   m_maxLogEntries(MAX_LOG_ENTRIES)
 
 {
-  m_pLogFile = new File("logger.log", "a+");
+  m_pLogFile = new File_class("logger.log", "a+");
 }
 
 FileLogHandler::FileLogHandler(const char* aFileName, 
@@ -47,7 +41,7 @@ FileLogHandler::FileLogHandler(const char* aFileName,
   m_maxFileSize(maxFileSize),
   m_maxLogEntries(maxLogEntries)
 {
-  m_pLogFile = new File(aFileName, "a+");
+  m_pLogFile = new File_class(aFileName, "a+");
 }
 
 FileLogHandler::~FileLogHandler()
@@ -166,10 +160,10 @@ FileLogHandler::createNewFile()
     ::snprintf(newName, sizeof(newName),
 	       "%s.%d", m_pLogFile->getName(), fileNo++); 
     
-  } while (File::exists(newName));
+  } while (File_class::exists(newName));
   
   m_pLogFile->close();	
-  if (!File::rename(m_pLogFile->getName(), newName))
+  if (!File_class::rename(m_pLogFile->getName(), newName))
   {		
     setErrorCode(errno);
     rc = false;
@@ -201,7 +195,7 @@ FileLogHandler::setFilename(const BaseString &filename) {
   close();
   if(m_pLogFile)
     delete m_pLogFile;
-  m_pLogFile = new File(filename.c_str(), "a+");
+  m_pLogFile = new File_class(filename.c_str(), "a+");
   open();
   return true;
 };

@@ -17,7 +17,6 @@
 
 #include <windows.h>
 #include <process.h>
-#include <assert.h>
 
 #include "NdbThread.h"
 

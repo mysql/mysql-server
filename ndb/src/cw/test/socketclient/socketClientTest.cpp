@@ -15,11 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <Properties.hpp>
 #include <socket_io.h>
-#include <NdbStdio.h>
-#include <stdlib.h>
 #include <NdbTick.h>
 #include <NdbMain.h>
 #include <NdbSleep.h>

@@ -915,12 +915,14 @@ int load_master_data(THD* thd)
           setting active_mi, because init_master_info() sets active_mi with
           defaults.
         */
+        int error;
+
         if (init_master_info(active_mi, master_info_file, relay_log_info_file,
 			     0))
           send_error(thd, ER_MASTER_INFO);
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
-	active_mi->master_log_pos = strtoull(row[1], (char**) 0, 10);
+	active_mi->master_log_pos= my_strtoll10(row[1], (char**) 0, &error);
         /* at least in recent versions, the condition below should be false */
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;

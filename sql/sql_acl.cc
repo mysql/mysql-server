@@ -1918,7 +1918,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     ulong privileges = xx->rights;
     bool old_row_exists=0;
     key_restore(table,key,0,key_length);
-    table->field[4]->store(xx->column.ptr(),xx->column.length(),&my_charset_latin1);
+    table->field[4]->store(xx->column.ptr(),xx->column.length(),
+                           &my_charset_latin1);
 
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
 				0, HA_READ_KEY_EXACT))
@@ -1931,9 +1932,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	continue; /* purecov: inspected */
       }
       old_row_exists = 0;
-      restore_record(table,default_values);				// Get empty record
+      restore_record(table,default_values);		// Get empty record
       key_restore(table,key,0,key_length);
-      table->field[4]->store(xx->column.ptr(),xx->column.length(), &my_charset_latin1);
+      table->field[4]->store(xx->column.ptr(),xx->column.length(),
+                             &my_charset_latin1);
     }
     else
     {

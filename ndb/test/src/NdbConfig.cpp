@@ -17,7 +17,6 @@
 #include "NdbConfig.hpp"
 #include <NdbOut.hpp>
 #include <NDBT_Output.hpp>
-#include <assert.h>
 #include <NdbConfig.h>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
@@ -32,7 +31,6 @@ NdbConfig::getPropsForNode(unsigned int node_id,
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 
@@ -112,7 +110,6 @@ NdbConfig::getHostName(unsigned int node_id,
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 

@@ -191,7 +191,7 @@ enum ha_base_keytype {
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
-
+#define HA_GENERATED_KEY	8192	/* Automaticly generated key */
 
 	/* Automatic bits in key-flag */
 

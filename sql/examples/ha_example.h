@@ -14,6 +14,17 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* 
+  Please read ha_exmple.cc before reading this file.
+  Please keep in mind that the example storage engine implements all methods
+  that are required to be implemented. handler.h has a full list of methods
+  that you can implement.
+*/
+
+/*
+  EXAMPLE_SHARE is a structure that will be shared amoung all open handlers
+  The example implements the minimum of what you will probably need.
+*/
 typedef struct st_example_share {
   char *table_name;
   uint table_name_length,use_count;
@@ -21,6 +32,9 @@ typedef struct st_example_share {
   THR_LOCK lock;
 } EXAMPLE_SHARE;
 
+/*
+  Class definition for the storage engine
+*/
 class ha_example: public handler
 {
   THR_LOCK_DATA lock;      /* MySQL lock */
@@ -33,17 +47,34 @@ public:
   ~ha_example() 
   {
   }
-  const char *table_type() const { return "EXAMPLE"; }
+  /* The name that will be used for display purposes */
+  const char *table_type() const { return "EXAMPLE"; } 
+  /* The name of the index type that will be used for display */
   const char *index_type(uint inx) { return "NONE"; }
   const char **bas_ext() const;
+  /* 
+    This is a list of flags that says what the storage engine 
+    implements. The current table flags are documented in
+    table_flags.
+  */
   ulong table_flags() const
   {
     return 0;
   }
+  /* 
+    This is a list of flags that says how the storage engine 
+    implements indexes. The current index flags are documented in
+    handler.h. If you do not implement indexes, just return zero 
+    here.
+  */
   ulong index_flags(uint inx) const
   {
     return 0;
   }
+  /* 
+    unireg.cc will call the following to make sure that the storage engine can
+    handle the data it is about to send.
+  */
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return 0; }
   uint max_key_parts()     const { return 0; }
@@ -52,10 +83,15 @@ public:
     Called in test_quick_select to determine if indexes should be used.
   */
   virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
-  /* The next method will never be called */
+  /* 
+    The next method will never be called if you do not implement indexes.
+  */
   virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
   virtual bool fast_key_read() { return 1;}
 
+  /* 
+    Everything below are methods that we implment in ha_example.cc.
+  */
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
