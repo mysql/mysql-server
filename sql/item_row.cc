@@ -18,8 +18,10 @@
 #include "assert.h"
 
 Item_row::Item_row(List<Item> &arg):
-  Item(), array_holder(1)
+  Item(), array_holder(1), used_tables_cache(0), const_item_cache(1)
 {
+
+  //TODO: think placing 2-3 component items in item (as it done for function)
   if ((arg_count= arg.elements))
     items= (Item**) sql_alloc(sizeof(Item*)*arg_count);
   else
@@ -45,14 +47,29 @@ void Item_row::illegal_method_call(const char *method)
 
 bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 {
-  tables= 0;
+  null_value= 0;
+  maybe_null= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     if (items[i]->fix_fields(thd, tabl, items+i))
       return 1;
-    tables |= items[i]->used_tables();
+    used_tables_cache |= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+    maybe_null|= items[i]->maybe_null;
   }
   return 0;
+}
+
+void Item_row::update_used_tables()
+{
+  used_tables_cache= 0;
+  const_item_cache= 1;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    items[i]->update_used_tables();
+    used_tables_cache|= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+  }
 }
 
 bool Item_row::check_cols(uint c)
