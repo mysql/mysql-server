@@ -41,6 +41,12 @@ pidfile=ndbcluster.pid
 cfgfile=Ndb.cfg
 stop_ndb=
 initial_ndb=
+status_ndb=
+ndb_discless=0
+
+ndb_con_op=100000
+ndb_dmem=80M
+ndb_imem=24M
 
 while test $# -gt 0; do
   case "$1" in
@@ -50,6 +56,17 @@ while test $# -gt 0; do
     --initial)
      flags_ndb=$flags_ndb" -i"
      initial_ndb=1
+     ;;
+    --status)
+     status_ndb=1
+     ;;
+    --small)
+     ndb_con_op=10000
+     ndb_dmem=40M
+     ndb_imem=12M
+     ;;
+    --discless)
+     ndb_discless=1
      ;;
     --data-dir=*)
      fsdir=`echo "$1" | sed -e "s;--data-dir=;;"`
@@ -121,6 +138,10 @@ NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 
 if [ $initial_ndb ] ; then
 sed \
+    -e s,"CHOOSE_MaxNoOfConcurrentOperations",$ndb_con_op,g \
+    -e s,"CHOOSE_DataMemory",$ndb_dmem,g \
+    -e s,"CHOOSE_IndexMemory",$ndb_imem,g \
+    -e s,"CHOOSE_Discless",$ndb_discless,g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_2","$fs_name_2",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_3","$fs_name_3",g \
@@ -140,6 +161,7 @@ cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
 NDB_ID="2"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
+echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
 ( cd $fs_ndb_2 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
@@ -148,17 +170,14 @@ cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
 NDB_ID="3"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
+echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
 ( cd $fs_ndb_3 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
-# Start management client
-
-sleep 10
-echo "show" | $exec_mgmtclient $ndb_host $ndb_port
-
 # test if Ndb Cluster starts properly
 
+echo "Waiting for started..."
 NDB_ID="11"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
@@ -169,6 +188,14 @@ fi
 echo $NDB_CONNECTSTRING > $cfgfile
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+
+status_ndbcluster
+}
+
+status_ndbcluster() {
+# Start management client
+
+echo "show" | $exec_mgmtclient $ndb_host $ndb_port
 }
 
 stop_default_ndbcluster() {
@@ -195,11 +222,16 @@ echo "all stop" | $exec_mgmtclient
 sleep 5
 
 if [ -f $pidfile ] ; then
-  kill `cat $pidfile`
+  kill `cat $pidfile` 2> /dev/null
   rm $pidfile
 fi
 
 }
+
+if [ $status_ndb ] ; then
+  status_ndbcluster
+  exit 0
+fi
 
 if [ $stop_ndb ] ; then
   stop_default_ndbcluster
