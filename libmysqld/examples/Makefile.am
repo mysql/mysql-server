@@ -17,7 +17,7 @@ LDADD =	$(top_builddir)/libmysqld/libmysqld.la \
 	$(top_builddir)/heap/libheap.a \
 	$(top_builddir)/merge/libmerge.a \
 	$(top_builddir)/myisammrg/libmyisammrg.a \
-	@innodb_libs@ @bdb_libs@ \
+	@innodb_libs@ @bdb_libs@ @pstack_libs@ \
 	$(top_builddir)/mysys/libmysys.a \
 	$(top_builddir)/strings/libmystrings.a \
 	$(top_builddir)/dbug/libdbug.a \
