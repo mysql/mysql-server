@@ -547,7 +547,7 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
     }
   } transaction;
-  Item	     *free_list, *handler_items;
+  Item	     *free_list;
   Field      *dupp_field;
 #ifndef __WIN__
   sigset_t signals,block_signals;
