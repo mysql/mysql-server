@@ -469,6 +469,9 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds, 
                  ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
+int mysql_multi_update_lock(THD *thd,
+			    TABLE_LIST *table_list,
+			    List<Item> *fields);
 int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
 		       COND *conds, ulong options,
