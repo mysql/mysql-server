@@ -20,13 +20,15 @@
 extern "C" {
 #endif
 
-#define GLOB		0	/* Error maps */
-#define GLOBERRS	28	/* Max number of error messages in map's */
-#define EE(X)	globerrs[ X ]	/* Defines to add error to right map */
+#define GLOBERRS (EE_ERROR_LAST - EE_ERROR_FIRST + 1) /* Nr of global errors */
+#define EE(X)    (globerrs[(X) - EE_ERROR_FIRST])
 
 extern const char * NEAR globerrs[];	/* my_error_messages is here */
 
 /* Error message numbers in global map */
+/* Do not add error numbers before EE_ERROR_FIRST. */
+/* If necessary to add lower numbers, change EE_ERROR_FIRST accordingly. */
+#define EE_ERROR_FIRST          0 /*Copy first error nr.*/
 #define EE_FILENOTFOUND		0
 #define EE_CANTCREATEFILE	1
 #define EE_READ			2
@@ -54,6 +56,8 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_CANT_SYMLINK		25
 #define EE_REALPATH		26
 #define EE_SYNC			27
+#define EE_ERROR_LAST           27 /*Copy last error nr.*/
+/* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
   /* exit codes for all MySQL programs */
 

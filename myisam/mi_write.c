@@ -52,6 +52,9 @@ int mi_write(MI_INFO *info, byte *record)
   DBUG_ENTER("mi_write");
   DBUG_PRINT("enter",("isam: %d  data: %d",info->s->kfile,info->dfile));
 
+  DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
+                  mi_print_error(info, HA_ERR_CRASHED);
+                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
     DBUG_RETURN(my_errno=EACCES);
@@ -202,7 +205,10 @@ err:
     }
   }
   else
+  {
+    mi_print_error(info, HA_ERR_CRASHED);
     mi_mark_crashed(info);
+  }
   info->update= (HA_STATE_CHANGED | HA_STATE_WRITTEN | HA_STATE_ROW_CHANGED);
   my_errno=save_errno;
 err2:
@@ -346,7 +352,11 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (tmp_key_length)
       dupp_key_pos=_mi_dpos(info,0,keybuff+tmp_key_length);
     else
+    {
+      if (my_errno == HA_ERR_CRASHED)
+        mi_print_error(info, HA_ERR_CRASHED);
       dupp_key_pos= HA_OFFSET_ERROR;
+    }
     if (keyinfo->flag & HA_FULLTEXT)
     {
       uint off;
@@ -455,6 +465,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     if (t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
     {
+      mi_print_error(info, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
@@ -464,6 +475,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     if (-t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
     {
+      mi_print_error(info, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
@@ -558,7 +570,11 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     key_pos=_mi_find_half_pos(nod_flag,keyinfo,buff,key_buff, &key_length,
 			      &after_key);
   if (!key_pos)
+  {
+    if (my_errno == HA_ERR_CRASHED)
+      mi_print_error(info, HA_ERR_CRASHED);
     DBUG_RETURN(-1);
+  }
   length=(uint) (key_pos-buff);
   a_length=mi_getint(buff);
   mi_putint(buff,length,nod_flag);
@@ -578,7 +594,11 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* Store new page */
   if (!(*keyinfo->get_key)(keyinfo,nod_flag,&key_pos,key_buff))
+  {
+    if (my_errno == HA_ERR_CRASHED)
+      mi_print_error(info, HA_ERR_CRASHED);
     DBUG_RETURN(-1);
+  }
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(uchar *) 0,
 				(uchar*) 0, (uchar*) 0,
 				key_buff, &s_temp);

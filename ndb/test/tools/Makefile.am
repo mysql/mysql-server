@@ -3,7 +3,6 @@ ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hug
 
 # transproxy 
 
-hugoCalculator_SOURCES = hugoCalculator.cpp
 hugoFill_SOURCES = hugoFill.cpp
 hugoLoad_SOURCES = hugoLoad.cpp
 hugoLockRecords_SOURCES = hugoLockRecords.cpp
