@@ -2553,7 +2553,16 @@ mysql_execute_command(void)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_rollback(thd))
     {
-      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+      /*
+        If a non-transactional table was updated, warn; don't warn if this is a
+        slave thread (because when a slave thread executes a ROLLBACK, it has
+        been read from the binary log, so it's 100% sure and normal to produce
+        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
+        slave SQL thread, it would not stop the thread but just be printed in
+        the error log; but we don't want users to wonder why they have this
+        message in the error log, so we don't send it.
+      */
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
 	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
       else
 	send_ok(&thd->net);
@@ -2565,7 +2574,7 @@ mysql_execute_command(void)
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
     if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
     {
-      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
 	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
       else
 	send_ok(&thd->net);
