@@ -1186,7 +1186,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       sort_info->dupp++;
       if (rep_quick == 1)
       {
-	param->error_printed=1;
+	param->error_printed=param->retry_without_quick=1;
 	goto err;
       }
       continue;
@@ -1218,6 +1218,16 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     param->retry_repair=param->retry_without_quick=1;
     goto err;
   }
+  if (param->testflag & T_SAFE_REPAIR)
+  {
+    /* Don't repair if we loosed more than one row */
+    if (info->state->records+1 < start_records)
+    {
+      info->state->records=start_records;
+      got_error=1;
+      goto err;
+    }
+  }
 
   if (!rep_quick)
   {
@@ -1226,7 +1236,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     info->state->data_file_length=sort_info->filepos;
     /* Only whole records */
     share->state.split=info->state->records+info->state->del;
-    param->out_flag|=O_NEW_DATA;			/* Data in new file */
     share->state.version=(ulong) time((time_t*) 0);	/* Force reopen */
   }
   else
@@ -1248,6 +1257,21 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     memcpy( &share->state.state, info->state, sizeof(*info->state));
 
 err:
+  if (!got_error)
+  {
+    /* Replace the actual file with the temporary file */
+    if (new_file >= 0)
+    {
+      my_close(new_file,MYF(0));
+      info->dfile=new_file= -1;
+      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+			    DATA_TMP_EXT, share->base.raid_chunks,
+			    (param->testflag & T_BACKUP_DATA ?
+			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+	  mi_open_datafile(info,share))
+	got_error=1;
+    }
+  }
   if (got_error)
   {
     if (! param->error_printed)
@@ -1275,7 +1299,8 @@ err:
     share->pack.header_length=0;
     share->data_file_type=sort_info->new_data_file_type;
   }
-  share->state.changed|=STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+  share->state.changed|= (STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES |
+			  STATE_NOT_ANALYZED);
   DBUG_RETURN(got_error);
 }
 
@@ -1454,14 +1479,17 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   flush_key_blocks(info->s->kfile, FLUSH_IGNORE_CHANGED);
 
 	/* Put same locks as old file */
-  if (lock_file(param,new_file,0L,F_WRLCK,"tempfile",param->temp_filename))
-    goto err;
   info->s->state.version=(ulong) time((time_t*) 0);
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   VOID(my_close(info->s->kfile,MYF(MY_WME)));
-  param->out_flag|=O_NEW_INDEX;			/* Data in new file */
+  info->s->kfile = -1;
+  VOID(my_close(new_file,MYF(MY_WME)));
+  if (change_to_newfile(info->s->filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+			MYF(0)) ||
+      mi_open_keyfile(info->s))
+    goto err2;
+  _mi_readinfo(info,F_WRLCK,0);
 
-  info->s->kfile=new_file;
   info->state->key_file_length=param->new_file_pos;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (key=0 ; key < info->s->base.keys ; key++)
@@ -1474,6 +1502,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 
 err:
   VOID(my_close(new_file,MYF(MY_WME)));
+err2:
   VOID(my_delete(param->temp_filename,MYF(MY_WME)));
   DBUG_RETURN(-1);
 } /* sort_index */
@@ -1843,7 +1872,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       /* Only whole records */
       share->state.split=info->state->records+info->state->del;
       share->state.version=(ulong) time((time_t*) 0);
-      param->out_flag|=O_NEW_DATA;		/* Data in new file */
       my_close(info->dfile,MYF(0));
       info->dfile=new_file;
       share->data_file_type=sort_info->new_data_file_type;
@@ -1910,18 +1938,34 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     memcpy( &share->state.state, info->state, sizeof(*info->state));
 
 err:
+  got_error|= flush_blocks(param,share->kfile);
+  VOID(end_io_cache(&info->rec_cache));
+  if (!got_error)
+  {
+    /* Replace the actual file with the temporary file */
+    if (new_file >= 0)
+    {
+      my_close(new_file,MYF(0));
+      info->dfile=new_file= -1;
+      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+			    DATA_TMP_EXT, share->base.raid_chunks,
+			    (param->testflag & T_BACKUP_DATA ?
+			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+	  mi_open_datafile(info,share))
+	got_error=1;
+    }
+  }
   if (got_error)
   {
     if (! param->error_printed)
       mi_check_print_error(param,"%d when fixing table",my_errno);
     if (new_file >= 0)
     {
-      VOID(end_io_cache(&info->rec_cache));
       VOID(my_close(new_file,MYF(0)));
-      VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
+      VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
       if (info->dfile == new_file)
-	info->dfile=0;
+	info->dfile= -1;
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -1933,7 +1977,6 @@ err:
   my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
-  VOID(end_io_cache(&info->rec_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
   {
@@ -2441,6 +2484,7 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
 						    sort_info->key_block->
 						    lastkey),
 				 llbuff2));
+    param->error_printed=param->retry_without_quick=1;
     if (sort_info->param->testflag & T_VERBOSE)
       _mi_print_key(stdout,sort_info->keyseg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(param));
@@ -2475,7 +2519,7 @@ static int sort_insert_key(MI_CHECK *param,
 			   my_off_t prev_block)
 {
   uint a_length,t_length,nod_flag;
-  my_off_t filepos;
+  my_off_t filepos,key_file_length;
   uchar *anc_buff,*lastkey;
   MI_KEY_PARAM s_temp;
   MI_INFO *info;
@@ -2526,11 +2570,20 @@ static int sort_insert_key(MI_CHECK *param,
   mi_putint(anc_buff,key_block->last_length,nod_flag);
   bzero((byte*) anc_buff+key_block->last_length,
 	sort_info->keyinfo->block_length- key_block->last_length);
+  key_file_length=info->state->key_file_length;
   if ((filepos=_mi_new(info,sort_info->keyinfo)) == HA_OFFSET_ERROR)
-    return 1;
-  if (my_pwrite(info->s->kfile,(byte*) anc_buff,
-		(uint) sort_info->keyinfo->block_length,filepos,
-		param->myf_rw))
+    DBUG_RETURN(1);
+
+  /* If we read the page from the key cache, we have to write it back to it */
+  if (key_file_length == info->state->key_file_length)
+  {
+    if (_mi_write_keypage(info, sort_info->keyinfo, filepos,
+			  anc_buff))
+      DBUG_RETURN(1);
+  }
+  else if (my_pwrite(info->s->kfile,(byte*) anc_buff,
+		     (uint) sort_info->keyinfo->block_length,filepos,
+		     param->myf_rw))
     DBUG_RETURN(1);
   DBUG_DUMP("buff",(byte*) anc_buff,mi_getint(anc_buff));
 
@@ -2608,7 +2661,7 @@ static int sort_delete_record(MI_CHECK *param)
 static int flush_pending_blocks(MI_CHECK *param)
 {
   uint nod_flag,length;
-  my_off_t filepos;
+  my_off_t filepos,key_file_length;
   MI_INFO *info;
   SORT_KEY_BLOCKS *key_block;
   SORT_INFO *sort_info= &param->sort_info;
@@ -2623,18 +2676,27 @@ static int flush_pending_blocks(MI_CHECK *param)
     length=mi_getint(key_block->buff);
     if (nod_flag)
       _mi_kpointer(info,key_block->end_pos,filepos);
-    if ((filepos=_mi_new(info,sort_info->keyinfo)) == HA_OFFSET_ERROR)
-      DBUG_RETURN(1);
+    key_file_length=info->state->key_file_length;
     bzero((byte*) key_block->buff+length,
 	  sort_info->keyinfo->block_length-length);
-    if (my_pwrite(info->s->kfile,(byte*) key_block->buff,
-		 (uint) sort_info->keyinfo->block_length,filepos,
-                 param->myf_rw))
+    if ((filepos=_mi_new(info,sort_info->keyinfo)) == HA_OFFSET_ERROR)
+      DBUG_RETURN(1);
+
+    /* If we read the page from the key cache, we have to write it back */
+    if (key_file_length == info->state->key_file_length)
+    {
+      if (_mi_write_keypage(info, sort_info->keyinfo, filepos,
+			    key_block->buff))
+	DBUG_RETURN(1);
+    }
+    else if (my_pwrite(info->s->kfile,(byte*) key_block->buff,
+		       (uint) sort_info->keyinfo->block_length,filepos,
+		       param->myf_rw))
       DBUG_RETURN(1);
     DBUG_DUMP("buff",(byte*) key_block->buff,length);
     nod_flag=1;
   }
-  info->s->state.key_root[sort_info->key]=filepos;	/* Last is root for tree */
+  info->s->state.key_root[sort_info->key]=filepos; /* Last is root for tree */
   DBUG_RETURN(0);
 } /* flush_pending_blocks */
 

@@ -411,6 +411,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   int error;
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   MI_CHECK param;
+  ha_rows start_records;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -420,8 +421,10 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   if (check_opt->quick)
     param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
-  while ((error=repair(thd,param,0)))
+  start_records=file->state->records;
+  while ((error=repair(thd,param,0)) && param.retry_repair)
   {
+    param.retry_repair=0;
     if (param.retry_without_quick && param.opt_rep_quick)
     {
       param.opt_rep_quick=0;
@@ -438,6 +441,14 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     }
     break;
   }
+  if (!error && start_records != file->state->records)
+  {
+    char llbuff[22],llbuff2[22];
+    sql_print_error("Warning:  Found %s of %s rows from %s",
+		    llstr(file->state->records, llbuff),
+		    llstr(start_records, llbuff2),
+		    table->path);
+  }    
   return error;
 }
 
@@ -461,7 +472,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 {
   int error=0;
-  bool optimize_done= !optimize;
+  bool optimize_done= !optimize, statistics_done=0;
   char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
   MYISAM_SHARE* share = file->s;
@@ -487,11 +498,13 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     {
       param.testflag|= T_STATISTICS;		// We get this for free
       thd->proc_info="Repair by sorting";
+      statistics_done=1;
       error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
     }
     else
     {
       thd->proc_info="Repair with keycache";
+      param.testflag &= ~T_REP_BY_SORT;
       error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
     }
   }
@@ -504,7 +517,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       thd->proc_info="Sorting index";
       error=mi_sort_index(&param,file,fixed_name);
     }
-    if ((param.testflag & T_STATISTICS) &&
+    if (!statistics_done && (param.testflag & T_STATISTICS) &&
 	(share->state.changed & STATE_NOT_ANALYZED))
     {
       optimize_done=1;
@@ -525,7 +538,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
     error = update_state_info(&param, file,
-			      UPDATE_TIME |
+			      UPDATE_TIME | UPDATE_OPEN_COUNT |
 			      (param.testflag & T_STATISTICS ?
 			       UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
@@ -535,48 +548,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   {
     mi_mark_crashed(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-  }
-  if (!error)
-  {
-    if (param.out_flag & (O_NEW_DATA | O_NEW_INDEX))
-    {
-      bool in_auto_repair;
-      /*
-	We have to close all instances of this file to ensure that we can
-	do the rename safely on all operating system and to ensure that
-	all threads are using the new version.
-      */
-      thd->proc_info="renaming file";
-      VOID(pthread_mutex_lock(&LOCK_open));
-      if (!(in_auto_repair = (table->table_cache_key == 0)))
-      {
-	if (close_cached_table(thd,table))
-	  error=1;
-      }
-      else
-      {
-	if (param.out_flag & O_NEW_DATA)
-	  my_close(file->dfile,MYF(0));
-	if (param.out_flag & O_NEW_INDEX)
-	  my_close(file->s->kfile,MYF(0));
-      }
-      if (param.out_flag & O_NEW_DATA)
-	error|=change_to_newfile(fixed_name,MI_NAME_DEXT,
-				 DATA_TMP_EXT, 0,
-				 (param.testflag & T_BACKUP_DATA ?
-				  MYF(MY_REDEL_MAKE_BACKUP): MYF(0)));
-      if (param.out_flag & O_NEW_INDEX)
-	error|=change_to_newfile(fixed_name,MI_NAME_IEXT,
-				 INDEX_TMP_EXT, 0, MYF(0));
-      if (in_auto_repair)
-      {
-	if ((param.out_flag & O_NEW_DATA) && mi_open_datafile(file,file->s))
-	  error=1;
-	if ((param.out_flag & O_NEW_DATA) && mi_open_keyfile(file->s))
-	  error=1;
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-    }
   }
   thd->proc_info=old_proc_info;
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
@@ -634,8 +605,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   if (mi_is_crashed(file) || check(thd, &check_opt))
   {
     sql_print_error("Warning: Recovering table: %s",table->path);
-    if (check_opt.retry_without_quick)
-      check_opt.quick=0;
+    check_opt.quick= !check_opt.retry_without_quick;
     check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ? 
 		      T_BACKUP_DATA : 0) |
 		     (!(myisam_recover_options & HA_RECOVER_FORCE) ? 

@@ -889,6 +889,24 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       continue;
     }
 
+    /* Close all instances of the table to allow repair to rename files */
+    if (open_for_modify && table->table->version)
+    {
+      pthread_mutex_lock(&LOCK_open);
+      mysql_lock_abort(thd,table->table);
+      while (remove_table_from_cache(thd, table->table->table_cache_key,
+				     table->table->real_name) &&
+	     ! thd->killed)
+      {
+	dropping_tables++;
+	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+	dropping_tables--;
+      }
+      pthread_mutex_unlock(&LOCK_open);
+      if (thd->killed)
+	goto err;
+    }
+
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
     packet->length(0);
     net_store_data(packet, table_name);
@@ -933,7 +951,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       break;
     }
     if (fatal_error)
-      table->table->flush_version=0;	// Force close of table
+      table->table->version=0;			// Force close of table
     close_thread_tables(thd);
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))

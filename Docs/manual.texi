@@ -9036,9 +9036,9 @@ priority in one thread.
 @item --memlock
 Lock the @code{mysqld} process in memory.  This works only if your system
 supports the @code{mlockall()} system call.  This may help if you have
-a problem where the opearting system is causing @code{mysqld} to swap on disk.
+a problem where the operating system is causing @code{mysqld} to swap on disk.
 
-@item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP or FORCE.
+@item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP, FORCE or QUICK.
 If this option is used, @code{mysqld} will on open check if the table is
 marked as crashed or if if the table wasn't closed properly
 (The last option only works if you are running with @code{--skip-locking}).
@@ -9051,10 +9051,15 @@ The following options affects how the repair works.
 @item DEFAULT @tab The same as not giving any option to @code{--myisam-recover}.
 @item BACKUP @tab If the data table was changed during recover, save a backup of the @file{table_name.MYD} data file as @file{table_name-datetime.BAK}.
 @item FORCE @tab Run recover even if we will loose more than one row from the .MYD file.
+@item QUICK @tab Don't check the rows in the table if there isn't any delete blocks.
 @end multitable
 
-Before a table is automaticly repaired, mysqld will add a note about this
-in the error log.
+Before a table is automaticly repaired, mysqld will add a note about
+this in the error log.  If you want to be able to recover from most
+things without user intervention, you should use the options
+@code{BACKUP,FORCE}.  This will force a repair of a table even if some rows
+would be deleted, but it will keep the old data file as a backup so that
+you can later examine what happened.
 
 @item --pid-file=path
 Path to pid file used by @code{safe_mysqld}.
@@ -21266,7 +21271,7 @@ of both worlds.
 
 @menu
 * MyISAM::                      MyISAM tables
-* MERGE::
+* MERGE::			MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -21378,10 +21383,36 @@ The following options to @code{mysqld} can be used to change the behavior of
 
 @multitable @columnfractions .40 .60
 @item @strong{Option} @tab @strong{Meaning}
-@item @code{--myisam-recover} @tab Automatic recover of crashed tables.
+@item @code{--myisam-recover=#} @tab Automatic recover of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @end multitable
+
+The automatic recovery is activated if you start mysqld with
+@code{--myisam-recover=#}. @xref{Command-line options}.
+On open, the table is checked if it's marked as crashed or if the open
+count variable for the table is not 0 and you are running with
+@code{--skip-locking}.  If either of the above is true the following happens.
+
+@itemize @bullet
+@item
+The table is checked for errors.
+@item
+If we found an error, try to do a fast repair (with sorting and without
+recreating the data file) of the table.
+@item
+If the repair fails because of an error in the data file (for example a
+duplicate key error), we try again, but this time we recreate the data file.
+@item
+If the repair fails, retry once more with the old repair option method
+(write row by row without sorting) which should be able to repair any
+type of error with little disk requirements..
+@end itemize
+
+Note that if you run automatic recover with the @code{BACKUP} option,
+you should have a cron script that automaticly moves file with names
+like @file{tablename-datetime.BAK} from the database directories to a
+backup media.
 
 @xref{Command-line options}.
 
