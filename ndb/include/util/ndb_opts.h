@@ -25,10 +25,15 @@
 #include <ndb_opt_defaults.h>
 
 #define NDB_STD_OPTS_VARS \
-const char *opt_connect_str= 0;\
 my_bool	opt_ndb_optimized_node_selection
 
+int opt_ndb_nodeid;
 my_bool opt_ndb_shm;
+const char *opt_ndb_connectstring= 0;
+const char *opt_connect_str= 0;
+const char *opt_ndb_mgmd_host= 0;
+char opt_ndb_constrbuf[1024];
+unsigned opt_ndb_constrbuf_len;
 
 #define OPT_NDB_CONNECTSTRING 'c'
 
@@ -43,8 +48,17 @@ my_bool opt_ndb_shm;
     "Set connect string for connecting to ndb_mgmd. " \
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
     "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0, \
+    (gptr*) &opt_ndb_connectstring, (gptr*) &opt_ndb_connectstring, \
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "ndb-mgmd-host", OPT_NDB_MGMD_HOST, \
+    "Set host and port for connecting to ndb_mgmd. " \
+    "Syntax: <hostname>[:<port>].", \
+    (gptr*) &opt_ndb_mgmd_host, (gptr*) &opt_ndb_mgmd_host, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "ndb-nodeid", OPT_NDB_NODEID, \
+    "Set node id for this node.", \
+    (gptr*) &opt_ndb_nodeid, (gptr*) &opt_ndb_nodeid, 0, \
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-shm", OPT_NDB_SHM,\
     "Allow optimizing using shared memory connections when available",\
     (gptr*) &opt_ndb_shm, (gptr*) &opt_ndb_shm, 0,\
@@ -55,8 +69,8 @@ my_bool opt_ndb_shm;
     (gptr*) &opt_ndb_optimized_node_selection, 0,\
     GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
   { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,\
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }
+    (gptr*) &opt_ndb_connectstring, (gptr*) &opt_ndb_connectstring, \
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }
 
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
@@ -79,6 +93,8 @@ enum ndb_std_options {
   OPT_NDB_SHM= 256,
   OPT_NDB_SHM_SIGNUM,
   OPT_NDB_OPTIMIZED_NODE_SELECTION,
+  OPT_NDB_MGMD_HOST,
+  OPT_NDB_NODEID,
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
 };
 
@@ -109,6 +125,29 @@ ndb_std_get_one_option(int optid,
       opt_ndb_shm= 0;
 #endif
     }
+    break;
+  case OPT_NDB_MGMD_HOST:
+  case OPT_NDB_NODEID:
+  {
+    const char *tmp="";
+    if (optid == OPT_NDB_NODEID)
+      tmp= "nodeid=";
+    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
+			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
+			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
+			 tmp, argument);
+    opt_ndb_constrbuf_len+= len;
+  }
+  /* fall through to add the connectstring to the end
+   * and set opt_ndbcluster_connectstring
+   */
+  case OPT_NDB_CONNECTSTRING:
+    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
+      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
+		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
+		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
+		  opt_ndb_connectstring);
+    opt_connect_str= opt_ndb_constrbuf;
     break;
   }
   return 0;
