@@ -265,6 +265,8 @@ sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_p
                                                         &srv_max_buf_pool_modified_pct);
 sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
 							&srv_max_purge_lag);
+sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
+							&srv_auto_extend_increment);
 sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
 #endif 					     
@@ -454,6 +456,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
   &sys_innodb_max_purge_lag,
+  &sys_innodb_autoextend_increment,
   &sys_innodb_table_locks,
 #endif    
   &sys_unique_checks
@@ -508,6 +511,7 @@ struct show_var_st init_vars[]= {
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
+  {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
