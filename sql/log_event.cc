@@ -71,23 +71,39 @@ int Log_event::write_header(FILE* file)
 
 #ifndef MYSQL_CLIENT
 
-int Log_event::read_log_event(FILE* file, String* packet)
+int Log_event::read_log_event(FILE* file, String* packet,
+			      pthread_mutex_t* log_lock)
 {
   ulong data_len;
   char buf[LOG_EVENT_HEADER_LEN];
+  if(log_lock)
+    pthread_mutex_lock(log_lock);
   if (my_fread(file, (byte*)buf, sizeof(buf), MYF(MY_NABP)))
-    return feof(file) ? LOG_READ_EOF: LOG_READ_IO;
-  
+    {
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return feof(file) ? LOG_READ_EOF: LOG_READ_IO;
+    }
   data_len = uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_HEADER_LEN || data_len > MAX_EVENT_LEN)
-    return LOG_READ_BOGUS;
-
+    {
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return LOG_READ_BOGUS;
+    }
   packet->append(buf, sizeof(buf));
   data_len -= LOG_EVENT_HEADER_LEN;
   if (!data_len)
-    return 0; // the event does not have a data section
+    {
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return 0; // the event does not have a data section
+    }
   if (packet->append(file, data_len, MYF(MY_WME|MY_NABP)))
-    return feof(file) ? LOG_READ_BOGUS: LOG_READ_IO;
+    {
+      if(log_lock)
+	pthread_mutex_unlock(log_lock);
+      return feof(file) ? LOG_READ_BOGUS: LOG_READ_IO;
+    }
+
+  if(log_lock) pthread_mutex_unlock(log_lock);
   return 0;
 }
 
@@ -95,14 +111,18 @@ int Log_event::read_log_event(FILE* file, String* packet)
 
 // allocates memory - the caller is responsible for clean-up
 
-Log_event* Log_event::read_log_event(FILE* file)
+Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
 {
   time_t timestamp;
   uint32 server_id;
   
   char buf[LOG_EVENT_HEADER_LEN-4];
+  if(log_lock) pthread_mutex_lock(log_lock);
   if (my_fread(file, (byte *) buf, sizeof(buf), MY_NABP))
-    return NULL;
+    {
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return NULL;
+    }
   timestamp = uint4korr(buf);
   server_id = uint4korr(buf + 5);
   
@@ -111,6 +131,8 @@ Log_event* Log_event::read_log_event(FILE* file)
   case QUERY_EVENT:
   {
     Query_log_event* q = new Query_log_event(file, timestamp, server_id);
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    
     if (!q->query)
     {
       delete q;
@@ -123,6 +145,8 @@ Log_event* Log_event::read_log_event(FILE* file)
   case LOAD_EVENT:
   {
     Load_log_event* l = new Load_log_event(file, timestamp, server_id);
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    
     if (!l->table_name)
     {
       delete l;
@@ -136,6 +160,8 @@ Log_event* Log_event::read_log_event(FILE* file)
   case ROTATE_EVENT:
   {
     Rotate_log_event* r = new Rotate_log_event(file, timestamp, server_id);
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    
     if (!r->new_log_ident)
     {
       delete r;
@@ -148,6 +174,8 @@ Log_event* Log_event::read_log_event(FILE* file)
   case INTVAR_EVENT:
   {
     Intvar_log_event* e = new Intvar_log_event(file, timestamp, server_id);
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    
     if (e->type == INVALID_INT_EVENT)
     {
       delete e;
@@ -157,12 +185,25 @@ Log_event* Log_event::read_log_event(FILE* file)
     return e;
   }
   
-  case START_EVENT: return new Start_log_event(file, timestamp, server_id);
-  case STOP_EVENT: return new Stop_log_event(file, timestamp, server_id);
-  default: return NULL;
+  case START_EVENT:
+    {
+      Start_log_event* e = new Start_log_event(file, timestamp, server_id);
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return e;
+    }	  
+  case STOP_EVENT:
+    {
+      Stop_log_event* e = new Stop_log_event(file, timestamp, server_id);
+      if(log_lock) pthread_mutex_unlock(log_lock);
+      return e;
+    }
+  default:
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    return NULL;
   }
 
   //impossible
+  if(log_lock) pthread_mutex_unlock(log_lock);
   return NULL;
 }
 
@@ -356,6 +397,7 @@ Query_log_event::Query_log_event(FILE* file, time_t when_arg,
   data_len -= QUERY_EVENT_OVERHEAD;
   exec_time = uint4korr(buf + 8);
   db_len = (uint)buf[12];
+  error_code = uint2korr(buf + 13);
   
   if (!(data_buf = (char*) my_malloc(data_len+1, MYF(MY_WME))))
     return;
@@ -384,11 +426,12 @@ Query_log_event::Query_log_event(const char* buf, int max_buf):
 
   data_len -= QUERY_EVENT_OVERHEAD;
   exec_time = uint4korr(buf + 8);
+  error_code = uint2korr(buf + 13);
 
   if (!(data_buf = (char*) my_malloc( data_len + 1, MYF(MY_WME))))
     return;
 
-  memcpy(data_buf, buf + 13, data_len);
+  memcpy(data_buf, buf + QUERY_HEADER_LEN + 4, data_len);
   thread_id = uint4korr(buf + 4);
   db = data_buf;
   db_len = (uint)buf[12];
@@ -402,8 +445,8 @@ void Query_log_event::print(FILE* file, bool short_form)
   if (!short_form)
   {
     print_header(file);
-    fprintf(file, "\tQuery\tthread_id=%lu\texec_time=%lu\n",
-	    (ulong) thread_id, (ulong) exec_time);
+    fprintf(file, "\tQuery\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
+	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
   if(db && db[0])
@@ -423,7 +466,8 @@ int Query_log_event::write_data(FILE* file)
   int4store(pos, exec_time);
   pos += 4;
   *pos++ = (char)db_len;
-    
+  int2store(pos, error_code);
+  pos += 2;
 
   if (my_fwrite(file, (byte*) buf, (uint)(pos - buf), MYF(MY_NABP | MY_WME)) ||
       my_fwrite(file, (db) ? (byte*) db : (byte*)"",
