@@ -23,6 +23,15 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
+
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -87,13 +96,13 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
-bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
-				      CHARSET_INFO *cs2, enum coercion co2)
+bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, Derivation co1,
+				      CHARSET_INFO *cs2, Derivation co2)
 {
   if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
   {
     cmp_charset= &my_charset_bin;
-    coercibility= co1 > co2 ? co1 : co2;
+    //coercibility= co1 > co2 ? co1 : co2;
     return 0;
   }
 
@@ -106,42 +115,42 @@ bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
     if ((co1 <= co2) && (cs1==&my_charset_bin))
     {
       cmp_charset= cs1;
-      coercibility= co1;
+      //coercibility= co1;
     }
     else if ((co2 <= co1) && (cs2==&my_charset_bin))
     {
       cmp_charset= cs2;
-      coercibility= co2;
+      //coercibility= co2;
     }
     else
     {
       cmp_charset= 0;
-      coercibility= COER_NOCOLL;
+      //coercibility= DERIVATION_NOCOLL;
       return 1; 
     }
   }
   else if (co1 < co2)
   {
     cmp_charset= cs1;
-    coercibility= co1;
+    //coercibility= co1;
   }
   else if (co2 < co1)
   {
     cmp_charset= cs2;
-    coercibility= co1;
+    //coercibility= co1;
   }
   else
   { 
     if (cs1 == cs2)
     {
       cmp_charset= cs1;
-      coercibility= co1;
+      //coercibility= co1;
     }
     else 
     {
-      coercibility= COER_NOCOLL;
+      //coercibility= DERIVATION_NOCOLL;
       cmp_charset= 0;
-      return  (co1 == COER_EXPLICIT) ? 1 : 0;
+      return  (co1 == DERIVATION_EXPLICIT) ? 1 : 0;
     }
   }
   return 0;
@@ -171,13 +180,13 @@ bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
     uint strong= 0;
     uint weak= 0;
 
-    if ((args[0]->coercibility < args[1]->coercibility) && 
+    if ((args[0]->derivation() < args[1]->derivation()) && 
 	!my_charset_same(args[0]->charset(), args[1]->charset()) &&
         (args[0]->charset()->state & MY_CS_UNICODE))
     {
       weak= 1;
     }
-    else if ((args[1]->coercibility < args[0]->coercibility) && 
+    else if ((args[1]->derivation() < args[0]->derivation()) && 
 	     !my_charset_same(args[0]->charset(), args[1]->charset()) &&
              (args[1]->charset()->state & MY_CS_UNICODE))
     {
@@ -194,26 +203,23 @@ bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
         cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
 		  args[strong]->charset());
         conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->coercibility);
+			      args[weak]->derivation());
 	((Item_string*)conv)->str_value.copy();
       }
       else
       {
 	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
-        conv->coercibility= args[weak]->coercibility;
+        //conv->coercibility= args[weak]->derivation();
       }
       args[weak]= conv ? conv : args[weak];
-      set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		      args[1]->charset(), args[1]->coercibility);
+      set_cmp_charset(args[0]->charset(), args[0]->derivation(),
+		      args[1]->charset(), args[1]->derivation());
     }
   }
   if (!cmp_charset)
   {
     /* set_cmp_charset() failed */
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
     return 1;
   }
   return 0;
@@ -266,8 +272,8 @@ void Item_bool_func2::fix_length_and_dec()
     We must set cmp_charset here as we may be called from for an automatic
     generated item, like in natural join
   */
-  set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		  args[1]->charset(), args[1]->coercibility);
+  set_cmp_charset(args[0]->charset(), args[0]->derivation(),
+		  args[1]->charset(), args[1]->derivation());
 }
 
 
@@ -744,12 +750,9 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
-  if (set_charset(args[0]->charset(),args[0]->coercibility,
-		  args[1]->charset(),args[1]->coercibility))
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+  if (set_charset(args[0]->charset(),args[0]->derivation(),
+		  args[1]->charset(),args[1]->derivation()))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 
@@ -825,13 +828,10 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    if (set_charset(args[1]->charset(), args[1]->coercibility,
-		args[2]->charset(), args[2]->coercibility))
+    if (set_charset(args[1]->charset(), args[1]->derivation(),
+		args[2]->charset(), args[2]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+      my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
       return;
     }
   }

@@ -42,35 +42,32 @@
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 {
   uint i;
-  uint length;
-  uint block_length= 0;
+  ulong length, block_length= 0;
   uchar *buff= NULL;
   MYISAM_SHARE* share= info->s;
   uint keys= share->state.header.keys;
   MI_KEYDEF *keyinfo= share->keyinfo;
   my_off_t key_file_length= share->state.state.key_file_length;
   my_off_t pos= share->base.keystart;
+  DBUG_ENTER("mi_preload");
 
   if (!keys || !key_map || key_file_length == pos)
-    return 0;
+    DBUG_RETURN(0);
 
   block_length= keyinfo[0].block_length;
-
-  if (!key_map)
-    return 0;
 
   /* Check whether all indexes use the same block size */
   for (i= 1 ; i < keys ; i++)
   {
     if (keyinfo[i].block_length != block_length)
-      return (my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE); 
+      DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
   }
 
   length= info->preload_buff_size/block_length * block_length;
   set_if_bigger(length, block_length);
 
   if (!(buff= (uchar *) my_malloc(length, MYF(MY_WME))))
-    return (my_errno= HA_ERR_OUT_OF_MEM);
+    DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
 
   if (flush_key_blocks(share->kfile, FLUSH_RELEASE))
     goto err;
@@ -78,7 +75,8 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
   do
   {
     /* Read the next block of index file into the preload buffer */
-    set_if_smaller(length, key_file_length-pos);
+    if ((my_off_t) length > (key_file_length-pos))
+      length= (ulong) (key_file_length-pos);
     if (my_pread(share->kfile, (byte*) buff, length, pos, MYF(MY_FAE)))
       goto err;
           
@@ -103,16 +101,14 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 	goto err;
       pos+= length;
     }
-
   }
   while (pos != key_file_length);
 
   my_free(buff, MYF(0));
-
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
-  return (my_errno= errno);
+  DBUG_RETURN(my_errno= errno);
 }
 

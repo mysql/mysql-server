@@ -450,7 +450,7 @@ Item *create_func_version(void)
 {
   return new Item_string(NullS,server_version, 
 			 (uint) strlen(server_version),
-			 system_charset_info, Item::COER_IMPLICIT);
+			 system_charset_info, DERIVATION_IMPLICIT);
 }
 
 Item *create_func_weekday(Item* a)

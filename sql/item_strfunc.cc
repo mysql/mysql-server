@@ -36,6 +36,14 @@
 
 String empty_string("",default_charset_info);
 
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
 uint nr_of_decimals(const char *str)
 {
   if ((str=strchr(str,'.')))
@@ -316,17 +324,14 @@ void Item_func_concat::fix_length_and_dec()
   bool first_coll= 1;
   max_length=0;
 
-  set_charset(args[0]->charset(),args[0]->coercibility);
+  set_charset(*args[0]);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), coercibility,
-		args[i]->charset(), args[i]->coercibility))
+    if (set_charset(charset(), derivation(),
+		args[i]->charset(), args[i]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
@@ -622,18 +627,15 @@ void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  set_charset(separator->charset(),separator->coercibility);
+  set_charset(*separator);
   max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), coercibility,
-		args[i]->charset(), args[i]->coercibility))
+    if (set_charset(charset(), derivation(),
+		    args[i]->charset(), args[i]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
@@ -702,7 +704,7 @@ String *Item_func_reverse::val_str(String *str)
 
 void Item_func_reverse::fix_length_and_dec()
 {
-  set_charset(args[0]->charset(),args[0]->coercibility);
+  set_charset(*args[0]);
   max_length = args[0]->max_length;
 }
 
@@ -826,17 +828,14 @@ void Item_func_replace::fix_length_and_dec()
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   
   for (i=1; i<3; i++)
   {
-    if (set_charset(charset(), coercibility,
-        args[i]->charset(), args[i]->coercibility))
+    if (set_charset(charset(), derivation(),
+        args[i]->charset(), args[i]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	       charset()->name,coercion_name(coercibility),
-	       args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	       func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
@@ -876,13 +875,10 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->coercibility,
-      		  args[3]->charset(), args[3]->coercibility))
+  if (set_charset(args[0]->charset(), args[0]->derivation(),
+      		  args[3]->charset(), args[3]->derivation()))
   {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[3]->charset()->name,coercion_name(args[3]->coercibility),
-	     func_name());
+      my_coll_agg_error(args[0]->collation, args[3]->collation, func_name());
   }
   max_length=args[0]->max_length+args[3]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
@@ -963,7 +959,7 @@ void Item_str_func::left_right_max_length()
 
 void Item_func_left::fix_length_and_dec()
 {
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   left_right_max_length();
 }
 
@@ -990,7 +986,7 @@ String *Item_func_right::val_str(String *str)
 
 void Item_func_right::fix_length_and_dec()
 {
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   left_right_max_length();
 }
 
@@ -1024,7 +1020,7 @@ void Item_func_substr::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
 
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   if (args[1]->const_item())
   {
     int32 start=(int32) args[1]->val_int()-1;
@@ -1320,18 +1316,15 @@ void Item_func_trim::fix_length_and_dec()
   max_length= args[0]->max_length;
   if (arg_count == 1)
   {
-    set_charset(args[0]->charset(), args[0]->coercibility);
+    set_charset(*args[0]);
     remove.set_charset(charset());
     remove.set_ascii(" ",1);
   }
   else
-  if (set_charset(args[1]->charset(), args[1]->coercibility,
-		  args[0]->charset(), args[0]->coercibility))
+  if (set_charset(args[1]->charset(), args[1]->derivation(),
+		  args[0]->charset(), args[0]->derivation()))
   {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     func_name());
+    my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
   }
 }
 
@@ -1545,7 +1538,7 @@ String *Item_func_user::val_str(String *str)
 
 void Item_func_soundex::fix_length_and_dec()
 {
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   max_length=args[0]->max_length;
   set_if_bigger(max_length,4);
 }
@@ -1675,16 +1668,13 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
     if (i == 0)
-      set_charset(args[i]->charset(),args[i]->coercibility);
+      set_charset(*args[0]);
     else
     {
-      if (set_charset(charset(), coercibility,
-		      args[i]->charset(), args[i]->coercibility))
+      if (set_charset(charset(), derivation(),
+		      args[i]->charset(), args[i]->derivation()))
       {
-        my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+        my_coll_agg_error(collation, args[i]->collation, func_name());
         break;
       }
     }
@@ -1780,17 +1770,14 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), coercibility,
-		    args[i]->charset(), args[i]->coercibility))
+    if (set_charset(charset(), derivation(),
+		    args[i]->charset(), args[i]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
  }
@@ -1916,7 +1903,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 
 void Item_func_repeat::fix_length_and_dec()
 {
-  set_charset(args[0]->charset(), args[0]->coercibility);
+  set_charset(*args[0]);
   if (args[1]->const_item())
   {
     max_length=(long) (args[0]->max_length * args[1]->val_int());
@@ -1976,13 +1963,10 @@ err:
 
 void Item_func_rpad::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->coercibility,
- 		  args[2]->charset(), args[2]->coercibility))
+  if (set_charset(args[0]->charset(), args[0]->derivation(),
+ 		  args[2]->charset(), args[2]->derivation()))
   {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[2]->charset()->name,coercion_name(args[2]->coercibility),
-	     func_name());
+    my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
   }
   
   if (args[1]->const_item())
@@ -2045,13 +2029,10 @@ String *Item_func_rpad::val_str(String *str)
 
 void Item_func_lpad::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->coercibility,
- 		  args[2]->charset(), args[2]->coercibility))
+  if (set_charset(args[0]->charset(), args[0]->derivation(),
+ 		  args[2]->charset(), args[2]->derivation()))
   {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[2]->charset()->name,coercion_name(args[2]->coercibility),
-	     func_name());
+    my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
   }
   
   if (args[1]->const_item())
@@ -2173,7 +2154,7 @@ void Item_func_conv_charset::fix_length_and_dec()
 {
   set_charset(conv_charset);
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
-  set_charset(conv_charset, COER_IMPLICIT);
+  set_charset(conv_charset, DERIVATION_IMPLICIT);
 }
 
 
@@ -2277,7 +2258,7 @@ void Item_func_set_collation::fix_length_and_dec()
       colname,args[0]->charset()->csname);
     return;
   }
-  set_charset(set_collation, COER_EXPLICIT);
+  set_charset(set_collation, DERIVATION_EXPLICIT);
   max_length= args[0]->max_length;
 }
 
@@ -2468,16 +2449,13 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  set_charset(args[1]->charset(), args[1]->coercibility);
+  set_charset(*args[1]);
   for (i=2 ; i < 4 && i < arg_count ; i++)
   {
-    if (set_charset(charset(), coercibility,
-		    args[i]->charset(), args[i]->coercibility))
+    if (set_charset(charset(), derivation(),
+		    args[i]->charset(), args[i]->derivation()))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	       charset()->name,coercion_name(coercibility),
-	       args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	       func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
