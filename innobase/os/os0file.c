@@ -2965,9 +2965,11 @@ os_aio_print(
 					srv_io_thread_op_info[i],
 					srv_io_thread_function[i]);
 
+#ifndef __WIN__
         	if (os_aio_segment_wait_events[i]->is_set) {
 			fprintf(file, " ev set");
 		}
+#endif
 			
 		fprintf(file, "\n");
 	}
