@@ -2667,7 +2667,8 @@ pstack_install_segv_action(	const char*	path_format_)
 	if ((abfd = load_bfd(pid))==0)
 		fprintf(stderr, "BFD load failed..\n");
 	else {
-		long	storage_needed = bfd_get_symtab_upper_bound (abfd);
+		long    storage_needed= (bfd_get_file_flags(abfd) & HAS_SYMS) ?
+		  bfd_get_symtab_upper_bound (abfd) : 0;
 		long	i;
 		(void)i;
 
