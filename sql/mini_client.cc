@@ -40,6 +40,11 @@
 #include "mysqld_error.h"
 #include "errmsg.h"
 
+#ifdef EMBEDDED_LIBRARY
+#define net_read_timeout net_read_timeout1
+#define net_write_timeout net_write_timeout1
+#endif
+
 extern ulong net_read_timeout;
 
 extern "C" {					// Because of SCO 3.2V4.2

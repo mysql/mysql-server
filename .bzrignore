@@ -392,3 +392,4 @@ tags
 tmp/*
 vio/viotest-ssl
 =6
+libmysqld/ha_innobase.cc
