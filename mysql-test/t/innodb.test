@@ -22,6 +22,8 @@ drop table t1;
 
 #
 # A bit bigger test
+# The 'replace_result' statements are needed because the cardinality calculated
+# by innodb is not always the same between runs
 #
 
 CREATE TABLE t1 (
@@ -43,12 +45,16 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
+--replace_result 12 # 6 #
 explain select level from t1 where level=1;
+--replace_result 12 # 6 #
 explain select level,id from t1 where level=1;
+--replace_result 12 # 6 #
 explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
+--replace_result 87 # 48 # 43 # 24 # 6 # 3 #
 show keys from t1;
 drop table t1;
 
