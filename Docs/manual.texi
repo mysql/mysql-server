@@ -2893,15 +2893,16 @@ distributions.
 
 @end enumerate
 
-One goal with this is that the SQL client library should be free enough
-so that it is possible to add @strong{MySQL} support in commercial products
-without any license. So in this case we choose the LGPL license.
+One goal is that the SQL client library should be free enough that it is 
+possible to add @strong{MySQL} support into commercial products
+without a license. For this reason, we chose the LGPL license for the
+client code.
 
 This means that you can use @strong{MySQL} for free with any program that uses
-any of the free software licences.  @strong{MySQL} is also free for any end
+any of the free software licenses.  @strong{MySQL} is also free for any end
 user for his own or company usage.
 
-But if you use @strong{MySQL} for something important to you, you may
+However, if you use @strong{MySQL} for something important to you, you may
 want to help secure its development by purchasing licenses or a support
 contract, @ref{Support}.
 
@@ -2909,7 +2910,7 @@ contract, @ref{Support}.
 @subsection Copyright changes
 
 The stable versions of @strong{MySQL} are still using a more strict
-license. See the documatation for that version for more information.
+license. See the documentation for that version for more information.
 
 @node Licensing examples, Cost, Copyright, Licensing and Support
 @section Example licensing situations
@@ -2922,7 +2923,7 @@ license. See the documatation for that version for more information.
 
 This section describes some situations illustrating whether or not you
 must license the @strong{MySQL} server.  Generally these examples
-involve providing @strong{MySQL} as a integrated part of a product.
+involve providing @strong{MySQL} as an integrated part of a product.
 
 Note that a single @strong{MySQL} license covers any number of CPUs and
 @code{mysqld} servers on a machine! There is no artificial limit on the number
@@ -2947,7 +2948,7 @@ designed your application around @strong{MySQL}, then you've really made
 a commercial product that requires the engine, so you need a license.
 
 If your application does not require @strong{MySQL}, you need not obtain
-a license.  For example, if @strong{MySQL} just added some new optional
+a license.  For example, if using @strong{MySQL} just adds some new optional
 features to your product (such as adding logging to a database if
 @strong{MySQL} is used rather than logging to a text file), it should
 fall within normal use, and a license would not be required.
@@ -13436,8 +13437,8 @@ For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
 column, you cannot index the entire thing.
 
 In @strong{MySQL} 3.23.23 or later, you can also create special
-@strong{fulltext} indexes. They are used for full-text search. Only
-@code{MyISAM} table type supports fulltext indexes. They can be created
+@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
@@ -14164,7 +14165,7 @@ mysql> select STRCMP('text', 'text');
 relevance - similarity measure between the text in columns
 @code{(col1,col2,...)} and the query @code{expr}. Relevance is a
 positive floating point number. Zero relevance means no similarity.
-For @code{MATCH ... AGAINST()} to work, a @strong{fulltext index}
+For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
 @code{MATCH ... AGAINST()} is available in @code{MySQL} 3.23.23 or later.
 For details and usage examples see @xref{MySQL full-text search}.
@@ -16422,8 +16423,8 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 
 @item
 In @strong{MySQL} 3.23.23 or later, you can also create special
-@strong{fulltext} indexes. They are used for full-text search. Only
-@code{MyISAM} table type supports fulltext indexes. They can be created
+@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
@@ -19810,9 +19811,10 @@ table type.
 For more information about how @strong{MySQL} uses indexes, see
 @ref{MySQL indexes, , @strong{MySQL} indexes}.
 
-Fulltext indexes can index only @code{VARCHAR}, @code{BLOB}, and
-@code{TEXT} columns, and only in @code{MyISAM} tables. Fulltext indexes
-are available from @strong{MySQL} 3.23.23. @ref{MySQL full-text search}.
+@code{FULLTEXT} indexes can index only @code{VARCHAR}, @code{BLOB}, and
+@code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
+are available in @strong{MySQL} 3.23.23 and later. 
+@ref{MySQL full-text search}.
 
 @findex DROP INDEX
 @node DROP INDEX, Comments, CREATE INDEX, Reference
@@ -34089,14 +34091,16 @@ DELAYED} threads.
 
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
-index of type @code{FULLTEXT}. Fulltext indexes can be created from
+index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
 @code{VARCHAR}, @code{TEXT}, and @code{BLOB} columns at
 @code{CREATE TABLE} time or added later with @code{ALTER TABLE} or
-@code{CREATE INDEX}. Full-text search is performed with @code{MATCH} function.
+@code{CREATE INDEX}. Full-text search is performed with the @code{MATCH}
+function.
 
 @example
 mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
 Query OK, 0 rows affected (0.00 sec)
+
 mysql> INSERT INTO t VALUES
     ->   ('MySQL has now support', 'for full-text search'),
     ->   ('Full-text indexes', 'are called collections'),
@@ -34105,6 +34109,7 @@ mysql> INSERT INTO t VALUES
     ->   ('Full-text search in MySQL', 'implements vector space model');
 Query OK, 5 rows affected (0.00 sec)
 Records: 5  Duplicates: 0  Warnings: 0
+
 mysql> SELECT * FROM t WHERE MATCH (a,b) AGAINST ('MySQL');
 +---------------------------+-------------------------------+
 | a                         | b                             |
@@ -34113,6 +34118,7 @@ mysql> SELECT * FROM t WHERE MATCH (a,b) AGAINST ('MySQL');
 | Full-text search in MySQL | implements vector-space-model |
 +---------------------------+-------------------------------+
 2 rows in set (0.00 sec)
+
 mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 +------------------------------+-------------------------------+--------+
 | a                            | b                             | x      |
@@ -34126,11 +34132,11 @@ mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 5 rows in set (0.00 sec)
 @end example
 
-Function @code{MATCH} matches a natural language query @code{AGAINST} a
+The function @code{MATCH} matches a natural language query @code{AGAINST} a
 text collection (which is simply the columns that are covered
-by fulltext index). For every row in a table it returns relevance -
-similarity measure between the text in that row (in the columns, that
-are part of the collection) and the query. When it used in a
+by a @strong{FULLTEXT} index). For every row in a table it returns 
+relevance - similarity measure between the text in that row (in the columns
+that are part of the collection) and the query. When it is used in a
 @code{WHERE} clause (see example above) the rows returned are
 automatically sorted with relevance decreasing. Relevance is a non-
 negative floating point number. Zero relevance means no similarity.
@@ -34138,13 +34144,13 @@ Relevance is computed based on number of words in the row and number of
 unique words in that row, total number of words in the collection,
 number of documents (rows), that contain a particular word, etc.
 
-MySQL uses very simple parser to split text into words. "Word" is
+MySQL uses a very simple parser to split text into words. A "word" is
 any sequence of letters, numbers, @code{'}, and @code{_}. Any "word"
-that is present in stopword list or just too short (3 characters or less)
-is ignored.
+that is present in the stopword list or just too short (3 characters 
+or less) is ignored.
 
 Every correct word in the collection and in the query is weighted,
-according to their significance in the query or collection. This way, a
+according to its significance in the query or collection. This way, a
 word that is present in many documents will have lower weight (and may
 even have a zero weight), because it has lower semantic value in this
 particular collection. Otherwise, if the word is rare, it will receive a
@@ -34152,7 +34158,7 @@ higher weight. Weights of the words are then combined to compute the
 relevance.
 
 Such a technique works best with big collections (in fact, it was
-carefully tuned up this way). For very small tables word distribution
+carefully tuned up this way). For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
 
