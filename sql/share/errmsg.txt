@@ -1774,7 +1774,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	cze "P-BЬМli╧ velkА dИlka sloupce '%-.64s' (nejvМce %d). Pou╬ijte BLOB"
 	dan "For stor feltlФngde for kolonne '%-.64s' (maks = %d). Brug BLOB i stedet"
 	nla "Te grote kolomlengte voor '%-.64s' (max = %d). Maak hiervoor gebruik van het type BLOB"
-	eng "Column length too big for column '%-.64s' (max = %d); use BLOB instead"
+	eng "Column length too big for column '%-.64s' (max = %d); use BLOB or TEXT instead"
 	jps "column '%-.64s' ┌м,┼m∙ш┌╥┌И column ┌л▒Е┌╚┌Ё┌╙▒╫┌╥┌╛┌э┌╥. (█е▒Е %d ┌э┌е). BLOB ┌П┌╘┌М┌Х┌и▌g≈p┌╣┌д┌╜┌╬┌Ё┌╒.",
 	est "Tulba '%-.64s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB vДljatЭЭpi"
 	fre "Champ '%-.64s' trop long (max = %d). Utilisez un BLOB"
@@ -1789,7 +1789,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	pol "Zbyt du©a dЁugo?Ф kolumny '%-.64s' (maks. = %d). W zamian u©yj typu BLOB"
 	por "Comprimento da coluna '%-.64s' grande demais (max = %d); use BLOB em seu lugar"
 	rum "Lungimea coloanei '%-.64s' este prea lunga (maximum = %d). Foloseste BLOB mai bine"
-	rus "Слишком большая длина столбца '%-.64s' (максимум = %d). Используйте тип BLOB вместо текущего"
+	rus "Слишком большая длина столбца '%-.64s' (максимум = %d). Используйте тип BLOB или TEXT вместо текущего"
 	serbian "Previ e podataka za kolonu '%-.64s' (maksimum je %d). Upotrebite BLOB polje"
 	slo "PrМli╧ ve╣kА dЕ╬ka pre pole '%-.64s' (maximum = %d). Pou╬ite BLOB"
 	spa "Longitud de columna demasiado grande para la columna '%-.64s' (maximo = %d).Usar BLOB en su lugar"
