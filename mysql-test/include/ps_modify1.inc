@@ -4,6 +4,43 @@
 #                                                            #
 ##############################################################
 
+#
+# NOTE: THESE TESTS CANNOT BE APPLIED TO TABLES OF TYPE MERGE.
+#       Test which can be applied to MERGE tables should be stored in
+#            include/ps_modify.inc .
+#
+
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+#
+# Please be aware, that this file will be sourced by several test case files
+# stored within the subdirectory 't'. So every change here will affect 
+# several test cases.
+#
+# Please do not modify the structure (DROP/ALTER..) of the tables
+#     't1' and 't_many_col_types'. 
+#
+# But you are encouraged to use these two tables within your statements
+# (DELETE/UPDATE/...) whenever possible. 
+#     t1               - very simple table
+#     t_many_col_types - table with nearly all available column types
+#
+# The structure and the content of these tables can be found in
+#     include/ps_create.inc  CREATE TABLE ...
+#     include/ps_renew.inc   DELETE all rows and INSERT some rows
+#
+# Both tables are managed by the same storage engine.
+# The type of the storage engine is stored in the variable '$type' . 
+
+
+
+#------------------- Please insert your test cases here -------------------#
+
+
+#-------- Please be very carefull when editing behind this line  ----------#
+
 ## big insert select statements
 set @duplicate='duplicate ' ;
 set @1000=1000 ;
