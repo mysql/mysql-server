@@ -55,7 +55,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
     return -1;
 
   // there can be only one table in *tables
-  if (!(tables->table->file->option_flag() & HA_CAN_SQL_HANDLER))
+  if (!(tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
   {
     my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->name);
     mysql_ha_close(thd, tables,1);
