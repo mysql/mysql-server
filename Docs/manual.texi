@@ -112,10 +112,10 @@ distribution for that version.
 @menu
 * Introduction::                General Information about @strong{MySQL}
 * Installing::                  Installing @strong{MySQL}
+* Tutorial::                    @strong{MySQL} Tutorial
 * Privilege system::            The @strong{MySQL} access privilege system
 * Reference::                   @strong{MySQL} language reference
 * Table types::                 @strong{MySQL} table types
-* Tutorial::                    @strong{MySQL} Tutorial
 * Server::                      @strong{MySQL} Server
 * Replication::                 Replication
 * Fulltext Search::             Fulltext Search
@@ -5954,7 +5954,7 @@ Time is given according to amount of work, not real time.
 Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @end itemize
 
-@node Installing, Privilege system, Introduction, Top
+@node Installing, Tutorial, Introduction, Top
 @chapter MySQL Installation
 
 @cindex installing, overview
@@ -11856,7 +11856,2435 @@ We are interested in finding someone to do a port, and we will help them
 with any technical questions they may have while doing the port.
 
 
-@node Privilege system, Reference, Installing, Top
+@node Tutorial, Privilege system, Installing, Top
+@chapter Introduction to MySQL: A MySQL Tutorial
+
+@cindex tutorial
+@cindex terminal monitor, defined
+@cindex monitor, terminal
+@cindex options, provided by MySQL
+
+@menu
+* Connecting-disconnecting::    Connecting to and disconnecting from the server
+* Entering queries::            Entering queries
+* Database use::                Creating and using a database
+* Getting information::         Getting information about databases and tables
+* Examples::                    Examples
+* Batch mode::                  Using @code{mysql} in batch mode
+* Twin::                        Queries from twin project
+* Apache::                      
+@end menu
+
+This chapter provides a tutorial introduction to @strong{MySQL} by showing
+how to use the @code{mysql} client program to create and use a simple
+database.  @code{mysql} (sometimes referred to as the ``terminal monitor'' or
+just ``monitor'') is an interactive program that allows you to connect to a
+@strong{MySQL} server, run queries, and view the results.  @code{mysql} may
+also be used in batch mode: you place your queries in a file beforehand, then
+tell @code{mysql} to execute the contents of the file.  Both ways of using
+@code{mysql} are covered here.
+
+To see a list of options provided by @code{mysql}, invoke it with
+the @code{--help} option:
+
+@example
+shell> mysql --help
+@end example
+
+This chapter assumes that @code{mysql} is installed on your machine and that
+a @strong{MySQL} server is available to which you can connect.  If this is
+not true, contact your @strong{MySQL} administrator.  (If @emph{you} are the
+administrator, you will need to consult other sections of this manual.)
+
+This chapter describes the entire process of setting up and using a
+database.  If you are interested only in accessing an already-existing
+database, you may want to skip over the sections that describe how to
+create the database and the tables it contains.
+
+Because this chapter is tutorial in nature, many details are necessarily left
+out.  Consult the relevant sections of the manual for more
+information on the topics covered here.
+
+@node Connecting-disconnecting, Entering queries, Tutorial, Tutorial
+@section Connecting to and Disconnecting from the Server
+
+@cindex connecting, to the server
+@cindex disconnecting, from the server
+@cindex server, connecting
+@cindex server, disconnecting
+
+To connect to the server, you'll usually need to provide a @strong{MySQL}
+user name when you invoke @code{mysql} and, most likely, a password.  If the
+server runs on a machine other than the one where you log in, you'll also
+need to specify a hostname.  Contact your administrator to find out what
+connection parameters you should use to connect (that is, what host, user name,
+and password to use).  Once you know the proper parameters, you should be
+able to connect like this:
+
+@example
+shell> mysql -h host -u user -p
+Enter password: ********
+@end example
+
+The @code{********} represents your password; enter it when @code{mysql}
+displays the @code{Enter password:} prompt.
+
+If that works, you should see some introductory information followed by a
+@code{mysql>} prompt:
+
+
+@example
+shell> mysql -h host -u user -p
+Enter password: ********
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 459 to server version: 3.22.20a-log
+
+Type 'help' for help.
+
+mysql>
+@end example
+
+The prompt tells you that @code{mysql} is ready for you to enter commands.
+
+Some @strong{MySQL} installations allow users to connect as the anonymous
+(unnamed) user to the server running on the local host.  If this is the case
+on your machine, you should be able to connect to that server by invoking
+@code{mysql} without any options:
+
+@example
+shell> mysql
+@end example
+
+After you have connected successfully, you can disconnect any time by typing
+@code{QUIT} at the @code{mysql>} prompt:
+
+@example
+mysql> QUIT
+Bye
+@end example
+
+You can also disconnect by pressing Control-D.
+
+Most examples in the following sections assume you are connected to the
+server.  They indicate this by the @code{mysql>} prompt.
+
+@node Entering queries, Database use, Connecting-disconnecting, Tutorial
+@section Entering Queries
+
+@cindex running, queries
+@cindex queries, entering
+@cindex entering, queries
+
+Make sure you are connected to the server, as discussed in the previous
+section.  Doing so will not in itself select any database to work with, but
+that's okay.  At this point, it's more important to find out a little about
+how to issue queries than to jump right in creating tables, loading data
+into them, and retrieving data from them.  This section describes the basic
+principles of entering commands, using several queries you can try out to
+familiarize yourself with how @code{mysql} works.
+
+Here's a simple command that asks the server to tell you its version number
+and the current date.  Type it in as shown below following the @code{mysql>}
+prompt and hit the RETURN key:
+
+@example
+mysql> SELECT VERSION(), CURRENT_DATE;
++--------------+--------------+
+| version()    | CURRENT_DATE |
++--------------+--------------+
+| 3.22.20a-log | 1999-03-19   |
++--------------+--------------+
+1 row in set (0.01 sec)
+mysql>
+@end example
+
+This query illustrates several things about @code{mysql}:
+
+@itemize @bullet
+@item
+A command normally consists of a SQL statement followed by a semicolon.
+(There are some exceptions where a semicolon is not needed.  @code{QUIT},
+mentioned earlier, is one of them.  We'll get to others later.)
+
+@item
+When you issue a command, @code{mysql} sends it to the server for execution
+and displays the results, then prints another @code{mysql>} to indicate
+that it is ready for another command.
+
+@item
+@code{mysql} displays query output as a table (rows and columns).  The first
+row contains labels for the columns.  The rows following are the query
+results.  Normally, column labels are the names of the columns you fetch from
+database tables.  If you're retrieving the value of an expression rather than
+a table column (as in the example just shown), @code{mysql} labels the column
+using the expression itself.
+
+@item
+@code{mysql} shows how many rows were returned and how long the query took
+to execute, which gives you a rough idea of server performance.  These values
+are imprecise because they represent wall clock time (not CPU or machine
+time), and because they are affected by factors such as server load and
+network latency.  (For brevity, the ``rows in set'' line is not shown in
+the remaining examples in this chapter.)
+@end itemize
+
+Keywords may be entered in any lettercase.  The following queries are
+equivalent:
+
+@example
+mysql> SELECT VERSION(), CURRENT_DATE;
+mysql> select version(), current_date;
+mysql> SeLeCt vErSiOn(), current_DATE;
+@end example
+
+Here's another query.  It demonstrates that you can use @code{mysql} as a
+simple calculator:
+
+@example
+mysql> SELECT SIN(PI()/4), (4+1)*5;
++-------------+---------+
+| SIN(PI()/4) | (4+1)*5 |
++-------------+---------+
+|    0.707107 |      25 |
++-------------+---------+
+@end example
+
+The commands shown thus far have been relatively short, single-line
+statements.  You can even enter multiple statements on a single line.
+Just end each one with a semicolon:
+
+@example
+mysql> SELECT VERSION(); SELECT NOW();
++--------------+
+| version()    |
++--------------+
+| 3.22.20a-log |
++--------------+
+
++---------------------+
+| NOW()               |
++---------------------+
+| 1999-03-19 00:15:33 |
++---------------------+
+@end example
+
+A command need not be given all on a single line, so lengthy commands that
+require several lines are not a problem.  @code{mysql} determines where your
+statement ends by looking for the terminating semicolon, not by looking for
+the end of the input line.  (In other words, @code{mysql}
+accepts free-format input:  it collects input lines but does not execute them
+until it sees the semicolon.)
+
+Here's a simple multiple-line statement:
+
+@example
+mysql> SELECT
+    -> USER()
+    -> ,
+    -> CURRENT_DATE;
++--------------------+--------------+
+| USER()             | CURRENT_DATE |
++--------------------+--------------+
+| joesmith@@localhost | 1999-03-18   |
++--------------------+--------------+
+@end example
+
+In this example, notice how the prompt changes from @code{mysql>} to
+@code{->} after you enter the first line of a multiple-line query.  This is
+how @code{mysql} indicates that it hasn't seen a complete statement and is
+waiting for the rest.  The prompt is your friend, because it provides
+valuable feedback.  If you use that feedback, you will always be aware of
+what @code{mysql} is waiting for.
+
+If you decide you don't want to execute a command that you are in the
+process of entering, cancel it by typing @code{\c}:
+
+@example
+mysql> SELECT
+    -> USER()
+    -> \c
+mysql>
+@end example
+
+Here, too, notice the prompt.  It switches back to @code{mysql>} after you
+type @code{\c}, providing feedback to indicate that @code{mysql} is ready
+for a new command.
+
+The following table shows each of the prompts you may see and summarizes what
+they mean about the state that @code{mysql} is in:
+
+@cindex prompts, meanings
+@multitable @columnfractions .10 .9
+@item @strong{Prompt} @tab @strong{Meaning}
+@item @code{mysql>} @tab Ready for new command.
+@item @code{@ @ @ @ ->} @tab Waiting for next line of multiple-line command.
+@item @code{@ @ @ @ '>} @tab Waiting for next line, collecting a string that begins
+with a single quote (@samp{'}).
+@item @code{@ @ @ @ ">} @tab Waiting for next line, collecting a string that begins
+with a double quote (@samp{"}).
+@end multitable
+
+Multiple-line statements commonly occur by accident when you intend to
+issue a command on a single line, but forget the terminating semicolon.  In
+this case, @code{mysql} waits for more input:
+
+@example
+mysql> SELECT USER()
+    ->
+@end example
+
+If this happens to you (you think you've entered a statement but the only
+response is a @code{->} prompt), most likely @code{mysql} is waiting for the
+semicolon.  If you don't notice what the prompt is telling you, you might sit
+there for a while before realizing what you need to do.  Enter a semicolon to
+complete the statement, and @code{mysql} will execute it:
+
+@example
+mysql> SELECT USER()
+    -> ;
++--------------------+
+| USER()             |
++--------------------+
+| joesmith@@localhost |
++--------------------+
+@end example
+
+The @code{'>} and @code{">} prompts occur during string collection.
+In @strong{MySQL}, you can write strings surrounded by either @samp{'}
+or @samp{"} characters (for example, @code{'hello'} or @code{"goodbye"}),
+and @code{mysql} lets you enter strings that span multiple lines.  When you
+see a @code{'>} or @code{">} prompt, it means that you've entered a line
+containing a string that begins with a @samp{'} or @samp{"} quote character,
+but have not yet entered the matching quote that terminates the string.
+That's fine if you really are entering a multiple-line string, but how likely
+is that?  Not very.  More often, the @code{'>} and @code{">} prompts indicate
+that you've inadvertantly left out a quote character.  For example:
+
+@example
+mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
+    ">
+@end example
+
+If you enter this @code{SELECT} statement, then hit RETURN and wait for the
+result, nothing will happen.  Instead of wondering why this
+query takes so long, notice the clue provided by the @code{">} prompt.  It
+tells you that @code{mysql} expects to see the rest of an unterminated
+string.  (Do you see the error in the statement?  The string @code{"Smith} is
+missing the second quote.)
+
+At this point, what do you do?  The simplest thing is to cancel the command.
+However, you cannot just type @code{\c} in this case, because @code{mysql}
+interprets it as part of the string that it is collecting!  Instead, enter
+the closing quote character (so @code{mysql} knows you've finished the
+string), then type @code{\c}:
+
+@example
+mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
+    "> "\c
+mysql>
+@end example
+
+The prompt changes back to @code{mysql>}, indicating that @code{mysql}
+is ready for a new command.
+
+It's important to know what the @code{'>} and @code{">} prompts signify,
+because if you mistakenly enter an unterminated string, any further lines you
+type will appear to be ignored by @code{mysql} --- including a line
+containing @code{QUIT}!  This can be quite confusing, especially if you
+don't know that you need to supply the terminating quote before you can
+cancel the current command.
+
+@node Database use, Getting information, Entering queries, Tutorial
+@section Creating and Using a Database
+
+@cindex databases, creating
+@cindex databases, using
+@cindex creating, databases
+
+@menu
+* Creating database::           Creating a database
+* Creating tables::             Creating a table
+* Loading tables::              Loading data into a table
+* Retrieving data::             Retrieving information from a table
+@end menu
+
+Now that you know how to enter commands, it's time to access a database.
+
+Suppose you have several pets in your home (your menagerie) and you'd
+like to keep track of various types of information about them.  You can do so
+by creating tables to hold your data and loading them with the desired
+information.  Then you can answer different sorts of questions about your
+animals by retrieving data from the tables.  This section shows you how to:
+
+@itemize @bullet
+@item
+Create a database
+@item
+Create a table
+@item
+Load data into the table
+@item
+Retrieve data from the table in various ways
+@item
+Use multiple tables
+@end itemize
+
+The menagerie database will be simple (deliberately), but it is not difficult
+to think of real-world situations in which a similar type of database might
+be used.  For example, a database like this could be used by a farmer to keep
+track of livestock, or by a veterinarian to keep track of patient records.
+A menagerie distribution containing some of the queries and sample data used
+in the following sections can be obtained from the @strong{MySQL} Web site.
+It's available in either
+@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
+or
+@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.zip,Zip format}.
+
+Use the @code{SHOW} statement to find out what databases currently exist
+on the server:
+
+@example
+mysql> SHOW DATABASES;
++----------+
+| Database |
++----------+
+| mysql    |
+| test     |
+| tmp      |
++----------+
+@end example
+
+The list of databases is probably different on your machine, but the
+@code{mysql} and @code{test} databases are likely to be among them.  The
+@code{mysql} database is required because it describes user access
+privileges.  The @code{test} database is often provided as a workspace for
+users to try things out.
+
+If the @code{test} database exists, try to access it:
+
+@example
+mysql> USE test
+Database changed
+@end example
+
+Note that @code{USE}, like @code{QUIT}, does not require a semicolon.  (You
+can terminate such statements with a semicolon if you like; it does no harm.)
+The @code{USE} statement is special in another way, too:  it must be given on
+a single line.
+
+You can use the @code{test} database (if you have access to it) for the
+examples that follow, but anything you create in that database can be
+removed by anyone else with access to it.  For this reason, you should
+probably ask your @strong{MySQL} administrator for permission to use a
+database of your own.  Suppose you want to call yours @code{menagerie}.  The
+administrator needs to execute a command like this:
+
+@example
+mysql> GRANT ALL ON menagerie.* TO your_mysql_name;
+@end example
+
+where @code{your_mysql_name} is the @strong{MySQL} user name assigned to
+you.
+
+@node Creating database, Creating tables, Database use, Database use
+@subsection Creating and Selecting a Database
+
+@cindex selecting, databases
+@cindex databases, selecting
+
+If the administrator creates your database for you when setting up your
+permissions, you can begin using it.  Otherwise, you need to create it
+yourself:
+
+@example
+mysql> CREATE DATABASE menagerie;
+@end example
+
+Under Unix, database names are case sensitive (unlike SQL keywords), so you
+must always refer to your database as @code{menagerie}, not as
+@code{Menagerie}, @code{MENAGERIE}, or some other variant.  This is also true
+for table names.  (Under Windows, this restriction does not apply, although
+you must refer to databases and tables using the same lettercase throughout a
+given query.)
+
+Creating a database does not select it for use; you must do that explicitly.
+To make @code{menagerie} the current database, use this command:
+
+@example
+mysql> USE menagerie
+Database changed
+@end example
+
+Your database needs to be created only once, but you must select it for use
+each time you begin a @code{mysql} session.  You can do this by issuing a
+@code{USE} statement as shown above.  Alternatively, you can select the
+database on the command line when you invoke @code{mysql}.  Just specify its
+name after any connection parameters that you might need to provide.  For
+example:
+
+@example
+shell> mysql -h host -u user -p menagerie
+Enter password: ********
+@end example
+
+Note that @code{menagerie} is not your password on the command just shown.
+If you want to supply your password on the command line after the @code{-p}
+option, you must do so with no intervening space (for example, as
+@code{-pmypassword}, not as @code{-p mypassword}).  However, putting your
+password on the command line is not recommended, because doing so exposes it
+to snooping by other users logged in on your machine.
+
+@node Creating tables, Loading tables, Creating database, Database use
+@subsection Creating a Table
+
+@cindex tables, creating
+@cindex creating, tables
+
+Creating the database is the easy part, but at this point it's empty, as
+@code{SHOW TABLES} will tell you:
+
+@example
+mysql> SHOW TABLES;
+Empty set (0.00 sec)
+@end example
+
+The harder part is deciding what the structure of your database should be:
+what tables you will need and what columns will be in each of them.
+
+You'll want a table that contains a record for each of your pets.  This can
+be called the @code{pet} table, and it should contain, as a bare minimum,
+each animal's name.  Because the name by itself is not very interesting, the
+table should contain other information.  For example, if more than one person
+in your family keeps pets, you might want to list each animal's owner.  You
+might also want to record some basic descriptive information such as species
+and sex.
+
+How about age?  That might be of interest, but it's not a good thing to store
+in a database.  Age changes as time passes, which means you'd have to update
+your records often.  Instead, it's better to store a fixed value such as
+date of birth.  Then, whenever you need age, you can calculate it as the
+difference between the current date and the birth date.  @strong{MySQL}
+provides functions for doing date arithmetic, so this is not difficult.
+Storing birth date rather than age has other advantages, too:
+
+@itemize @bullet
+@item
+You can use the database for tasks such as generating reminders for upcoming
+pet birthdays.  (If you think this type of query is somewhat silly, note that
+it is the same question you might ask in the context of a business database
+to identify clients to whom you'll soon need to send out birthday greetings,
+for that computer-assisted personal touch.)
+
+@item
+You can calculate age in relation to dates other than the current date.  For
+example, if you store death date in the database, you can easily calculate
+how old a pet was when it died.
+@end itemize
+
+You can probably think of other types of information that would be useful in
+the @code{pet} table, but the ones identified so far are sufficient for now:
+name, owner, species, sex, birth, and death.
+
+Use a @code{CREATE TABLE} statement to specify the layout of your table:
+
+@example
+mysql> CREATE TABLE pet (name VARCHAR(20), owner VARCHAR(20),
+    -> species VARCHAR(20), sex CHAR(1), birth DATE, death DATE);
+@end example
+
+@code{VARCHAR} is a good choice for the @code{name}, @code{owner}, and
+@code{species} columns because the column values will vary in length.  The
+lengths of those columns need not all be the same, and need not be
+@code{20}.  You can pick any length from @code{1} to @code{255}, whatever
+seems most reasonable to you.  (If you make a poor choice and it turns
+out later that you need a longer field, @strong{MySQL} provides an
+@code{ALTER TABLE} statement.)
+
+Animal sex can be represented in a variety of ways, for example, @code{"m"}
+and @code{"f"}, or perhaps @code{"male"} and @code{"female"}.  It's simplest
+to use the single characters @code{"m"} and @code{"f"}.
+
+The use of the @code{DATE} data type for the @code{birth} and @code{death}
+columns is a fairly obvious choice.
+
+Now that you have created a table, @code{SHOW TABLES} should produce some
+output:
+
+@example
+mysql> SHOW TABLES;
++---------------------+
+| Tables in menagerie |
++---------------------+
+| pet                 |
++---------------------+
+@end example
+
+To verify that your table was created the way you expected, use
+a @code{DESCRIBE} statement:
+
+@example
+mysql> DESCRIBE pet;
++---------+-------------+------+-----+---------+-------+
+| Field   | Type        | Null | Key | Default | Extra |
++---------+-------------+------+-----+---------+-------+
+| name    | varchar(20) | YES  |     | NULL    |       |
+| owner   | varchar(20) | YES  |     | NULL    |       |
+| species | varchar(20) | YES  |     | NULL    |       |
+| sex     | char(1)     | YES  |     | NULL    |       |
+| birth   | date        | YES  |     | NULL    |       |
+| death   | date        | YES  |     | NULL    |       |
++---------+-------------+------+-----+---------+-------+
+@end example
+
+You can use @code{DESCRIBE} any time, for example, if you forget the names of
+the columns in your table or what types they are.
+
+@node Loading tables, Retrieving data, Creating tables, Database use
+@subsection Loading Data into a Table
+
+@cindex loading, tables
+@cindex tables, loading data
+@cindex data, loading into tables
+
+After creating your table, you need to populate it.  The @code{LOAD DATA} and
+@code{INSERT} statements are useful for this.
+
+Suppose your pet records can be described as shown below.
+(Observe that @strong{MySQL} expects dates in @code{YYYY-MM-DD} format;
+this may be different than what you are used to.)
+
+@multitable @columnfractions .16 .16 .16 .16 .16 .16
+@item @strong{name} @tab @strong{owner} @tab @strong{species} @tab @strong{sex} @tab @strong{birth} @tab @strong{death}
+@item Fluffy @tab Harold @tab cat @tab f @tab 1993-02-04 @tab
+@item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
+@item Buffy @tab Harold @tab dog @tab f @tab 1989-05-13 @tab
+@item Fang @tab Benny @tab dog @tab m @tab 1990-08-27 @tab
+@item Bowser @tab Diane @tab dog @tab m @tab 1989-08-31 @tab 1995-07-29
+@item Chirpy @tab Gwen @tab bird @tab f @tab 1998-09-11 @tab
+@item Whistler @tab Gwen @tab bird @tab @tab 1997-12-09 @tab
+@item Slim @tab Benny @tab snake @tab m @tab 1996-04-29 @tab
+@end multitable
+
+Because you are beginning with an empty table, an easy way to populate it is to
+create a text file containing a row for each of your animals, then load the
+contents of the file into the table with a single statement.
+
+You could create a text file @file{pet.txt} containing one record per line,
+with values separated by tabs, and given in the order in which the columns
+were listed in the @code{CREATE TABLE} statement.  For missing values (such
+as unknown sexes or death dates for animals that are still living), you can
+use @code{NULL} values.  To represent these in your text file, use
+@code{\N}.  For example, the record for Whistler the bird would look like
+this (where the whitespace between values is a single tab character):
+
+@multitable @columnfractions .15 .15 .15 .15 .25 .15
+@item @code{Whistler} @tab @code{Gwen} @tab @code{bird} @tab @code{\N} @tab @code{1997-12-09} @tab @code{\N}
+@end multitable
+
+To load the text file @file{pet.txt} into the @code{pet} table, use this
+command:
+
+@example
+mysql> LOAD DATA LOCAL INFILE "pet.txt" INTO TABLE pet;
+@end example
+
+You can specify the column value separator and end of line marker explicitly
+in the @code{LOAD DATA} statement if you wish, but the defaults are tab and
+linefeed.  These are sufficient for the statement to read the file
+@file{pet.txt} properly.
+
+When you want to add new records one at a time, the @code{INSERT} statement
+is useful.  In its simplest form, you supply values for each column, in the
+order in which the columns were listed in the @code{CREATE TABLE} statement.
+Suppose Diane gets a new hamster named Puffball.  You could add a new record
+using an @code{INSERT} statement like this:
+
+@example
+mysql> INSERT INTO pet
+    -> VALUES ('Puffball','Diane','hamster','f','1999-03-30',NULL);
+@end example
+
+Note that string and date values are specified as quoted strings here.  Also,
+with @code{INSERT}, you can insert @code{NULL} directly to represent a
+missing value.  You do not use @code{\N} like you do with @code{LOAD DATA}.
+
+From this example, you should be able to see that there would be a lot more
+typing involved to load
+your records initially using several @code{INSERT} statements rather
+than a single @code{LOAD DATA} statement.
+
+@node Retrieving data,  , Loading tables, Database use
+@subsection Retrieving Information from a Table
+
+@cindex data, retrieving
+@cindex tables, retrieving data
+@cindex retrieving, data from tables
+@cindex unloading, tables
+
+@menu
+* Selecting all::               Selecting all data
+* Selecting rows::              Selecting particular rows
+* Selecting columns::           Selecting particular columns
+* Sorting rows::                Sorting rows
+* Date calculations::           Date calculations
+* Working with NULL::           Working with @code{NULL} values
+* Pattern matching::            Pattern matching
+* Counting rows::               Counting rows
+* Multiple tables::             
+@end menu
+
+The @code{SELECT} statement is used to pull information from a table.
+The general form of the statement is:
+
+@example
+SELECT what_to_select
+FROM which_table
+WHERE conditions_to_satisfy
+@end example
+
+@code{what_to_select} indicates what you want to see.  This can be a list of
+columns, or @code{*} to indicate ``all columns.'' @code{which_table}
+indicates the table from which you want to retrieve data.  The @code{WHERE}
+clause is optional.  If it's present, @code{conditions_to_satisfy} specifies
+conditions that rows must satisfy to qualify for retrieval.
+
+@node Selecting all, Selecting rows, Retrieving data, Retrieving data
+@subsubsection Selecting All Data
+
+The simplest form of @code{SELECT} retrieves everything from a table:
+
+@example
+mysql> SELECT * FROM pet;
++----------+--------+---------+------+------------+------------+
+| name     | owner  | species | sex  | birth      | death      |
++----------+--------+---------+------+------------+------------+
+| Fluffy   | Harold | cat     | f    | 1993-02-04 | NULL       |
+| Claws    | Gwen   | cat     | m    | 1994-03-17 | NULL       |
+| Buffy    | Harold | dog     | f    | 1989-05-13 | NULL       |
+| Fang     | Benny  | dog     | m    | 1990-08-27 | NULL       |
+| Bowser   | Diane  | dog     | m    | 1998-08-31 | 1995-07-29 |
+| Chirpy   | Gwen   | bird    | f    | 1998-09-11 | NULL       |
+| Whistler | Gwen   | bird    | NULL | 1997-12-09 | NULL       |
+| Slim     | Benny  | snake   | m    | 1996-04-29 | NULL       |
+| Puffball | Diane  | hamster | f    | 1999-03-30 | NULL       |
++----------+--------+---------+------+------------+------------+
+@end example
+
+This form of @code{SELECT} is useful if you want to review your entire table,
+for instance, after you've just loaded it with your initial dataset.  As it
+happens, the output just shown reveals an error in your data file:  Bowser
+appears to have been born after he died!  Consulting your original pedigree
+papers, you find that the correct birth year is 1989, not 1998.
+
+There are are least a couple of ways to fix this:
+
+@itemize @bullet
+@item
+Edit the file @file{pet.txt} to correct the error, then empty the table
+and reload it using @code{DELETE} and @code{LOAD DATA}:
+
+@example
+mysql> SET AUTOCOMMIT=1;  # Used for quick re-create of the table
+mysql> DELETE FROM pet;
+mysql> LOAD DATA LOCAL INFILE "pet.txt" INTO TABLE pet;
+@end example
+
+However, if you do this, you must also re-enter the record for Puffball.
+
+@item
+Fix only the erroneous record with an @code{UPDATE} statement:
+
+@example
+mysql> UPDATE pet SET birth = "1989-08-31" WHERE name = "Bowser";
+@end example
+@end itemize
+
+As shown above, it is easy to retrieve an entire table.  But typically you
+don't want to do that, particularly when the table becomes large.  Instead,
+you're usually more interested in answering a particular question, in which
+case you specify some constraints on the information you want.  Let's look at
+some selection queries in terms of questions about your pets that they
+answer.
+
+@node Selecting rows, Selecting columns, Selecting all, Retrieving data
+@subsubsection Selecting Particular Rows
+
+@cindex rows, selecting
+@cindex tables, selecting rows
+
+You can select only particular rows from your table.  For example, if you want
+to verify the change that you made to Bowser's birth date, select Bowser's
+record like this:
+
+@example
+mysql> SELECT * FROM pet WHERE name = "Bowser";
++--------+-------+---------+------+------------+------------+
+| name   | owner | species | sex  | birth      | death      |
++--------+-------+---------+------+------------+------------+
+| Bowser | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
++--------+-------+---------+------+------------+------------+
+@end example
+
+The output confirms that the year is correctly recorded now as 1989, not 1998.
+
+String comparisons are normally case insensitive, so you can specify the
+name as @code{"bowser"}, @code{"BOWSER"}, etc.  The query result will be
+the same.
+
+You can specify conditions on any column, not just @code{name}.  For example,
+if you want to know which animals were born after 1998, test the @code{birth}
+column:
+
+@example
+mysql> SELECT * FROM pet WHERE birth >= "1998-1-1";
++----------+-------+---------+------+------------+-------+
+| name     | owner | species | sex  | birth      | death |
++----------+-------+---------+------+------------+-------+
+| Chirpy   | Gwen  | bird    | f    | 1998-09-11 | NULL  |
+| Puffball | Diane | hamster | f    | 1999-03-30 | NULL  |
++----------+-------+---------+------+------------+-------+
+@end example
+
+You can combine conditions, for example, to locate female dogs:
+
+@example
+mysql> SELECT * FROM pet WHERE species = "dog" AND sex = "f";
++-------+--------+---------+------+------------+-------+
+| name  | owner  | species | sex  | birth      | death |
++-------+--------+---------+------+------------+-------+
+| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
++-------+--------+---------+------+------------+-------+
+@end example
+
+The preceding query uses the @code{AND} logical operator.  There is also an
+@code{OR} operator:
+
+@example
+mysql> SELECT * FROM pet WHERE species = "snake" OR species = "bird";
++----------+-------+---------+------+------------+-------+
+| name     | owner | species | sex  | birth      | death |
++----------+-------+---------+------+------------+-------+
+| Chirpy   | Gwen  | bird    | f    | 1998-09-11 | NULL  |
+| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL  |
+| Slim     | Benny | snake   | m    | 1996-04-29 | NULL  |
++----------+-------+---------+------+------------+-------+
+@end example
+
+@code{AND} and @code{OR} may be intermixed.  If you do that, it's a good idea
+to use parentheses to indicate how conditions should be grouped:
+
+@example
+mysql> SELECT * FROM pet WHERE (species = "cat" AND sex = "m")
+    -> OR (species = "dog" AND sex = "f");
++-------+--------+---------+------+------------+-------+
+| name  | owner  | species | sex  | birth      | death |
++-------+--------+---------+------+------------+-------+
+| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
+| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
++-------+--------+---------+------+------------+-------+
+@end example
+
+@node Selecting columns, Sorting rows, Selecting rows, Retrieving data
+@subsubsection Selecting Particular Columns
+
+@cindex columns, selecting
+@cindex tables, selecting columns
+
+If you don't want to see entire rows from your table, just name the columns
+in which you're interested, separated by commas.  For example, if you want to
+know when your animals were born, select the @code{name} and @code{birth}
+columns:
+
+@example
+mysql> SELECT name, birth FROM pet;
++----------+------------+
+| name     | birth      |
++----------+------------+
+| Fluffy   | 1993-02-04 |
+| Claws    | 1994-03-17 |
+| Buffy    | 1989-05-13 |
+| Fang     | 1990-08-27 |
+| Bowser   | 1989-08-31 |
+| Chirpy   | 1998-09-11 |
+| Whistler | 1997-12-09 |
+| Slim     | 1996-04-29 |
+| Puffball | 1999-03-30 |
++----------+------------+
+@end example
+
+To find out who owns pets, use this query:
+
+@example
+mysql> SELECT owner FROM pet;
++--------+
+| owner  |
++--------+
+| Harold |
+| Gwen   |
+| Harold |
+| Benny  |
+| Diane  |
+| Gwen   |
+| Gwen   |
+| Benny  |
+| Diane  |
++--------+
+@end example
+
+@findex DISTINCT
+However, notice that the query simply retrieves the @code{owner} field from
+each record, and some of them appear more than once.  To minimize the output,
+retrieve each unique output record just once by adding the keyword
+@code{DISTINCT}:
+
+@example
+mysql> SELECT DISTINCT owner FROM pet;
++--------+
+| owner  |
++--------+
+| Benny  |
+| Diane  |
+| Gwen   |
+| Harold |
++--------+
+@end example
+
+You can use a @code{WHERE} clause to combine row selection with column
+selection.  For example, to get birth dates for dogs and cats only,
+use this query:
+
+@example
+mysql> SELECT name, species, birth FROM pet
+    -> WHERE species = "dog" OR species = "cat";
++--------+---------+------------+
+| name   | species | birth      |
++--------+---------+------------+
+| Fluffy | cat     | 1993-02-04 |
+| Claws  | cat     | 1994-03-17 |
+| Buffy  | dog     | 1989-05-13 |
+| Fang   | dog     | 1990-08-27 |
+| Bowser | dog     | 1989-08-31 |
++--------+---------+------------+
+@end example
+
+@node Sorting rows, Date calculations, Selecting columns, Retrieving data
+@subsubsection Sorting Rows
+
+@cindex rows, sorting
+@cindex sorting, table rows
+@cindex sorting, data
+@cindex tables, sorting rows
+
+You may have noticed in the preceding examples that the result rows are
+displayed in no particular order.  However, it's often easier to examine
+query output when the rows are sorted in some meaningful way.  To sort a
+result, use an @code{ORDER BY} clause.
+
+Here are animal birthdays, sorted by date:
+
+@example
+mysql> SELECT name, birth FROM pet ORDER BY birth;
++----------+------------+
+| name     | birth      |
++----------+------------+
+| Buffy    | 1989-05-13 |
+| Bowser   | 1989-08-31 |
+| Fang     | 1990-08-27 |
+| Fluffy   | 1993-02-04 |
+| Claws    | 1994-03-17 |
+| Slim     | 1996-04-29 |
+| Whistler | 1997-12-09 |
+| Chirpy   | 1998-09-11 |
+| Puffball | 1999-03-30 |
++----------+------------+
+@end example
+
+To sort in reverse order, add the @code{DESC} (descending) keyword to the
+name of the column you are sorting by:
+
+@example
+mysql> SELECT name, birth FROM pet ORDER BY birth DESC;
++----------+------------+
+| name     | birth      |
++----------+------------+
+| Puffball | 1999-03-30 |
+| Chirpy   | 1998-09-11 |
+| Whistler | 1997-12-09 |
+| Slim     | 1996-04-29 |
+| Claws    | 1994-03-17 |
+| Fluffy   | 1993-02-04 |
+| Fang     | 1990-08-27 |
+| Bowser   | 1989-08-31 |
+| Buffy    | 1989-05-13 |
++----------+------------+
+@end example
+
+You can sort on multiple columns.  For example, to sort by type of
+animal, then by birth date within animal type with youngest animals first,
+use the following query:
+
+@example
+mysql> SELECT name, species, birth FROM pet ORDER BY species, birth DESC;
++----------+---------+------------+
+| name     | species | birth      |
++----------+---------+------------+
+| Chirpy   | bird    | 1998-09-11 |
+| Whistler | bird    | 1997-12-09 |
+| Claws    | cat     | 1994-03-17 |
+| Fluffy   | cat     | 1993-02-04 |
+| Fang     | dog     | 1990-08-27 |
+| Bowser   | dog     | 1989-08-31 |
+| Buffy    | dog     | 1989-05-13 |
+| Puffball | hamster | 1999-03-30 |
+| Slim     | snake   | 1996-04-29 |
++----------+---------+------------+
+@end example
+
+Note that the @code{DESC} keyword applies only to the column name immediately
+preceding it (@code{birth}); @code{species} values are still sorted in
+ascending order.
+
+@node Date calculations, Working with NULL, Sorting rows, Retrieving data
+@subsubsection Date Calculations
+
+@cindex date calculations
+@cindex calculating, dates
+@cindex extracting, dates
+@cindex age, calculating
+
+@strong{MySQL} provides several functions that you can use to perform
+calculations on dates, for example, to calculate ages or extract
+parts of dates.
+
+To determine how many years old each of your pets is, compute age as the
+difference between the birth date and the current date.  Do this by
+converting the two dates to days, take the difference, and divide by 365 (the
+number of days in a year):
+
+@example
+mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 FROM pet;
++----------+-------------------------------------+
+| name     | (TO_DAYS(NOW())-TO_DAYS(birth))/365 |
++----------+-------------------------------------+
+| Fluffy   |                                6.15 |
+| Claws    |                                5.04 |
+| Buffy    |                                9.88 |
+| Fang     |                                8.59 |
+| Bowser   |                                9.58 |
+| Chirpy   |                                0.55 |
+| Whistler |                                1.30 |
+| Slim     |                                2.92 |
+| Puffball |                                0.00 |
++----------+-------------------------------------+
+@end example
+
+Although the query works, there are some things about it that could be
+improved.  First, the result could be scanned more easily if the rows were
+presented in some order.  Second, the heading for the age column isn't very
+meaningful.
+
+The first problem can be handled by adding an @code{ORDER BY name} clause to
+sort the output by name.  To deal with the column heading, provide a name for
+the column so that a different label appears in the output (this is called a
+column alias):
+
+@example
+mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
+    -> FROM pet ORDER BY name;
++----------+------+
+| name     | age  |
++----------+------+
+| Bowser   | 9.58 |
+| Buffy    | 9.88 |
+| Chirpy   | 0.55 |
+| Claws    | 5.04 |
+| Fang     | 8.59 |
+| Fluffy   | 6.15 |
+| Puffball | 0.00 |
+| Slim     | 2.92 |
+| Whistler | 1.30 |
++----------+------+
+@end example
+
+To sort the output by @code{age} rather than @code{name}, just use a
+different @code{ORDER BY} clause:
+
+@example
+mysql>  SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
+    ->  FROM pet ORDER BY age;
++----------+------+
+| name     | age  |
++----------+------+
+| Puffball | 0.00 |
+| Chirpy   | 0.55 |
+| Whistler | 1.30 |
+| Slim     | 2.92 |
+| Claws    | 5.04 |
+| Fluffy   | 6.15 |
+| Fang     | 8.59 |
+| Bowser   | 9.58 |
+| Buffy    | 9.88 |
++----------+------+
+@end example
+
+A similar query can be used to determine age at death for animals that have
+died.  You determine which animals these are by checking whether or not the
+@code{death} value is @code{NULL}.  Then, for those with non-@code{NULL}
+values, compute the difference between the @code{death} and @code{birth}
+values:
+
+@example
+mysql>  SELECT name, birth, death, (TO_DAYS(death)-TO_DAYS(birth))/365 AS age
+    ->  FROM pet WHERE death IS NOT NULL ORDER BY age;
++--------+------------+------------+------+
+| name   | birth      | death      | age  |
++--------+------------+------------+------+
+| Bowser | 1989-08-31 | 1995-07-29 | 5.91 |
++--------+------------+------------+------+
+@end example
+
+The query uses @code{death IS NOT NULL} rather than @code{death != NULL}
+because @code{NULL} is a special value.  This is explained later.
+@xref{Working with NULL,  , Working with @code{NULL}}.
+
+What if you want to know which animals have birthdays next month?  For this
+type of calculation, year and day are irrelevant; you simply want to extract
+the month part of the @code{birth} column.  @strong{MySQL} provides several
+date-part extraction functions, such as @code{YEAR()}, @code{MONTH()}, and
+@code{DAYOFMONTH()}.  @code{MONTH()} is the appropriate function here.  To
+see how it works, run a simple query that displays the value of both
+@code{birth} and @code{MONTH(birth)}:
+
+@example
+mysql> SELECT name, birth, MONTH(birth) FROM pet;
++----------+------------+--------------+
+| name     | birth      | MONTH(birth) |
++----------+------------+--------------+
+| Fluffy   | 1993-02-04 |            2 |
+| Claws    | 1994-03-17 |            3 |
+| Buffy    | 1989-05-13 |            5 |
+| Fang     | 1990-08-27 |            8 |
+| Bowser   | 1989-08-31 |            8 |
+| Chirpy   | 1998-09-11 |            9 |
+| Whistler | 1997-12-09 |           12 |
+| Slim     | 1996-04-29 |            4 |
+| Puffball | 1999-03-30 |            3 |
++----------+------------+--------------+
+@end example
+
+Finding animals with birthdays in the upcoming month is easy, too.  Suppose
+the current month is April.  Then the month value is @code{4} and you look
+for animals born in May (month 5) like this:
+
+@example
+mysql> SELECT name, birth FROM pet WHERE MONTH(birth) = 5;
++-------+------------+
+| name  | birth      |
++-------+------------+
+| Buffy | 1989-05-13 |
++-------+------------+
+@end example
+
+There is a small complication if the current month is December, of course.
+You don't just add one to the month number (@code{12}) and look for animals
+born in month 13, because there is no such month.  Instead, you look for
+animals born in January (month 1).
+
+You can even write the query so that it works no matter what the current
+month is.  That way you don't have to use a particular month number
+in the query.  @code{DATE_ADD()} allows you to add a time interval to a
+given date.  If you add a month to the value of @code{NOW()}, then extract
+the month part with @code{MONTH()}, the result produces the month in which to
+look for birthdays:
+
+@example
+mysql> SELECT name, birth FROM pet
+    -> WHERE MONTH(birth) = MONTH(DATE_ADD(NOW(), INTERVAL 1 MONTH));
+@end example
+
+A different way to accomplish the same task is to add @code{1} to get the
+next month after the current one (after using the modulo function (@code{MOD})
+to wrap around the month value to @code{0} if it is currently
+@code{12}):
+
+@example
+mysql> SELECT name, birth FROM pet
+    -> WHERE MONTH(birth) = MOD(MONTH(NOW()), 12) + 1;
+@end example
+
+Note that @code{MONTH} returns a number between 1 and 12. And
+@code{MOD(something,12)} returns a number between 0 and 11. So the
+addition has to be after the @code{MOD()} otherwise we would go from
+November (11) to January (1).
+
+@node Working with NULL, Pattern matching, Date calculations, Retrieving data
+@subsubsection Working with @code{NULL} Values
+
+@findex NULL
+@cindex NULL value
+
+The @code{NULL} value can be surprising until you get used to it.
+Conceptually, @code{NULL} means missing value or unknown value and it
+is treated somewhat differently than other values.  To test for @code{NULL},
+you cannot use the arithmetic comparison operators such as @code{=}, @code{<},
+or @code{!=}.  To demonstrate this for yourself, try the following query:
+
+@example
+mysql> SELECT 1 = NULL, 1 != NULL, 1 < NULL, 1 > NULL;
++----------+-----------+----------+----------+
+| 1 = NULL | 1 != NULL | 1 < NULL | 1 > NULL |
++----------+-----------+----------+----------+
+|     NULL |      NULL |     NULL |     NULL |
++----------+-----------+----------+----------+
+@end example
+
+Clearly you get no meaningful results from these comparisons.  Use
+the @code{IS NULL} and @code{IS NOT NULL} operators instead:
+
+@example
+mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
++-----------+---------------+
+| 1 IS NULL | 1 IS NOT NULL |
++-----------+---------------+
+|         0 |             1 |
++-----------+---------------+
+@end example
+
+In @strong{MySQL}, 0 or @code{NULL} means false and anything else means true.
+The default truth value from a boolean operation is 1.
+
+This special treatment of @code{NULL} is why, in the previous section, it
+was necessary to determine which animals are no longer alive using
+@code{death IS NOT NULL} instead of @code{death != NULL}.
+
+@node Pattern matching, Counting rows, Working with NULL, Retrieving data
+@subsubsection Pattern Matching
+
+@cindex pattern matching
+@cindex matching, patterns
+@cindex expressions, extended
+
+@strong{MySQL} provides standard SQL pattern matching as well as a form of
+pattern matching based on extended regular expressions similar to those used
+by Unix utilities such as @code{vi}, @code{grep}, and @code{sed}.
+
+SQL pattern matching allows you to use @samp{_} to match any single
+character and @samp{%} to match an arbitrary number of characters (including
+zero characters).  In @strong{MySQL}, SQL patterns are case insensitive by
+default.  Some examples are shown below.  Note that you do not use @code{=}
+or @code{!=} when you use SQL patterns; use the @code{LIKE} or @code{NOT
+LIKE} comparison operators instead.
+
+To find names beginning with @samp{b}:
+
+@example
+mysql> SELECT * FROM pet WHERE name LIKE "b%";
++--------+--------+---------+------+------------+------------+
+| name   | owner  | species | sex  | birth      | death      |
++--------+--------+---------+------+------------+------------+
+| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL       |
+| Bowser | Diane  | dog     | m    | 1989-08-31 | 1995-07-29 |
++--------+--------+---------+------+------------+------------+
+@end example
+
+To find names ending with @samp{fy}:
+
+@example
+mysql> SELECT * FROM pet WHERE name LIKE "%fy";
++--------+--------+---------+------+------------+-------+
+| name   | owner  | species | sex  | birth      | death |
++--------+--------+---------+------+------------+-------+
+| Fluffy | Harold | cat     | f    | 1993-02-04 | NULL  |
+| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL  |
++--------+--------+---------+------+------------+-------+
+@end example
+
+To find names containing a @samp{w}:
+
+@example
+mysql> SELECT * FROM pet WHERE name LIKE "%w%";
++----------+-------+---------+------+------------+------------+
+| name     | owner | species | sex  | birth      | death      |
++----------+-------+---------+------+------------+------------+
+| Claws    | Gwen  | cat     | m    | 1994-03-17 | NULL       |
+| Bowser   | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
+| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL       |
++----------+-------+---------+------+------------+------------+
+@end example
+
+To find names containing exactly five characters, use the @samp{_} pattern
+character:
+
+@example
+mysql> SELECT * FROM pet WHERE name LIKE "_____";
++-------+--------+---------+------+------------+-------+
+| name  | owner  | species | sex  | birth      | death |
++-------+--------+---------+------+------------+-------+
+| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
+| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
++-------+--------+---------+------+------------+-------+
+@end example
+
+The other type of pattern matching provided by @strong{MySQL} uses extended
+regular expressions.  When you test for a match for this type of pattern, use
+the @code{REGEXP} and @code{NOT REGEXP} operators (or @code{RLIKE} and
+@code{NOT RLIKE}, which are synonyms).
+
+Some characteristics of extended regular expressions are:
+
+@itemize @bullet
+@item
+@samp{.} matches any single character.
+
+@item
+A character class @samp{[...]} matches any character within the brackets.
+For example, @samp{[abc]} matches @samp{a}, @samp{b}, or @samp{c}.  To name a
+range of characters, use a dash.  @samp{[a-z]} matches any lowercase letter,
+whereas @samp{[0-9]} matches any digit.
+
+@item
+@samp{*} matches zero or more instances of the thing preceding it.  For
+example, @samp{x*} matches any number of @samp{x} characters,
+@samp{[0-9]*} matches any number of digits, and @samp{.*} matches any
+number of anything.
+
+@item
+Regular expressions are case sensitive, but you can use a character class to
+match both lettercases if you wish.  For example, @samp{[aA]} matches
+lowercase or uppercase @samp{a} and @samp{[a-zA-Z]} matches any letter in
+either case.
+
+@item
+The pattern matches if it occurs anywhere in the value being tested.
+(SQL patterns match only if they match the entire value.)
+
+@item
+To anchor a pattern so that it must match the beginning or end of the value
+being tested, use @samp{^} at the beginning or @samp{$} at the end of the
+pattern.
+@end itemize
+
+To demonstrate how extended regular expressions work, the @code{LIKE} queries
+shown above are rewritten below to use @code{REGEXP}.
+
+To find names beginning with @samp{b}, use @samp{^} to match the beginning of
+the name:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "^b";
++--------+--------+---------+------+------------+------------+
+| name   | owner  | species | sex  | birth      | death      |
++--------+--------+---------+------+------------+------------+
+| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL       |
+| Bowser | Diane  | dog     | m    | 1989-08-31 | 1995-07-29 |
++--------+--------+---------+------+------------+------------+
+@end example
+
+Prior to @strong{MySQL} Version 3.23.4, @code{REGEXP} is case sensitive, 
+and the previous query will return no rows. To match either lowercase or 
+uppercase @samp{b}, use this query instead:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "^[bB]";
+@end example
+
+From @strong{MySQL} 3.23.4 on, to force a @code{REGEXP} comparison to
+be case sensitive, use the @code{BINARY} keyword to make one of the
+strings a binary string. This query will match only lowercase @samp{b}
+at the beginning of a name:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP BINARY "^b";
+@end example
+
+To find names ending with @samp{fy}, use @samp{$} to match the end of the
+name:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "fy$";
++--------+--------+---------+------+------------+-------+
+| name   | owner  | species | sex  | birth      | death |
++--------+--------+---------+------+------------+-------+
+| Fluffy | Harold | cat     | f    | 1993-02-04 | NULL  |
+| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL  |
++--------+--------+---------+------+------------+-------+
+@end example
+
+To find names containing a lowercase or uppercase @samp{w}, use this query:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "w";
++----------+-------+---------+------+------------+------------+
+| name     | owner | species | sex  | birth      | death      |
++----------+-------+---------+------+------------+------------+
+| Claws    | Gwen  | cat     | m    | 1994-03-17 | NULL       |
+| Bowser   | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
+| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL       |
++----------+-------+---------+------+------------+------------+
+@end example
+
+Because a regular expression pattern matches if it occurs anywhere in the
+value, it is not necessary in the previous query to put a wild card on either
+side of the pattern to get it to match the entire value like it would be if
+you used a SQL pattern.
+
+To find names containing exactly five characters, use @samp{^} and @samp{$}
+to match the beginning and end of the name, and five instances of @samp{.}
+in between:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "^.....$";
++-------+--------+---------+------+------------+-------+
+| name  | owner  | species | sex  | birth      | death |
++-------+--------+---------+------+------------+-------+
+| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
+| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
++-------+--------+---------+------+------------+-------+
+@end example
+
+You could also write the previous query using the @samp{@{n@}}
+``repeat-@code{n}-times'' operator:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
++-------+--------+---------+------+------------+-------+
+| name  | owner  | species | sex  | birth      | death |
++-------+--------+---------+------+------------+-------+
+| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
+| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
++-------+--------+---------+------+------------+-------+
+@end example
+
+@node Counting rows, Multiple tables, Pattern matching, Retrieving data
+@subsubsection Counting Rows
+
+@cindex rows, counting
+@cindex tables, counting rows
+@cindex counting, table rows
+
+Databases are often used to answer the question, ``How often does a certain
+type of data occur in a table?''  For example, you might want to know how
+many pets you have, or how many pets each owner has, or you might want to
+perform various kinds of censuses on your animals.
+
+Counting the total number of animals you have is the same question as ``How
+many rows are in the @code{pet} table?'' because there is one record per pet.
+The @code{COUNT()} function counts the number of non-@code{NULL} results, so
+the query to count your animals looks like this:
+
+@example
+mysql> SELECT COUNT(*) FROM pet;
++----------+
+| COUNT(*) |
++----------+
+|        9 |
++----------+
+@end example
+
+Earlier, you retrieved the names of the people who owned pets.  You can
+use @code{COUNT()} if you want to find out how many pets each owner has:
+
+@example
+mysql> SELECT owner, COUNT(*) FROM pet GROUP BY owner;
++--------+----------+
+| owner  | COUNT(*) |
++--------+----------+
+| Benny  |        2 |
+| Diane  |        2 |
+| Gwen   |        3 |
+| Harold |        2 |
++--------+----------+
+@end example
+
+Note the use of @code{GROUP BY} to group together all records for each
+@code{owner}.  Without it, all you get is an error message:
+
+@example
+mysql> SELECT owner, COUNT(owner) FROM pet;
+ERROR 1140 at line 1: Mixing of GROUP columns (MIN(),MAX(),COUNT()...)
+with no GROUP columns is illegal if there is no GROUP BY clause
+@end example
+
+@code{COUNT()} and @code{GROUP BY} are useful for characterizing your
+data in various ways.  The following examples show different ways to
+perform animal census operations.
+
+Number of animals per species:
+
+@example
+mysql> SELECT species, COUNT(*) FROM pet GROUP BY species;
++---------+----------+
+| species | COUNT(*) |
++---------+----------+
+| bird    |        2 |
+| cat     |        2 |
+| dog     |        3 |
+| hamster |        1 |
+| snake   |        1 |
++---------+----------+
+@end example
+
+Number of animals per sex:
+
+@example
+mysql> SELECT sex, COUNT(*) FROM pet GROUP BY sex;
++------+----------+
+| sex  | COUNT(*) |
++------+----------+
+| NULL |        1 |
+| f    |        4 |
+| m    |        4 |
++------+----------+
+@end example
+
+(In this output, @code{NULL} indicates sex unknown.)
+
+Number of animals per combination of species and sex:
+
+@example
+mysql> SELECT species, sex, COUNT(*) FROM pet GROUP BY species, sex;
++---------+------+----------+
+| species | sex  | COUNT(*) |
++---------+------+----------+
+| bird    | NULL |        1 |
+| bird    | f    |        1 |
+| cat     | f    |        1 |
+| cat     | m    |        1 |
+| dog     | f    |        1 |
+| dog     | m    |        2 |
+| hamster | f    |        1 |
+| snake   | m    |        1 |
++---------+------+----------+
+@end example
+
+You need not retrieve an entire table when you use @code{COUNT()}.  For
+example, the previous query, when performed just on dogs and cats, looks like
+this:
+
+@example
+mysql> SELECT species, sex, COUNT(*) FROM pet
+    -> WHERE species = "dog" OR species = "cat"
+    -> GROUP BY species, sex;
++---------+------+----------+
+| species | sex  | COUNT(*) |
++---------+------+----------+
+| cat     | f    |        1 |
+| cat     | m    |        1 |
+| dog     | f    |        1 |
+| dog     | m    |        2 |
++---------+------+----------+
+@end example
+
+Or, if you wanted the number of animals per sex only for known-sex animals:
+
+@example
+mysql> SELECT species, sex, COUNT(*) FROM pet
+    -> WHERE sex IS NOT NULL
+    -> GROUP BY species, sex;
++---------+------+----------+
+| species | sex  | COUNT(*) |
++---------+------+----------+
+| bird    | f    |        1 |
+| cat     | f    |        1 |
+| cat     | m    |        1 |
+| dog     | f    |        1 |
+| dog     | m    |        2 |
+| hamster | f    |        1 |
+| snake   | m    |        1 |
++---------+------+----------+
+@end example
+
+@node Multiple tables,  , Counting rows, Retrieving data
+@subsubsection Using More Than one Table
+
+@cindex tables, multiple
+
+The @code{pet} table keeps track of which pets you have.  If you want to
+record other information about them, such as events in their lives like
+visits to the vet or when litters are born, you need another table.  What
+should this table look like? It needs:
+
+@itemize @bullet
+@item
+To contain the pet name so you know which animal each event pertains
+to.
+
+@item
+A date so you know when the event occurred.
+
+@item
+A field to describe the event.
+
+@item
+An event type field, if you want to be able to categorize events.
+@end itemize
+
+Given these considerations, the @code{CREATE TABLE} statement for the
+@code{event} table might look like this:
+
+@example
+mysql> CREATE TABLE event (name VARCHAR(20), date DATE,
+    -> type VARCHAR(15), remark VARCHAR(255));
+@end example
+
+As with the @code{pet} table, it's easiest to load the initial records
+by creating a tab-delimited text file containing the information:
+
+@multitable @columnfractions .15 .15 .15 .55
+@item Fluffy @tab 1995-05-15 @tab litter @tab 4 kittens, 3 female, 1 male
+@item Buffy @tab 1993-06-23 @tab litter @tab 5 puppies, 2 female, 3 male
+@item Buffy @tab 1994-06-19 @tab litter @tab 3 puppies, 3 female
+@item Chirpy @tab 1999-03-21 @tab vet @tab needed beak straightened
+@item Slim @tab 1997-08-03 @tab vet @tab broken rib
+@item Bowser @tab 1991-10-12 @tab kennel
+@item Fang @tab 1991-10-12 @tab kennel
+@item Fang @tab 1998-08-28 @tab birthday @tab Gave him a new chew toy
+@item Claws @tab 1998-03-17 @tab birthday @tab Gave him a new flea collar
+@item Whistler @tab 1998-12-09 @tab birthday @tab First birthday
+@end multitable
+
+Load the records like this:
+
+@example
+mysql> LOAD DATA LOCAL INFILE "event.txt" INTO TABLE event;
+@end example
+
+Based on what you've learned from the queries you've run on the @code{pet}
+table, you should be able to perform retrievals on the records in the
+@code{event} table; the principles are the same.  But when is the
+@code{event} table by itself insufficient to answer questions you might ask?
+
+Suppose you want to find out the ages of each pet when they had their
+litters.  The @code{event} table indicates when this occurred, but to
+calculate the age of the mother, you need her birth date.  Because that is
+stored in the @code{pet} table, you need both tables for the query:
+
+@example
+mysql> SELECT pet.name, (TO_DAYS(date) - TO_DAYS(birth))/365 AS age, remark
+    -> FROM pet, event
+    -> WHERE pet.name = event.name AND type = "litter";
++--------+------+-----------------------------+
+| name   | age  | remark                      |
++--------+------+-----------------------------+
+| Fluffy | 2.27 | 4 kittens, 3 female, 1 male |
+| Buffy  | 4.12 | 5 puppies, 2 female, 3 male |
+| Buffy  | 5.10 | 3 puppies, 3 female         |
++--------+------+-----------------------------+
+@end example
+
+There are several things to note about this query:
+
+@itemize @bullet
+@item
+The @code{FROM} clause lists two tables because the query needs to pull
+information from both of them.
+
+@item
+When combining (joining) information from multiple tables, you need to
+specify how records in one table can be matched to records in the other.
+This is easy because they both have a @code{name} column.  The query uses
+@code{WHERE} clause to match up records in the two tables based on the
+@code{name} values.
+
+@item
+Because the @code{name} column occurs in both tables, you must be specific
+about which table you mean when referring to the column.  This is done
+by prepending the table name to the column name.
+@end itemize
+
+You need not have two different tables to perform a join.  Sometimes it is
+useful to join a table to itself, if you want to compare records in a table
+to other records in that same table.  For example, to find breeding pairs
+among your pets, you can join the @code{pet} table with itself to pair up
+males and females of like species:
+
+@example
+mysql> SELECT p1.name, p1.sex, p2.name, p2.sex, p1.species
+    -> FROM pet AS p1, pet AS p2
+    -> WHERE p1.species = p2.species AND p1.sex = "f" AND p2.sex = "m";
++--------+------+--------+------+---------+
+| name   | sex  | name   | sex  | species |
++--------+------+--------+------+---------+
+| Fluffy | f    | Claws  | m    | cat     |
+| Buffy  | f    | Fang   | m    | dog     |
+| Buffy  | f    | Bowser | m    | dog     |
++--------+------+--------+------+---------+
+@end example
+
+In this query, we specify aliases for the table name in order
+to refer to the columns and keep straight which instance of the table
+each column reference is associated with.
+
+@node Getting information, Examples, Database use, Tutorial
+@section Getting Information About Databases and Tables
+
+@cindex databases, information about
+@cindex tables, information about
+@findex DESCRIBE
+
+What if you forget the name of a database or table, or what the structure of
+a given table is (for example, what its columns are called)?  @strong{MySQL}
+addresses this problem through several statements that provide information
+about the databases and tables it supports.
+
+You have already seen @code{SHOW DATABASES}, which lists the databases
+managed by the server.  To find out which database is currently selected,
+use the @code{DATABASE()} function:
+
+@example
+mysql> SELECT DATABASE();
++------------+
+| DATABASE() |
++------------+
+| menagerie  |
++------------+
+@end example
+
+If you haven't selected any database yet, the result is blank.
+
+To find out what tables the current database contains (for example, when
+you're not sure about the name of a table), use this command:
+
+@example
+mysql> SHOW TABLES;
++---------------------+
+| Tables in menagerie |
++---------------------+
+| event               |
+| pet                 |
++---------------------+
+@end example
+
+If you want to find out about the structure of a table, the @code{DESCRIBE}
+command is useful; it displays information about each of a table's columns:
+
+@example
+mysql> DESCRIBE pet;
++---------+-------------+------+-----+---------+-------+
+| Field   | Type        | Null | Key | Default | Extra |
++---------+-------------+------+-----+---------+-------+
+| name    | varchar(20) | YES  |     | NULL    |       |
+| owner   | varchar(20) | YES  |     | NULL    |       |
+| species | varchar(20) | YES  |     | NULL    |       |
+| sex     | char(1)     | YES  |     | NULL    |       |
+| birth   | date        | YES  |     | NULL    |       |
+| death   | date        | YES  |     | NULL    |       |
++---------+-------------+------+-----+---------+-------+
+@end example
+
+@code{Field} indicates the column name, @code{Type} is the data type for
+the column, @code{Null} indicates whether or not the column can contain
+@code{NULL} values, @code{Key} indicates whether or not the column is
+indexed, and @code{Default} specifies the column's default value.
+
+If you have indexes on a table,
+@code{SHOW INDEX FROM tbl_name} produces information about them.
+
+@node Examples, Batch mode, Getting information, Tutorial
+@section Examples of Common Queries
+
+@cindex queries, examples
+@cindex examples, queries
+
+Here are examples of how to solve some common problems with
+@strong{MySQL}.
+
+Some of the examples use the table @code{shop} to hold the price of each
+article (item number) for certain traders (dealers).  Supposing that each
+trader has a single fixed price per article, then (@code{item},
+@code{trader}) is a primary key for the records.
+
+Start the command line tool @code{mysql} and select a database:
+
+@example
+mysql your-database-name
+@end example
+
+(In most @strong{MySQL} installations, you can use the database-name 'test').
+
+You can create the example table as:
+
+@example
+CREATE TABLE shop (
+ article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+ dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
+ price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
+ PRIMARY KEY(article, dealer));
+
+INSERT INTO shop VALUES
+(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
+(3,'D',1.25),(4,'D',19.95);
+@end example
+
+Okay, so the example data is:
+
+@example
+mysql> SELECT * FROM shop;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | A      |  3.45 |
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | B      |  1.45 |
+|    0003 | C      |  1.69 |
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@menu
+* example-Maximum-column::      The maximum value for a column
+* example-Maximum-row::         The row holding the maximum of a certain column
+* example-Maximum-column-group::  Maximum of column per group
+* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      Using user variables
+* example-Foreign keys::        Using foreign keys
+* Searching on two keys::       
+* Calculating days::            
+@end menu
+
+@node example-Maximum-column, example-Maximum-row, Examples, Examples
+@subsection The Maximum Value for a Column
+
+``What's the highest item number?''
+
+@example
+SELECT MAX(article) AS article FROM shop
+
++---------+
+| article |
++---------+
+|       4 |
++---------+
+@end example
+
+@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
+@subsection The Row Holding the Maximum of a Certain Column
+
+``Find number, dealer, and price of the most expensive article.''
+
+In ANSI SQL this is easily done with a sub-query:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=(SELECT MAX(price) FROM shop)
+@end example
+
+In @strong{MySQL} (which does not yet have sub-selects), just do it in
+two steps:
+
+@enumerate
+@item
+Get the maximum price value from the table with a @code{SELECT} statement.
+@item
+Using this value compile the actual query:
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=19.95
+@end example
+@end enumerate
+
+Another solution is to sort all rows descending by price and only
+get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+ORDER BY price DESC
+LIMIT 1
+@end example
+
+@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
+the @code{LIMIT} solution shows only one of them!
+
+@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
+@subsection Maximum of Column per Group
+
+``What's the highest price per article?''
+
+@example
+SELECT article, MAX(price) AS price
+FROM   shop
+GROUP BY article
+
++---------+-------+
+| article | price |
++---------+-------+
+|    0001 |  3.99 |
+|    0002 | 10.99 |
+|    0003 |  1.69 |
+|    0004 | 19.95 |
++---------+-------+
+@end example
+
+@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
+@subsection The Rows Holding the Group-wise Maximum of a Certain Field
+
+``For each article, find the dealer(s) with the most expensive price.''
+
+In ANSI SQL, I'd do it with a sub-query like this:
+
+@example
+SELECT article, dealer, price
+FROM   shop s1
+WHERE  price=(SELECT MAX(s2.price)
+              FROM shop s2
+              WHERE s1.article = s2.article);
+@end example
+
+In @strong{MySQL} it's best do it in several steps:
+
+@enumerate
+@item
+Get the list of (article,maxprice).
+@item
+For each article get the corresponding rows that have the stored maximum
+price.
+@end enumerate
+
+This can easily be done with a temporary table:
+
+@example
+CREATE TEMPORARY TABLE tmp (
+        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
+
+LOCK TABLES shop read;
+
+INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
+
+SELECT shop.article, dealer, shop.price FROM shop, tmp
+WHERE shop.article=tmp.article AND shop.price=tmp.price;
+
+UNLOCK TABLES;
+
+DROP TABLE tmp;
+@end example
+
+If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
+
+``Can it be done with a single query?''
+
+Yes, but only by using a quite inefficient trick that I call the
+``MAX-CONCAT trick'':
+
+@example
+SELECT article,
+       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
+  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
+FROM   shop
+GROUP BY article;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | C      |  1.69 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+The last example can, of course, be made a bit more efficient by doing the
+splitting of the concatenated column in the client.
+
+@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
+@subsection Using user variables
+
+You can use @strong{MySQL} user variables to remember results without
+having to store them in a temporary variables in the client.
+@xref{Variables}.
+
+For example, to find the articles with the highest and lowest price you
+can do:
+
+@example
+select @@min_price:=min(price),@@max_price:=max(price) from shop;
+select * from shop where price=@@min_price or price=@@max_price;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@node example-Foreign keys, Searching on two keys, example-user-variables, Examples
+@subsection Using Foreign Keys
+
+@cindex foreign keys
+@cindex keys, foreign
+
+You don't need foreign keys to join 2 tables.
+
+The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
+the keys you use really exist in the table(s) you're referencing and it
+doesn't automatically delete rows from table with a foreign key
+definition. If you use your keys like normal, it'll work just fine:
+
+
+@example
+CREATE TABLE persons (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name CHAR(60) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE shirts (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
+    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
+    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
+    PRIMARY KEY (id)
+);
+
+
+INSERT INTO persons VALUES (NULL, 'Antonio Paz');
+
+INSERT INTO shirts VALUES
+(NULL, 'polo', 'blue', LAST_INSERT_ID()),
+(NULL, 'dress', 'white', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
+
+
+INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
+
+INSERT INTO shirts VALUES
+(NULL, 'dress', 'orange', LAST_INSERT_ID()),
+(NULL, 'polo', 'red', LAST_INSERT_ID()),
+(NULL, 'dress', 'blue', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'white', LAST_INSERT_ID());
+
+
+SELECT * FROM persons;
++----+---------------------+
+| id | name                |
++----+---------------------+
+|  1 | Antonio Paz         |
+|  2 | Lilliana Angelovska |
++----+---------------------+
+
+SELECT * FROM shirts;
++----+---------+--------+-------+
+| id | style   | color  | owner |
++----+---------+--------+-------+
+|  1 | polo    | blue   |     1 |
+|  2 | dress   | white  |     1 |
+|  3 | t-shirt | blue   |     1 |
+|  4 | dress   | orange |     2 |
+|  5 | polo    | red    |     2 |
+|  6 | dress   | blue   |     2 |
+|  7 | t-shirt | white  |     2 |
++----+---------+--------+-------+
+
+
+SELECT s.* FROM persons p, shirts s
+ WHERE p.name LIKE 'Lilliana%'
+   AND s.owner = p.id
+   AND s.color <> 'white';
+
++----+-------+--------+-------+
+| id | style | color  | owner |
++----+-------+--------+-------+
+|  4 | dress | orange |     2 |
+|  5 | polo  | red    |     2 |
+|  6 | dress | blue   |     2 |
++----+-------+--------+-------+
+@end example
+
+@node Searching on two keys, Calculating days, example-Foreign keys, Examples
+@subsection Searching on Two Keys
+
+@findex UNION
+@cindex searching, two keys
+@cindex keys, searching on two
+
+@strong{MySQL} doesn't yet optimize when you search on two different
+keys combined with @code{OR} (Searching on one key with different @code{OR}
+parts is optimized quite good):
+
+@example
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
+OR  field2_index = '1'
+@end example
+
+The reason is that we haven't yet had time to come up with an efficient
+way to handle this in the general case. (The @code{AND} handling is,
+in comparison, now completely general and works very well).
+
+For the moment you can solve this very efficiently by using a
+@code{TEMPORARY} table. This type of optimization is also very good if
+you are using very complicated queries where the SQL server does the
+optimizations in the wrong order.
+
+@example
+CREATE TEMPORARY TABLE tmp
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
+INSERT INTO tmp
+SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
+SELECT * from tmp;
+DROP TABLE tmp;
+@end example
+
+The above way to solve this query is in effect an @code{UNION} of two queries.
+
+@node Calculating days,  , Searching on two keys, Examples
+@subsection Calculating visits per day
+
+@findex BIT_OR
+@findex BIT_COUNT
+@findex <<
+@cindex bit_functions, example
+
+The following shows an idea of how you can use the bit group functions
+to calculate the number of days per month a user has visited a web page.
+
+@example
+CREATE TABLE t1 (year YEAR(4), month INT(2) UNSIGNED ZEROFILL, day INT(2) UNSIGNED ZEROFILL);                                                            
+INSERT INTO t1 VALUES(2000,1,1),(2000,1,20),(2000,1,30),(2000,2,2),(2000,2,23),(2000,2,23);
+
+SELECT year,month,BIT_COUNT(BIT_OR(1<<day)) AS days FROM t1 GROUP BY year,month;
+
+Which returns:
+
++------+-------+------+
+| year | month | days |
++------+-------+------+
+| 2000 |    01 |    3 |
+| 2000 |    02 |    2 |
++------+-------+------+
+@end example
+
+The above calculates how many different days was used for a given
+year/month combination, with automatic removal of duplicate entries.
+
+@node Batch mode, Twin, Examples, Tutorial
+@section Using @code{mysql} in Batch Mode
+
+@cindex modes, batch
+@cindex batch mode
+@cindex running, batch mode
+@cindex script files
+@cindex files, script
+
+In the previous sections, you used @code{mysql} interactively to enter
+queries and view the results.  You can also run @code{mysql} in batch
+mode.  To do this, put the commands you want to run in a file, then
+tell @code{mysql} to read its input from the file:
+
+@example
+shell> mysql < batch-file
+@end example
+
+If you need to specify connection parameters on the command line, the
+command might look like this:
+
+@example
+shell> mysql -h host -u user -p < batch-file
+Enter password: ********
+@end example
+
+When you use @code{mysql} this way, you are creating a script file, then
+executing the script.
+
+Why use a script?  Here are a few reasons:
+
+@itemize @bullet
+@item
+If you run a query repeatedly (say, every day or every week), making it a
+script allows you to avoid retyping it each time you execute it.
+
+@item
+You can generate new queries from existing ones that are similar by copying
+and editing script files.
+
+@item
+Batch mode can also be useful while you're developing a query, particularly
+for multiple-line commands or multiple-statement sequences of commands.  If
+you make a mistake, you don't have to retype everything.  Just edit your
+script to correct the error, then tell @code{mysql} to execute it again.
+
+@item
+If you have a query that produces a lot of output, you can run the output
+through a pager rather than watching it scroll off the top of your screen:
+
+@example
+shell> mysql < batch-file | more
+@end example
+
+@item
+You can catch the output in a file for further processing:
+
+@example
+shell> mysql < batch-file > mysql.out
+@end example
+
+@item
+You can distribute your script to other people so they can run the commands,
+too.
+
+@item
+Some situations do not allow for interactive use, for example, when you run
+a query from a @code{cron} job.  In this case, you must use batch mode.
+@end itemize
+
+The default output format is different (more concise) when you run
+@code{mysql} in batch mode than when you use it interactively.  For
+example, the output of @code{SELECT DISTINCT species FROM pet} looks like
+this when run interactively:
+
+@example
++---------+
+| species |
++---------+
+| bird    |
+| cat     |
+| dog     |
+| hamster |
+| snake   |
++---------+
+@end example
+
+But like this when run in batch mode:
+
+@example
+species
+bird
+cat
+dog
+hamster
+snake
+@end example
+
+If you want to get the interactive output format in batch mode, use
+@code{mysql -t}.  To echo to the output the commands that are executed, use
+@code{mysql -vvv}.
+
+@node Twin, Apache, Batch mode, Tutorial
+@section Queries from Twin Project
+
+@cindex Twin Studies, queries
+@cindex queries, Twin Studeis project
+
+At Analytikerna and Lentus, we have been doing the systems and field work
+for a big research project. This project is a collaboration between the
+Institute of Environmental Medicine at Karolinska Institutet Stockholm
+and the Section on Clinical Research in Aging and Psychology at the
+University of Southern California.
+
+The project involves a screening part where all twins in Sweden older
+than 65 years are interviewed by telephone. Twins who meet certain
+criteria are passed on to the next stage. In this latter stage, twins who
+want to participate are visited by a doctor/nurse team. Some of the
+examinations include physical and neuropsychological examination,
+laboratory testing, neuroimaging, psychological status assessment, and family
+history collection. In addition, data are collected on medical and
+environmental risk factors.
+
+More information about Twin studies can be found at:
+
+@example
+@url{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
+@end example
+
+The latter part of the project is administered with a Web interface
+written using Perl and @strong{MySQL}.
+
+Each night all data from the interviews are moved into a @strong{MySQL}
+database.
+
+@menu
+* Twin pool::                   Find all non-distributed twins
+* Twin event::                  Show a table on twin pair status
+@end menu
+
+@node Twin pool, Twin event, Twin, Twin
+@subsection Find all Non-distributed Twins
+
+The following query is used to determine who goes into the second part of the
+project:
+
+@example
+select
+        concat(p1.id, p1.tvab) + 0 as tvid,
+        concat(p1.christian_name, " ", p1.surname) as Name,
+        p1.postal_code as Code,
+        p1.city as City,
+        pg.abrev as Area,
+        if(td.participation = "Aborted", "A", " ") as A,
+        p1.dead as dead1,
+        l.event as event1,
+        td.suspect as tsuspect1,
+        id.suspect as isuspect1,
+        td.severe as tsevere1,
+        id.severe as isevere1,
+        p2.dead as dead2,
+        l2.event as event2,
+        h2.nurse as nurse2,
+        h2.doctor as doctor2,
+        td2.suspect as tsuspect2,
+        id2.suspect as isuspect2,
+        td2.severe as tsevere2,
+        id2.severe as isevere2,
+        l.finish_date
+from
+        twin_project as tp
+        /* For Twin 1 */
+        left join twin_data as td on tp.id = td.id and tp.tvab = td.tvab
+        left join informant_data as id on tp.id = id.id and tp.tvab = id.tvab
+        left join harmony as h on tp.id = h.id and tp.tvab = h.tvab
+        left join lentus as l on tp.id = l.id and tp.tvab = l.tvab
+        /* For Twin 2 */
+        left join twin_data as td2 on p2.id = td2.id and p2.tvab = td2.tvab
+        left join informant_data as id2 on p2.id = id2.id and p2.tvab = id2.tvab
+        left join harmony as h2 on p2.id = h2.id and p2.tvab = h2.tvab
+        left join lentus as l2 on p2.id = l2.id and p2.tvab = l2.tvab,
+        person_data as p1,
+        person_data as p2,
+        postal_groups as pg
+where
+        /* p1 gets main twin and p2 gets his/her twin. */
+        /* ptvab is a field inverted from tvab */
+        p1.id = tp.id and p1.tvab = tp.tvab and
+        p2.id = p1.id and p2.ptvab = p1.tvab and
+        /* Just the sceening survey */
+        tp.survey_no = 5 and
+        /* Skip if partner died before 65 but allow emigration (dead=9) */
+        (p2.dead = 0 or p2.dead = 9 or
+         (p2.dead = 1 and
+          (p2.death_date = 0 or
+           (((to_days(p2.death_date) - to_days(p2.birthday)) / 365)
+            >= 65))))
+        and
+        (
+        /* Twin is suspect */
+        (td.future_contact = 'Yes' and td.suspect = 2) or
+        /* Twin is suspect - Informant is Blessed */
+        (td.future_contact = 'Yes' and td.suspect = 1 and id.suspect = 1) or
+        /* No twin - Informant is Blessed */
+        (ISNULL(td.suspect) and id.suspect = 1 and id.future_contact = 'Yes') or
+        /* Twin broken off - Informant is Blessed */
+        (td.participation = 'Aborted'
+         and id.suspect = 1 and id.future_contact = 'Yes') or
+        /* Twin broken off - No inform - Have partner */
+        (td.participation = 'Aborted' and ISNULL(id.suspect) and p2.dead = 0))
+        and
+        l.event = 'Finished'
+        /* Get at area code */
+        and substring(p1.postal_code, 1, 2) = pg.code
+        /* Not already distributed */
+        and (h.nurse is NULL or h.nurse=00 or h.doctor=00)
+        /* Has not refused or been aborted */
+        and not (h.status = 'Refused' or h.status = 'Aborted'
+        or h.status = 'Died' or h.status = 'Other')
+order by
+        tvid;
+@end example
+
+Some explanations:
+@table @asis
+@item @code{concat(p1.id, p1.tvab) + 0 as tvid}
+We want to sort on the concatenated @code{id} and @code{tvab} in
+numerical order. Adding @code{0} to the result causes @strong{MySQL} to
+treat the result as a number.
+@item column @code{id}
+This identifies a pair of twins. It is a key in all tables.
+@item column @code{tvab}
+This identifies a twin in a pair. It has a value of @code{1} or @code{2}.
+@item column @code{ptvab}
+This is an inverse of @code{tvab}. When @code{tvab} is @code{1} this is
+@code{2}, and vice versa. It exists to save typing and to make it easier for
+@strong{MySQL} to optimize the query.
+@end table
+
+This query demonstrates, among other things, how to do lookups on a
+table from the same table with a join (@code{p1} and @code{p2}). In the example, this
+is used to check whether a twin's partner died before the age of 65. If so,
+the row is not returned.
+
+All of the above exist in all tables with twin-related information. We
+have a key on both @code{id,tvab} (all tables), and @code{id,ptvab}
+(@code{person_data}) to make queries faster.
+
+On our production machine (A 200MHz UltraSPARC), this query returns
+about 150-200 rows and takes less than one second.
+
+The current number of records in the tables used above:
+@multitable @columnfractions .3 .5
+@item @strong{Table}            @tab @strong{Rows}
+@item @code{person_data}        @tab 71074
+@item @code{lentus}		@tab 5291
+@item @code{twin_project}       @tab 5286
+@item @code{twin_data}		@tab 2012
+@item @code{informant_data}	@tab 663
+@item @code{harmony}		@tab 381
+@item @code{postal_groups}	@tab 100
+@end multitable
+
+@node Twin event,  , Twin pool, Twin
+@subsection Show a Table on Twin Pair Status
+
+Each interview ends with a status code called @code{event}. The query
+shown below is used to display a table over all twin pairs combined by
+event. This indicates in how many pairs both twins are finished, in how many
+pairs one twin is finished and the other refused, and so on.
+
+@example
+select
+        t1.event,
+        t2.event,
+        count(*)
+from
+        lentus as t1,
+        lentus as t2,
+        twin_project as tp
+where
+        /* We are looking at one pair at a time */
+        t1.id = tp.id
+        and t1.tvab=tp.tvab
+        and t1.id = t2.id
+        /* Just the sceening survey */
+        and tp.survey_no = 5
+        /* This makes each pair only appear once */
+        and t1.tvab='1' and t2.tvab='2'
+group by
+        t1.event, t2.event;
+
+@end example
+
+
+@node Apache,  , Twin, Tutorial
+@section Using MySQL with Apache
+
+@cindex Apache
+
+The Contrib section includes programs that let you authenticate your
+users from a @strong{MySQL} database and also let you log your log files
+into a @strong{MySQL} table. @xref{Contrib}.
+
+You can change the Apache logging format to be easily readable by
+@strong{MySQL} by putting the following into the Apache configuration file:
+
+@example
+LogFormat \
+        "\"%h\",%@{%Y%m%d%H%M%S@}t,%>s,\"%b\",\"%@{Content-Type@}o\",  \
+        \"%U\",\"%@{Referer@}i\",\"%@{User-Agent@}i\""
+@end example
+
+In @strong{MySQL} you can do something like this:
+
+@example
+LOAD DATA INFILE '/local/access_log' INTO TABLE table_name
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
+@end example
+
+
+@node Privilege system, Reference, Tutorial, Top
 @chapter The MySQL Access Privilege System
 
 @cindex system, security
@@ -23622,7 +26050,7 @@ used them.
 @cindex MySQL table types
 @cindex @code{MyISAM} table type
 @cindex types, of tables
-@node Table types, Tutorial, Reference, Top
+@node Table types, Server, Reference, Top
 @chapter MySQL Table Types
 
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
@@ -26037,2388 +28465,12 @@ not trivial).
 @end itemize
 
 
-@cindex tutorial
-@cindex terminal monitor, defined
-@cindex monitor, terminal
-@cindex options, provided by MySQL
-@node Tutorial, Server, Table types, Top
-@chapter MySQL Tutorial
 
-@menu
-* Connecting-disconnecting::    Connecting to and disconnecting from the server
-* Entering queries::            Entering queries
-* Database use::                Creating and using a database
-* Getting information::         Getting information about databases and tables
-* Examples::                    Examples
-* Batch mode::                  Using @code{mysql} in batch mode
-* Twin::                        Queries from twin project
-@end menu
-
-This chapter provides a tutorial introduction to @strong{MySQL} by showing
-how to use the @code{mysql} client program to create and use a simple
-database.  @code{mysql} (sometimes referred to as the ``terminal monitor'' or
-just ``monitor'') is an interactive program that allows you to connect to a
-@strong{MySQL} server, run queries, and view the results.  @code{mysql} may
-also be used in batch mode: you place your queries in a file beforehand, then
-tell @code{mysql} to execute the contents of the file.  Both ways of using
-@code{mysql} are covered here.
-
-To see a list of options provided by @code{mysql}, invoke it with
-the @code{--help} option:
-
-@example
-shell> mysql --help
-@end example
-
-This chapter assumes that @code{mysql} is installed on your machine and that
-a @strong{MySQL} server is available to which you can connect.  If this is
-not true, contact your @strong{MySQL} administrator.  (If @emph{you} are the
-administrator, you will need to consult other sections of this manual.)
-
-This chapter describes the entire process of setting up and using a
-database.  If you are interested only in accessing an already-existing
-database, you may want to skip over the sections that describe how to
-create the database and the tables it contains.
-
-Because this chapter is tutorial in nature, many details are necessarily left
-out.  Consult the relevant sections of the manual for more
-information on the topics covered here.
-
-@cindex connecting, to the server
-@cindex disconnecting, from the server
-@cindex server, connecting
-@cindex server, disconnecting
-@node Connecting-disconnecting, Entering queries, Tutorial, Tutorial
-@section Connecting to and Disconnecting from the Server
-
-To connect to the server, you'll usually need to provide a @strong{MySQL}
-user name when you invoke @code{mysql} and, most likely, a password.  If the
-server runs on a machine other than the one where you log in, you'll also
-need to specify a hostname.  Contact your administrator to find out what
-connection parameters you should use to connect (that is, what host, user name,
-and password to use).  Once you know the proper parameters, you should be
-able to connect like this:
-
-@example
-shell> mysql -h host -u user -p
-Enter password: ********
-@end example
-
-The @code{********} represents your password; enter it when @code{mysql}
-displays the @code{Enter password:} prompt.
-
-If that works, you should see some introductory information followed by a
-@code{mysql>} prompt:
-
-
-@example
-shell> mysql -h host -u user -p
-Enter password: ********
-Welcome to the MySQL monitor.  Commands end with ; or \g.
-Your MySQL connection id is 459 to server version: 3.22.20a-log
-
-Type 'help' for help.
-
-mysql>
-@end example
-
-The prompt tells you that @code{mysql} is ready for you to enter commands.
-
-Some @strong{MySQL} installations allow users to connect as the anonymous
-(unnamed) user to the server running on the local host.  If this is the case
-on your machine, you should be able to connect to that server by invoking
-@code{mysql} without any options:
-
-@example
-shell> mysql
-@end example
-
-After you have connected successfully, you can disconnect any time by typing
-@code{QUIT} at the @code{mysql>} prompt:
-
-@example
-mysql> QUIT
-Bye
-@end example
-
-You can also disconnect by pressing Control-D.
-
-Most examples in the following sections assume you are connected to the
-server.  They indicate this by the @code{mysql>} prompt.
-
-@cindex running, queries
-@cindex queries, entering
-@cindex entering, queries
-@node Entering queries, Database use, Connecting-disconnecting, Tutorial
-@section Entering Queries
-
-Make sure you are connected to the server, as discussed in the previous
-section.  Doing so will not in itself select any database to work with, but
-that's okay.  At this point, it's more important to find out a little about
-how to issue queries than to jump right in creating tables, loading data
-into them, and retrieving data from them.  This section describes the basic
-principles of entering commands, using several queries you can try out to
-familiarize yourself with how @code{mysql} works.
-
-Here's a simple command that asks the server to tell you its version number
-and the current date.  Type it in as shown below following the @code{mysql>}
-prompt and hit the RETURN key:
-
-@example
-mysql> SELECT VERSION(), CURRENT_DATE;
-+--------------+--------------+
-| version()    | CURRENT_DATE |
-+--------------+--------------+
-| 3.22.20a-log | 1999-03-19   |
-+--------------+--------------+
-1 row in set (0.01 sec)
-mysql>
-@end example
-
-This query illustrates several things about @code{mysql}:
-
-@itemize @bullet
-@item
-A command normally consists of a SQL statement followed by a semicolon.
-(There are some exceptions where a semicolon is not needed.  @code{QUIT},
-mentioned earlier, is one of them.  We'll get to others later.)
-
-@item
-When you issue a command, @code{mysql} sends it to the server for execution
-and displays the results, then prints another @code{mysql>} to indicate
-that it is ready for another command.
-
-@item
-@code{mysql} displays query output as a table (rows and columns).  The first
-row contains labels for the columns.  The rows following are the query
-results.  Normally, column labels are the names of the columns you fetch from
-database tables.  If you're retrieving the value of an expression rather than
-a table column (as in the example just shown), @code{mysql} labels the column
-using the expression itself.
-
-@item
-@code{mysql} shows how many rows were returned and how long the query took
-to execute, which gives you a rough idea of server performance.  These values
-are imprecise because they represent wall clock time (not CPU or machine
-time), and because they are affected by factors such as server load and
-network latency.  (For brevity, the ``rows in set'' line is not shown in
-the remaining examples in this chapter.)
-@end itemize
-
-Keywords may be entered in any lettercase.  The following queries are
-equivalent:
-
-@example
-mysql> SELECT VERSION(), CURRENT_DATE;
-mysql> select version(), current_date;
-mysql> SeLeCt vErSiOn(), current_DATE;
-@end example
-
-Here's another query.  It demonstrates that you can use @code{mysql} as a
-simple calculator:
-
-@example
-mysql> SELECT SIN(PI()/4), (4+1)*5;
-+-------------+---------+
-| SIN(PI()/4) | (4+1)*5 |
-+-------------+---------+
-|    0.707107 |      25 |
-+-------------+---------+
-@end example
-
-The commands shown thus far have been relatively short, single-line
-statements.  You can even enter multiple statements on a single line.
-Just end each one with a semicolon:
-
-@example
-mysql> SELECT VERSION(); SELECT NOW();
-+--------------+
-| version()    |
-+--------------+
-| 3.22.20a-log |
-+--------------+
-
-+---------------------+
-| NOW()               |
-+---------------------+
-| 1999-03-19 00:15:33 |
-+---------------------+
-@end example
-
-A command need not be given all on a single line, so lengthy commands that
-require several lines are not a problem.  @code{mysql} determines where your
-statement ends by looking for the terminating semicolon, not by looking for
-the end of the input line.  (In other words, @code{mysql}
-accepts free-format input:  it collects input lines but does not execute them
-until it sees the semicolon.)
-
-Here's a simple multiple-line statement:
-
-@example
-mysql> SELECT
-    -> USER()
-    -> ,
-    -> CURRENT_DATE;
-+--------------------+--------------+
-| USER()             | CURRENT_DATE |
-+--------------------+--------------+
-| joesmith@@localhost | 1999-03-18   |
-+--------------------+--------------+
-@end example
-
-In this example, notice how the prompt changes from @code{mysql>} to
-@code{->} after you enter the first line of a multiple-line query.  This is
-how @code{mysql} indicates that it hasn't seen a complete statement and is
-waiting for the rest.  The prompt is your friend, because it provides
-valuable feedback.  If you use that feedback, you will always be aware of
-what @code{mysql} is waiting for.
-
-If you decide you don't want to execute a command that you are in the
-process of entering, cancel it by typing @code{\c}:
-
-@example
-mysql> SELECT
-    -> USER()
-    -> \c
-mysql>
-@end example
-
-Here, too, notice the prompt.  It switches back to @code{mysql>} after you
-type @code{\c}, providing feedback to indicate that @code{mysql} is ready
-for a new command.
-
-The following table shows each of the prompts you may see and summarizes what
-they mean about the state that @code{mysql} is in:
-
-@cindex prompts, meanings
-@multitable @columnfractions .10 .9
-@item @strong{Prompt} @tab @strong{Meaning}
-@item @code{mysql>} @tab Ready for new command.
-@item @code{@ @ @ @ ->} @tab Waiting for next line of multiple-line command.
-@item @code{@ @ @ @ '>} @tab Waiting for next line, collecting a string that begins
-with a single quote (@samp{'}).
-@item @code{@ @ @ @ ">} @tab Waiting for next line, collecting a string that begins
-with a double quote (@samp{"}).
-@end multitable
-
-Multiple-line statements commonly occur by accident when you intend to
-issue a command on a single line, but forget the terminating semicolon.  In
-this case, @code{mysql} waits for more input:
-
-@example
-mysql> SELECT USER()
-    ->
-@end example
-
-If this happens to you (you think you've entered a statement but the only
-response is a @code{->} prompt), most likely @code{mysql} is waiting for the
-semicolon.  If you don't notice what the prompt is telling you, you might sit
-there for a while before realizing what you need to do.  Enter a semicolon to
-complete the statement, and @code{mysql} will execute it:
-
-@example
-mysql> SELECT USER()
-    -> ;
-+--------------------+
-| USER()             |
-+--------------------+
-| joesmith@@localhost |
-+--------------------+
-@end example
-
-The @code{'>} and @code{">} prompts occur during string collection.
-In @strong{MySQL}, you can write strings surrounded by either @samp{'}
-or @samp{"} characters (for example, @code{'hello'} or @code{"goodbye"}),
-and @code{mysql} lets you enter strings that span multiple lines.  When you
-see a @code{'>} or @code{">} prompt, it means that you've entered a line
-containing a string that begins with a @samp{'} or @samp{"} quote character,
-but have not yet entered the matching quote that terminates the string.
-That's fine if you really are entering a multiple-line string, but how likely
-is that?  Not very.  More often, the @code{'>} and @code{">} prompts indicate
-that you've inadvertantly left out a quote character.  For example:
-
-@example
-mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
-    ">
-@end example
-
-If you enter this @code{SELECT} statement, then hit RETURN and wait for the
-result, nothing will happen.  Instead of wondering why this
-query takes so long, notice the clue provided by the @code{">} prompt.  It
-tells you that @code{mysql} expects to see the rest of an unterminated
-string.  (Do you see the error in the statement?  The string @code{"Smith} is
-missing the second quote.)
-
-At this point, what do you do?  The simplest thing is to cancel the command.
-However, you cannot just type @code{\c} in this case, because @code{mysql}
-interprets it as part of the string that it is collecting!  Instead, enter
-the closing quote character (so @code{mysql} knows you've finished the
-string), then type @code{\c}:
-
-@example
-mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
-    "> "\c
-mysql>
-@end example
-
-The prompt changes back to @code{mysql>}, indicating that @code{mysql}
-is ready for a new command.
-
-It's important to know what the @code{'>} and @code{">} prompts signify,
-because if you mistakenly enter an unterminated string, any further lines you
-type will appear to be ignored by @code{mysql} --- including a line
-containing @code{QUIT}!  This can be quite confusing, especially if you
-don't know that you need to supply the terminating quote before you can
-cancel the current command.
-
-@cindex databases, creating
-@cindex databases, using
-@cindex creating, databases
-@node Database use, Getting information, Entering queries, Tutorial
-@section Creating and Using a Database
-
-@menu
-* Creating database::           Creating a database
-* Creating tables::             Creating a table
-* Loading tables::              Loading data into a table
-* Retrieving data::             Retrieving information from a table
-@end menu
-
-Now that you know how to enter commands, it's time to access a database.
-
-Suppose you have several pets in your home (your menagerie) and you'd
-like to keep track of various types of information about them.  You can do so
-by creating tables to hold your data and loading them with the desired
-information.  Then you can answer different sorts of questions about your
-animals by retrieving data from the tables.  This section shows you how to:
-
-@itemize @bullet
-@item
-Create a database
-@item
-Create a table
-@item
-Load data into the table
-@item
-Retrieve data from the table in various ways
-@item
-Use multiple tables
-@end itemize
-
-The menagerie database will be simple (deliberately), but it is not difficult
-to think of real-world situations in which a similar type of database might
-be used.  For example, a database like this could be used by a farmer to keep
-track of livestock, or by a veterinarian to keep track of patient records.
-A menagerie distribution containing some of the queries and sample data used
-in the following sections can be obtained from the @strong{MySQL} Web site.
-It's available in either
-@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
-or
-@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.zip,Zip format}.
-
-Use the @code{SHOW} statement to find out what databases currently exist
-on the server:
-
-@example
-mysql> SHOW DATABASES;
-+----------+
-| Database |
-+----------+
-| mysql    |
-| test     |
-| tmp      |
-+----------+
-@end example
-
-The list of databases is probably different on your machine, but the
-@code{mysql} and @code{test} databases are likely to be among them.  The
-@code{mysql} database is required because it describes user access
-privileges.  The @code{test} database is often provided as a workspace for
-users to try things out.
-
-If the @code{test} database exists, try to access it:
-
-@example
-mysql> USE test
-Database changed
-@end example
-
-Note that @code{USE}, like @code{QUIT}, does not require a semicolon.  (You
-can terminate such statements with a semicolon if you like; it does no harm.)
-The @code{USE} statement is special in another way, too:  it must be given on
-a single line.
-
-You can use the @code{test} database (if you have access to it) for the
-examples that follow, but anything you create in that database can be
-removed by anyone else with access to it.  For this reason, you should
-probably ask your @strong{MySQL} administrator for permission to use a
-database of your own.  Suppose you want to call yours @code{menagerie}.  The
-administrator needs to execute a command like this:
-
-@example
-mysql> GRANT ALL ON menagerie.* TO your_mysql_name;
-@end example
-
-where @code{your_mysql_name} is the @strong{MySQL} user name assigned to
-you.
-
-@cindex selecting, databases
-@cindex databases, selecting
-@node Creating database, Creating tables, Database use, Database use
-@subsection Creating and Selecting a Database
-
-If the administrator creates your database for you when setting up your
-permissions, you can begin using it.  Otherwise, you need to create it
-yourself:
-
-@example
-mysql> CREATE DATABASE menagerie;
-@end example
-
-Under Unix, database names are case sensitive (unlike SQL keywords), so you
-must always refer to your database as @code{menagerie}, not as
-@code{Menagerie}, @code{MENAGERIE}, or some other variant.  This is also true
-for table names.  (Under Windows, this restriction does not apply, although
-you must refer to databases and tables using the same lettercase throughout a
-given query.)
-
-Creating a database does not select it for use; you must do that explicitly.
-To make @code{menagerie} the current database, use this command:
-
-@example
-mysql> USE menagerie
-Database changed
-@end example
-
-Your database needs to be created only once, but you must select it for use
-each time you begin a @code{mysql} session.  You can do this by issuing a
-@code{USE} statement as shown above.  Alternatively, you can select the
-database on the command line when you invoke @code{mysql}.  Just specify its
-name after any connection parameters that you might need to provide.  For
-example:
-
-@example
-shell> mysql -h host -u user -p menagerie
-Enter password: ********
-@end example
-
-Note that @code{menagerie} is not your password on the command just shown.
-If you want to supply your password on the command line after the @code{-p}
-option, you must do so with no intervening space (for example, as
-@code{-pmypassword}, not as @code{-p mypassword}).  However, putting your
-password on the command line is not recommended, because doing so exposes it
-to snooping by other users logged in on your machine.
-
-@cindex tables, creating
-@cindex creating, tables
-@node Creating tables, Loading tables, Creating database, Database use
-@subsection Creating a Table
-
-Creating the database is the easy part, but at this point it's empty, as
-@code{SHOW TABLES} will tell you:
-
-@example
-mysql> SHOW TABLES;
-Empty set (0.00 sec)
-@end example
-
-The harder part is deciding what the structure of your database should be:
-what tables you will need and what columns will be in each of them.
-
-You'll want a table that contains a record for each of your pets.  This can
-be called the @code{pet} table, and it should contain, as a bare minimum,
-each animal's name.  Because the name by itself is not very interesting, the
-table should contain other information.  For example, if more than one person
-in your family keeps pets, you might want to list each animal's owner.  You
-might also want to record some basic descriptive information such as species
-and sex.
-
-How about age?  That might be of interest, but it's not a good thing to store
-in a database.  Age changes as time passes, which means you'd have to update
-your records often.  Instead, it's better to store a fixed value such as
-date of birth.  Then, whenever you need age, you can calculate it as the
-difference between the current date and the birth date.  @strong{MySQL}
-provides functions for doing date arithmetic, so this is not difficult.
-Storing birth date rather than age has other advantages, too:
-
-@itemize @bullet
-@item
-You can use the database for tasks such as generating reminders for upcoming
-pet birthdays.  (If you think this type of query is somewhat silly, note that
-it is the same question you might ask in the context of a business database
-to identify clients to whom you'll soon need to send out birthday greetings,
-for that computer-assisted personal touch.)
-
-@item
-You can calculate age in relation to dates other than the current date.  For
-example, if you store death date in the database, you can easily calculate
-how old a pet was when it died.
-@end itemize
-
-You can probably think of other types of information that would be useful in
-the @code{pet} table, but the ones identified so far are sufficient for now:
-name, owner, species, sex, birth, and death.
-
-Use a @code{CREATE TABLE} statement to specify the layout of your table:
-
-@example
-mysql> CREATE TABLE pet (name VARCHAR(20), owner VARCHAR(20),
-    -> species VARCHAR(20), sex CHAR(1), birth DATE, death DATE);
-@end example
-
-@code{VARCHAR} is a good choice for the @code{name}, @code{owner}, and
-@code{species} columns because the column values will vary in length.  The
-lengths of those columns need not all be the same, and need not be
-@code{20}.  You can pick any length from @code{1} to @code{255}, whatever
-seems most reasonable to you.  (If you make a poor choice and it turns
-out later that you need a longer field, @strong{MySQL} provides an
-@code{ALTER TABLE} statement.)
-
-Animal sex can be represented in a variety of ways, for example, @code{"m"}
-and @code{"f"}, or perhaps @code{"male"} and @code{"female"}.  It's simplest
-to use the single characters @code{"m"} and @code{"f"}.
-
-The use of the @code{DATE} data type for the @code{birth} and @code{death}
-columns is a fairly obvious choice.
-
-Now that you have created a table, @code{SHOW TABLES} should produce some
-output:
-
-@example
-mysql> SHOW TABLES;
-+---------------------+
-| Tables in menagerie |
-+---------------------+
-| pet                 |
-+---------------------+
-@end example
-
-To verify that your table was created the way you expected, use
-a @code{DESCRIBE} statement:
-
-@example
-mysql> DESCRIBE pet;
-+---------+-------------+------+-----+---------+-------+
-| Field   | Type        | Null | Key | Default | Extra |
-+---------+-------------+------+-----+---------+-------+
-| name    | varchar(20) | YES  |     | NULL    |       |
-| owner   | varchar(20) | YES  |     | NULL    |       |
-| species | varchar(20) | YES  |     | NULL    |       |
-| sex     | char(1)     | YES  |     | NULL    |       |
-| birth   | date        | YES  |     | NULL    |       |
-| death   | date        | YES  |     | NULL    |       |
-+---------+-------------+------+-----+---------+-------+
-@end example
-
-You can use @code{DESCRIBE} any time, for example, if you forget the names of
-the columns in your table or what types they are.
-
-@cindex loading, tables
-@cindex tables, loading data
-@cindex data, loading into tables
-@node Loading tables, Retrieving data, Creating tables, Database use
-@subsection Loading Data into a Table
-
-After creating your table, you need to populate it.  The @code{LOAD DATA} and
-@code{INSERT} statements are useful for this.
-
-Suppose your pet records can be described as shown below.
-(Observe that @strong{MySQL} expects dates in @code{YYYY-MM-DD} format;
-this may be different than what you are used to.)
-
-@multitable @columnfractions .16 .16 .16 .16 .16 .16
-@item @strong{name} @tab @strong{owner} @tab @strong{species} @tab @strong{sex} @tab @strong{birth} @tab @strong{death}
-@item Fluffy @tab Harold @tab cat @tab f @tab 1993-02-04 @tab
-@item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
-@item Buffy @tab Harold @tab dog @tab f @tab 1989-05-13 @tab
-@item Fang @tab Benny @tab dog @tab m @tab 1990-08-27 @tab
-@item Bowser @tab Diane @tab dog @tab m @tab 1989-08-31 @tab 1995-07-29
-@item Chirpy @tab Gwen @tab bird @tab f @tab 1998-09-11 @tab
-@item Whistler @tab Gwen @tab bird @tab @tab 1997-12-09 @tab
-@item Slim @tab Benny @tab snake @tab m @tab 1996-04-29 @tab
-@end multitable
-
-Because you are beginning with an empty table, an easy way to populate it is to
-create a text file containing a row for each of your animals, then load the
-contents of the file into the table with a single statement.
-
-You could create a text file @file{pet.txt} containing one record per line,
-with values separated by tabs, and given in the order in which the columns
-were listed in the @code{CREATE TABLE} statement.  For missing values (such
-as unknown sexes or death dates for animals that are still living), you can
-use @code{NULL} values.  To represent these in your text file, use
-@code{\N}.  For example, the record for Whistler the bird would look like
-this (where the whitespace between values is a single tab character):
-
-@multitable @columnfractions .15 .15 .15 .15 .25 .15
-@item @code{Whistler} @tab @code{Gwen} @tab @code{bird} @tab @code{\N} @tab @code{1997-12-09} @tab @code{\N}
-@end multitable
-
-To load the text file @file{pet.txt} into the @code{pet} table, use this
-command:
-
-@example
-mysql> LOAD DATA LOCAL INFILE "pet.txt" INTO TABLE pet;
-@end example
-
-You can specify the column value separator and end of line marker explicitly
-in the @code{LOAD DATA} statement if you wish, but the defaults are tab and
-linefeed.  These are sufficient for the statement to read the file
-@file{pet.txt} properly.
-
-When you want to add new records one at a time, the @code{INSERT} statement
-is useful.  In its simplest form, you supply values for each column, in the
-order in which the columns were listed in the @code{CREATE TABLE} statement.
-Suppose Diane gets a new hamster named Puffball.  You could add a new record
-using an @code{INSERT} statement like this:
-
-@example
-mysql> INSERT INTO pet
-    -> VALUES ('Puffball','Diane','hamster','f','1999-03-30',NULL);
-@end example
-
-Note that string and date values are specified as quoted strings here.  Also,
-with @code{INSERT}, you can insert @code{NULL} directly to represent a
-missing value.  You do not use @code{\N} like you do with @code{LOAD DATA}.
-
-From this example, you should be able to see that there would be a lot more
-typing involved to load
-your records initially using several @code{INSERT} statements rather
-than a single @code{LOAD DATA} statement.
-
-@cindex data, retrieving
-@cindex tables, retrieving data
-@cindex retrieving, data from tables
-@cindex unloading, tables
-@node Retrieving data,  , Loading tables, Database use
-@subsection Retrieving Information from a Table
-
-@menu
-* Selecting all::               Selecting all data
-* Selecting rows::              Selecting particular rows
-* Selecting columns::           Selecting particular columns
-* Sorting rows::                Sorting rows
-* Date calculations::           Date calculations
-* Working with NULL::           Working with @code{NULL} values
-* Pattern matching::            Pattern matching
-* Counting rows::               Counting rows
-* Multiple tables::             
-@end menu
-
-The @code{SELECT} statement is used to pull information from a table.
-The general form of the statement is:
-
-@example
-SELECT what_to_select
-FROM which_table
-WHERE conditions_to_satisfy
-@end example
-
-@code{what_to_select} indicates what you want to see.  This can be a list of
-columns, or @code{*} to indicate ``all columns.'' @code{which_table}
-indicates the table from which you want to retrieve data.  The @code{WHERE}
-clause is optional.  If it's present, @code{conditions_to_satisfy} specifies
-conditions that rows must satisfy to qualify for retrieval.
-
-@node Selecting all, Selecting rows, Retrieving data, Retrieving data
-@subsubsection Selecting All Data
-
-The simplest form of @code{SELECT} retrieves everything from a table:
-
-@example
-mysql> SELECT * FROM pet;
-+----------+--------+---------+------+------------+------------+
-| name     | owner  | species | sex  | birth      | death      |
-+----------+--------+---------+------+------------+------------+
-| Fluffy   | Harold | cat     | f    | 1993-02-04 | NULL       |
-| Claws    | Gwen   | cat     | m    | 1994-03-17 | NULL       |
-| Buffy    | Harold | dog     | f    | 1989-05-13 | NULL       |
-| Fang     | Benny  | dog     | m    | 1990-08-27 | NULL       |
-| Bowser   | Diane  | dog     | m    | 1998-08-31 | 1995-07-29 |
-| Chirpy   | Gwen   | bird    | f    | 1998-09-11 | NULL       |
-| Whistler | Gwen   | bird    | NULL | 1997-12-09 | NULL       |
-| Slim     | Benny  | snake   | m    | 1996-04-29 | NULL       |
-| Puffball | Diane  | hamster | f    | 1999-03-30 | NULL       |
-+----------+--------+---------+------+------------+------------+
-@end example
-
-This form of @code{SELECT} is useful if you want to review your entire table,
-for instance, after you've just loaded it with your initial dataset.  As it
-happens, the output just shown reveals an error in your data file:  Bowser
-appears to have been born after he died!  Consulting your original pedigree
-papers, you find that the correct birth year is 1989, not 1998.
-
-There are are least a couple of ways to fix this:
-
-@itemize @bullet
-@item
-Edit the file @file{pet.txt} to correct the error, then empty the table
-and reload it using @code{DELETE} and @code{LOAD DATA}:
-
-@example
-mysql> SET AUTOCOMMIT=1;  # Used for quick re-create of the table
-mysql> DELETE FROM pet;
-mysql> LOAD DATA LOCAL INFILE "pet.txt" INTO TABLE pet;
-@end example
-
-However, if you do this, you must also re-enter the record for Puffball.
-
-@item
-Fix only the erroneous record with an @code{UPDATE} statement:
-
-@example
-mysql> UPDATE pet SET birth = "1989-08-31" WHERE name = "Bowser";
-@end example
-@end itemize
-
-As shown above, it is easy to retrieve an entire table.  But typically you
-don't want to do that, particularly when the table becomes large.  Instead,
-you're usually more interested in answering a particular question, in which
-case you specify some constraints on the information you want.  Let's look at
-some selection queries in terms of questions about your pets that they
-answer.
-
-@cindex rows, selecting
-@cindex tables, selecting rows
-@node Selecting rows, Selecting columns, Selecting all, Retrieving data
-@subsubsection Selecting Particular Rows
-
-You can select only particular rows from your table.  For example, if you want
-to verify the change that you made to Bowser's birth date, select Bowser's
-record like this:
-
-@example
-mysql> SELECT * FROM pet WHERE name = "Bowser";
-+--------+-------+---------+------+------------+------------+
-| name   | owner | species | sex  | birth      | death      |
-+--------+-------+---------+------+------------+------------+
-| Bowser | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
-+--------+-------+---------+------+------------+------------+
-@end example
-
-The output confirms that the year is correctly recorded now as 1989, not 1998.
-
-String comparisons are normally case insensitive, so you can specify the
-name as @code{"bowser"}, @code{"BOWSER"}, etc.  The query result will be
-the same.
-
-You can specify conditions on any column, not just @code{name}.  For example,
-if you want to know which animals were born after 1998, test the @code{birth}
-column:
-
-@example
-mysql> SELECT * FROM pet WHERE birth >= "1998-1-1";
-+----------+-------+---------+------+------------+-------+
-| name     | owner | species | sex  | birth      | death |
-+----------+-------+---------+------+------------+-------+
-| Chirpy   | Gwen  | bird    | f    | 1998-09-11 | NULL  |
-| Puffball | Diane | hamster | f    | 1999-03-30 | NULL  |
-+----------+-------+---------+------+------------+-------+
-@end example
-
-You can combine conditions, for example, to locate female dogs:
-
-@example
-mysql> SELECT * FROM pet WHERE species = "dog" AND sex = "f";
-+-------+--------+---------+------+------------+-------+
-| name  | owner  | species | sex  | birth      | death |
-+-------+--------+---------+------+------------+-------+
-| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
-+-------+--------+---------+------+------------+-------+
-@end example
-
-The preceding query uses the @code{AND} logical operator.  There is also an
-@code{OR} operator:
-
-@example
-mysql> SELECT * FROM pet WHERE species = "snake" OR species = "bird";
-+----------+-------+---------+------+------------+-------+
-| name     | owner | species | sex  | birth      | death |
-+----------+-------+---------+------+------------+-------+
-| Chirpy   | Gwen  | bird    | f    | 1998-09-11 | NULL  |
-| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL  |
-| Slim     | Benny | snake   | m    | 1996-04-29 | NULL  |
-+----------+-------+---------+------+------------+-------+
-@end example
-
-@code{AND} and @code{OR} may be intermixed.  If you do that, it's a good idea
-to use parentheses to indicate how conditions should be grouped:
-
-@example
-mysql> SELECT * FROM pet WHERE (species = "cat" AND sex = "m")
-    -> OR (species = "dog" AND sex = "f");
-+-------+--------+---------+------+------------+-------+
-| name  | owner  | species | sex  | birth      | death |
-+-------+--------+---------+------+------------+-------+
-| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
-| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
-+-------+--------+---------+------+------------+-------+
-@end example
-
-@cindex columns, selecting
-@cindex tables, selecting columns
-@node Selecting columns, Sorting rows, Selecting rows, Retrieving data
-@subsubsection Selecting Particular Columns
-
-
-If you don't want to see entire rows from your table, just name the columns
-in which you're interested, separated by commas.  For example, if you want to
-know when your animals were born, select the @code{name} and @code{birth}
-columns:
-
-@example
-mysql> SELECT name, birth FROM pet;
-+----------+------------+
-| name     | birth      |
-+----------+------------+
-| Fluffy   | 1993-02-04 |
-| Claws    | 1994-03-17 |
-| Buffy    | 1989-05-13 |
-| Fang     | 1990-08-27 |
-| Bowser   | 1989-08-31 |
-| Chirpy   | 1998-09-11 |
-| Whistler | 1997-12-09 |
-| Slim     | 1996-04-29 |
-| Puffball | 1999-03-30 |
-+----------+------------+
-@end example
-
-To find out who owns pets, use this query:
-
-@example
-mysql> SELECT owner FROM pet;
-+--------+
-| owner  |
-+--------+
-| Harold |
-| Gwen   |
-| Harold |
-| Benny  |
-| Diane  |
-| Gwen   |
-| Gwen   |
-| Benny  |
-| Diane  |
-+--------+
-@end example
-
-@findex DISTINCT
-However, notice that the query simply retrieves the @code{owner} field from
-each record, and some of them appear more than once.  To minimize the output,
-retrieve each unique output record just once by adding the keyword
-@code{DISTINCT}:
-
-@example
-mysql> SELECT DISTINCT owner FROM pet;
-+--------+
-| owner  |
-+--------+
-| Benny  |
-| Diane  |
-| Gwen   |
-| Harold |
-+--------+
-@end example
-
-You can use a @code{WHERE} clause to combine row selection with column
-selection.  For example, to get birth dates for dogs and cats only,
-use this query:
-
-@example
-mysql> SELECT name, species, birth FROM pet
-    -> WHERE species = "dog" OR species = "cat";
-+--------+---------+------------+
-| name   | species | birth      |
-+--------+---------+------------+
-| Fluffy | cat     | 1993-02-04 |
-| Claws  | cat     | 1994-03-17 |
-| Buffy  | dog     | 1989-05-13 |
-| Fang   | dog     | 1990-08-27 |
-| Bowser | dog     | 1989-08-31 |
-+--------+---------+------------+
-@end example
-
-@cindex rows, sorting
-@cindex sorting, table rows
-@cindex sorting, data
-@cindex tables, sorting rows
-@node Sorting rows, Date calculations, Selecting columns, Retrieving data
-@subsubsection Sorting Rows
-
-You may have noticed in the preceding examples that the result rows are
-displayed in no particular order.  However, it's often easier to examine
-query output when the rows are sorted in some meaningful way.  To sort a
-result, use an @code{ORDER BY} clause.
-
-Here are animal birthdays, sorted by date:
-
-@example
-mysql> SELECT name, birth FROM pet ORDER BY birth;
-+----------+------------+
-| name     | birth      |
-+----------+------------+
-| Buffy    | 1989-05-13 |
-| Bowser   | 1989-08-31 |
-| Fang     | 1990-08-27 |
-| Fluffy   | 1993-02-04 |
-| Claws    | 1994-03-17 |
-| Slim     | 1996-04-29 |
-| Whistler | 1997-12-09 |
-| Chirpy   | 1998-09-11 |
-| Puffball | 1999-03-30 |
-+----------+------------+
-@end example
-
-To sort in reverse order, add the @code{DESC} (descending) keyword to the
-name of the column you are sorting by:
-
-@example
-mysql> SELECT name, birth FROM pet ORDER BY birth DESC;
-+----------+------------+
-| name     | birth      |
-+----------+------------+
-| Puffball | 1999-03-30 |
-| Chirpy   | 1998-09-11 |
-| Whistler | 1997-12-09 |
-| Slim     | 1996-04-29 |
-| Claws    | 1994-03-17 |
-| Fluffy   | 1993-02-04 |
-| Fang     | 1990-08-27 |
-| Bowser   | 1989-08-31 |
-| Buffy    | 1989-05-13 |
-+----------+------------+
-@end example
-
-You can sort on multiple columns.  For example, to sort by type of
-animal, then by birth date within animal type with youngest animals first,
-use the following query:
-
-@example
-mysql> SELECT name, species, birth FROM pet ORDER BY species, birth DESC;
-+----------+---------+------------+
-| name     | species | birth      |
-+----------+---------+------------+
-| Chirpy   | bird    | 1998-09-11 |
-| Whistler | bird    | 1997-12-09 |
-| Claws    | cat     | 1994-03-17 |
-| Fluffy   | cat     | 1993-02-04 |
-| Fang     | dog     | 1990-08-27 |
-| Bowser   | dog     | 1989-08-31 |
-| Buffy    | dog     | 1989-05-13 |
-| Puffball | hamster | 1999-03-30 |
-| Slim     | snake   | 1996-04-29 |
-+----------+---------+------------+
-@end example
-
-Note that the @code{DESC} keyword applies only to the column name immediately
-preceding it (@code{birth}); @code{species} values are still sorted in
-ascending order.
-
-@cindex date calculations
-@cindex calculating, dates
-@cindex extracting, dates
-@cindex age, calculating
-@node Date calculations, Working with NULL, Sorting rows, Retrieving data
-@subsubsection Date Calculations
-
-@strong{MySQL} provides several functions that you can use to perform
-calculations on dates, for example, to calculate ages or extract
-parts of dates.
-
-To determine how many years old each of your pets is, compute age as the
-difference between the birth date and the current date.  Do this by
-converting the two dates to days, take the difference, and divide by 365 (the
-number of days in a year):
-
-@example
-mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 FROM pet;
-+----------+-------------------------------------+
-| name     | (TO_DAYS(NOW())-TO_DAYS(birth))/365 |
-+----------+-------------------------------------+
-| Fluffy   |                                6.15 |
-| Claws    |                                5.04 |
-| Buffy    |                                9.88 |
-| Fang     |                                8.59 |
-| Bowser   |                                9.58 |
-| Chirpy   |                                0.55 |
-| Whistler |                                1.30 |
-| Slim     |                                2.92 |
-| Puffball |                                0.00 |
-+----------+-------------------------------------+
-@end example
-
-Although the query works, there are some things about it that could be
-improved.  First, the result could be scanned more easily if the rows were
-presented in some order.  Second, the heading for the age column isn't very
-meaningful.
-
-The first problem can be handled by adding an @code{ORDER BY name} clause to
-sort the output by name.  To deal with the column heading, provide a name for
-the column so that a different label appears in the output (this is called a
-column alias):
-
-@example
-mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
-    -> FROM pet ORDER BY name;
-+----------+------+
-| name     | age  |
-+----------+------+
-| Bowser   | 9.58 |
-| Buffy    | 9.88 |
-| Chirpy   | 0.55 |
-| Claws    | 5.04 |
-| Fang     | 8.59 |
-| Fluffy   | 6.15 |
-| Puffball | 0.00 |
-| Slim     | 2.92 |
-| Whistler | 1.30 |
-+----------+------+
-@end example
-
-To sort the output by @code{age} rather than @code{name}, just use a
-different @code{ORDER BY} clause:
-
-@example
-mysql>  SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
-    ->  FROM pet ORDER BY age;
-+----------+------+
-| name     | age  |
-+----------+------+
-| Puffball | 0.00 |
-| Chirpy   | 0.55 |
-| Whistler | 1.30 |
-| Slim     | 2.92 |
-| Claws    | 5.04 |
-| Fluffy   | 6.15 |
-| Fang     | 8.59 |
-| Bowser   | 9.58 |
-| Buffy    | 9.88 |
-+----------+------+
-@end example
-
-A similar query can be used to determine age at death for animals that have
-died.  You determine which animals these are by checking whether or not the
-@code{death} value is @code{NULL}.  Then, for those with non-@code{NULL}
-values, compute the difference between the @code{death} and @code{birth}
-values:
-
-@example
-mysql>  SELECT name, birth, death, (TO_DAYS(death)-TO_DAYS(birth))/365 AS age
-    ->  FROM pet WHERE death IS NOT NULL ORDER BY age;
-+--------+------------+------------+------+
-| name   | birth      | death      | age  |
-+--------+------------+------------+------+
-| Bowser | 1989-08-31 | 1995-07-29 | 5.91 |
-+--------+------------+------------+------+
-@end example
-
-The query uses @code{death IS NOT NULL} rather than @code{death != NULL}
-because @code{NULL} is a special value.  This is explained later.
-@xref{Working with NULL,  , Working with @code{NULL}}.
-
-What if you want to know which animals have birthdays next month?  For this
-type of calculation, year and day are irrelevant; you simply want to extract
-the month part of the @code{birth} column.  @strong{MySQL} provides several
-date-part extraction functions, such as @code{YEAR()}, @code{MONTH()}, and
-@code{DAYOFMONTH()}.  @code{MONTH()} is the appropriate function here.  To
-see how it works, run a simple query that displays the value of both
-@code{birth} and @code{MONTH(birth)}:
-
-@example
-mysql> SELECT name, birth, MONTH(birth) FROM pet;
-+----------+------------+--------------+
-| name     | birth      | MONTH(birth) |
-+----------+------------+--------------+
-| Fluffy   | 1993-02-04 |            2 |
-| Claws    | 1994-03-17 |            3 |
-| Buffy    | 1989-05-13 |            5 |
-| Fang     | 1990-08-27 |            8 |
-| Bowser   | 1989-08-31 |            8 |
-| Chirpy   | 1998-09-11 |            9 |
-| Whistler | 1997-12-09 |           12 |
-| Slim     | 1996-04-29 |            4 |
-| Puffball | 1999-03-30 |            3 |
-+----------+------------+--------------+
-@end example
-
-Finding animals with birthdays in the upcoming month is easy, too.  Suppose
-the current month is April.  Then the month value is @code{4} and you look
-for animals born in May (month 5) like this:
-
-@example
-mysql> SELECT name, birth FROM pet WHERE MONTH(birth) = 5;
-+-------+------------+
-| name  | birth      |
-+-------+------------+
-| Buffy | 1989-05-13 |
-+-------+------------+
-@end example
-
-There is a small complication if the current month is December, of course.
-You don't just add one to the month number (@code{12}) and look for animals
-born in month 13, because there is no such month.  Instead, you look for
-animals born in January (month 1).
-
-You can even write the query so that it works no matter what the current
-month is.  That way you don't have to use a particular month number
-in the query.  @code{DATE_ADD()} allows you to add a time interval to a
-given date.  If you add a month to the value of @code{NOW()}, then extract
-the month part with @code{MONTH()}, the result produces the month in which to
-look for birthdays:
-
-@example
-mysql> SELECT name, birth FROM pet
-    -> WHERE MONTH(birth) = MONTH(DATE_ADD(NOW(), INTERVAL 1 MONTH));
-@end example
-
-A different way to accomplish the same task is to add @code{1} to get the
-next month after the current one (after using the modulo function (@code{MOD})
-to wrap around the month value to @code{0} if it is currently
-@code{12}):
-
-@example
-mysql> SELECT name, birth FROM pet
-    -> WHERE MONTH(birth) = MOD(MONTH(NOW()), 12) + 1;
-@end example
-
-Note that @code{MONTH} returns a number between 1 and 12. And
-@code{MOD(something,12)} returns a number between 0 and 11. So the
-addition has to be after the @code{MOD()} otherwise we would go from
-November (11) to January (1).
-
-@findex NULL
-@cindex NULL value
-@node Working with NULL, Pattern matching, Date calculations, Retrieving data
-@subsubsection Working with @code{NULL} Values
-
-The @code{NULL} value can be surprising until you get used to it.
-Conceptually, @code{NULL} means missing value or unknown value and it
-is treated somewhat differently than other values.  To test for @code{NULL},
-you cannot use the arithmetic comparison operators such as @code{=}, @code{<},
-or @code{!=}.  To demonstrate this for yourself, try the following query:
-
-@example
-mysql> SELECT 1 = NULL, 1 != NULL, 1 < NULL, 1 > NULL;
-+----------+-----------+----------+----------+
-| 1 = NULL | 1 != NULL | 1 < NULL | 1 > NULL |
-+----------+-----------+----------+----------+
-|     NULL |      NULL |     NULL |     NULL |
-+----------+-----------+----------+----------+
-@end example
-
-Clearly you get no meaningful results from these comparisons.  Use
-the @code{IS NULL} and @code{IS NOT NULL} operators instead:
-
-@example
-mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
-+-----------+---------------+
-| 1 IS NULL | 1 IS NOT NULL |
-+-----------+---------------+
-|         0 |             1 |
-+-----------+---------------+
-@end example
-
-In @strong{MySQL}, 0 or @code{NULL} means false and anything else means true.
-The default truth value from a boolean operation is 1.
-
-This special treatment of @code{NULL} is why, in the previous section, it
-was necessary to determine which animals are no longer alive using
-@code{death IS NOT NULL} instead of @code{death != NULL}.
-
-@cindex pattern matching
-@cindex matching, patterns
-@cindex expressions, extended
-@node Pattern matching, Counting rows, Working with NULL, Retrieving data
-@subsubsection Pattern Matching
-
-@strong{MySQL} provides standard SQL pattern matching as well as a form of
-pattern matching based on extended regular expressions similar to those used
-by Unix utilities such as @code{vi}, @code{grep}, and @code{sed}.
-
-SQL pattern matching allows you to use @samp{_} to match any single
-character and @samp{%} to match an arbitrary number of characters (including
-zero characters).  In @strong{MySQL}, SQL patterns are case insensitive by
-default.  Some examples are shown below.  Note that you do not use @code{=}
-or @code{!=} when you use SQL patterns; use the @code{LIKE} or @code{NOT
-LIKE} comparison operators instead.
-
-To find names beginning with @samp{b}:
-
-@example
-mysql> SELECT * FROM pet WHERE name LIKE "b%";
-+--------+--------+---------+------+------------+------------+
-| name   | owner  | species | sex  | birth      | death      |
-+--------+--------+---------+------+------------+------------+
-| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL       |
-| Bowser | Diane  | dog     | m    | 1989-08-31 | 1995-07-29 |
-+--------+--------+---------+------+------------+------------+
-@end example
-
-To find names ending with @samp{fy}:
-
-@example
-mysql> SELECT * FROM pet WHERE name LIKE "%fy";
-+--------+--------+---------+------+------------+-------+
-| name   | owner  | species | sex  | birth      | death |
-+--------+--------+---------+------+------------+-------+
-| Fluffy | Harold | cat     | f    | 1993-02-04 | NULL  |
-| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL  |
-+--------+--------+---------+------+------------+-------+
-@end example
-
-To find names containing a @samp{w}:
-
-@example
-mysql> SELECT * FROM pet WHERE name LIKE "%w%";
-+----------+-------+---------+------+------------+------------+
-| name     | owner | species | sex  | birth      | death      |
-+----------+-------+---------+------+------------+------------+
-| Claws    | Gwen  | cat     | m    | 1994-03-17 | NULL       |
-| Bowser   | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
-| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL       |
-+----------+-------+---------+------+------------+------------+
-@end example
-
-To find names containing exactly five characters, use the @samp{_} pattern
-character:
-
-@example
-mysql> SELECT * FROM pet WHERE name LIKE "_____";
-+-------+--------+---------+------+------------+-------+
-| name  | owner  | species | sex  | birth      | death |
-+-------+--------+---------+------+------------+-------+
-| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
-| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
-+-------+--------+---------+------+------------+-------+
-@end example
-
-The other type of pattern matching provided by @strong{MySQL} uses extended
-regular expressions.  When you test for a match for this type of pattern, use
-the @code{REGEXP} and @code{NOT REGEXP} operators (or @code{RLIKE} and
-@code{NOT RLIKE}, which are synonyms).
-
-Some characteristics of extended regular expressions are:
-
-@itemize @bullet
-@item
-@samp{.} matches any single character.
-
-@item
-A character class @samp{[...]} matches any character within the brackets.
-For example, @samp{[abc]} matches @samp{a}, @samp{b}, or @samp{c}.  To name a
-range of characters, use a dash.  @samp{[a-z]} matches any lowercase letter,
-whereas @samp{[0-9]} matches any digit.
-
-@item
-@samp{*} matches zero or more instances of the thing preceding it.  For
-example, @samp{x*} matches any number of @samp{x} characters,
-@samp{[0-9]*} matches any number of digits, and @samp{.*} matches any
-number of anything.
-
-@item
-Regular expressions are case sensitive, but you can use a character class to
-match both lettercases if you wish.  For example, @samp{[aA]} matches
-lowercase or uppercase @samp{a} and @samp{[a-zA-Z]} matches any letter in
-either case.
-
-@item
-The pattern matches if it occurs anywhere in the value being tested.
-(SQL patterns match only if they match the entire value.)
-
-@item
-To anchor a pattern so that it must match the beginning or end of the value
-being tested, use @samp{^} at the beginning or @samp{$} at the end of the
-pattern.
-@end itemize
-
-To demonstrate how extended regular expressions work, the @code{LIKE} queries
-shown above are rewritten below to use @code{REGEXP}.
-
-To find names beginning with @samp{b}, use @samp{^} to match the beginning of
-the name:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "^b";
-+--------+--------+---------+------+------------+------------+
-| name   | owner  | species | sex  | birth      | death      |
-+--------+--------+---------+------+------------+------------+
-| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL       |
-| Bowser | Diane  | dog     | m    | 1989-08-31 | 1995-07-29 |
-+--------+--------+---------+------+------------+------------+
-@end example
-
-Prior to @strong{MySQL} Version 3.23.4, @code{REGEXP} is case sensitive, 
-and the previous query will return no rows. To match either lowercase or 
-uppercase @samp{b}, use this query instead:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "^[bB]";
-@end example
-
-From @strong{MySQL} 3.23.4 on, to force a @code{REGEXP} comparison to
-be case sensitive, use the @code{BINARY} keyword to make one of the
-strings a binary string. This query will match only lowercase @samp{b}
-at the beginning of a name:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP BINARY "^b";
-@end example
-
-To find names ending with @samp{fy}, use @samp{$} to match the end of the
-name:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "fy$";
-+--------+--------+---------+------+------------+-------+
-| name   | owner  | species | sex  | birth      | death |
-+--------+--------+---------+------+------------+-------+
-| Fluffy | Harold | cat     | f    | 1993-02-04 | NULL  |
-| Buffy  | Harold | dog     | f    | 1989-05-13 | NULL  |
-+--------+--------+---------+------+------------+-------+
-@end example
-
-To find names containing a lowercase or uppercase @samp{w}, use this query:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "w";
-+----------+-------+---------+------+------------+------------+
-| name     | owner | species | sex  | birth      | death      |
-+----------+-------+---------+------+------------+------------+
-| Claws    | Gwen  | cat     | m    | 1994-03-17 | NULL       |
-| Bowser   | Diane | dog     | m    | 1989-08-31 | 1995-07-29 |
-| Whistler | Gwen  | bird    | NULL | 1997-12-09 | NULL       |
-+----------+-------+---------+------+------------+------------+
-@end example
-
-Because a regular expression pattern matches if it occurs anywhere in the
-value, it is not necessary in the previous query to put a wild card on either
-side of the pattern to get it to match the entire value like it would be if
-you used a SQL pattern.
-
-To find names containing exactly five characters, use @samp{^} and @samp{$}
-to match the beginning and end of the name, and five instances of @samp{.}
-in between:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "^.....$";
-+-------+--------+---------+------+------------+-------+
-| name  | owner  | species | sex  | birth      | death |
-+-------+--------+---------+------+------------+-------+
-| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
-| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
-+-------+--------+---------+------+------------+-------+
-@end example
-
-You could also write the previous query using the @samp{@{n@}}
-``repeat-@code{n}-times'' operator:
-
-@example
-mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
-+-------+--------+---------+------+------------+-------+
-| name  | owner  | species | sex  | birth      | death |
-+-------+--------+---------+------+------------+-------+
-| Claws | Gwen   | cat     | m    | 1994-03-17 | NULL  |
-| Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
-+-------+--------+---------+------+------------+-------+
-@end example
-
-@cindex rows, counting
-@cindex tables, counting rows
-@cindex counting, table rows
-@node Counting rows, Multiple tables, Pattern matching, Retrieving data
-@subsubsection Counting Rows
-
-Databases are often used to answer the question, ``How often does a certain
-type of data occur in a table?''  For example, you might want to know how
-many pets you have, or how many pets each owner has, or you might want to
-perform various kinds of censuses on your animals.
-
-Counting the total number of animals you have is the same question as ``How
-many rows are in the @code{pet} table?'' because there is one record per pet.
-The @code{COUNT()} function counts the number of non-@code{NULL} results, so
-the query to count your animals looks like this:
-
-@example
-mysql> SELECT COUNT(*) FROM pet;
-+----------+
-| COUNT(*) |
-+----------+
-|        9 |
-+----------+
-@end example
-
-Earlier, you retrieved the names of the people who owned pets.  You can
-use @code{COUNT()} if you want to find out how many pets each owner has:
-
-@example
-mysql> SELECT owner, COUNT(*) FROM pet GROUP BY owner;
-+--------+----------+
-| owner  | COUNT(*) |
-+--------+----------+
-| Benny  |        2 |
-| Diane  |        2 |
-| Gwen   |        3 |
-| Harold |        2 |
-+--------+----------+
-@end example
-
-Note the use of @code{GROUP BY} to group together all records for each
-@code{owner}.  Without it, all you get is an error message:
-
-@example
-mysql> SELECT owner, COUNT(owner) FROM pet;
-ERROR 1140 at line 1: Mixing of GROUP columns (MIN(),MAX(),COUNT()...)
-with no GROUP columns is illegal if there is no GROUP BY clause
-@end example
-
-@code{COUNT()} and @code{GROUP BY} are useful for characterizing your
-data in various ways.  The following examples show different ways to
-perform animal census operations.
-
-Number of animals per species:
-
-@example
-mysql> SELECT species, COUNT(*) FROM pet GROUP BY species;
-+---------+----------+
-| species | COUNT(*) |
-+---------+----------+
-| bird    |        2 |
-| cat     |        2 |
-| dog     |        3 |
-| hamster |        1 |
-| snake   |        1 |
-+---------+----------+
-@end example
-
-Number of animals per sex:
-
-@example
-mysql> SELECT sex, COUNT(*) FROM pet GROUP BY sex;
-+------+----------+
-| sex  | COUNT(*) |
-+------+----------+
-| NULL |        1 |
-| f    |        4 |
-| m    |        4 |
-+------+----------+
-@end example
-
-(In this output, @code{NULL} indicates sex unknown.)
-
-Number of animals per combination of species and sex:
-
-@example
-mysql> SELECT species, sex, COUNT(*) FROM pet GROUP BY species, sex;
-+---------+------+----------+
-| species | sex  | COUNT(*) |
-+---------+------+----------+
-| bird    | NULL |        1 |
-| bird    | f    |        1 |
-| cat     | f    |        1 |
-| cat     | m    |        1 |
-| dog     | f    |        1 |
-| dog     | m    |        2 |
-| hamster | f    |        1 |
-| snake   | m    |        1 |
-+---------+------+----------+
-@end example
-
-You need not retrieve an entire table when you use @code{COUNT()}.  For
-example, the previous query, when performed just on dogs and cats, looks like
-this:
-
-@example
-mysql> SELECT species, sex, COUNT(*) FROM pet
-    -> WHERE species = "dog" OR species = "cat"
-    -> GROUP BY species, sex;
-+---------+------+----------+
-| species | sex  | COUNT(*) |
-+---------+------+----------+
-| cat     | f    |        1 |
-| cat     | m    |        1 |
-| dog     | f    |        1 |
-| dog     | m    |        2 |
-+---------+------+----------+
-@end example
-
-Or, if you wanted the number of animals per sex only for known-sex animals:
-
-@example
-mysql> SELECT species, sex, COUNT(*) FROM pet
-    -> WHERE sex IS NOT NULL
-    -> GROUP BY species, sex;
-+---------+------+----------+
-| species | sex  | COUNT(*) |
-+---------+------+----------+
-| bird    | f    |        1 |
-| cat     | f    |        1 |
-| cat     | m    |        1 |
-| dog     | f    |        1 |
-| dog     | m    |        2 |
-| hamster | f    |        1 |
-| snake   | m    |        1 |
-+---------+------+----------+
-@end example
-
-@cindex tables, multiple
-@node Multiple tables,  , Counting rows, Retrieving data
-@subsubsection Using More Than one Table
-
-The @code{pet} table keeps track of which pets you have.  If you want to
-record other information about them, such as events in their lives like
-visits to the vet or when litters are born, you need another table.  What
-should this table look like? It needs:
-
-@itemize @bullet
-@item
-To contain the pet name so you know which animal each event pertains
-to.
-
-@item
-A date so you know when the event occurred.
-
-@item
-A field to describe the event.
-
-@item
-An event type field, if you want to be able to categorize events.
-@end itemize
-
-Given these considerations, the @code{CREATE TABLE} statement for the
-@code{event} table might look like this:
-
-@example
-mysql> CREATE TABLE event (name VARCHAR(20), date DATE,
-    -> type VARCHAR(15), remark VARCHAR(255));
-@end example
-
-As with the @code{pet} table, it's easiest to load the initial records
-by creating a tab-delimited text file containing the information:
-
-@multitable @columnfractions .15 .15 .15 .55
-@item Fluffy @tab 1995-05-15 @tab litter @tab 4 kittens, 3 female, 1 male
-@item Buffy @tab 1993-06-23 @tab litter @tab 5 puppies, 2 female, 3 male
-@item Buffy @tab 1994-06-19 @tab litter @tab 3 puppies, 3 female
-@item Chirpy @tab 1999-03-21 @tab vet @tab needed beak straightened
-@item Slim @tab 1997-08-03 @tab vet @tab broken rib
-@item Bowser @tab 1991-10-12 @tab kennel
-@item Fang @tab 1991-10-12 @tab kennel
-@item Fang @tab 1998-08-28 @tab birthday @tab Gave him a new chew toy
-@item Claws @tab 1998-03-17 @tab birthday @tab Gave him a new flea collar
-@item Whistler @tab 1998-12-09 @tab birthday @tab First birthday
-@end multitable
-
-Load the records like this:
-
-@example
-mysql> LOAD DATA LOCAL INFILE "event.txt" INTO TABLE event;
-@end example
-
-Based on what you've learned from the queries you've run on the @code{pet}
-table, you should be able to perform retrievals on the records in the
-@code{event} table; the principles are the same.  But when is the
-@code{event} table by itself insufficient to answer questions you might ask?
-
-Suppose you want to find out the ages of each pet when they had their
-litters.  The @code{event} table indicates when this occurred, but to
-calculate the age of the mother, you need her birth date.  Because that is
-stored in the @code{pet} table, you need both tables for the query:
-
-@example
-mysql> SELECT pet.name, (TO_DAYS(date) - TO_DAYS(birth))/365 AS age, remark
-    -> FROM pet, event
-    -> WHERE pet.name = event.name AND type = "litter";
-+--------+------+-----------------------------+
-| name   | age  | remark                      |
-+--------+------+-----------------------------+
-| Fluffy | 2.27 | 4 kittens, 3 female, 1 male |
-| Buffy  | 4.12 | 5 puppies, 2 female, 3 male |
-| Buffy  | 5.10 | 3 puppies, 3 female         |
-+--------+------+-----------------------------+
-@end example
-
-There are several things to note about this query:
-
-@itemize @bullet
-@item
-The @code{FROM} clause lists two tables because the query needs to pull
-information from both of them.
-
-@item
-When combining (joining) information from multiple tables, you need to
-specify how records in one table can be matched to records in the other.
-This is easy because they both have a @code{name} column.  The query uses
-@code{WHERE} clause to match up records in the two tables based on the
-@code{name} values.
-
-@item
-Because the @code{name} column occurs in both tables, you must be specific
-about which table you mean when referring to the column.  This is done
-by prepending the table name to the column name.
-@end itemize
-
-You need not have two different tables to perform a join.  Sometimes it is
-useful to join a table to itself, if you want to compare records in a table
-to other records in that same table.  For example, to find breeding pairs
-among your pets, you can join the @code{pet} table with itself to pair up
-males and females of like species:
-
-@example
-mysql> SELECT p1.name, p1.sex, p2.name, p2.sex, p1.species
-    -> FROM pet AS p1, pet AS p2
-    -> WHERE p1.species = p2.species AND p1.sex = "f" AND p2.sex = "m";
-+--------+------+--------+------+---------+
-| name   | sex  | name   | sex  | species |
-+--------+------+--------+------+---------+
-| Fluffy | f    | Claws  | m    | cat     |
-| Buffy  | f    | Fang   | m    | dog     |
-| Buffy  | f    | Bowser | m    | dog     |
-+--------+------+--------+------+---------+
-@end example
-
-In this query, we specify aliases for the table name in order
-to refer to the columns and keep straight which instance of the table
-each column reference is associated with.
-
-@cindex databases, information about
-@cindex tables, information about
-@findex DESCRIBE
-@node Getting information, Examples, Database use, Tutorial
-@section Getting Information About Databases and Tables
-
-What if you forget the name of a database or table, or what the structure of
-a given table is (for example, what its columns are called)?  @strong{MySQL}
-addresses this problem through several statements that provide information
-about the databases and tables it supports.
-
-You have already seen @code{SHOW DATABASES}, which lists the databases
-managed by the server.  To find out which database is currently selected,
-use the @code{DATABASE()} function:
-
-@example
-mysql> SELECT DATABASE();
-+------------+
-| DATABASE() |
-+------------+
-| menagerie  |
-+------------+
-@end example
-
-If you haven't selected any database yet, the result is blank.
-
-To find out what tables the current database contains (for example, when
-you're not sure about the name of a table), use this command:
-
-@example
-mysql> SHOW TABLES;
-+---------------------+
-| Tables in menagerie |
-+---------------------+
-| event               |
-| pet                 |
-+---------------------+
-@end example
-
-If you want to find out about the structure of a table, the @code{DESCRIBE}
-command is useful; it displays information about each of a table's columns:
-
-@example
-mysql> DESCRIBE pet;
-+---------+-------------+------+-----+---------+-------+
-| Field   | Type        | Null | Key | Default | Extra |
-+---------+-------------+------+-----+---------+-------+
-| name    | varchar(20) | YES  |     | NULL    |       |
-| owner   | varchar(20) | YES  |     | NULL    |       |
-| species | varchar(20) | YES  |     | NULL    |       |
-| sex     | char(1)     | YES  |     | NULL    |       |
-| birth   | date        | YES  |     | NULL    |       |
-| death   | date        | YES  |     | NULL    |       |
-+---------+-------------+------+-----+---------+-------+
-@end example
-
-@code{Field} indicates the column name, @code{Type} is the data type for
-the column, @code{Null} indicates whether or not the column can contain
-@code{NULL} values, @code{Key} indicates whether or not the column is
-indexed, and @code{Default} specifies the column's default value.
-
-If you have indexes on a table,
-@code{SHOW INDEX FROM tbl_name} produces information about them.
-
-@cindex queries, examples
-@cindex examples, queries
-@node Examples, Batch mode, Getting information, Tutorial
-@section Examples of Common Queries
-
-Here are examples of how to solve some common problems with
-@strong{MySQL}.
-
-Some of the examples use the table @code{shop} to hold the price of each
-article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
-
-Start the command line tool @code{mysql} and select a database:
-
-@example
-mysql your-database-name
-@end example
-
-(In most @strong{MySQL} installations, you can use the database-name 'test').
-
-You can create the example table as:
-
-@example
-CREATE TABLE shop (
- article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
- dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
- price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
- PRIMARY KEY(article, dealer));
-
-INSERT INTO shop VALUES
-(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
-(3,'D',1.25),(4,'D',19.95);
-@end example
-
-Okay, so the example data is:
-
-@example
-mysql> SELECT * FROM shop;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | A      |  3.45 |
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | B      |  1.45 |
-|    0003 | C      |  1.69 |
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@menu
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
-* Searching on two keys::       
-* Calculating days::            
-@end menu
-
-@node example-Maximum-column, example-Maximum-row, Examples, Examples
-@subsection The Maximum Value for a Column
-
-``What's the highest item number?''
-
-@example
-SELECT MAX(article) AS article FROM shop
-
-+---------+
-| article |
-+---------+
-|       4 |
-+---------+
-@end example
-
-@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
-@subsection The Row Holding the Maximum of a Certain Column
-
-``Find number, dealer, and price of the most expensive article.''
-
-In ANSI SQL this is easily done with a sub-query:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=(SELECT MAX(price) FROM shop)
-@end example
-
-In @strong{MySQL} (which does not yet have sub-selects), just do it in
-two steps:
-
-@enumerate
-@item
-Get the maximum price value from the table with a @code{SELECT} statement.
-@item
-Using this value compile the actual query:
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=19.95
-@end example
-@end enumerate
-
-Another solution is to sort all rows descending by price and only
-get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-ORDER BY price DESC
-LIMIT 1
-@end example
-
-@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
-the @code{LIMIT} solution shows only one of them!
-
-@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
-@subsection Maximum of Column per Group
-
-``What's the highest price per article?''
-
-@example
-SELECT article, MAX(price) AS price
-FROM   shop
-GROUP BY article
-
-+---------+-------+
-| article | price |
-+---------+-------+
-|    0001 |  3.99 |
-|    0002 | 10.99 |
-|    0003 |  1.69 |
-|    0004 | 19.95 |
-+---------+-------+
-@end example
-
-@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
-@subsection The Rows Holding the Group-wise Maximum of a Certain Field
-
-``For each article, find the dealer(s) with the most expensive price.''
-
-In ANSI SQL, I'd do it with a sub-query like this:
-
-@example
-SELECT article, dealer, price
-FROM   shop s1
-WHERE  price=(SELECT MAX(s2.price)
-              FROM shop s2
-              WHERE s1.article = s2.article);
-@end example
-
-In @strong{MySQL} it's best do it in several steps:
-
-@enumerate
-@item
-Get the list of (article,maxprice).
-@item
-For each article get the corresponding rows that have the stored maximum
-price.
-@end enumerate
-
-This can easily be done with a temporary table:
-
-@example
-CREATE TEMPORARY TABLE tmp (
-        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
-        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
-
-LOCK TABLES shop read;
-
-INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
-
-SELECT shop.article, dealer, shop.price FROM shop, tmp
-WHERE shop.article=tmp.article AND shop.price=tmp.price;
-
-UNLOCK TABLES;
-
-DROP TABLE tmp;
-@end example
-
-If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
-
-``Can it be done with a single query?''
-
-Yes, but only by using a quite inefficient trick that I call the
-``MAX-CONCAT trick'':
-
-@example
-SELECT article,
-       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
-  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
-FROM   shop
-GROUP BY article;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | C      |  1.69 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-The last example can, of course, be made a bit more efficient by doing the
-splitting of the concatenated column in the client.
-
-@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
-@subsection Using user variables
-
-You can use @strong{MySQL} user variables to remember results without
-having to store them in a temporary variables in the client.
-@xref{Variables}.
-
-For example, to find the articles with the highest and lowest price you
-can do:
-
-@example
-select @@min_price:=min(price),@@max_price:=max(price) from shop;
-select * from shop where price=@@min_price or price=@@max_price;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@cindex foreign keys
-@cindex keys, foreign
-@node example-Foreign keys, Searching on two keys, example-user-variables, Examples
-@subsection Using Foreign Keys
-
-You don't need foreign keys to join 2 tables.
-
-The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
-the keys you use really exist in the table(s) you're referencing and it
-doesn't automatically delete rows from table with a foreign key
-definition. If you use your keys like normal, it'll work just fine:
-
-
-@example
-CREATE TABLE persons (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name CHAR(60) NOT NULL,
-    PRIMARY KEY (id)
-);
-
-CREATE TABLE shirts (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
-    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
-    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
-    PRIMARY KEY (id)
-);
-
-
-INSERT INTO persons VALUES (NULL, 'Antonio Paz');
-
-INSERT INTO shirts VALUES
-(NULL, 'polo', 'blue', LAST_INSERT_ID()),
-(NULL, 'dress', 'white', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
-
-
-INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
-
-INSERT INTO shirts VALUES
-(NULL, 'dress', 'orange', LAST_INSERT_ID()),
-(NULL, 'polo', 'red', LAST_INSERT_ID()),
-(NULL, 'dress', 'blue', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'white', LAST_INSERT_ID());
-
-
-SELECT * FROM persons;
-+----+---------------------+
-| id | name                |
-+----+---------------------+
-|  1 | Antonio Paz         |
-|  2 | Lilliana Angelovska |
-+----+---------------------+
-
-SELECT * FROM shirts;
-+----+---------+--------+-------+
-| id | style   | color  | owner |
-+----+---------+--------+-------+
-|  1 | polo    | blue   |     1 |
-|  2 | dress   | white  |     1 |
-|  3 | t-shirt | blue   |     1 |
-|  4 | dress   | orange |     2 |
-|  5 | polo    | red    |     2 |
-|  6 | dress   | blue   |     2 |
-|  7 | t-shirt | white  |     2 |
-+----+---------+--------+-------+
-
-
-SELECT s.* FROM persons p, shirts s
- WHERE p.name LIKE 'Lilliana%'
-   AND s.owner = p.id
-   AND s.color <> 'white';
-
-+----+-------+--------+-------+
-| id | style | color  | owner |
-+----+-------+--------+-------+
-|  4 | dress | orange |     2 |
-|  5 | polo  | red    |     2 |
-|  6 | dress | blue   |     2 |
-+----+-------+--------+-------+
-@end example
-
-@findex UNION
-@cindex searching, two keys
-@cindex keys, searching on two
-@node Searching on two keys, Calculating days, example-Foreign keys, Examples
-@subsection Searching on Two Keys
-
-@strong{MySQL} doesn't yet optimize when you search on two different
-keys combined with @code{OR} (Searching on one key with different @code{OR}
-parts is optimized quite good):
-
-@example
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
-OR  field2_index = '1'
-@end example
-
-The reason is that we haven't yet had time to come up with an efficient
-way to handle this in the general case. (The @code{AND} handling is,
-in comparison, now completely general and works very well).
-
-For the moment you can solve this very efficiently by using a
-@code{TEMPORARY} table. This type of optimization is also very good if
-you are using very complicated queries where the SQL server does the
-optimizations in the wrong order.
-
-@example
-CREATE TEMPORARY TABLE tmp
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
-INSERT INTO tmp
-SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
-SELECT * from tmp;
-DROP TABLE tmp;
-@end example
-
-The above way to solve this query is in effect an @code{UNION} of two queries.
-
-@cindex bit_functions, example
-@findex BIT_OR
-@findex BIT_COUNT
-@findex <<
-@node Calculating days,  , Searching on two keys, Examples
-@subsection Calculating visits per day
-
-The following shows an idea of how you can use the bit group functions
-to calculate the number of days per month a user has visited a web page.
-
-@example
-CREATE TABLE t1 (year YEAR(4), month INT(2) UNSIGNED ZEROFILL, day INT(2) UNSIGNED ZEROFILL);                                                            
-INSERT INTO t1 VALUES(2000,1,1),(2000,1,20),(2000,1,30),(2000,2,2),(2000,2,23),(2000,2,23);
-
-SELECT year,month,BIT_COUNT(BIT_OR(1<<day)) AS days FROM t1 GROUP BY year,month;
-
-Which returns:
-
-+------+-------+------+
-| year | month | days |
-+------+-------+------+
-| 2000 |    01 |    3 |
-| 2000 |    02 |    2 |
-+------+-------+------+
-@end example
-
-The above calculates how many different days was used for a given
-year/month combination, with automatic removal of duplicate entries.
-
-@cindex modes, batch
-@cindex batch mode
-@cindex running, batch mode
-@cindex script files
-@cindex files, script
-@node Batch mode, Twin, Examples, Tutorial
-@section Using @code{mysql} in Batch Mode
-
-In the previous sections, you used @code{mysql} interactively to enter
-queries and view the results.  You can also run @code{mysql} in batch
-mode.  To do this, put the commands you want to run in a file, then
-tell @code{mysql} to read its input from the file:
-
-@example
-shell> mysql < batch-file
-@end example
-
-If you need to specify connection parameters on the command line, the
-command might look like this:
-
-@example
-shell> mysql -h host -u user -p < batch-file
-Enter password: ********
-@end example
-
-When you use @code{mysql} this way, you are creating a script file, then
-executing the script.
-
-Why use a script?  Here are a few reasons:
-
-@itemize @bullet
-@item
-If you run a query repeatedly (say, every day or every week), making it a
-script allows you to avoid retyping it each time you execute it.
-
-@item
-You can generate new queries from existing ones that are similar by copying
-and editing script files.
-
-@item
-Batch mode can also be useful while you're developing a query, particularly
-for multiple-line commands or multiple-statement sequences of commands.  If
-you make a mistake, you don't have to retype everything.  Just edit your
-script to correct the error, then tell @code{mysql} to execute it again.
-
-@item
-If you have a query that produces a lot of output, you can run the output
-through a pager rather than watching it scroll off the top of your screen:
-
-@example
-shell> mysql < batch-file | more
-@end example
-
-@item
-You can catch the output in a file for further processing:
-
-@example
-shell> mysql < batch-file > mysql.out
-@end example
-
-@item
-You can distribute your script to other people so they can run the commands,
-too.
-
-@item
-Some situations do not allow for interactive use, for example, when you run
-a query from a @code{cron} job.  In this case, you must use batch mode.
-@end itemize
-
-The default output format is different (more concise) when you run
-@code{mysql} in batch mode than when you use it interactively.  For
-example, the output of @code{SELECT DISTINCT species FROM pet} looks like
-this when run interactively:
-
-@example
-+---------+
-| species |
-+---------+
-| bird    |
-| cat     |
-| dog     |
-| hamster |
-| snake   |
-+---------+
-@end example
-
-But like this when run in batch mode:
-
-@example
-species
-bird
-cat
-dog
-hamster
-snake
-@end example
-
-If you want to get the interactive output format in batch mode, use
-@code{mysql -t}.  To echo to the output the commands that are executed, use
-@code{mysql -vvv}.
-
-@cindex Twin Studies, queries
-@cindex queries, Twin Studeis project
-@node Twin,  , Batch mode, Tutorial
-@section Queries from Twin Project
-
-At Analytikerna and Lentus, we have been doing the systems and field work
-for a big research project. This project is a collaboration between the
-Institute of Environmental Medicine at Karolinska Institutet Stockholm
-and the Section on Clinical Research in Aging and Psychology at the
-University of Southern California.
-
-The project involves a screening part where all twins in Sweden older
-than 65 years are interviewed by telephone. Twins who meet certain
-criteria are passed on to the next stage. In this latter stage, twins who
-want to participate are visited by a doctor/nurse team. Some of the
-examinations include physical and neuropsychological examination,
-laboratory testing, neuroimaging, psychological status assessment, and family
-history collection. In addition, data are collected on medical and
-environmental risk factors.
-
-More information about Twin studies can be found at:
-
-@example
-@url{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
-@end example
-
-The latter part of the project is administered with a Web interface
-written using Perl and @strong{MySQL}.
-
-Each night all data from the interviews are moved into a @strong{MySQL}
-database.
-
-@menu
-* Twin pool::                   Find all non-distributed twins
-* Twin event::                  Show a table on twin pair status
-@end menu
-
-@node Twin pool, Twin event, Twin, Twin
-@subsection Find all Non-distributed Twins
-
-The following query is used to determine who goes into the second part of the
-project:
-
-@example
-select
-        concat(p1.id, p1.tvab) + 0 as tvid,
-        concat(p1.christian_name, " ", p1.surname) as Name,
-        p1.postal_code as Code,
-        p1.city as City,
-        pg.abrev as Area,
-        if(td.participation = "Aborted", "A", " ") as A,
-        p1.dead as dead1,
-        l.event as event1,
-        td.suspect as tsuspect1,
-        id.suspect as isuspect1,
-        td.severe as tsevere1,
-        id.severe as isevere1,
-        p2.dead as dead2,
-        l2.event as event2,
-        h2.nurse as nurse2,
-        h2.doctor as doctor2,
-        td2.suspect as tsuspect2,
-        id2.suspect as isuspect2,
-        td2.severe as tsevere2,
-        id2.severe as isevere2,
-        l.finish_date
-from
-        twin_project as tp
-        /* For Twin 1 */
-        left join twin_data as td on tp.id = td.id and tp.tvab = td.tvab
-        left join informant_data as id on tp.id = id.id and tp.tvab = id.tvab
-        left join harmony as h on tp.id = h.id and tp.tvab = h.tvab
-        left join lentus as l on tp.id = l.id and tp.tvab = l.tvab
-        /* For Twin 2 */
-        left join twin_data as td2 on p2.id = td2.id and p2.tvab = td2.tvab
-        left join informant_data as id2 on p2.id = id2.id and p2.tvab = id2.tvab
-        left join harmony as h2 on p2.id = h2.id and p2.tvab = h2.tvab
-        left join lentus as l2 on p2.id = l2.id and p2.tvab = l2.tvab,
-        person_data as p1,
-        person_data as p2,
-        postal_groups as pg
-where
-        /* p1 gets main twin and p2 gets his/her twin. */
-        /* ptvab is a field inverted from tvab */
-        p1.id = tp.id and p1.tvab = tp.tvab and
-        p2.id = p1.id and p2.ptvab = p1.tvab and
-        /* Just the sceening survey */
-        tp.survey_no = 5 and
-        /* Skip if partner died before 65 but allow emigration (dead=9) */
-        (p2.dead = 0 or p2.dead = 9 or
-         (p2.dead = 1 and
-          (p2.death_date = 0 or
-           (((to_days(p2.death_date) - to_days(p2.birthday)) / 365)
-            >= 65))))
-        and
-        (
-        /* Twin is suspect */
-        (td.future_contact = 'Yes' and td.suspect = 2) or
-        /* Twin is suspect - Informant is Blessed */
-        (td.future_contact = 'Yes' and td.suspect = 1 and id.suspect = 1) or
-        /* No twin - Informant is Blessed */
-        (ISNULL(td.suspect) and id.suspect = 1 and id.future_contact = 'Yes') or
-        /* Twin broken off - Informant is Blessed */
-        (td.participation = 'Aborted'
-         and id.suspect = 1 and id.future_contact = 'Yes') or
-        /* Twin broken off - No inform - Have partner */
-        (td.participation = 'Aborted' and ISNULL(id.suspect) and p2.dead = 0))
-        and
-        l.event = 'Finished'
-        /* Get at area code */
-        and substring(p1.postal_code, 1, 2) = pg.code
-        /* Not already distributed */
-        and (h.nurse is NULL or h.nurse=00 or h.doctor=00)
-        /* Has not refused or been aborted */
-        and not (h.status = 'Refused' or h.status = 'Aborted'
-        or h.status = 'Died' or h.status = 'Other')
-order by
-        tvid;
-@end example
-
-Some explanations:
-@table @asis
-@item @code{concat(p1.id, p1.tvab) + 0 as tvid}
-We want to sort on the concatenated @code{id} and @code{tvab} in
-numerical order. Adding @code{0} to the result causes @strong{MySQL} to
-treat the result as a number.
-@item column @code{id}
-This identifies a pair of twins. It is a key in all tables.
-@item column @code{tvab}
-This identifies a twin in a pair. It has a value of @code{1} or @code{2}.
-@item column @code{ptvab}
-This is an inverse of @code{tvab}. When @code{tvab} is @code{1} this is
-@code{2}, and vice versa. It exists to save typing and to make it easier for
-@strong{MySQL} to optimize the query.
-@end table
-
-This query demonstrates, among other things, how to do lookups on a
-table from the same table with a join (@code{p1} and @code{p2}). In the example, this
-is used to check whether a twin's partner died before the age of 65. If so,
-the row is not returned.
-
-All of the above exist in all tables with twin-related information. We
-have a key on both @code{id,tvab} (all tables), and @code{id,ptvab}
-(@code{person_data}) to make queries faster.
-
-On our production machine (A 200MHz UltraSPARC), this query returns
-about 150-200 rows and takes less than one second.
-
-The current number of records in the tables used above:
-@multitable @columnfractions .3 .5
-@item @strong{Table}            @tab @strong{Rows}
-@item @code{person_data}        @tab 71074
-@item @code{lentus}		@tab 5291
-@item @code{twin_project}       @tab 5286
-@item @code{twin_data}		@tab 2012
-@item @code{informant_data}	@tab 663
-@item @code{harmony}		@tab 381
-@item @code{postal_groups}	@tab 100
-@end multitable
-
-@node Twin event,  , Twin pool, Twin
-@subsection Show a Table on Twin Pair Status
-
-Each interview ends with a status code called @code{event}. The query
-shown below is used to display a table over all twin pairs combined by
-event. This indicates in how many pairs both twins are finished, in how many
-pairs one twin is finished and the other refused, and so on.
-
-@example
-select
-        t1.event,
-        t2.event,
-        count(*)
-from
-        lentus as t1,
-        lentus as t2,
-        twin_project as tp
-where
-        /* We are looking at one pair at a time */
-        t1.id = tp.id
-        and t1.tvab=tp.tvab
-        and t1.id = t2.id
-        /* Just the sceening survey */
-        and tp.survey_no = 5
-        /* This makes each pair only appear once */
-        and t1.tvab='1' and t2.tvab='2'
-group by
-        t1.event, t2.event;
-
-@end example
+@node Server, Replication, Table types, Top
+@chapter MySQL Server Functions
 
 @cindex functions, server
 @cindex server functions
-@node Server, Replication, Tutorial, Top
-@chapter MySQL Server Functions
 
 @menu
 * Languages::                   What languages are supported by @strong{MySQL}?
@@ -28428,12 +28480,13 @@ This chapter describes the languages @strong{MySQL} supports, how sorting
 works in @strong{MySQL}, and how to add new character sets to @strong{MySQL}.
 You will also find information about maximum table sizes in this chapter.
 
+@node Languages,  , Server, Server
+@section What Languages Are Supported by MySQL?
+
 @cindex error messages, languages
 @cindex messages, languages
 @cindex files, error messages
 @cindex language support
-@node Languages,  , Server, Server
-@section What Languages Are Supported by MySQL?
 
 @code{mysqld} can issue error messages in the following languages:
 Czech, Danish, Dutch, English (the default), Estonian, French, German, Greek,
@@ -36579,7 +36632,6 @@ likely it is that we can fix the problem!
 @chapter Using MySQL with Some Common Programs
 
 @menu
-* Apache::                      Using @strong{MySQL} with Apache
 * Borland C++::                 
 @end menu
 
@@ -36596,32 +36648,9 @@ Find some tips on how to compile @strong{MySQL} and @strong{MySQL}-based
 programs using Borland C++.
 @end itemize
 
-@cindex Apache
-@node Apache, Borland C++, Common programs, Common programs
-@section Using MySQL with Apache
-
-The Contrib section includes programs that let you authenticate your
-users from a @strong{MySQL} database and also let you log your log files
-into a @strong{MySQL} table. @xref{Contrib}.
-
-You can change the Apache logging format to be easily readable by
-@strong{MySQL} by putting the following into the Apache configuration file:
-
-@example
-LogFormat \
-        "\"%h\",%@{%Y%m%d%H%M%S@}t,%>s,\"%b\",\"%@{Content-Type@}o\",  \
-        \"%U\",\"%@{Referer@}i\",\"%@{User-Agent@}i\""
-@end example
-
-In @strong{MySQL} you can do something like this:
-
-@example
-LOAD DATA INFILE '/local/access_log' INTO TABLE table_name
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
-@end example
 
 @cindex Borland C++ compiler
-@node Borland C++,  , Apache, Common programs
+@node Borland C++,  , Common programs, Common programs
 @section Borland C++
 
 You can compile the @strong{MySQL} Windows source with Borland C++ 5.02.
