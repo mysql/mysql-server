@@ -8,6 +8,7 @@
    <version value="3.23"/>
 
    <description>This test is just a simple select.</description>
+   <description>Testing WHERE clause.</description>
 
    <sql>DROP TABLE IF EXISTS t</sql>
    <sql>CREATE TABLE t (s CHAR(20) PRIMARY KEY, id INT)</sql>
