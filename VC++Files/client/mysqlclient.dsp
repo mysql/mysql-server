@@ -136,6 +136,10 @@ SOURCE="..\strings\ctype-latin1_de.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-simple.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-sjis.c"
 # End Source File
 # Begin Source File

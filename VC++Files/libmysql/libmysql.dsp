@@ -147,6 +147,10 @@ SOURCE="..\strings\ctype-latin1_de.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-simple.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-sjis.c"
 # End Source File
 # Begin Source File
@@ -256,6 +260,7 @@ SOURCE=..\mysys\my_alloc.c
 # Begin Source File
 
 SOURCE=..\mysys\my_compress.c
+# ADD CPP /I "../zlib"
 # End Source File
 # Begin Source File
 

@@ -69,7 +69,6 @@ static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
       error=0;
     my_close(file,MYF(0));
   }
-exit:
   return error;
 }
 
@@ -104,7 +103,7 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
     IO_CACHE cache;
     init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0));
 
-    while ((int) (nbytes= my_b_gets(&cache, (byte*) buf, sizeof(buf))) > 0)
+    while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
     {
       char *pos= buf+nbytes-1;
       /* Remove end space and control characters */
@@ -251,10 +250,8 @@ exit2:
 int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   char path[FN_REFLEN+16];
-  MY_DIR *dirp;
   long result=1;
   int error = 0;
-  register File file;
   uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_alter_db");
 
@@ -602,7 +599,7 @@ bool mysql_change_db(THD *thd, const char *name)
 
 int mysqld_show_create_db(THD *thd, const char *dbname)
 {
-  int length, db_length;
+  int length;
   char	path[FN_REFLEN], *to;
   uint db_access;
   bool found_libchar;
