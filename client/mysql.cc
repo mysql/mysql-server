@@ -227,11 +227,12 @@ typedef struct {
 } COMMANDS;
 
 static COMMANDS commands[] = {
-  { "help",   'h', com_help,   1, "Display this help." },
   { "?",      '?', com_help,   1, "Synonym for `help'." },
   { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
+  { "delimiter", 'd', com_delimiter,    1,
+    "Set query delimiter. " },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -239,6 +240,7 @@ static COMMANDS commands[] = {
     "Send command to mysql server, display result vertically."},
   { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
   { "go",     'g', com_go,     0, "Send command to mysql server." },
+  { "help",   'h', com_help,   1, "Display this help." },
 #ifdef USE_POPEN
   { "nopager",'n', com_nopager,0, "Disable pager, print to stdout." },
 #endif
@@ -261,8 +263,6 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
-  { "delimiter", 'd', com_delimiter,    1,
-    "Set query delimiter. " },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -1577,8 +1577,8 @@ static int
 com_help(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  reg1 int i;
-  char * help_arg= strchr(line,' ');
+  reg1 int i, j;
+  char * help_arg= strchr(line,' '), buff[32], *end;
 
   if (help_arg)
     return com_server_help(buffer,line,help_arg+1);
@@ -1591,8 +1591,11 @@ com_help(String *buffer __attribute__((unused)),
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
+    end= strmov(buff, commands[i].name);
+    for (j= strlen(commands[i].name); j < 10; j++)
+      end= strmov(end, " ");
     if (commands[i].func)
-      tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+      tee_fprintf(stdout, "%s(\\%c) %s\n", buff,
 		  commands[i].cmd_char, commands[i].doc);
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
@@ -2433,8 +2436,9 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
 static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
-  char *tmp;
-  char buff[256];
+  char *tmp, buff[FN_REFLEN + 1];
+  MYSQL_RES *res;
+  MYSQL_ROW row;
 
   bzero(buff, sizeof(buff));
   strmov(buff, line);
@@ -2444,6 +2448,31 @@ com_use(String *buffer __attribute__((unused)), char *line)
     put_info("USE must be followed by a database name", INFO_ERROR);
     return 0;
   }
+
+  /* 
+     We need to recheck the current database, because it may change
+     under our feet, for example if DROP DATABASE or RENAME DATABASE
+     (latter one not yet available by the time the comment was written)
+  */
+  current_db= 0; // Let's reset current_db, assume it's gone
+  /* 
+     We don't care about in case of an error below because current_db
+     was just set to 0.
+  */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    row= mysql_fetch_row(res);
+    if (row[0] &&
+	(!current_db || cmp_database(charset_info, current_db, row[0])))
+    {
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      current_db= my_strdup(row[0], MYF(MY_WME));
+    }
+    (void) mysql_fetch_row(res);		// Read eof
+    mysql_free_result(res);
+  }
+    
   if (!current_db || cmp_database(charset_info, current_db, tmp))
   {
     if (one_database)
