@@ -312,11 +312,12 @@ const char *sql_mode_str="OFF";
 
 FILE *bootstrap_file;
 
-I_List <i_string_pair> replicate_rewrite_db;
+I_List<i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
 // allow the user to tell us which db to replicate and which to ignore
 I_List<i_string> binlog_do_db, binlog_ignore_db;
 I_List<THD> threads,thread_cache;
+I_List<NAMED_LIST> key_caches;
 
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
@@ -875,6 +876,7 @@ void clean_up(bool print_message)
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   end_key_cache();
+  delete_elements(&key_caches, free_key_cache);
   end_thr_alarm(1);			/* Free allocated memory */
 #ifdef USE_RAID
   end_raid();
@@ -4103,7 +4105,7 @@ replicating a LOAD DATA INFILE command.",
    REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
-   "The size of the buffer used for index blocks. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
+   "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0,
    (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
@@ -4679,6 +4681,9 @@ static void mysql_init_variables(void)
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
+  key_caches.empty();
+  if (!get_or_create_key_cache("default", 7))
+    exit(1);
 
   /* Initialize structures that is used when processing options */
   replicate_rewrite_db.empty();
@@ -5309,15 +5314,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-	/* Initiates DEBUG - but no debugging here ! */
 
 
 extern "C" gptr *
-mysql_getopt_value(char *keyname, uint key_length,
+mysql_getopt_value(const char *keyname, uint key_length,
 		   const struct my_option *option)
 {
+  if (!key_length)
+  {
+    keyname= "default";
+    key_length= 7;
+  }
+  switch (option->id) {
+  case OPT_KEY_BUFFER_SIZE:
+  {
+    KEY_CACHE *key_cache;
+    if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
+      exit(1);
+    return (gptr*) &key_cache->size;
+  }
+  }
   return option->value;
 }
+
 
 static void get_options(int argc,char **argv)
 {
@@ -5366,6 +5385,8 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
+  /* QQ To be deleted when we have key cache variables in a struct */
+  keybuff_size= (((KEY_CACHE *) find_named(&key_caches, "default", 7))->size);
 }
 
 
@@ -5580,6 +5601,6 @@ template class I_List<THD>;
 template class I_List_iterator<THD>;
 template class I_List<i_string>;
 template class I_List<i_string_pair>;
-
+template class I_List<NAMED_LIST>;
 FIX_GCC_LINKING_PROBLEM
 #endif

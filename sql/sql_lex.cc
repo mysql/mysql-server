@@ -557,10 +557,12 @@ int yylex(void *arg, void *yythd)
         return(IDENT);
 
     case MY_LEX_IDENT_SEP:		// Found ident and now '.'
-      lex->next_state=MY_LEX_IDENT_START;// Next is an ident (not a keyword)
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
       c=yyGet();			// should be '.'
+      lex->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
+      if (!ident_map[yyPeek()])		// Probably ` or "
+	lex->next_state= MY_LEX_START;
       return((int) c);
 
     case MY_LEX_NUMBER_IDENT:		// number or ident which num-start
@@ -601,7 +603,7 @@ int yylex(void *arg, void *yythd)
 	yyUnget();
       }
       // fall through
-    case MY_LEX_IDENT_START:		// Incomplete ident
+    case MY_LEX_IDENT_START:			// We come here after '.'
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
@@ -689,6 +691,7 @@ int yylex(void *arg, void *yythd)
       }
       if (c == delim)
 	yySkip();			// Skip end `
+      lex->next_state= MY_LEX_START;
       return(IDENT);
     }
     case MY_LEX_SIGNED_NUMBER:		// Incomplete signed number
@@ -707,9 +710,9 @@ int yylex(void *arg, void *yythd)
 	if (c != '.')
 	{
 	  if (c == '-' && my_isspace(cs,yyPeek()))
-	    state=MY_LEX_COMMENT;
+	    state= MY_LEX_COMMENT;
 	  else
-	    state = MY_LEX_CHAR;		// Return sign as single char
+	    state= MY_LEX_CHAR;		// Return sign as single char
 	  break;
 	}
 	yyUnget();			// Fix for next loop
@@ -868,7 +871,7 @@ int yylex(void *arg, void *yythd)
       else
 	state=MY_LEX_CHAR;		// Return '*'
       break;
-    case MY_LEX_SET_VAR:			// Check if ':='
+    case MY_LEX_SET_VAR:		// Check if ':='
       if (yyPeek() != '=')
       {
 	state=MY_LEX_CHAR;		// Return ':'
@@ -904,8 +907,8 @@ int yylex(void *arg, void *yythd)
 	state = MY_LEX_REAL;		// Real
       else
       {
-	state = MY_LEX_CHAR;		// return '.'
-	lex->next_state=MY_LEX_IDENT_START;// Next is an ident (not a keyword)
+	state= MY_LEX_IDENT_SEP;	// return '.'
+	yyUnget();			// Put back '.'
       }
       break;
     case MY_LEX_USER_END:		// end '@' of user@hostname
@@ -933,8 +936,11 @@ int yylex(void *arg, void *yythd)
     case MY_LEX_SYSTEM_VAR:
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
-      lex->next_state=MY_LEX_IDENT_OR_KEYWORD;
       yySkip();					// Skip '@'
+      lex->next_state= (state_map[yyPeek()] ==
+			MY_LEX_USER_VARIABLE_DELIMITER ?
+			MY_LEX_OPERATOR_OR_IDENT :
+			MY_LEX_IDENT_OR_KEYWORD);
       return((int) '@');
     case MY_LEX_IDENT_OR_KEYWORD:
       /*
@@ -942,7 +948,6 @@ int yylex(void *arg, void *yythd)
 	We should now be able to handle:
 	[(global | local | session) .]variable_name
       */
-
       while (ident_map[c=yyGet()]) ;
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;

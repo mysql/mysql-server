@@ -16,8 +16,8 @@
 "Nemô¾em vytvori» súbor '%-.64s' (chybový kód: %d)",
 "Nemô¾em vytvori» tabuµku '%-.64s' (chybový kód: %d)",
 "Nemô¾em vytvori» databázu '%-.64s'. (chybový kód: %d)",
-"Nemô¾em vytvori» databázu '%-.64s'. Databáza existuje",
-"Nemô¾em zmaza» databázu '%-.64s'. Databáza neexistuje",
+"Nemô¾em vytvori» databázu '%-.64s'; databáza existuje",
+"Nemô¾em zmaza» databázu '%-.64s'; databáza neexistuje",
 "Chyba pri mazaní databázy (nemô¾em zmaza» '%-.64s', chybový kód: %d)",
 "Chyba pri mazaní databázy (nemô¾em vymaza» adresár '%-.64s', chybový kód: %d)",
 "Chyba pri mazaní '%-.64s' (chybový kód: %d)",
@@ -274,3 +274,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
