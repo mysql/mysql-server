@@ -2933,6 +2933,11 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
       return;
     }
   }
+  
+  signal->theData[0] = EventReport::NDBStopStarted;
+  signal->theData[1] = StopReq::getSystemStop(c_stopRec.stopReq.requestInfo) ? 1 : 0;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  
   NodeState newState(NodeState::SL_STOPPING_1, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   
@@ -3022,6 +3027,10 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   NodeState newState(NodeState::SL_STARTED); 
 
   cntr.updateNodeState(signal, newState);
+
+  signal->theData[0] = EventReport::NDBStopAborted;
+  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
+  
   return false;
 }
 

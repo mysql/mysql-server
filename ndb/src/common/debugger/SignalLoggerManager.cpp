@@ -31,6 +31,8 @@ SignalLoggerManager::SignalLoggerManager()
       logModes[i] = 0;
   }
   outputStream = 0;
+  m_ownNodeId = 0;
+  m_logDistributed = false;
 }
 
 SignalLoggerManager::~SignalLoggerManager()
@@ -78,7 +80,17 @@ SignalLoggerManager::getTrace() const
 {
   return traceId;
 }
+
+void
+SignalLoggerManager::setOwnNodeId(int nodeId){
+  m_ownNodeId = nodeId;
+}
   
+void
+SignalLoggerManager::setLogDistributed(bool val){
+  m_logDistributed = val;
+}
+
 int
 getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
 {
@@ -236,10 +248,12 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
   Uint32 trace = sh.theTrace;
   //Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
   if(outputStream != 0 && 
      (traceId == 0 || traceId == trace) &&
-     logMatch(receiverBlockNo, LogIn)){
+     (logMatch(receiverBlockNo, LogOut) ||
+      (m_logDistributed && m_ownNodeId != senderNode))){
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Received - Signal - %d ----\n", time(0));
 #else
@@ -261,10 +275,12 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
   Uint32 trace = sh.theTrace;
   //Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
   if(outputStream != 0 && 
      (traceId == 0 || traceId == trace) &&
-     logMatch(receiverBlockNo, LogIn)){
+     (logMatch(receiverBlockNo, LogOut) ||
+      (m_logDistributed && m_ownNodeId != senderNode))){
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Received - Signal - %d ----\n", time(0));
 #else
@@ -293,7 +309,8 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh,
 
   if(outputStream != 0 && 
      (traceId == 0 || traceId == trace) &&
-     logMatch(senderBlockNo, LogOut)){
+     (logMatch(senderBlockNo, LogOut) ||
+      (m_logDistributed && m_ownNodeId != node))){
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Send ----- Signal - %d ----\n", time(0));
 #else
@@ -321,7 +338,8 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh, Uint8 prio,
 
   if(outputStream != 0 && 
      (traceId == 0 || traceId == trace) &&
-     logMatch(senderBlockNo, LogOut)){
+     (logMatch(senderBlockNo, LogOut) ||
+      (m_logDistributed && m_ownNodeId != node))){
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Send ----- Signal - %d ----\n", time(0));
 #else

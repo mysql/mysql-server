@@ -71,6 +71,7 @@ void Dbtc::initData()
   c_theIndexOperationPool.setSize(c_maxNumberOfIndexOperations);
   c_theSeizedIndexOperationPool.setSize(c_maxNumberOfIndexOperations);
   c_theAttributeBufferPool.setSize(c_transactionBufferSpace);
+  c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
 }//Dbtc::initData()
 
 void Dbtc::initRecords() 
@@ -93,7 +94,7 @@ void Dbtc::initRecords()
   DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
   while(triggers.seize(tptr) == true) {
-    new (tptr.p) TcFiredTriggerData(c_theAttributeBufferPool);
+    new (tptr.p) TcFiredTriggerData();
   }
   triggers.release();
 
@@ -169,6 +170,7 @@ void Dbtc::initRecords()
 Dbtc::Dbtc(const class Configuration & conf):
   SimulatedBlock(DBTC, conf),
   c_theDefinedTriggers(c_theDefinedTriggerPool),
+  c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),
   c_maxNumberOfFiredTriggers(0),
   c_theIndexes(c_theIndexPool),

@@ -32,6 +32,9 @@ extern "C" {
   void ndbSetOwnVersion();
 }
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 bool
 Configuration::init(int argc, const char** argv){
 
@@ -259,10 +262,6 @@ Configuration::setupConfiguration(){
 
   delete p;
 
-  if (_lockPagesInMainMemory) {
-    NdbMem_MemLockAll();
-  }
-  
   /**
    * Create the watch dog thread
    */
@@ -335,4 +334,9 @@ Configuration::getConnectStringCopy() const {
   if(_connectString != 0)
     return strdup(_connectString);
   return 0;
+}
+
+void
+Configuration::setInitialStart(bool val){
+  _initialStart = val;
 }

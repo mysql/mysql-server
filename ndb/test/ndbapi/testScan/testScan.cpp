@@ -23,9 +23,18 @@
 #include "ScanFunctions.hpp"
 #include <random.h>
 
+const NdbDictionary::Table *
+getTable(Ndb* pNdb, int i){
+  const NdbDictionary::Table* t = NDBT_Tables::getTable(i);
+  if (t == NULL){
+    return 0;
+  }
+  return pNdb->getDictionary()->getTable(t->getName());
+}
+
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+  
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
@@ -37,7 +46,8 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runCreateAllTables(NDBT_Context* ctx, NDBT_Step* step){
 
-  return NDBT_Tables::createAllTables(GETNDB(step), false, true);
+  int a = NDBT_Tables::createAllTables(GETNDB(step), false, true); 
+  return a;
 }
 
 int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
@@ -64,12 +74,12 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
 
 
 int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
-
+  
   int records = ctx->getNumRecords();
   for (int i=0; i < NDBT_Tables::getNumTables(); i++){
 
-    const NdbDictionary::Table* tab = NDBT_Tables::getTable(i);
-    if (tab == NULL){
+    const NdbDictionary::Table* tab = getTable(GETNDB(step), i);
+    if (tab == NULL){ 
       return NDBT_FAILED;
     }
     HugoTransactions hugoTrans(*tab);
@@ -85,20 +95,20 @@ int runScanReadRandomTable(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb");
-
+  
   int i = 0;
   while (i<loops) {
     
     int tabNum = myRandom48(NDBT_Tables::getNumTables());
-    const NdbDictionary::Table* tab = NDBT_Tables::getTable(tabNum);
+    const NdbDictionary::Table* tab = getTable(GETNDB(step), tabNum);
     if (tab == NULL){
       g_info << "tab == NULL" << endl;
       return NDBT_FAILED;
     }
-
+    
     g_info << "Scan reading from table " << tab->getName() << endl;
     HugoTransactions hugoTrans(*tab);
-
+    
     g_info << i << ": ";
     if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism) != 0){
       return NDBT_FAILED;
@@ -212,7 +222,7 @@ int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
+  while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism) != 0){
       return NDBT_FAILED;
@@ -230,10 +240,10 @@ int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
+  while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     if (hugoTrans.scanReadCommittedRecords(GETNDB(step), records, 
-					  abort, parallelism) != 0){
+					   abort, parallelism) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -251,7 +261,7 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
+  while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     
     ndbout << "insertErrorInAllNodes("<<error<<")"<<endl;
@@ -988,7 +998,15 @@ TESTCASE("ScanRead488",
 	 "When this limit is exceeded the scan will be aborted with errorcode "\
 	 "488."){
   INITIALIZER(runLoadTable);
-  STEPS(runScanRead, 15);
+  STEPS(runScanRead, 70);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanRead488Timeout", 
+	 ""){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 5034);
+  STEPS(runScanRead, 30);
+  STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanRead40", 

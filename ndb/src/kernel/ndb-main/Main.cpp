@@ -28,6 +28,7 @@
 #include <WatchDog.hpp>
 
 #include <LogLevel.hpp>
+#include <EventLogger.hpp>
 #include <NodeState.hpp>
 
 #if defined NDB_SOLARIS
@@ -37,15 +38,16 @@
 
 #if !defined NDB_SOFTOSE && !defined NDB_OSE
 #include <signal.h>        // For process signals
-
-extern "C" {
-  void ndbSignal(int signo, void (*func) (int));
-  void handler(int signo);                  // for process signal handling
-};
-
-void catchsigs();                         // for process signal handling
-
 #endif
+
+extern EventLogger g_eventLogger;
+#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+
+void catchsigs(bool ignore); // for process signal handling
+extern "C" void handler(int signo);  // for process signal handling
 
 // Shows system information
 void systemInfo(const Configuration & conf,
@@ -55,11 +57,16 @@ const char programName[] = "NDB Kernel";
 
 extern int global_ndb_check;
 NDB_MAIN(ndb_kernel){
-
+  
   global_ndb_check = 1;
 
+  // Print to stdout/console
+  g_eventLogger.createConsoleHandler();
+  g_eventLogger.setCategory("NDB");
+  g_eventLogger.enable(Logger::LL_INFO, Logger::LL_ALERT); // Log INFO to ALERT
+
   globalEmulatorData.create();
-  
+
   // Parse command line options
   Configuration* theConfig = globalEmulatorData.theConfiguration;
   if(!theConfig->init(argc, argv)){
@@ -75,6 +82,9 @@ NDB_MAIN(ndb_kernel){
   NdbConfig_HomePath(homePath, 255);
 
 #if defined (NDB_LINUX) || defined (NDB_SOLARIS)
+  /**
+   * This has only been tested with linux & solaris
+   */
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char lockfile[255], logfile[255];
@@ -85,12 +95,54 @@ NDB_MAIN(ndb_kernel){
       return 1;
     }
   }
-#endif
+  
+  for(pid_t child = fork(); child != 0; child = fork()){
+    /**
+     * Parent
+     */
+    catchsigs(true);
+    int status = 0;
+    while(waitpid(child, &status, 0) != child);
+    if(WIFEXITED(status) || !theConfig->stopOnError()){
+      switch(WEXITSTATUS(status)){
+      case NRT_Default:
+	g_eventLogger.info("Angel shutting down");
+	exit(0);
+	break;
+      case NRT_NoStart_Restart:
+	theConfig->setInitialStart(false);
+	globalData.theRestartFlag = initial_state;
+	break;
+      case NRT_NoStart_InitialStart:
+	theConfig->setInitialStart(true);
+	globalData.theRestartFlag = initial_state;
+	break;
+      case NRT_DoStart_InitialStart:
+	theConfig->setInitialStart(true);
+	globalData.theRestartFlag = perform_start;
+	break;
+      default:
+      case NRT_DoStart_Restart:
+	theConfig->setInitialStart(false);
+	globalData.theRestartFlag = perform_start;
+	break;
+      }
+      g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
+    } else {
+      /**
+       * Error shutdown && stopOnError()
+       */
+      exit(0);
+    }
+  }
 
+  g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+#endif
+  
   systemInfo(* theConfig,
 	     theConfig->clusterConfigurationData().SizeAltData.logLevel);
-  
-  // Load blocks
+
+    // Load blocks
   globalEmulatorData.theSimBlockList->load(* theConfig);
     
   // Set thread concurrency for Solaris' light weight processes
@@ -106,9 +158,7 @@ NDB_MAIN(ndb_kernel){
   globalSignalLoggers.setOutputStream(signalLog);
 #endif
   
-#if !defined NDB_SOFTOSE && !defined NDB_OSE
-  catchsigs();
-#endif
+  catchsigs(false);
    
   /**
    * Do startup
@@ -132,7 +182,7 @@ NDB_MAIN(ndb_kernel){
   globalEmulatorData.theThreadConfig->ipControlLoop();
   
   NdbShutdown(NST_Normal);
-  return 0;
+  return NRT_Default;
 }
 
 
@@ -169,130 +219,38 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 #endif
   
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 0){
-    ndbout << "-- NDB Cluster -- DB node " << globalData.ownId
-	   << " -- " << NDB_VERSION_STRING << " -- " << endl;
+    g_eventLogger.info("NDB Cluster -- DB node %d", globalData.ownId);
+    g_eventLogger.info("%s --", NDB_VERSION_STRING);
 #ifdef NDB_SOLARIS
-    ndbout << "NDB is running "  
-	   << " on a machine with " << processors
-	   << " processor(s) at "   <<  speed <<" MHz" 
-	   << endl;
+    g_eventLogger.info("NDB is running on a machine with %d processor(s) at %d MHz",
+		       processor, speed);
 #endif
   }
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 3){
     Uint32 t = config.timeBetweenWatchDogCheck();
-    ndbout << "WatchDog timer is set to " << t << " ms" << endl;
+    g_eventLogger.info("WatchDog timer is set to %d ms", t);
   }
 
 }
 
-#if !defined NDB_SOFTOSE && !defined NDB_OSE
-
-#ifdef NDB_WIN32
-
 void 
-catchsigs()
-{
-  ndbSignal(SIGINT,  handler);    // 2
-  ndbSignal(SIGILL,  handler);    // 4
-  ndbSignal(SIGFPE, handler);     // 8
-#ifndef VM_TRACE
-  ndbSignal(SIGSEGV, handler);    // 11
-#endif
-  ndbSignal(SIGTERM, handler);    // 15
-  ndbSignal(SIGBREAK, handler);   // 21
-  ndbSignal(SIGABRT, handler);    // 22
-}
-
-#else
-
-void 
-catchsigs(){
+catchsigs(bool ignore){
+#if ! defined NDB_SOFTOSE && !defined NDB_OSE 
   // Makes the main process catch process signals, eg installs a 
   // handler named "handler". "handler" will then be called is instead 
   // of the defualt process signal handler)
-  ndbSignal(SIGHUP,  handler);    // 1
-  ndbSignal(SIGINT,  handler);    // 2
-  ndbSignal(SIGQUIT, handler);    // 3
-  ndbSignal(SIGILL,  handler);    // 4
-  ndbSignal(SIGTRAP, handler);    // 5
-#ifdef NDB_LINUX
-  ndbSignal(7, handler);
-#elif NDB_SOLARIS
-  ndbSignal(SIGEMT, handler);     // 7
-#elif NDB_MACOSX
-  ndbSignal(SIGEMT, handler);     // 7
-#endif
-  ndbSignal(SIGFPE, handler);     // 8
-  // SIGKILL cannot be caught,    9
-  ndbSignal(SIGBUS, handler);     // 10
-  ndbSignal(SIGSEGV, handler);    // 11
-  ndbSignal(SIGSYS, handler);     // 12 
-  ndbSignal(SIGPIPE, handler);    // 13
-  ndbSignal(SIGALRM, handler);    // 14
-  ndbSignal(SIGTERM, handler);    // 15
-  ndbSignal(SIGUSR1, handler);    // 16
-  ndbSignal(SIGUSR2, handler);    // 17
-#ifndef NDB_MACOSX
-  ndbSignal(SIGPWR, handler);     // 19
-  ndbSignal(SIGPOLL, handler);    // 22
-#endif
-  // SIGSTOP cannot be caught     23
-  ndbSignal(SIGTSTP, handler);    // 24
-  ndbSignal(SIGTTIN, handler);    // 26
-  ndbSignal(SIGTTOU, handler);    // 27
-  ndbSignal(SIGVTALRM, handler);  // 28
-  ndbSignal(SIGPROF, handler);    // 29
-  ndbSignal(SIGXCPU, handler);    // 30
-  ndbSignal(SIGXFSZ, handler);    // 31
-}
-#endif
-
-extern "C"
-void ndbSignal(int signo, void (*func) (int)) {
-#ifdef NDB_WIN32
-  signal(signo, func);
-#else
-  struct sigaction act, oact;
-  act.sa_handler = func;
-  sigemptyset(&act.sa_mask);
-  act.sa_flags = 0;
-  if(signo == SIGALRM) {
-#ifdef SA_INTERRUPT
-    act.sa_flags |= SA_INTERRUPT;
-#endif
+  if(ignore){
+    for(int i = 1; i<100; i++){
+      if(i != SIGCHLD)
+	signal(i, SIG_IGN);
+    } 
   } else {
-#ifdef SA_RESTART
-    act.sa_flags |= SA_RESTART;
-#endif
+    for(int i = 1; i<100; i++){
+      signal(i, handler);
+    }
   }
-  sigaction(signo, &act, &oact);
 #endif
 }
-
-
-#ifdef NDB_WIN32
-
-extern "C"
-void 
-handler(int sig)
-{
-  switch(sig){
-  case SIGINT:   /*  2 - Interrupt  */
-  case SIGTERM:  /* 15 - Terminate  */
-  case SIGBREAK:  /* 21 - Ctrl-Break sequence */
-  case SIGABRT:   /* 22 - abnormal termination triggered by abort call */
-    globalData.theRestartFlag = perform_stop;
-    break;
-  default:
-    // restart the system
-    char errorData[40];
-    snprintf(errorData, 40, "Signal %d received", sig);
-    ERROR_SET(fatal, 0, errorData, __FILE__);
-    break;
-  }
-}
-
-#else
 
 extern "C"
 void 
@@ -327,9 +285,6 @@ handler(int sig){
     break;
   }
 }
-
-#endif
-#endif
 
 	
 
