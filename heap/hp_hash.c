@@ -482,10 +482,7 @@ uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
        old+= seg->length, seg++)
   {
     if (seg->null_bit)
-    {
-      if (!(*key++= (char) 1 - *old++))
-        continue;
-    }
+      *key++= 1 - *old++;
     memcpy((byte*) key, old, seg->length);
     key+= seg->length;
   }
