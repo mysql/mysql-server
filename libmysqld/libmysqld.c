@@ -15,19 +15,19 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#define DONT_USE_RAID
 #include <my_global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>
 #endif
+#include "mysql_embed.h"
+#include "mysql.h"
+#include "mysql_version.h"
+#include "mysqld_error.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
 #include "errmsg.h"
 #include <violite.h>
 #include <sys/stat.h>
@@ -88,7 +88,6 @@ static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
 static void end_server(MYSQL *mysql);
 static void read_user_name(char *name);
 static void append_wild(char *to,char *end,const char *wild);
-static my_bool mysql_reconnect(MYSQL *mysql);
 static int send_file_to_server(MYSQL *mysql,const char *filename);
 static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
@@ -1342,35 +1341,6 @@ error:
     mysql_close(mysql);
     mysql->free_me=free_me;
   }
-  DBUG_RETURN(0);
-}
-
-
-static my_bool mysql_reconnect(MYSQL *mysql)
-{
-  MYSQL tmp_mysql;
-  DBUG_ENTER("mysql_reconnect");
-
-  if (!mysql->reconnect ||
-      (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
-  {
-   /* Allov reconnect next time */
-    mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
-    DBUG_RETURN(1);
-  }
-  mysql_init(&tmp_mysql);
-  tmp_mysql.options=mysql->options;
-  if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
-			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag))
-    DBUG_RETURN(1);
-  tmp_mysql.free_me=mysql->free_me;
-  mysql->free_me=0;
-  bzero((char*) &mysql->options,sizeof(mysql->options));
-  mysql_close(mysql);
-  *mysql=tmp_mysql;
-  net_clear(&mysql->net);
-  mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
 }
 

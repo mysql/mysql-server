@@ -113,10 +113,12 @@ typedef struct st_net {
   unsigned int last_errno,max_packet,timeout,pkt_nr;
   unsigned char error;
   my_bool return_errno,compress;
-  my_bool no_send_ok; /* needed if we are doing several
-   queries in one command ( as in LOAD TABLE ... FROM MASTER ),
-   and do not want to confuse the client with OK at the wrong time
-		      */
+  /*
+    The following variable is set if we are doing several queries in one
+    command ( as in LOAD TABLE ... FROM MASTER ),
+    and do not want to confuse the client with OK at the wrong time
+  */
+  my_bool no_send_ok;
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned int *return_status;
   unsigned char reading_or_writing;

@@ -2014,6 +2014,7 @@ mysql_close(MYSQL *mysql)
 	mysql_close(tmp);
 	tmp = tmp1;
       }
+      mysql->rpl_pivot=0;
     }
     if (mysql != mysql->master)
       mysql_close(mysql->master);
