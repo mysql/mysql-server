@@ -1809,6 +1809,18 @@ static my_bool my_realloc_str(NET *net, ulong length)
 }
 
 
+/* Clear possible error statee of struct NET */
+
+static void net_clear_error(NET *net)
+{
+  if (net->last_errno)
+  {
+    net->last_errno= 0;
+    net->last_error[0]= '\0';
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
+
 /*
   Set statement error code, sqlstate, and error message
   from given errcode and sqlstate.
@@ -4869,6 +4881,11 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 
       if (mysql->unbuffered_fetch_owner == &stmt->unbuffered_fetch_cancelled)
         mysql->unbuffered_fetch_owner= 0;
+      /*
+        Clear NET error state: if the following commands come through
+        successfully, connection will still be usable for other commands.
+      */
+      net_clear_error(&mysql->net);
       if (mysql->status != MYSQL_STATUS_READY)
       {
         /*

@@ -12513,7 +12513,7 @@ static void test_bug6761(void)
 }
 
 
-/* Bug#8330 - Bug #8330   mysql_stmt_execute crashes (libmysql) */
+/* Bug#8330 - mysql_stmt_execute crashes (libmysql) */
 
 static void test_bug8330()
 {
@@ -12561,6 +12561,26 @@ static void test_bug8330()
   stmt_text= "drop table t1";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
+}
+
+
+/* Bug#7990 - mysql_stmt_close doesn't reset mysql->net.last_error */
+
+static void test_bug7990()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  myheader("test_bug7990");
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, "foo", 3);
+  /*
+    XXX: the fact that we store errno both in STMT and in
+    MYSQL is not documented and is subject to change in 5.0
+  */
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) && mysql_errno(mysql));
+  mysql_stmt_close(stmt);
+  DIE_UNLESS(!mysql_errno(mysql));
 }
 
 
