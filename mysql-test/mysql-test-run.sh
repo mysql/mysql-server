@@ -254,9 +254,9 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
-    --ndbconnectstring=*)
+    --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
-      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
+      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -1038,7 +1038,7 @@ EOF
       -title "Master" -e gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD
     fi
   else
-    manager_launch master$1 $MASTER_MYSQLD $master_args
+    manager_launch master $MASTER_MYSQLD $master_args
   fi
   sleep_until_file_created $MASTER_MYPID$1 $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
@@ -1225,7 +1225,7 @@ stop_master ()
     # MASTER_RUNNING=0 to get cleanup when calling start_master().
     if [ x$USE_EMBEDDED_SERVER != x1 ] ; then
       pid=`$CAT $MASTER_MYPID$1`
-      manager_term $pid master
+      manager_term $pid master $1
       if [ $? != 0 ] && [ -f $MASTER_MYPID$1 ]
       then # try harder!
 	$ECHO "master not cooperating with mysqladmin, will try manual kill"
@@ -1386,7 +1386,7 @@ run_testcase ()
      stop_master 1
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
-     if [ ! -z "$USE_NDBCLUSTER" ] ; then
+     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" ] ; then
        start_master 1
      fi
      TZ=$MY_TZ; export TZ
@@ -1402,7 +1402,7 @@ run_testcase ()
        stop_master 1
        echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
        start_master
-       if [ ! -z "$USE_NDBCLUSTER" ] ; then
+       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" ] ; then
          start_master 1
        fi
      else
