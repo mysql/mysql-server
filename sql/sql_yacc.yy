@@ -1311,7 +1311,9 @@ charset_name:
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
-	};
+	}
+	| BINARY { $$= &my_charset_bin; }
+	;
 
 charset_name_or_default:
 	charset_name { $$=$1;   }
