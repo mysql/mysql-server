@@ -162,6 +162,33 @@ select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
 --error 1265
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
 
+select _latin1'B' between _latin1'a' and _latin1'c';
+select _latin1'B' collate latin1_bin between _latin1'a' and _latin1'c';
+select _latin1'B' between _latin1'a' collate latin1_bin and _latin1'c';
+select _latin1'B' between _latin1'a' and _latin1'c' collate latin1_bin;
+--error 1268
+select _latin2'B' between _latin1'a' and _latin1'b';
+--error 1268
+select _latin1'B' between _latin2'a' and _latin1'b';
+--error 1268
+select _latin1'B' between _latin1'a' and _latin2'b';
+--error 1268
+select _latin1'B' collate latin1_general_ci between _latin1'a' collate latin1_bin and _latin1'b';
+
+select _latin1'B' in (_latin1'a',_latin1'b');
+select _latin1'B' collate latin1_bin in (_latin1'a',_latin1'b');
+select _latin1'B' in (_latin1'a' collate latin1_bin,_latin1'b');
+select _latin1'B' in (_latin1'a',_latin1'b' collate latin1_bin);
+--error 1269
+select _latin2'B' in (_latin1'a',_latin1'b');
+--error 1269
+select _latin1'B' in (_latin2'a',_latin1'b');
+--error 1269
+select _latin1'B' in (_latin1'a',_latin2'b');
+--error 1269
+select _latin1'B' COLLATE latin1_general_ci in (_latin1'a' COLLATE latin1_bin,_latin1'b');
+--error 1269
+select _latin1'B' COLLATE latin1_general_ci in (_latin1'a',_latin1'b' COLLATE latin1_bin);
 
 select collation(bin(130)), coercibility(bin(130));
 select collation(oct(130)), coercibility(oct(130));
