@@ -311,7 +311,7 @@ int runDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
     int id = i % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl; 
-    restarter.insertErrorInAllNodes(5041);
+    restarter.insertErrorInNode(nodeId, 5041);
     restarter.insertErrorInAllNodes(8048 + (i & 1));
     
     for(int j = 0; j<records; j++){
