@@ -4370,11 +4370,6 @@ Item_func_sp::execute(Item **itp)
   }
 #endif
 
-  /*
-    We don't need to suppress sending of OK packet here (by setting
-    thd->net.no_send_ok to true), because we are not allowing statements
-    in functions now.
-  */
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

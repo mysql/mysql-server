@@ -1682,7 +1682,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	in embedded server - just store them to be executed later 
       */
 #ifndef EMBEDDED_LIBRARY
-      if (thd->lock || thd->open_tables || thd->derived_tables)
+      if (thd->lock || thd->open_tables || thd->derived_tables ||
+          thd->prelocked_mode)
         close_thread_tables(thd);
 #endif
       ulong length= thd->query_length-(ulong)(packet-thd->query);
@@ -2003,7 +2004,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
-  if (thd->lock || thd->open_tables || thd->derived_tables)
+  if (thd->lock || thd->open_tables || thd->derived_tables ||
+      thd->prelocked_mode)
   {
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
@@ -2231,12 +2233,7 @@ mysql_execute_command(THD *thd)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
-  /* Locked closure of all tables */
-  TABLE_LIST *locked_tables= NULL;
   /* Saved variable value */
-#ifdef HAVE_INNOBASE_DB
-  my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
-#endif
   DBUG_ENTER("mysql_execute_command");
 
   /*
@@ -2258,100 +2255,14 @@ mysql_execute_command(THD *thd)
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
 
-  thd->shortcut_make_view= 0;
-  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
-      lex->sql_command != SQLCOM_CREATE_SPFUNCTION &&
-      lex->sql_command != SQLCOM_LOCK_TABLES &&
-      lex->sql_command != SQLCOM_UNLOCK_TABLES)
-  {
-    while (1)
-    {
-      if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
-	DBUG_RETURN(-1);
-      if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
-	DBUG_RETURN(-1);
-      if (!thd->locked_tables &&
-	  lex->sql_command != SQLCOM_CREATE_TABLE &&
-	  lex->sql_command != SQLCOM_CREATE_VIEW)
-      {
-	MEM_ROOT *thdmemroot= NULL;
-
-	sp_merge_routine_tables(thd, lex);
-	// QQ Preopen tables to find views and triggers.
-	// This means we open, close and open again, which sucks, but
-	// right now it's the easiest way to get it to work. A better
-	// solution will hopefully be found soon...
-	if (lex->sptabs.records || lex->query_tables)
-	{
-	  uint procs, funs, tabs;
-
-	  if (thd->mem_root != thd->current_arena->mem_root)
-	  {
-	    thdmemroot= thd->mem_root;
-	    thd->mem_root= thd->current_arena->mem_root;
-	  }
-	  if (!sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
-	    DBUG_RETURN(-1);
-	  procs= lex->spprocs.records;
-	  funs= lex->spfuns.records;
-	  tabs= lex->sptabs.records;
-
-	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
-	  {
-	    // We don't want these updated now
-	    uint ctmpdtabs= thd->status_var.created_tmp_disk_tables;
-	    uint ctmptabs= thd->status_var.created_tmp_tables;
-	    uint count;
-
-	    thd->shortcut_make_view= TRUE;
-	    open_tables(thd, locked_tables, &count);
-	    thd->shortcut_make_view= FALSE;
-	    close_thread_tables(thd);
-	    thd->status_var.created_tmp_disk_tables= ctmpdtabs;
-	    thd->status_var.created_tmp_tables= ctmptabs;
-	    thd->clear_error();
-	    mysql_reset_errors(thd);
-	    locked_tables= NULL;
-	  }
-	  // A kludge: Decrease all temp. table's query ids to allow a
-	  // second opening.
-	  for (TABLE *table= thd->temporary_tables; table ; table=table->next)
-	    table->query_id-= 1;
-	  if (procs < lex->spprocs.records ||
-	      funs < lex->spfuns.records ||
-	      tabs < lex->sptabs.records)
-	  {
-	    if (thdmemroot)
-	      thd->mem_root= thdmemroot;
-	    continue;		// Found more SPs or tabs, try again
-	  }
-	}
-	if (lex->sptabs.records &&
-	    (lex->spfuns.records || lex->spprocs.records) &&
-	    sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
-	{
-	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
-	  {
-#ifdef HAVE_INNOBASE_DB
-	    thd->variables.innodb_table_locks= FALSE;
-#endif
-	    sp_open_and_lock_tables(thd, locked_tables);
-	  }
-	}
-	if (thdmemroot)
-	  thd->mem_root= thdmemroot;
-      }
-      break;
-    } // while (1)
-  }
-
   /*
     Reset warning count for each query that uses tables
     A better approach would be to reset this for any commands
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (all_tables || &lex->select_lex != lex->all_selects_list)
+  if (all_tables || &lex->select_lex != lex->all_selects_list ||
+      lex->spfuns.records || lex->spprocs.records)
     mysql_reset_errors(thd);
 
 #ifdef HAVE_REPLICATION
@@ -2580,9 +2491,8 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_DO:
-    if (all_tables &&
-	(check_table_access(thd, SELECT_ACL, all_tables, 0) ||
-         open_and_lock_tables(thd, all_tables)))
+    if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+        open_and_lock_tables(thd, all_tables))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -3454,8 +3364,7 @@ unsent_create_error:
   case SQLCOM_SET_OPTION:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
-    if (all_tables &&
-	(check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+    if ((check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	 open_and_lock_tables(thd, all_tables)))
       goto error;
     if (lex->one_shot_set && not_all_support_one_shot(lex_var_list))
@@ -3501,7 +3410,7 @@ unsent_create_error:
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
 
-    if (!(res= open_and_lock_tables(thd, all_tables)))
+    if (!(res= simple_open_n_lock_tables(thd, all_tables)))
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
@@ -4004,7 +3913,20 @@ unsent_create_error:
     {
       sp_head *sp;
 
-      if (!(sp= sp_find_procedure(thd, lex->spname)))
+      /*
+        This will cache all SP and SF and open and lock all tables
+        required for execution.
+      */
+      if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+	  open_and_lock_tables(thd, all_tables))
+       goto error;
+
+      /*
+        By this moment all needed SPs should be in cache so no need
+        to look into DB. Moreover we may be unable to do it becuase
+        we may don't have read lock on mysql.proc
+      */
+      if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
                  lex->spname->m_qname.str);
@@ -4018,12 +3940,6 @@ unsent_create_error:
 	ha_rows select_limit;
         /* bits that should be cleared in thd->server_status */
 	uint bits_to_be_cleared= 0;
-
-	/* In case the arguments are subselects... */
-	if (all_tables &&
-	    (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
-	     open_and_lock_tables(thd, all_tables)))
-          goto error;
 
 #ifndef EMBEDDED_LIBRARY
 	my_bool nsok= thd->net.no_send_ok;
@@ -4348,14 +4264,6 @@ cleanup:
       thd->lock= 0;
   }
 
-  if (locked_tables)
-  {
-#ifdef HAVE_INNOBASE_DB
-    thd->variables.innodb_table_locks= old_innodb_table_locks;
-#endif
-    if (thd->locked_tables)
-      sp_unlock_tables(thd);
-  }
   DBUG_RETURN(res || thd->net.report_error);
 }
 

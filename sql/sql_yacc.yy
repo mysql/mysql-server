@@ -1548,12 +1548,12 @@ sp_opt_inout:
 
 sp_proc_stmts:
 	  /* Empty */ {}
-	| sp_proc_stmts  { Lex->query_tables= 0; } sp_proc_stmt ';'
+	| sp_proc_stmts  sp_proc_stmt ';'
 	;
 
 sp_proc_stmts1:
 	  sp_proc_stmt ';' {}
-	| sp_proc_stmts1  { Lex->query_tables= 0; } sp_proc_stmt ';'
+	| sp_proc_stmts1  sp_proc_stmt ';'
 	;
 
 sp_decls:
@@ -1587,13 +1587,15 @@ sp_decls:
 	;
 
 sp_decl:
-	  DECLARE_SYM sp_decl_idents type sp_opt_default
+	  DECLARE_SYM sp_decl_idents type 
+          { Lex->sphead->reset_lex(YYTHD); }
+          sp_opt_default
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *ctx= lex->spcont;
 	    uint max= ctx->context_pvars();
 	    enum enum_field_types type= (enum enum_field_types)$3;
-	    Item *it= $4;
+	    Item *it= $5;
 
 	    for (uint i = max-$2 ; i < max ; i++)
 	    {
@@ -1605,15 +1607,19 @@ sp_decl:
 	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
 	                                           ctx,
 						   ctx->pvar_context2index(i),
-						   it, type);
+                                                   it, type, lex,
+                                                   (i == max - 1));
 
-		in->tables= lex->query_tables;
-		lex->query_tables= 0;
+                /*
+                  The last instruction is assigned to be responsible for
+                  freeing LEX.
+                */
 	        lex->sphead->add_instr(in);
 	        ctx->set_isset(i, TRUE);
 		ctx->set_default(i, it);
 	      }
 	    }
+            lex->sphead->restore_lex(YYTHD);
 	    $$.vars= $2;
 	    $$.conds= $$.hndlrs= $$.curs= 0;
 	  }
@@ -1863,15 +1869,17 @@ sp_proc_stmt:
 	      my_message(ER_SP_NO_USE, ER(ER_SP_NO_USE), MYF(0));
 	      YYABORT;
 	    }
-	    /* Don't add an instruction for empty SET statements.
-	    ** (This happens if the SET only contained local variables,
-	    **  which get their set instructions generated separately.)
+	    /*
+              Don't add an instruction for SET statements, since all
+              instructions for them were already added during processing
+              of "set" rule.
 	    */
-	    if (lex->sql_command != SQLCOM_SET_OPTION ||
-		! lex->var_list.is_empty())
+            DBUG_ASSERT(lex->sql_command != SQLCOM_SET_OPTION ||
+                        lex->var_list.is_empty());
+            if (lex->sql_command != SQLCOM_SET_OPTION)
 	    {
 	      sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
-						 lex->spcont);
+						 lex->spcont, lex);
 
 	      /* Extract the query statement from the tokenizer:
                  The end is either lex->tok_end or tok->ptr. */
@@ -1882,17 +1890,18 @@ sp_proc_stmt:
 	      i->m_query.str= strmake_root(YYTHD->mem_root,
 					   (char *)sp->m_tmp_query,
 					   i->m_query.length);
-	      i->set_lex(lex);
 	      sp->add_instr(i);
-	      lex->sp_lex_in_use= TRUE;
             }
 	    sp->restore_lex(YYTHD);
           }
-	| RETURN_SYM expr
+          | RETURN_SYM 
+          { Lex->sphead->reset_lex(YYTHD); }
+          expr
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
-	    if (lex->sphead->m_type == TYPE_ENUM_PROCEDURE)
+	    if (sp->m_type == TYPE_ENUM_PROCEDURE)
 	    {
 	      my_message(ER_SP_BADRETURN, ER(ER_SP_BADRETURN), MYF(0));
 	      YYABORT;
@@ -1901,12 +1910,12 @@ sp_proc_stmt:
 	    {
 	      sp_instr_freturn *i;
 
-	      i= new sp_instr_freturn(lex->sphead->instructions(),
-				      lex->spcont,
-		                      $2, lex->sphead->m_returns);
-	      lex->sphead->add_instr(i);
-	      lex->sphead->m_has_return= TRUE;
+	      i= new sp_instr_freturn(sp->instructions(), lex->spcont,
+		                      $3, sp->m_returns, lex);
+	      sp->add_instr(i);
+	      sp->m_has_return= TRUE;
 	    }
+	    sp->restore_lex(YYTHD);
 	  }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
@@ -1914,7 +1923,9 @@ sp_proc_stmt:
 	    Lex->sphead->m_simple_case= FALSE;
 	  }
 	  sp_case END CASE_SYM {}
-	| CASE_SYM expr WHEN_SYM
+        | CASE_SYM
+          { Lex->sphead->reset_lex(YYTHD); }
+          expr WHEN_SYM
 	  {
 	    /* We "fake" this by using an anonymous variable which we
 	       set to the expression. Note that all WHENs are evaluate
@@ -1923,17 +1934,16 @@ sp_proc_stmt:
 	    LEX *lex= Lex;
 	    uint offset= lex->spcont->current_pvars();
 	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
-					       lex->spcont,
-	                                       offset, $2, MYSQL_TYPE_STRING);
+                                               lex->spcont, offset, $3,
+                                               MYSQL_TYPE_STRING, lex, TRUE);
 	    LEX_STRING dummy;
 
 	    dummy.str= (char *)"";
 	    dummy.length= 0;
 	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
-	    i->tables= lex->query_tables;
-	    lex->query_tables= 0;
 	    lex->sphead->add_instr(i);
 	    lex->sphead->m_simple_case= TRUE;
+            lex->sphead->restore_lex(YYTHD);
 	  }
 	  sp_case END CASE_SYM
 	  {
@@ -2187,18 +2197,19 @@ sp_fetch_list:
 	;
 
 sp_if:
-	  expr THEN_SYM
+          { Lex->sphead->reset_lex(YYTHD); }
+          expr THEN_SYM
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 	    uint ip= sp->instructions();
-	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx, $1);
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
+                                                               $2, lex);
 
-	    i->tables= lex->query_tables;
-	    lex->query_tables= 0;
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
+            sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1
 	  {
@@ -2226,7 +2237,8 @@ sp_elseifs:
 	;
 
 sp_case:
-	  expr THEN_SYM
+	  { Lex->sphead->reset_lex(YYTHD); }
+          expr THEN_SYM
 	  {
             LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2235,7 +2247,7 @@ sp_case:
 	    sp_instr_jump_if_not *i;
 
 	    if (! sp->m_simple_case)
-	      i= new sp_instr_jump_if_not(ip, ctx, $1);
+	      i= new sp_instr_jump_if_not(ip, ctx, $2, lex);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
 	      LEX_STRING ivar;
@@ -2244,15 +2256,14 @@ sp_case:
 	      ivar.length= 5;
 	      Item *var= (Item*) new Item_splocal(ivar, 
 						  ctx->current_pvars()-1);
-	      Item *expr= new Item_func_eq(var, $1);
+	      Item *expr= new Item_func_eq(var, $2);
 
-	      i= new sp_instr_jump_if_not(ip, ctx, expr);
+	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
               lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    i->tables= lex->query_tables;
-	    lex->query_tables= 0;
             sp->add_instr(i);
+            sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1
 	  {
@@ -2370,19 +2381,20 @@ sp_unlabeled_control:
 
 	    lex->sphead->add_instr(i);
 	  }
-	| WHILE_SYM expr DO_SYM
+        | WHILE_SYM 
+          { Lex->sphead->reset_lex(YYTHD); }
+          expr DO_SYM
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
-							       $2);
+							       $3, lex);
 
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
-	    i->tables= lex->query_tables;
-	    lex->query_tables= 0;
             sp->add_instr(i);
+            sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1 END WHILE_SYM
 	  {
@@ -2393,17 +2405,18 @@ sp_unlabeled_control:
 
 	    lex->sphead->add_instr(i);
 	  }
-	| REPEAT_SYM sp_proc_stmts1 UNTIL_SYM expr END REPEAT_SYM
+        | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
+          { Lex->sphead->reset_lex(YYTHD); }
+          expr END REPEAT_SYM
 	  {
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
-							       $4, lab->ip);
-
-	    i->tables= lex->query_tables;
-	    lex->query_tables= 0;
+                                                               $5, lab->ip,
+                                                               lex);
             lex->sphead->add_instr(i);
+            lex->sphead->restore_lex(YYTHD);
 	  }
 	;
 
@@ -7140,8 +7153,75 @@ opt_option:
 	| OPTION {};
 
 option_value_list:
+	option_type_value
+	| option_value_list ',' option_type_value;
+
+option_type_value:
+        {
+          if (Lex->sphead)
+          {
+            /*
+              If we are in SP we want have own LEX for each assignment.
+              This is mostly because it is hard for several sp_instr_set
+              and sp_instr_set_trigger instructions share one LEX. 
+              (Well, it is theoretically possible but adds some extra 
+               overhead on preparation for execution stage and IMO less
+               robust).
+
+              QQ: May be we should simply prohibit group assignments in SP?
+            */
+            LEX *lex;
+            Lex->sphead->reset_lex(YYTHD);
+            lex= Lex;
+            
+            /* Set new LEX as if we at start of set rule. */
+	    lex->sql_command= SQLCOM_SET_OPTION;
+	    mysql_init_select(lex);
+	    lex->option_type=OPT_SESSION;
+	    lex->var_list.empty();
+            lex->one_shot_set= 0;
+	    lex->sphead->m_tmp_query= lex->tok_start;
+          }
+        }
 	option_type option_value
-	| option_value_list ',' option_type option_value;
+        {
+          LEX *lex= Lex;
+          
+          if (lex->sphead)
+          {
+            sp_head *sp= lex->sphead;
+            
+	    if (!lex->var_list.is_empty())
+	    {
+              /*
+                We have assignment to user or system variable or
+                option setting, so we should construct sp_instr_stmt
+                for it.
+              */
+              LEX_STRING qbuff;
+	      sp_instr_stmt *i;
+              
+              if (!(i= new sp_instr_stmt(sp->instructions(), lex->spcont,
+                                         lex)))
+                YYABORT;
+                
+              if (lex->ptr - lex->tok_end > 1)
+                qbuff.length= lex->ptr - sp->m_tmp_query;
+              else
+                qbuff.length= lex->tok_end - sp->m_tmp_query;
+              
+              if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
+                YYABORT;
+                
+              strmake(strmake(qbuff.str, "SET ", 4), (char *)sp->m_tmp_query,
+                      qbuff.length);
+              qbuff.length+= 4;
+              i->m_query= qbuff;
+              sp->add_instr(i);
+            }
+            lex->sphead->restore_lex(YYTHD);
+          }
+        };
 
 option_type:
 	/* empty */	{}
@@ -7168,31 +7248,7 @@ opt_var_ident_type:
 option_value:
 	  '@' ident_or_text equal expr
 	  {
-            LEX *lex= Lex;
-
-            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-            {
-              /*
-                We have to use special instruction in functions and triggers
-                because sp_instr_stmt will close all tables and thus ruin
-                execution of statement invoking function or trigger.
-
-                We also do not want to allow expression with subselects in
-                this case.
-              */
-              if (lex->query_tables)
-              {
-                my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
-                           MYF(0));
-                YYABORT;
-              }
-              sp_instr_set_user_var *i= 
-                new sp_instr_set_user_var(lex->sphead->instructions(),
-                                          lex->spcont, $2, $4);
-	      lex->sphead->add_instr(i);
-            }
-            else
-              lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+            Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	  }
 	| internal_variable_name equal set_expr_or_default
 	  {
@@ -7253,9 +7309,7 @@ option_value:
 	      else
 	        it= new Item_null();
               i= new sp_instr_set(lex->sphead->instructions(), ctx,
-	                          spv->offset, it, spv->type);
-	      i->tables= lex->query_tables;
-	      lex->query_tables= 0;
+	                          spv->offset, it, spv->type, lex, TRUE);
 	      lex->sphead->add_instr(i);
 	      spv->isset= TRUE;
 	    }

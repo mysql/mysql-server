@@ -42,14 +42,21 @@ public:
 
     if (bodies[event][time_type])
     {
-      /*
-        Similar to function invocation we don't need to surpress sending of
-        ok packets here because don't allow execute statements from trigger.
+#ifndef EMBEDDED_LIBRARY
+      /* Surpress OK packets in case if we will execute statements */
+      my_bool nsok= thd->net.no_send_ok;
+      thd->net.no_send_ok= TRUE;
+#endif
 
+      /*
         FIXME: We should juggle with security context here (because trigger
         should be invoked with creator rights).
       */
       res= bodies[event][time_type]->execute_function(thd, 0, 0, 0);
+
+#ifndef EMBEDDED_LIBRARY
+      thd->net.no_send_ok= nsok;
+#endif
     }
 
     return res;
