@@ -1191,7 +1191,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   }
   net_flush(&thd->net);
   if ((error= table->file->dump(thd,fd)))
-    my_error(ER_GET_ERRNO, MYF(0));
+    my_error(ER_GET_ERRNO, MYF(0), error);
 
 err:
   close_thread_tables(thd);

@@ -182,7 +182,8 @@ static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
 			     const uchar *s, uint slen, 
-			     const uchar *t, uint tlen)
+                             const uchar *t, uint tlen,
+                             my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -213,7 +214,14 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
+}
+
+static int my_strnncollsp_ucs2(CHARSET_INFO *cs, 
+                               const uchar *s, uint slen, 
+                               const uchar *t, uint tlen)
+{
+  return my_strnncoll_ucs2(cs,s,slen,t,tlen,0);
 }
 
 
@@ -1223,8 +1231,9 @@ int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
 
 static
 int my_strnncoll_ucs2_bin(CHARSET_INFO *cs, 
-				 const uchar *s, uint slen,
-				 const uchar *t, uint tlen)
+                          const uchar *s, uint slen,
+                          const uchar *t, uint tlen,
+                          my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -1249,7 +1258,14 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
+}
+
+static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
+                                   const uchar *s, uint slen, 
+                                   const uchar *t, uint tlen)
+{
+  return my_strnncoll_ucs2_bin(cs,s,slen,t,tlen,0);
 }
 
 
@@ -1374,7 +1390,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     NULL,		/* init */
     my_strnncoll_ucs2,
-    my_strnncoll_ucs2,
+    my_strnncollsp_ucs2,
     my_strnxfrm_ucs2,
     my_like_range_ucs2,
     my_wildcmp_ucs2_ci,
@@ -1388,7 +1404,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 {
     NULL,		/* init */
     my_strnncoll_ucs2_bin,
-    my_strnncoll_ucs2_bin,
+    my_strnncollsp_ucs2_bin,
     my_strnxfrm_ucs2_bin,
     my_like_range_simple,
     my_wildcmp_ucs2_bin,
