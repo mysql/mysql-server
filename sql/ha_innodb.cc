@@ -309,7 +309,7 @@ innobase_mysql_print_thd(
 	buf[0]='\n';
 	buf[1]=0;
 
- 	ut_a(strlen(old_buf) < 400);
+ 	ut_a(strlen(buf) < 400);
 }
 }
 
