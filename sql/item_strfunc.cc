@@ -984,7 +984,10 @@ String *Item_func_left::val_str(String *str)
     return &my_empty_string;
   if (res->length() <= (uint) length)
     return res;
-  str_value.set(*res, 0, res->charpos(length));
+  if (&str_value == res)
+    str_value.length(res->charpos(length));
+  else
+    str_value.set(*res, 0, res->charpos(length));
   return &str_value;
 }
 
