@@ -763,7 +763,8 @@ bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds, int *error);
+			table_map read_tables, COND *conds, int *error,
+                        bool allow_null_cond= false);
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
@@ -861,8 +862,9 @@ void print_plan(JOIN* join, double read_time, double record_count,
 void mysql_print_status(THD *thd);
 /* key.cc */
 int find_ref_key(TABLE *form,Field *field, uint *offset);
-void key_copy(byte *key,TABLE *form,uint index,uint key_length);
-void key_restore(TABLE *form,byte *key,uint index,uint key_length);
+void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
+void key_restore(byte *to_record, byte *from_key, KEY *key_info,
+                 uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);

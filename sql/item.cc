@@ -170,6 +170,45 @@ bool Item_ident::remove_dependence_processor(byte * arg)
 }
 
 
+/*
+  Store the pointer to this item field into a list if not already there.
+
+  SYNOPSIS
+    Item_field::collect_item_field_processor()
+    arg  pointer to a List<Item_field>
+
+  DESCRIPTION
+    The method is used by Item::walk to collect all unique Item_field objects
+    from a tree of Items into a set of items represented as a list.
+
+  IMPLEMENTATION
+    Item_cond::walk() and Item_func::walk() stop the evaluation of the
+    processor function for its arguments once the processor returns
+    true.Therefore in order to force this method being called for all item
+    arguments in a condition the method must return false.
+
+  RETURN
+    false to force the evaluation of collect_item_field_processor
+          for the subsequent items.
+*/
+
+bool Item_field::collect_item_field_processor(byte *arg)
+{
+  DBUG_ENTER("Item_field::collect_item_field_processor");
+  DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
+  List<Item_field> *item_list= (List<Item_field>*) arg;
+  List_iterator<Item_field> item_list_it(*item_list);
+  Item_field *curr_item;
+  while ((curr_item= item_list_it++))
+  {
+    if (curr_item->eq(this, 1))
+      DBUG_RETURN(false); /* Already in the set. */
+  }
+  item_list->push_back(this);
+  DBUG_RETURN(false);
+}
+
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)

@@ -719,7 +719,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	    goto err;
 	  }
 	}
-	key_copy((byte*) key,table,key_nr,0);
+	key_copy((byte*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
 						(byte*) key,
 						table->key_info[key_nr].

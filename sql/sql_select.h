@@ -303,7 +303,7 @@ class JOIN :public Sql_alloc
   void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-			  bool before_group_by);
+			  bool before_group_by, bool recompute= FALSE);
 
   inline void set_items_ref_array(Item **ptr)
   {
@@ -399,6 +399,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 
 /* functions from opt_sum.cc */
+bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */

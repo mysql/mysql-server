@@ -1906,7 +1906,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
              col_privs->field[1]->pack_length()+
              col_privs->field[2]->pack_length()+
              col_privs->field[3]->pack_length());
-    key_copy(key,col_privs,0,key_len);
+    key_copy(key,col_privs->record[0],col_privs->key_info,key_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
     col_privs->file->ha_index_init(0);
     if (col_privs->file->index_read(col_privs->record[0],
@@ -2018,7 +2018,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
-  key_copy(key,table,0,key_length);
+  key_copy(key,table->record[0],table->key_info,key_length);
 
   rights &= COL_ACLS;				// Only ACL for columns
 
@@ -2031,7 +2031,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     ulong privileges = xx->rights;
     bool old_row_exists=0;
-    key_restore(table,key,0,key_length);
+    key_restore(table->record[0],key,table->key_info,key_length);
     table->field[4]->store(xx->column.ptr(),xx->column.length(),
                            &my_charset_latin1);
 
@@ -2047,7 +2047,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       }
       old_row_exists = 0;
       restore_record(table,default_values);		// Get empty record
-      key_restore(table,key,0,key_length);
+      key_restore(table->record[0],key,table->key_info,key_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length(),
                              &my_charset_latin1);
     }

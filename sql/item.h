@@ -263,6 +263,7 @@ public:
 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
+  virtual bool collect_item_field_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
@@ -497,6 +498,7 @@ public:
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
+  bool collect_item_field_processor(byte * arg);
   void cleanup();
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
@@ -988,6 +990,8 @@ public:
     (*ref)->save_in_field(result_field, no_conversions);
   }
   Item *real_item() { return *ref; }
+  bool walk(Item_processor processor, byte *arg)
+  { return (*ref)->walk(processor, arg); }
   void print(String *str);
   void cleanup();
 };
