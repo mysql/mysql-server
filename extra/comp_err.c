@@ -60,7 +60,7 @@ int main(int argc,char *argv[])
       return(1);
     }
 
-    VOID(count_rows(from,'"','}'));	/* Calculate start-info */
+    VOID(count_rows(from,'"','{'));	/* Calculate start-info */
     if (remember_rows(from,'}') < 0)	/* Remember rows */
     {
       fprintf(stderr,"Can't find textrows in '%s'\n",*argv);

@@ -356,7 +356,8 @@ if ($limits->{'group_distinct_functions'})
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 #  Workaround mimer's behavior
-  if (limits->{'multi_distinct'} == 1 ) {
+  if ($limits->{'multi_distinct'})
+  {
     $loop_time=new Benchmark;
     $rows=$estimated=$count=0;
     for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
@@ -370,7 +371,7 @@ if ($limits->{'group_distinct_functions'})
     print_time($estimated);
     print " for count_distinct_2 ($count:$rows): " .
       timestr(timediff($end_time, $loop_time),"all") . "\n";
-  }    
+  }
 
   $loop_time=new Benchmark;
   $rows=$estimated=$count=0;

@@ -97,7 +97,7 @@ mdata=$ldata/mysql
 
 if test ! -x $execdir/mysqld
 then
-  if test "$IN_RPM" -eq 1
+  if test "$IN_RPM" = "1"
   then
     echo "FATAL ERROR $execdir/mysqld not found!"
     exit 1
@@ -112,7 +112,7 @@ fi
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$IN_RPM" -eq 0 -a $force -eq 0
+if test "$IN_RPM" = "0" -a $force = "0"
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -333,7 +333,7 @@ $c_c
 END_OF_DATA
 then
   echo ""
-  if test "$IN_RPM" -eq 0
+  if test "$IN_RPM" = "0"
   then
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
     echo "to the right place for your system"
@@ -354,7 +354,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$IN_RPM" -eq 0
+  if test "$IN_RPM" = "0"
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"

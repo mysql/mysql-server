@@ -1452,10 +1452,6 @@ mysql_init(MYSQL *mysql)
     after we return if this is not the case.
   */
   mysql->rpl_pivot = 1; 
-#if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__)
-  if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
-    (void) signal(SIGPIPE,pipe_sig_handler);
-#endif
 
 /*
   Only enable LOAD DATA INFILE by default if configured with
@@ -1515,8 +1511,8 @@ void mysql_once_init(void)
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(THREAD) && !defined(__WIN__)
-    (void) signal(SIGPIPE,SIG_IGN);
+#if defined(SIGPIPE) && !defined(__WIN__)
+    (void) signal(SIGPIPE, SIG_IGN);
 #endif
   }
 #ifdef THREAD
@@ -2909,6 +2905,11 @@ const char * STDCALL
 mysql_get_client_info(void)
 {
   return (char*) MYSQL_SERVER_VERSION;
+}
+
+ulong STDCALL mysql_get_client_version(void)
+{
+  return MYSQL_VERSION_ID;
 }
 
 

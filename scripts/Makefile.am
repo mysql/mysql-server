@@ -113,6 +113,7 @@ SUFFIXES = .sh
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \
 	  -e 's!@''innodb_system_libs''@!@innodb_system_libs@!' \
+	  -e 's!@''openssl_libs''@!@openssl_libs@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  -e 's!@''COMPILATION_COMMENT''@!@COMPILATION_COMMENT@!' \
