@@ -131,23 +131,62 @@ static int get_charset_number(const char *charset_name)
   return 0;
 }
 
-static void simple_cs_copy_data()
+char *mdup(const char *src, uint len)
 {
+  char *dst=(char*)malloc(len);
+  memcpy(dst,src,len);
+  return dst;
+}
+
+static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+{
+  to->number= from->number ? from->number : to->number;
+  to->state|= from->state;
+
+  if (from->csname)
+    to->csname= strdup(from->csname);
+  
+  if (from->name)
+    to->name= strdup(from->name);
+  
+  if (from->ctype)
+    to->ctype= (uchar*) mdup((char*) from->ctype, MY_CS_CTYPE_TABLE_SIZE);
+  if (from->to_lower)
+    to->to_lower= (uchar*) mdup((char*) from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE);
+  if (from->to_upper)
+    to->to_upper= (uchar*) mdup((char*) from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE);
+  if (from->sort_order)
+  {
+    to->sort_order= (uchar*) mdup((char*) from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
+    /*
+      set_max_sort_char(to);
+    */
+  }
+  if (from->tab_to_uni)
+  {
+    uint sz= MY_CS_TO_UNI_TABLE_SIZE*sizeof(uint16);
+    to->tab_to_uni= (uint16*)  mdup((char*)from->tab_to_uni, sz);
+    /*
+    create_fromuni(to);
+    */
+  }
+}
+
+static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+{
+  return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
+	   cs->to_lower) &&
+	  (cs->number && cs->name && cs->sort_order));
 }
 
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
   {
-#if 0
     if (!(all_charsets[cs->number].state & MY_CS_COMPILED))
     {
-      simple_cs_copy_data(all_charsets[cs->number],cs);
-      if (simple_cs_is_full(all_charsets[cs->number]))
-      {
-        simple_cs_init_functions(all_charsets[cs->number]);
-        all_charsets[cs->number]->state |= MY_CS_LOADED;
-      }
+      simple_cs_copy_data(&all_charsets[cs->number],cs);
+      
     }
     
     cs->number= 0;
@@ -155,7 +194,6 @@ static int add_collation(CHARSET_INFO *cs)
     cs->state= 0;
     cs->sort_order= NULL;
     cs->state= 0;
-#endif
   }
   return MY_XML_OK;
 }
@@ -168,7 +206,10 @@ static int my_read_charset_file(const char *filename)
   uint len;
   
   if ((fd=open(filename,O_RDONLY)) < 0)
+  {
+    printf("Can't open '%s'\n",filename);
     return 1;
+  }
   
   len=read(fd,buf,MAX_BUF);
   close(fd);
@@ -186,9 +227,114 @@ static int my_read_charset_file(const char *filename)
   return FALSE;
 }
 
-
-int main()
+void dispcset(CHARSET_INFO *cs)
 {
-  bzero(&all_charsets,sizeof(all_charsets));
+  printf("{\n");
+  printf("  %d,\n",cs->number);
+  printf("  MY_CS_COMPILED,\n");
+  
+  if (cs->name)
+  {
+    printf("  \"%s\",\n",cs->name);
+    printf("  \"%s\",\n",cs->csname);
+    printf("  \"\",\n");
+    printf("  ctype_%s,\n",cs->name);
+    printf("  to_lower_%s,\n",cs->name);
+    printf("  to_upper_%s,\n",cs->name);
+    printf("  sort_order_%s,\n",cs->name);
+    printf("  to_uni_%s,\n",cs->name);
+    printf("  from_uni_%s,\n",cs->name);
+  }
+  else
+  {
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+    printf("  NULL,\n");
+  }
+  
+  printf("  %d,\n",cs->strxfrm_multiply);
+  printf("  my_strnncoll_simple,\n");
+  printf("  my_strnxfrm_simple,\n");
+  printf("  my_like_range_simple,\n");
+  printf("  my_wild_cmp_8bit,\n");
+  printf("  %d,\n",cs->mbmaxlen);
+  printf("  NULL,\n");
+  printf("  NULL,\n");
+  printf("  NULL,\n");
+  printf("  my_mb_wc_8bit,\n");
+  printf("  my_wc_mb_8bit,\n");
+  printf("  my_caseup_str_8bit,\n");
+  printf("  my_casedn_str_8bit,\n");
+  printf("  my_caseup_8bit,\n");
+  printf("  my_casedn_8bit,\n");
+  printf("  my_tosort_8bit,\n");
+  printf("  my_strcasecmp_8bit,\n");
+  printf("  my_strncasecmp_8bit,\n");
+  printf("  my_hash_caseup_simple,\n");
+  printf("  my_hash_sort_simple,\n");
+  printf("  0,\n");
+  printf("  my_snprintf_8bit,\n");
+  printf("  my_long10_to_str_8bit,\n");
+  printf("  my_longlong10_to_str_8bit,\n");
+  printf("  my_fill_8bit,\n");
+  printf("  my_strntol_8bit,\n");
+  printf("  my_strntoul_8bit,\n");
+  printf("  my_strntoll_8bit,\n");
+  printf("  my_strntoull_8bit,\n");
+  printf("  my_strntod_8bit,\n");
+  printf("  my_scan_8bit\n");
+  printf("}\n");
+}
+
+
+int
+main(int argc, char **argv  __attribute__((unused)))
+{
+  CHARSET_INFO  ncs;
+  CHARSET_INFO  *cs;
+  char filename[256];
+  
+  if (argc < 2)
+  {
+    fprintf(stderr, "usage: %s source-dir\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+  
+  bzero((void*)&ncs,sizeof(ncs));
+  bzero((void*)&all_charsets,sizeof(all_charsets));
+  
+  sprintf(filename,"%s/%s",argv[1],"Index.xml");
+  my_read_charset_file(filename);
+  
+  printf("CHARSET_INFO compiled_charsets[] = {\n");
+  for (cs=all_charsets; cs < all_charsets+256; cs++)
+  {
+    if (cs->number)
+    {
+      if ( (!simple_cs_is_full(cs)) && (cs->csname) )
+      {
+        sprintf(filename,"%s/%s.xml",argv[1],cs->csname);
+        my_read_charset_file(filename);
+      }
+      
+      if (simple_cs_is_full)
+      {
+        printf("#ifdef HAVE_CHARSET_%s\n",cs->csname);
+        dispcset(cs);
+        printf(",\n");
+        printf("#endif\n");
+      }
+    }
+  }
+  
+  dispcset(&ncs);
+  printf("};\n");
+  
   return 0;
 }
