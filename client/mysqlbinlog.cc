@@ -321,6 +321,7 @@ static void dump_remote_log_entries(const char* logname)
   
   for(;;)
   {
+    const char *error;
     len = net_safe_read(mysql);
     if (len == packet_error)
       die("Error reading packet from server: %s", mysql_error(mysql));
@@ -330,8 +331,8 @@ static void dump_remote_log_entries(const char* logname)
 			len, net->read_pos[5]));
     Log_event * ev = Log_event::read_log_event(
 					  (const char*) net->read_pos + 1 ,
-					  len - 1);
-    if(ev)
+					  len - 1, &error);
+    if (ev)
     {
       ev->print(result_file, short_form, last_db);
       if(ev->get_type_code() == LOAD_EVENT)

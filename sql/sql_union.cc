@@ -31,7 +31,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
-  TABLE_LIST *first_table, result_table_list;
+  TABLE_LIST result_table_list;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
   int res;
@@ -75,9 +75,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   {
     Item *item;
     List_iterator<Item> it(lex->select_lex.item_list);
+    TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
 
     /* Create a list of items that will be in the result set */
-    first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
     while ((item= it++))
       if (item_list.push_back(item))
 	DBUG_RETURN(-1);
