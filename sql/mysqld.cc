@@ -2615,10 +2615,16 @@ int main(int argc, char **argv)
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
 				   file_path, ""))
 	return 0;
-      if (Service.IsService(argv[1]))
+      if (Service.IsService(argv[1]))        /* Start an optional service */
       {
-        /* start an optional service */
-        load_default_groups[3]= argv[1];
+	/*
+	  Only add the service name to the groups read from the config file
+	  if it's not "MySQL". (The default service name should be 'mysqld'
+	  but we started a bad tradition by calling it MySQL from the start
+	  and we are now stuck with it.
+	*/
+	if (my_strcasecmp(argv[1],"mysql"))
+	  load_default_groups[3]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
         return 0;

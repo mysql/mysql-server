@@ -401,7 +401,9 @@ static void usage(void)
  		      Change the character set used by the index\n\
   -q, --quick         Faster repair by not modifying the data file.\n\
                       One can give a second '-q' to force myisamchk to\n\
-		      modify the original datafile in case of duplicate keys\n\
+		      modify the original datafile in case of duplicate keys.\n\
+		      NOTE: Tables where the data file is currupted can't be\n\
+		      fixed with this option.\n\
   -u, --unpack        Unpack file packed with myisampack.\n\
 ");
 
@@ -1094,7 +1096,7 @@ end2:
 		   filename));
       if (param->testflag & T_REP_ANY)
 	VOID(fprintf(stderr,
-		     "Try fixing it by using the --safe-recover (-o) or the --force (-f) option\n"));
+		     "Try fixing it by using the --safe-recover (-o), the --force (-f) option or by not using the --quick (-q) flag\n"));
     }
     else if (!(param->error_printed & 2) &&
 	     !(param->testflag & T_FORCE_CREATE))

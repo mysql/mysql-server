@@ -1013,14 +1013,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user=	    thd->user;
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
-    thd->user=0;
-    USER_CONN *save_uc=            thd->user_connect;
+    USER_CONN *save_user_connect= thd->user_connect;
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {						// Check if protocol is ok
       send_error(net, ER_UNKNOWN_COM_ERROR);
       break;
     }
+
+    /* Clear variables that are allocated */
+    thd->user= 0;
+    thd->user_connect= 0;
     if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0))
     {						// Restore old user
       x_free(thd->user);
@@ -1030,10 +1033,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->db_length=save_db_length;
       thd->user=save_user;
       thd->priv_user=save_priv_user;
+      thd->user_connect= save_user_connect;
       break;
     }
-    if (save_uc)
-      decrease_user_connections(save_uc);
+    if (save_user_connect)
+      decrease_user_connections(save_user_connect);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
     break;
