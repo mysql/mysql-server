@@ -2415,6 +2415,7 @@ row_sel_push_cache_row_for_mysql(
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec)		/* in: record to push */
 {
+	byte*	buf;
 	ulint	i;
 
 	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
@@ -2424,8 +2425,18 @@ row_sel_push_cache_row_for_mysql(
 		/* Allocate memory for the fetch cache */
 
 		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			prebuilt->fetch_cache[i] = mem_alloc(
-						prebuilt->mysql_row_len);
+
+			/* A user has reported memory corruption in these
+			buffers in Linux. Put magic numbers there to help
+			to track a possible bug. */
+			
+			buf = mem_alloc(prebuilt->mysql_row_len + 8);
+
+			prebuilt->fetch_cache[i] = buf + 4;
+				
+			mach_write_to_4(buf, ROW_PREBUILT_FETCH_MAGIC_N);
+			mach_write_to_4(buf + 4 + prebuilt->mysql_row_len,
+					ROW_PREBUILT_FETCH_MAGIC_N);
 		}
 	}
 
@@ -2437,7 +2448,7 @@ row_sel_push_cache_row_for_mysql(
 
 	prebuilt->n_fetch_cached++;
 }
-	
+
 /*************************************************************************
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always). We assume that the search

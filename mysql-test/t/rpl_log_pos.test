@@ -6,7 +6,9 @@ show master status;
 sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
+slave stop;
 change master to master_log_pos=73;
+slave start;
 sleep 5;
 stop slave;
 
@@ -17,6 +19,7 @@ start slave;
 sleep 5;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
+slave stop;
 change master to master_log_pos=173;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 start slave;
@@ -31,6 +34,7 @@ create table t1 (n int);
 insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
+slave stop;
 change master to master_log_pos=79;
 start slave;
 sync_with_master;

@@ -2657,10 +2657,7 @@ reset_bit:
 							new_bits, &mtr);
 		}
 	}
-
-	ibuf_data->n_merges++;	
-	ibuf_data->n_merged_recs += n_inserts;
-
+	
 #ifdef UNIV_IBUF_DEBUG
 	/* printf("Ibuf merge %lu records volume %lu to page no %lu\n",
 					n_inserts, volume, page_no); */
@@ -2669,6 +2666,14 @@ reset_bit:
  	btr_pcur_close(&pcur);
  	
 	mem_heap_free(heap);
+
+	/* Protect our statistics keeping from race conditions */
+	mutex_enter(&ibuf_mutex);
+
+	ibuf_data->n_merges++;	
+	ibuf_data->n_merged_recs += n_inserts;
+
+	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 #ifdef UNIV_IBUF_DEBUG

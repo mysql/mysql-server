@@ -1585,7 +1585,7 @@ fe 00                       . .
 @node 4.1 protocol changes,,,
 @section Changes to 4.0 protocol in 4.1
 
-All basic package handling is identical to 4.0. When communication
+All basic packet handling is identical to 4.0. When communication
 with an old 4.0 or 3.x client we will use the old protocol.
 
 The new things that we support with 4.1 are:
@@ -1596,7 +1596,7 @@ Warnings
 @item
 Prepared statements
 @item
-Binary protocol (will be much faster than the current protocol that
+Binary protocol (will be faster than the current protocol that
 converts everything to strings)
 @end itemize
 
@@ -1617,15 +1617,15 @@ results will sent as binary (low-byte-first).
 @end itemize
 
 
-@node 4.1 field package,,,
-@section 4.1 field description package
+@node 4.1 field packet,,,
+@section 4.1 field description packet
 
-The field description package is sent as a response to a query that
-contains a result set.  It can be distinguished from a ok package by
-the fact that the first byte can't be 0 for a field package.
-@xref {4.1 ok package}.
+The field description packet is sent as a response to a query that
+contains a result set.  It can be distinguished from a ok packet by
+the fact that the first byte can't be 0 for a field packet.
+@xref {4.1 ok packet}.
 
-The header package has the following structure:
+The header packet has the following structure:
 
 @multitable @columnfractions .10 .90
 @item Size @tab Comment
@@ -1634,7 +1634,7 @@ The header package has the following structure:
 uses this to send the number of rows in the table)
 @end multitable
 
-This package is always followed by a field description set.
+This packet is always followed by a field description set.
 @xref{4.1 field desc}.
 
 @node 4.1 field desc,,,
@@ -1655,17 +1655,17 @@ The field description result set contains the meta info for a result set.
 @end multitable
 
 
-@node 4.1 ok package,,,
-@section 4.1 ok package
+@node 4.1 ok packet,,,
+@section 4.1 ok packet
 
-The ok package is the first that is sent as an response for a query
+The ok packet is the first that is sent as an response for a query
 that didn't return a result set.
 
-The ok package has the following structure:
+The ok packet has the following structure:
 
 @multitable @columnfractions .10 .90
 @item Size @tab Comment
-@item 1	  @tab  0 ; Marker for ok package
+@item 1	  @tab  0 ; Marker for ok packet
 @item 1-9 @tab	Affected rows
 @item 1-9 @tab  Last insert id (0 if one wasn't used)
 @item 2   @tab  Server status; Can be used by client to check if we are inside an transaction
@@ -1681,10 +1681,10 @@ The message is optional.  For example for multi line INSERT it
 contains a string for how many rows was inserted / deleted.
 
 
-@node 4.1 end package,,,
-@section 4.1 end package
+@node 4.1 end packet,,,
+@section 4.1 end packet
 
-The end package is sent as the last package for
+The end packet is sent as the last packet for
 
 @itemize @bullet
 @item
@@ -1695,41 +1695,42 @@ End of parameter type information
 End of result set
 @end itemize
 
-The end package has the following structure:
+The end packet has the following structure:
 
 @multitable @columnfractions .10 .90
 @item Size @tab Comment
-@item 1	   @tab 254  ; Marker for EOF package
+@item 1	   @tab 254  ; Marker for EOF packet
 @item 2	   @tab Warning count
 @item 2	   @tab Status flags (For flags like SERVER_STATUS_MORE_RESULTS)
 @end multitable
 
-Note that a normal package may start with byte 254, which means
+Note that a normal packet may start with byte 254, which means
 'length stored in 9 bytes'.  One can different between these cases
 by checking the packet length < 9 bytes (in which case it's and end
 packet).
 
 
-@node 4.1 error package
-@section 4.1 error package.
+@node 4.1 error packet
+@section 4.1 error packet.
 
-The error package is sent when something goes wrong.
-The error package has the following structure:
+The error packet is sent when something goes wrong.
+The error packet has the following structure:
 
 @multitable @columnfractions .10 .90
 @item Size  @tab Comment
-@item 1	    @tab 255  Error package marker
+@item 1	    @tab 255  Error packet marker
+@item 2	    @tab Error code
 @item 1-255 @tab Null terminated error message
 @end multitable
 
-The client/server protocol is designed in such a way that a package
-can only start with 255 if it's an error package.
+The client/server protocol is designed in such a way that a packet
+can only start with 255 if it's an error packet.
 
 
 @node 4.1 prep init,,,
-@section 4.1 prepared statement init package
+@section 4.1 prepared statement init packet
 
-This is the return package when one sends a query with the COM_PREPARE
+This is the return packet when one sends a query with the COM_PREPARE
 command.
 
 @multitable @columnfractions .10 .90
@@ -1755,8 +1756,8 @@ Note that the above is not yet in 4.1 but will be added this month.
 As MySQL can have a parameter 'anywhere' it will in many cases not be
 able to provide the optimal information for all parameters.
 
-If number of columns, in the header package, is not 0 then the
-prepared statement will contain a result set. In this case the package
+If number of columns, in the header packet, is not 0 then the
+prepared statement will contain a result set. In this case the packet
 is followed by a field description result set. @xref{4.1 field descr}.
 
 
@@ -1768,22 +1769,22 @@ value.  One can call mysql_send_long_data() multiple times for the
 same parameter; The server will concatenate the results to a one big
 string.
 
-The server will not require an end package for the string.
+The server will not require an end packet for the string.
 mysql_send_long_data() is responsible updating a flag that all data
 has been sent. (Ie;  That the last call to mysql_send_long_data() has
 the 'last_data' flag set).
 
-This package is sent from client -> server:
+This packet is sent from client -> server:
 
 @multitable @columnfractions .10 .90
 @item Size @tab Comment
 @item 4	@tab Statement handler
 @item 2 @tab Parameter number
 @item 2 @tab Type of parameter  (not used at this point)
-@item # @tab data (Rest of package)
+@item # @tab data (Rest of packet)
 @end itemize
 
-The server will NOT send an @code{ok} or @code{error} package in
+The server will NOT send an @code{ok} or @code{error} packet in
 responce for this.  If there is any errors (like to big string), one
 will get the error when calling execute.
 
@@ -1791,13 +1792,13 @@ will get the error when calling execute.
 @section 4.1 execute
 
 On execute we send all parameters to the server in a COM_EXECUTE
-package.
+packet.
 
-The package contains the following information:
+The packet contains the following information:
 
 @multitable @columnfractions .30 .70
 @item Size @tab Comment
-@item (param_count+7)/8 @tab Null bit map
+@item (param_count+9)/8 @tab Null bit map (2 bits reserved for protocol)
 @item 1	   @tab new_parameter_bound flag.  Is set to 1 for first
 execute or if one has rebound the parameters.
 @item 2*param_count     @tab Type of parameters (only given if new_parameter_bound flag is 1)
@@ -1813,7 +1814,7 @@ The parameters are stored the following ways:
 
 @multitable @columnfractions .20 .10 .70
 @item Type    @tab Size @tab Comment
-@item tynyint @tab 1	@tab One byte integer
+@item tinyint @tab 1	@tab One byte integer
 @item short   @tab 2	@tab
 @item int     @tab 4	@tab
 @item longlong @tab 8	@tab
@@ -1822,7 +1823,7 @@ The parameters are stored the following ways:
 @item string  @tab 1-9 + # @tab Packed string length + string
 @end multitable
 
-The result for this will be either an ok package or a binary result
+The result for this will be either an ok packet or a binary result
 set.
 
 @node 4.1 binary result,,,
@@ -1836,11 +1837,11 @@ For each result row:
 @item
 null bit map with first two bits set to 01 (bit 0,1 value 1)
 @item
-parameter data, repeated for each not null parameter.
+parameter data, repeated for each not null result column.
 @end itemize
 
 The idea with the reserving two bits in the null map is that we can
-use standard error (first byte 255) and ok packages (first byte 0)
+use standard error (first byte 255) and ok packets (first byte 0)
 to end a result sets.
 
 Except that the null-bit-map is shifted two steps, the server is
@@ -1848,6 +1849,18 @@ sending the data to the client the same way that the server is sending
 bound parameters to the client.  The server is always sending the data
 as type given for 'column type' for respective column.  It's up to the
 client to convert the parameter to the requested type.
+
+DATETIME, DATE and TIME are sent to the server in a binary format as follows:
+
+@multitable @columnfractions .20 .10 .70
+@item Type    @tab Size @tab Comment
+@item date    @tab 1 + 0-11 @tab Length + 2 byte year, 1 byte MMDDHHMMSS, 4 byte billionth of a second
+@item datetime    @tab 1 + 0-11 @tab Length + 2 byte year, 1 byte MMDDHHMMSS, 4 byte billionth of a second
+@item time    @tab 1 + 0-14 @tab Length + sign (0 = pos, 1= neg), 4 byte days, 1 byte HHMMDD, 4 byte billionth of a second
+@end multitable
+
+The first byte is a length byte and then comes all parameters that are
+not 0. (Always counted from the beginning).
 
 @node Fulltext Search,  , protocol, Top
 @chapter Fulltext Search in MySQL

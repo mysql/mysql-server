@@ -400,6 +400,7 @@ typedef struct st_mi_sort_param
 #define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
 
 #define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
+#define MI_MIN_ROWS_TO_USE_BULK_INSERT 100
 
 /* The UNIQUE check is done with a hashed long key */
 
@@ -682,8 +683,6 @@ my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
-
-int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size);
 
     /* Functions needed by mi_check */
 volatile bool *killed_ptr(MI_CHECK *param);

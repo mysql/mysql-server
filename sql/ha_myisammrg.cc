@@ -239,6 +239,13 @@ void ha_myisammrg::info(uint flag)
 #else
   ref_length=4;					// Can't be > than my_off_t
 #endif
+  if (flag & HA_STATUS_CONST)
+  {
+    if (table->key_parts)
+      memcpy((char*) table->key_info[0].rec_per_key,
+	     (char*) info.rec_per_key,
+	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
+  }
 }
 
 
@@ -257,9 +264,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
 
 int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) &
-      (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return myrg_extra(file, operation, (void*) &cache_size);
 }

@@ -869,8 +869,9 @@ String *Item_func_case::val_str(String *str)
     null_value=1;
     return 0;
   }
+  null_value= 0;
   if (!(res=item->val_str(str)))
-    null_value=1;
+    null_value= 1;
   return res;
 }
 

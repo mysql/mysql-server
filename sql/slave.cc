@@ -1747,7 +1747,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   if (thd_type == SLAVE_THD_SQL)
@@ -2965,7 +2965,12 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
   if ((rli->cur_log_fd=open_binlog(cur_log,rli->relay_log_name,
 				   errmsg)) <0)
     DBUG_RETURN(0);
-  my_b_seek(cur_log,rli->relay_log_pos);
+  /*
+    We want to start exactly where we was before:
+    relay_log_pos	Current log pos
+    pending		Number of bytes already processed from the event
+  */
+  my_b_seek(cur_log,rli->relay_log_pos + rli->pending);
   DBUG_RETURN(cur_log);
 }
 

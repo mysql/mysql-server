@@ -10,7 +10,9 @@ master-bin.000001	79
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
 127.0.0.1	root	MASTER_PORT	1	master-bin.000001	79	slave-relay-bin.000002	123	master-bin.000001	Yes	Yes			0		0	79	127
+slave stop;
 change master to master_log_pos=73;
+slave start;
 stop slave;
 change master to master_log_pos=73;
 show slave status;
@@ -20,6 +22,7 @@ start slave;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
 127.0.0.1	root	MASTER_PORT	1	master-bin.000001	73	slave-relay-bin.000001	4	master-bin.000001	No	Yes			0		0	73	4
+stop slave;
 change master to master_log_pos=173;
 start slave;
 show slave status;
@@ -32,6 +35,7 @@ create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
+slave stop;
 change master to master_log_pos=79;
 start slave;
 select * from t1;

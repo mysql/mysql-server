@@ -65,7 +65,6 @@ EXTRA_PROGRAMS =
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
                         @DEFS@
 

@@ -80,6 +80,7 @@ static HA_ERRORS ha_errlist[]=
   { 147,"Lock table is full;  Restart program with a larger locktable"},
   { 148,"Updates are not allowed under a read only transactions"},
   { 149,"Lock deadlock; Retry transaction"},
+  { 150,"Foreign key constraint is incorrectly formed"},
   { -30999, "DB_INCOMPLETE: Sync didn't finish"},
   { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
   { -30997, "DB_KEYEXIST: The key/data pair already exists"},

@@ -440,9 +440,10 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
-	char*  		file_name,	/* in: file name where freed */
-	ulint    	line		/* in: line where freed */
-	)
+	char*  		file_name __attribute__((unused)),
+					/* in: file name where freed */
+	ulint    	line  __attribute__((unused)))
+					/* in: line where freed */
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;

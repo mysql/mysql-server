@@ -174,9 +174,16 @@ case "$mode" in
     fi
     ;;
 
+  'restart')
+    # Stop the service and regardless of whether it was
+    # running or not, start it again.
+    $0 stop
+    $0 start
+		;;
+
   *)
     # usage
-    echo "usage: $0 start|stop"
+    echo "Usage: $0 start|stop|restart"
     exit 1
     ;;
 esac

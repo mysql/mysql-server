@@ -231,6 +231,8 @@ ${ORGANIZATION- $ORGANIZATION_C}
 >Class:		$CLASS_C
 >Release:	mysql-${VERSION} ($COMPILATION_COMMENT)
 `test -n "$MYSQL_SERVER" && echo ">Server: $MYSQL_SERVER"`
+>C compiler:    @CC_VERSION@
+>C++ compiler:  @CXX_VERSION@
 >Environment:
 	$ENVIRONMENT_C
 `test -n "$SYSTEM"  && echo "System: $SYSTEM"`
