@@ -120,7 +120,6 @@ static
 void
 btr_cur_latch_leaves(
 /*=================*/
-	dict_tree_t*	tree __attribute__((unused)),	/* in: index tree */
 	page_t*		page,		/* in: leaf page where the search
 					converged */
 	ulint		space,		/* in: space id */
@@ -133,7 +132,7 @@ btr_cur_latch_leaves(
 	ulint	right_page_no;
 	page_t*	get_page;
 	
-	ut_ad(tree && page && mtr);
+	ut_ad(page && mtr);
 
 	if (latch_mode == BTR_SEARCH_LEAF) {
 	
@@ -365,17 +364,19 @@ btr_cur_search_to_nth_level(
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
 	we use the original search mode. */
 
-	if (mode == PAGE_CUR_GE) {
+	switch (mode) {
+	case PAGE_CUR_GE:
 		page_mode = PAGE_CUR_L;
-	} else if (mode == PAGE_CUR_G) {
+		break;
+	case PAGE_CUR_G:
 		page_mode = PAGE_CUR_LE;
-	} else if (mode == PAGE_CUR_LE) {
-		page_mode = PAGE_CUR_LE;
-	} else if (mode == PAGE_CUR_LE_OR_EXTENDS) {
-		page_mode = PAGE_CUR_LE_OR_EXTENDS;
-	} else {
-		ut_ad(mode == PAGE_CUR_L);
-		page_mode = PAGE_CUR_L;
+		break;
+	default:
+		ut_ad(mode == PAGE_CUR_L
+			|| mode == PAGE_CUR_LE
+			|| mode == PAGE_CUR_LE_OR_EXTENDS);
+		page_mode = mode;
+		break;
 	}
 			
 	/* Loop and search until we arrive at the desired level */
@@ -450,7 +451,7 @@ retry_page_get:
 		if (height == 0) {
 			if (rw_latch == RW_NO_LATCH) {
 
-				btr_cur_latch_leaves(tree, page, space,
+				btr_cur_latch_leaves(page, space,
 						page_no, latch_mode, cursor,
 						mtr);
 			}
@@ -476,6 +477,9 @@ retry_page_get:
 		}	
 
 		/* If this is the desired level, leave the loop */
+
+		ut_ad(height
+		== btr_page_get_level(page_cur_get_page(page_cursor), mtr));
 
 		if (level == height) {
 
@@ -588,7 +592,7 @@ btr_cur_open_at_index_side(
 		}
 
 		if (height == 0) {
-			btr_cur_latch_leaves(tree, page, space, page_no,
+			btr_cur_latch_leaves(page, space, page_no,
 						latch_mode, cursor, mtr);
 
 			/* In versions <= 3.23.52 we had forgotten to
@@ -694,7 +698,7 @@ btr_cur_open_at_rnd_pos(
 		}
 
 		if (height == 0) {
-			btr_cur_latch_leaves(tree, page, space, page_no,
+			btr_cur_latch_leaves(page, space, page_no,
 						latch_mode, cursor, mtr);
 		}
 
