@@ -231,7 +231,7 @@ enum enum_shutdown_level {
     next_shutdown_level(level). Note that DEFAULT does not respect the
     growing property.
   */
-  SHUTDOWN_DEFAULT= 255, /* mapped to WAIT_ALL_BUFFERS for now */
+  SHUTDOWN_DEFAULT= 0, /* mapped to WAIT_ALL_BUFFERS for now */
   /*
     Here is the list in growing order (the next does the previous plus
     something). WAIT_ALL_BUFFERS is what we have now. Others are "this MySQL
@@ -239,7 +239,7 @@ enum enum_shutdown_level {
   */
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= 10, /* flush MyISAM buffs (no corruption) */
   SHUTDOWN_WAIT_ALL_BUFFERS= 20, /* flush InnoDB buffers */
-  SHUTDOWN_WAIT_STATEMENTS= 30,
+  SHUTDOWN_WAIT_STATEMENTS= 30, /* wait for existing updating stmts to finish */
   SHUTDOWN_WAIT_TRANSACTIONS= 40, /* wait for existing trans to finish */
   SHUTDOWN_WAIT_CONNECTIONS= 50 /* wait for existing connections to finish */
 };
