@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Descript, check and repair of MyISAM tables */
+/* Describe, check and repair of MyISAM tables */
 
 #include "ftdefs.h"
 #include <m_ctype.h>
@@ -1186,7 +1186,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   param->read_cache.end_of_file=sort_info.filelength=
     my_seek(info->dfile,0L,MY_SEEK_END,MYF(0));
   sort_info.dupp=0;
-  sort_param.fix_datafile= (my_bool) (! rep_quick);
+  sort_param.fix_datafile= (my_bool) (!rep_quick);
+  sort_param.master=1;
   sort_info.max_records= ~(ha_rows) 0;
 
   set_data_file_type(&sort_info, share);
@@ -1873,6 +1874,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.tmpdir=param->tmpdir;
   sort_param.sort_info=&sort_info;
   sort_param.fix_datafile= (my_bool) (! rep_quick);
+  sort_param.master =1;
 
   del=info->state->del;
   param->glob_crc=0;
@@ -2082,7 +2084,7 @@ err:
 	/* same as mi_repair_by_sort */
         /* but do it multithreaded   */
 
-int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
+int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick)
 {
   int got_error;
@@ -2091,7 +2093,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
   ha_rows start_records;
   my_off_t new_header_length,del;
   File new_file;
-  MI_SORT_PARAM *sort_param=0, *sinfo;
+  MI_SORT_PARAM *sort_param=0;
   MYISAM_SHARE *share=info->s;
   ulong   *rec_per_key_part;
   MI_KEYSEG *keyseg;
@@ -2099,7 +2101,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
-  DBUG_ENTER("mi_repair_by_sort_r");
+  DBUG_ENTER("mi_repair_parallel");
 
   start_records=info->state->records;
   got_error=1;
@@ -2244,6 +2246,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
     sort_param[i].lock_in_memory=lock_memory;
     sort_param[i].tmpdir=param->tmpdir;
     sort_param[i].sort_info=&sort_info;
+    sort_param[i].master=0;
     sort_param[i].fix_datafile=0;
 
     sort_param[i].filepos=new_header_length;
@@ -2271,7 +2274,8 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
       sort_param[i].key_length+=ft_max_word_len_for_sort-ft_max_word_len;
   }
   sort_info.total_keys=i;
-  sort_param[0].fix_datafile= ! rep_quick;
+  sort_param[0].master= 1;
+  sort_param[0].fix_datafile= (my_bool)(! rep_quick);
 
   sort_info.got_error=0;
   pthread_mutex_init(& sort_info.mutex, MY_MUTEX_INIT_FAST);
@@ -2289,7 +2293,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
         In the second one all the threads will fill their sort_buffers
         (and call write_keys) at the same time, putting more stress on i/o.
       */
-#if 1
+#ifndef USING_FIRST_APPROACH
       param->sort_buffer_length/sort_info.total_keys;
 #else
       param->sort_buffer_length*sort_param[i].key_length/length;
@@ -2454,7 +2458,8 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
   if (info->state->records == sort_info->max_records)
   {
     mi_check_print_error(sort_info->param,
-			 "Found too many records; Can`t continue");
+			 "Key %d - Found too many records; Can't continue",
+                         sort_param->key+1);
     DBUG_RETURN(1);
   }
   sort_param->real_key_length=(info->s->rec_reflength+
@@ -2543,7 +2548,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       if (!sort_param->fix_datafile)
       {
 	sort_param->filepos=sort_param->pos;
-	share->state.split++;
+        if (sort_param->master)
+	  share->state.split++;
       }
       sort_param->max_pos=(sort_param->pos+=share->base.pack_reclength);
       if (*sort_param->record)
@@ -2553,7 +2559,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 			     mi_static_checksum(info,sort_param->record));
 	DBUG_RETURN(0);
       }
-      if (!sort_param->fix_datafile)
+      if (!sort_param->fix_datafile && sort_param->master)
       {
 	info->state->del++;
 	info->state->empty+=share->base.pack_reclength;
@@ -2699,7 +2705,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (b_type & (BLOCK_DELETED | BLOCK_SYNC_ERROR))
 	{
-	  if (!sort_param->fix_datafile && (b_type & BLOCK_DELETED))
+          if (!sort_param->fix_datafile && sort_param->master &&
+              (b_type & BLOCK_DELETED))
 	  {
 	    info->state->empty+=block_info.block_len;
 	    info->state->del++;
@@ -2718,7 +2725,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  continue;
 	}
 
-	if (!sort_param->fix_datafile)
+	if (!sort_param->fix_datafile && sort_param->master)
 	  share->state.split++;
 	if (! found_record++)
 	{
@@ -2860,7 +2867,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       if (!sort_param->fix_datafile)
       {
 	sort_param->filepos=sort_param->pos;
-	share->state.split++;
+        if (sort_param->master)
+	  share->state.split++;
       }
       sort_param->max_pos=(sort_param->pos=block_info.filepos+
 			 block_info.rec_len);
@@ -2968,12 +2976,15 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       break;
     }
   }
-  info->state->records++;
-  if ((param->testflag & T_WRITE_LOOP) &&
-      (info->state->records % WRITE_COUNT) == 0)
+  if (sort_param->master)
   {
-    char llbuff[22];
-    printf("%s\r", llstr(info->state->records,llbuff)); VOID(fflush(stdout));
+    info->state->records++;
+    if ((param->testflag & T_WRITE_LOOP) &&
+        (info->state->records % WRITE_COUNT) == 0)
+    {
+      char llbuff[22];
+      printf("%s\r", llstr(info->state->records,llbuff)); VOID(fflush(stdout));
+    }
   }
   DBUG_RETURN(0);
 } /* sort_write_record */
