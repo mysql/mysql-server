@@ -567,5 +567,5 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
 		  const char *wild, bool dir,List<char>* files);
 int ha_table_exists(THD* thd, const char* db, const char* name);
-
+TYPELIB *ha_known_exts(void);
 
