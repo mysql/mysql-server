@@ -429,7 +429,8 @@ public:
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
-  MEM_ROOT mem_root;
+  MEM_ROOT main_mem_root;
+  MEM_ROOT *mem_root;                   // Pointer to current memroot
   enum enum_state 
   {
     INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
@@ -468,24 +469,24 @@ public:
   { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional_execution() const
   { return state == CONVENTIONAL_EXECUTION; }
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
     gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
+    if ((ptr=alloc_root(mem_root,size)))
       bzero((char*) ptr,size);
     return ptr;
   }
   inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
+  { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
+  { return strmake_root(mem_root,str,size); }
   inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
+  { return memdup_root(mem_root,str,size); }
   inline char *memdup_w_gap(const char *str, uint size, uint gap)
   {
     gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
+    if ((ptr=alloc_root(mem_root,size+gap)))
       memcpy(ptr,str,size);
     return ptr;
   }
@@ -1052,11 +1053,26 @@ public:
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
+  inline Item_arena *change_arena_if_needed(Item_arena *backup)
+  {
+    /*
+      use new arena if we are in a prepared statements and we have not
+      already changed to use this arena.
+    */
+    if (current_arena->is_stmt_prepare() &&
+        mem_root != &current_arena->main_mem_root)
+    {
+      set_n_backup_item_arena(current_arena, backup);
+      return current_arena;
+    }
+    return 0;
+  }
+
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
     if (!current_arena->is_conventional_execution())
-      nocheck_register_item_tree_change(place, *place, &mem_root);
+      nocheck_register_item_tree_change(place, *place, mem_root);
     *place= new_value;
   }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,

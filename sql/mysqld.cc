@@ -374,7 +374,7 @@ SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
 
-pthread_key(MEM_ROOT*,THR_MALLOC);
+pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status,

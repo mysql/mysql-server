@@ -1744,9 +1744,9 @@ void Item_func_in::fix_length_and_dec()
          Conversion is possible:
          All IN arguments are constants.
       */
-      Item_arena *arena= thd->current_arena, backup;
-      if (arena->is_stmt_prepare())
-        thd->set_n_backup_item_arena(arena, &backup);
+      Item_arena *arena, backup;
+      arena= thd->change_arena_if_needed(&backup);
+
       for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
       {
         if (!arg[0]->null_value &&
@@ -1764,7 +1764,7 @@ void Item_func_in::fix_length_and_dec()
           arg[0]= conv;
         }
       }
-      if (arena->is_stmt_prepare())
+      if (arena)
         thd->restore_backup_item_arena(arena, &backup);
     }
   }

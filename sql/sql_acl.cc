@@ -2309,8 +2309,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     create_new_users= test_if_create_new_users(thd);
   int result=0;
   rw_wrlock(&LOCK_grant);
-  MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-  my_pthread_setspecific_ptr(THR_MALLOC,&memex);
+  MEM_ROOT *old_root= thd->mem_root;
+  thd->mem_root= &memex;
 
   while ((Str = str_list++))
   {
@@ -2415,7 +2415,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
   }
   grant_option=TRUE;
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  thd->mem_root= old_root;
   rw_unlock(&LOCK_grant);
   if (!result)
     send_ok(thd);
@@ -2549,6 +2549,7 @@ my_bool grant_init(THD *org_thd)
   THD  *thd;
   TABLE_LIST tables[2];
   MYSQL_LOCK *lock;
+  MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   TABLE *t_table, *c_table;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
@@ -2596,7 +2597,8 @@ my_bool grant_init(THD *org_thd)
   grant_option= TRUE;
 
   /* Will be restored by org_thd->store_globals() */
-  my_pthread_setspecific_ptr(THR_MALLOC,&memex);
+  memex_ptr= &memex;
+  my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
   do
   {
     GRANT_TABLE *mem_check;

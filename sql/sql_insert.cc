@@ -202,7 +202,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     /* it should be allocated before Item::fix_fields() */
     table->insert_values= 
-      (byte *)alloc_root(&thd->mem_root, table->rec_buff_length);
+      (byte *)alloc_root(thd->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       goto abort;
   }
@@ -924,7 +924,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   found_next_number_field=table->found_next_number_field;
   for (org_field=table->field ; *org_field ; org_field++,field++)
   {
-    if (!(*field= (*org_field)->new_field(&client_thd->mem_root,copy)))
+    if (!(*field= (*org_field)->new_field(client_thd->mem_root,copy)))
       return 0;
     (*field)->orig_table= copy;			// Remove connection
     (*field)->move_field(adjust_ptrs);		// Point at copy->record[0]
