@@ -11,8 +11,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(1)
 master-bin.000001	239	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	327	Xid	1	#	xid=7
-master-bin.000001	354	Query	1	#	use `test`; COMMIT
+master-bin.000001	327	Xid	1	#	COMMIT /* xid=7 */
 delete from t1;
 delete from t2;
 reset master;
@@ -48,8 +47,7 @@ master-bin.000001	239	Query	1	#	use `test`; savepoint my_savepoint
 master-bin.000001	318	Query	1	#	use `test`; insert into t1 values(4)
 master-bin.000001	399	Query	1	#	use `test`; insert into t2 select * from t1
 master-bin.000001	487	Query	1	#	use `test`; rollback to savepoint my_savepoint
-master-bin.000001	578	Xid	1	#	xid=24
-master-bin.000001	605	Query	1	#	use `test`; COMMIT
+master-bin.000001	578	Xid	1	#	COMMIT /* xid=24 */
 delete from t1;
 delete from t2;
 reset master;
@@ -76,8 +74,7 @@ master-bin.000001	318	Query	1	#	use `test`; insert into t1 values(6)
 master-bin.000001	399	Query	1	#	use `test`; insert into t2 select * from t1
 master-bin.000001	487	Query	1	#	use `test`; rollback to savepoint my_savepoint
 master-bin.000001	578	Query	1	#	use `test`; insert into t1 values(7)
-master-bin.000001	659	Xid	1	#	xid=36
-master-bin.000001	686	Query	1	#	use `test`; COMMIT
+master-bin.000001	659	Xid	1	#	COMMIT /* xid=36 */
 delete from t1;
 delete from t2;
 reset master;
@@ -106,9 +103,8 @@ show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(9)
-master-bin.000001	239	Xid	1	#	xid=59
-master-bin.000001	266	Query	1	#	use `test`; COMMIT
-master-bin.000001	329	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	239	Xid	1	#	COMMIT /* xid=59 */
+master-bin.000001	266	Query	1	#	use `test`; insert into t2 select * from t1
 delete from t1;
 delete from t2;
 reset master;
@@ -119,22 +115,19 @@ show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	240	Xid	1	#	xid=65
-master-bin.000001	267	Query	1	#	use `test`; COMMIT
-master-bin.000001	330	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	240	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	267	Query	1	#	use `test`; insert into t2 select * from t1
 insert into t1 values(11);
 commit;
 show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	240	Xid	1	#	xid=65
-master-bin.000001	267	Query	1	#	use `test`; COMMIT
-master-bin.000001	330	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	418	Query	1	#	use `test`; BEGIN
-master-bin.000001	480	Query	1	#	use `test`; insert into t1 values(11)
-master-bin.000001	562	Xid	1	#	xid=67
-master-bin.000001	589	Query	1	#	use `test`; COMMIT
+master-bin.000001	240	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	267	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	355	Query	1	#	use `test`; BEGIN
+master-bin.000001	417	Query	1	#	use `test`; insert into t1 values(11)
+master-bin.000001	499	Xid	1	#	COMMIT /* xid=67 */
 alter table t2 engine=INNODB;
 delete from t1;
 delete from t2;
@@ -148,8 +141,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(12)
 master-bin.000001	240	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	328	Xid	1	#	xid=77
-master-bin.000001	355	Query	1	#	use `test`; COMMIT
+master-bin.000001	328	Xid	1	#	COMMIT /* xid=77 */
 delete from t1;
 delete from t2;
 reset master;
@@ -173,8 +165,7 @@ show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(14)
-master-bin.000001	240	Xid	1	#	xid=93
-master-bin.000001	267	Query	1	#	use `test`; COMMIT
+master-bin.000001	240	Xid	1	#	COMMIT /* xid=93 */
 delete from t1;
 delete from t2;
 reset master;
@@ -195,8 +186,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	Query	1	#	use `test`; BEGIN
 master-bin.000001	158	Query	1	#	use `test`; insert into t1 values(16)
 master-bin.000001	240	Query	1	#	use `test`; insert into t1 values(18)
-master-bin.000001	322	Xid	1	#	xid=104
-master-bin.000001	349	Query	1	#	use `test`; COMMIT
+master-bin.000001	322	Xid	1	#	COMMIT /* xid=104 */
 delete from t1;
 delete from t2;
 alter table t2 type=MyISAM;
