@@ -154,7 +154,7 @@ class Item_maxmin_subselect :public Item_singlerow_subselect
 {
   bool max;
 public:
-  Item_maxmin_subselect(Item_subselect *parent,
+  Item_maxmin_subselect(THD *thd, Item_subselect *parent,
 			st_select_lex *select_lex, bool max);
   void print(String *str);
 };

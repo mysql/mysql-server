@@ -919,3 +919,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+libmysqld/sql_trigger.cc
