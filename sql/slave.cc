@@ -115,6 +115,8 @@ int init_slave()
 {
   DBUG_ENTER("init_slave");
 
+  /* This is called when mysqld starts */
+
   /*
     TODO: re-write this to interate through the list of files
     for multi-master
@@ -126,11 +128,16 @@ int init_slave()
     If master_host is specified, create the master_info file if it doesn't
     exists.
   */
-  if (!active_mi ||
-      init_master_info(active_mi,master_info_file,relay_log_info_file,
+  if (!active_mi)
+  {
+    sql_print_error("Failed to allocate memory for the master info structure");
+    goto err;
+  }
+    
+  if(init_master_info(active_mi,master_info_file,relay_log_info_file,
 		       !master_host))
   {
-    sql_print_error("Note: Failed to initialized master info");
+    sql_print_error("Failed to initialize the master info structure");
     goto err;
   }
 
@@ -150,7 +157,7 @@ int init_slave()
 			    relay_log_info_file,
 			    SLAVE_IO | SLAVE_SQL))
     {
-      sql_print_error("Warning: Can't create threads to handle slave");
+      sql_print_error("Failed to create slave threads");
       goto err;
     }
   }
@@ -1226,7 +1233,10 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
 	       1 /* no auto events */))
+  {
+    sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
+  }
 
   /* if file does not exist */
   if (access(fname,F_OK))
@@ -1237,10 +1247,18 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     */
     if (info_fd >= 0)
       my_close(info_fd, MYF(MY_WME));
-    if ((info_fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
-		      MYF(MY_WME)))
+    if ((info_fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
     {
+      sql_print_error("Failed to create a new relay log info file (\
+file '%s', errno %d)", fname, my_errno);
+      msg= current_thd->net.last_error;
+      goto err;
+    }
+    if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
+		      MYF(MY_WME))) 
+    {
+      sql_print_error("Failed to create a cache on relay log info file (\
+file '%s')", fname);
       msg= current_thd->net.last_error;
       goto err;
     }
@@ -1248,7 +1266,11 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     /* Init relay log with first entry in the relay index file */
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
+    {
+      sql_print_error("Failed to open the relay log (relay_log_name='FIRST', \
+relay_log_pos=4");
       goto err;
+    }
     rli->master_log_name[0]= 0;
     rli->master_log_pos= 0;		
     rli->info_fd= info_fd;
@@ -1257,18 +1279,33 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   {
     if (info_fd >= 0)
       reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
-    else if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	     init_io_cache(&rli->info_file, info_fd,
-			   IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
+    else 
     {
-      if (info_fd >= 0)
-	my_close(info_fd, MYF(0));
-      rli->info_fd= -1;
-      rli->relay_log.close(1);
-      pthread_mutex_unlock(&rli->data_lock);
-      DBUG_RETURN(1);
+      int error=0;
+      if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
+      {
+        sql_print_error("Failed to open the existing relay log info file (\
+file '%s', errno %d)", fname, my_errno);
+        error= 1;
+      }
+      else if (init_io_cache(&rli->info_file, info_fd,
+                             IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
+      {
+        sql_print_error("Failed to create a cache on relay log info file (\
+file '%s')", fname);
+        error= 1;
+      }
+      if (error)
+      {
+        if (info_fd >= 0)
+          my_close(info_fd, MYF(0));
+        rli->info_fd= -1;
+        rli->relay_log.close(1);
+        pthread_mutex_unlock(&rli->data_lock);
+        DBUG_RETURN(1);
+      }
     }
-      
+         
     rli->info_fd = info_fd;
     int relay_log_pos, master_log_pos;
     if (init_strvar_from_file(rli->relay_log_name,
@@ -1292,7 +1329,12 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 			   rli->relay_log_pos,
 			   0 /* no data lock*/,
 			   &msg))
+    {
+      char llbuf[22];
+      sql_print_error("Failed to open the relay log (relay_log_name='%s', \
+relay_log_pos=%s", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
       goto err;
+    }
   }
   DBUG_ASSERT(rli->relay_log_pos >= BIN_LOG_HEADER_SIZE);
   DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->relay_log_pos);
@@ -1301,7 +1343,8 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     before flush_relay_log_info
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
-  error= flush_relay_log_info(rli);
+  if ((error= flush_relay_log_info(rli)))
+    sql_print_error("Failed to flush relay log info file");
   if (count_relay_log_space(rli))
   {
     msg="Error counting relay log space";
@@ -1404,6 +1447,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 
   pthread_mutex_lock(&mi->data_lock);
   fd = mi->fd;
+
+  /* does master.info exist ? */
   
   if (access(fname,F_OK))
   {
@@ -1418,10 +1463,19 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
     */
     if (fd >= 0)
       my_close(fd, MYF(MY_WME));
-    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
-		      MYF(MY_WME)))
+    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+    {
+      sql_print_error("Failed to create a new master info file (\
+file '%s', errno %d)", fname, my_errno);
       goto err;
+    }
+    if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
+		      MYF(MY_WME)))
+    {
+      sql_print_error("Failed to create a cache on master info file (\
+file '%s')", fname);
+      goto err;
+    }
 
     mi->master_log_name[0] = 0;
     mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
@@ -1440,10 +1494,22 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   {
     if (fd >= 0)
       reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
-    else if ((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	     init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
-			   0, MYF(MY_WME)))
-      goto err;
+    else 
+    {
+      if ((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+      {
+        sql_print_error("Failed to open the existing master info file (\
+file '%s', errno %d)", fname, my_errno);
+        goto err;
+      }
+      if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
+                        0, MYF(MY_WME)))
+      {
+        sql_print_error("Failed to create a cache on master info file (\
+file '%s')", fname);
+        goto err;
+      }
+    }
 
     mi->fd = fd;
     int port, connect_retry, master_log_pos;
@@ -1484,7 +1550,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  error=test(flush_master_info(mi));
+  if ((error=test(flush_master_info(mi))))
+    sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 
