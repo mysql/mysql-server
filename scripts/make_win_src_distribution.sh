@@ -251,7 +251,7 @@ touch $BASE/innobase/ib_config.h
 cd $SOURCE
 for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
-         INSTALL-WIN-SOURCE
+         INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
          Docs/mysqld_error.txt Docs/INSTALL-BINARY 
          
@@ -350,7 +350,7 @@ set_tarzip_options()
     else
       ZIPFILE1=zip
       ZIPFILE2=""
-      OPT="-vr"
+      OPT="-r"
       EXT=".zip"
       NEED_COMPRESS=0
       if [ "$SILENT" = "1" ] ; then
@@ -382,6 +382,7 @@ print_debug "Using $tar to create archive"
 
 cd $TMP
 
+rm -f $SOURCE/$NEW_NAME$EXT
 $tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
 cd $SOURCE
 

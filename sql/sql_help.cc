@@ -22,6 +22,8 @@ struct st_find_field
   Field *field;
 };
 
+static void free_select(SQL_SELECT *sel);
+
 /* Used fields */
 
 static struct st_find_field init_used_fields[]=
@@ -62,6 +64,7 @@ enum enum_used_fields
   help_relation_help_keyword_id
 };
 
+
 /*
   Fill st_find_field structure with pointers to fields 
 
@@ -94,8 +97,8 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-/*
 
+/*
   Returns variants of found topic for help (if it is just single topic,
     returns description and example, or else returns only names..)
 
@@ -135,7 +138,7 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
   }
   else 
   {
-    if (count==1)
+    if (count == 1)
       names->push_back(name);
     String *new_name= new String;
     get_field(mem_root,find_fields[help_topic_name].field,new_name);
@@ -557,7 +560,7 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   String **end= pointers + names->elements;
 
   List_iterator<String> it(*names);
-  for ( pos= pointers; pos!=end; (*pos++= it++));
+  for (pos= pointers; pos!=end; (*pos++= it++));
 
   qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
 
@@ -626,6 +629,7 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 				 (char*) "\\");
   return prepare_simple_select(thd,cond,tables,table,error);
 }
+
 
 /*
   Server-side function 'help'
@@ -783,6 +787,21 @@ int mysqld_help(THD *thd, const char *mask)
   res= 0;
   
   send_eof(thd);
+
 end:
+  free_select(select_topics_by_name);
+  free_select(select_keyword_by_name);
+  free_select(select_cat_by_name);
+  free_select(select_topics_by_cat);
+  free_select(select_cat_by_cat);
+  free_select(select_root_cats);
+
   DBUG_RETURN(res);
+}
+
+
+static void free_select(SQL_SELECT *sel)
+{
+  if (sel)
+    delete sel->quick;
 }

@@ -87,7 +87,7 @@ LINK32=link.exe
 # Name "mysql - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\mysys\my_gethostbyname.c
+SOURCE=.\completion_hash.cpp
 # End Source File
 # Begin Source File
 
@@ -101,6 +101,14 @@ SOURCE=.\mysql.cpp
 
 !ENDIF
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\readline.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_string.cpp
 # End Source File
 # End Target
 # End Project
