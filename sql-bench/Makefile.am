@@ -55,14 +55,14 @@ install-data-local:
 		 $(DESTDIR)$(benchdir)/Results-win32 \
 		 $(DESTDIR)$(benchdir)/limits \
 		 $(DESTDIR)$(benchdir)/Comments
-	cp -p  $(srcdir)/README  $(DESTDIR)$(benchdir)
-	cp -pr $(srcdir)/Data/ATIS  $(DESTDIR)$(benchdir)/Data
-	cp -pr $(srcdir)/Data/Wisconsin  $(DESTDIR)$(benchdir)/Data
-	cp -pr $(srcdir)/Results  $(DESTDIR)$(benchdir)
-	cp -pr $(srcdir)/Results-linux  $(DESTDIR)$(benchdir)
-	cp -pr $(srcdir)/Results-win32  $(DESTDIR)$(benchdir)
-	cp -pr $(srcdir)/limits  $(DESTDIR)$(benchdir)
-	cp -pr $(srcdir)/Comments  $(DESTDIR)$(benchdir)
+	$(INSTALL_DATA) $(srcdir)/README  $(DESTDIR)$(benchdir)
+	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(DESTDIR)$(benchdir)/Data/ATIS
+	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(DESTDIR)$(benchdir)/Data/Wisconsin
+	$(INSTALL_DATA) $(srcdir)/Results/*-* $(DESTDIR)$(benchdir)/Results
+	$(INSTALL_DATA) $(srcdir)/Results-linux/*-* $(DESTDIR)$(benchdir)/Results-linux
+	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(DESTDIR)$(benchdir)/Results-win32
+	$(INSTALL_DATA) $(srcdir)/limits/*.* $(DESTDIR)$(benchdir)/limits
+	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(DESTDIR)$(benchdir)/Comments
 
 SUFFIXES = .sh
 

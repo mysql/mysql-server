@@ -38,12 +38,12 @@ install-data-local:
 		$(DESTDIR)$(testdir)/r \
 		$(DESTDIR)$(testdir)/include \
 		$(DESTDIR)$(testdir)/std_data
-	cp -p $(srcdir)/README $(DESTDIR)$(testdir)
-	cp -p $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
-	cp -p $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
-	cp -p $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
-	cp -p $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
-	cp -p $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
+	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
+	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
+	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
+	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 
 SUFFIXES = .sh
 
