@@ -339,6 +339,7 @@ public:
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
+  bool describe; /* union exec() called for EXPLAIN */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
