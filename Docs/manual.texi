@@ -39765,6 +39765,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Remove not used BDB logs on shutdown.
+@item
 When creating a table, put @code{PRIMARY} keys first, followed by
 @code{UNIQUE} keys.
 @item
@@ -44311,6 +44313,34 @@ You can't use temporary tables more than once in the same query.
 @example
 select * from temporary_table, temporary_table as t2;
 @end example
+
+@item
+The optimizer may handle @code{DISTINCT} differently if you are using
+'hidden' columns in a join or not.  In a join, hidden columns are
+counted as part of the result (even if they are not shown) while in
+normal queries hidden columns doesn't participate in the @code{DISTINCT}
+comparison.  We will probably change this in the future to never compare
+the hidden columns when executing @code{DISTINCT}
+
+An example of this is:
+
+@example
+SELECT DISTINCT mp3id FROM band_downloads WHERE userid = 9 ORDER BY id
+DESC;
+
+and
+
+SELECT DISTINCT band_downloads.mp3id, FROM band_downloads,band_mp3
+WHERE band_downloads.userid = 9 AND band_mp3.id = band_downloads.mp3id
+ORDER BY band_downloads.id DESC;
+@end example
+
+In the second case you may in @strong{MySQL} 3.23.x get two identical rows
+in the result set (because the hidden 'id' column may differ).
+
+Note that the this only happens for queries where you don't have the
+ORDER BY columns in the result, something that is you are not allowed
+to do in ANSI SQL.
 
 @item
 Because @strong{MySQL} allows you to work with table types that don't

@@ -563,7 +563,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 			       T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	 HA_STATUS_CONST);
-    if (rows != file->state->records)
+    if (rows != file->state->records && ! (param.testflag & T_VERY_SILENT))
     {
       char llbuff[22],llbuff2[22];
       mi_check_print_warning(&param,"Number of rows changed from %s to %s",

@@ -17,6 +17,7 @@
 
 #include "mysql_priv.h"
 #include <mysql.h>
+#include <myisam.h>
 #include "mini_client.h"
 #include "slave.h"
 #include <thr_alarm.h>
@@ -360,6 +361,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 
   HA_CHECK_OPT check_opt;
   check_opt.init();
+  check_opt.flags|= T_VERY_SILENT;
   check_opt.quick = 1;
   thd->proc_info = "rebuilding the index on master dump table";
   Vio* save_vio = thd->net.vio;

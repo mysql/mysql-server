@@ -76,7 +76,7 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
-			inited(0), opened(0), no_rotate(0)
+			inited(0), no_rotate(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -616,7 +616,7 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
     IO_CACHE *file = (event_info->cache_stmt ? &thd->transaction.trans_log :
 		      &log_file);
     if ((!(thd->options & OPTION_BIN_LOG) &&
-	 thd->master_access & PROCESS_ACL) ||
+	 (thd->master_access & PROCESS_ACL)) ||
 	!db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
@@ -684,14 +684,14 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
   if (is_open())
   {
     uint length;
-    my_off_t start_pos=my_b_tell(&log_file);
 
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     {
       sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
       goto err;
     }
-    while ((length=my_b_fill(cache)))
+    length=my_b_bytes_in_cache(cache);
+    do
     {
       if (my_b_write(&log_file, cache->rc_pos, length))
       {
@@ -700,7 +700,7 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
 	goto err;
       }
       cache->rc_pos=cache->rc_end;		// Mark buffer used up
-    }
+    } while ((length=my_b_fill(cache)));
     if (flush_io_cache(&log_file))
     {
       if (!write_error)

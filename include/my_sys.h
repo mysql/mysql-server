@@ -332,6 +332,8 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 #define my_b_tell(info) ((info)->pos_in_file + \
 			 ((info)->rc_pos - (info)->rc_request_pos))
 
+#define my_b_bytes_in_cache(info) ((uint) ((info)->rc_end - (info)->rc_pos))
+
 typedef struct st_changeable_var {
   const char *name;			/* Name of variable */
   long *varptr;				/* Pointer to variable */

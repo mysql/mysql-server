@@ -161,6 +161,7 @@ bool berkeley_end(void)
   DBUG_ENTER("berkeley_end");
   if (!db_env)
     return 1;
+  berkeley_cleanup_log_files();
   error=db_env->close(db_env,0);		// Error is logged
   db_env=0;
   hash_free(&bdb_open_tables);
@@ -987,7 +988,7 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
   DBUG_PRINT("enter",("index: %d",keynr));
 
   if ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
-      HA_NOSAME)
+      HA_NOSAME || keynr == primary_key)
   {						// Unique key
     dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
     error=key_file[keynr]->del(key_file[keynr], sub_trans,

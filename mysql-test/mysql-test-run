@@ -23,7 +23,7 @@ else
  if [ -f ./mysql-test-run ] && [ -d ../sql ] ; then
  SOURCE_DIST=1
  else
-  echo "If you are using binary distirubution, run me from install root as \
+  echo "If you are using binary distribution, run me from install root as \
    scripts/mysql-test-run. On source distribution run me from source root as \
    mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
   exit 1  
@@ -100,18 +100,18 @@ fi
 #++
 # Program Definitions
 #--
-BASENAME=`which basename`
+BASENAME=`which basename | head -1`
 CAT=/bin/cat
 CUT=/usr/bin/cut
 ECHO=/bin/echo
-EXPR=`which expr`
+EXPR=`which expr | head -1`
 FIND=/usr/bin/find
-GCOV=`which gcov`
+GCOV=`which gcov | head -1`
 PRINTF=/usr/bin/printf
 RM=/bin/rm
 TIME=/usr/bin/time
 TR=/usr/bin/tr
-XARGS=`which xargs`
+XARGS=`which xargs | head -1`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
@@ -130,7 +130,7 @@ fi
 SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
 
 
-MYSQL_TEST="$MYSQL_TEST --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
+MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 GDB_MASTER_INIT=/tmp/gdbinit.master
 GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
@@ -358,7 +358,7 @@ stop_slave ()
 {
   if [ x$SLAVE_RUNNING = x1 ]
   then
-    $MYSQLADMIN --socket=$SLAVE_MYSOCK -u root shutdown
+    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root shutdown
     SLAVE_RUNNING=0
   fi  
 }
@@ -367,7 +367,7 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    $MYSQLADMIN --socket=$MASTER_MYSOCK -u root shutdown
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root shutdown
     MASTER_RUNNING=0
   fi
 }
