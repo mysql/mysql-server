@@ -2,6 +2,7 @@
 
 -- source include/have_innodb.inc
 
+set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 
@@ -962,3 +963,44 @@ insert into t1 (tinytextcol) values (repeat('x',256));
 insert into t1 (tinyblobcol) values (repeat('x',256));
 select * from t1;
 drop table t1;
+
+#
+# Bug #5902: STR_TO_DATE() didn't give errors in traditional mode
+#
+
+set sql_mode='traditional';
+create table t1 (col1 datetime);
+--error 1292
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+--error 1411
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1411
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+--error 1411
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+set sql_mode='';
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+
+# Some correct values, just to test the functions
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30','%d.%m.%Y %H.%i'));
+insert into t1 values(STR_TO_DATE('2004.12.12 11:22:33 AM','%Y.%m.%d %r'));
+insert into t1 values(STR_TO_DATE('2004.12.12 10:22:59','%Y.%m.%d %T'));
+
+select * from t1;
+
+# Check that select don't abort even in strict mode (for now)
+set sql_mode='traditional';
+
+--disable_ps_warnings
+select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
+--enable_ps_warnings
+
+drop table t1;
+
+#
+# Restore mode
+#
+set sql_mode=@org_mode;
