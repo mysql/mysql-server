@@ -44,3 +44,5 @@ tables_priv
 user
 show tables;
 Tables_in_test
+delete from mysql.user where user="test";
+flush privileges;

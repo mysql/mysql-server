@@ -308,8 +308,6 @@ typedef struct st_master_info
   bool old_format;			/* master binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
-  bool ignore_stop_event;
-  
   
   st_master_info()
     :fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),

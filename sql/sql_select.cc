@@ -4791,7 +4791,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     (void) ha_delete_table(entry->db_type,entry->real_name);
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
-    delete *ptr;
+    (*ptr)->free();
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
@@ -8061,7 +8061,6 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
 bool JOIN::rollup_init()
 {
   uint i,j;
-  ORDER *group;
   Item **ref_array;
 
   tmp_table_param.quick_group= 0;	// Can't create groups in tmp table
@@ -8145,7 +8144,7 @@ bool JOIN::rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
     ...
   */
 
-  for (level=0 ; level < send_group_parts > 0 ; level++)
+  for (level=0 ; level < send_group_parts ; level++)
   {
     uint i;
     uint pos= send_group_parts - level -1;

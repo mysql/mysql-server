@@ -71,7 +71,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
-static int create_table_from_dump(THD* thd, NET* net, const char* db,
+static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name);
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
 char* rewrite_db(char* db);
@@ -1049,10 +1049,10 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
 }
 
 
-static int create_table_from_dump(THD* thd, NET* net, const char* db,
+static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name)
 {
-  ulong packet_len = my_net_read(net); // read create table statement
+  ulong packet_len;
   char *query;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
@@ -1060,7 +1060,9 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   int error= 1;
   handler *file;
   ulong save_options;
+  NET *net= &mysql->net;
   
+  packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
     send_error(thd, ER_MASTER_NET_READ);
@@ -1068,32 +1070,27 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   }
   if (net->read_pos[0] == 255) // error from master
   {
-    net->read_pos[packet_len] = 0;
-    net_printf(thd, ER_MASTER, net->read_pos + 3);
+    char *err_msg; 
+    err_msg= (char*) net->read_pos + ((mysql->server_capabilities &
+				       CLIENT_PROTOCOL_41) ?
+				      3+SQLSTATE_LENGTH+1 : 3);
+    net_printf(thd, ER_MASTER, err_msg);
     return 1;
   }
   thd->command = COM_TABLE_DUMP;
+  thd->query_length= packet_len;
   /* Note that we should not set thd->query until the area is initalized */
-  if (!(query = sql_alloc(packet_len + 1)))
+  if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(thd, ER_GET_ERRNO, "Out of memory");
     return 1;
   }
-  memcpy(query, net->read_pos, packet_len);
-  query[packet_len]= 0;
-  thd->query_length= packet_len;
-  /*
-    We make the following lock in an attempt to ensure that the compiler will
-    not rearrange the code so that thd->query is set too soon
-  */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query= query;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
-  
+
   /* we do not want to log create table statement */
   save_options = thd->options;
   thd->options &= ~(ulong) (OPTION_BIN_LOG);
@@ -1185,8 +1182,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     errmsg= "Failed on table dump request";
     goto err;
   }
-  if (create_table_from_dump(thd, &mysql->net, db_name,
-			    table_name))
+  if (create_table_from_dump(thd, mysql, db_name, table_name))
     goto err;    // create_table_from_dump will have sent the error already
   error = 0;
 
@@ -1426,7 +1422,6 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
     DBUG_RETURN(0);
   mi->mysql=0;
   mi->file_id=1;
-  mi->ignore_stop_event=0;
   fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
 
   /*
@@ -2746,6 +2741,8 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 /*
   queue_old_event()
 
+  Writes a 3.23 event to the relay log.
+
   TODO: 
     Test this code before release - it has to be tested on a separate
     setup with 3.23 master 
@@ -2790,8 +2787,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   ev->log_pos = mi->master_log_pos;
   switch (ev->get_type_code()) {
   case STOP_EVENT:
-    ignore_event= mi->ignore_stop_event;
-    mi->ignore_stop_event=0;
+    ignore_event= 1;
     inc_pos= event_len;
     break;
   case ROTATE_EVENT:
@@ -2801,7 +2797,6 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       pthread_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
     }
-    mi->ignore_stop_event=1;
     inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
@@ -2817,7 +2812,6 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     DBUG_RETURN(error);
   }
   default:
-    mi->ignore_stop_event=0;
     inc_pos= event_len;
     break;
   }
@@ -2842,15 +2836,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
 /*
   queue_event()
 
-  TODO: verify the issue with stop events, see if we need them at all
-  in the relay log
 */
 
 int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   ulong inc_pos;
-  bool ignore_event= 0;
   RELAY_LOG_INFO *rli= &mi->rli;
   DBUG_ENTER("queue_event");
 
@@ -2861,39 +2852,77 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
   /*
     TODO: figure out if other events in addition to Rotate
-    require special processing
+    require special processing.
+    Guilhem 2003-06 : I don't think so.
   */
   switch (buf[EVENT_TYPE_OFFSET]) {
   case STOP_EVENT:
-    ignore_event= mi->ignore_stop_event;
-    mi->ignore_stop_event= 0;
-    inc_pos= event_len;
-    break;
+    /*
+      We needn't write this event to the relay log. Indeed, it just indicates a
+      master server shutdown. The only thing this does is cleaning. But cleaning
+      is already done on a per-master-thread basis (as the master server is
+      shutting down cleanly, it has written all DROP TEMPORARY TABLE and DO
+      RELEASE_LOCK; prepared statements' deletion are TODO).
+      
+      We don't even increment mi->master_log_pos, because we may be just after a
+      Rotate event. Btw, in a few milliseconds we are going to have a Start
+      event from the next binlog (unless the master is presently running without
+      --log-bin).
+    */
+    goto err;
   case ROTATE_EVENT:
   {
     Rotate_log_event rev(buf,event_len,0);
     if (unlikely(process_io_rotate(mi,&rev)))
     {
-      pthread_mutex_unlock(&mi->data_lock);
-      DBUG_RETURN(1);
+      error= 1;
+      goto err;
     }
-    mi->ignore_stop_event= 1;
+    /*
+      Now the I/O thread has just changed its mi->master_log_name, so
+      incrementing mi->master_log_pos is nonsense.
+    */
     inc_pos= 0;
     break;
   }
   default:
-    mi->ignore_stop_event= 0;
     inc_pos= event_len;
     break;
   }
-  
-  if (likely(!ignore_event &&
-	     !(error= rli->relay_log.appendv(buf,event_len,0))))
+
+  /* 
+     If this event is originating from this server, don't queue it. 
+     We don't check this for 3.23 events because it's simpler like this; 3.23
+     will be filtered anyway by the SQL slave thread which also tests the server
+     id (we must also keep this test in the SQL thread, in case somebody
+     upgrades a 4.0 slave which has a not-filtered relay log).
+
+     ANY event coming from ourselves can be ignored: it is obvious for queries;
+     for STOP_EVENT/ROTATE_EVENT/START_EVENT: these cannot come from ourselves
+     (--log-slave-updates would not log that) unless this slave is also its
+     direct master (an unsupported, useless setup!).
+  */
+
+  if (uint4korr(buf + SERVER_ID_OFFSET) == ::server_id)
   {
+    /*
+      Do not write it to the relay log.
+      We still want to increment, so that we won't re-read this event from the
+      master if the slave IO thread is now stopped/restarted (more efficient if
+      the events we are ignoring are big LOAD DATA INFILE).
+    */
     mi->master_log_pos+= inc_pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-  }
+    DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
+  }  
+  else /* write the event to the relay log */
+    if (likely(!(error= rli->relay_log.appendv(buf,event_len,0))))
+    {
+      mi->master_log_pos+= inc_pos;
+      DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    }
+
+err:
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 }
@@ -2963,17 +2992,20 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
-  uint client_flag=0;
+  ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
     client_flag=CLIENT_COMPRESS;		/* We will use compression */
 
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  /* This one is not strictly needed but we have it here for completeness */
+  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
+
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
-	 (reconnect ? mysql_reconnect(mysql) != 0:
-	  !(mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, 
-			  (char *)&thd->variables.net_read_timeout),
-	    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, (char *)default_charset_info),
-	    mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-			      mi->port, 0, client_flag))))
+	 (reconnect ? mysql_reconnect(mysql) != 0 :
+	  mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
+			     mi->port, 0, client_flag) == 0))
   {
     /* Don't repeat last error */
     if ((int)mysql_errno(mysql) != last_errno)
