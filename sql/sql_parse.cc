@@ -3089,7 +3089,7 @@ mysql_execute_command(THD *thd)
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (!(sph= sp_find_function(thd, &lex->udf.name)))
+    if ((sph= sp_find_function(thd, &lex->udf.name)))
     {
       net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
       goto error;
