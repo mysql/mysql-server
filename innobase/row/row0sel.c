@@ -2537,10 +2537,7 @@ row_search_for_mysql(
 
 		unique_search_from_clust_index = TRUE;
 
-		/* Disable this optimization (hence FALSE below) until
-		the hang of Peter Zaitsev has been tracked down */
-
-		if (FALSE && trx->mysql_n_tables_locked == 0
+		if (trx->mysql_n_tables_locked == 0
 					&& !prebuilt->sql_stat_start) {
 
 			/* This is a SELECT query done as a consistent read,
@@ -2576,6 +2573,12 @@ row_search_for_mysql(
 
 				return(DB_RECORD_NOT_FOUND);
 			}
+			
+			/* Commit the mini-transaction since it can
+			hold latches */
+
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
 		}
 	}
 	
