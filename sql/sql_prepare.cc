@@ -57,9 +57,9 @@ Long data handling:
 
   - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
   - The packet recieved will have the format as:
-    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][type:2][data]
-  - Checks if the type is specified by client, and if yes reads the type, 
-    and stores the data in that format.
+    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
+  - data from the packet is appended to long data value buffer for this
+    placeholder.
   - It's up to the client to check for read data ended. The server doesn't
     care; and also server doesn't notify to the client that it got the 
     data or not; if there is any error; then during execute; the error 
