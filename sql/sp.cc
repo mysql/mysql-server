@@ -286,12 +286,9 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= sp_cache_lookup(&thd->sp_proc_cache, name, namelen);
+  sp= sp_cache_remove(&thd->sp_proc_cache, name, namelen);
   if (sp)
-  {
-    sp_cache_remove(&thd->sp_proc_cache, sp);
     delete sp;
-  }
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
 
   DBUG_RETURN(ret);
@@ -344,12 +341,9 @@ sp_drop_function(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= sp_cache_lookup(&thd->sp_func_cache, name, namelen);
+  sp= sp_cache_remove(&thd->sp_func_cache, name, namelen);
   if (sp)
-  {
-    sp_cache_remove(&thd->sp_func_cache, sp);
     delete sp;
-  }
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
 
   DBUG_RETURN(ret);
