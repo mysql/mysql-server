@@ -312,10 +312,6 @@ SOURCE=.\pars\pars0sym.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\que\que0que.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\read\read0read.c
 # End Source File
 # Begin Source File
@@ -365,10 +361,6 @@ SOURCE=.\row\row0upd.c
 # Begin Source File
 
 SOURCE=.\row\row0vers.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\srv\srv0que.c
 # End Source File
 # Begin Source File
 

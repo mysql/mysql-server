@@ -197,14 +197,6 @@ fi
 $CP support-files/* $BASE/support-files
 $CP scripts/*.sql $BASE/share
 
-if [ $BASE_SYSTEM = "netware" ] ; then
-  rm -f $BASE/support-files/magic \
-        $BASE/support-files/mysql.server \
-        $BASE/support-files/mysql*.spec \
-        $BASE/support-files/mysql-log-rotate \
-        $BASE/support-files/binary-configure
-fi
-
 $CP -r sql/share/* $MYSQL_SHARE
 rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 
@@ -241,10 +233,24 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 
 
 #
+# Copy system dependent files
+#
+if [ $BASE_SYSTEM = "netware" ] ; then
+  cp ./netware/static_init_db.sql ./netware/init_db.sql
+  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+fi
+
+#
 # Remove system dependent files
 #
 if [ $BASE_SYSTEM = "netware" ] ; then
-    rm -f $BASE/MySQLEULA.txt
+  rm -f $BASE/support-files/magic \
+        $BASE/support-files/mysql.server \
+        $BASE/support-files/mysql*.spec \
+        $BASE/support-files/mysql-log-rotate \
+        $BASE/support-files/binary-configure \
+        $BASE/INSTALL-BINARY \
+        $BASE/MySQLEULA.txt
 else
     rm -f $BASE/README.NW
 fi
@@ -347,9 +353,6 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   echo "Compressing archive"
   rm -f $NEW_NAME.tar.gz
   gzip -9 $NEW_NAME.tar
-  echo "Removing temporary directory"
-  rm -r -f $BASE
-  
   echo "$NEW_NAME.tar.gz created"
 else
 
@@ -360,9 +363,8 @@ else
   cd $TMP
   if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
   zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
-  echo "Removing temporary directory"
-  rm -r -f $BASE
-
   echo "$NEW_NAME.zip created"
 
 fi
+echo "Removing temporary directory"
+rm -r -f $BASE
