@@ -983,12 +983,17 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
   char *password,empty_string[1];
   DBUG_ENTER("replace_user_table");
 
+  password=empty_string;
+  empty_string[0]=0;
+
   if (combo.password.str && combo.password.str[0])
-    password=combo.password.str;
-  else
   {
-    password=empty_string;
-    empty_string[0]=0;
+    if (combo.password.length != HASH_PASSWORD_LENGTH)
+    {
+      my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+      DBUG_RETURN(-1);
+    }
+    password=combo.password.str;
   }
 
   table->field[0]->store(combo.host.str,combo.host.length);
