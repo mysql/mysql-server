@@ -33,6 +33,8 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static Uint32 max_dks = 0;
+
 static
 int
 run_drop_table(NDBT_Context* ctx, NDBT_Step* step)
@@ -56,7 +58,7 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
   }
 
   int keys = tab.getNoOfPrimaryKeys();
-  int dks = (2 * keys + 2) / 3;
+  int dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
   int cnt = 0;
   ndbout_c("%s pks: %d dks: %d", tab.getName(), keys, dks);
   for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
@@ -75,24 +77,104 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
   return 0;
 }
 
-int
+static int
 run_create_table(NDBT_Context* ctx, NDBT_Step* step)
 {
-  bool dk = ctx->getProperty("distributionkey", (unsigned)0);
-  return NDBT_Tables::createTable(GETNDB(step), 
-				  ctx->getTab()->getName(), 
-				  false, false, dk?add_distribution_key:0);
+  max_dks = ctx->getProperty("distributionkey", (unsigned)0);
+
+  if(NDBT_Tables::createTable(GETNDB(step), 
+			      ctx->getTab()->getName(), 
+			      false, false, 
+			      max_dks?add_distribution_key:0) == NDBT_OK)
+  {
+    return NDBT_OK;
+  }
+
+  if(GETNDB(step)->getDictionary()->getNdbError().code == 745)
+    return NDBT_OK;
+
+  return NDBT_FAILED;
 }
 
-int
-run_pk_dk(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb* p_ndb = GETNDB(step);
-  int records = ctx->getNumRecords();
-  const NdbDictionary::Table *tab = 
-    p_ndb->getDictionary()->getTable(ctx->getTab()->getName());
-  HugoTransactions hugoTrans(*tab);
+static int
+run_create_pk_index(NDBT_Context* ctx, NDBT_Step* step){
+  bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
 
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table *pTab = 
+    pNdb->getDictionary()->getTable(ctx->getTab()->getName());
+  
+  if(!pTab)
+    return NDBT_OK;
+  
+  bool logged = ctx->getProperty("LoggedIndexes", orderedIndex ? 0 : 1);
+
+  BaseString name;
+  name.assfmt("IND_%s_PK_%c", pTab->getName(), orderedIndex ? 'O' : 'U');
+  
+  // Create index    
+  if (orderedIndex)
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
+	   << name.c_str() << " (";
+  else
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "unique index "
+	   << name.c_str() << " (";
+
+  NdbDictionary::Index pIdx(name.c_str());
+  pIdx.setTable(pTab->getName());
+  if (orderedIndex)
+    pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  else
+    pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey()){
+      pIdx.addIndexColumn(col->getName());
+      ndbout << col->getName() <<" ";
+    }
+  }
+  
+  pIdx.setStoredIndex(logged);
+  ndbout << ") ";
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+    ndbout << "FAILED!" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    ERR(err);
+    return NDBT_FAILED;
+  }
+  
+  ndbout << "OK!" << endl;
+  return NDBT_OK;
+}
+
+static int run_create_pk_index_drop(NDBT_Context* ctx, NDBT_Step* step){
+  bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table *pTab = 
+    pNdb->getDictionary()->getTable(ctx->getTab()->getName());
+  
+  if(!pTab)
+    return NDBT_OK;
+  
+  BaseString name;
+  name.assfmt("IND_%s_PK_%c", pTab->getName(), orderedIndex ? 'O' : 'U');
+  
+  ndbout << "Dropping index " << name.c_str() << " ";
+  if (pNdb->getDictionary()->dropIndex(name.c_str(), pTab->getName()) != 0){
+    ndbout << "FAILED!" << endl;
+    ERR(pNdb->getDictionary()->getNdbError());
+    return NDBT_FAILED;
+  } else {
+    ndbout << "OK!" << endl;
+  }
+  
+  return NDBT_OK;
+}
+
+static int
+run_tests(Ndb* p_ndb, HugoTransactions& hugoTrans, int records)
+{
   if (hugoTrans.loadTable(p_ndb, records) != 0)
   {
     return NDBT_FAILED;
@@ -136,16 +218,50 @@ run_pk_dk(NDBT_Context* ctx, NDBT_Step* step)
   return 0;
 }
 
-int
-run_hash_dk(NDBT_Context* ctx, NDBT_Step* step)
+static int
+run_pk_dk(NDBT_Context* ctx, NDBT_Step* step)
 {
-  return 0;
+  Ndb* p_ndb = GETNDB(step);
+  int records = ctx->getNumRecords();
+  const NdbDictionary::Table *tab = 
+    p_ndb->getDictionary()->getTable(ctx->getTab()->getName());
+
+  if(!tab)
+    return NDBT_OK;
+
+  HugoTransactions hugoTrans(*tab);
+  
+  return run_tests(p_ndb, hugoTrans, records);
 }
 
 int
 run_index_dk(NDBT_Context* ctx, NDBT_Step* step)
 {
-  return 0;
+  Ndb* p_ndb = GETNDB(step);
+  int records = ctx->getNumRecords();
+  const NdbDictionary::Table *pTab = 
+    p_ndb->getDictionary()->getTable(ctx->getTab()->getName());
+  
+  if(!pTab)
+    return NDBT_OK;
+
+  bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
+  
+  BaseString name;
+  name.assfmt("IND_%s_PK_%c", pTab->getName(), orderedIndex ? 'O' : 'U');
+  
+  const NdbDictionary::Index * idx = 
+    p_ndb->getDictionary()->getIndex(name.c_str(), pTab->getName());
+  
+  if(!idx)
+  {
+    ndbout << "Failed to retreive index: " << name.c_str() << endl;
+    return NDBT_FAILED;
+  }
+
+  HugoTransactions hugoTrans(*pTab, idx);
+  
+  return run_tests(p_ndb, hugoTrans, records);
 }
 
 
@@ -153,7 +269,7 @@ NDBT_TESTSUITE(testPartitioning);
 TESTCASE("pk_dk", 
 	 "Primary key operations with distribution key")
 {
-  TC_PROPERTY("distributionkey", 1);
+  TC_PROPERTY("distributionkey", ~0);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
   INITIALIZER(run_pk_dk);
@@ -162,19 +278,25 @@ TESTCASE("pk_dk",
 TESTCASE("hash_index_dk", 
 	 "Unique index operatations with distribution key")
 {
-  TC_PROPERTY("distributionkey", 1);
+  TC_PROPERTY("distributionkey", ~0);
+  TC_PROPERTY("OrderedIndex", (unsigned)0);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
-  INITIALIZER(run_hash_dk);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_index_dk);
+  INITIALIZER(run_create_pk_index_drop);
   INITIALIZER(run_drop_table);
 }
 TESTCASE("ordered_index_dk", 
 	 "Ordered index operatations with distribution key")
 {
-  TC_PROPERTY("distributionkey", 1);
+  TC_PROPERTY("distributionkey", (unsigned)1);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
   INITIALIZER(run_index_dk);
+  INITIALIZER(run_create_pk_index_drop);
   INITIALIZER(run_drop_table);
 }
 NDBT_TESTSUITE_END(testPartitioning);
