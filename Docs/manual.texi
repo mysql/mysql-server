@@ -1097,11 +1097,9 @@ as a training partner, please visit the training section at
 @uref{http://www.mysql.com/training/} or contact us at:
 @email{training@@mysql.com}.
 
-We plan to release the @code{MySQL Certification Program} in 2002. For
-details see @uref{http://www.mysql.com/training/certification.html}.
-If you would like to be kept informed about the
-@code{MySQL Certification Program},
-please e-mail @email{certification@@mysql.com}.
+The @code{MySQL Certification Program} is being released in the second
+half of 2002. For details please see
+@uref{http://www.mysql.com/training/certification.html}.
 
 
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
@@ -1222,9 +1220,6 @@ training staff at @email{training@@mysql.com}.
 
 For information on the @code{MySQL Certification Program}, please see
 @uref{http://www.mysql.com/training/certification.html}.
-If you would like to be kept informed about the
-@code{MySQL Certification Program}, please e-mail
-@email{certification@@mysql.com}.
 @xref{Business Services Training}.
 
 If you're interested in consulting, please visit the consulting
@@ -5653,26 +5648,12 @@ see @ref{Windows}.
 Check the MySQL homepage (@uref{http://www.mysql.com/}) for
 information about the current version and for downloading instructions.
 
-Our main download mirror is located at:
+Our main mirror is located at @uref{http://mirrors.sunsite.dk/mysql/}.
 
-@uref{http://mirrors.sunsite.dk/mysql/}
-
-If you are interested in becoming a MySQL mirror site, you may
-anonymously rsync with: @code{rsync://sunsite.dk/mysql/}.  Please
-send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
-added to the following list.
-
-If you have problems downloading from our main site, try using one of the
-following mirrors.
-
-Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
-
-@c START_OF_MIRROR_LISTING
-
-@c Mirrors list is created by PHP script (that really needs to be documented!) from database (tfr@mysql.com)
-@include mirrors.texi
-
-@c END_OF_MIRROR_LISTING
+For a complete upto-date list of MySQL web/download mirrors, see
+@uref{http://www.mysql.com/downloads/mirrors.html}.
+There you will also find information about becoming a MySQL mirror
+site and how to report a bad or out-of-date mirror.
 
 
 @node Which OS, Which version, Getting MySQL, General Installation Issues
@@ -7012,16 +6993,16 @@ You will need GNU @code{autoconf 2.52}, @code{automake 1.4},
 
 @code{automake} (1.5) doesn't yet work.
 
-If you get some strange error during this stage, check that you really
-have @code{libtool} installed!
-
 @example
-shell> cd mysql
-shell> bk -r edit
+shell> cd mysql-4.0
+shell> bk -r get -Sq
 shell> aclocal; autoheader; autoconf;  automake;
 shell> ./configure  # Add your favorite options here
 shell> make
 @end example
+
+If you get some strange error during this stage, check that you really
+have @code{libtool} installed!
 
 A collection of our standard configure scripts is located in the
 @file{BUILD/} subdirectory.  If you are lazy, you can use
@@ -8165,7 +8146,7 @@ should check if you need some of the new grants that you didn't need
 before.  In particular, you will need @code{REPLICATION SLAVE}
 (instead of @code{FILE}) for new slaves.
 @item
-@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{DOUBLE} and @code{FLOAT} columns now honour the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
 these columns).
 @item
@@ -22199,8 +22180,6 @@ Monty
 1 row in set (0.09 sec)
 @end example
 
-@itemize @bullet
-@item
 For logging, you can use the @code{tee} option. The @code{tee} can be
 started with option @code{--tee=...}, or from the command-line
 interactively with command @code{tee}. All the data displayed on the
@@ -22212,7 +22191,6 @@ used. Note that @code{tee} will flush the results into the file after
 each command, just before the command-line appears again waiting for the
 next command.
 
-@item
 Browsing, or searching the results in the interactive mode in Unix less,
 more, or any other similar program, is now possible with option
 @code{--pager[=...]}. Without argument, @code{mysql} client will look
@@ -22227,8 +22205,10 @@ the popen() function, which doesn't exist in Windows. In Windows, the
 @code{tee} option can be used instead, although it may not be as handy
 as @code{pager} can be in some situations.
 
+A few tips about @code{pager}:
+@itemize @bullet
 @item
-A few tips about @code{pager}: You can use it to write to a file:
+You can use it to write to a file:
 @example
 mysql> pager cat > /tmp/log.txt
 @end example
@@ -22237,6 +22217,8 @@ for the programs that you want to use with the @code{pager}:
 @example
 mysql> pager less -n -i -S
 @end example
+
+@item
 From the above do note the option '-S'. You may find it very useful when
 browsing the results; try the option with horizontal output (end
 commands with '\g', or ';') and with vertical output (end commands with
@@ -22248,8 +22230,7 @@ readable. You can swith the mode between on and off within the interactive
 less with '-S'. See the 'h' for more help about less.
 
 @item
-Last (unless you already understood this from the above examples ;) you
-can combine very complex ways to handle the results, for example the
+You can combine very complex ways to handle the results, for example the
 following would send the results to two files in two different
 directories, on two different hard-disks mounted on /dr1 and /dr2, yet
 let the results still be seen on the screen via less:
@@ -22258,7 +22239,8 @@ mysql> pager cat | tee /dr1/tmp/res.txt | \
 tee /dr2/tmp/res2.txt | less -n -i -S
 @end example
 
-@item
+@end itemize
+
 You can also combine the two functions above; have the @code{tee}
 enabled, @code{pager} set to 'less' and you will be able to browse the
 results in unix 'less' and still have everything appended into a file
@@ -22270,10 +22252,10 @@ on the screen, where the Unix @code{tee} used with @code{pager} doesn't
 log quite that much. Last, but not least, the interactive @code{tee} is
 more handy to switch on and off, when you want to log something into a
 file, but want to be able to turn the feature off sometimes.
-@end itemize
 
 @cindex @code{prompt} command
-You can change the prompt in the @code{mysql} command-line client.
+From MySQL version 4.0.2 it is possible to change the prompt in the
+@code{mysql} command-line client.
 
 You can use the following prompt options:
 @c FIX these columnfractions have NOT been measured!
@@ -23554,12 +23536,23 @@ logging on the master. If you start your slaves with data that doesn't
 agree with what was on the master @strong{when the binary log was
 started}, your slaves may fail.
 
-Starting in 4.0.0, one can use @code{LOAD DATA FROM MASTER} to set up
-a slave. Note that 4.0.0 slaves cannot communicate with 3.23 masters, but 4.0.1
-and later version slaves can. 3.23 slave cannot talk to 4.0 master.
+Please see the following table for an indication of master-slave
+compatibility between different versions. With regard to version 4.0,
+we recommend using same version on both sides.
 
-You must also be aware that @code{LOAD DATA FROM MASTER} currently works only
-if all the tables on the master are @code{MyISAM} type, and will acuire a
+@c FIX arjen 2002-07-17 new table, not yet measured for XML/DocBook.
+@multitable @columnfractions .10 .15 .15 .10 .10 .10
+@item                @tab                         @tab @strong{Master}         @tab @strong{Master} @tab @strong{Master} @tab @strong{Master}
+@item                @tab                         @tab @strong{3.23.33 and up} @tab @strong{4.0.0}  @tab @strong{4.0.1}  @tab @strong{4.0.2}
+@item @strong{Slave} @tab @strong{3.23.33 and up} @tab yes                     @tab no              @tab no              @tab no
+@item @strong{Slave} @tab @strong{4.0.0}          @tab no                      @tab yes             @tab no              @tab no
+@item @strong{Slave} @tab @strong{4.0.1}          @tab yes                     @tab no              @tab yes             @tab no
+@item @strong{Slave} @tab @strong{4.0.2}          @tab yes                     @tab no              @tab no              @tab yes
+@end multitable
+
+Starting from 4.0.0, one can use @code{LOAD DATA FROM MASTER} to set up
+a slave. Be aware that @code{LOAD DATA FROM MASTER} currently works only
+if all the tables on the master are @code{MyISAM} type, and will acquire a
 global read lock, so no writes are possible while the tables are being
 transferred from the master. This limitation is of a temporary nature, and is
 due to the fact that we have not yet implemented hot lock-free table backup.
@@ -33787,6 +33780,13 @@ The offset of the initial row is 0 (not 1):
 mysql> SELECT * FROM table LIMIT 5,10;  # Retrieve rows 6-15
 @end example
 
+To retrieve all rows from a certain offset upto the end of the result set,
+you can use -1 for the second parameter:
+
+@example
+mysql> SELECT * FROM table LIMIT 95,-1; # Retrieve rows 96-last.
+@end example
+
 If one argument is given, it indicates the maximum number of rows to return:
 
 @example
@@ -38231,23 +38231,23 @@ Also the small archived InnoDB log file
 [mysqld]
 # You can write your other MySQL server options here
 # ...
-#                                        Data file(s) must be able to
-#                                        hold your data and indexes.
-#                                        Make sure you have enough
-#                                        free disk space.
+#                                  Data file(s) must be able to
+#                                  hold your data and indexes.
+#                                  Make sure you have enough
+#                                  free disk space.
 innodb_data_file_path = ibdata1:10M:autoextend
-#                                        Set buffer pool size to
-#                                        50 - 80 % of your computer's
-#                                        memory
+#                                  Set buffer pool size to
+#                                  50 - 80 % of your computer's
+#                                  memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
-#                                        Set the log file size to about
-#                                        25 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  25 % of the buffer pool size
 set-variable = innodb_log_file_size=20M
 set-variable = innodb_log_buffer_size=8M
-#                                        Set ..flush_log_at_trx_commit
-#                                        to 0 if you can afford losing
-#                                        some last transactions 
+#                                  Set ..flush_log_at_trx_commit
+#                                  to 0 if you can afford losing
+#                                  some last transactions 
 innodb_flush_log_at_trx_commit=1
 @end example
 
@@ -38325,28 +38325,28 @@ have to create them yourself.} Use the Unix or MS-DOS
 # You can write your other MySQL server options here
 # ...
 innodb_data_home_dir =
-#                                        Data files must be able to
-#                                        hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = /ibdata/ibdata1:2000M;/dr2/ibdata/ibdata2:2000M:autoextend
-#                                        Set buffer pool size to
-#                                        50 - 80 % of your computer's
-#                                        memory, but make sure on Linux
-#                                        x86 total memory usage is
-#                                        < 2 GB
+#                                  Set buffer pool size to
+#                                  50 - 80 % of your computer's
+#                                  memory, but make sure on Linux
+#                                  x86 total memory usage is
+#                                  < 2 GB
 set-variable = innodb_buffer_pool_size=1G
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                        .._log_arch_dir must be the same
-#                                        as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 set-variable = innodb_log_files_in_group=3
-#                                        Set the log file size to about
-#                                        15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=150M
 set-variable = innodb_log_buffer_size=8M
-#                                        Set ..flush_log_at_trx_commit to
-#                                        0 if you can afford losing
-#                                        some last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  some last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_lock_wait_timeout=50
 #innodb_flush_method=fdatasync
@@ -49651,6 +49651,8 @@ MySQL.  If you find a version listed here that you can't
 find on the MySQL download page
 (@uref{http://www.mysql.com/downloads/}),
 this means that the version has not yet been released!
+
+@c Please don't add a new version here without also updating ../configure.in!
 
 @menu
 * News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
