@@ -171,7 +171,7 @@ runTwoOperations(NDBT_Context* ctx, NDBT_Step* step){
     // Insert, read
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
     CHECK(runOp(hugoOps, pNdb, op1, val1) == 0);
-    AbortOption oa = (res1 == 0) ? AbortOnError : IgnoreError;
+    AbortOption oa = (res1 == 0) ? AbortOnError : AO_IgnoreError;
     CHECK(hugoOps.execute_NoCommit(pNdb, oa) == res1);
     CHECK(checkVal(hugoOps, op1, val1, res1) == 0);
 

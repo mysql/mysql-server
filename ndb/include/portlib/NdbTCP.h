@@ -40,7 +40,7 @@ typedef int socklen_t;
 
 #define InetErrno (* inet_errno())
 
-#elif NDB_WIN32
+#elif defined NDB_WIN32
 
 /**
  * Include files needed

@@ -22,55 +22,12 @@
 
   $Id: PortDefs.h,v 1.5 2003/10/07 07:59:59 mikael Exp $
 */
-#ifdef NDB_WIN32
-#include <time.h>
-
-
-struct tms 
-{
-  time_t      tms_utime;  /* user time */
-  time_t      tms_stime;  /* system time */
-  time_t      tms_cutime; /* user time of children */
-  time_t      tms_cstime; /* system time of children */
-};
-
-struct timespec 
-{
-  long        tv_sec;  /* Seconds */
-  long        tv_nsec; /* Nanoseconds */
-};
-
-#define strcasecmp(a,b) _strcmpi(a,b)
-
-/* Exports a WIN32 getopt function */
-extern int  optind;
-extern char *optarg;
-int getopt(int, char **, char *opts);
-#endif /* NDB_WIN32 */
 
 #ifdef NDB_ALPHA
 #ifdef NDB_GCC /* only for NDB_ALPHA */
 extern int gnuShouldNotUseRPCC();
 #define RPCC() gnuShouldNotUseRPCC();
 #else 
-#ifdef NDB_WIN32
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-    u_int64 __asm(char *, ...);
-    double __dasm(char *, ...);
-    float __fasm(char *, ...);
-    void _AcquireSpinLock(long *);
-    void _ReleaseSpinLock(long *);
-    int __ADD_ATOMIC_LONG2(void *, int);
-#ifdef __cplusplus
-};
-#endif /* __cplusplus */
-#pragma intrinsic (__asm, __dasm, __fasm)
-#pragma intrinsic(_ReleaseSpinLock, _AcquireSpinLock)
-#pragma intrinsic(__ADD_ATOMIC_LONG2)
-#endif /* NDB_WIN32 */
-
 #define RPCC() ((int)__asm(" rpcc v0;"))
 #define MB() __asm(" mb;");
 #define WMB() __asm(" wmb;");

@@ -22,7 +22,7 @@ Name:          Ndb.cpp
 ******************************************************************************/
 
 #include <ndb_global.h>
-#include <pthread.h>
+
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"

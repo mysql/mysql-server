@@ -16,3 +16,17 @@ PortLibTest_SOURCES = NdbPortLibTest.cpp
 munmaptest_SOURCES = munmaptest.cpp
 
 # Don't update the files from bitkeeper
+
+windoze-dsp: libportlib.dsp
+
+libportlib.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-lib.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-lib.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(libportlib_la_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)

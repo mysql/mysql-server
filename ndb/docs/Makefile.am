@@ -100,3 +100,5 @@ odbcdoc: DUMMY
 testdoc: DUMMY
 	mkdir -p $(OUTDIR)
 	cd $(top_srcdir)/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
+
+windoze-dsp:

@@ -380,16 +380,16 @@ public:
 			       Uint32 subId,
 			       Uint32 subKey,
 			       BlockReference to,
-			       GrepError::Code err);
+			       GrepError::GE_Code err);
 
 
     void sendSubRemoveRef_SS(Signal * signal, 
 			  SubCoordinator sub,
-			  GrepError::Code err);
+			  GrepError::GE_Code err);
 
     void sendRefToSS(Signal * signal, 
 		     SubCoordinator sub,
-		     GrepError::Code err,
+		     GrepError::GE_Code err,
 		     SubscriptionData::Part part = (SubscriptionData::Part)0);
         
     void setRepRef(BlockReference rr) { m_repRef = rr; };
@@ -496,7 +496,7 @@ public:
 
     void sendRefToPSCoord(Signal * signal, 
 			  Subscription sub,
-			  GrepError::Code err,
+			  GrepError::GE_Code err,
 			  SubscriptionData::Part part = (SubscriptionData::Part)0);
 
     //protected:

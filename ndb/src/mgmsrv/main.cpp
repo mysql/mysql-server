@@ -230,7 +230,7 @@ int main(int argc, char** argv)
 				local_config,
 				glob.cluster_config);
 
-  chdir(NdbConfig_get_path(0));
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
   glob.cluster_config = 0;
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
@@ -293,7 +293,9 @@ int main(int argc, char** argv)
     }
   }
 
+#ifndef NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
+#endif
   {
     BaseString error_string;
     if(!glob.mgmObject->start(error_string)){
