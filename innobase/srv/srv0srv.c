@@ -69,13 +69,19 @@ char*	srv_main_thread_op_info = "";
 names, where the file name itself may also contain a path */
 
 char*	srv_data_home 	= NULL;
-char*	srv_logs_home 	= NULL;
 char*	srv_arch_dir 	= NULL;
 
 ulint	srv_n_data_files = 0;
 char**	srv_data_file_names = NULL;
 ulint*	srv_data_file_sizes = NULL;	/* size in database pages */ 
 
+ibool	srv_auto_extend_last_data_file	= FALSE; /* if TRUE, then we
+						 auto-extend the last data
+						 file */
+ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
+						 the max size auto-extending
+						 may increase the last data
+						 file size */
 ulint*  srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
@@ -1596,7 +1602,7 @@ srv_read_initfile(
 
 /*************************************************************************
 Initializes the server. */
-static
+
 void
 srv_init(void)
 /*==========*/
@@ -1664,7 +1670,7 @@ srv_init(void)
 /*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
-static
+
 void
 srv_general_init(void)
 /*==================*/
@@ -1686,6 +1692,7 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
+	ibool			has_slept	= FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
 
@@ -1703,7 +1710,7 @@ srv_conc_enter_innodb(
 
 		return;
 	}
-
+retry:
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
@@ -1716,7 +1723,23 @@ srv_conc_enter_innodb(
 
 		return;
 	}
+
+	/* If the transaction is not holding resources, let it sleep
+	for 100 milliseconds, and try again then */
 	
+	if (!has_slept && !trx->has_search_latch
+	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+	    	has_slept = TRUE; /* We let is sleep only once to avoid
+	    			  starvation */
+
+	    	os_fast_mutex_unlock(&srv_conc_mutex);
+
+	    	os_thread_sleep(100000);
+
+		goto retry;
+	}	    	
+
 	/* Too many threads inside: put the current thread to a queue */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
@@ -1908,6 +1931,9 @@ srv_normalize_init_values(void)
 					* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}		
 
+	srv_last_file_size_max = srv_last_file_size_max
+					* ((1024 * 1024) / UNIV_PAGE_SIZE);
+		
 	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
 
 	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;

@@ -76,19 +76,33 @@ bool 	innodb_skip 		= 0;
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 
+/* The default values for the following, type long, start-up parameters
+are declared in mysqld.cc: */
+
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
-  innobase_thread_concurrency, innobase_force_recovery;
+     innobase_thread_concurrency, innobase_force_recovery;
 
-char *innobase_data_home_dir, *innobase_data_file_path;
-char *innobase_log_group_home_dir, *innobase_log_arch_dir;
-char *innobase_unix_file_flush_method;
-my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
-  innobase_use_native_aio, innobase_fast_shutdown;
+/* The default values for the following char* start-up parameters
+are determined in innobase_init below: */
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
+
+char*	innobase_data_home_dir			= NULL;
+char*	innobase_data_file_path			= NULL;
+char*	innobase_log_group_home_dir		= NULL;
+char*	innobase_log_arch_dir			= NULL;
+char*	innobase_unix_file_flush_method		= NULL;
+
+/* Below we have boolean-valued start-up parameters, and their default
+values */
+
+my_bool innobase_flush_log_at_trx_commit	= FALSE;
+my_bool innobase_log_archive			= FALSE;
+my_bool	innobase_use_native_aio			= FALSE;
+my_bool	innobase_fast_shutdown			= TRUE;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -332,227 +346,6 @@ ha_innobase::update_thd(
 }
 
 /*************************************************************************
-Reads the data files and their sizes from a character string given in
-the .cnf file. */
-static
-bool
-innobase_parse_data_file_paths_and_sizes(void)
-/*==========================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-{
-	char*	str;
-	char*	endp;
-	char*	path;
-	ulint	size;
-	ulint	i	= 0;
-
-	str = innobase_data_file_path;
-
-	/* First calculate the number of data files and check syntax:
-	path:size[M];path:size[M]... . Note that a Windows path may
-	contain a drive name and a ':'. */
-
-	while (*str != '\0') {
-		path = str;
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
-			str++;
-		}
-
-		if (*str == '\0') {
-			return(FALSE);
-		}
-
-		str++;
-
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if ((*str != 'M') && (*str != 'G')) {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-		        size = size * 1024;
-			str++;
-		} else {
-		        str++;
-		}
-
-	        if (strlen(str) >= 6
-			   && *str == 'n'
-			   && *(str + 1) == 'e' 
-		           && *(str + 2) == 'w') {
-		  str += 3;
-		}
-
-	        if (strlen(str) >= 3
-			   && *str == 'r'
-			   && *(str + 1) == 'a' 
-		           && *(str + 2) == 'w') {
-		  str += 3;
-		}
-
-		if (size == 0) {
-			return(FALSE);
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(FALSE);
-		}
-	}
-
-	srv_data_file_names = (char**)ut_malloc(i * sizeof(void*));
-	srv_data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
-	srv_data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
-
-	srv_n_data_files = i;
-
-	/* Then store the actual values to our arrays */
-
-	str = innobase_data_file_path;
-	i = 0;
-
-	while (*str != '\0') {
-		path = str;
-
-		/* Note that we must ignore the ':' in a Windows path */
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
-			str++;
-		}
-
-		if (*str == ':') {
-			/* Make path a null-terminated string */
-			*str = '\0';
-			str++;
-		}
-
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if ((*str != 'M') && (*str != 'G')) {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-		        size = size * 1024;
-			str++;
-		} else {
-		        str++;
-		}
-
-		srv_data_file_is_raw_partition[i] = 0;
-
-	        if (strlen(str) >= 6
-			   && *str == 'n'
-			   && *(str + 1) == 'e' 
-		           && *(str + 2) == 'w') {
-		  str += 3;
-		  srv_data_file_is_raw_partition[i] = SRV_NEW_RAW;
-		}
-
-	        if (strlen(str) >= 3
-			   && *str == 'r'
-			   && *(str + 1) == 'a' 
-		           && *(str + 2) == 'w') {
-		  str += 3;
-		  
-		  if (srv_data_file_is_raw_partition[i] == 0) {
-		    srv_data_file_is_raw_partition[i] = SRV_OLD_RAW;
-		  }		  
-		}
-
-		srv_data_file_names[i] = path;
-		srv_data_file_sizes[i] = size;
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		}
-	}
-
-	return(TRUE);
-}
-
-/*************************************************************************
-Reads log group home directories from a character string given in
-the .cnf file. */
-static
-bool
-innobase_parse_log_group_home_dirs(void)
-/*====================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-{
-	char*	str;
-	char*	path;
-	ulint	i	= 0;
-
-	str = innobase_log_group_home_dir;
-
-	/* First calculate the number of directories and check syntax:
-	path;path;... */
-
-	while (*str != '\0') {
-		path = str;
-
-		while (*str != ';' && *str != '\0') {
-			str++;
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(FALSE);
-		}
-	}
-
-	if (i != (ulint) innobase_mirrored_log_groups) {
-
-		return(FALSE);
-	}
-
-	srv_log_group_home_dirs = (char**) ut_malloc(i * sizeof(void*));
-
-	/* Then store the actual values to our array */
-
-	str = innobase_log_group_home_dir;
-	i = 0;
-
-	while (*str != '\0') {
-		path = str;
-
-		while (*str != ';' && *str != '\0') {
-			str++;
-		}
-
-		if (*str == ';') {
-			*str = '\0';
-			str++;
-		}
-
-		srv_log_group_home_dirs[i] = path;
-
-		i++;
-	}
-
-	return(TRUE);
-}
-
-/*************************************************************************
 Opens an InnoDB database. */
 
 bool
@@ -565,7 +358,7 @@ innobase_init(void)
 	bool		ret;
 	
   	DBUG_ENTER("innobase_init");
-
+  
 	if (specialflag & SPECIAL_NO_PRIOR) {
 	        srv_set_thread_priorities = FALSE;
 	} else {
@@ -574,49 +367,62 @@ innobase_init(void)
 	}
 
 	/* Use current_dir if no paths are set */
-	current_dir[0]=FN_CURLIB;
-	current_dir[1]=FN_LIBCHAR;
-	current_dir[2]=0;
+	current_dir[0] = FN_CURLIB;
+	current_dir[1] = FN_LIBCHAR;
+	current_dir[2] = 0;
 
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
-	if (!innobase_data_file_path)
-	{
-	  fprintf(stderr,
+	if (!innobase_data_file_path) {
+		fprintf(stderr,
        "Cannot initialize InnoDB as 'innodb_data_file_path' is not set.\n"
        "If you do not want to use transactional InnoDB tables, add a line\n"
        "skip-innodb\n"
        "to the [mysqld] section of init parameters in your my.cnf\n"
        "or my.ini. If you want to use InnoDB tables, add for example,\n"
-       "innodb_data_file_path = ibdata1:30M\n"
+       "innodb_data_file_path = ibdata1:30M:autoextend\n"
        "But to get good performance you should adjust for your hardware\n"
        "the InnoDB startup options listed in section 2 at\n"
        "http://www.innodb.com/ibman.html\n");
 
-	  innodb_skip=1;
-	  DBUG_RETURN(FALSE);			// Continue without innobase
+	  	innodb_skip=1;
+	  	DBUG_RETURN(FALSE);	/* Continue without InnoDB */
 	}
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 current_dir);
-	srv_logs_home = (char*) "";
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
 			 current_dir);
 
-	ret = innobase_parse_data_file_paths_and_sizes();
-
+	ret = (bool)
+		srv_parse_data_file_paths_and_sizes(innobase_data_file_path,
+				&srv_data_file_names,
+				&srv_data_file_sizes,
+				&srv_data_file_is_raw_partition,
+				&srv_n_data_files,
+				&srv_auto_extend_last_data_file,
+				&srv_last_file_size_max);
 	if (ret == FALSE) {
-	  fprintf(stderr, "InnoDB: syntax error in innodb_data_file_path\n");
-	  DBUG_RETURN(TRUE);
+		fprintf(stderr,
+			"InnoDB: syntax error in innodb_data_file_path\n");
+	  	DBUG_RETURN(TRUE);
 	}
 
-	if (!innobase_log_group_home_dir)
-	  innobase_log_group_home_dir= current_dir;
-	ret = innobase_parse_log_group_home_dirs();
+	if (!innobase_log_group_home_dir) {
+		innobase_log_group_home_dir = current_dir;
+	}
 
-	if (ret == FALSE) {
-	  DBUG_RETURN(TRUE);
+	ret = (bool)
+		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
+						&srv_log_group_home_dirs);
+
+	if (ret == FALSE || innobase_mirrored_log_groups != 1) {
+		fprintf(stderr,
+		"InnoDB: syntax error in innodb_log_group_home_dir\n"
+		"InnoDB: or a wrong number of mirrored log groups\n");
+
+		DBUG_RETURN(TRUE);
 	}
 
 	srv_unix_file_flush_method_str = (innobase_unix_file_flush_method ?
@@ -658,10 +464,11 @@ innobase_init(void)
 
 	if (err != DB_SUCCESS) {
 
-	  DBUG_RETURN(1);
+		DBUG_RETURN(1);
 	}
+
 	(void) hash_init(&innobase_open_tables,32,0,0,
-			 (hash_get_key) innobase_get_key,0,0);
+			 		(hash_get_key) innobase_get_key,0,0);
 	pthread_mutex_init(&innobase_mutex,MY_MUTEX_INIT_FAST);
   	DBUG_RETURN(0);
 }
@@ -1340,33 +1147,43 @@ build_template(
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
-	if (!prebuilt->in_update_remember_pos) {
+	if (!prebuilt->hint_no_need_to_fetch_extra_cols) {
+		/* We have a hint that we should at least fetch all
+		columns in the key, or all columns in the table */
+
 		if (prebuilt->read_just_key) {
+			/* MySQL has instructed us that it is enough to
+			fetch the columns in the key */
+			
 			fetch_all_in_key = TRUE;
 		} else {
 			/* We are building a temporary table: fetch all
-			columns */
+ 			columns; the reason is that MySQL may use the
+			clustered index key to store rows, but the mechanism
+			we use below to detect required columns does not
+			reveal that. Actually, it might be enough to
+			fetch only all in the key also in this case! */
 		
 			templ_type = ROW_MYSQL_WHOLE_ROW;
 		}
 	}
 
 	if (prebuilt->select_lock_type == LOCK_X) {
-	  /* TODO: should fix the code in sql_update so that we could do
-	     with fetching only the needed columns */
+		/* We always retrieve the whole clustered index record if we
+		use exclusive row level locks, for example, if the read is
+		done in an UPDATE statement. */
 
 	        templ_type = ROW_MYSQL_WHOLE_ROW;
 	}
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
+		/* In versions < 3.23.50 we always retrieved the clustered
+		index record if prebuilt->select_lock_type == LOCK_S,
+		but there is really not need for that, and in some cases
+		performance could be seriously degraded because the MySQL
+		optimizer did not know about our convention! */
 
-		if (prebuilt->select_lock_type != LOCK_NONE) {
-			/* Let index be the clustered index */
-
-			index = clust_index;
-		} else {
-			index = prebuilt->index;
-		}
+		index = prebuilt->index;
 	} else {
 		index = clust_index;
 	}
@@ -1462,12 +1279,6 @@ skip_field:
 			    (index->table->cols + templ->col_no)->clust_pos;
 		}
 	}
-
-	if (templ_type == ROW_MYSQL_REC_FIELDS
-				&& prebuilt->select_lock_type != LOCK_NONE) {
-
-		prebuilt->need_to_access_clustered = TRUE;
-	}
 }
 
 /************************************************************************
@@ -1500,7 +1311,9 @@ ha_innobase::write_row(
 	}
 
   	if (table->next_number_field && record == table->record[0]) {
-
+		/* This is the case where the table has an
+		auto-increment column */
+  	
 	        /* Fetch the value the user possibly has set in the
 	        autoincrement field */
 	        
@@ -1584,12 +1397,6 @@ ha_innobase::write_row(
 			}
 		}
 	        
-	        /* Set the 'in_update_remember_pos' flag to FALSE to
-	        make sure all columns are fetched in the select done by
-	        update_auto_increment */
-
-	        prebuilt->in_update_remember_pos = FALSE;
-	        
     		update_auto_increment();
 
 		if (auto_inc == 0) {
@@ -1613,7 +1420,7 @@ ha_innobase::write_row(
 		}
     		
 		/* We have to set sql_stat_start to TRUE because
-		update_auto_increment has called a select, and
+		update_auto_increment may have called a select, and
 		has reset that flag; row_insert_for_mysql has to
 		know to set the IX intention lock on the table, something
 		it only does at the start of each statement */
@@ -1853,9 +1660,7 @@ ha_innobase::update_row(
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
 
-	if (!prebuilt->in_update_remember_pos) {
-		assert(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
-	}
+	assert(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 
 	srv_conc_enter_innodb(prebuilt->trx);
 
@@ -1901,7 +1706,6 @@ ha_innobase::delete_row(
 	/* This is a delete */
 
 	prebuilt->upd_node->is_delete = TRUE;
-	prebuilt->in_update_remember_pos = TRUE;
 
 	srv_conc_enter_innodb(prebuilt->trx);
 
@@ -2616,7 +2420,9 @@ ha_innobase::create(
 
   	/* Create the table definition in InnoDB */
 
-  	if (error = create_table_def(trx, form, norm_name)) {
+  	error = create_table_def(trx, form, norm_name);
+  	
+  	if (error) {
 
 		trx_commit_for_mysql(trx);
 
@@ -3203,11 +3009,57 @@ ha_innobase::update_table_comment(
   	pos += sprintf(pos, "InnoDB free: %lu kB",
 					(ulong) innobase_get_free_space());
 
-	/* We assume 150 bytes of space to print info */
+	/* We assume 450 - length bytes of space to print info */
 
-  	dict_print_info_on_foreign_keys(pos, 500, prebuilt->table);
+	if (length < 450) {
+  		dict_print_info_on_foreign_keys(FALSE, pos, 450 - length,
+							prebuilt->table);
+	}
   
   	return(str);
+}
+
+/***********************************************************************
+Gets the foreign key create info for a table stored in InnoDB. */
+
+char*
+ha_innobase::get_foreign_key_create_info(void)
+/*==========================================*/
+			/* out, own: character string in the form which
+			can be inserted to the CREATE TABLE statement,
+			MUST be freed with ::free_foreign_key_create_info */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+	char*	str;
+	
+	if (prebuilt == NULL) {
+		fprintf(stderr,
+"InnoDB: Error: cannot get create info for foreign keys\n");
+
+		return(NULL);
+	}
+
+	str = (char*)ut_malloc(10000);
+
+	str[0] = '\0';
+	
+  	dict_print_info_on_foreign_keys(TRUE, str, 9000, prebuilt->table);
+
+  	return(str);
+}			
+
+/***********************************************************************
+Frees the foreign key create info for a table stored in InnoDB, if it is
+non-NULL. */
+
+void
+ha_innobase::free_foreign_key_create_info(
+/*======================================*/
+	char*	str)	/* in, own: create info string to free  */
+{
+	if (str) {
+		ut_free(str);
+	}
 }
 
 /***********************************************************************
@@ -3235,7 +3087,7 @@ ha_innobase::extra(
     			prebuilt->read_just_key = 0;
     			break;
 	        case HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE:
-			prebuilt->in_update_remember_pos = FALSE;
+			prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
 			break;
 	        case HA_EXTRA_KEYREAD:
 	        	prebuilt->read_just_key = 1;
@@ -3282,7 +3134,7 @@ ha_innobase::external_lock(
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
-	prebuilt->in_update_remember_pos = TRUE;
+	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
 
 	prebuilt->read_just_key = 0;
 
@@ -3300,6 +3152,16 @@ ha_innobase::external_lock(
 
 		thd->transaction.all.innodb_active_trans = 1;
 		trx->n_mysql_tables_in_use++;
+
+		if (thd->tx_isolation == ISO_SERIALIZABLE
+		    && prebuilt->select_lock_type == LOCK_NONE) {
+
+		    	/* To get serializable execution we let InnoDB
+		    	conceptually add 'LOCK IN SHARE MODE' to all SELECTs
+			which otherwise would have been consistent reads */
+
+			prebuilt->select_lock_type = LOCK_S;
+		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
@@ -3407,8 +3269,8 @@ ha_innobase::store_lock(
 	    lock_type == TL_READ_NO_INSERT) {
 		/* This is a SELECT ... IN SHARE MODE, or
 		we are doing a complex SQL statement like
-		INSERT INTO ... SELECT ... and the logical logging
-		requires the use of a locking read */
+		INSERT INTO ... SELECT ... and the logical logging (MySQL
+		binlog) requires the use of a locking read */
 
 		prebuilt->select_lock_type = LOCK_S;
 	} else {
@@ -3448,37 +3310,59 @@ ha_innobase::get_auto_increment()
 /*=============================*/
                          /* out: the next auto-increment column value */
 {
-  row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-  longlong        nr;
-  int             error;
+  	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+  	longlong        nr;
+  	int     	error;
 
-  (void) extra(HA_EXTRA_KEYREAD);
-  index_init(table->next_number_index);
+	/* Also SHOW TABLE STATUS calls this function. Previously, when we did
+	always read the max autoinc key value, setting x-locks, users were
+	surprised that SHOW TABLE STATUS could end up in a deadlock with
+	ordinary SQL queries. We avoid these deadlocks if the auto-inc
+	counter for the table has been initialized by fetching the value
+	from the table struct in dictionary cache. */
 
-  /* We use an exclusive lock when we read the max key value from the
-  auto-increment column index. This is because then build_template will
-  advise InnoDB to fetch all columns. In SHOW TABLE STATUS the query
-  id of the auto-increment column is not changed, and previously InnoDB
-  did not fetch it, causing SHOW TABLE STATUS to show wrong values
-  for the autoinc column. */
+	assert(prebuilt->table);
+  	
+	nr = dict_table_autoinc_read(prebuilt->table);
 
-  prebuilt->select_lock_type = LOCK_X;
-  prebuilt->trx->mysql_n_tables_locked += 1;
+	if (nr != 0) {
+
+		return(nr + 1);
+	}
+
+  	(void) extra(HA_EXTRA_KEYREAD);
+  	index_init(table->next_number_index);
+
+	/* We use an exclusive lock when we read the max key value from the
+  	auto-increment column index. This is because then build_template will
+  	advise InnoDB to fetch all columns. In SHOW TABLE STATUS the query
+  	id of the auto-increment column is not changed, and previously InnoDB
+  	did not fetch it, causing SHOW TABLE STATUS to show wrong values
+  	for the autoinc column. */
+
+  	prebuilt->select_lock_type = LOCK_X;
+
+  	/* Play safe and also give in another way the hint to fetch
+  	all columns in the key: */
+  	
+	prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+
+  	prebuilt->trx->mysql_n_tables_locked += 1;
   
-  error=index_last(table->record[1]);
+  	error = index_last(table->record[1]);
 
-  if (error) {
-    nr = 1;
-  } else {
-    nr = (longlong) table->next_number_field->
-                        val_int_offset(table->rec_buff_length) + 1;
-  }
+  	if (error) {
+  		nr = 1;
+  	} else {
+    		nr = (longlong) table->next_number_field->
+                        	val_int_offset(table->rec_buff_length) + 1;
+  	}
 
-  (void) extra(HA_EXTRA_NO_KEYREAD);
+  	(void) extra(HA_EXTRA_NO_KEYREAD);
 
-  index_end();
+  	index_end();
 
-  return(nr);
+  	return(nr);
 }
 
 #endif /* HAVE_INNOBASE_DB */
