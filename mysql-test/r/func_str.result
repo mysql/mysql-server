@@ -733,3 +733,9 @@ WHERE a = CONV('e251273eb74a8ee3', 16, 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 DROP TABLE t1;
+SELECT CHAR(NULL,121,83,81,'76') as my_column;
+my_column
+ySQL
+SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
+my_column
+4
