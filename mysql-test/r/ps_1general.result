@@ -184,7 +184,7 @@ f3 int
 );
 insert into t5( f1, f2, f3) values( 9, 'recreated table', 9);
 execute stmt2 ;
-ERROR 42S22: Unknown column 't5.a' in 'field list'
+ERROR 42S22: Unknown column 'test.t5.a' in 'field list'
 drop table t5 ;
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
 execute stmt1 ;
