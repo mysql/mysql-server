@@ -739,7 +739,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 			query_cache_size_arg));
   free_cache(0);
   query_cache_size= query_cache_size_arg;
-  DBUG_RETURN(init_cache());
+  DBUG_RETURN(::query_cache_size= init_cache());
 }
 
 
@@ -1318,6 +1318,12 @@ ulong Query_cache::init_cache()
   mem_bin_steps = 1;
   mem_bin_size = max_mem_bin_size >> QUERY_CACHE_MEM_BIN_STEP_PWR2;
   prev_size = 0;
+  if (mem_bin_size <= min_allocation_unit)
+  {
+    DBUG_PRINT("qcache", ("too small query cache => query cache disabled"));
+    // TODO here (and above) should be warning in 4.1
+    goto err;
+  }
   while (mem_bin_size > min_allocation_unit)
   {
     mem_bin_num += mem_bin_count;
@@ -1344,14 +1350,6 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   STRUCT_LOCK(&structure_guard_mutex);
-  if (max_mem_bin_size	<= min_allocation_unit)
-  {
-    DBUG_PRINT("qcache",
-	       (" max bin size (%lu) <= min_allocation_unit => cache disabled",
-		max_mem_bin_size));
-    STRUCT_UNLOCK(&structure_guard_mutex);
-    goto err;
-  }
 
   if (!(cache = (byte *)
 	 my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
@@ -1432,7 +1430,8 @@ ulong Query_cache::init_cache()
 #else
   // windows, OS/2 or other case insensitive file names work around
   VOID(hash_init(&tables,
-		 lower_case_table_names ? &my_charset_bin : system_charset_info,
+		 lower_case_table_names ? &my_charset_bin :
+		 system_charset_info,
 		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 

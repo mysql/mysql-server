@@ -1481,9 +1481,7 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-	os_fast_mutex_free(&srv_os_test_mutex);  /* all platforms? */
-#endif /* __NETWARE__ */
+	os_fast_mutex_free(&srv_os_test_mutex);
 
 	if (srv_print_verbose_log) {
 	  	ut_print_timestamp(stderr);
@@ -1509,6 +1507,8 @@ innobase_shutdown_for_mysql(void)
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
 {
+	ulint   i;
+
         if (!srv_was_started) {
 	  	if (srv_is_being_started) {
 	    		ut_print_timestamp(stderr);
@@ -1521,7 +1521,7 @@ innobase_shutdown_for_mysql(void)
 	  	return(DB_SUCCESS);
 	}
 
-	/* Flush buffer pool to disk, write the current lsn to
+	/* 1. Flush buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive */
 
 	logs_empty_and_mark_files_at_shutdown();
@@ -1533,30 +1533,77 @@ innobase_shutdown_for_mysql(void)
 		srv_conc_n_threads);
 	}
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-	/*
-	  TODO: Fix this temporary solution
-	  We are having a race condition occure with io_handler_thread threads.
-	  When they yield in os_aio_simulated_handle during shutdown, this
-	  thread was able to free the memory early.
-	*/
-	os_thread_yield();
+	/* 2. Make all threads created by InnoDB to exit */
 
-	/* TODO: Where should this be called? */
+	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
+
+	/* All threads end up waiting for certain events. Put those events
+	to the signaled state. Then the threads will exit themselves in
+	os_thread_event_wait(). */
+
+	for (i = 0; i < 1000; i++) {
+	        /* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
+	        HERE OR EARLIER */
+		
+		/* 1. Let the lock timeout thread exit */
+		os_event_set(srv_lock_timeout_thread_event);		
+
+		/* 2. srv error monitor thread exits automatically, no need
+		to do anything here */
+
+		/* 3. We wake the master thread so that it exits */
+		srv_wake_master_thread();
+
+		/* 4. Exit the i/o threads */
+
+		os_aio_wake_all_threads_at_shutdown();
+
+		os_mutex_enter(os_sync_mutex);
+
+		if (os_thread_count == 0) {
+		        /* All the threads have exited or are just exiting;
+			NOTE that the threads may not have completed their
+			exit yet. Should we use pthread_join() to make sure
+			they have exited? Now we just sleep 0.1 seconds and
+			hope that is enough! */
+
+			os_mutex_exit(os_sync_mutex);
+
+			os_thread_sleep(100000);
+
+			break;
+		}
+
+		os_mutex_exit(os_sync_mutex);
+
+		os_thread_sleep(100000);
+	}
+
+	if (i == 1000) {
+	        fprintf(stderr,
+"InnoDB: Warning: %lu threads created by InnoDB had not exited at shutdown!\n",
+		      os_thread_count);
+	}
+
+	/* 3. Free all InnoDB's own mutexes */
+
+	sync_close();
+
+	/* 4. Free all OS synchronization primitives (in Windows currently
+	events are not freed) */
+
 	srv_free();
+	os_sync_free();
 
-	/* TODO: Where should this be called? */
-	srv_general_free();
-#endif
-	/*
-	TODO: We should exit the i/o-handler and other utility threads
-	before freeing all memory. Now this can potentially cause a seg
-	fault!
-	*/
-#if defined(NOT_WORKING_YET) || defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-        /* NetWare requires this free */
+	/* 5. Free all allocated memory (and the os_fast_mutex created in
+	ut0mem.c */
+
         ut_free_all_mem();
-#endif 
+
+	if (srv_print_verbose_log) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Shutdown completed\n");
+	}
 
 	return((int) DB_SUCCESS);
 }

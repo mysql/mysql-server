@@ -663,7 +663,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
         thd->protocol_simple.send_fields(&fields, 0) ||
         send_item_params(stmt))
       DBUG_RETURN(1);
-    join->cleanup(thd);
+    join->cleanup();
   }
   DBUG_RETURN(0);  
 }

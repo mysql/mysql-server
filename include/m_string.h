@@ -74,14 +74,14 @@
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
-# define bmove_allign(A,B,C)    memcpy((A),(B),(C))
+# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
 #if !defined(HAVE_BCMP)
 # define bcopy(s, d, n)		memcpy((d), (s), (n))
 # define bcmp(A,B,C)		memcmp((A),(B),(C))
 # define bzero(A,B)		memset((A),0,(B))
-# define bmove_allign(A,B,C)    memcpy((A),(B),(C))
+# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
 #if defined(__cplusplus) && !defined(OS2)
@@ -111,11 +111,11 @@ extern char NEAR _dig_vec[];		/* Declared in int2str() */
 #endif
 
 #ifdef MSDOS
-#undef bmove_allign
-#define bmove512(A,B,C) bmove_allign(A,B,C)
+#undef bmove_align
+#define bmove512(A,B,C) bmove_align(A,B,C)
 #define my_itoa(A,B,C) itoa(A,B,C)
 #define my_ltoa(A,B,C) ltoa(A,B,C)
-extern	void bmove_allign(gptr dst,const gptr src,uint len);
+extern	void bmove_align(gptr dst,const gptr src,uint len);
 #endif
 
 #if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)

@@ -177,9 +177,9 @@ t3	CREATE TABLE `t3` (
 ) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(t1,t2)
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
 select * from t4;
-Can't open file: 't4.MRG'. (errno: 143)
+ERROR HY000: Can't open file: 't4.MRG'. (errno: 143)
 create table t5 (a int not null, b char(10), key(a)) type=MERGE UNION=(test.t1,test_2.t2);
-Incorrect table definition; All MERGE tables must be in the same database
+ERROR HY000: Incorrect table definition; All MERGE tables must be in the same database
 drop table if exists t5,t4,t3,t1,t2;
 Warnings:
 Note	1051	Unknown table 't5'

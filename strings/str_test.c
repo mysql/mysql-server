@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,8 @@ int main(void)
   test_strarg("bmove_upp(to+6,from+6,3)",(bmove_upp(to+6,from+6,3),0L),INT_MAX32,
 	       3,T_CHAR,3,F_CHAR,0,0);
   test_strarg("bmove_upp(to,from,0)",(bmove_upp(to,from,0),0L),INT_MAX32,0,0);
+  test_strarg("bmove_align(to,from,8)",(bmove_align(to,from,8),0L),INT_MAX32,
+	      8,F_CHAR,0,0);
   test_strarg("strappend(to,3,' ')",(strappend(to,3,' '),0L),INT_MAX32,
 	      3,T_CHAR,1,0,T_LEN-4,T_CHAR,1,0,0,0);
   test_strarg("strappend(to,T_LEN+5,' ')",(strappend(to,T_LEN+5,' '),0L),INT_MAX32,

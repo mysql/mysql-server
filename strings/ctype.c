@@ -31,7 +31,6 @@ static char *mstr(char *str,const char *src,uint l1,uint l2)
   return str;
 }
 
-
 struct my_cs_file_section_st
 {
   int        state;
@@ -265,4 +264,3 @@ my_bool my_parse_charset_xml(const char *buf, uint len,
   my_xml_parser_free(&p);
   return rc;
 }
-

@@ -208,9 +208,9 @@ const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
-  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40",
+  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
@@ -323,6 +323,9 @@ struct system_variables max_system_variables;
 MY_TMPDIR mysql_tmpdir_list;
 DATE_FORMAT dayord;
 MY_BITMAP temp_pool;
+
+CHARSET_INFO *system_charset_info, *files_charset_info ;
+CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
@@ -562,7 +565,7 @@ static void close_connections(void)
     unix_sock= INVALID_SOCKET;
   }
 #endif
-  end_thr_alarm();			 // Don't allow alarms
+  end_thr_alarm(0);			 // Abort old alarms.
   end_slave();
 
   /* First signal all threads that it's time to die */
@@ -871,6 +874,7 @@ void clean_up(bool print_message)
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   end_key_cache();
+  end_thr_alarm(1);			/* Free allocated memory */
 #ifdef USE_RAID
   end_raid();
 #endif
@@ -936,7 +940,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_crypt);
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
-  (void) pthread_mutex_destroy(&LOCK_timezone);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
@@ -1497,7 +1500,6 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", (ulong) keybuff_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
-  fprintf(stderr, "sort_buffer_size=%ld\n", thd->variables.sortbuff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
@@ -1505,7 +1507,7 @@ and this may fail.\n\n");
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
 bytes of memory\n", ((ulong) keybuff_size +
 		     (global_system_variables.read_buff_size +
-		      thd->variables.sortbuff_size) *
+		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
@@ -1534,14 +1536,9 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
-    fprintf(stderr, "\n\
-Successfully dumped variables, if you ran with --log, take a look at the\n\
-details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the values shown above may be invalid.\n\n",
-	  thd->thread_id);
   }
   fprintf(stderr, "\
-The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
+The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
@@ -1565,6 +1562,7 @@ information that should help you find out what is causing the crash.\n");
 static void init_signals(void)
 {
   sigset_t set;
+  struct sigaction sa;
   DBUG_ENTER("init_signals");
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
@@ -1572,7 +1570,6 @@ static void init_signals(void)
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
-    struct sigaction sa;
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sigemptyset(&sa.sa_mask);
     sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
@@ -1614,15 +1611,23 @@ static void init_signals(void)
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
-  sigset(SIGTERM, print_signal_warning);	// If it's blocked by parent
-  sigset(SIGHUP, print_signal_warning);		// If it's blocked by parent
+
+  /* Fix signals if blocked by parents (can happen on Mac OS X) */
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sa.sa_handler = print_signal_warning;
+  sigaction(SIGTERM, &sa, (struct sigaction*) 0);
+  sa.sa_flags = 0;
+  sa.sa_handler = print_signal_warning;
+  sigaction(SIGHUP, &sa, (struct sigaction*) 0);
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
   sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
   sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
-  (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
+  sigprocmask(SIG_SETMASK,&set,NULL);
+  pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -1890,7 +1895,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",0 };
+const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0 };
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -1947,19 +1952,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   }
 #endif
 #ifdef HAVE_TZNAME
-#if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
     strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
-#else
-  {
-    struct tm *start_tm;
-    start_tm=localtime(&start_time);
-    strmov(time_zone,tzname[start_tm->tm_isdst != 0 ? 1 : 0]);
-  }
-#endif
 #endif
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
@@ -2073,7 +2070,6 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
@@ -2282,9 +2278,7 @@ static void handle_connections_methods()
 #endif /* __NT__ */
   if (have_tcpip && !opt_disable_networking)
   {
-#ifdef __NT__
     handler_count++;
-#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_sockets, 0))
     {
@@ -2295,9 +2289,7 @@ static void handle_connections_methods()
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
-#ifdef __NT__
     handler_count++;
-#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_shared_memory, 0))
     {
@@ -2312,6 +2304,16 @@ static void handle_connections_methods()
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
+
+void decrement_handler_count()
+{
+  pthread_mutex_lock(&LOCK_thread_count);
+  handler_count--;
+  pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_cond_signal(&COND_handler_count);
+}
+#else
+#define decrement_handler_count()
 #endif /* defined(__NT__) || defined(HAVE_SMEM) */
 
 
@@ -2429,18 +2431,18 @@ The server will not act as a slave.");
 #endif
   /* init_slave() must be called after the thread keys are created */
   init_slave();
-  
+
   if (opt_bootstrap)
   {
     int error=bootstrap(stdin);
-    end_thr_alarm();				// Don't allow alarms
+    end_thr_alarm(1);				// Don't allow alarms
     unireg_abort(error ? 1 : 0);
   }
   if (opt_init_file)
   {
     if (read_init_file(opt_init_file))
     {
-      end_thr_alarm();				// Don't allow alarms
+      end_thr_alarm(1);				// Don't allow alarms
       unireg_abort(1);
     }
   }
@@ -2612,9 +2614,12 @@ int main(int argc, char **argv)
 	return 0;
       if (Service.IsService(argv[2]))
       {
-	/* start an optional service */
+	/*
+	  mysqld was started as
+	  mysqld --defaults-file=my_path\my.ini service-name
+	*/
 	use_opt_args=1;
-	opt_argc=argc;
+	opt_argc= 2;				// Skip service-name
 	opt_argv=argv;
 	start_mode= 1;
 	Service.Init(argv[2], mysql_service);
@@ -3020,13 +3025,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
   // kill server must be invoked from thread 1!
   kill_server(MYSQL_KILL_SIGNAL);
 #endif
-
-#ifdef __NT__
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
-#endif
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 
@@ -3106,10 +3105,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     create_new_thread(thd);
   }
 
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 #endif /* __NT__ */
@@ -3323,12 +3319,8 @@ error:
   if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
   if (!event_connect_answer) CloseHandle(event_connect_answer);
   if (!event_connect_request) CloseHandle(event_connect_request);
-#ifdef __NT__  
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
-#endif  
+
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 #endif /* HAVE_SMEM */
@@ -3922,7 +3914,7 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &opt_sql_bin_update, (gptr*) &opt_sql_bin_update, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
-   "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
+   "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
 #ifdef HAVE_OPENSSL
@@ -4635,6 +4627,12 @@ static void mysql_init_variables(void)
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((gptr) &com_stat, sizeof(com_stat));
 
+  /* Character sets */
+  system_charset_info= &my_charset_utf8_general_ci;
+  files_charset_info= &my_charset_utf8_general_ci;
+  national_charset_info= &my_charset_utf8_general_ci;
+  table_alias_charset= &my_charset_bin;
+
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -4684,6 +4682,7 @@ static void mysql_init_variables(void)
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
   default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
   sys_charset_system.value= (char*) system_charset_info->csname;
+
 
   /* Set default values for some option variables */
   global_system_variables.character_set_server= default_charset_info;
@@ -4792,10 +4791,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':
-    global_system_variables.sql_mode=
-      (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
-       MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
-       MODE_ONLY_FULL_GROUP_BY);
+    global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
@@ -5273,11 +5269,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
       exit(1);
     }
-    global_system_variables.tx_isolation=
-      ((global_system_variables.sql_mode & MODE_SERIALIZABLE) ?
-       ISO_SERIALIZABLE :
-       ISO_REPEATABLE_READ);
-    break;
+    global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
+						   sql_mode);
   }
   case OPT_MASTER_PASSWORD:
     master_password=argument;
@@ -5335,6 +5328,9 @@ static void get_options(int argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+  table_alias_charset= (lower_case_table_names ?
+			files_charset_info :
+			&my_charset_bin);
 }
 
 
