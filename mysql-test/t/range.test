@@ -378,8 +378,12 @@ insert into t2(id, uid, name) select id, uid, name from t1;
 select count(*) from t1;  
 select count(*) from t2;
 
+analyze table t1,t2;
+
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;

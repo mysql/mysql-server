@@ -256,7 +256,7 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  if (args[1]->type() == FIELD_ITEM)
+  if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
   {
     Field *field=((Item_field*) args[1])->field;
     if (field->store_for_compare())
@@ -2008,6 +2008,44 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
+
+/*
+  Transform an Item_cond object with a transformer callback function
+   
+  SYNOPSIS
+    transform()
+    transformer   the transformer callback function to be applied to the nodes
+                  of the tree of the object
+    arg           parameter to be passed to the transformer
+  
+  DESCRIPTION
+    The function recursively applies the transform method with the
+    same transformer to each member item of the codition list.
+    If the call of the method for a member item returns a new item
+    the old item is substituted for a new one.
+    After this the transform method is applied to the root node
+    of the Item_cond object. 
+     
+  RETURN VALUES
+    Item returned as the result of transformation of the root node 
+*/
+
+Item *Item_cond::transform(Item_transformer transformer, byte *arg)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+  {
+    Item *new_item= item->transform(transformer, arg);
+    if (!new_item)
+      return 0;
+    if (new_item != item)
+      li.replace(new_item);
+  }
+  return Item_func::transform(transformer, arg);
+}
+
+
 void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
   List_iterator<Item> li(list);
@@ -2854,3 +2892,289 @@ Item *Item_bool_rowready_func2::negated_item()
   DBUG_ASSERT(0);
   return 0;
 }
+
+Item_equal::Item_equal(Item_field *f1, Item_field *f2)
+  : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  fields.push_back(f1);
+  fields.push_back(f2);
+}
+
+Item_equal::Item_equal(Item *c, Item_field *f)
+  : Item_bool_func(), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  fields.push_back(f);
+  const_item= c;
+}
+
+Item_equal::Item_equal(Item_equal *item_equal)
+  : Item_bool_func(), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  List_iterator_fast<Item_field> li(item_equal->fields);
+  Item_field *item;
+  while ((item= li++))
+  {
+    fields.push_back(item);
+  }
+  const_item= item_equal->const_item;
+  cond_false= item_equal->cond_false;
+}
+
+void Item_equal::add(Item *c)
+{
+  if (cond_false)
+    return;
+  if (!const_item)
+  {
+    const_item= c;
+    return;
+  }
+  Item_func_eq *func= new Item_func_eq(c, const_item);
+  func->set_cmp_func();
+  cond_false =  !(func->val_int());
+}
+
+void Item_equal::add(Item_field *f)
+{
+  fields.push_back(f);
+}
+
+uint Item_equal::members()
+{
+  uint count= 0;
+  List_iterator_fast<Item_field> li(fields);
+  Item_field *item;
+  while ((item= li++))
+    count++;
+  return count;
+}
+
+
+/*
+  Check whether a field is referred in the multiple equality 
+
+  SYNOPSIS
+    contains()
+    field   field whose occurence is to be checked
+  
+  DESCRIPTION
+    The function checks whether field is occured in the Item_equal object 
+    
+  RETURN VALUES
+    1       if nultiple equality contains a reference to field
+    0       otherwise    
+*/
+
+bool Item_equal::contains(Field *field)
+{
+  List_iterator_fast<Item_field> it(fields);
+  Item_field *item;
+  while ((item= it++))
+  {
+    if (field->eq(item->field))
+        return 1;
+  }
+  return 0;
+}
+
+
+/*
+  Join members of another Item_equal object  
+
+  SYNOPSIS
+    merge()
+    item    multiple equality whose members are to be joined
+  
+  DESCRIPTION
+    The function actually merges two multiple equalitis.
+    After this operation the Item_equal object additionally contains
+    the field items of another item of the type Item_equal.
+    If the optional constant items are not equal the cond_false flag is
+    set to 1.  
+       
+  RETURN VALUES
+    none    
+*/
+
+void Item_equal::merge(Item_equal *item)
+{
+  fields.concat(&item->fields);
+  Item *c= item->const_item;
+  if (c)
+  {
+    /* 
+      The flag cond_false will be set to 1 after this, if 
+      the multiple equality already contains a constant and its 
+      value is  not equal to the value of c.
+    */
+    add(const_item);
+  }
+  cond_false|= item->cond_false;
+} 
+
+
+/*
+  Order field items in multiple equality according to a sorting criteria 
+
+  SYNOPSIS
+    sort()
+    cmp          function to compare field item 
+    arg          context extra parameter for the cmp function
+  
+  DESCRIPTION
+    The function perform ordering of the field items in the Item_equal
+    object according to the criteria determined by the cmp callback parameter.
+    If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
+    placed after item_fiel2.
+
+  IMPLEMENTATION
+    The function sorts field items by the exchange sort algorithm.
+    The list of field items is looked through and whenever two neighboring
+    members follow in a wrong order they are swapped. This is performed
+    again and again until we get all members in a right order.
+         
+  RETURN VALUES
+    None    
+*/
+
+void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
+{
+  bool swap;
+  List_iterator<Item_field> it(fields);
+  do
+  {
+    Item_field *item1= it++;
+    Item_field **ref1= it.ref();
+    Item_field *item2;
+
+    swap= FALSE;
+    while ((item2= it++))
+    {
+      Item_field **ref2= it.ref();
+      if (cmp(item1, item2, arg) < 0)
+      {
+        Item_field *item= *ref1;
+        *ref1= *ref2;
+        *ref2= item;
+        swap= TRUE;
+      }
+      else
+      {
+        item1= item2;
+        ref1= ref2;
+      }
+    }
+    it.rewind();
+  } while (swap);
+}
+
+bool Item_equal::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  List_iterator_fast<Item_field> li(fields);
+  Item *item;
+  not_null_tables_cache= used_tables_cache= 0;
+  const_item_cache= 0;
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    used_tables_cache|= item->used_tables();
+    tmp_table_map= item->not_null_tables();
+    not_null_tables_cache|= tmp_table_map;
+    if (item->maybe_null)
+      maybe_null=1;
+  }
+  fix_length_and_dec();
+  fixed= 1;
+  return 0;
+}
+
+void Item_equal::update_used_tables()
+{
+  List_iterator_fast<Item_field> li(fields);
+  Item *item;
+  not_null_tables_cache= used_tables_cache= 0;
+  if ((const_item_cache= cond_false))
+    return;
+  while ((item=li++))
+  {
+    item->update_used_tables();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+  }
+}
+
+longlong Item_equal::val_int()
+{
+  if (cond_false)
+    return 0;
+  List_iterator_fast<Item_field> it(fields);
+  Item *item= const_item ? const_item : it++;
+  if ((null_value= item->null_value))
+    return 0;
+  eval_item->store_value(item);
+  while ((item= it++))
+  {
+    if ((null_value= item->null_value) || eval_item->cmp(item))
+      return 0;
+  }
+  return 1;
+}
+
+void Item_equal::fix_length_and_dec()
+{
+  Item *item= const_item ? const_item : get_first();
+  eval_item= cmp_item::get_comparator(item);
+  if (item->result_type() == STRING_RESULT)
+    eval_item->cmp_charset= cmp_collation.collation;
+}
+
+bool Item_equal::walk(Item_processor processor, byte *arg)
+{
+  List_iterator_fast<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+    if (item->walk(processor, arg))
+      return 1;
+  return Item_func::walk(processor, arg);
+}
+
+Item *Item_equal::transform(Item_transformer transformer, byte *arg)
+{
+  List_iterator<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+  {
+    Item *new_item= item->transform(transformer, arg);
+    if (!new_item)
+      return 0;
+    if (new_item != item)
+      it.replace((Item_field *) new_item);
+  }
+  return Item_func::transform(transformer, arg);
+}
+
+void Item_equal::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  List_iterator_fast<Item_field> it(fields);
+  Item *item;
+  if (const_item)
+    const_item->print(str);
+  else
+  {
+    item= it++;
+    item->print(str);
+  }
+  while ((item= it++))
+  {
+    str->append(',');
+    str->append(' ');
+    item->print(str);
+  }
+  str->append(')');
+}
+

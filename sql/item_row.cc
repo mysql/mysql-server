@@ -145,6 +145,18 @@ bool Item_row::walk(Item_processor processor, byte *arg)
   return (this->*processor)(arg);
 }
 
+Item *Item_row::transform(Item_transformer transformer, byte *arg)
+{
+  for (uint i= 0; i < arg_count; i++)
+  {
+    Item *new_item= items[i]->transform(transformer, arg);
+    if (!new_item)
+      return 0;
+    items[i]= new_item;
+  }
+  return (this->*transformer)(arg);
+}
+
 void Item_row::bring_value()
 {
   for (uint i= 0; i < arg_count; i++)
