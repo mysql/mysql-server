@@ -18,7 +18,8 @@ libkernel_a_SOURCES = \
         SimplePropertiesSection.cpp \
         SectionReader.cpp \
 	MetaData.cpp \
-        Mutex.cpp SafeCounter.cpp
+        Mutex.cpp SafeCounter.cpp \
+	SuperPool.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
 
