@@ -79,7 +79,7 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 
 
 bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
-                                   bool allow_superset_conversion)
+                                   uint flags)
 {
   uint i;
   c.nagg= 0;
@@ -87,11 +87,17 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation, allow_superset_conversion))
+    if (c.aggregate(av[i]->collation, flags))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
     }
+  }
+  if ((flags & MY_COLL_DISALLOW_NONE) &&
+      c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, count, func_name());
+    return TRUE;
   }
   return FALSE;
 }
@@ -99,17 +105,9 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count,
-                                                  bool allow_superset_conv)
+                                                  uint flags)
 {
-  if (agg_arg_collations(c, av, count, allow_superset_conv))
-    return TRUE;
-
-  if (c.derivation == DERIVATION_NONE)
-  {
-    my_coll_agg_error(av, count, func_name());
-    return TRUE;
-  }
-  return FALSE;
+  return (agg_arg_collations(c, av, count, flags | MY_COLL_DISALLOW_NONE));
 }
 
 
@@ -120,6 +118,90 @@ eval_const_cond(COND *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
+
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+*/
+
+bool Item_func::agg_arg_charsets(DTCollation &coll,
+                                 Item **args, uint nargs, uint flags)
+{
+  Item **arg, **last, *safe_args[2];
+  if (agg_arg_collations(coll, args, nargs, flags))
+    return TRUE;
+
+  /*
+    For better error reporting: save the first and the second argument.
+    We need this only if the the number of args is 3 or 2:
+    - for a longer argument list, "Illegal mix of collations"
+      doesn't display each argument's characteristics.
+    - if nargs is 1, then this error cannot happen.
+  */
+  if (nargs >=2 && nargs <= 3)
+  {
+    safe_args[0]= args[0];
+    safe_args[1]= args[1];
+  }
+
+  THD *thd= current_thd;
+  Item_arena *arena, backup;
+  bool res= FALSE;
+  /*
+    In case we're in statement prepare, create conversion item
+    in its memory: it will be reused on each execute.
+  */
+  arena= thd->change_arena_if_needed(&backup);
+
+  for (arg= args, last= args + nargs; arg < last; arg++)
+  {
+    Item* conv;
+    uint dummy_offset;
+    if (!String::needs_conversion(0, coll.collation,
+                                  (*arg)->collation.collation,
+                                  &dummy_offset))
+      continue;
+
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    {
+      if (nargs >=2 && nargs <= 3)
+      {
+        /* restore the original arguments for better error message */
+        args[0]= safe_args[0];
+        args[1]= safe_args[1];
+      }
+      my_coll_agg_error(args, nargs, func_name());
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
+    if ((*arg)->type() == FIELD_ITEM)
+      ((Item_field *)(*arg))->no_const_subst= 1;
+    conv->fix_fields(thd, 0, &conv);
+    *arg= conv;
+  }
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  return res;
+}
+
 
 
 void Item_func::set_arguments(List<Item> &list)
@@ -1185,7 +1267,7 @@ void Item_func_min_max::fix_length_and_dec()
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
@@ -1339,7 +1421,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 
@@ -1438,7 +1520,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(cmp_collation, args, arg_count);
+    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
@@ -2346,6 +2428,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    entry->collation.set(NULL, DERIVATION_NONE);
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -2387,7 +2470,24 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
-  entry->collation.set(args[0]->collation);
+  /*
+    As it is wrong and confusing to associate any 
+    character set with NULL, @a should be latin2
+    after this query sequence:
+
+      SET @a=_latin2'string';
+      SET @a=NULL;
+
+    I.e. the second query should not change the charset
+    to the current default value, but should keep the 
+    original value assigned during the first query.
+    In order to do it, we don't copy charset
+    from the argument if the argument is NULL
+    and the variable has previously been initialized.
+  */
+  if (!entry->collation.collation || !args[0]->null_value)
+    entry->collation.set(args[0]->collation);
+  collation.set(entry->collation);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2415,7 +2515,6 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    entry->collation.set(cs, dv);
   }
   else
   {
@@ -3003,8 +3102,9 @@ void Item_func_match::init_search(bool no_order)
 
   if (ft_tmp->charset() != cmp_collation.collation)
   {
+    uint dummy_errors;
     search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
-                      cmp_collation.collation);
+                      cmp_collation.collation, &dummy_errors);
     ft_tmp= &search_value;
   }
 
@@ -3414,7 +3514,7 @@ Item_func_sp::func_name() const
              1 +                         // .
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
-  String qname((char *)alloc_root(&thd->mem_root, len), len,
+  String qname((char *)alloc_root(thd->mem_root, len), len,
                system_charset_info);
 
   qname.length(0);

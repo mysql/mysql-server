@@ -171,8 +171,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
               (stmt->param_count &&
                stmt->thd->protocol_simple.send_fields((List<Item> *)
                                                       &stmt->lex->param_list,
-                                                      Protocol::SEND_EOF)) ||
-              net_flush(net));
+                                                      Protocol::SEND_EOF)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1072,7 +1071,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
-  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
     send_error(thd);
     goto err;
@@ -1098,7 +1097,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   {
     if (lex->describe)
     {
-      if (send_prep_stmt(stmt, 0))
+      if (send_prep_stmt(stmt, 0) || thd->protocol->flush())
         goto err_prep;
     }
     else
@@ -1116,11 +1115,8 @@ static int mysql_test_select(Prepared_statement *stmt,
         prepared in unit->prepare call above.
       */
       if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-          lex->result->send_fields(fields, Protocol::SEND_EOF)
-#ifndef EMBEDDED_LIBRARY
-          || net_flush(&thd->net)
-#endif
-         )
+          lex->result->send_fields(fields, Protocol::SEND_EOF) ||
+          thd->protocol->flush())
         goto err_prep;
     }
   }
@@ -1407,7 +1403,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
-
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
@@ -1472,6 +1467,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     break;
 
   case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
     break;
 
@@ -1510,7 +1506,8 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : (send_prep_stmt(stmt, 0) ||
+                                    thd->protocol->flush()));
 error:
   if (res < 0)
     send_error(thd,thd->killed_errno());
@@ -1540,7 +1537,7 @@ static bool init_param_array(Prepared_statement *stmt)
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
     stmt->param_array= (Item_param **)
-                       alloc_root(&stmt->thd->mem_root,
+                       alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
     {
@@ -1606,7 +1603,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (char*)name->str,
+    if (!(stmt->name.str= memdup_root(stmt->mem_root, (char*)name->str,
                                       name->length)))
     {
       delete stmt;
@@ -1850,7 +1847,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
-          !(stmt->cursor= new (&stmt->mem_root) Cursor()))
+          !(stmt->cursor= new (&stmt->main_mem_root) Cursor()))
       {
         send_error(thd, ER_OUT_OF_RESOURCES);
         DBUG_VOID_RETURN;
@@ -2035,7 +2032,12 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
 
 /*
   COM_FETCH handler: fetches requested amount of rows from cursor
+
   SYNOPSIS
+    mysql_stmt_fetch()
+    thd			Thread handler
+    packet		Packet from client (with stmt_id & num_rows)
+    packet_length	Length of packet
 */
 
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
@@ -2045,7 +2047,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong num_rows= uint4korr(packet+=4);
   Statement *stmt;
   int error;
-
   DBUG_ENTER("mysql_stmt_fetch");
 
   thd->current_arena= stmt;

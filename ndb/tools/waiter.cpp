@@ -16,11 +16,12 @@
 
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
+
 #include <mgmapi.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <getarg.h>
 #include <kernel/ndb_limits.h>
 #include "../include/mgmcommon/LocalConfig.hpp"
 
@@ -29,34 +30,59 @@
 int 
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
 
-int main(int argc, const char** argv){
-  ndb_init();
-
-  const char* _hostName = NULL;
-  int _no_contact = 0;
-  int _help = 0;
-  int _timeout = 120;
-
-  struct getargs args[] = {
-    { "timeout", 0, arg_integer, &_timeout, "Timeout to wait", "#" },
-    { "no-contact", 0, arg_flag, &_no_contact, "Wait for cluster no contact", "" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-  char desc[] = 
-    "hostname:port\n"\
-    "This program will connect to the mgmsrv of a NDB cluster.\n"\
-    "It will then wait for all nodes to be started\n";
-
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+static const char* opt_connect_str= 0;
+static int _no_contact = 0;
+static int _timeout = 120;
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "no-contact", 'n', "Wait for cluster no contact",
+    (gptr*) &_no_contact, (gptr*) &_no_contact, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "timeout", 't', "Timeout to wait",
+    (gptr*) &_timeout, (gptr*) &_timeout, 0,
+    GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_drop_table.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
   }
+  return 0;
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "ndb_tools",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  const char* _hostName = NULL;
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   char buf[255];
-  _hostName = argv[optind];
+  _hostName = argv[0];
 
   if (_hostName == NULL){
     LocalConfig lcfg;

@@ -106,12 +106,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 set @fvar= 123.4567;
 prepare stmt1 from @fvar;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
-set @str1 = 'select ?';
-set @str2 = convert(@str1 using ucs2);
-prepare stmt1 from @str2;
-execute stmt1 using @ivar;
-?
-1234
 drop table t1,t2;
 PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
 set @var='A';

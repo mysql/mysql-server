@@ -61,12 +61,11 @@ while ($1)
 
 select * from t1;
 
-# Waiting for the resolution of bug#6138
-# # Now, increase salary to a multiple of 50
-# prepare st_round from 'update t1 set salary = salary + ? - ( salary MOD ? )';
-# set @arg_round= 50;
-# execute st_round using @arg_round, @arg_round;
-# 
-# select * from t1;
+# Now, increase salary to a multiple of 50 (checks for bug#6138)
+prepare st_round from 'update t1 set salary = salary + ? - ( salary MOD ? )';
+set @arg_round= 50;
+execute st_round using @arg_round, @arg_round;
+
+select * from t1;
 
 drop table t1;
