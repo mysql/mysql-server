@@ -462,7 +462,7 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
     {
       /* a remove operation */
       if (!(service = OpenService(scm,szInternName, SERVICE_ALL_ACCESS )))
-	printf("The service doesn't exists!\n");
+	printf("The service doesn't exist!\n");
       else
       {
 	SERVICE_STATUS ss;

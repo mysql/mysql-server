@@ -57,6 +57,9 @@ then
 elif test -x @bindir@/mysql_print_defaults
 then
   print_defaults="@bindir@/mysql_print_defaults"
+elif test -x extra/my_print_defaults
+then
+  print_defaults="extra/my_print_defaults"
 else
   print_defaults="my_print_defaults"
 fi

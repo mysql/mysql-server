@@ -1227,7 +1227,7 @@ JOIN::exec()
     {
       // Some tables may have been const
       curr_join->tmp_having->update_used_tables();
-      JOIN_TAB *table= &curr_join->join_tab[const_tables];
+      JOIN_TAB *table= &curr_join->join_tab[curr_join->const_tables];
       table_map used_tables= curr_join->const_table_map | table->table->map;
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
@@ -1263,7 +1263,7 @@ JOIN::exec()
 	  We can abort sorting after thd->select_limit rows if we there is no
 	  WHERE clause for any tables after the sorted one.
 	*/
-	JOIN_TAB *table= &curr_join->join_tab[const_tables+1];
+	JOIN_TAB *table= &curr_join->join_tab[curr_join->const_tables+1];
 	JOIN_TAB *end_table= &curr_join->join_tab[tables];
 	for (; table < end_table ; table++)
 	{
@@ -4142,10 +4142,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->str_value.charset());
+				   item->name,table,item->charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->str_value.charset());
+				    item->name,table,item->charset());
       break;
     case ROW_RESULT: 
     default: 

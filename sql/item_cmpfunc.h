@@ -112,25 +112,25 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
-  CHARSET_INFO *cmp_charset;
+  DTCollation cmp_collation;
 
 public:
   Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), cmp_charset(0) {}
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1)
+    { cmp_collation.set(0,DERIVATION_NONE);}
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref);
   void fix_length_and_dec();
   void set_cmp_func()
   {
     cmp.set_cmp_func(this, tmp_arg, tmp_arg+1);
   }
-  bool set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1, 
-  		       CHARSET_INFO *cs2, enum coercion co2);
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  virtual bool binary() const { return test(cmp_charset->state & MY_CS_BINSORT); }
+  virtual bool binary() const 
+  { return test(cmp_collation.collation->state & MY_CS_BINSORT); }
 
   static Item_bool_func2* eq_creator(Item *a, Item *b);
   static Item_bool_func2* ne_creator(Item *a, Item *b);
@@ -245,7 +245,7 @@ public:
 
 class Item_func_between :public Item_int_func
 {
-  CHARSET_INFO *cmp_charset;
+  DTCollation cmp_collation;
 public:
   Item_result cmp_type;
   String value0,value1,value2;
@@ -382,21 +382,23 @@ class in_vector :public Sql_alloc
  protected:
   char *base;
   uint size;
-  qsort_cmp compare;
+  qsort2_cmp compare;
+  CHARSET_INFO *collation;
   uint count;
 public:
   uint used_count;
   in_vector() {}
-  in_vector(uint elements,uint element_length,qsort_cmp cmp_func)
+  in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
+  	    CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
-     size(element_length), compare(cmp_func), count(elements),
-     used_count(elements) {}
+     size(element_length), compare(cmp_func), collation(cmp_coll),
+     count(elements), used_count(elements) {}
   virtual ~in_vector() {}
   virtual void set(uint pos,Item *item)=0;
   virtual byte *get_value(Item *item)=0;
   void sort()
   {
-    qsort(base,used_count,size,compare);
+    qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
 };
@@ -406,7 +408,7 @@ class in_string :public in_vector
   char buff[80];
   String tmp;
 public:
-  in_string(uint elements,qsort_cmp cmp_func);
+  in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
@@ -605,6 +607,7 @@ class Item_func_in :public Item_int_func
   in_vector *array;
   cmp_item *in_item;
   bool have_null;
+  DTCollation cmp_collation;
  public:
   Item_func_in(Item *a,List<Item> &list)
     :Item_int_func(list), item(a), array(0), in_item(0), have_null(0)
@@ -747,7 +750,7 @@ class Item_func_regex :public Item_bool_func
   bool regex_compiled;
   bool regex_is_const;
   String prev_regexp;
-  bool binary_cmp;
+  DTCollation cmp_collation;
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}

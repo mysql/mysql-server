@@ -2022,7 +2022,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
-  bzero((char*) &mysql->options,sizeof(mysql->options));
   tmp_mysql.rpl_pivot = mysql->rpl_pivot;
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
@@ -2033,7 +2032,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
-  tmp_mysql.free_me=mysql->free_me;
+  tmp_mysql.free_me= mysql->free_me;
+  /* Don't free options as these are now used in tmp_mysql */
+  bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
@@ -2070,9 +2071,6 @@ mysql_select_db(MYSQL *mysql, const char *db)
 
 static void mysql_close_free_options(MYSQL *mysql)
 {
-  my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
@@ -2099,14 +2097,17 @@ static void mysql_close_free_options(MYSQL *mysql)
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
     my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_SMEM */
-    bzero((char*) &mysql->options,sizeof(mysql->options));
+  bzero((char*) &mysql->options,sizeof(mysql->options));
 }
 
 
 static void mysql_close_free(MYSQL *mysql)
 {
-  /* Clear pointers for better safety */
   my_free((gptr) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  /* Clear pointers for better safety */
   mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
 }
 
