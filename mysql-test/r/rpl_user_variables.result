@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+reset master;
 create table t1(n char(30));
 set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;
 set @s1:='This is a test', @r1:=12.5, @r2:=-12.5;
