@@ -222,6 +222,7 @@ FAILED_CASES=
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
+EXTRA_MYSQLSHOW_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
@@ -453,6 +454,8 @@ while test $# -gt 0; do
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
       EXTRA_MYSQLDUMP_OPT="$EXTRA_MYSQLDUMP_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqldump.trace"
+      EXTRA_MYSQLSHOW_OPT="$EXTRA_MYSQLSHOW_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlshow.trace"
       EXTRA_MYSQLBINLOG_OPT="$EXTRA_MYSQLBINLOG_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlbinlog.trace"
       EXTRA_MYSQL_CLIENT_TEST_OPT="--debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysql_client_test.trace"
@@ -556,6 +559,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlshow" ] ; then
+   MYSQL_SHOW="$BASEDIR/client/.libs/mysqlshow"
+ else
+   MYSQL_SHOW="$BASEDIR/client/mysqlshow"
+ fi
  if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
    MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
  else
@@ -627,6 +635,7 @@ else
  fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_SHOW="$CLIENT_BINDIR/mysqlshow"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
@@ -697,10 +706,11 @@ fi
 
 MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent $EXTRA_MYSQL_CLIENT_TEST_OPT"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+export MYSQL MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
 export NDB_MGM
@@ -731,7 +741,7 @@ if [ -n "$DO_CLIENT_GDB" -o -n "$DO_GDB" ] ; then
   XTERM=`which xterm`
 fi
 
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR MASTER_MYSOCK
+export MYSQL MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR MASTER_MYSOCK
 
 #++
 # Function Definitions
