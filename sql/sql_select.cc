@@ -5682,7 +5682,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(join->thd->net.report_error ? -1 : error)
+  DBUG_RETURN(join->thd->net.report_error ? -1 : error);
 }
 
 
