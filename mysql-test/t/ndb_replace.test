@@ -20,7 +20,7 @@ replace into t1 (gesuchnr,benutzer_id) values (1,1);
 insert into t1 (gesuchnr, benutzer_id) value (3,2);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
---error 1022
+--error 1062
 insert into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1 order by gesuchnr;
