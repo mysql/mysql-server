@@ -100,6 +100,8 @@ public:
   {						// Get overlapping range
     char *new_min,*new_max;
     uint8 flag_min,flag_max;
+    DBUG_ENTER("*clone_and");
+
     if (cmp_min_to_min(arg) >= 0)
     {
       new_min=min_value; flag_min=min_flag;
@@ -116,64 +118,83 @@ public:
     {
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
-    return new SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       test(maybe_flag && arg->maybe_flag));
+    DBUG_RETURN(new SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
+		       test(maybe_flag && arg->maybe_flag)));
   }
   SEL_ARG *clone_first(SEL_ARG *arg)
   {						// min <= X < arg->min
-    return new SEL_ARG(field,part, min_value, arg->min_value,
+    DBUG_ENTER("*clone_first");
+
+    DBUG_RETURN(new SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-		       maybe_flag | arg->maybe_flag);
+		       maybe_flag | arg->maybe_flag));
   }
   SEL_ARG *clone_last(SEL_ARG *arg)
   {						// min <= X <= key_max
-    return new SEL_ARG(field, part, min_value, arg->max_value,
-		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
+    DBUG_ENTER("*clone_last");
+
+    DBUG_RETURN(new SEL_ARG(field, part, min_value, arg->max_value,
+		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag));
   }
   SEL_ARG *clone(SEL_ARG *new_parent,SEL_ARG **next);
 
   bool copy_min(SEL_ARG* arg)
   {						// Get overlapping range
+    DBUG_ENTER("copy_min");
+
     if (cmp_min_to_min(arg) > 0)
     {
       min_value=arg->min_value; min_flag=arg->min_flag;
       if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
 	  (NO_MAX_RANGE | NO_MIN_RANGE))
-	return 1;				// Full range
+	DBUG_RETURN(1);				// Full range
     }
     maybe_flag|=arg->maybe_flag;
-    return 0;
+    DBUG_RETURN(0);
   }
   bool copy_max(SEL_ARG* arg)
   {						// Get overlapping range
+    DBUG_ENTER("copy_max");
+
     if (cmp_max_to_max(arg) <= 0)
     {
       max_value=arg->max_value; max_flag=arg->max_flag;
       if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
 	  (NO_MAX_RANGE | NO_MIN_RANGE))
-	return 1;				// Full range
+	DBUG_RETURN(1);				// Full range
     }
     maybe_flag|=arg->maybe_flag;
-    return 0;
+    DBUG_RETURN(0);
   }
 
   void copy_min_to_min(SEL_ARG *arg)
   {
+    DBUG_ENTER("copy_min_to_min");
+
     min_value=arg->min_value; min_flag=arg->min_flag;
+    DBUG_VOID_RETURN;
   }
   void copy_min_to_max(SEL_ARG *arg)
   {
+    DBUG_ENTER("copy_min_to_max");
+
     max_value=arg->min_value;
     max_flag=arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX;
+    DBUG_VOID_RETURN;
   }
   void copy_max_to_min(SEL_ARG *arg)
   {
+    DBUG_ENTER("copy_max_to_min");
+
     min_value=arg->max_value;
     min_flag=arg->max_flag & NEAR_MAX ? 0 : NEAR_MIN;
+    DBUG_VOID_RETURN;
   }
   void store(uint length,char **min_key,uint min_key_flag,
 	     char **max_key, uint max_key_flag)
   {
+    DBUG_ENTER("store");
+
     if (!(min_flag & NO_MIN_RANGE) &&
 	!(min_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
     {
@@ -198,11 +219,14 @@ public:
 	memcpy(*max_key,max_value,length+(int) maybe_null);
       (*max_key)+= length+(int) maybe_null;
     }
+    DBUG_VOID_RETURN;
   }
 
   void store_min_key(KEY_PART *key,char **range_key, uint *range_key_flag)
   {
     SEL_ARG *key_tree= first();
+    DBUG_ENTER("store_min_key");
+
     key_tree->store(key[key_tree->part].part_length,
 		    range_key,*range_key_flag,range_key,NO_MAX_RANGE);
     *range_key_flag|= key_tree->min_flag;
@@ -211,11 +235,14 @@ public:
 	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
       key_tree->next_key_part->store_min_key(key,range_key, range_key_flag);
+    DBUG_VOID_RETURN;
   }
 
   void store_max_key(KEY_PART *key,char **range_key, uint *range_key_flag)
   {
     SEL_ARG *key_tree= last();
+    DBUG_ENTER("store_max_key");
+
     key_tree->store(key[key_tree->part].part_length,
 		    range_key, NO_MIN_RANGE, range_key,*range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
@@ -224,6 +251,7 @@ public:
 	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
       key_tree->next_key_part->store_max_key(key,range_key, range_key_flag);
+    DBUG_VOID_RETURN;
   }
 
   SEL_ARG *insert(SEL_ARG *key);
@@ -244,6 +272,8 @@ public:
   }
   void increment_use_count(long count)
   {
+    DBUG_ENTER("increment_use_count");
+
     if (next_key_part)
     {
       next_key_part->use_count+=count;
@@ -252,15 +282,19 @@ public:
 	if (pos->next_key_part)
 	  pos->increment_use_count(count);
     }
+    DBUG_VOID_RETURN;
   }
   void free_tree()
   {
+    DBUG_ENTER("free_tree");
+
     for (SEL_ARG *pos=first(); pos ; pos=pos->next)
       if (pos->next_key_part)
       {
 	pos->next_key_part->use_count--;
 	pos->next_key_part->free_tree();
       }
+    DBUG_VOID_RETURN;
   }
 
   inline SEL_ARG **parent_ptr()
@@ -369,17 +403,23 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
 {
+  DBUG_ENTER("SQL_SELECT::SQL_SELECT");
+
   quick_keys=0; needed_reg=0;
   my_b_clear(&file);
+  DBUG_VOID_RETURN;
 }
 
 
 SQL_SELECT::~SQL_SELECT()
 {
   delete quick;
+  DBUG_ENTER("SQL_SELECT::~SQL_SELECT");
+
   if (free_cond)
     delete cond;
   close_cached_file(&file);
+  DBUG_VOID_RETURN;
 }
 
 #undef index					// Fix for Unixware 7
@@ -388,6 +428,8 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
   :dont_free(0),error(0),index(key_nr),max_used_key_length(0),head(table),
    it(ranges),range(0)
 {
+  DBUG_ENTER("QUICK_SELECT::QUICK_SELECT");
+
   if (!no_alloc)
   {
     init_sql_alloc(&alloc,1024,0);		// Allocates everything here
@@ -398,15 +440,19 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
   file=head->file;
   record=head->record[0];
   init();
+  DBUG_VOID_RETURN;
 }
 
 QUICK_SELECT::~QUICK_SELECT()
 {
+  DBUG_ENTER("QUICK_SELECT::~QUICK_SELECT");
+
   if (!dont_free)
   {
     file->index_end();
     free_root(&alloc,MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 QUICK_RANGE::QUICK_RANGE()
@@ -416,6 +462,8 @@ QUICK_RANGE::QUICK_RANGE()
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
 {
+  DBUG_ENTER("SEL_ARG::SEL_ARG");
+
   type=arg.type;
   min_flag=arg.min_flag;
   max_flag=arg.max_flag;
@@ -427,6 +475,7 @@ SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
   max_value=arg.max_value;
   next_key_part=arg.next_key_part;
   use_count=1; elements=1;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -444,7 +493,10 @@ SEL_ARG::SEL_ARG(Field *f,const char *min_value_arg,const char *max_value_arg)
    max_value((char*) max_value_arg), next(0),prev(0),
    next_key_part(0),color(BLACK),type(KEY_RANGE)
 {
+  DBUG_ENTER("SEL_ARG::SEL_ARG");
+
   left=right= &null_element;
+  DBUG_VOID_RETURN;
 }
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,char *min_value_,char *max_value_,
@@ -454,12 +506,17 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,char *min_value_,char *max_value_,
    field(field_), min_value(min_value_), max_value(max_value_),
    next(0),prev(0),next_key_part(0),color(BLACK),type(KEY_RANGE)
 {
+  DBUG_ENTER("SEL_ARG::SEL_ARG");
+
   left=right= &null_element;
+  DBUG_VOID_RETURN;
 }
 
 SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
 {
   SEL_ARG *tmp;
+  DBUG_ENTER("*SEL_ARG::clone");
+
   if (type != KEY_RANGE)
   {
     tmp=new SEL_ARG(type);
@@ -484,27 +541,31 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
       tmp->right=right->clone(tmp,next_arg);
   }
   increment_use_count(1);
-  return tmp;
+  DBUG_RETURN(tmp);
 }
 
 SEL_ARG *SEL_ARG::first()
 {
   SEL_ARG *next_arg=this;
+  DBUG_ENTER("*SEL_ARG::first");
+
   if (!next_arg->left)
-    return 0;					// MAYBE_KEY
+    DBUG_RETURN(0);					// MAYBE_KEY
   while (next_arg->left != &null_element)
     next_arg=next_arg->left;
-  return next_arg;
+  DBUG_RETURN(next_arg);
 }
 
 SEL_ARG *SEL_ARG::last()
 {
   SEL_ARG *next_arg=this;
+  DBUG_ENTER("*SEL_ARG::last");
+
   if (!next_arg->right)
-    return 0;					// MAYBE_KEY
+    DBUG_RETURN(0);					// MAYBE_KEY
   while (next_arg->right != &null_element)
     next_arg=next_arg->right;
-  return next_arg;
+  DBUG_RETURN(next_arg);
 }
 
 /*
@@ -515,55 +576,59 @@ SEL_ARG *SEL_ARG::last()
 static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
 {
   int cmp;
+  DBUG_ENTER("sel_cmp");
+
   /* First check if there was a compare to a min or max element */
   if (a_flag & (NO_MIN_RANGE | NO_MAX_RANGE))
   {
     if ((a_flag & (NO_MIN_RANGE | NO_MAX_RANGE)) ==
 	(b_flag & (NO_MIN_RANGE | NO_MAX_RANGE)))
-      return 0;
-    return (a_flag & NO_MIN_RANGE) ? -1 : 1;
+      DBUG_RETURN(0);
+    DBUG_RETURN((a_flag & NO_MIN_RANGE) ? -1 : 1);
   }
   if (b_flag & (NO_MIN_RANGE | NO_MAX_RANGE))
-    return (b_flag & NO_MIN_RANGE) ? 1 : -1;
+    DBUG_RETURN((b_flag & NO_MIN_RANGE) ? 1 : -1);
 
   if (field->real_maybe_null())			// If null is part of key
   {
     if (*a != *b)
     {
-      return *a ? -1 : 1;
+      DBUG_RETURN(*a ? -1 : 1);
     }
     if (*a)
       goto end;					// NULL where equal
     a++; b++;					// Skip NULL marker
   }
   cmp=field->key_cmp((byte*) a,(byte*) b);
-  if (cmp) return cmp < 0 ? -1 : 1;		// The values differed
+  if (cmp) DBUG_RETURN(cmp < 0 ? -1 : 1);		// The values differed
 
   // Check if the compared equal arguments was defined with open/closed range
  end:
   if (a_flag & (NEAR_MIN | NEAR_MAX))
   {
     if ((a_flag & (NEAR_MIN | NEAR_MAX)) == (b_flag & (NEAR_MIN | NEAR_MAX)))
-      return 0;
+      DBUG_RETURN(0);
     if (!(b_flag & (NEAR_MIN | NEAR_MAX)))
-      return (a_flag & NEAR_MIN) ? 2 : -2;
-    return (a_flag & NEAR_MIN) ? 1 : -1;
+      DBUG_RETURN((a_flag & NEAR_MIN) ? 2 : -2);
+    DBUG_RETURN((a_flag & NEAR_MIN) ? 1 : -1);
   }
   if (b_flag & (NEAR_MIN | NEAR_MAX))
-    return (b_flag & NEAR_MIN) ? -2 : 2;
-  return 0;					// The elements where equal
+    DBUG_RETURN((b_flag & NEAR_MIN) ? -2 : 2);
+  DBUG_RETURN(0);					// The elements where equal
 }
 
 
 SEL_ARG *SEL_ARG::clone_tree()
 {
   SEL_ARG tmp_link,*next_arg,*root;
+  DBUG_ENTER("*SEL_ARG::clone_tree");
+
   next_arg= &tmp_link;
   root=clone((SEL_ARG *) 0, &next_arg);
   next_arg->next=0;				// Fix last link
   tmp_link.next->prev=0;			// Fix first link
   root->use_count=0;
-  return root;
+  DBUG_RETURN(root);
 }
 
 /*****************************************************************************
@@ -1102,6 +1167,7 @@ static bool like_range(const char *ptr,uint ptr_length,char escape,
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
+  DBUG_ENTER("like_range");
 
   for (; ptr != end && min_str != min_end ; ptr++)
   {
@@ -1125,7 +1191,7 @@ static bool like_range(const char *ptr,uint ptr_length,char escape,
 	*min_str++ = ' ';			// Because if key compression
 	*max_str++ = max_sort_chr;
       } while (min_str != min_end);
-      return 0;
+      DBUG_RETURN(0);
     }
     *min_str++= *max_str++ = *ptr;
   }
@@ -1137,7 +1203,7 @@ static bool like_range(const char *ptr,uint ptr_length,char escape,
 
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' ';		// Because if key compression
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1162,11 +1228,12 @@ static SEL_ARG *
 sel_add(SEL_ARG *key1,SEL_ARG *key2)
 {
   SEL_ARG *root,**key_link;
+  DBUG_ENTER("sel_add");
 
   if (!key1)
-    return key2;
+    DBUG_RETURN(key2);
   if (!key2)
-    return key1;
+    DBUG_RETURN(key1);
 
   key_link= &root;
   while (key1 && key2)
@@ -1185,7 +1252,7 @@ sel_add(SEL_ARG *key1,SEL_ARG *key2)
     }
   }
   *key_link=key1 ? key1 : key2;
-  return root;
+  DBUG_RETURN(root);
 }
 
 #define CLONE_KEY1_MAYBE 1
@@ -1286,6 +1353,7 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 {
   SEL_ARG *next;
   ulong use_count=key1->use_count;
+  DBUG_ENTER("and_all_keys");
 
   if (key1->elements != 1)
   {
@@ -1315,9 +1383,9 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
       next->next_key_part=key2;
   }
   if (!key1)
-    return &null_element;			// Impossible ranges
+    DBUG_RETURN(&null_element);			// Impossible ranges
   key1->use_count++;
-  return key1;
+  DBUG_RETURN(key1);
 }
 
 
@@ -1325,10 +1393,12 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 static SEL_ARG *
 key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 {
+  DBUG_ENTER("key_and");
+
   if (!key1)
-    return key2;
+    DBUG_RETURN(key2);
   if (!key2)
-    return key1;
+    DBUG_RETURN(key1);
   if (key1->part != key2->part)
   {
     if (key1->part > key2->part)
@@ -1340,7 +1410,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     key1->use_count--;
     if (key1->use_count > 0)
       key1=key1->clone_tree();
-    return and_all_keys(key1,key2,clone_flag);
+    DBUG_RETURN(and_all_keys(key1,key2,clone_flag));
   }
 
   if (((clone_flag & CLONE_KEY2_MAYBE) &&
@@ -1366,16 +1436,16 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 				 clone_flag);
       if (key1->next_key_part &&
 	  key1->next_key_part->type == SEL_ARG::IMPOSSIBLE)
-	return key1;
+	DBUG_RETURN(key1);
     }
     else
     {
       key1->maybe_smaller();
       if (key2->next_key_part)
-	return and_all_keys(key1,key2,clone_flag);
+	DBUG_RETURN(and_all_keys(key1,key2,clone_flag));
       key2->use_count--;			// Key2 doesn't have a tree
     }
-    return key1;
+    DBUG_RETURN(key1);
   }
 
   key1->use_count--;
@@ -1414,32 +1484,36 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   key1->free_tree();
   key2->free_tree();
   if (!new_tree)
-    return &null_element;			// Impossible range
-  return new_tree;
+    DBUG_RETURN(&null_element);			// Impossible range
+  DBUG_RETURN(new_tree);
 }
 
 
 static bool
 get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 {
+  DBUG_ENTER("get_range");
+
   (*e1)=root1->find_range(*e2);			// first e1->min < e2->min
   if ((*e1)->cmp_max_to_min(*e2) < 0)
   {
     if (!((*e1)=(*e1)->next))
-      return 1;
+      DBUG_RETURN(1);
     if ((*e1)->cmp_min_to_max(*e2) > 0)
     {
       (*e2)=(*e2)->next;
-      return 1;
+      DBUG_RETURN(1);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 static SEL_ARG *
 key_or(SEL_ARG *key1,SEL_ARG *key2)
 {
+  DBUG_ENTER("key_or");
+
   if (!key1)
   {
     if (key2)
@@ -1447,13 +1521,13 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
       key2->use_count--;
       key2->free_tree();
     }
-    return 0;
+    DBUG_RETURN(0);
   }
   else if (!key2)
   {
     key1->use_count--;
     key1->free_tree();
-    return 0;
+    DBUG_RETURN(0);
   }
   key1->use_count--;
   key2->use_count--;
@@ -1462,7 +1536,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   {
     key1->free_tree();
     key2->free_tree();
-    return 0;					// Can't optimize this
+    DBUG_RETURN(0);					// Can't optimize this
   }
 
   // If one of the key is MAYBE_KEY then the found region may be bigger
@@ -1470,13 +1544,13 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   {
     key2->free_tree();
     key1->use_count++;
-    return key1;
+    DBUG_RETURN(key1);
   }
   if (key2->type == SEL_ARG::MAYBE_KEY)
   {
     key1->free_tree();
     key2->use_count++;
-    return key2;
+    DBUG_RETURN(key2);
   }
 
   if (key1->use_count > 0)
@@ -1541,8 +1615,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	      tmp->max_flag & NO_MAX_RANGE)
 	  {
 	    if (key1->maybe_flag)
-	      return new SEL_ARG(SEL_ARG::MAYBE_KEY);
-	    return 0;
+	      DBUG_RETURN(new SEL_ARG(SEL_ARG::MAYBE_KEY));
+	    DBUG_RETURN(0);
 	  }
 	  key2->increment_use_count(-1);	// Free not used tree
 	  key2=key2->next;
@@ -1588,8 +1662,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  for (; key2 ; key2=key2->next)
 	    key2->increment_use_count(-1);	// Free not used tree
 	  if (key1->maybe_flag)
-	    return new SEL_ARG(SEL_ARG::MAYBE_KEY);
-	  return 0;
+	    DBUG_RETURN(new SEL_ARG(SEL_ARG::MAYBE_KEY));
+	  DBUG_RETURN(0);
 	}
       }
       key2=key2->next;
@@ -1663,7 +1737,7 @@ end:
     key2=next;
   }
   key1->use_count++;
-  return key1;
+  DBUG_RETURN(key1);
 }
 
 
@@ -1671,31 +1745,33 @@ end:
 
 static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 {
+  DBUG_ENTER("eq_tree");
+
   if (a == b)
-    return 1;
+    DBUG_RETURN(1);
   if (!a || !b || !a->is_same(b))
-    return 0;
+    DBUG_RETURN(0);
   if (a->left != &null_element && b->left != &null_element)
   {
     if (!eq_tree(a->left,b->left))
-      return 0;
+      DBUG_RETURN(0);
   }
   else if (a->left != &null_element || b->left != &null_element)
-    return 0;
+    DBUG_RETURN(0);
   if (a->right != &null_element && b->right != &null_element)
   {
     if (!eq_tree(a->right,b->right))
-      return 0;
+      DBUG_RETURN(0);
   }
   else if (a->right != &null_element || b->right != &null_element)
-    return 0;
+    DBUG_RETURN(0);
   if (a->next_key_part != b->next_key_part)
   {						// Sub range
     if (!a->next_key_part != !b->next_key_part ||
 	!eq_tree(a->next_key_part, b->next_key_part))
-      return 0;
+      DBUG_RETURN(0);
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -1703,6 +1779,7 @@ SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element,**par,*last_element;
+  DBUG_ENTER("SEL_ARG::insert");
 
   LINT_INIT(par); LINT_INIT(last_element);
   for (element= this; element != &null_element ; )
@@ -1739,7 +1816,7 @@ SEL_ARG::insert(SEL_ARG *key)
   root->use_count=this->use_count;		// copy root info
   root->elements= this->elements+1;
   root->maybe_flag=this->maybe_flag;
-  return root;
+  DBUG_RETURN(root);
 }
 
 
@@ -1752,14 +1829,15 @@ SEL_ARG *
 SEL_ARG::find_range(SEL_ARG *key)
 {
   SEL_ARG *element=this,*found=0;
+  DBUG_ENTER("SEL_ARG::find_range");
 
   for (;;)
   {
     if (element == &null_element)
-      return found;
+      DBUG_RETURN(found);
     int cmp=element->cmp_min_to_min(key);
     if (cmp == 0)
-      return element;
+      DBUG_RETURN(element);
     if (cmp < 0)
     {
       found=element;
@@ -1768,6 +1846,7 @@ SEL_ARG::find_range(SEL_ARG *key)
     else
       element=element->left;
   }
+  DBUG_RETURN(NULL); // impossible
 }
 
 
@@ -1781,6 +1860,8 @@ SEL_ARG::tree_delete(SEL_ARG *key)
 {
   enum leaf_color remove_color;
   SEL_ARG *root,*nod,**par,*fix_par;
+  DBUG_ENTER("SEL_ARG::tree_delete");
+
   root=this; this->parent= 0;
 
   /* Unlink from list */
@@ -1828,7 +1909,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   }
 
   if (root == &null_element)
-    return 0;					// Maybe root later
+    DBUG_RETURN(0);					// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
   test_rb_tree(root,root->parent);
@@ -1836,7 +1917,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
-  return root;
+  DBUG_RETURN(root);
 }
 
 
@@ -1845,6 +1926,8 @@ SEL_ARG::tree_delete(SEL_ARG *key)
 static void left_rotate(SEL_ARG **root,SEL_ARG *leaf)
 {
   SEL_ARG *y=leaf->right;
+  DBUG_ENTER("left_rotate");
+
   leaf->right=y->left;
   if (y->left != &null_element)
     y->left->parent=leaf;
@@ -1854,11 +1937,14 @@ static void left_rotate(SEL_ARG **root,SEL_ARG *leaf)
     *leaf->parent_ptr()=y;
   y->left=leaf;
   leaf->parent=y;
+  DBUG_VOID_RETURN;
 }
 
 static void right_rotate(SEL_ARG **root,SEL_ARG *leaf)
 {
   SEL_ARG *y=leaf->left;
+  DBUG_ENTER("right_rotate");
+
   leaf->left=y->right;
   if (y->right != &null_element)
     y->right->parent=leaf;
@@ -1868,6 +1954,7 @@ static void right_rotate(SEL_ARG **root,SEL_ARG *leaf)
     *leaf->parent_ptr()=y;
   y->right=leaf;
   leaf->parent=y;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1875,6 +1962,8 @@ SEL_ARG *
 SEL_ARG::rb_insert(SEL_ARG *leaf)
 {
   SEL_ARG *y,*par,*par2,*root;
+  DBUG_ENTER("SEL_ARG::rb_insert");
+
   root= this; root->parent= 0;
 
   leaf->color=RED;
@@ -1929,13 +2018,15 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
   }
   root->color=BLACK;
   test_rb_tree(root,root->parent);
-  return root;
+  DBUG_RETURN(root);
 }
 
 
 SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 {
   SEL_ARG *x,*w;
+  DBUG_ENTER("*rb_delete_fixup");
+
   root->parent=0;
 
   x= key;
@@ -2008,7 +2099,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
     par=x->parent;
   }
   x->color=SEL_ARG::BLACK;
-  return root;
+  DBUG_RETURN(root);
 }
 
 
@@ -2018,41 +2109,44 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 {
   int count_l,count_r;
+  DBUG_ENTER("test_rb_tree");
 
   if (element == &null_element)
-    return 0;					// Found end of tree
+    DBUG_RETURN(0);					// Found end of tree
   if (element->parent != parent)
   {
     sql_print_error("Wrong tree: Parent doesn't point at parent");
-    return -1;
+    DBUG_RETURN(-1);
   }
   if (element->color == SEL_ARG::RED &&
       (element->left->color == SEL_ARG::RED ||
        element->right->color == SEL_ARG::RED))
   {
     sql_print_error("Wrong tree: Found two red in a row");
-    return -1;
+    DBUG_RETURN(-1);
   }
   if (element->left == element->right && element->left != &null_element)
   {						// Dummy test
     sql_print_error("Wrong tree: Found right == left");
-    return -1;
+    DBUG_RETURN(-1);
   }
   count_l=test_rb_tree(element->left,element);
   count_r=test_rb_tree(element->right,element);
   if (count_l >= 0 && count_r >= 0)
   {
     if (count_l == count_r)
-      return count_l+(element->color == SEL_ARG::BLACK);
+      DBUG_RETURN(count_l+(element->color == SEL_ARG::BLACK));
     sql_print_error("Wrong tree: Incorrect black-count: %d - %d",
 	    count_l,count_r);
   }
-  return -1;					// Error, no more warnings
+  DBUG_RETURN(-1);					// Error, no more warnings
 }
 
 static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 {
   ulong count= 0;
+  DBUG_ENTER("count_key_part_usage");
+
   for (root=root->first(); root ; root=root->next)
   {
     if (root->next_key_part)
@@ -2063,19 +2157,21 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 	count+=count_key_part_usage(root->next_key_part,key);
     }
   }
-  return count;
+  DBUG_RETURN(count);
 }
 
 
 void SEL_ARG::test_use_count(SEL_ARG *root)
 {
+  DBUG_ENTER("SEL_ARG::test_use_count");
+
   if (this == root && use_count != 1)
   {
     sql_print_error("Use_count: Wrong count %lu for root",use_count);
-    return;
+    DBUG_VOID_RETURN;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
-    return;
+    DBUG_VOID_RETURN;
   uint e_count=0;
   for (SEL_ARG *pos=first(); pos ; pos=pos->next)
   {
@@ -2087,7 +2183,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       {
 	sql_print_error("Use_count: Wrong count for key at %lx, %lu should be %lu",
 			pos,pos->next_key_part->use_count,count);
-	return;
+	DBUG_VOID_RETURN;
       }
       pos->next_key_part->test_use_count(root);
     }
@@ -2095,6 +2191,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   if (e_count != elements)
     sql_print_error("Wrong use count: %u for tree at %lx", e_count,
 		    (gptr) this);
+  DBUG_VOID_RETURN;
 }
 
 #endif
@@ -2136,6 +2233,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
 		 uint max_key_flag)
 {
   ha_rows records=0,tmp;
+  DBUG_ENTER("check_quick_keys");
 
   param->max_key_part=max(param->max_key_part,key_tree->part);
   if (key_tree->left != &null_element)
@@ -2143,7 +2241,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     records=check_quick_keys(param,idx,key_tree->left,min_key,min_key_flag,
 			     max_key,max_key_flag);
     if (records == HA_POS_ERROR)			// Impossible
-      return records;
+      DBUG_RETURN(records);
   }
 
   uint tmp_min_flag,tmp_max_flag,keynr;
@@ -2206,17 +2304,17 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
 			  HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
  end:
   if (tmp == HA_POS_ERROR)			// Impossible range
-    return tmp;
+    DBUG_RETURN(tmp);
   records+=tmp;
   if (key_tree->right != &null_element)
   {
     tmp=check_quick_keys(param,idx,key_tree->right,min_key,min_key_flag,
 			 max_key,max_key_flag);
     if (tmp == HA_POS_ERROR)
-      return tmp;
+      DBUG_RETURN(tmp);
     records+=tmp;
   }
-  return records;
+  DBUG_RETURN(records);
 }
 
 
@@ -2262,12 +2360,13 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
 {
   QUICK_RANGE *range;
   uint flag;
+  DBUG_ENTER("get_quick_keys");
 
   if (key_tree->left != &null_element)
   {
     if (get_quick_keys(param,quick,key,key_tree->left,
 		       min_key,min_key_flag, max_key, max_key_flag))
-      return 1;
+      DBUG_RETURN(1);
   }
   char *tmp_min_key=min_key,*tmp_max_key=max_key;
   key_tree->store(key[key_tree->part].part_length,
@@ -2284,7 +2383,7 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
       if (get_quick_keys(param,quick,key,key_tree->next_key_part,
 			 tmp_min_key, min_key_flag | key_tree->min_flag,
 			 tmp_max_key, max_key_flag | key_tree->max_flag))
-	return 1;
+	DBUG_RETURN(1);
       goto end;					// Ugly, but efficient
     }
     {
@@ -2342,15 +2441,15 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length,range->min_length);
   set_if_bigger(quick->max_used_key_length,range->max_length);
   if (!range)					// Not enough memory
-    return 1;
+    DBUG_RETURN(1);
   quick->ranges.push_back(range);
 
  end:
   if (key_tree->right != &null_element)
-    return get_quick_keys(param,quick,key,key_tree->right,
+    DBUG_RETURN(get_quick_keys(param,quick,key,key_tree->right,
 			  min_key,min_key_flag,
-			  max_key,max_key_flag);
-  return 0;
+			  max_key,max_key_flag));
+  DBUG_RETURN(0);
 }
 
 /*
@@ -2359,17 +2458,19 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
 
 bool QUICK_SELECT::unique_key_range()
 {
+  DBUG_ENTER("QUICK_SELECT::unique_key_range");
+
   if (ranges.elements == 1)
   {
     QUICK_RANGE *tmp;
     if (((tmp=ranges.head())->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
-      return ((key->flags & HA_NOSAME) &&
-	      key->key_length == tmp->min_length);
+      DBUG_RETURN(((key->flags & HA_NOSAME) &&
+	      key->key_length == tmp->min_length));
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2377,6 +2478,8 @@ bool QUICK_SELECT::unique_key_range()
 
 static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 {
+  DBUG_ENTER("null_part_in_key");
+
   for (const char *end=key+length ; 
        key < end;
        key+= key_part++->part_length)
@@ -2384,10 +2487,10 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
     if (key_part->null_bit)
     {
       if (*key++)
-	return 1;
+	DBUG_RETURN(1);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /****************************************************************************
@@ -2396,6 +2499,8 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 
 QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
 {
+  DBUG_ENTER("*get_quick_select_for_ref");
+
   table->file->index_end();			// Remove old cursor
   QUICK_SELECT *quick=new QUICK_SELECT(table, ref->key, 1);
   KEY *key_info = &table->key_info[ref->key];
@@ -2403,7 +2508,7 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
   uint part;
 
   if (!quick)
-    return 0;
+    DBUG_RETURN(0);
   QUICK_RANGE *range= new QUICK_RANGE();
   if (!range || cp_buffer_from_ref(ref))
     goto err;
@@ -2426,11 +2531,11 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
     key_part->null_bit=     key_info->key_part[part].null_bit;
   }
   if (!quick->ranges.push_back(range))
-    return quick;
+    DBUG_RETURN(quick);
 
 err:
   delete quick;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 	/* get next possible record using quick-struct */
@@ -2491,6 +2596,7 @@ int QUICK_SELECT::get_next()
     }
     range=0;					// To next range
   }
+  DBUG_RETURN(0); // impossible
 }
 
 	/* compare if found key is over max-value */
@@ -2498,8 +2604,10 @@ int QUICK_SELECT::get_next()
 
 int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
 {
+  DBUG_ENTER("QUICK_SELECT::cmp_next");
+
   if (range->flag & NO_MAX_RANGE)
-    return (0);					/* key can't be to large */
+    DBUG_RETURN((0));					/* key can't be to large */
 
   KEY_PART *key_part=key_parts;
   for (char *key=range->max_key, *end=key+range->max_length;
@@ -2512,18 +2620,18 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
       if (*key++)
       {
 	if (!key_part->field->is_null())
-	  return 1;
+	  DBUG_RETURN(1);
 	continue;
       }
       else if (key_part->field->is_null())
-	return 0;
+	DBUG_RETURN(0);
     }
     if ((cmp=key_part->field->key_cmp((byte*) key, key_part->part_length)) < 0)
-      return 0;
+      DBUG_RETURN(0);
     if (cmp > 0)
-      return 1;
+      DBUG_RETURN(1);
   }
-  return (range->flag & NEAR_MAX) ? 1 : 0;		// Exact match
+  DBUG_RETURN((range->flag & NEAR_MAX) ? 1 : 0);		// Exact match
 }
 
 
@@ -2542,6 +2650,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
 {
   bool not_read_after_key = file->table_flags() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
+  DBUG_ENTER("QUICK_SELECT_DESC::QUICK_SELECT_DESC");
 
   it.rewind();
   for (r = it++; r; r = it++)
@@ -2553,7 +2662,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
       it.rewind();				// Reset range
       error = HA_ERR_UNSUPPORTED;
       dont_free=1;				// Don't free memory from 'q'
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   /* Remove EQ_RANGE flag for keys that are not using the full key */
@@ -2566,6 +2675,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   rev_it.rewind();
   q->dont_free=1;				// Don't free shared mem
   delete q;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2653,6 +2763,7 @@ int QUICK_SELECT_DESC::get_next()
     }
     range = 0;					// To next range
   }
+  DBUG_RETURN(0); // impossible 
 }
 
 /*
@@ -2660,8 +2771,10 @@ int QUICK_SELECT_DESC::get_next()
  */
 int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
 {
+  DBUG_ENTER("QUICK_SELECT_DESC::cmp_prev");
+
   if (range->flag & NO_MIN_RANGE)
-    return (0);					/* key can't be to small */
+    DBUG_RETURN((0));					/* key can't be to small */
 
   KEY_PART *key_part = key_parts;
   for (char *key = range->min_key, *end = key + range->min_length;
@@ -2676,19 +2789,19 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
       {
 	// the range is expecting a null value
 	if (!key_part->field->is_null())
-	  return 0;	// not null -- still inside the range
+	  DBUG_RETURN(0);	// not null -- still inside the range
 	continue;	// null -- exact match, go to next key part
       }
       else if (key_part->field->is_null())
-	return 1;	// null -- outside the range
+	DBUG_RETURN(1);	// null -- outside the range
     }
     if ((cmp = key_part->field->key_cmp((byte*) key,
 					key_part->part_length)) > 0)
-      return 0;
+      DBUG_RETURN(0);
     if (cmp < 0)
-      return 1;
+      DBUG_RETURN(1);
   }
-  return (range->flag & NEAR_MIN) ? 1 : 0;		// Exact match
+  DBUG_RETURN((range->flag & NEAR_MIN) ? 1 : 0);		// Exact match
 }
 
 /*
@@ -2698,9 +2811,11 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
 
 bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range)
 {
-  return ((range->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
+  DBUG_ENTER("QUICK_SELECT_DESC::range_reads_after_key");
+
+  DBUG_RETURN(((range->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
 	  !(range->flag & EQ_RANGE) ||
-	  head->key_info[index].key_length != range->max_length) ? 1 : 0;
+	  head->key_info[index].key_length != range->max_length) ? 1 : 0);
 }
 
 /* True if we are reading over a key that may have a NULL value */
@@ -2711,6 +2826,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
   uint offset,end;
   KEY_PART *key_part = key_parts,
            *key_part_end= key_part+used_key_parts;
+  DBUG_ENTER("QUICK_SELECT_DESC::test_if_null_range");
 
   for (offset= 0,  end = min(range->min_length, range->max_length) ;
        offset < end && key_part != key_part_end ;
@@ -2724,7 +2840,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
       continue;
     }
     if (null_length && range->min_key[offset])
-      return 1;				// min_key is null and max_key isn't
+      DBUG_RETURN(1);				// min_key is null and max_key isn't
     // Range doesn't cover NULL. This is ok if there is no more null parts
     break;
   }
@@ -2737,7 +2853,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
   if (key_part != key_part_end && key_part->null_bit)
   {
     if (offset >= range->min_length || range->min_key[offset])
-      return 1;					// Could be null
+      DBUG_RETURN(1);					// Could be null
     key_part++;
   }
   /*
@@ -2746,8 +2862,8 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
   */
   for (; key_part != key_part_end ; key_part++)
     if (key_part->null_bit)
-      return 1;					// Covers null part
-  return 0;
+      DBUG_RETURN(1);					// Covers null part
+  DBUG_RETURN(0);
 }
 
 
@@ -2765,6 +2881,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
   String tmp(buff,sizeof(buff));
+  DBUG_ENTER("print_key");
 
   for (uint length=0;
        length < used_length ;
@@ -2788,6 +2905,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
     field->val_str(&tmp,&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }
+  DBUG_VOID_RETURN;
 }
 
 static void print_quick(QUICK_SELECT *quick,key_map needed_reg)
