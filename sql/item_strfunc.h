@@ -395,7 +395,7 @@ class Item_func_char :public Item_str_func
 public:
   Item_func_char(List<Item> &list) :Item_str_func(list) {}
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=0; max_length=arg_count; binary=0;}
+  void fix_length_and_dec() { maybe_null=0; max_length=arg_count; }
   const char *func_name() const { return "char"; }
 };
 
@@ -467,7 +467,11 @@ public:
     null_value=args[0]->null_value;
     return tmp;
    }
-  void fix_length_and_dec() { binary=1; max_length=args[0]->max_length; }
+  void fix_length_and_dec() 
+  { 
+    str_value.set_charset(my_charset_bin); 
+    max_length=args[0]->max_length; 
+  }
   void print(String *str) { print_op(str); }
 };
 
@@ -480,7 +484,11 @@ public:
   String *val_str(String *);
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
-  { binary=1; maybe_null=1; max_length=MAX_BLOB_WIDTH;}
+  { 
+    str_value.set_charset(my_charset_bin);
+    maybe_null=1; 
+    max_length=MAX_BLOB_WIDTH;
+  }
 };
 
 

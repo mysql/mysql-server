@@ -882,7 +882,7 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   {
     it->max_length= val_item->max_length;
     it->decimals= val_item->decimals;
-    it->binary= val_item->binary;
+    it->set_charset(val_item->charset());
     it->int_value= val_item->val_int_result();
     String *s= val_item->str_result(&it->string_value);
     if (s != &it->string_value)
