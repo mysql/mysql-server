@@ -1465,7 +1465,7 @@ static void start_signal_handler(void)
                              O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
     {
       char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
+      sprintf(buff,"%lu\n",(ulong) getpid());
       (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
       (void) my_close(pidFile,MYF(0));
     }
