@@ -4914,7 +4914,7 @@ void Field_datetime::sql_type(String &res) const
 
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int error= 0, well_formed_error;
   uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
@@ -4942,7 +4942,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                                                     from,from+length,
                                                     field_length/
                                                     field_charset->mbmaxlen,
-                                                    &error);
+                                                    &well_formed_error);
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
@@ -5545,7 +5545,7 @@ void Field_blob::put_length(char *pos, uint32 length)
 
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int error= 0, well_formed_error;
   if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
@@ -5580,7 +5580,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                                                       from,from +
                                                       min(length, copy_length),
                                                       copy_length,
-                                                      &error);
+                                                      &well_formed_error);
     if (copy_length < length)
       error= 1;
     Field_blob::store_length(copy_length);
