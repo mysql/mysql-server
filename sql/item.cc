@@ -1415,7 +1415,9 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->table_name=	empty_name;
   tmp_field->col_name=		name;
   tmp_field->charsetnr=         collation.collation->number;
-  tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
+  tmp_field->flags=             (maybe_null ? 0 : NOT_NULL_FLAG) | 
+                                (my_binary_compare(collation.collation) ?
+                                 BINARY_FLAG : 0);
   tmp_field->type=field_type;
   tmp_field->length=max_length;
   tmp_field->decimals=decimals;
