@@ -543,6 +543,7 @@ JOIN::optimize()
   if (cond_value == Item::COND_FALSE ||
       (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {						/* Impossible cond */
+    DBUG_PRINT("info", ("Impossible WHERE"));
     zero_result_cause= "Impossible WHERE";
     error= 0;
     DBUG_RETURN(0);
@@ -560,20 +561,24 @@ JOIN::optimize()
     {
       if (res > 1)
       {
+        DBUG_PRINT("error",("Error from opt_sum_query"));
 	DBUG_RETURN(1);
       }
       if (res < 0)
       {
+        DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
 	error=0;
 	DBUG_RETURN(0);
       }
+      DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
     }
   }
   if (!tables_list)
   {
+    DBUG_PRINT("info",("No tables"));
     error= 0;
     DBUG_RETURN(0);
   }
@@ -11641,13 +11646,11 @@ void st_table_list::print(THD *thd, String *str)
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
-   {
       str->append(' ');
       append_identifier(thd, str, alias, strlen(alias));
     }
   }
 }
-
 
 
 void st_select_lex::print(THD *thd, String *str)
@@ -11657,7 +11660,7 @@ void st_select_lex::print(THD *thd, String *str)
 
   str->append("select ", 7);
 
-  //options
+  /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
   if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
