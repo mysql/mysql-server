@@ -1810,9 +1810,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     LEX_STRING conv_name;
     /* Saved variable value */
-#ifdef HAVE_INNOBASE_DB
-    my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
-#endif
+    my_bool old_innodb_table_locks= 
+              IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
 
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
@@ -2340,9 +2339,8 @@ mysql_execute_command(THD *thd)
   /* Locked closure of all tables */
   TABLE_LIST *locked_tables= NULL;
   /* Saved variable value */
-#ifdef HAVE_INNOBASE_DB
-  my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
-#endif
+  my_bool old_innodb_table_locks=
+            IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
   DBUG_ENTER("mysql_execute_command");
   thd->net.no_send_error= 0;
 
@@ -4188,6 +4186,12 @@ unsent_create_error:
 
 	thd->row_count_func= 0;
 	res= sp->execute_procedure(thd, &lex->value_list);
+
+	/* If warnings have been cleared, we have to clear total_warn_count
+	 * too, otherwise the clients get confused.
+	 */
+	if (thd->warn_list.is_empty())
+	  thd->total_warn_count= 0;
 
 	thd->variables.select_limit= select_limit;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
