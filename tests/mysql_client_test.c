@@ -30,6 +30,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
+#include <errmsg.h>
 #include <my_getopt.h>
 #include <m_string.h>
 
@@ -12512,6 +12513,77 @@ static void test_bug6761(void)
 }
 
 
+/* Bug#8330 - mysql_stmt_execute crashes (libmysql) */
+
+static void test_bug8330()
+{
+  const char *stmt_text;
+  MYSQL_STMT *stmt[2];
+  int i, rc;
+  char *query= "select a,b from t1 where a=?";
+  MYSQL_BIND bind[2];
+  long lval[2];
+
+  myheader("test_bug8330");
+
+  stmt_text= "drop table if exists t1";
+  /* in case some previos test failed */
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "create table t1 (a int, b int)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  bzero(bind, sizeof(bind));
+  for (i=0; i < 2; i++)
+  {
+    stmt[i]= mysql_stmt_init(mysql);
+    rc= mysql_stmt_prepare(stmt[i], query, strlen(query));
+    check_execute(stmt[i], rc);
+
+    bind[i].buffer_type= MYSQL_TYPE_LONG;
+    bind[i].buffer= (void*) &lval[i];
+    bind[i].is_null= 0;
+    mysql_stmt_bind_param(stmt[i], &bind[i]);
+  }
+
+  rc= mysql_stmt_execute(stmt[0]);
+  check_execute(stmt[0], rc);
+
+  rc= mysql_stmt_execute(stmt[1]);
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt[1]) == CR_COMMANDS_OUT_OF_SYNC);
+  rc= mysql_stmt_execute(stmt[0]);
+  check_execute(stmt[0], rc);
+
+  mysql_stmt_close(stmt[0]);
+  mysql_stmt_close(stmt[1]);
+
+  stmt_text= "drop table t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
+
+/* Bug#7990 - mysql_stmt_close doesn't reset mysql->net.last_error */
+
+static void test_bug7990()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  myheader("test_bug7990");
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, "foo", 3);
+  /*
+    XXX: the fact that we store errno both in STMT and in
+    MYSQL is not documented and is subject to change in 5.0
+  */
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) && mysql_errno(mysql));
+  mysql_stmt_close(stmt);
+  DIE_UNLESS(!mysql_errno(mysql));
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -12730,6 +12802,8 @@ static struct my_tests_st my_tests[]= {
   { "test_cursors_with_union", test_cursors_with_union },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
+  { "test_bug8330", test_bug8330 },
+  { "test_bug7990", test_bug7990 },
   { 0, 0 }
 };
 
