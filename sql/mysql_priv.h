@@ -705,7 +705,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
-			  find_item_error_report_type report_error);
+                          find_item_error_report_type report_error,
+                          bool *unaliased);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
