@@ -1339,11 +1339,11 @@ insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-Unknown table 't1' in where clause
+ERROR 42S02: Unknown table 't1' in where clause
 drop table t3,t2,t1;
 CREATE TABLE t1 (col1 int(1))ENGINE=InnoDB;
 CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
