@@ -499,6 +499,7 @@ public:
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
+  bool save_in_field(Field *field, bool no_conversions);
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
