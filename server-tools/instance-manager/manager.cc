@@ -171,7 +171,14 @@ void manager(const Options &options)
 
   while (!shutdown_complete)
   {
-    sigwait(&mask, &signo);
+    int status= 0;
+
+    if (status= my_sigwait(&mask, &signo))
+    {
+      log_error("sigwait() failed");
+      goto err;
+    }
+
     switch (signo)
     {
       case THR_SERVER_ALARM:
