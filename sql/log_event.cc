@@ -1868,6 +1868,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       String line_term(sql_ex.line_term,sql_ex.line_term_len);
       String line_start(sql_ex.line_start,sql_ex.line_start_len);
       String escaped(sql_ex.escaped,sql_ex.escaped_len);
+      ex.field_term= &field_term;
+      ex.enclosed= &enclosed;
+      ex.line_term= &line_term;
+      ex.line_start= &line_start;
+      ex.escaped= &escaped;
 	    
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
