@@ -2585,7 +2585,7 @@ server.
 @node Standards, ANSI mode, Compatibility, Compatibility
 @subsection What Standards Does MySQL Follow?
 
-Entry level SQL92. ODBC levels 0-2.
+Entry level SQL92. ODBC levels 0-3.51.
 
 We are aiming towards supporting the full ANSI SQL99 standard,
 but without concessions to speed and quality of the code.
