@@ -1722,7 +1722,7 @@ There hasn't been a single reported bug in this system for a long time.
 @item The C client code --- Stable
 No known problems. In early Version 3.20 releases, there were some limitations
 in the send/receive buffer size. As of Version 3.21, the buffer size is now
-dynamic up to a default of 24M.
+dynamic up to a default of 16M.
 
 @item Standard client programs --- Stable
 These include @code{mysql}, @code{mysqladmin}, @code{mysqlshow},
@@ -13197,7 +13197,10 @@ A @code{BLOB} or @code{TEXT} column with a maximum length of 16777215
 @itemx LONGTEXT
 
 A @code{BLOB} or @code{TEXT} column with a maximum length of 4294967295
-(2^32 - 1) characters. @xref{Silent column changes}.
+(2^32 - 1) characters. @xref{Silent column changes}.  Note that because
+the server/client protocol and MyISAM tables has currently a limit of
+16M per communication packet / table row, you can't yet use this
+the whole range of this type.
 
 @tindex ENUM
 @item ENUM('value1','value2',...)
@@ -27780,7 +27783,7 @@ Dump only selected records; Note that QUOTES are mandatory!
 @example
 "--where=user='jimf'" "-wuserid>1" "-wuserid<1"
 @end example
-@item -O net_buffer_length=#, where # < 24M
+@item -O net_buffer_length=#, where # < 16M
 When creating multi-row-insert statements (as with option
 @code{--extended-insert} or @code{--opt}), @code{mysqldump} will create
 rows up to @code{net_buffer_length} length. If you increase this
@@ -31225,7 +31228,7 @@ packet size (such as @code{DBI}), you need to set the packet size when you
 start the server.  You cau use a command-line option to @code{mysqld} to set
 @code{max_allowed_packet} to a larger size.  For example, if you are
 expecting to store the full length of a @code{BLOB} into a table, you'll need
-to start the server with the @code{--set-variable=max_allowed_packet=24M}
+to start the server with the @code{--set-variable=max_allowed_packet=16M}
 option.
 
 @cindex aborted connection
@@ -32457,7 +32460,7 @@ library.  See @ref{Programs}, for a list of these variables.
 
 The client has a maximum communication buffer size. The size of the buffer
 that is allocated initially (16K bytes) is automatically increased up to the
-maximum size (the default maximum is 24M). Because buffer sizes are increased
+maximum size (the maximum is 16M). Because buffer sizes are increased
 only as demand warrants, simply increasing the default maximum limit does not
 in itself cause more resources to be used. This size check is mostly a check
 for erroneous queries and communication packets.
@@ -32468,7 +32471,7 @@ server-to-client traffic).  Each thread's communication buffer is dynamically
 enlarged to handle any query or row up to the maximum limit.  For example, if
 you have @code{BLOB} values that contain up to 16M of data, you must have a
 communication buffer limit of at least 16M (in both server and client).  The
-client's default maximum is 24M, but the default maximum in the server is
+client's default maximum is 16M, but the default maximum in the server is
 1M.  You can increase this by changing the value of the
 @code{max_allowed_packet} parameter when the server is started.  @xref{Server
 parameters}.
@@ -40067,7 +40070,7 @@ All count structures in the client (@code{affected_rows()},
 @code{insert_id()},...) are now of type @code{BIGINT} to allow 64-bit values
 to be used.
 This required a minor change in the @strong{MySQL} protocol which should affect
-only old clients when using tables with @code{AUTO_INCREMENT} values > 24M.
+only old clients when using tables with @code{AUTO_INCREMENT} values > 16M.
 @item
 The return type of @code{mysql_fetch_lengths()} has changed from @code{uint *}
 to @code{ulong *}. This may give a warning for old clients but should work

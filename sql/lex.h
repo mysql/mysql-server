@@ -248,6 +248,7 @@ static SYMBOL symbols[] = {
   { "RENAME",		SYM(RENAME),0,0},
   { "REPAIR",		SYM(REPAIR),0,0},
   { "REPLACE",		SYM(REPLACE),0,0},
+  { "RESET",		SYM(RESET_SYM),0,0},
   { "RESTORE",		SYM(RESTORE_SYM),0,0},
   { "RESTRICT",		SYM(RESTRICT),0,0},
   { "RETURNS",		SYM(UDF_RETURNS_SYM),0,0},
