@@ -161,7 +161,7 @@ int vio_read(Vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd=%d  size=%d", vio->sd, size));
 #if defined( __WIN__) || defined(OS2)
   if (vio->type == VIO_TYPE_NAMEDPIPE)
   {
@@ -195,7 +195,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd=%d  size=%d", vio->sd, size));
 #if defined( __WIN__) || defined(OS2)
   if ( vio->type == VIO_TYPE_NAMEDPIPE)
   {
@@ -310,7 +310,7 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   int r=0;
   uint opt = 0;
   DBUG_ENTER("vio_keepalive");
-  DBUG_PRINT("enter", ("sd=%d, set_keep_alive=%d", vio->sd, (int)
+  DBUG_PRINT("enter", ("sd=%d  set_keep_alive=%d", vio->sd, (int)
 		       set_keep_alive));
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
