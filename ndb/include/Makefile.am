@@ -9,8 +9,7 @@ ndbapiinclude_HEADERS = \
 ndbapi/ndbapi_limits.h \
 ndbapi/Ndb.hpp \
 ndbapi/NdbApi.hpp \
-ndbapi/NdbConnection.hpp \
-ndbapi/NdbCursorOperation.hpp \
+ndbapi/NdbTransaction.hpp \
 ndbapi/NdbDictionary.hpp \
 ndbapi/NdbError.hpp \
 ndbapi/NdbEventOperation.hpp \

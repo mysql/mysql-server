@@ -28,7 +28,7 @@ class TransIdAI {
   /**
    * Receiver(s)
    */
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class Dbtc;
   friend class Dbutil;
   friend class Dblqh;

@@ -362,22 +362,6 @@ extern "C" {
    */
   NdbMgmHandle ndb_mgm_create_handle();
   
-  /** 
-   * Set connecst string to management server
-   *
-   * @param   handle         Management handle
-   * @param   connect_string Connect string to the management server, 
-   *
-   * @return                -1 on error.
-   */
-  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
-				const char *connect_string);
-
-  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
-  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
-
   /**
    * Destroy a management server handle
    *
@@ -390,6 +374,29 @@ extern "C" {
    * @name Functions: Connect/Disconnect Management Server
    * @{
    */
+
+  /** 
+   * Set connect string to management server
+   *
+   * @param   handle         Management handle
+   * @param   connect_string Connect string to the management server, 
+   *
+   * @return                -1 on error.
+   */
+  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
+				const char *connect_string);
+
+  /** 
+   * Get connectstring used for connection
+   *
+   * @note returns what the connectstring defaults to if the above call has
+   *       not been performed
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 connectstring
+   */
+  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * Connect to a management server
@@ -408,6 +415,33 @@ extern "C" {
    */
   int ndb_mgm_disconnect(NdbMgmHandle handle);
   
+  /** 
+   * Get nodeid used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 node id
+   */
+  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
+
+  /** 
+   * Get port used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 port
+   */
+  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
+
+  /** 
+   * Get host used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+
   /** @} *********************************************************************/
   /** 
    * @name Functions: Convert between different data formats
@@ -436,7 +470,8 @@ extern "C" {
    * @param   type          Node type.
    * @return                NULL if invalid id.
    */
-  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type, const char **str);
+  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type,
+						  const char **str);
 
   /**
    * Convert a string to a ndb_mgm_node_status
@@ -454,8 +489,10 @@ extern "C" {
    */
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
+#endif
 
   /** @} *********************************************************************/
   /** 
@@ -469,6 +506,7 @@ extern "C" {
    * Note the caller must free the pointer returned.
    *
    * @param   handle        Management handle.
+   *
    * @return                Cluster state (or NULL on error).
    */
   struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
@@ -488,6 +526,7 @@ extern "C" {
    *                        n - Means stop n node(s) specified in the 
    *                            array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
+   *
    * @return                No of nodes stopped (or -1 on error)
    *
    * @note    The function is equivalent 
@@ -507,6 +546,7 @@ extern "C" {
    * @param   node_list     List of node ids of database nodes to be stopped
    * @param   abort         Don't perform gracefull stop, 
    *                        but rather stop immediatly
+   *
    * @return                No of nodes stopped (or -1 on error).
    */
   int ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes,
@@ -521,6 +561,7 @@ extern "C" {
    *                        n - Means stop n node(s) specified in the 
    *                            array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
+   *
    * @return                No of nodes stopped (or -1 on error).
    *
    * @note    The function is equivalent to 
@@ -543,6 +584,7 @@ extern "C" {
    *                        waiting for start command
    * @param   abort         Don't perform gracefull restart, 
    *                        but rather restart immediatly
+   *
    * @return                No of nodes stopped (or -1 on error).
    */
   int ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes,
@@ -558,6 +600,7 @@ extern "C" {
    *                        n - Means start n node(s) specified in 
    *                            the array node_list
    * @param   node_list     List of node ids of database nodes to be started
+   *
    * @return                No of nodes started (or -1 on error).
    *
    * @note    The nodes to start must have been started with nostart(-n) 
@@ -582,6 +625,7 @@ extern "C" {
    * @param   handle        NDB management handle.
    * @param   level         A cluster log level to filter.
    * @param   reply         Reply message.
+   *
    * @return                -1 on error.
    */
   int ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
@@ -592,6 +636,7 @@ extern "C" {
    * Get log filter
    * 
    * @param   handle        NDB management handle
+   *
    * @return                A vector of seven elements, 
    *                        where each element contains
    *                        1 if a severity is enabled and 0 if not. 
@@ -620,7 +665,7 @@ extern "C" {
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Set log category and levels for the Node
    *
@@ -646,6 +691,7 @@ extern "C" {
    */
   int ndb_mgm_get_stat_port(NdbMgmHandle handle,
 			    struct ndb_mgm_reply* reply);
+#endif
 
   /** @} *********************************************************************/
   /** 
@@ -699,6 +745,7 @@ extern "C" {
    * @param   handle        NDB management handle.
    * @param   nodeId        Node Id of the single user node
    * @param   reply         Reply message.
+   *
    * @return                -1 on error.
    */
   int ndb_mgm_exit_single_user(NdbMgmHandle handle, 
@@ -709,6 +756,7 @@ extern "C" {
    *
    * @param filter pairs of { level, category } that will be
    *        pushed to fd, level=0 ends lists
+   *
    * @return fd which events will be pushed to
    */
   int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
@@ -718,12 +766,16 @@ extern "C" {
    * @param   handle     NDB management handle.
    * @param   version    Version of configuration, 0 means latest
    *                     @see MAKE_VERSION
-   * @Note the caller must call ndb_mgm_detroy_configuration
+   *
+   * @return configuration
+   *
+   * @note the caller must call ndb_mgm_detroy_configuration
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
   void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype);
   /**
@@ -749,6 +801,8 @@ extern "C" {
 				   int param, const char  ** value);
   int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
   int ndb_mgm_check_connection(NdbMgmHandle handle);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

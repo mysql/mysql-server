@@ -27,7 +27,7 @@ class TcKeyConf {
    * Reciver(s)
    */
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class Ndbcntr;
   friend class DbUtil;
 

@@ -22,16 +22,18 @@
 #include <ndb_global.h>
 
 class Ndb;
-class NdbConnection;
+class NdbTransaction;
 
 class NdbReceiver
 {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
-  friend class NdbConnection;
+  friend class NdbTransaction;
+#endif
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
@@ -52,7 +54,7 @@ public:
     return m_type;
   }
   
-  inline NdbConnection * getTransaction();
+  inline NdbTransaction * getTransaction();
   void* getOwner(){
     return m_owner;
   }

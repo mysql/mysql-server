@@ -14,18 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbIndexOperation.hpp
- * Include:
- * Link:
- * Author:        Martin Sköld
- * Date:          2002-04-01
- * Version:       0.1
- * Description:   Secondary index support
- * Documentation:
- * Adjust:  2002-04-01  Martin Sköld   First version.
- ****************************************************************************/
-
 #ifndef NdbIndexOperation_H
 #define NdbIndexOperation_H
 
@@ -40,8 +28,10 @@ class NdbResultSet;
  */
 class NdbIndexOperation : public NdbOperation
 {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
+#endif
 
 public:
   /**
@@ -54,16 +44,17 @@ public:
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type readTuple.
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * reads a tuple.
    *
    * @return 0 if successful otherwise -1.
    */
   int readTuple(LockMode);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbIndexOperation to be a standard operation of type readTuple.
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * reads a tuple.
    *
    * @return 0 if successful otherwise -1.
@@ -73,7 +64,7 @@ public:
   /**
    * Define the NdbIndexOperation to be a standard operation of type
    * readTupleExclusive.
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * read a tuple using an exclusive lock.
    *
    * @return 0 if successful otherwise -1.
@@ -82,7 +73,7 @@ public:
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type simpleRead.
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * reads an existing tuple (using shared read lock),
    * but releases lock immediately after read.
    *
@@ -101,7 +92,7 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * read latest committed value of the record.
    *
    * This means that if another transaction is updating the 
@@ -113,7 +104,6 @@ public:
    */
   int dirtyRead();
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   int committedRead();
 #endif
 
@@ -121,7 +111,7 @@ public:
    * Define the NdbIndexOperation to be a standard operation of type 
    * updateTuple.
    *
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * updates a tuple in the table.
    *
    * @return 0 if successful otherwise -1.
@@ -132,7 +122,7 @@ public:
    * Define the NdbIndexOperation to be a standard operation of type 
    * deleteTuple.
    *
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * deletes a tuple.
    *
    * @return 0 if successful otherwise -1.
@@ -143,7 +133,7 @@ public:
    * Define the NdbIndexOperation to be a standard operation of type 
    * dirtyUpdate.
    *
-   * When calling NdbConnection::execute, this operation
+   * When calling NdbTransaction::execute, this operation
    * updates without two-phase commit.
    *
    * @return 0 if successful otherwise -1.
@@ -181,7 +171,7 @@ private:
   // Overloaded methods from NdbCursorOperation
   int indxInit(const class NdbIndexImpl* anIndex,
 	       const class NdbTableImpl* aTable, 
-	       NdbConnection* myConnection);
+	       NdbTransaction*);
 
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
 

@@ -14,28 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/*****************************************************************************
- * Name:          NdbOperationDefine.C
- * Include:
- * Link:
- * Author:        UABMNST Mona Natterkvist UAB/B/SD                         
- * Date:          970829
- * Version:       0.1
- * Description:   Interface between TIS and NDB
- * Documentation:
- * Adjust:  971022  UABMNST   First version.
- *****************************************************************************/
-#include "NdbOperation.hpp"
+#include <ndb_global.h>
+#include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
-#include "NdbConnection.hpp"
-#include "Ndb.hpp"
-#include "NdbRecAttr.hpp"
+#include <NdbTransaction.hpp>
+#include <Ndb.hpp>
+#include <NdbRecAttr.hpp>
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"
 #include <NdbIndexScanOperation.hpp>
-#include "NdbBlob.hpp"
+#include <NdbBlob.hpp>
 
 #include <Interpreter.hpp>
 
@@ -48,7 +37,7 @@
 int
 NdbOperation::insertTuple()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -68,7 +57,7 @@ NdbOperation::insertTuple()
 int
 NdbOperation::updateTuple()
 {  
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -88,7 +77,7 @@ NdbOperation::updateTuple()
 int
 NdbOperation::writeTuple()
 {  
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -128,7 +117,7 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
 int
 NdbOperation::readTuple()
 { 
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -149,7 +138,7 @@ NdbOperation::readTuple()
 int
 NdbOperation::deleteTuple()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;  
@@ -170,7 +159,7 @@ NdbOperation::deleteTuple()
 int
 NdbOperation::readTupleExclusive()
 { 
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -247,7 +236,7 @@ NdbOperation::committedRead()
 int
 NdbOperation::dirtyUpdate()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -270,7 +259,7 @@ NdbOperation::dirtyUpdate()
 int
 NdbOperation::dirtyWrite()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -293,7 +282,7 @@ NdbOperation::dirtyWrite()
 int
 NdbOperation::interpretedUpdateTuple()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -316,7 +305,7 @@ NdbOperation::interpretedUpdateTuple()
 int
 NdbOperation::interpretedDeleteTuple()
 {
-  NdbConnection* tNdbCon = theNdbCon;
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -578,7 +567,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 }//NdbOperation::setValue()
 
 NdbBlob*
-NdbOperation::getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* tAttrInfo)
+NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)
 {
   NdbBlob* tBlob = theBlobList;
   NdbBlob* tLastBlob = NULL;
