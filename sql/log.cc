@@ -838,13 +838,13 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
          !log_in_use(log_info.log_file_name))
   {
-    ulong tmp;
-    LINT_INIT(tmp);
+    ulong file_size;
+    LINT_INIT(file_size);
     if (decrease_log_space) //stat the file we want to delete
     {
       MY_STAT s;
       if (my_stat(log_info.log_file_name,&s,MYF(0)))
-        tmp= s.st_size;
+        file_size= s.st_size;
       else
       {
         /* 
@@ -852,7 +852,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
            of space that deletion will free. In most cases,
            deletion won't work either, so it's not a problem.
         */
-        tmp= 0; 
+        file_size= 0; 
       }
     }
     /*
@@ -861,7 +861,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
     */
     DBUG_PRINT("info",("purging %s",log_info.log_file_name));
     if (!my_delete(log_info.log_file_name, MYF(0)) && decrease_log_space)
-      *decrease_log_space-= tmp;
+      *decrease_log_space-= file_size;
     if (find_next_log(&log_info, 0) || exit_loop)
       break;
   }

@@ -51,6 +51,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 		    List<Item> &values, ulong counter, bool check_unique)
 {
   TABLE *table= table_list->table;
+
   if (fields.elements == 0 && values.elements != 0)
   {
     if (values.elements != table->fields)
@@ -61,11 +62,11 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (grant_option)
     {
       Field_iterator_table fields;
       fields.set_table(table);
-      if (grant_option &&
-          check_grant_all_columns(thd, INSERT_ACL, &table->grant,
+      if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
                                   table->table_cache_key, table->real_name,
                                   &fields))
         return -1;
@@ -75,7 +76,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
   }
   else
   {						// Part field list
-    TABLE_LIST *save_next= table_list->next_local;
+    TABLE_LIST *save_next;
     int res;
     if (fields.elements != values.elements)
     {
@@ -85,16 +86,15 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
       return -1;
     }
 
-    table_list->next_local= 0;
     thd->dupp_field=0;
     thd->lex->select_lex.no_wrap_view_item= 1;
+    save_next= table_list->next_local;        // fields only from first table
+    table_list->next_local= 0;
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
-    thd->lex->select_lex.no_wrap_view_item= 0;
     table_list->next_local= save_next;
+    thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
-    {
       return -1;
-    }
 
     if (check_unique && thd->dupp_field)
     {
@@ -428,7 +428,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 				    !thd->cuted_fields))
   {
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    send_ok(thd, (ulong) (ulong) thd->row_count_func, id);
+    send_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
@@ -441,7 +441,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    ::send_ok(thd, (ulong) thd->row_count_func, (ulonglong)id,buff);
+    ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
@@ -465,46 +465,58 @@ abort:
     check_view_insertability()
     view    - reference on VIEW
 
+  IMPLEMENTATION
+    A view is insertable if the folloings are true:
+    - All columns in the view are columns from a table
+    - All not used columns in table have a default values
+    - All field in view are unique (not referring to the same column)
+
   RETURN
     FALSE - OK
+      view->contain_auto_increment is 1 if and only if the view contains an
+      auto_increment field
+
     TRUE  - can't be used for insert
 */
 
 static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 {
+  uint num= view->view->select_lex.item_list.elements;
+  TABLE *table= view->table;
+  Item **trans_start= view->field_translation, **trans_end=trans_start+num;
+  Item **trans;
+  Field **field_ptr= table->field;
+  ulong other_query_id= query_id - 1;
   DBUG_ENTER("check_key_in_view");
 
-  uint i;
-  TABLE *table= view->table;
-  Item **trans= view->field_translation;
-  Field **field_ptr= table->field;
-  uint num= view->view->select_lex.item_list.elements;
-  ulong other_query_id= query_id - 1;
   DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
 
   view->contain_auto_increment= 0;
   /* check simplicity and prepare unique test of view */
-  for (i= 0; i < num; i++)
+  for (trans= trans_start; trans != trans_end; trans++)
   {
+    Item_field *field;
     /* simple SELECT list entry (field without expression) */
-    if (trans[i]->type() != Item::FIELD_ITEM)
+    if ((*trans)->type() != Item::FIELD_ITEM)
       DBUG_RETURN(TRUE);
-    if (((Item_field *)trans[i])->field->unireg_check == Field::NEXT_NUMBER)
+    field= (Item_field *)(*trans);
+    if (field->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= 1;
     /* prepare unique test */
-    ((Item_field *)trans[i])->field->query_id= other_query_id;
+    field->field->query_id= other_query_id;
   }
   /* unique test */
-  for (i= 0; i < num; i++)
+  for (trans= trans_start; trans != trans_end; trans++)
   {
-    Item_field *field= (Item_field *)trans[i];
+    /* Thanks to test above, we know that all columns are of type Item_field */
+    Item_field *field= (Item_field *)(*trans);
     if (field->field->query_id == query_id)
       DBUG_RETURN(TRUE);
     field->field->query_id= query_id;
   }
 
   /* VIEW contain all fields without default value */
-  for (; *field_ptr; ++field_ptr)
+  for (; *field_ptr; field_ptr++)
   {
     Field *field= *field_ptr;
     /* field have not default value */
@@ -512,14 +524,13 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
         (table->timestamp_field != field ||
          field->unireg_check == Field::TIMESTAMP_UN_FIELD))
     {
-      uint i= 0;
-      for (; i < num; i++)
+      for (trans= trans_start; ; trans++)
       {
-        if (((Item_field *)trans[i])->field == *field_ptr)
-          break;
+        if (trans == trans_end)
+          DBUG_RETURN(TRUE);                    // Field was not part of view
+        if (((Item_field *)(*trans))->field == *field_ptr)
+          break;                                // ok
       }
-      if (i >= num)
-        DBUG_RETURN(TRUE);
     }
   }
   DBUG_RETURN(FALSE);
@@ -527,29 +538,28 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 
 
 /*
-  Prepare items in INSERT statement
+  Check if table can be updated
 
   SYNOPSIS
-    mysql_prepare_insert()
-    thd			- thread handler
-    table_list		- global/local table list
+     mysql_prepare_insert_check_table()
+     thd		Thread handle
+     table_list		Table list (only one table)
+     fields		List of fields to be updated
+     where		Pointer to where clause
 
-  RETURN VALUE
-    0  - OK
-    -1 - error (message is not sent to user)
+   RETURN
+     0	ok
+     1  ERROR
 */
-int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
-			 List<Item> &fields, List_item *values,
-			 List<Item> &update_fields, List<Item> &update_values,
-			 enum_duplicates duplic)
+
+static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
+                                             List<Item> &fields, COND **where)
 {
   bool insert_into_view= (table_list->view != 0);
-  DBUG_ENTER("mysql_prepare_insert");
+  DBUG_ENTER("mysql_prepare_insert_check_table");
 
-  /* TODO: use this condition for 'WHITH CHECK OPTION' */
-  Item *unused_conds= 0;
-  if (setup_tables(thd, table_list, &unused_conds))
-    DBUG_RETURN(-1);
+  if (setup_tables(thd, table_list, where))
+    DBUG_RETURN(1);
 
   if (insert_into_view && !fields.elements)
   {
@@ -563,8 +573,37 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
        check_view_insertability(table_list, thd->query_id)))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Prepare items in INSERT statement
+
+  SYNOPSIS
+    mysql_prepare_insert()
+    thd			Thread handler
+    table_list	        Global/local table list
+
+  RETURN VALUE
+    0   OK
+    -1  error (message is not sent to user)
+*/
+
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
+			 List<Item> &fields, List_item *values,
+			 List<Item> &update_fields, List<Item> &update_values,
+			 enum_duplicates duplic)
+{
+  bool insert_into_view= (table_list->view != 0);
+  /* TODO: use this condition for 'WITH CHECK OPTION' */
+  Item *unused_conds= 0;
+  DBUG_ENTER("mysql_prepare_insert");
+
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds))
+    DBUG_RETURN(-1);
 
   if (check_insert_fields(thd, table_list, fields, *values, 1,
                           !insert_into_view) ||
@@ -574,7 +613,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
         setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
     DBUG_RETURN(-1);
 
-  if (find_real_table_in_list(table_list->next_global,
+  if (find_table_in_global_list(table_list->next_global,
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
@@ -1576,32 +1615,16 @@ bool delayed_insert::handle_inserts(void)
 int mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST *table_list= lex->query_tables;
-  bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_insert_select_prepare");
-
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
     clasue if table is VIEW
   */
   table_list->no_where_clause= 1;
-  if (setup_tables(thd, table_list, &lex->select_lex.where))
+  if (mysql_prepare_insert_check_table(thd, lex->query_tables,
+                                       lex->field_list,
+                                       &lex->select_lex.where))
     DBUG_RETURN(-1);
-
-  if (insert_into_view && !lex->field_list.elements)
-  {
-    lex->empty_field_list_on_rset= 1;
-    insert_view_fields(&lex->field_list, table_list);
-  }
-
-  if (!table_list->updatable ||
-      check_key_in_view(thd, table_list) ||
-      (insert_into_view &&
-       check_view_insertability(table_list, thd->query_id)))
-  {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
-    DBUG_RETURN(-1);
-  }
   DBUG_RETURN(0);
 }
 
