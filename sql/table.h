@@ -123,15 +123,18 @@ struct st_table {
 };
 
 
+#define JOIN_TYPE_LEFT	1
+#define JOIN_TYPE_RIGHT	2
+
 typedef struct st_table_list {
   struct	st_table_list *next;
   char		*db,*name,*real_name;
-  thr_lock_type lock_type;
-  bool		straight;			/* optimize with prev table */
-  bool		outer_join;
-  TABLE		*table;
   Item		*on_expr;			/* Used with outer join */
   struct st_table_list *natural_join;		/* natural join on this table*/
   List<String>	*use_index,*ignore_index;
+  TABLE		*table;
   GRANT_INFO	grant;
+  thr_lock_type lock_type;
+  uint		outer_join;			/* Which join type */
+  bool		straight;			/* optimize with prev table */
 } TABLE_LIST;

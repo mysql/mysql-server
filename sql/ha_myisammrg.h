@@ -46,7 +46,7 @@ class ha_myisammrg: public handler
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + file->tables; }
 
-  int open(const char *name, int mode, int test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);

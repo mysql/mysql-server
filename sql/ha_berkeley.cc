@@ -254,7 +254,7 @@ berkeley_cmp_fix_length_key(const DBT *new_key, const DBT *saved_key)
 }
 
 
-int ha_berkeley::open(const char *name, int mode, int test_if_locked)
+int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
   uint open_mode=(mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;

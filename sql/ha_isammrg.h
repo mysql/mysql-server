@@ -40,7 +40,7 @@ class ha_isammrg: public handler
   bool low_byte_first()	   const { return 0; }
   uint min_record_length(uint options) const;
 
-  int open(const char *name, int mode, int test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);

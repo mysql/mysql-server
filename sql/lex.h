@@ -252,6 +252,7 @@ static SYMBOL symbols[] = {
   { "RESTRICT",		SYM(RESTRICT),0,0},
   { "RETURNS",		SYM(UDF_RETURNS_SYM),0,0},
   { "REVOKE",		SYM(REVOKE),0,0},
+  { "RIGHT",		SYM(RIGHT),0,0},
   { "RLIKE",		SYM(REGEXP),0,0},	/* Like in mSQL2 */
   { "ROLLBACK",		SYM(ROLLBACK_SYM),0,0},
   { "ROW",		SYM(ROW_SYM),0,0},
@@ -414,7 +415,6 @@ static SYMBOL sql_functions[] = {
   { "RELEASE_LOCK",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_release_lock)},
   { "REPEAT",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_repeat)},
   { "REVERSE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_reverse)},
-  { "RIGHT",		SYM(RIGHT),0,0},
   { "ROUND",		SYM(ROUND),0,0},
   { "RPAD",		SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_rpad)},
   { "RTRIM",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_rtrim)},

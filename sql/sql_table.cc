@@ -837,19 +837,18 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     table->table = open_ltable(thd, table, lock_type);
     packet->length(0);
-    if(operator_func == &handler::restore)
-      {
-	switch(prepare_for_restore(thd, table))
-	  {
-	  case 1: continue; // error, message written to net
-	  case -1: goto err; // error, message could be written to net
-	  default: ;// should be 0 otherwise
-	  }
-
-	// now we should be able to open the partially restored table
-	// to finish the restore in the handler later on
-	table->table = reopen_name_locked_table(thd, table);
+    if (operator_func == &handler::restore)
+    {
+      switch (prepare_for_restore(thd, table)) {
+      case 1: continue; // error, message written to net
+      case -1: goto err; // error, message could be written to net
+      default: ;// should be 0 otherwise
       }
+
+      // now we should be able to open the partially restored table
+      // to finish the restore in the handler later on
+      table->table = reopen_name_locked_table(thd, table);
+    }
     
     if (!table->table)
     {
