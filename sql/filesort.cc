@@ -519,7 +519,7 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
-          CHARSET_INFO *cs=item->charset();
+          CHARSET_INFO *cs=item->collation.collation;
 	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
@@ -1040,7 +1040,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
-	if (use_strnxfrm((cs=sortorder->item->charset())))
+	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
 	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	  sortorder->need_strxnfrm= 1;

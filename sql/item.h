@@ -85,7 +85,6 @@ public:
 typedef bool (Item::*Item_processor)(byte *arg);
 
 class Item {
-  uint loop_id;                         /* Used to find selfrefering loops */
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
@@ -172,21 +171,6 @@ public:
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   CHARSET_INFO *default_charset() const;
-  Derivation derivation() const { return collation.derivation; }
-  CHARSET_INFO *charset() const { return collation.collation; }
-  void set_charset(CHARSET_INFO *cs) 
-  { collation.collation= cs; }
-  void set_charset(Derivation dv) 
-  { collation.derivation= dv; }
-  void set_charset(CHARSET_INFO *cs, Derivation dv)
-  { collation.collation= cs; collation.derivation= dv; }
-  void set_charset(Item &item)
-  { collation= item.collation; }
-  void set_charset(DTCollation *collation_arg)
-  { 
-    collation.collation= collation_arg->collation; 
-    collation.derivation= collation_arg->derivation;
-  }
 
   virtual bool walk(Item_processor processor, byte *arg)
   {
@@ -238,7 +222,7 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
-  { set_charset(DERIVATION_IMPLICIT); }
+  { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field &item);
   Item_field(Field *field);
@@ -441,7 +425,7 @@ public:
   Item_string(const char *str,uint length,
   	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
-    set_charset(cs, dv);
+    collation.set(cs, dv);
     str_value.set(str,length,cs);
     max_length=length;
     set_name(str, length, cs);
@@ -450,7 +434,7 @@ public:
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
-    set_charset(cs, dv);
+    collation.set(cs, dv);
     str_value.set(str,length,cs);
     max_length=length;
     set_name(name_par,0,cs);

@@ -221,6 +221,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_MYSQL323                  32768
 #define MODE_MYSQL40                   65536
 #define MODE_ANSI	               (MODE_MYSQL40*2)
+#define MODE_NO_AUTO_VALUE_ON_ZERO     (MODE_ANSI*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -704,6 +705,7 @@ extern const char *command_name[];
 extern const char *first_keyword, *localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
+extern const char *in_left_expr_name;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];

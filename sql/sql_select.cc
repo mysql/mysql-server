@@ -295,7 +295,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 						   fields_list,
 						   &all_fields, wild_num))) ||
       setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
-						select_lex->select_items +
+						select_lex->
+						select_n_having_items +
 						og_num)) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||
@@ -771,7 +772,8 @@ JOIN::optimize()
     if (!having)
     {
       Item *where= 0;
-      if (join_tab[0].type == JT_EQ_REF)
+      if (join_tab[0].type == JT_EQ_REF &&
+	  join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -784,7 +786,8 @@ JOIN::optimize()
 								  where)));
 	}
       }
-      else if (join_tab[0].type == JT_REF)
+      else if (join_tab[0].type == JT_REF &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -799,6 +802,7 @@ JOIN::optimize()
 	}
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
 	       having->type() == Item::FUNC_ITEM &&
 	       ((Item_func *) having)->functype() ==
 	       Item_func::ISNOTNULLTEST_FUNC)
@@ -2346,7 +2350,8 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test(a->used_tables) - test(b->used_tables)))
+  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
@@ -2477,6 +2482,12 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 	keyuse->ref_table_rows= max(tmp_table->file->records, 100);
       }
     }
+    /*
+      Outer reference (external field) is constant for single executing
+      of subquery
+    */
+    if (keyuse->used_tables == OUTER_REF_TABLE_BIT)
+      keyuse->ref_table_rows= 1;
   }
 }
 
@@ -4343,9 +4354,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
       case ROW_RESULT:
       default:
 	// This case should never be choosen
@@ -4402,10 +4413,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->charset());
+				   item->name,table,item->collation.collation);
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->charset());
+				    item->name,table,item->collation.collation);
       break;
     case ROW_RESULT: 
     default: 

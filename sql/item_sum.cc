@@ -194,13 +194,13 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     max_length=float_length(decimals);
   }else
   {
-    cmp_charset= item->charset();
+    cmp_charset= item->collation.collation;
     max_length=item->max_length;
   }
   decimals=item->decimals;
   maybe_null=item->maybe_null;
   unsigned_flag=item->unsigned_flag;
-  set_charset(item->charset());
+  collation.set(item->collation);
   result_field=0;
   null_value=1;
   fix_length_and_dec();
@@ -1024,7 +1024,9 @@ int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
   Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
   CHARSET_INFO *cs=item->key_charset;
   uint len=item->key_length;
-  return my_strnncoll(cs, (const uchar*) key1, len, (const uchar*) key2, len);
+  return cs->coll->strnncollsp(cs, 
+			       (const uchar*) key1, len, 
+			       (const uchar*) key2, len);
 }
 
 /*

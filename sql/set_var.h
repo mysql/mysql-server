@@ -607,7 +607,7 @@ public:
     {
       Item_field *item= (Item_field*) value_arg;
       if (!(value=new Item_string(item->field_name, strlen(item->field_name),
-				  item->charset())))
+				  item->collation.collation)))
 	value=value_arg;			/* Give error message later */
     }
     else

@@ -138,7 +138,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->raid_chunks= head[42];
     outparam->raid_chunksize= uint4korr(head+43);
     if (!(outparam->table_charset=get_charset((uint) head[38],MYF(0))))
-      outparam->table_charset=NULL; // QQ display error message?
+      outparam->table_charset=default_charset_info; // QQ display error message?
     null_field_first=1;
   }
   outparam->db_record_offset=1;
@@ -398,8 +398,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	if (!strpos[14])
 	  charset= &my_charset_bin;
 	else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
-	  charset= (outparam->table_charset ? outparam->table_charset: 
-		  default_charset_info);
+	  charset= outparam->table_charset;
       }
       if (!comment_length)
       {
@@ -423,8 +422,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
       /* old frm file */
       field_type= (enum_field_types) f_packtype(pack_flag);
-      charset=(outparam->table_charset ? outparam->table_charset :
-	       default_charset_info);
+      charset=f_is_binary(pack_flag) ? &my_charset_bin : outparam->table_charset;
       bzero((char*) &comment, sizeof(comment));
     }
     *field_ptr=reg_field=
@@ -599,7 +597,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
       keyinfo->usable_key_parts=usable_parts; // Filesort
     }
-    if (primary_key < MAX_KEY && 
+    if (primary_key < MAX_KEY &&
 	(outparam->keys_in_use & ((key_map) 1 << primary_key)))
     {
       outparam->primary_key=primary_key;

@@ -1132,7 +1132,7 @@ bool test_if_int(const char *str, int length, const char *int_end,
 */
 
 #define FIELDFLAG_DECIMAL		1
-#define FIELDFLAG_BINARY		1	// Shares same flag 
+#define FIELDFLAG_BINARY		1	// Shares same flag
 #define FIELDFLAG_NUMBER		2
 #define FIELDFLAG_ZEROFILL		4
 #define FIELDFLAG_PACK			120	// Bits used for packing
@@ -1163,7 +1163,8 @@ bool test_if_int(const char *str, int length, const char *int_end,
 #define f_packtype(x)		(((x) >> FIELDFLAG_PACK_SHIFT) & 15)
 #define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
 #define f_is_alpha(x)		(!f_is_num(x))
-#define f_is_enum(x)	((x) & FIELDFLAG_INTERVAL)
+#define f_is_binary(x)          ((x) & FIELDFLAG_BINARY) // 4.0- compatibility
+#define f_is_enum(x)            ((x) & FIELDFLAG_INTERVAL)
 #define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
 #define f_is_geom(x)		((x) & FIELDFLAG_GEOM)

@@ -612,3 +612,9 @@ select Case When Count(*) < MAX_REQ Then 1 Else 0 End from t1 where t1.USR_ID = 
 Case When Count(*) < MAX_REQ Then 1 Else 0 End
 1
 drop table t1;
+create table t1 (a char(10));
+insert into t1 values ('a'),('b'),('c');
+select coercibility(max(a)) from t1;
+coercibility(max(a))
+3
+drop table t1;

@@ -42,21 +42,25 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  set_charset(default_charset(), DERIVATION_COERCIBLE);
+  collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
-  loop_id= 0;
   /*
     Item constructor can be called during execution other tnen SQL_COM
     command => we should check thd->lex.current_select on zero (thd->lex
     can be uninitialised)
   */
-  if (thd->lex.current_select &&
-      thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
-    thd->lex.current_select->select_items++;
+  if (thd->lex.current_select)
+  {
+    SELECT_LEX_NODE::enum_parsing_place place= 
+      thd->lex.current_select->parsing_place;
+    if (place == SELECT_LEX_NODE::SELECT_LIST ||
+	place == SELECT_LEX_NODE::IN_HAVING)
+      thd->lex.current_select->select_n_having_items++;
+  }
 }
 
 /*
@@ -65,7 +69,6 @@ Item::Item():
   tables
 */
 Item::Item(THD *thd, Item &item):
-  loop_id(0),
   str_value(item.str_value),
   name(item.name),
   max_length(item.max_length),
@@ -154,7 +157,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   {
     if (binary_cmp)
       return !sortcmp(&str_value, &item->str_value, &my_charset_bin);
-    return !sortcmp(&str_value, &item->str_value, charset());
+    return !sortcmp(&str_value, &item->str_value, collation.collation);
   }
   return 0;
 }
@@ -263,7 +266,7 @@ bool DTCollation::aggregate(DTCollation &dt)
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
-  set_charset(DERIVATION_IMPLICIT);
+  collation.set(DERIVATION_IMPLICIT);
   fixed= 1; // This item is not needed in fix_fields
 }
 
@@ -272,7 +275,7 @@ Item_field::Item_field(THD *thd, Item_field &item):
   Item_ident(thd, item),
   field(item.field),
   result_field(item.result_field)
-{ set_charset(DERIVATION_IMPLICIT); }
+{ collation.set(DERIVATION_IMPLICIT); }
 
 void Item_field::set_field(Field *field_par)
 {
@@ -284,7 +287,7 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset(), DERIVATION_IMPLICIT);
+  collation.set(field_par->charset(), DERIVATION_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const
@@ -538,6 +541,11 @@ void Item_param::set_longdata(const char *str, ulong length)
 
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
+  THD *thd= current_thd;
+
+  if (thd->command == COM_PREPARE)
+    return -1;
+  
   if (null_value)
     return (int) set_field_to_null(field);   
     
@@ -857,7 +865,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     sl= sl->outer_select())
 	{
 	  table_list= (last= sl)->get_table_list();
-	  if (sl->insert_select && table_list)
+	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
 	    // it is primary INSERT st_select_lex => skip first table resolving
 	    table_list= table_list->next;
@@ -866,7 +874,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, &where,
 					 0)) != not_found_field)
 	    break;
-	  if ((refer= find_item_in_list(this, sl->item_list, &counter, 
+	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	      (refer= find_item_in_list(this, sl->item_list, &counter, 
 					 REPORT_EXCEPT_NOT_FOUND)) != 
 	       (Item **) not_found_item)
 	    break;
@@ -947,7 +956,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->org_col_name=	empty_name;
   tmp_field->table_name=	empty_name;
   tmp_field->col_name=		name;
-  tmp_field->charsetnr= 	charset()->number;
+  tmp_field->charsetnr= 	collation.collation->number;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
   tmp_field->type=field_type;
   tmp_field->length=max_length;
@@ -1061,7 +1070,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
       field->result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs=charset();
+    CHARSET_INFO *cs= collation.collation;
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
@@ -1098,7 +1107,8 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(result->ptr(),result->length(),charset())) ? -1 : 0;
+  return (field->store(result->ptr(),result->length(),collation.collation)) ? 
+	  -1 : 0;
 }
 
 
@@ -1152,7 +1162,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
-  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
 }
 
 longlong Item_varbinary::val_int()
@@ -1173,7 +1183,7 @@ int Item_varbinary::save_in_field(Field *field, bool no_conversions)
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    error=field->store(str_value.ptr(),str_value.length(),charset());
+    error=field->store(str_value.ptr(),str_value.length(),collation.collation);
   }
   else
   {
@@ -1339,13 +1349,15 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       SELECT_LEX *last=0;
       for ( ; sl ; sl= sl->outer_select())
       {
-	if ((ref= find_item_in_list(this, (last= sl)->item_list,
+	last= sl;
+	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	    (ref= find_item_in_list(this, sl->item_list,
 				    &counter,
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
 	table_list= sl->get_table_list();
-	if (sl->insert_select && table_list)
+	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
@@ -1431,7 +1443,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
-  set_charset((*ref)->charset());
+  collation.set((*ref)->collation);
   with_sum_func= (*ref)->with_sum_func;
   fixed= 1;
 
@@ -1664,7 +1676,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
 
 void Item_cache_str::store(Item *item)
 {
-  value_buff.set(buffer, sizeof(buffer), item->charset());
+  value_buff.set(buffer, sizeof(buffer), item->collation.collation);
   value= item->str_result(&value_buff);
   if ((null_value= item->null_value))
     value= 0;
