@@ -56,6 +56,9 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
+ibool           srv_is_being_started = FALSE;
+ibool           srv_was_started      = FALSE;
+
 ibool		measure_cont	= FALSE;
 
 os_file_t	files[1000];
@@ -443,6 +446,8 @@ innobase_start_or_create_for_mysql(void)
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
 
+	srv_is_being_started = TRUE;
+
 	os_aio_use_native_aio = srv_use_native_aio;
 
 	err = srv_boot();
@@ -676,6 +681,9 @@ innobase_start_or_create_for_mysql(void)
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
 	fprintf(stderr, "Innobase: Started\n");
 
+	srv_was_started = TRUE;
+	srv_is_being_started = FALSE;
+
 	sync_order_checks_on = TRUE;
 
 	/* buf_debug_prints = TRUE; */
@@ -691,6 +699,14 @@ innobase_shutdown_for_mysql(void)
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
 {
+        if (!srv_was_started) {
+	  if (srv_is_being_started) {
+            fprintf(stderr, 
+	"Innobase: Warning: shutting down not properly started database\n");
+	  }
+	  return(DB_SUCCESS);
+	}
+
 	/* Flush buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive */
 
