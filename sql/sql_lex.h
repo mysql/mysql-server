@@ -145,6 +145,7 @@ typedef struct st_lex {
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
+  char* ssl_subject,*ssl_issuer,*ssl_chipher;
   String *wild;
   sql_exchange *exchange;
 
