@@ -1097,7 +1097,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      printf("QQ LEAVE with no matching label\n");
+	      send_error(YYTHD, ER_SP_LEAVE_MISMATCH);
 	      YYABORT;
 	    }
 	    else
@@ -1115,7 +1115,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      printf("QQ ITERATE with no matching label\n");
+	      send_error(YYTHD, ER_SP_ITERATE_MISMATCH);
 	      YYABORT;
 	    }
 	    else
@@ -1217,7 +1217,7 @@ sp_labeled_control:
 
 	    if (lab)
 	    {
-	      printf("QQ Redefining label\n");
+	      send_error(YYTHD, ER_SP_LABEL_REDEFINE);
 	      YYABORT;
 	    }
 	    else
@@ -1231,14 +1231,9 @@ sp_labeled_control:
 	    LEX *lex= Lex;
 	    sp_label_t *lab= lex->spcont->find_label($5.str);
 
-	    if (! lab)
+	    if (! lab || strcasecmp($5.str, lab->name) != 0)
 	    {
-	      printf("QQ end-label without match\n");
-	      YYABORT;
-	    }
-	    else if (strcasecmp($5.str, lab->name) != 0)
-	    {
-	      printf("QQ mismatching labels\n");
+	      send_error(YYTHD, ER_SP_LABEL_MISMATCH);
 	      YYABORT;
 	    }
 	    else
@@ -4158,8 +4153,8 @@ simple_ident:
 	  { /* We're compiling a stored procedure and found a variable */
 	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
 	    {
-	      printf("QQ Referring to an unitialized variable\n");
-	      YYABORT; /* QQ Referring to an unitialized variable */
+	      send_error(YYTHD, ER_SP_UNINIT_VAR);
+	      YYABORT;
 	    }
 	    else
 	      $$ = (Item*) new Item_splocal(spv->offset);
