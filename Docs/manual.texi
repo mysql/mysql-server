@@ -50815,6 +50815,10 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Removed a condition that temp table with index on column that can be NULL has
+to be MyISAM. This was OK for 3.23, but not needed in 4.*. This resulted in 
+slowdown in many queries since 4.0.2
+@item
 Small code improvement in multi-table updates
 @item
 Fixed a newly introduced bug that caused @code{ORDER BY ... LIMIT #}
