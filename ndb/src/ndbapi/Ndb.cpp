@@ -973,13 +973,13 @@ Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
    */
   {
     fragment2PrimaryNodeMap = new Uint32[noOfFragments];
-    
-    for(Uint32 i = 0; i<noOfNodes; i++){
+    Uint32 i;  
+    for(i = 0; i<noOfNodes; i++){
       fragment2PrimaryNodeMap[i] = nodeIds[i];
     }
     
     // Sort them (bubble sort)
-    for(Uint32 i = 0; i<noOfNodes-1; i++)
+    for(i = 0; i<noOfNodes-1; i++)
       for(Uint32 j = i+1; j<noOfNodes; j++)
 	if(fragment2PrimaryNodeMap[i] > fragment2PrimaryNodeMap[j]){
 	  Uint32 tmp = fragment2PrimaryNodeMap[i];
@@ -987,7 +987,7 @@ Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
 	  fragment2PrimaryNodeMap[j] = tmp;
 	}
     
-    for(Uint32 i = 0; i<noOfNodes; i++){
+    for(i = 0; i<noOfNodes; i++){
       fragment2PrimaryNodeMap[i+noOfNodes] = fragment2PrimaryNodeMap[i];
     }
   }

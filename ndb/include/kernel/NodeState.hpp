@@ -108,7 +108,8 @@ public:
   NodeState(StartLevel);
   NodeState(StartLevel, bool systemShutdown);
   NodeState(StartLevel, Uint32 startPhase, StartType);
-  
+  void init();
+ 
   /**
    * Current start level
    */
@@ -177,6 +178,12 @@ public:
 
 inline
 NodeState::NodeState(){
+  init();
+}
+
+inline
+void
+NodeState::init(){
   startLevel = SL_CMVMI;
   nodeGroup = 0xFFFFFFFF;
   dynamicId = 0xFFFFFFFF;
@@ -186,7 +193,7 @@ NodeState::NodeState(){
 
 inline
 NodeState::NodeState(StartLevel sl){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   singleUserMode = 0;
   singleUserApi = 0xFFFFFFFF;
@@ -194,7 +201,7 @@ NodeState::NodeState(StartLevel sl){
 
 inline
 NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   starting.startPhase = sp;
   starting.restartType = typeOfStart;
@@ -204,7 +211,7 @@ NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
 
 inline
 NodeState::NodeState(StartLevel sl, bool sys){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   stopping.systemShutdown = sys;
   singleUserMode = 0;

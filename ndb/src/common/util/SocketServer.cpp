@@ -36,10 +36,11 @@ SocketServer::SocketServer(int maxSessions) :
 }
 
 SocketServer::~SocketServer() {
-  for(unsigned i = 0; i<m_sessions.size(); i++){
+  unsigned i;
+  for(i = 0; i<m_sessions.size(); i++){
     delete m_sessions[i].m_session;
   }
-  for(unsigned i = 0; i<m_services.size(); i++){
+  for(i = 0; i<m_services.size(); i++){
     delete m_services[i].m_service;
   }
 }
@@ -265,10 +266,11 @@ SocketServer::checkSessions(){
 
 void
 SocketServer::stopSessions(bool wait){
-  for(int i = m_sessions.size() - 1; i>=0; i--)
+  int i;
+  for(i = m_sessions.size() - 1; i>=0; i--)
     m_sessions[i].m_session->m_stop = true;
   
-  for(int i = m_services.size() - 1; i>=0; i--)
+  for(i = m_services.size() - 1; i>=0; i--)
     m_services[i].m_service->stopSessions();
   
   if(wait){
