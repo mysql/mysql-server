@@ -240,7 +240,7 @@ private:
   LEX *m_lex;
   Protocol_cursor *m_prot;
   my_bool m_isopen;
-  Vio *m_ovio;			// Original vio
+  my_bool m_nseof;		// Original no_send_eof
   Protocol *m_oprot;		// Original protcol
   MYSQL_ROWS *m_current_row;
   

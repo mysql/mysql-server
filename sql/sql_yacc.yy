@@ -4555,12 +4555,11 @@ select_var_ident:
            | ident_or_text
            {
              LEX *lex=Lex;
-	     if (!lex->spcont)
-	       YYABORT;
 	     sp_pvar_t *t;
-	     if (!(t=lex->spcont->find_pvar(&$1)))
+
+	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
 	     {
-	       send_error(lex->thd, ER_SP_UNDECLARED_VAR);
+	       net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $1.str);
 	       YYABORT;
 	     }
 	     if (! lex->result)

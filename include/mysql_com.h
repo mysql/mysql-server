@@ -157,7 +157,8 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool no_send_ok;
+  my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
+  my_bool no_send_eof; /* For SPs' first version read-only cursors */
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
