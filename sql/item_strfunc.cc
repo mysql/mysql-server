@@ -1915,7 +1915,7 @@ outp:
 }
 
 
-bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables)
+bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;
@@ -1948,7 +1948,7 @@ String *Item_func_set_collation::val_str(String *str)
   return str;
 }
 
-bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables)
+bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;

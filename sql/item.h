@@ -53,7 +53,7 @@ public:
   void set_name(char* str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
-  virtual bool save_in_field(Field *field);
+  virtual int  save_in_field(Field *field);
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
   virtual bool send(THD *thd, String *str);
@@ -124,7 +124,7 @@ public:
   bool send(THD *thd, String *str_arg) { return result_field->send(thd,str_arg); }
   void make_field(Send_field *field);
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
   enum Item_result result_type () const
@@ -149,7 +149,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   void make_field(Send_field *field);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   enum Item_result result_type () const
   { return STRING_RESULT; }
   bool send(THD *thd, String *str);
@@ -178,7 +178,7 @@ public:
   longlong val_int();
   String *val_str(String*);
   void make_field(Send_field *field);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void set_null();
   void set_int(longlong i);
   void set_double(float i);
@@ -215,7 +215,7 @@ public:
   double val() { return (double) value; }
   String *val_str(String*);
   void make_field(Send_field *field);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
   void print(String *str);
@@ -254,7 +254,7 @@ public:
     max_length=length;
   }
   Item_real(double value_par) :value(value_par) {}
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   enum Type type() const { return REAL_ITEM; }
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5));}
@@ -297,7 +297,7 @@ public:
   double val() { return atof(str_value.ptr()); }
   longlong val_int() { return strtoll(str_value.ptr(),(char**) 0,10); }
   String *val_str(String*) { return (String*) &str_value; }
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void make_field(Send_field *field);
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
@@ -334,7 +334,7 @@ public:
   double val() { return (double) Item_varbinary::val_int(); }
   longlong val_int();
   String *val_str(String*) { return &str_value; }
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void make_field(Send_field *field);
   enum Item_result result_type () const { return INT_RESULT; }
 };
@@ -394,7 +394,7 @@ public:
   bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  bool save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
+  int  save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
@@ -413,7 +413,7 @@ class Item_int_with_ref :public Item_int
 public:
   Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
   {}
-  bool save_in_field(Field *field)
+  int  save_in_field(Field *field)
   {
     return ref->save_in_field(field);
   }

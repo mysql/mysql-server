@@ -340,7 +340,7 @@ void Item_param::set_long_end()
   item_result_type = STRING_RESULT;
 };
 
-bool Item_param::save_in_field(Field *field)
+int  Item_param::save_in_field(Field *field)
 {
   if (null_value)
     return set_field_to_null(field);   
@@ -349,20 +349,17 @@ bool Item_param::save_in_field(Field *field)
   if (item_result_type == INT_RESULT)
   {
     longlong nr=val_int();
-    field->store(nr);
-    return 0;
+    return (field->store(nr)) ? -1 : 0;
   }
   if (item_result_type == REAL_RESULT)
   {
     double nr=val();    
-    field->store(nr);   
-    return 0;
+    return (field->store(nr)) ? -1 : 0; 
   }
   String *result;
   CHARSET_INFO *cs=default_charset_info;//fix this
   result=val_str(&str_value);
-  field->store(result->ptr(),result->length(),cs);
-  return 0;
+  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
 }
 
 void Item_param::make_field(Send_field *tmp_field)
@@ -615,7 +612,7 @@ void Item_field::save_org_in_field(Field *to)
   }
 }
 
-bool Item_field::save_in_field(Field *to)
+int  Item_field::save_in_field(Field *to)
 {
   if (result_field->is_null())
   {
@@ -632,14 +629,15 @@ bool Item_field::save_in_field(Field *to)
 }
 
 
-bool Item_null::save_in_field(Field *field)
+int  Item_null::save_in_field(Field *field)
 {
   return set_field_to_null(field);
 }
 
 
-bool Item::save_in_field(Field *field)
+int  Item::save_in_field(Field *field)
 {
+  int error;
   if (result_type() == STRING_RESULT ||
       result_type() == REAL_RESULT &&
       field->result_type() == STRING_RESULT)
@@ -652,7 +650,7 @@ bool Item::save_in_field(Field *field)
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(result->ptr(),result->length(),cs);
+    error=field->store(result->ptr(),result->length(),cs);
     str_value.set_quick(0, 0, cs);
   }
   else if (result_type() == REAL_RESULT)
@@ -661,7 +659,7 @@ bool Item::save_in_field(Field *field)
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(nr);
+    error=field->store(nr);
   }
   else
   {
@@ -669,12 +667,12 @@ bool Item::save_in_field(Field *field)
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(nr);
+    error=field->store(nr);
   }
-  return 0;
+  return (error) ? -1 : 0;
 }
 
-bool Item_string::save_in_field(Field *field)
+int  Item_string::save_in_field(Field *field)
 {
   String *result;
   CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
@@ -682,28 +680,25 @@ bool Item_string::save_in_field(Field *field)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(result->ptr(),result->length(),cs);
-  return 0;
+  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
 }
 
-bool Item_int::save_in_field(Field *field)
+int  Item_int::save_in_field(Field *field)
 {
   longlong nr=val_int();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(nr);
-  return 0;
+  return (field->store(nr)) ? -1 : 0;
 }
 
-bool Item_real::save_in_field(Field *field)
+int  Item_real::save_in_field(Field *field)
 {
   double nr=val();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(nr);
-  return 0;
+  return (field->store(nr)) ? -1 : 0;
 }
 
 /****************************************************************************
@@ -751,20 +746,21 @@ longlong Item_varbinary::val_int()
 }
 
 
-bool Item_varbinary::save_in_field(Field *field)
+int  Item_varbinary::save_in_field(Field *field)
 {
+  int error;
   CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    field->store(str_value.ptr(),str_value.length(),cs);
+    error=field->store(str_value.ptr(),str_value.length(),cs);
   }
   else
   {
     longlong nr=val_int();
-    field->store(nr);
+    error=field->store(nr);
   }
-  return 0;
+  return (error) ? -1 :  0;
 }
 
 

@@ -2478,7 +2478,7 @@ store_val_in_field(Field *field,Item *item)
   THD *thd=current_thd;
   ulong cuted_fields=thd->cuted_fields;
   thd->count_cuted_fields=1;
-  item->save_in_field(field);
+  (void) item->save_in_field(field);
   thd->count_cuted_fields=0;
   return cuted_fields != thd->cuted_fields;
 }

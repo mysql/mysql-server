@@ -1028,7 +1028,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
 
-  if (value->save_in_field(field))
+  if (value->save_in_field(field) == 1)
   {
     if (type == Item_func::EQUAL_FUNC)
     {
