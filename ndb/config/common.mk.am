@@ -1,0 +1,7 @@
+
+INCLUDES =
+LDADD = $(top_srcdir)/ndb/src/common/portlib/gcc.cpp $(LDADD_LOC)
+DEFS = @DEFS@ @NDB_DEFS@
+# ndb cannot be compiled with -fno-implicit-templaces
+NDB_CXXFLAGS=-fimplicit-templates
+##use AM_CXXFLAGS for other flags
