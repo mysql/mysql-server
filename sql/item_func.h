@@ -137,13 +137,17 @@ public:
     return (null_value=args[0]->get_time(ltime));
   }
   bool is_null() { (void) val_int(); return null_value; }
+  void signal_divide_by_null();
   friend class udf_handler;
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
   Item *get_tmp_table_item(THD *thd);
   
-  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems);
-  bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
+  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
+                          bool allow_superset_conversion= FALSE);
+  bool agg_arg_collations_for_comparison(DTCollation &c,
+                                         Item **items, uint nitems,
+                                         bool allow_superset_comversion= FALSE);
 
   bool walk(Item_processor processor, byte *arg);
 };
@@ -337,7 +341,7 @@ class Item_dec_func :public Item_real_func
   Item_dec_func(Item *a,Item *b) :Item_real_func(a,b) {}
   void fix_length_and_dec()
   {
-    decimals=6; max_length=float_length(decimals);
+    decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
     maybe_null=1;
   }
   inline double fix_result(double value)
@@ -945,6 +949,7 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
   void fix_length_and_dec();
   void print(String *str);
+  void print_as_stmt(String *str);
   const char *func_name() const { return "set_user_var"; }
 };
 
@@ -1127,25 +1132,31 @@ public:
   double val()
   {
     Item *it;
+    double d;
 
     if (execute(&it))
     {
       null_value= 1;
       return 0.0;
     }
-    return it->val();
+    d= it->val();
+    null_value= it->null_value;
+    return d;
   }
 
   String *val_str(String *str)
   {
     Item *it;
+    String *s;
 
     if (execute(&it))
     {
       null_value= 1;
       return NULL;
     }
-    return it->val_str(str);
+    s= it->val_str(str);
+    null_value= it->null_value;
+    return s;
   }
 
   void fix_length_and_dec();

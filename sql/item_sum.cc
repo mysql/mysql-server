@@ -64,20 +64,20 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 
 /*
-  Save copy of arguments if we are prepare prepared statement
+  Save copy of arguments if we are preparing a prepared statement
   (arguments can be rewritten in get_tmp_table_item())
 
   SYNOPSIS
-    Item_sum::save_args_for_prepared_statements()
+    Item_sum::save_args_for_prepared_statement()
     thd		- thread handler
 
   RETURN
     0 - OK
     1 - Error
 */
-bool Item_sum::save_args_for_prepared_statements(THD *thd)
+bool Item_sum::save_args_for_prepared_statement(THD *thd)
 {
-  if (thd->current_arena && args_copy == 0)
+  if (!thd->current_arena->is_conventional() && args_copy == 0)
     return save_args(thd->current_arena);
   return 0;
 }
@@ -214,7 +214,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
   
   if (!thd->allow_sum_func)
@@ -248,7 +248,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
 
   Item *item= args[0];
@@ -2056,12 +2056,11 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  uint i;			/* for loop variable */ 
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
-
-  uint i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)
   {
@@ -2077,12 +2076,12 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     Fix fields for select list and ORDER clause
   */
 
-  for (i= 0 ; i < arg_count ; i++)
+  for (i=0 ; i < arg_count ; i++)  
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
-    if (i < arg_count_field && args[i]->maybe_null)
-      maybe_null= 0;
+    if (i < arg_count_field)
+      maybe_null|= args[i]->maybe_null;
   }
 
   result_field= 0;
@@ -2153,10 +2152,14 @@ bool Item_func_group_concat::setup(THD *thd)
 
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
+
+    We need to set set_sum_field in true for storing value of blob in buffer 
+    of a record instead of a pointer of one. 
   */
-  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
-			       0, 0, 0,select_lex->options | thd->options,
-			       (char *) "")))
+  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 
+			       (ORDER*) 0, 0, TRUE,
+                               select_lex->options | thd->options,
+			       HA_POS_ERROR,(char *) "")))
     DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
@@ -2263,7 +2266,7 @@ void Item_func_group_concat::print(String *str)
       (*order[i]->item)->print(str);
     }
   }
-  str->append(" seperator \'", 12);
+  str->append(" separator \'", 12);
   str->append(*separator);
   str->append("\')", 2);
 }

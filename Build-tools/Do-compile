@@ -10,12 +10,13 @@ use Sys::Hostname;
 $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
+$opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
 
 GetOptions(
 	"bdb",
 	"build-thread=i",
+	"bundled-zlib",
 	"config-env=s" => \@config_env,
 	"config-extra-env=s" => \@config_extra_env,
 	"config-options=s" => \@config_options,
@@ -255,6 +256,7 @@ if ($opt_stage <= 1)
   log_system("$make clean") if ($opt_use_old_distribution);
   $opt_config_options.= " --disable-shared" if (!$opt_enable_shared); # Default for binary versions
   $opt_config_options.= " --with-berkeley-db" if ($opt_bdb);
+  $opt_config_options.= " --with-zlib-dir=bundled" if ($opt_bundled_zlib);
   $opt_config_options.= " --with-client-ldflags=-all-static" if ($opt_static_client);
 	$opt_config_options.= " --with-debug" if ($opt_with_debug);
   $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
@@ -374,7 +376,7 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
   log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run $flags --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 }
 
 #

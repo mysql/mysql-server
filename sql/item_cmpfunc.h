@@ -65,12 +65,16 @@ public:
   int compare_string();		 // compare args[0] & args[1]
   int compare_binary_string();	 // compare args[0] & args[1]
   int compare_real();            // compare args[0] & args[1]
-  int compare_int();             // compare args[0] & args[1]
+  int compare_int_signed();      // compare args[0] & args[1]
+  int compare_int_signed_unsigned();
+  int compare_int_unsigned_signed();
+  int compare_int_unsigned();
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
   int compare_e_binary_string(); // compare args[0] & args[1]
   int compare_e_real();          // compare args[0] & args[1]
   int compare_e_int();           // compare args[0] & args[1]
+  int compare_e_int_diff_signedness();
   int compare_e_row();           // compare args[0] & args[1]
 
   static arg_cmp_func comparator_matrix [4][2];
@@ -85,6 +89,7 @@ public:
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
+  bool is_bool_func() { return 1; }
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
@@ -197,6 +202,7 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+  bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
 
   friend class  Arg_comparator;
@@ -304,7 +310,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
-  Item* neg_transformer(THD *thd) { return 0; }
+  Item *neg_transformer(THD *thd) { return 0; }
 };
 
 
@@ -778,6 +784,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
+  bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 

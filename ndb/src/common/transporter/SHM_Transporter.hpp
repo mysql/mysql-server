@@ -32,13 +32,17 @@ typedef Uint32 key_t;
 class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
 public:
-  SHM_Transporter(NodeId lNodeId,
+  SHM_Transporter(TransporterRegistry &,
+		  const char *lHostName,
+		  const char *rHostName, 
+		  int r_port,
+		  NodeId lNodeId,
 		  NodeId rNodeId, 
-		  key_t shmKey,
-		  Uint32 shmSize,
 		  bool compression, 
 		  bool checksum, 
-		  bool signalId);
+		  bool signalId,
+		  key_t shmKey,
+		  Uint32 shmSize);
   
   /**
    * SHM destructor
@@ -75,14 +79,6 @@ protected:
   void disconnectImpl();
 
   /**
-   * Invokes the connectServer or connectClient.
-   * @param timeOutMillis - the timeout the connect thread waits before 
-   * retrying.
-   * @return True if connectImpl successful, otherwise false.
-   */
-  bool connectImpl(Uint32 timeOutMillis);
-  
-  /**
    * Blocking
    *
    * -# Create shm segment
@@ -94,7 +90,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connectServer(Uint32 timeOutMillis);
+  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
 
   /**
    * Blocking
@@ -108,8 +104,13 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connectClient(Uint32 timeOutMillis);
+  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
 
+  bool connect_common(NDB_SOCKET_TYPE sockfd);
+
+  bool ndb_shm_create();
+  bool ndb_shm_get();
+  bool ndb_shm_attach();
 
   /**
    * Check if there are two processes attached to the segment (a connection)
@@ -127,7 +128,6 @@ private:
   bool _shmSegCreated;
   bool _attached;
     
-  const bool  isServer;
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
   volatile Uint32 * clientStatusFlag;  

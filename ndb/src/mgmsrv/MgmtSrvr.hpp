@@ -68,6 +68,22 @@ public:
     virtual void println_statistics(const BaseString &s) = 0;
   };
 
+  // some compilers need all of this
+  class Allocated_resources;
+  friend class Allocated_resources;
+  class Allocated_resources {
+  public:
+    Allocated_resources(class MgmtSrvr &m);
+    ~Allocated_resources();
+    // methods to reserve/allocate resources which
+    // will be freed when running destructor
+    void reserve_node(NodeId id);
+    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId);}
+  private:
+    MgmtSrvr &m_mgmsrv;
+    NodeBitmask m_reserved_nodes;
+  };
+
   /**
    * Set a reference to the socket server.
    */
@@ -150,10 +166,12 @@ public:
   enum LogMode {In, Out, InOut, Off};
 
   /* Constructor */
+
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
 	   const BaseString &config_filename,      /* Where to save config */
 	   const BaseString &ndb_config_filename,  /* Ndb.cfg filename */
 	   Config * config); 
+  NodeId getOwnNodeId() const {return _ownNodeId;};
 
   /**
    *   Read (initial) config file, create TransporterFacade, 
@@ -448,6 +466,8 @@ public:
    *   @return false if none found
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
+  bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
+		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len);
   
   /**
    *
@@ -492,8 +512,14 @@ public:
    * @return statistic port number.
    */
   int getStatPort() const;
+  /**
+   * Returns the port number.
+   * @return port number.
+   */
+  int getPort() const;
 
-
+  int setDbParameter(int node, int parameter, const char * value, BaseString&);
+  
   //**************************************************************************
 private:
   //**************************************************************************
@@ -530,12 +556,13 @@ private:
   BaseString m_configFilename;
   BaseString m_localNdbConfigFilename;
   Uint32 m_nextConfigGenerationNumber;
+  
+  NodeBitmask m_reserved_nodes;
+  Allocated_resources m_allocated_resources;
 
   int _setVarReqResult; // The result of the SET_VAR_REQ response
   Statistics _statistics; // handleSTATISTICS_CONF store the result here, 
                           // and getStatistics reads it.
-
-
 
   //**************************************************************************
   // Specific signal handling methods

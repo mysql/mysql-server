@@ -187,7 +187,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D LICENSE=Commercial /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "HAVE_DLOPEN" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D LICENSE=Commercial /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "HAVE_DLOPEN" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /D MYSQL_SERVER_SUFFIX=-classic /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -243,7 +243,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D LICENSE=Commercial /D MYSQL_SERVER_SUFFIX=-nt /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /FD /D LICENSE=Commercial /D MYSQL_SERVER_SUFFIX=-classic-nt /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -917,6 +917,89 @@ SOURCE=.\log.cpp
 # Begin Source File
 
 SOURCE=.\log_event.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\message.mc
+
+!IF  "$(CFG)" == "mysqld - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
+
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 classic"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 pro"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 classic nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=.\message.rc
 # End Source File
 # Begin Source File
 

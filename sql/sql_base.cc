@@ -20,6 +20,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -38,13 +40,10 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static my_bool open_new_frm(const char *path, const char *alias,
+                            const char *db, const char *table_name,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -209,6 +208,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 void intern_close_table(TABLE *table)
 {						// Free all structures
   free_io_cache(table);
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));			// close file
 }
@@ -548,82 +548,109 @@ void close_temporary_tables(THD *thd)
   thd->temporary_tables=0;
 }
 
-#ifdef UNUSED
+
 /*
-  Find first suitable table by alias in given list.
+  Find table in list.
 
   SYNOPSIS
     find_table_in_list()
-    table - pointer to table list
-    db_name - data base name or 0 for any
-    table_name - table name or 0 for any
+    table 		Pointer to table list
+    offset		Offset to which list in table structure to use
+    db_name 		Data base name
+    table_name 		Table name
+
+  NOTES:
+    This is called by find_table_in_local_list() and
+    find_table_in_global_list().
 
   RETURN VALUES
     NULL	Table not found
     #		Pointer to found table.
 */
 
-TABLE_LIST * find_table_in_list(TABLE_LIST *table,
-				const char *db_name, const char *table_name)
+TABLE_LIST *find_table_in_list(TABLE_LIST *table,
+                               uint offset,
+                               const char *db_name,
+                               const char *table_name)
 {
-  for (; table; table= table->next)
-    if ((!db_name || !strcmp(table->db, db_name)) &&
-	(!table_name || !my_strcasecmp(table_alias_charset,
-				       table->alias, table_name)))
-      break;
+  if (lower_case_table_names)
+  {
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_cache_key, db_name) &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_name, table_name)))
+        break;
+    }
+  }
+  else
+  {
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !strcmp(table->table->table_cache_key, db_name) &&
+           !strcmp(table->table->table_name, table_name)))
+        break;
+    }
+  }
   return table;
 }
-#endif /*UNUSED*/
-
-/*
-  Find real table in given global list.
-
-  SYNOPSIS
-    find_real_table_in_list()
-    table - pointer to table list
-    db_name - data base name
-    table_name - table name
-
-  RETURN VALUES
-    NULL	Table not found
-    #		Pointer to found table.
-*/
-
-TABLE_LIST * find_real_table_in_list(TABLE_LIST *table,
-				     const char *db_name,
-				     const char *table_name)
-{
-  for (; table; table= table->next_global)
-    if (!strcmp(table->db, db_name) &&
-	!strcmp(table->real_name, table_name))
-      break;
-  return table;
-}
 
 
 /*
-  Find real table in given local list.
+  Test that table is unique
 
   SYNOPSIS
-    find_real_table_in_local_list()
-    table - pointer to table list
-    db_name - data base name
-    table_name - table name
+    unique_table()
+    table       table which should be chaked
+    table_list  list of tables
 
-  RETURN VALUES
-    NULL	Table not found
-    #		Pointer to found table.
+  RETURN
+    found duplicate
+    0 if table is unique
 */
 
-TABLE_LIST * find_real_table_in_local_list(TABLE_LIST *table,
-					   const char *db_name,
-					   const char *table_name)
+TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
-  for (; table; table= table->next_local)
-    if (!strcmp(table->db, db_name) &&
-	!strcmp(table->real_name, table_name))
-      break;
-  return table;
+  TABLE_LIST *res;
+  const char *d_name= table->db, *t_name= table->real_name;
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  if (table->view)
+  {
+    /* it is view and table opened */
+    if (lower_case_table_names)
+    {
+      strmov(t_name_buff, table->table->table_name);
+      my_casedn_str(files_charset_info, t_name_buff);
+      t_name= t_name_buff;
+      strmov(d_name_buff, table->table->table_cache_key);
+      my_casedn_str(files_charset_info, d_name_buff);
+      d_name= d_name_buff;
+    }
+    else
+    {
+      d_name= table->table->table_cache_key;
+      t_name= table->table->table_name;
+    }
+    if (d_name == 0)
+    {
+      /* it's temporary table => always unique */
+      return 0;
+    }
+  }
+  if ((res= find_table_in_global_list(table_list, d_name, t_name)) &&
+      res->table && res->table == table->table)
+  {
+    // we found entry of this table try again.
+    return find_table_in_global_list(res->next_global, d_name, t_name);
+  }
+  return res;
 }
 
 
@@ -786,10 +813,12 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(thd, table, db, table_name, table_name, 0, 0) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
+                        &thd->mem_root) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
+    delete table->triggers;
     closefrm(table);
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(0);
@@ -877,6 +906,39 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	goto reset;
       }
     }
+    /*
+      is it view?
+      (it is work around to allow to open view with locked tables,
+      real fix will be made after definition cache will be made)
+    */
+    {
+      char path[FN_REFLEN];
+      TABLE tab;
+      if (!table)
+        table= &tab;
+      strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
+               table_list->real_name, reg_ext, NullS);
+      (void) unpack_filename(path, path);
+      if (mysql_frm_type(path) == FRMTYPE_VIEW)
+      {
+        VOID(pthread_mutex_lock(&LOCK_open));
+        if (open_unireg_entry(thd, table, table_list->db,
+                              table_list->real_name,
+                              alias, table_list, mem_root))
+        {
+          table->next=table->prev=table;
+          free_cache_entry(table);
+        }
+        else
+        {
+          DBUG_ASSERT(table_list->view);
+          my_free((gptr)table, MYF(0));
+          VOID(pthread_mutex_unlock(&LOCK_open));
+          DBUG_RETURN(0); // VIEW
+        }
+        VOID(pthread_mutex_unlock(&LOCK_open));
+      }
+    }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
   }
@@ -928,7 +990,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
-
+    table->in_use= thd;
   }
   else
   {
@@ -966,7 +1028,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     VOID(my_hash_insert(&open_cache,(byte*) table));
   }
 
-  table->in_use=thd;
   check_unused();				// Debugging call
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1045,14 +1106,15 @@ bool reopen_table(TABLE *table,bool locked)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  if (open_unireg_entry(current_thd, &tmp, db, table_name,
-			table->table_name, 0, 0))
+  if (open_unireg_entry(table->in_use, &tmp, db, table_name,
+			table->table_name, 0, &table->in_use->mem_root))
     goto end;
   free_io_cache(table);
 
   if (!(tmp.table_cache_key= memdup_root(&tmp.mem_root,db,
 					 table->key_length)))
   {
+    delete tmp.triggers;
     closefrm(&tmp);				// End of memory
     goto end;
   }
@@ -1081,6 +1143,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.next=		table->next;
   tmp.prev=		table->prev;
 
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));		// close file, free everything
 
@@ -1363,7 +1426,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     db			Database name
     name		Table name
     alias		Alias name
-    table_desc		TABLE_LIST descriptor
+    table_desc		TABLE_LIST descriptor (used with views)
     mem_root		temporary mem_root for parsing
 
   NOTES
@@ -1379,34 +1442,32 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 {
   char path[FN_REFLEN];
   int error;
-  // we support new format only is have all parameters for it
-  uint new_frm_flag= (table_desc && mem_root) ? NO_ERR_ON_NEW_FRM : 0;
   uint discover_retry_count= 0;
   DBUG_ENTER("open_unireg_entry");
 
   strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
-  while ((error= openfrm(path, alias,
+  while ((error= openfrm(thd, path, alias,
 		         (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
 			         HA_GET_INDEX | HA_TRY_READ_ONLY |
-			       new_frm_flag),
+                                 NO_ERR_ON_NEW_FRM),
 		      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 		      thd->open_options, entry)) &&
       (error != 5 ||
-       fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
-       open_new_frm(path, alias,
-		    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-			    HA_GET_INDEX | HA_TRY_READ_ONLY),
-		    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-		    thd->open_options, entry, table_desc, mem_root)))
+       (fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
+        open_new_frm(path, alias, db, name,
+                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                             HA_GET_INDEX | HA_TRY_READ_ONLY),
+                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                     thd->open_options, entry, table_desc, mem_root))))
 
   {
     if (!entry->crashed)
     {
       /*
-       Frm file could not be found on disk
-       Since it does not exist, no one can be using it
-       LOCK_open has been locked to protect from someone else
-       trying to discover the table at the same time.
+        Frm file could not be found on disk
+        Since it does not exist, no one can be using it
+        LOCK_open has been locked to protect from someone else
+        trying to discover the table at the same time.
       */
       if (discover_retry_count++ != 0)
        goto err;
@@ -1440,7 +1501,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     pthread_mutex_unlock(&LOCK_open);
     thd->clear_error();				// Clear error message
     error= 0;
-    if (openfrm(path,alias,
+    if (openfrm(thd, path, alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 			 HA_TRY_READ_ONLY),
 		READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -1468,6 +1529,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 
   if (error == 5)
     DBUG_RETURN(0);	// we have just opened VIEW
+
+  if (Table_triggers_list::check_n_load(thd, db, name, entry))
+    goto err;
 
   /*
     If we are here, there was no fatal error (but error may be still
@@ -1497,6 +1561,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         */
         sql_print_error("Error: when opening HEAP table, could not allocate \
 memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
+        delete entry->triggers;
         if (entry->file)
           closefrm(entry);
         goto err;
@@ -1611,7 +1676,7 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
     tables->table->grant= tables->grant;
   }
   thd->proc_info=0;
-  free_root(&new_frm_mem, MYF(0));
+  free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
   DBUG_RETURN(result);
 }
 
@@ -1679,7 +1744,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
   thd->proc_info="Opening table";
   thd->current_tablenr= 0;
-  while (!(table= open_table(thd, table_list, 0, &refresh)) && refresh) ;
+  /* open_ltable can be used only for BASIC TABLEs */
+  table_list->required_type= FRMTYPE_TABLE;
+  while (!(table= open_table(thd, table_list, &thd->mem_root, &refresh)) &&
+         refresh)
+    ;
 
   if (table)
   {
@@ -1750,6 +1819,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
   RETURN
     0  - ok
     -1 - error
+    1  - error reported to user
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()
@@ -1759,9 +1829,30 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
-  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter)
+      || mysql_handle_derived(thd->lex))
     DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
+  /*
+    Let us propagate pointers to open tables from global table list
+    to table lists in particular selects if needed.
+  */
+  if (thd->lex->all_selects_list->next_select_in_list() ||
+      thd->lex->time_zone_tables_used)
+  {
+    for (SELECT_LEX *sl= thd->lex->all_selects_list;
+	 sl;
+	 sl= sl->next_select_in_list())
+    {
+      for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
+           cursor;
+           cursor=cursor->next_local)
+      {
+        if (cursor->correspondent_table)
+          cursor->table= cursor->correspondent_table->table;
+      }
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -1844,7 +1935,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 				     MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
-  if (openfrm(path, table_name,
+  if (openfrm(thd, path, table_name,
 	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      ha_open_options,
@@ -1855,7 +1946,6 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
-  tmp_table->in_use= thd;
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
@@ -1908,7 +1998,7 @@ bool rm_temporary_table(enum db_type base, char *path)
 ** return unique field
 ******************************************************************************/
 
-// Special Field pointers for find_field_in_tables returning
+/* Special Field pointers for find_field_in_tables returning */
 const Field *not_found_field= (Field*) 0x1;
 const Field *view_ref_found= (Field*) 0x2; 
 
@@ -1923,6 +2013,7 @@ const Field *view_ref_found= (Field*) 0x2;
     thd				thread handler
     table_list			table where to find
     name			name of field
+    item_name                   name of item if it will be created (VIEW)
     length			length of name
     ref				expression substituted in VIEW should be
 				  passed using this reference (return
@@ -1939,11 +2030,13 @@ const Field *view_ref_found= (Field*) 0x2;
     #			pointer to field
 */
 
-Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
-			   const char *name, uint length, Item **ref,
-                           bool check_grants_table, bool check_grants_view,
-			   bool allow_rowid, 
-                           uint *cached_field_index_ptr)
+Field *
+find_field_in_table(THD *thd, TABLE_LIST *table_list,
+                    const char *name, const char *item_name,
+                    uint length, Item **ref,
+                    bool check_grants_table, bool check_grants_view,
+                    bool allow_rowid,
+                    uint *cached_field_index_ptr)
 {
   Field *fld;
   if (table_list->field_translation)
@@ -1967,13 +2060,8 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
           *ref= trans[i];
         else
         {
-          Item_arena *arena= thd->current_arena, backup;
-          if (arena)
-            thd->set_n_backup_item_arena(arena, &backup);
-          *ref= new Item_ref(trans + i, 0, table_list->view_name.str,
-                             name);
-          if (arena)
-            thd->restore_backup_item_arena(arena, &backup);
+          *ref= new Item_ref(trans + i, ref, table_list->view_name.str,
+                             item_name);
           /* as far as Item_ref have defined refernce it do not need tables */
           if (*ref)
             (*ref)->fix_fields(thd, 0, ref);
@@ -2001,6 +2089,7 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
   return fld;
 }
 
+
 /*
   Find field in table
 
@@ -2020,10 +2109,10 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
     #			pointer to field
 */
 
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr)
+Field *find_field_in_real_table(THD *thd, TABLE *table,
+                                const char *name, uint length,
+                                bool check_grants, bool allow_rowid,
+                                uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
@@ -2162,7 +2251,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
-	Field *find= find_field_in_table(thd, tables, name, length, ref,
+	Field *find= find_field_in_table(thd, tables, name, item->name,
+                                         length, ref,
 					 (test(tables->table->grant.
                                                want_privilege) &&
                                           check_privileges),
@@ -2225,7 +2315,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       return (Field*) not_found_field;
     }
 
-    Field *field= find_field_in_table(thd, tables, name, length, ref,
+    Field *field= find_field_in_table(thd, tables, name, item->name,
+                                      length, ref,
 				      (test(tables->table->grant.
                                             want_privilege) &&
                                        check_privileges),
@@ -2297,10 +2388,12 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
-  Item **found=0,*item;
+  Item **found=0, **found_unaliased= 0, *item;
   const char *db_name=0;
   const char *field_name=0;
   const char *table_name=0;
+  bool found_unaliased_non_uniq= 0;
+  uint unaliased_counter;
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
@@ -2313,42 +2406,93 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       Item_field *item_field= (Item_field*) item;
+
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
 	item_field can be field of temporary table without item name 
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (item_field->name &&
-	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
-           !my_strcasecmp(system_charset_info,
-                          item_field->field_name, field_name)))
+      if (!item_field->name)
+        continue;
+
+      if (table_name)
       {
-	if (!table_name)
-	{
-	  if (found)
-	  {
-	    if ((*found)->eq(item,0))
-	      continue;				// Same field twice (Access?)
-	    if (report_error != IGNORE_ERRORS)
-	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			      find->full_name(), current_thd->where);
-	    return (Item**) 0;
-	  }
-	  found= li.ref();
-	  *counter= i;
-	}
-	else
-	{
-	  if (!strcmp(item_field->table_name,table_name) &&
-	      (!db_name || (db_name && item_field->db_name &&
-			    !strcmp(item_field->db_name, db_name))))
-	  {
-	    found= li.ref();
-	    *counter= i;
-	    break;
-	  }
-	}
+        /*
+          If table name is specified we should find field 'field_name' in
+          table 'table_name'. According to SQL-standard we should ignore
+          aliases in this case. Note that we should prefer fields from the
+          select list over other fields from the tables participating in
+          this select in case of ambiguity.
+
+          We use strcmp for table names and database names as these may be
+          case sensitive.
+          In cases where they are not case sensitive, they are always in lower
+          case.
+        */
+        if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                           field_name) &&
+            !strcmp(item_field->table_name, table_name) &&
+            (!db_name || (item_field->db_name &&
+                          !strcmp(item_field->db_name, db_name))))
+        {
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                         // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                              MYF(0), find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+          if (db_name)
+            break;                              // Perfect match
+        }
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->name,
+                              field_name))
+      {
+        /*
+          If table name was not given we should scan through aliases
+          (or non-aliased fields) first. We are also checking unaliased
+          name of the field in then next else-if, to be able to find
+          instantly field (hidden by alias) if no suitable alias (or
+          non-aliased field) was found.
+        */
+        if (found)
+        {
+          if ((*found)->eq(item, 0))
+            continue;                           // Same field twice
+          if (report_error != IGNORE_ERRORS)
+            my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                            MYF(0), find->full_name(), current_thd->where);
+          return (Item**) 0;
+        }
+        found= li.ref();
+        *counter= i;
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                              field_name))
+      {
+        /*
+          We will use un-aliased field or react on such ambiguities only if
+          we won't be able to find aliased field.
+          Again if we have ambiguity with field outside of select list
+          we should prefer fields from select list.
+        */
+        if (found_unaliased)
+        {
+          if ((*found_unaliased)->eq(item, 0))
+            continue;                           // Same field twice
+          found_unaliased_non_uniq= 1;
+        }
+        else
+        {
+          found_unaliased= li.ref();
+          unaliased_counter= i;
+        }
       }
     }
     else if (!table_name && (item->eq(find,0) ||
@@ -2361,9 +2505,24 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       break;
     }
   }
+  if (!found)
+  {
+    if (found_unaliased_non_uniq)
+    {
+      if (report_error != IGNORE_ERRORS)
+        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR), MYF(0),
+                        find->full_name(), current_thd->where);
+      return (Item **) 0;
+    }
+    if (found_unaliased)
+    {
+      found= found_unaliased;
+      *counter= unaliased_counter;
+    }
+  }
   if (found)
     return found;
-  else if (report_error != REPORT_EXCEPT_NOT_FOUND)
+  if (report_error != REPORT_EXCEPT_NOT_FOUND)
   {
     if (report_error == REPORT_ALL_ERRORS)
       my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
@@ -2382,19 +2541,22 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
+  Item *item;
   if (!wild_num)
     return 0;
   Item_arena *arena= thd->current_arena, backup;
 
   /*
-    If we are in preparing prepared statement phase then we have change
-    temporary mem_root to statement mem root to save changes of SELECT list
+    Don't use arena if we are not in prepared statements or stored procedures
+    For PS/SP we have to use arena to remember the changes
   */
-  if (arena)
+  if (arena->is_conventional())
+    arena= 0;                                   // For easier test later one
+  else
     thd->set_n_backup_item_arena(arena, &backup);
-  reg2 Item *item;
+
   List_iterator<Item> it(fields);
-  while ( wild_num && (item= it++))
+  while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*' &&
@@ -2414,8 +2576,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
         it.replace(new Item_int("Not_used", (longlong) 1, 21));
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-                                   ((Item_field*) item)->table_name, &it,
-                                   any_privileges))
+                             ((Item_field*) item)->table_name, &it,
+                             any_privileges, arena != 0))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -2588,23 +2750,61 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 }
 
 
-/****************************************************************************
-  This just drops in all fields instead of current '*' field
-  Returns pointer to last inserted field if ok
-****************************************************************************/
+/*
+  Drops in all fields instead of current '*' field
+
+  SYNOPSIS
+    insert_fields()
+    thd			Thread handler
+    tables		List of tables
+    db_name		Database name in case of 'database_name.table_name.*'
+    table_name		Table name in case of 'table_name.*'
+    it			Pointer to '*'
+    any_privileges	0 If we should ensure that we have SELECT privileges
+		          for all columns
+                        1 If any privilege is ok
+    allocate_view_names if true view names will be copied to current Item_arena                         memory (made for SP/PS)
+  RETURN
+    0	ok
+        'it' is updated to point at last inserted
+    1	error.  The error message is sent to client
+*/
 
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges)
+              bool any_privileges, bool allocate_view_names)
 {
+  /* allocate variables on stack to avoid pool alloaction */
+  Field_iterator_table table_iter;
+  Field_iterator_view view_iter;
   uint found;
+  char name_buff[NAME_LEN+1];
   DBUG_ENTER("insert_fields");
 
-  found=0;
+  if (db_name && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparison
+      We can't do this in Item_field as this would change the
+      'name' of the item which may be used in the select list
+    */
+    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db_name= name_buff;
+  }
+
+  found= 0;
   for (; tables; tables= tables->next_local)
   {
-    TABLE *table=tables->table;
+    Field_iterator *iterator;
+    TABLE_LIST *natural_join_table;
+    Field *field;
+    TABLE_LIST *embedded;
+    TABLE_LIST *last;
+    TABLE_LIST *embedding;
+    TABLE *table= tables->table;
+
     if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
 				       tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
@@ -2615,36 +2815,26 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       {
         if (tables->view)
         {
-          Field_iterator_view fields;
-          fields.set(tables);
+          view_iter.set(tables);
           if (check_grant_all_columns(thd, SELECT_ACL, &tables->grant,
                                       tables->view_db.str,
                                       tables->view_name.str,
-                                      &fields))
-            DBUG_RETURN(1);
+                                      &view_iter))
+            goto err;
         }
         else
         {
-          Field_iterator_table fields;
-          fields.set(tables);
+          table_iter.set(tables);
           if (check_grant_all_columns(thd, SELECT_ACL, &table->grant,
                                       table->table_cache_key, table->real_name,
-                                      &fields))
-            DBUG_RETURN(1);
+                                      &table_iter))
+            goto err;
         }
       }
 #endif
-      /* allocate 2 variables on stack to avoid pool alloaction */
-      Field_iterator_table table_iter;
-      Field_iterator_view view_iter;
-      Field_iterator *iterator;
-      TABLE_LIST *natural_join_table= 0;
-      Field *field;
-
-      thd->used_tables|=table->map;
-      TABLE_LIST *embedded= tables;
-      TABLE_LIST *last= embedded;
-      TABLE_LIST *embedding;
+      natural_join_table= 0;
+      thd->used_tables|= table->map;
+      last= embedded= tables;
 
       while ((embedding= embedded->embedding) &&
               embedding->join_list->elements != 1)
@@ -2675,14 +2865,15 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         iterator= &table_iter;
       iterator->set(tables);
 
-      for (; iterator->end(); iterator->next())
+      for (; !iterator->end_of_fields(); iterator->next())
       {
         Item *not_used_item;
         uint not_used_field_index= NO_CACHED_FIELD_INDEX;
         const char *field_name= iterator->name();
         /* Skip duplicate field names if NATURAL JOIN is used */
         if (!natural_join_table ||
-            !find_field_in_table(thd, natural_join_table, field_name, 
+            !find_field_in_table(thd, natural_join_table, field_name,
+                                 field_name,
                                  strlen(field_name), &not_used_item, 0, 0, 0,
                                  &not_used_field_index))
         {
@@ -2726,9 +2917,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                               thd->host_or_ip,
                               fld->field_name,
                               tab);
-              /* TODO: should be removed to have only one send_error */
-              send_error(thd);
-              DBUG_RETURN(1);
+              goto err;
             }
           }
 #endif
@@ -2744,7 +2933,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
-        else if (thd->current_arena &&
+        else if (allocate_view_names &&
                  thd->lex->current_select->first_execution)
         {
           Item_field *item= new Item_field(thd->strdup(tables->view_db.str),
@@ -2762,15 +2951,17 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       table->used_fields=table->fields;
     }
   }
-  if (!found)
-  {
-    if (!table_name)
-      my_error(ER_NO_TABLES_USED,MYF(0));
-    else
-      my_error(ER_BAD_TABLE_ERROR,MYF(0),table_name);
-    send_error(thd);
-  }
-  DBUG_RETURN(!found);
+  if (found)
+    DBUG_RETURN(0);
+
+  if (!table_name)
+    my_error(ER_NO_TABLES_USED, MYF(0));
+  else
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+
+err:
+  send_error(thd);
+  DBUG_RETURN(1);
 }
 
 
@@ -2782,12 +2973,13 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Item_arena *arena= ((thd->current_arena && 
-                       !select_lex->conds_processed_with_permanent_arena) ?
-                      thd->current_arena :
-                      0);
+  Item_arena *arena= thd->current_arena;
   Item_arena backup;
   DBUG_ENTER("setup_conds");
+
+  if (select_lex->conds_processed_with_permanent_arena ||
+      arena->is_conventional())
+    arena= 0;                                   // For easier test
 
   thd->set_query_id=1;
 
@@ -2799,7 +2991,6 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	(*conds)->check_cols(1))
       DBUG_RETURN(1);
   }
-
 
   /* Check if we are using outer joins */
   for (TABLE_LIST *table= tables; table; table= table->next_local)
@@ -2859,13 +3050,16 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
         if (arena)
 	  thd->set_n_backup_item_arena(arena, &backup);
+
         TABLE *t1=tab1->table;
         TABLE *t2=tab2->table;
-        /* allocate 2 variables on stack to avoid pool alloaction */
         Field_iterator_table table_iter;
         Field_iterator_view view_iter;
         Field_iterator *iterator;
+        Field *t1_field, *t2_field;
+        Item *item_t2;
         Item_cond_and *cond_and=new Item_cond_and();
+
         if (!cond_and)				// If not out of memory
 	  DBUG_RETURN(1);
         cond_and->top_level_item();
@@ -2881,14 +3075,13 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           table_iter.set(tab1);
         }
 
-        Field *t1_field, *t2_field;
-        Item *item_t2;
-        for (; iterator->end(); iterator->next())
+        for (; !iterator->end_of_fields(); iterator->next())
         {
           const char *t1_field_name= iterator->name();
           uint not_used_field_index= NO_CACHED_FIELD_INDEX;
 
           if ((t2_field= find_field_in_table(thd, tab2, t1_field_name,
+                                             t1_field_name,
                                              strlen(t1_field_name), &item_t2,
                                              0, 0, 0,
                                              &not_used_field_index)))
@@ -2919,31 +3112,34 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         // to prevent natural join processing during PS re-execution
         embedding->natural_join= 0;
 
-        COND *on_expr= cond_and;
-        on_expr->fix_fields(thd, 0, &on_expr);
-        if (!embedded->outer_join)			// Not left join
+        if (cond_and->list.elements)
         {
-	  *conds= and_conds(*conds, cond_and);
-	  // fix_fields() should be made with temporary memory pool
-	  if (arena)
-	    thd->restore_backup_item_arena(arena, &backup);
-	  if (*conds && !(*conds)->fixed)
-	  {
-	    if ((*conds)->fix_fields(thd, tables, conds))
-	      DBUG_RETURN(1);
-	  }
-        }
-        else
-        {
-	  embedded->on_expr= and_conds(embedded->on_expr, cond_and);
-	  // fix_fields() should be made with temporary memory pool
-	  if (arena)
-	    thd->restore_backup_item_arena(arena, &backup);
-	  if (embedded->on_expr && !embedded->on_expr->fixed)
-	  {
-	    if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
-	     DBUG_RETURN(1);
-	  }
+          COND *on_expr= cond_and;
+          on_expr->fix_fields(thd, 0, &on_expr);
+          if (!embedded->outer_join)			// Not left join
+          {
+            *conds= and_conds(*conds, cond_and);
+            // fix_fields() should be made with temporary memory pool
+            if (arena)
+              thd->restore_backup_item_arena(arena, &backup);
+            if (*conds && !(*conds)->fixed)
+            {
+              if ((*conds)->fix_fields(thd, tables, conds))
+                DBUG_RETURN(1);
+            }
+          }
+          else
+          {
+            embedded->on_expr= and_conds(embedded->on_expr, cond_and);
+            // fix_fields() should be made with temporary memory pool
+            if (arena)
+              thd->restore_backup_item_arena(arena, &backup);
+            if (embedded->on_expr && !embedded->on_expr->fixed)
+            {
+              if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
+                DBUG_RETURN(1);
+            }
+          }
         }
       }
       embedding= embedded->embedding;
@@ -2967,7 +3163,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
 err:
   if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 
@@ -2991,7 +3187,7 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
     Field *rfield= field->field;
     TABLE *table= rfield->table;
     if (rfield == table->next_number_field)
-      table->auto_increment_field_not_null= true;
+      table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
@@ -3012,7 +3208,7 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
     value=v++;
     TABLE *table= field->table;
     if (field == table->next_number_field)
-      table->auto_increment_field_not_null= true;
+      table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
@@ -3209,6 +3405,8 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     open_new_frm()
     path	  path to .frm
     alias	  alias for table
+    db            database
+    table_name    name of table
     db_stat	  open flags (for example HA_OPEN_KEYFILE|HA_OPEN_RNDFILE..)
 		  can be 0 (example in ha_example_table)
     prgflag	  READ_ALL etc..
@@ -3217,37 +3415,43 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     table_desc	  TABLE_LIST descriptor
     mem_root	  temporary MEM_ROOT for parsing
 */
+
 static my_bool
-open_new_frm(const char *path, const char *alias, uint db_stat, uint prgflag,
+open_new_frm(const char *path, const char *alias,
+             const char *db, const char *table_name,
+             uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
 	     MEM_ROOT *mem_root)
 {
-  DBUG_ENTER("open_new_frm");
   LEX_STRING pathstr;
-  pathstr.str= (char *)path;
+  File_parser *parser;
+  DBUG_ENTER("open_new_frm");
+
+  pathstr.str=    (char*) path;
   pathstr.length= strlen(path);
-  File_parser *parser= sql_parse_prepare(&pathstr, mem_root, 1);
-  if (parser)
+
+  if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
   {
     if (!strncmp("VIEW", parser->type()->str, parser->type()->length))
     {
-      if (mysql_make_view(parser, table_desc))
+      if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
-	bzero(outparam, sizeof(*outparam));	// do not run repair
-	DBUG_RETURN(1);
+        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
+        goto err;
       }
+      if (mysql_make_view(parser, table_desc))
+        goto err;
     }
     else
     {
       /* only VIEWs are supported now */
       my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), path,  parser->type()->str);
-      bzero(outparam, sizeof(outparam));	// do not run repair
-      DBUG_RETURN(1);
+      goto err;
     }
+    DBUG_RETURN(0);
   }
-  else
-  {
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+ 
+err:
+  bzero(outparam, sizeof(TABLE));	// do not run repair
+  DBUG_RETURN(1);
 }

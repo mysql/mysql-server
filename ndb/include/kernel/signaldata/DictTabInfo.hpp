@@ -100,6 +100,7 @@ public:
     CustomTriggerId    = 25,
     FrmLen             = 26,
     FrmData            = 27,
+    FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -277,6 +278,7 @@ public:
     Uint32 CustomTriggerId;
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
+    Uint32 FragmentCount;
 
     void init();
   };
@@ -309,7 +311,7 @@ public:
     ExtDatetime = NdbSqlUtil::Type::Datetime,
     ExtTimespec = NdbSqlUtil::Type::Timespec,
     ExtBlob = NdbSqlUtil::Type::Blob,
-    ExtClob = NdbSqlUtil::Type::Clob
+    ExtText = NdbSqlUtil::Type::Text
   };
 
   // Attribute data interpretation
@@ -433,7 +435,7 @@ public:
         AttributeArraySize = 12 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
-      case DictTabInfo::ExtClob:
+      case DictTabInfo::ExtText:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         // head + inline part [ attr precision ]

@@ -81,7 +81,7 @@ int ha_myisammrg::close(void)
 
 int ha_myisammrg::write_row(byte * buf)
 {
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_write_count,&LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
@@ -91,7 +91,7 @@ int ha_myisammrg::write_row(byte * buf)
 
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 {
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_update_count,&LOCK_status);
   if (table->timestamp_on_update_now)
     update_timestamp(new_data+table->timestamp_on_update_now);
   return myrg_update(file,old_data,new_data);
@@ -99,14 +99,14 @@ int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 
 int ha_myisammrg::delete_row(const byte * buf)
 {
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_delete_count,&LOCK_status);
   return myrg_delete(file,buf);
 }
 
 int ha_myisammrg::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -115,7 +115,7 @@ int ha_myisammrg::index_read(byte * buf, const byte * key,
 int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 				 uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -123,7 +123,7 @@ int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,active_index, key, key_len,
 		      HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -132,7 +132,7 @@ int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
 
 int ha_myisammrg::index_next(byte * buf)
 {
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,&LOCK_status);
   int error=myrg_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -140,7 +140,7 @@ int ha_myisammrg::index_next(byte * buf)
 
 int ha_myisammrg::index_prev(byte * buf)
 {
-  statistic_increment(ha_read_prev_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_prev_count,&LOCK_status);
   int error=myrg_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -148,7 +148,8 @@ int ha_myisammrg::index_prev(byte * buf)
 
 int ha_myisammrg::index_first(byte * buf)
 {
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,
+		      &LOCK_status);
   int error=myrg_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -156,7 +157,7 @@ int ha_myisammrg::index_first(byte * buf)
 
 int ha_myisammrg::index_last(byte * buf)
 {
-  statistic_increment(ha_read_last_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
   int error=myrg_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -166,7 +167,7 @@ int ha_myisammrg::index_next_same(byte * buf,
                                   const byte *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,&LOCK_status);
   int error=myrg_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -179,7 +180,8 @@ int ha_myisammrg::rnd_init(bool scan)
 
 int ha_myisammrg::rnd_next(byte *buf)
 {
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   int error=myrg_rrnd(file, buf, HA_OFFSET_ERROR);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -187,7 +189,7 @@ int ha_myisammrg::rnd_next(byte *buf)
 
 int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 {
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_count,&LOCK_status);
   int error=myrg_rrnd(file, buf, ha_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;

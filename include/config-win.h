@@ -150,6 +150,9 @@ typedef uint rf_SetTimer;
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
+/* ERROR is defined in wingdi.h */
+#undef ERROR
+
 /* We need to close files to break connections on shutdown */
 #ifndef SIGNAL_WITH_VIO_CLOSE
 #define SIGNAL_WITH_VIO_CLOSE

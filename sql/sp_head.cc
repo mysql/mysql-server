@@ -56,6 +56,7 @@ sp_multi_results_command(enum enum_sql_command cmd)
 {
   switch (cmd) {
   case SQLCOM_ANALYZE:
+  case SQLCOM_CHECKSUM:
   case SQLCOM_HA_READ:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
@@ -257,10 +258,11 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
-   m_simple_case(FALSE), m_multi_results(FALSE)
+   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   DBUG_ENTER("sp_head::sp_head");
 
+  state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
   DBUG_VOID_RETURN;
@@ -272,7 +274,7 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext();
+  lex->spcont= m_pcont= new sp_pcontext(NULL);
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
   m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
@@ -287,34 +289,39 @@ void
 sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
+  uint n;			/* Counter for nul trimming */ 
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= &thd->mem_root;
 
-  DBUG_PRINT("info", ("name: %*.s%*s",
-		      name->m_db.length, name->m_db.str,
-		      name->m_name.length, name->m_name.str));
   /* We have to copy strings to get them into the right memroot */
-  if (name->m_db.length == 0)
-  {
-    m_db.length= (thd->db ? strlen(thd->db) : 0);
-    m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
-  }
-  else
+  if (name)
   {
     m_db.length= name->m_db.length;
-    m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+    if (name->m_db.length == 0)
+      m_db.str= NULL;
+    else
+      m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+    m_name.length= name->m_name.length;
+    m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+
+    if (name->m_qname.length == 0)
+      name->init_qname(thd);
+    m_qname.length= name->m_qname.length;
+    m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
   }
-  m_name.length= name->m_name.length;
-  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+  else if (thd->db)
+  {
+    m_db.length= thd->db_length;
+    m_db.str= strmake_root(root, thd->db, m_db.length);
+  }
 
-  if (name->m_qname.length == 0)
-    name->init_qname(thd);
-  m_qname.length= name->m_qname.length;
-  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
+  if (m_param_begin && m_param_end)
+  {
+    m_params.length= m_param_end - m_param_begin;
+    m_params.str= strmake_root(root,
+                               (char *)m_param_begin, m_params.length);
+  }
 
-  m_params.length= m_param_end- m_param_begin;
-  m_params.str= strmake_root(root,
-			     (char *)m_param_begin, m_params.length);
   if (m_returns_begin && m_returns_end)
   {
     /* QQ KLUDGE: We can't seem to cut out just the type in the parser
@@ -350,9 +357,17 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 				 (char *)m_returns_begin, m_retstr.length);
     }
   }
-  m_body.length= lex->end_of_query - m_body_begin;
+  m_body.length= lex->ptr - m_body_begin;
+  /* Trim nuls at the end */
+  n= 0;
+  while (m_body.length && m_body_begin[m_body.length-1] == '\0')
+  {
+    m_body.length-= 1;
+    n+= 1;
+  }
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
-  m_defstr.length= lex->end_of_query - lex->buf;
+  m_defstr.length= lex->ptr - lex->buf;
+  m_defstr.length-= n;
   m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
@@ -443,7 +458,8 @@ sp_head::execute(THD *thd)
 #endif
 
   dbchanged= FALSE;
-  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
+  if (m_db.length &&
+      (ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
   if ((ctx= thd->spcont))
@@ -483,13 +499,13 @@ sp_head::execute(THD *thd)
 	ip= hip;
 	ret= 0;
 	ctx->clear_handler();
+	ctx->in_handler= TRUE;
 	continue;
       }
     }
   } while (ret == 0 && !thd->killed && !thd->query_error);
 
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
+  cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
 
  done:
@@ -514,10 +530,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 {
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
-  uint csize = m_pcont->max_framesize();
-  uint params = m_pcont->params();
-  uint hmax = m_pcont->handlers();
-  uint cmax = m_pcont->cursors();
+  uint csize = m_pcont->max_pvars();
+  uint params = m_pcont->current_pvars();
+  uint hmax = m_pcont->max_handlers();
+  uint cmax = m_pcont->max_cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
@@ -569,8 +585,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   thd->spcont= nctx;
 
   ret= execute(thd);
-  if (ret == 0)
+
+  if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
+    /* We need result only in function but not in trigger */
     Item *it= nctx->get_result();
 
     if (it)
@@ -594,10 +612,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret= 0;
-  uint csize = m_pcont->max_framesize();
-  uint params = m_pcont->params();
-  uint hmax = m_pcont->handlers();
-  uint cmax = m_pcont->cursors();
+  uint csize = m_pcont->max_pvars();
+  uint params = m_pcont->current_pvars();
+  uint hmax = m_pcont->max_handlers();
+  uint cmax = m_pcont->max_cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
@@ -757,6 +775,9 @@ sp_head::reset_lex(THD *thd)
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->spcont= oldlex->spcont;
+  /* And trigger related stuff too */
+  sublex->trg_chistics= oldlex->trg_chistics;
+  sublex->trg_table= oldlex->trg_table;
   sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -846,12 +867,42 @@ sp_head::backpatch(sp_label_t *lab)
   List_iterator_fast<bp_t> li(m_backpatch);
 
   while ((bp= li++))
-    if (bp->lab == lab)
+  {
+    if (bp->lab == lab ||
+	(bp->lab->type == SP_LAB_REF &&
+	 my_strcasecmp(system_charset_info, bp->lab->name, lab->name) == 0))
     {
-      sp_instr_jump *i= static_cast<sp_instr_jump *>(bp->instr);
+      if (bp->lab->type != SP_LAB_REF)
+	bp->instr->backpatch(dest, lab->ctx);
+      else
+      {
+	sp_label_t *dstlab= bp->lab->ctx->find_label(lab->name);
 
-      i->set_destination(dest);
+	if (dstlab)
+	{
+	  bp->lab= lab;
+	  bp->instr->backpatch(dest, dstlab->ctx);
+	}
+      }
     }
+  }
+}
+
+int
+sp_head::check_backpatch(THD *thd)
+{
+  bp_t *bp;
+  List_iterator_fast<bp_t> li(m_backpatch);
+
+  while ((bp= li++))
+  {
+    if (bp->lab->type == SP_LAB_REF)
+    {
+      net_printf(thd, ER_SP_LILABEL_MISMATCH, "GOTO", bp->lab->name);
+      return -1;
+    }
+  }
+  return 0;
 }
 
 void
@@ -905,7 +956,9 @@ sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
-  set_item_arena(thd);          // Get new fre_list and mem_root
+  set_item_arena(thd);          // Get new free_list and mem_root
+  state= INITIALIZED;
+
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   thd->free_list= flist;	// Restore the old one
@@ -1100,9 +1153,25 @@ sp_instr_stmt::~sp_instr_stmt()
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
+  char *query;
+  uint32 query_length;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex->sql_command));
-  int res= exec_stmt(thd, m_lex);
+  int res;
+
+  query= thd->query;
+  query_length= thd->query_length;
+  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)))
+  {
+    if (query_cache_send_result_to_client(thd,
+					  thd->query, thd->query_length) <= 0)
+    {
+      res= exec_stmt(thd, m_lex);
+      query_cache_end_of_result(thd);
+    }
+    thd->query= query;
+    thd->query_length= query_length;
+  }
   *nextp = m_ip+1;
   DBUG_RETURN(res);
 }
@@ -1156,13 +1225,26 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set::execute");
   DBUG_PRINT("info", ("offset: %u", m_offset));
-  Item *it= sp_eval_func_item(thd, m_value, m_type);
+  Item *it;
+  int res;
 
+  if (tables &&
+      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
+       (res= open_and_lock_tables(thd, tables))))
+    DBUG_RETURN(res);
+
+  it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
-    DBUG_RETURN(-1);
-  thd->spcont->set_item(m_offset, it);
+    res= -1;
+  else
+  {
+    res= 0;
+    thd->spcont->set_item(m_offset, it);
+  }
   *nextp = m_ip+1;
-  DBUG_RETURN(0);
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
+    close_thread_tables(thd);
+  DBUG_RETURN(res);
 }
 
 void
@@ -1173,6 +1255,60 @@ sp_instr_set::print(String *str)
   str->qs_append(m_offset);
   str->append(' ');
   m_value->print(str);
+}
+
+//
+// sp_instr_set_user_var
+//
+int
+sp_instr_set_user_var::execute(THD *thd, uint *nextp)
+{
+  int res= 0;
+
+  DBUG_ENTER("sp_instr_set_user_var::execute");
+  /*
+    It is ok to pass 0 as 3rd argument to fix_fields() since
+    Item_func_set_user_var::fix_fields() won't use it.
+    QQ: Still unsure what should we return in case of error 1 or -1 ?
+  */
+  if (!m_set_var_item.fixed && m_set_var_item.fix_fields(thd, 0, 0) ||
+      m_set_var_item.check() || m_set_var_item.update())
+    res= -1;
+  *nextp= m_ip + 1;
+  DBUG_RETURN(res);
+}
+
+void
+sp_instr_set_user_var::print(String *str)
+{
+  m_set_var_item.print_as_stmt(str);
+}
+
+//
+// sp_instr_set_trigger_field
+//
+int
+sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
+{
+  int res= 0;
+
+  DBUG_ENTER("sp_instr_set_trigger_field::execute");
+  /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
+  if (!value->fixed && value->fix_fields(thd, 0, &value) ||
+      trigger_field.fix_fields(thd, 0, 0) ||
+      (value->save_in_field(trigger_field.field, 0) < 0))
+    res= -1;
+  *nextp= m_ip + 1;
+  DBUG_RETURN(res);
+}
+
+void
+sp_instr_set_trigger_field::print(String *str)
+{
+  str->append("set ", 4);
+  trigger_field.print(str);
+  str->append(":=", 2);
+  value->print(str);
 }
 
 //
@@ -1199,22 +1335,26 @@ sp_instr_jump::print(String *str)
 uint
 sp_instr_jump::opt_mark(sp_head *sp)
 {
-  marked= 1;
-  m_dest= opt_shortcut_jump(sp);
+  m_dest= opt_shortcut_jump(sp, this);
+  if (m_dest != m_ip+1)		/* Jumping to following instruction? */
+    marked= 1;
   m_optdest= sp->get_instr(m_dest);
   return m_dest;
 }
 
 uint
-sp_instr_jump::opt_shortcut_jump(sp_head *sp)
+sp_instr_jump::opt_shortcut_jump(sp_head *sp, sp_instr *start)
 {
   uint dest= m_dest;
   sp_instr *i;
 
   while ((i= sp->get_instr(dest)))
   {
-    uint ndest= i->opt_shortcut_jump(sp);
+    uint ndest;
 
+    if (start == i)
+      break;
+    ndest= i->opt_shortcut_jump(sp, start);
     if (ndest == dest)
       break;
     dest= ndest;
@@ -1240,15 +1380,28 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
-  Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  Item *it;
+  int res;
 
+  if (tables &&
+      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
+       (res= open_and_lock_tables(thd, tables))))
+    DBUG_RETURN(res);
+
+  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (!it)
-    DBUG_RETURN(-1);
-  if (it->val_int())
-    *nextp = m_dest;
+    res= -1;
   else
-    *nextp = m_ip+1;
-  DBUG_RETURN(0);
+  {
+    res= 0;
+    if (it->val_int())
+      *nextp = m_dest;
+    else
+      *nextp = m_ip+1;
+  }
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
+    close_thread_tables(thd);
+  DBUG_RETURN(res);
 }
 
 void
@@ -1269,7 +1422,7 @@ sp_instr_jump_if::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1284,15 +1437,28 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if_not::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
-  Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  Item *it;
+  int res;
 
+  if (tables &&
+      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
+       (res= open_and_lock_tables(thd, tables))))
+    DBUG_RETURN(res);
+
+  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (! it)
-    DBUG_RETURN(-1);
-  if (! it->val_int())
-    *nextp = m_dest;
+    res= -1;
   else
-    *nextp = m_ip+1;
-  DBUG_RETURN(0);
+  {
+    res= 0;
+    if (! it->val_int())
+      *nextp = m_dest;
+    else
+      *nextp = m_ip+1;
+  }
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
+    close_thread_tables(thd);
+  DBUG_RETURN(res);
 }
 
 void
@@ -1313,7 +1479,7 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1327,13 +1493,24 @@ int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_freturn::execute");
-  Item *it= sp_eval_func_item(thd, m_value, m_type);
+  Item *it;
+  int res;
 
+  if (tables &&
+      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
+       (res= open_and_lock_tables(thd, tables))))
+    DBUG_RETURN(res);
+
+  it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
-    DBUG_RETURN(-1);
-  thd->spcont->set_result(it);
+    res= -1;
+  else
+  {
+    res= 0;
+    thd->spcont->set_result(it);
+  }
   *nextp= UINT_MAX;
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 void
@@ -1385,7 +1562,7 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp)
   marked= 1;
   if ((i= sp->get_instr(m_dest)))
   {
-    m_dest= i->opt_shortcut_jump(sp);
+    m_dest= i->opt_shortcut_jump(sp, this);
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
@@ -1412,6 +1589,13 @@ sp_instr_hpop::print(String *str)
   str->qs_append(m_count);
 }
 
+void
+sp_instr_hpop::backpatch(uint dest, sp_pcontext *dst_ctx)
+{
+  m_count= m_ctx->diff_handlers(dst_ctx);
+}
+
+
 //
 // sp_instr_hreturn
 //
@@ -1419,18 +1603,39 @@ int
 sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hreturn::execute");
-  thd->spcont->restore_variables(m_frame);
-  *nextp= thd->spcont->pop_hstack();
+  if (m_dest)
+    *nextp= m_dest;
+  else
+  {
+    thd->spcont->restore_variables(m_frame);
+    *nextp= thd->spcont->pop_hstack();
+  }
+  thd->spcont->in_handler= FALSE;
   DBUG_RETURN(0);
 }
 
 void
 sp_instr_hreturn::print(String *str)
 {
-  str->reserve(12);
+  str->reserve(16);
   str->append("hreturn ");
   str->qs_append(m_frame);
+  if (m_dest)
+    str->qs_append(m_dest);
 }
+
+uint
+sp_instr_hreturn::opt_mark(sp_head *sp)
+{
+  if (m_dest)
+    return sp_instr_jump::opt_mark(sp);
+  else
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
+}
+
 
 //
 // sp_instr_cpush
@@ -1474,6 +1679,12 @@ sp_instr_cpop::print(String *str)
   str->reserve(12);
   str->append("cpop ");
   str->qs_append(m_count);
+}
+
+void
+sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
+{
+  m_count= m_ctx->diff_cursors(dst_ctx);
 }
 
 //

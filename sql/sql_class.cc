@@ -158,12 +158,13 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), current_arena(0), is_fatal_error(0),
-	   last_insert_id_used(0),
-           insert_id_used(0), rand_used(0), time_zone_used(0),
-           in_lock_tables(0), global_read_lock(0), bootstrap(0),
-           spcont(NULL)
+THD::THD()
+  :user_time(0), global_read_lock(0), is_fatal_error(0),
+   rand_used(0), time_zone_used(0),
+   last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
+   in_lock_tables(0), bootstrap(0), spcont(NULL)
 {
+  current_arena= this;
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -199,7 +200,7 @@ THD::THD():user_time(0), current_arena(0), is_fatal_error(0),
 #endif
   net.last_error[0]=0;				// If error on boot
   ull=0;
-  system_thread=cleanup_done=0;
+  system_thread= cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.changed_tables = 0;
 #ifdef	__WIN__
@@ -297,6 +298,7 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+  bzero((char *) &status_var, sizeof(status_var));
 }
 
 
@@ -387,6 +389,7 @@ THD::~THD()
   /* Ensure that no one is using THD */
   pthread_mutex_lock(&LOCK_delete);
   pthread_mutex_unlock(&LOCK_delete);
+  add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY  
@@ -429,6 +432,27 @@ THD::~THD()
 }
 
 
+/*
+  Add to one status variable another status variable
+
+  NOTES
+    This function assumes that all variables are long/ulong.
+    If this assumption will change, then we have to explictely add
+    the other variables after the while loop
+*/
+
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
+{
+  ulong *end= (ulong*) ((byte*) to_var + offsetof(STATUS_VAR,
+						  last_system_status_var) +
+			sizeof(ulong));
+  ulong *to= (ulong*) to_var, *from= (ulong*) from_var;
+
+  while (to != end)
+    *(to++)+= *(from++);
+}
+
+
 void THD::awake(THD::killed_state state_to_set)
 {
   THD_CHECK_SENTRY(this);
@@ -450,8 +474,21 @@ void THD::awake(THD::killed_state state_to_set)
       exits the cond in the time between read and broadcast, but that is
       ok since all we want to do is to make the victim thread get out
       of waiting on current_cond.
+      If we see a non-zero current_cond: it cannot be an old value (because
+      then exit_cond() should have run and it can't because we have mutex); so
+      it is the true value but maybe current_mutex is not yet non-zero (we're
+      in the middle of enter_cond() and there is a "memory order
+      inversion"). So we test the mutex too to not lock 0.
+
+      Note that there is a small chance we fail to kill. If victim has locked
+      current_mutex, but hasn't yet entered enter_cond() (which means that
+      current_cond and current_mutex are 0), then the victim will not get
+      a signal and it may wait "forever" on the cond (until
+      we issue a second KILL or the status it's waiting for happens).
+      It's true that we have set its thd->killed but it may not
+      see it immediately and so may have time to reach the cond_wait().
     */
-    if (mysys_var->current_cond)
+    if (mysys_var->current_cond && mysys_var->current_mutex)
     {
       pthread_mutex_lock(mysys_var->current_mutex);
       pthread_cond_broadcast(mysys_var->current_cond);
@@ -481,6 +518,24 @@ bool THD::store_globals()
   return 0;
 }
 
+
+/* Cleanup after a query */
+
+void THD::cleanup_after_query()
+{
+  if (clear_next_insert_id)
+  {
+    clear_next_insert_id= 0;
+    next_insert_id= 0;
+  }
+  /* Free Items that were created during this execution */
+  free_items(free_list);
+  /*
+    In the rest of code we assume that free_list never points to garbage:
+    Keep this predicate true.
+  */
+  free_list= 0;
+}
 
 /*
   Convert a string to another character set
@@ -710,6 +765,12 @@ void select_result::send_error(uint errcode,const char *err)
   ::send_error(thd, errcode, err);
 }
 
+
+void select_result::cleanup()
+{
+  /* do nothing */
+}
+
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
@@ -815,6 +876,32 @@ void select_to_file::send_error(uint errcode,const char *err)
 }
 
 
+bool select_to_file::send_eof()
+{
+  int error= test(end_io_cache(&cache));
+  if (my_close(file,MYF(MY_WME)))
+    error= 1;
+  if (!error)
+    ::send_ok(thd,row_count);
+  file= -1;
+  return error;
+}
+
+
+void select_to_file::cleanup()
+{
+  /* In case of error send_eof() may be not called: close the file here. */
+  if (file >= 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    file= -1;
+  }
+  path[0]= '\0';
+  row_count= 0;
+}
+
+
 select_to_file::~select_to_file()
 {
   if (file >= 0)
@@ -860,8 +947,10 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
-  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
+
+  strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "",
+           NullS);
+  (void) fn_format(path, exchange->file_name, path, "", option);
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
@@ -1065,18 +1154,6 @@ err:
 }
 
 
-bool select_export::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
-}
-
-
 /***************************************************************************
 ** Dump  of select to a binary file
 ***************************************************************************/
@@ -1127,18 +1204,6 @@ bool select_dump::send_data(List<Item> &items)
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
-}
-
-
-bool select_dump::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
 }
 
 
@@ -1316,8 +1381,16 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+void select_dumpvar::cleanup()
+{
+  vars.empty();
+  row_count=0;
+}
+
+
 Item_arena::Item_arena(THD* thd)
-  :free_list(0)
+  :free_list(0),
+  state(INITIALIZED)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1325,18 +1398,28 @@ Item_arena::Item_arena(THD* thd)
 }
 
 
+/* This constructor is called when Item_arena is a subobject of THD */
+
 Item_arena::Item_arena()
-  :free_list(0)
+  :free_list(0),
+  state(CONVENTIONAL_EXECUTION)
 {
-  bzero((char *) &mem_root, sizeof(mem_root));
+  clear_alloc_root(&mem_root);
 }
 
 
 Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0)
+  :free_list(0),
+  state(INITIALIZED)
 {
   if (init_mem_root)
-    bzero((char *) &mem_root, sizeof(mem_root));
+    clear_alloc_root(&mem_root);
+}
+
+Item_arena::Type Item_arena::type() const
+{
+  DBUG_ASSERT(0); /* Should never be called */
+  return STATEMENT;
 }
 
 
@@ -1380,7 +1463,7 @@ Statement::Statement()
 }
 
 
-Statement::Type Statement::type() const
+Item_arena::Type Statement::type() const
 {
   return STATEMENT;
 }
@@ -1398,10 +1481,42 @@ void Statement::set_statement(Statement *stmt)
 }
 
 
+void
+Statement::set_n_backup_statement(Statement *stmt, Statement *backup)
+{
+  backup->set_statement(this);
+  set_statement(stmt);
+}
+
+
+void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
+{
+  stmt->set_statement(this);
+  set_statement(backup);
+}
+
+
+void Statement::end_statement()
+{
+  /* Cleanup SQL processing state to resuse this statement in next query. */
+  lex_end(lex);
+  delete lex->result;
+  lex->result= 0;
+  /* Note that free_list is freed in cleanup_after_query() */
+
+  /*
+    Don't free mem_root, as mem_root is freed in the end of dispatch_command
+    (once for any command).
+  */
+}
+
+
 void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
+  DBUG_ENTER("Item_arena::set_n_backup_item_arena");
   backup->set_item_arena(this);
   set_item_arena(set);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1410,13 +1525,14 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
   set->set_item_arena(this);
   set_item_arena(backup);
   // reset backup mem_root to avoid its freeing
-  init_alloc_root(&backup->mem_root, 0, 0);
+  clear_alloc_root(&backup->mem_root);
 }
 
 void Item_arena::set_item_arena(Item_arena *set)
 {
   mem_root= set->mem_root;
   free_list= set->free_list;
+  state= set->state;
 }
 
 Statement::~Statement()
@@ -1460,7 +1576,7 @@ Statement_map::Statement_map() :
   hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
+  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
             (hash_get_key) get_stmt_name_hash_key,
             NULL,MYF(0));
 }
@@ -1552,4 +1668,28 @@ void TMP_TABLE_PARAM::init()
   field_count= sum_func_count= func_count= hidden_field_count= 0;
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
+}
+
+
+void thd_increment_bytes_sent(ulong length)
+{
+  current_thd->status_var.bytes_sent+= length;
+}
+
+
+void thd_increment_bytes_received(ulong length)
+{
+  current_thd->status_var.bytes_received+= length;
+}
+
+
+void thd_increment_net_big_packet_count(ulong length)
+{
+  current_thd->status_var.net_big_packet_count+= length;
+}
+
+
+void THD::set_status_var_init()
+{
+  bzero((char*) &status_var, sizeof(status_var));
 }

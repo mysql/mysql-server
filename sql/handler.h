@@ -147,7 +147,7 @@ enum db_type
   DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
   DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, 
   DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
-  DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB,
+  DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
 	       
   DB_TYPE_DEFAULT // Must be last
 };
@@ -404,7 +404,8 @@ public:
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
-  virtual longlong get_auto_increment();
+  virtual ulonglong get_auto_increment();
+  virtual void restore_auto_increment();
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
 
   /* admin commands - called from mysql_admin_table */
@@ -529,7 +530,8 @@ extern TYPELIB tx_isolation_typelib;
 #define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
-                                 T != DB_TYPE_BERKELEY_DB)
+                                 T != DB_TYPE_BERKELEY_DB && \
+                                 T != DB_TYPE_NDBCLUSTER)
 
 bool ha_caching_allowed(THD* thd, char* table_key,
                         uint key_length, uint8 cache_type);

@@ -412,3 +412,6 @@ int main()
 }
 
 #endif
+
+template class Vector<char *>;
+template class Vector<BaseString>;

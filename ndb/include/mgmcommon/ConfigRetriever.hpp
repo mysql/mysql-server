@@ -19,6 +19,8 @@
 
 #include <ndb_types.h>
 #include <mgmapi.h>
+#include <BaseString.hpp>
+#include <LocalConfig.hpp>
 
 /**
  * @class ConfigRetriever
@@ -26,15 +28,16 @@
  */
 class ConfigRetriever {
 public:
-  ConfigRetriever();
-  ConfigRetriever(const int id, const char* remoteHost, const int port);
+  ConfigRetriever(Uint32 version, Uint32 nodeType);
   ~ConfigRetriever();
 
   /**
    * Read local config 
    * @return Own node id, -1 means fail
    */
-  int init(bool onlyNodeId = false);
+  int init();
+
+  int do_connect();
   
   /**
    * Get configuration for current (nodeId given in local config file) node.
@@ -47,7 +50,7 @@ public:
    * @return ndb_mgm_configuration object if succeeded, 
    *         NULL if erroneous local config file or configuration error.
    */
-  struct ndb_mgm_configuration * getConfig(int versionId, int nodeType);
+  struct ndb_mgm_configuration * getConfig();
   
   const char * getErrorString();
 
@@ -62,28 +65,21 @@ public:
   void setLocalConfigFileName(const char * connectString);
 
   /**
-   * Sets connectstring which can be used instead of local config file
-   * environment variables and Ndb.cfg has precidence over this
-   */
-  void setDefaultConnectString(const char * defaultConnectString);
-
-  /**
    * @return Node id of this node (as stated in local config or connectString)
    */
-  inline Uint32 getOwnNodeId() { return _ownNodeId; }
-
+  Uint32 allocNodeId();
 
   /**
    * Get config using socket
    */
-  struct ndb_mgm_configuration * getConfig(const char * mgmhost, short port,
-					   int versionId);
+  struct ndb_mgm_configuration * getConfig(NdbMgmHandle handle);
+  
   /**
    * Get config from file
    */
-  struct ndb_mgm_configuration * getConfig(const char * file, int versionId);
+  struct ndb_mgm_configuration * getConfig(const char * file);
 private:
-  char * errorString;
+  BaseString errorString;
   enum ErrorType {
     CR_ERROR = 0,
     CR_RETRY = 1
@@ -91,18 +87,21 @@ private:
   ErrorType latestErrorType;
   
   void setError(ErrorType, const char * errorMsg);
-
-  char *                _localConfigFileName;
-  struct LocalConfig *  _localConfig;
-  int                   _ownNodeId;
-
-  char *                m_connectString;
-  char *                m_defaultConnectString;
   
+  BaseString            _localConfigFileName;
+  struct LocalConfig    _localConfig;
+  int                   _ownNodeId;
+  
+  BaseString            m_connectString;
+  
+  Uint32 m_version;
+  Uint32 m_node_type;
+  NdbMgmHandle m_handle;
+
   /**
    * Verify config
    */
-  bool verifyConfig(const struct ndb_mgm_configuration *, int type);
+  bool verifyConfig(const struct ndb_mgm_configuration *);
 };
 
 #endif

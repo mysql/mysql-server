@@ -48,6 +48,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, CustomTriggerId, CustomTriggerId),
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
+  DTIMAP(Table, FragmentCount, FragmentCount),
   DTIBREAK(AttributeName)
 };
 
@@ -128,6 +129,7 @@ DictTabInfo::Table::init(){
   CustomTriggerId = RNIL;
   FrmLen = 0;
   memset(FrmData, 0, sizeof(FrmData));
+  FragmentCount = 0;
 }
 
 void

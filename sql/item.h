@@ -22,6 +22,7 @@
 class Protocol;
 struct st_table_list;
 void item_init(void);			/* Init item functions */
+class Item_field;
 
 
 /*
@@ -41,16 +42,22 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint nagg;    // Total number of aggregated collations.
+  uint strong;  // Number of the strongest collation.
   
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    nagg= 0;
+    strong= 0;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    nagg= 0;
+    strong= 0;
   }
   void set(DTCollation &dt)
   { 
@@ -66,9 +73,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt);
-  bool set(DTCollation &dt1, DTCollation &dt2)
-  { set(dt1); return aggregate(dt2); }
+  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
+  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
+  { set(dt1); return aggregate(dt2, superset_conversion); }
   const char *derivation_name() const
   {
     switch(derivation)
@@ -99,7 +106,7 @@ public:
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
-             PARAM_ITEM};
+             PARAM_ITEM, TRIGGER_FIELD_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -137,13 +144,7 @@ public:
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup()
-  {
-    DBUG_ENTER("Item::cleanup");
-    DBUG_PRINT("info", ("Type: %d", (int)type()));
-    fixed=0;
-    DBUG_VOID_RETURN;
-  }
+  virtual void cleanup();
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   /*
@@ -152,6 +153,7 @@ public:
   */
   inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
+  int save_in_field_no_warnings(Field *field, bool no_conversions);
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -243,6 +245,7 @@ public:
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
+  virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
@@ -275,8 +278,8 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
-  
-  /* Used in sql_select.cc:eliminate_not_funcs() */
+  virtual Item_field *filed_for_view_update() { return 0; }
+
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
   {
@@ -434,12 +437,13 @@ public:
 
   friend bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
-                            bool any_privileges);
+                            bool any_privileges, bool allocate_view_names);
 };
 
 
 class Item_field :public Item_ident
 {
+protected:
   void set_field(Field *field);
 public:
   Field *field,*result_field;
@@ -495,6 +499,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
   inline uint32 max_disp_length() { return field->max_length(); }
+  Item_field *filed_for_view_update() { return this; }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -635,7 +640,7 @@ public:
   */
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
-  void print(String *str) { str->append('?'); }
+  void print(String *str);
   /* parameter never equal to other parameter of other item */
   bool eq(const Item *item, bool binary_cmp) const { return 0; }
 };
@@ -669,6 +674,17 @@ public:
 };
 
 
+class Item_static_int_func :public Item_int
+{
+  const char *func_name;
+public:
+  Item_static_int_func(const char *str_arg, longlong i, uint length)
+    :Item_int(NullS, i, length), func_name(str_arg)
+  {}
+  void print(String *str) { str->append(func_name); }
+};
+
+
 class Item_uint :public Item_int
 {
 public:
@@ -687,12 +703,13 @@ public:
 
 class Item_real :public Item_num
 {
+  char *presentation;
 public:
   double value;
   // Item_real() :value(0) {}
   Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
   {
-    name=(char*) str_arg;
+    presentation= name=(char*) str_arg;
     decimals=(uint8) nr_of_decimals(str_arg);
     max_length=length;
     fixed= 1;
@@ -700,12 +717,12 @@ public:
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {
-    name=(char*) str;
+    presentation= name=(char*) str;
     decimals=(uint8) decimal_par;
     max_length=length;
     fixed= 1;
   }
-  Item_real(double value_par) :value(value_par) { fixed= 1; }
+  Item_real(double value_par) :presentation(0), value(value_par) { fixed= 1; }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -721,6 +738,19 @@ public:
   void cleanup() {}
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
   Item_num *neg() { value= -value; return this; }
+  void print(String *str);
+};
+
+
+class Item_static_real_func :public Item_real
+{
+  const char *func_name;
+public:
+  Item_static_real_func(const char *str, double val_arg, uint decimal_par,
+                        uint length)
+    :Item_real(NullS, val_arg, decimal_par, length), func_name(str)
+  {}
+  void print(String *str) { str->append(func_name); }
 };
 
 
@@ -802,6 +832,20 @@ public:
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
 };
+
+
+class Item_static_string_func :public Item_string
+{
+  const char *func_name;
+public:
+  Item_static_string_func(const char *name_par, const char *str, uint length,
+                          CHARSET_INFO *cs,
+                          Derivation dv= DERIVATION_COERCIBLE)
+    :Item_string(NullS, str, length, cs, dv), func_name(name_par)
+  {}
+  void print(String *str) { str->append(func_name); }
+};
+
 
 /* for show tables */
 
@@ -927,7 +971,10 @@ public:
   {
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
-  bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
+  double val_result();
+  longlong val_int_result();
+  String *str_result(String* tmp);
+  bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
   int save_in_field(Field *field, bool no_conversions)
@@ -980,7 +1027,7 @@ public:
 };
 
 /*
-  The following class is used to optimize comparing of date columns
+  The following class is used to optimize comparing of date and bigint columns
   We need to save the original item, to be able to set the field to the
   original value in 'opt_range'.
 */
@@ -990,7 +1037,9 @@ class Item_int_with_ref :public Item_int
   Item *ref;
 public:
   Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
-  {}
+  {
+    unsigned_flag= ref_arg->unsigned_flag;
+  }
   int save_in_field(Field *field, bool no_conversions)
   {
     return ref->save_in_field(field, no_conversions);
@@ -1153,6 +1202,57 @@ public:
 	    (this->*processor)(args);
   }
 };
+
+
+/*
+  We need this two enums here instead of sql_lex.h because
+  at least one of them is used by Item_trigger_field interface.
+
+  Time when trigger is invoked (i.e. before or after row actually
+  inserted/updated/deleted).
+*/
+enum trg_action_time_type
+{
+  TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1
+};
+
+/*
+  Event on which trigger is invoked.
+*/
+enum trg_event_type
+{
+  TRG_EVENT_INSERT= 0 , TRG_EVENT_UPDATE= 1, TRG_EVENT_DELETE= 2
+};
+
+/*
+  Represents NEW/OLD version of field of row which is
+  changed/read in trigger.
+
+  Note: For this item actual binding to Field object happens not during
+        fix_fields() (like for Item_field) but during parsing of trigger
+        definition, when table is opened, with special setup_field() call.
+*/
+class Item_trigger_field : public Item_field
+{
+public:
+  /* Is this item represents row from NEW or OLD row ? */
+  enum row_version_type {OLD_ROW, NEW_ROW};
+  row_version_type row_version;
+
+  Item_trigger_field(row_version_type row_ver_par,
+                     const char *field_name_par):
+    Item_field((const char *)NULL, (const char *)NULL, field_name_par),
+    row_version(row_ver_par)
+  {}
+  bool setup_field(THD *thd, TABLE *table, enum trg_event_type event);
+  enum Type type() const { return TRIGGER_FIELD_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  void print(String *str);
+  table_map used_tables() const { return (table_map)0L; }
+  void cleanup();
+};
+
 
 class Item_cache: public Item
 {

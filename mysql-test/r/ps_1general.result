@@ -317,6 +317,7 @@ NDBCLUSTER	YES/NO	Clustered, fault-tolerant, memory-based tables
 NDB	YES/NO	Alias for NDBCLUSTER
 EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
+CSV	YES/NO	CSV storage engine
 drop table if exists tx;
 prepare stmt1 from ' drop table if exists tx ' ;
 execute stmt1 ;
@@ -333,12 +334,12 @@ prepare stmt1 from ' deallocate prepare never_prepared ' ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'never_prepared' at line 1
 prepare stmt4 from ' use test ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-prepare stmt3 from ' create database drop_me ';
+prepare stmt3 from ' create database mysqltest ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-create database drop_me ;
-prepare stmt3 from ' drop database drop_me ';
+create database mysqltest ;
+prepare stmt3 from ' drop database mysqltest ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-drop database drop_me ;
+drop database mysqltest ;
 prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
 identified by ''looser'' ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
