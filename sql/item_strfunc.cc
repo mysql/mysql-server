@@ -1454,8 +1454,8 @@ String *Item_func_database::val_str(String *str)
   THD *thd= current_thd;
   if (!thd->db)
   {
-    str->length(0);
-    str->set_charset(system_charset_info);
+    null_value= 1;
+    return 0;
   }
   else
     str->copy((const char*) thd->db,(uint) strlen(thd->db),system_charset_info);
