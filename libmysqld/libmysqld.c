@@ -74,6 +74,8 @@ static int send_file_to_server(MYSQL *mysql,const char *filename);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
+extern char server_inited;
+
 #define init_sigpipe_variables
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
@@ -801,6 +803,17 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+  /* 
+     Check mysql_server_init was called.
+     This code shouldn't be merged to 4.1
+  */
+  if (!server_inited)
+  {
+    net->last_errno=CR_UNKNOWN_ERROR;
+    strmov(net->last_error,ER(net->last_errno));
+    goto error;
+  }
 
   net->vio = 0;				/* If something goes wrong */
   /* use default options */
