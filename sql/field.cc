@@ -1053,13 +1053,17 @@ longlong Field_tiny::val_int(void)
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,5));
+  uint mlength=max(field_length+1,5*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
+
   if (unsigned_flag)
-    length= (uint) (int10_to_str((long) *((uchar*) ptr),to,10)-to);
+    length= (uint) cs->l10tostr(cs,to,mlength, 10,(long) *((uchar*) ptr));
   else
-    length= (uint) (int10_to_str((long) *((signed char*) ptr),to,-10)-to);
+    length= (uint) cs->l10tostr(cs,to,mlength,-10,(long) *((signed char*) ptr));
+  
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1280,8 +1284,10 @@ longlong Field_short::val_int(void)
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,7));
+  uint mlength=max(field_length+1,7*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   short j;
 #ifdef WORDS_BIGENDIAN
@@ -1292,9 +1298,9 @@ String *Field_short::val_str(String *val_buffer,
     shortget(j,ptr);
 
   if (unsigned_flag)
-    length=(uint) (int10_to_str((long) (uint16) j,to,10)-to);
+    length=(uint) cs->l10tostr(cs,to,mlength, 10, (long) (uint16) j);
   else
-    length=(uint) (int10_to_str((long) j,to,-10)-to);
+    length=(uint) cs->l10tostr(cs,to,mlength,-10, (long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1513,12 +1519,14 @@ longlong Field_medium::val_int(void)
 String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,10));
+  uint mlength=max(field_length+1,10*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   long j= unsigned_flag ? (long) uint3korr(ptr) : sint3korr(ptr);
 
-  length=(uint) (int10_to_str(j,to,-10)-to);
+  length=(uint) cs->l10tostr(cs,to,mlength,-10,j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
@@ -1738,8 +1746,10 @@ longlong Field_long::val_int(void)
 String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,12));
+  uint mlength=max(field_length+1,12*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   int32 j;
 #ifdef WORDS_BIGENDIAN
@@ -1749,9 +1759,10 @@ String *Field_long::val_str(String *val_buffer,
 #endif
     longget(j,ptr);
 
-  length=(uint) (int10_to_str((unsigned_flag ? (long) (uint32) j : (long) j),
-			 to,
-			 unsigned_flag ? 10 : -10)-to);
+  if (unsigned_flag)
+    length=cs->l10tostr(cs,to,mlength, 10,(long) (uint32)j);
+  else
+    length=cs->l10tostr(cs,to,mlength,-10,(long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1952,8 +1963,10 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,22));
+  uint mlength=max(field_length+1,22*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   longlong j;
 #ifdef WORDS_BIGENDIAN
@@ -1963,7 +1976,7 @@ String *Field_longlong::val_str(String *val_buffer,
 #endif
     longlongget(j,ptr);
 
-  length=(uint) (longlong10_to_str(j,to,unsigned_flag ? 10 : -10)-to);
+  length=(uint) cs->ll10tostr(cs,to,mlength,unsigned_flag ? 10 : -10, j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
