@@ -493,7 +493,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,
-                  char **priv_user, char **priv_host,
+                  char **priv_user, char *priv_host,
 		  bool old_ver, USER_RESOURCES  *mqh)
 {
   ulong user_access=NO_ACCESS;
@@ -623,7 +623,10 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	  *mqh=acl_user->user_resource;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
-          *priv_host=acl_user->host.hostname;
+	  if (acl_user->host.hostname)
+	    strmake(priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+	  else
+	    *priv_host= 0;
 	  break;
 	}
 #ifndef ALLOW_DOWNGRADE_OF_USERS

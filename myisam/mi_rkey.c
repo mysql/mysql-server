@@ -93,13 +93,16 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     rw_unlock(&share->key_root_lock[inx]);
 
   /* Calculate length of the found key;  Used by mi_rnext_same */
-  if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg)
+  if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg &&
+      info->lastpos != HA_OFFSET_ERROR)
     info->last_rkey_length= _mi_keylength_part(keyinfo, info->lastkey,
 					       last_used_keyseg);
   else
     info->last_rkey_length= pack_key_length;
+
+  /* Check if we don't want to have record back, only error message */
   if (!buf)
-    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+    DBUG_RETURN(info->lastpos == HA_OFFSET_ERROR ? my_errno : 0);
 
   if (!(*info->read_record)(info,info->lastpos,buf))
   {
@@ -109,7 +112,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   info->lastpos = HA_OFFSET_ERROR;		/* Didn't find key */
 
-  /* Store key for read next */
+  /* Store last used key as a base for read next */
   memcpy(info->lastkey,key_buff,pack_key_length);
   info->last_rkey_length= pack_key_length;
   bzero((char*) info->lastkey+pack_key_length,info->s->base.rec_reflength);

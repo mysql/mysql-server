@@ -351,7 +351,8 @@ public:
     db - currently selected database
     ip - client IP
    */
-  char	  *host,*user,*priv_user,*priv_host,*db,*ip;
+  char	  *host,*user,*priv_user,*db,*ip;
+  char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
