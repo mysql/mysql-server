@@ -304,7 +304,9 @@ inline
 Int64
 NdbRecAttr::int64_value() const 
 {
-  return *(Int64*)theRef;
+  Int64 val;
+  memcpy(&val,theRef,8);
+  return val;
 }
 
 inline
@@ -332,7 +334,9 @@ inline
 Uint64
 NdbRecAttr::u_64_value() const
 {
-  return *(Uint64*)theRef;
+  Uint64 val;
+  memcpy(&val,theRef,8);
+  return val;
 }
 
 inline
@@ -360,14 +364,18 @@ inline
 float
 NdbRecAttr::float_value() const
 {
-  return *(float*)theRef;
+  float val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
 }
 
 inline
 double
 NdbRecAttr::double_value() const
 {
-  return *(double*)theRef;
+  double val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
 }
 
 inline
