@@ -131,7 +131,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 static int join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count);
 static ulong used_blob_length(CACHE_FIELD **ptr);
 static bool store_record_in_cache(JOIN_CACHE *cache);
-static void reset_cache(JOIN_CACHE *cache);
+static void reset_cache_read(JOIN_CACHE *cache);
+static void reset_cache_write(JOIN_CACHE *cache);
 static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -5867,8 +5868,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
  /* read through all records */
   if ((error=join_init_read_record(join_tab)))
   {
-    reset_cache(&join_tab->cache);
-    join_tab->cache.records=0; join_tab->cache.ptr_record= (uint) ~0;
+    reset_cache_write(&join_tab->cache);
     return -error;			/* No records or error */
   }
 
@@ -5891,21 +5891,23 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 		   !join_tab->cache.select->skip_record()))
     {
       uint i;
-      reset_cache(&join_tab->cache);
+      reset_cache_read(&join_tab->cache);
       for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
 	read_cached_record(join_tab);
 	if (!select || !select->skip_record())
 	  if ((error=(join_tab->next_select)(join,join_tab+1,0)) < 0)
+          {
+            reset_cache_write(&join_tab->cache);
 	    return error; /* purecov: inspected */
+          }
       }
     }
   } while (!(error=info->read_record(info)));
 
   if (skip_last)
     read_cached_record(join_tab);		// Restore current record
-  reset_cache(&join_tab->cache);
-  join_tab->cache.records=0; join_tab->cache.ptr_record= (uint) ~0;
+  reset_cache_write(&join_tab->cache);
   if (error > 0)				// Fatal error
     return -1;					/* purecov: inspected */
   for (JOIN_TAB *tmp2=join->join_tab; tmp2 != join_tab ; tmp2++)
@@ -7785,7 +7787,6 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     }
   }
 
-  cache->records=0; cache->ptr_record= (uint) ~0;
   cache->length=length+blobs*sizeof(char*);
   cache->blobs=blobs;
   *blob_ptr=0;					/* End sequentel */
@@ -7793,7 +7794,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   if (!(cache->buff=(uchar*) my_malloc(size,MYF(0))))
     DBUG_RETURN(1);				/* Don't use cache */ /* purecov: inspected */
   cache->end=cache->buff+size;
-  reset_cache(cache);
+  reset_cache_write(cache);
   DBUG_RETURN(0);
 }
 
@@ -7877,10 +7878,18 @@ store_record_in_cache(JOIN_CACHE *cache)
 
 
 static void
-reset_cache(JOIN_CACHE *cache)
+reset_cache_read(JOIN_CACHE *cache)
 {
   cache->record_nr=0;
   cache->pos=cache->buff;
+}
+
+
+static void reset_cache_write(JOIN_CACHE *cache)
+{
+  reset_cache_read(cache);
+  cache->records= 0;
+  cache->ptr_record= (uint) ~0;
 }
 
 
