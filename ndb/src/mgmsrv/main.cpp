@@ -312,12 +312,10 @@ static bool
 readLocalConfig(){
   // Read local config file
   LocalConfig lc;
-  int nodeid = lc.init(glob.local_config_filename);
-  if(nodeid == -1){
+  if(!lc.init(glob.local_config_filename))
     return false;
-  }
   
-  glob.localNodeId = nodeid;
+  glob.localNodeId = lc._ownNodeId;
   return true;
 }
 
