@@ -34408,7 +34408,7 @@ table_reference STRAIGHT_JOIN table_reference
 table_reference LEFT [OUTER] JOIN table_reference join_condition
 table_reference LEFT [OUTER] JOIN table_reference
 table_reference NATURAL [LEFT [OUTER]] JOIN table_reference
-@{ oj table_reference LEFT OUTER JOIN table_reference ON conditional_expr @}
+@{ OJ table_reference LEFT OUTER JOIN table_reference ON conditional_expr @}
 table_reference RIGHT [OUTER] JOIN table_reference join_condition
 table_reference RIGHT [OUTER] JOIN table_reference
 table_reference NATURAL [RIGHT [OUTER]] JOIN table_reference
