@@ -287,6 +287,9 @@ I_List<THD> threads,thread_cache;
 time_t start_time;
 
 
+uchar temp_pool[TEMP_POOL_SIZE];
+bool use_temp_pool;
+
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_key(NET*, THR_NET);
@@ -1532,6 +1535,9 @@ int main(int argc, char **argv)
   if (!mysql_tmpdir || !mysql_tmpdir[0])
     mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
+  bzero(temp_pool, TEMP_POOL_SIZE);
+  use_temp_pool = 0;
+
   set_options();
 #ifdef __WIN__
   /* service parameters can be overwritten by options */
@@ -2404,7 +2410,8 @@ enum options {
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
 	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
-	       OPT_GEMINI_SKIP
+	       OPT_GEMINI_SKIP,
+               OPT_TEMP_POOL
 };
 
 static struct option long_options[] = {
@@ -2535,6 +2542,7 @@ static struct option long_options[] = {
 #ifdef __WIN__
   {"standalone",            no_argument,       0, (int) OPT_STANDALONE},
 #endif
+  {"temp-pool",             no_argument,       0, (int) OPT_TEMP_POOL},
   {"tmpdir",                required_argument, 0, 't'},
   {"use-locking",           no_argument,       0, (int) OPT_USE_LOCKING},
 #ifdef USE_SYMDIR
@@ -2803,6 +2811,8 @@ struct show_var_st status_vars[]= {
   {"Sort_range",	       (char*) &filesort_range_count,   SHOW_LONG},
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
+  {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
+  {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
@@ -2911,6 +2921,7 @@ static void usage(void)
 			Don't give threads different priorities.\n\
   --socket=...		Socket file to use for connection\n\
   -t, --tmpdir=path	Path for temporary files\n\
+  --temp-pool           Use a pool of temporary files\n\
   -u, --user=user_name	Run mysqld daemon as user\n\
   -V, --version		output version information and exit");
 #ifdef __WIN__
@@ -3085,6 +3096,9 @@ static void get_options(int argc,char **argv)
 #endif
     case 't':
       mysql_tmpdir=optarg;
+      break;
+    case OPT_TEMP_POOL:
+      use_temp_pool=1;
       break;
     case 'u':
       mysqld_user=optarg;

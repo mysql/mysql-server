@@ -27,7 +27,8 @@ extern "C" {
 #include <my_list.h>
 
 struct st_thr_lock;
-
+extern ulong locks_immediate,locks_waited ;
+  
 enum thr_lock_type { TL_IGNORE=-1,
 		     TL_UNLOCK,			/* UNLOCK ANY LOCK */
 		     TL_READ,			/* Read lock */
