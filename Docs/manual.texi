@@ -47595,26 +47595,27 @@ not yet 100% confident in this code.
 Fixed a bug in @code{INSERT DELAYED} and @code{FLUSH TABLES} introduced
 in 3.23.42.
 @item
-Fixed unlikely bug, which returned not matching rows, in SELECT with
+Fixed unlikely bug, which returned non-matching rows, in @code{SELECT} with
 many tables and multi-column indexes and 'range' type.
 @item
-Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
+Fixed an unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
 many tables and @code{ORDER BY}.
 @item
 Fixed bug in @code{LOAD DATA FROM MASTER} when using table with
 @code{CHECKSUM=1}.
 @item
 Added unique error message when one gets a DEADLOCK during a transaction with
-BDB tables.
+@code{BDB} tables.
 @item
 Fixed problem with @code{BDB} tables and @code{UNIQUE} columns defined
 as @code{NULL}.
 @item
-Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
+Fixed problem with @code{myisampack} when using pre-space filled @code{CHAR}
+columns.
 @item
 Applied patch from Yuri Dario for OS2.
 @item
-Fixed bug in @code{--safe-user-create}
+Fixed bug in @code{--safe-user-create}.
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
@@ -53843,7 +53844,7 @@ really ``thread aware''.
 
 
 @node Environment variables, Regexp, Porting, Top
-@appendix  Environment Variables
+@appendix Environment Variables
 
 @cindex environment variables, list of
 
