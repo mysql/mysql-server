@@ -33,6 +33,7 @@ $opt_docdir= $PWD . "/mysqldoc";
 $opt_build_command= undef;
 $opt_changelog= undef;
 $opt_delete= undef;
+$opt_directory= $PWD;
 $opt_dry_run= undef;
 $opt_export_only= undef;
 $opt_help= $opt_verbose= 0;
@@ -104,7 +105,7 @@ defined($REPO=$ARGV[0]) || print_help("Please enter the BK repository to be used
 system ("bk help > /dev/null") == 0 or &abort("Cannot execute BitKeeper binary!");
 system ("bk root $REPO > /dev/null 2>&1") == 0 or &abort("$REPO does not seem to be a valid BK repository!");
 
-if (($opt_directory ne ".") && (!-d $opt_directory && !$opt_dry_run))
+if (($opt_directory ne $PWD) && (!-d $opt_directory && !$opt_dry_run))
 {
 	&abort("Could not find target directory \"$opt_directory\"!");
 }
