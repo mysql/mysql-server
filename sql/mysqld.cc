@@ -287,7 +287,7 @@ ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool opt_using_transactions, using_update_log, opt_warnings=0;
-bool opt_local_infile;
+bool opt_local_infile=1;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -3472,7 +3472,7 @@ static void get_options(int argc,char **argv)
       mysql_port= (unsigned int) atoi(optarg);
       break;
     case OPT_LOCAL_INFILE:
-      opt_local_infile= test(optarg || atoi(optarg) != 0);
+      opt_local_infile= test(!optarg || atoi(optarg) != 0);
       break;
     case OPT_SLAVE_SKIP_ERRORS:
       init_slave_skip_errors(optarg);
