@@ -2344,6 +2344,10 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     }
   }
   Item_func_set_user_var e(user_var_name, it);
+  /*
+    Item_func_set_user_var can't substitute something else on its place =>
+    0 can be passed as last argument (reference on item)
+  */
   e.fix_fields(thd, 0, 0);
   e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
   free_root(&thd->mem_root,0);

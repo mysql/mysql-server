@@ -2127,9 +2127,8 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   while ((item= it++))
   {
     if (item->fix_fields(thd, tables, it.ref()) ||
-	item->check_cols(1))
+	(item= *(it.ref()))->check_cols(1))
       DBUG_RETURN(-1); /* purecov: inspected */
-    item= *(it.ref()); //Item can be changed in fix fields
     if (ref)
       *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&

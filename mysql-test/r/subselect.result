@@ -1614,3 +1614,9 @@ select 2 in (select * from t1);
 1
 SET SQL_SELECT_LIMIT=default;
 drop table t1;
+create table t1(val varchar(10));
+insert into t1 values ('aaa'), ('bbb'),('eee'),('mmm'),('ppp');
+select count(*) from t1 as w1 where w1.val in (select w2.val from t1 as w2 where w2.val like 'm%') and w1.val in (select w3.val from t1 as w3 where w3.val like 'e%');
+count(*)
+0
+drop table if exists t1;
