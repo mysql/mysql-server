@@ -113,3 +113,40 @@ drop table if exists t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
+
+#
+# Test for CREATE TABLE .. LIKE ..
+#
+
+drop table if exists t1, t2, t3;
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+select * from t3;
+create table if not exists t3 like t1;
+select @@warning_count;
+create temporary table t3 like t2;
+show create table t3;
+select * from t3;
+drop table t3;
+show create table t3;
+select * from t3;
+drop table t3;
+create database test_$1;
+drop table if exists test_$1.t3;
+create table test_$1.t3 like t1;
+create temporary table t3 like test_$1.t3;
+show create table t3;
+create table t3 like t1;
+!$1050 create table t3 like test_$1.t3;
+--error 1044,1
+create table non_existing_database.t1 like t1;
+!$1051 create table t3 like non_existing_table;
+!$1050 create temporary table t3 like t1;
+drop table t1, t2, t3;
+drop table t3;
+drop database test_$1;
+

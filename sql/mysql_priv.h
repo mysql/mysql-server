@@ -422,6 +422,9 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
 		      bool simple_alter=0);
+int mysql_create_like_table(THD *thd, TABLE_LIST *table,
+                            HA_CREATE_INFO *create_info,
+                            Table_ident *src_table);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
