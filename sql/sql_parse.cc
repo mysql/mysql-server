@@ -730,6 +730,10 @@ pthread_handler_decl(handle_one_connection,arg)
       send_error(net,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
+    else if (thd->killed)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
+    }
     
 end_thread:
     close_connection(net);
@@ -906,7 +910,10 @@ bool do_command(THD *thd)
 		       vio_description(net->vio)));
     /* Check if we can continue without closing the connection */
     if (net->error != 3)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
+    }
     send_error(net,net->last_errno,NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
@@ -1202,9 +1209,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	    opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
-    if (lCurMemory)				// Using SAFEMALLOC
+    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
-	      (lCurMemory+1023L)/1024L,(lMaxMemory+1023L)/1024L);
+	      (sf_malloc_cur_memory+1023L)/1024L,
+	      (sf_malloc_max_memory+1023L)/1024L);
  #endif
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
@@ -2465,8 +2473,10 @@ mysql_execute_command(void)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+    /* there is no need to check for table permissions here, because
+       if a user has no permissions to read a table, he won't be
+       able to open it (with SQLCOM_HA_OPEN) in the first place. */
+    if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
 			lex->insert_list, lex->ha_rkey_mode, select_lex->where,
@@ -2521,6 +2531,23 @@ mysql_execute_command(void)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    break;
+  case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
+    {
+      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
+      else
+	send_ok(&thd->net);
+    }
+    else
+      res= -1;
+    break;
+  case SQLCOM_SAVEPOINT:
+    if (!ha_savepoint(thd, lex->savepoint_name))
+      send_ok(&thd->net);
+    else
+      res= -1;
     break;
   default:					/* Impossible */
     send_ok(&thd->net);

@@ -122,12 +122,24 @@ void init_thr_alarm(uint max_alarms)
 
 /*
   Request alarm after sec seconds.
-  A pointer is returned with points to a non-zero int when the alarm has been
-  given. This can't be called from the alarm-handling thread.
-  Returns 0 if no more alarms are allowed (aborted by process)
+
+  SYNOPSIS
+    thr_alarm()
+    alrm		Pointer to alarm detection
+    alarm_data		Structure to store in alarm queue
+
+  NOTES
+    This function can't be called from the alarm-handling thread.
+
+  RETURN VALUES
+    0 ok
+    1 If no more alarms are allowed (aborted by process)
+
+    Stores in first argument a pointer to a non-zero int which is set to 0
+    when the alarm has been given
 */
 
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
+my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 {
   ulong now;
   sigset_t old_mask;
@@ -208,8 +220,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 {
   ALARM *alarm_data;
   sigset_t old_mask;
-  uint i;
-  bool found=0;
+  uint i, found=0;
   DBUG_ENTER("thr_end_alarm");
 
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
@@ -223,17 +234,18 @@ void thr_end_alarm(thr_alarm_t *alarmed)
       queue_remove(&alarm_queue,i),MYF(0);
       if (alarm_data->malloced)
 	my_free((gptr) alarm_data,MYF(0));
-      found=1;
+      found++;
+#ifndef DBUG_OFF
       break;
+#endif
     }
   }
-  DBUG_ASSERT(!*alarmed || found);
+  DBUG_ASSERT(!*alarmed || found == 1);
   if (!found)
   {
-#ifdef MAIN
-    printf("Warning: Didn't find alarm %lx in queue of %d alarms\n",
-	   (long) *alarmed, alarm_queue.elements);
-#endif
+    if (*alarmed)
+      fprintf(stderr,"Warning: Didn't find alarm %lx in queue of %d alarms\n",
+	      (long) *alarmed, alarm_queue.elements);
     DBUG_PRINT("warning",("Didn't find alarm %lx in queue\n",
 			  (long) *alarmed));
   }

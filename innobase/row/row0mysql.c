@@ -76,9 +76,6 @@ row_mysql_store_blob_ref(
 				also to set the NULL bit in the MySQL record
 				header! */
 {
-	ulint	sum	= 0;
-	ulint	i;
-
 	/* MySQL might assume the field is set to zero except the length and
 	the pointer fields */
 
@@ -92,22 +89,6 @@ row_mysql_store_blob_ref(
 	ut_a(col_len - 8 > 1 || len < 256);
 	ut_a(col_len - 8 > 2 || len < 256 * 256);
 	ut_a(col_len - 8 > 3 || len < 256 * 256 * 256);
-
-	/* We try to track an elusive bug which probably was fixed
-	May 9, 2002, but better be sure: we probe the data buffer
-	to make sure it is in valid allocated memory */
-
-	for (i = 0; i < len; i++) {
-
-		sum += (ulint)(data + i);
-	}
-
-	/* The variable below is identically false, we just fool the
-	compiler to not optimize away our loop */
-	if (row_mysql_identically_false) {
-
-		printf("Sum %lu\n", sum);
-	}
 
 	mach_write_to_n_little_endian(dest, col_len - 8, len);
 
@@ -526,6 +507,7 @@ row_get_prebuilt_insert_row(
 	ins_node_t*	node;
 	dtuple_t*	row;
 	dict_table_t*	table	= prebuilt->table;
+	ulint		i;
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 	
@@ -548,6 +530,14 @@ row_get_prebuilt_insert_row(
 					dict_table_get_n_cols(table));
 
 		dict_table_copy_types(row, table);
+
+		/* We init the value of every field to the SQL NULL to avoid
+		a debug assertion from failing */
+
+		for (i = 0; i < dtuple_get_n_fields(row); i++) {
+		    
+		        dtuple_get_nth_field(row, i)->len = UNIV_SQL_NULL;
+		}
 
 		ins_node_set_new_row(node, row);
 
@@ -952,7 +942,8 @@ row_update_for_mysql(
 	if (prebuilt->pcur->btr_cur.index == clust_index) {
 		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
 	} else {
-		btr_pcur_copy_stored_position(node->pcur, prebuilt->clust_pcur);
+		btr_pcur_copy_stored_position(node->pcur,
+							prebuilt->clust_pcur);
 	}
 		
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1477,8 +1468,7 @@ row_create_index_for_mysql(
 	ulint		namelen;
 	ulint		keywordlen;
 	ulint		err;
-	ulint		i;
-	ulint		j;
+	ulint		i, j;
 	
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1486,23 +1476,9 @@ row_create_index_for_mysql(
 	
 	trx->op_info = (char *) "creating index";
 
-	trx_start_if_not_started(trx);
-
-	namelen = ut_strlen(index->table_name);
-
-	keywordlen = ut_strlen("_recover_innodb_tmp_table");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(
-				index->table_name + namelen - keywordlen,
- 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
-
-		return(DB_SUCCESS);
-	}
-
 	/* Check that the same column does not appear twice in the index.
-	InnoDB assumes this in its algorithms, e.g., update of an index
-	entry */
+	Starting from 4.0.14 InnoDB should be able to cope with that, but
+	safer not to allow them. */
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 		for (j = 0; j < i; j++) {
@@ -1525,6 +1501,20 @@ row_create_index_for_mysql(
 		}
 	}
 
+	trx_start_if_not_started(trx);
+
+	namelen = ut_strlen(index->table_name);
+
+	keywordlen = ut_strlen("_recover_innodb_tmp_table");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(
+				index->table_name + namelen - keywordlen,
+ 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
+
+		return(DB_SUCCESS);
+	}
+
 	heap = mem_heap_create(512);
 
 	trx->dict_operation = TRUE;
@@ -1542,6 +1532,7 @@ row_create_index_for_mysql(
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 error_handling:
+
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 		
@@ -2541,7 +2532,7 @@ loop:
 	
 	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);	
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;	
 }

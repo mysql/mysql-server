@@ -10,6 +10,8 @@
 # mysql.server works by first doing a cd to the base directory and from there
 # executing mysqld_safe
 
+KILL_MYSQLD=1;
+
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
 umask 007
@@ -34,6 +36,9 @@ parse_arguments() {
 
   for arg do
     case "$arg" in
+      --skip-kill-mysqld*)
+        KILL_MYSQLD=0;
+        ;;
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
@@ -70,6 +75,7 @@ parse_arguments() {
 	  MYSQLD="mysqld"
 	fi
 	;;
+      --nice=*) niceness=`echo "$arg" | sed -e "s;--nice=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -81,6 +87,7 @@ parse_arguments() {
     esac
   done
 }
+
 
 MY_PWD=`pwd`
 # Check if we are starting this relative (for the binary release)
@@ -110,6 +117,7 @@ fi
 MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
 MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
 user=@MYSQLD_USER@
+niceness=0
 
 # Use the mysqld-max binary by default if the user doesn't specify a binary
 if test -x $ledir/mysqld-max
@@ -167,7 +175,12 @@ export MYSQL_UNIX_PORT
 export MYSQL_TCP_PORT
 
 
-NOHUP_NICENESS="nohup"
+if test $niceness -eq 0
+then
+  NOHUP_NICENESS="nohup"
+else
+  NOHUP_NICENESS="nohup nice -$niceness"
+fi
 
 # Using nice with no args to get the niceness level is GNU-specific.
 # This check could be extended for other operating systems (e.g.,
@@ -198,8 +211,10 @@ then
             nice --$nice_value_diff echo testing > /dev/null 2>&1
         then
             # nohup increases the priority (bad), and we are permitted
-            # to lower the priority
-            NOHUP_NICENESS="nice --$nice_value_diff nohup"
+            # to lower the priority with respect to the value the user
+            # might have been given
+            niceness=`expr $niceness - $nice_value_diff`
+            NOHUP_NICENESS="nice -$niceness nohup"
         fi
     fi
 else
@@ -289,7 +304,7 @@ do
     break
   fi
 
-  if @IS_LINUX@
+  if test @IS_LINUX@ -a $KILL_MYSQLD -eq 1
   then
     # Test if one process was hanging.
     # This is only a fix for Linux (running as base 3 mysqld processes)

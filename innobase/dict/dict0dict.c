@@ -88,15 +88,6 @@ dict_index_remove_from_cache(
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index);	/* in, own: index */
 /***********************************************************************
-Adds a column to index. */
-UNIV_INLINE
-void
-dict_index_add_col(
-/*===============*/
-	dict_index_t*	index,	/* in: index */
-	dict_col_t*	col,	/* in: column */
-	ulint		order);	/* in: order criterion */
-/***********************************************************************
 Copies fields contained in index2 to index1. */
 static
 void
@@ -482,8 +473,9 @@ dict_index_get_nth_col_pos(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
+	col = dict_table_get_nth_col(index->table, n);
+
 	if (index->type & DICT_CLUSTERED) {
-		col = dict_table_get_nth_col(index->table, n);
 
 		return(col->clust_pos);
 	}
@@ -492,9 +484,8 @@ dict_index_get_nth_col_pos(
 	
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
-		col = field->col;
 
-		if (dict_col_get_no(col) == n) {
+		if (col == field->col && field->prefix_len == 0) {
 
 			return(pos);
 		}
@@ -502,7 +493,46 @@ dict_index_get_nth_col_pos(
 
 	return(ULINT_UNDEFINED);
 }
+
+/************************************************************************
+Looks for a matching field in an index. The column and the prefix len have
+to be the same. */
+
+ulint
+dict_index_get_nth_field_pos(
+/*=========================*/
+				/* out: position in internal representation
+				of the index; if not contained, returns
+				ULINT_UNDEFINED */
+	dict_index_t*	index,	/* in: index from which to search */
+	dict_index_t*	index2,	/* in: index */
+	ulint		n)	/* in: field number in index2 */
+{
+	dict_field_t*	field;
+	dict_field_t*	field2;
+	ulint		n_fields;
+	ulint		pos;
 	
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	field2 = dict_index_get_nth_field(index2, n);
+
+	n_fields = dict_index_get_n_fields(index);
+	
+	for (pos = 0; pos < n_fields; pos++) {
+		field = dict_index_get_nth_field(index, pos);
+
+		if (field->col == field2->col
+		    && field->prefix_len == field2->prefix_len) {
+
+			return(pos);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
 /**************************************************************************
 Returns a table object, based on table id, and memoryfixes it. */
 
@@ -622,8 +652,7 @@ dict_table_get(
 }
 
 /**************************************************************************
-Returns a table object and increments MySQL open handle count on the table.
-*/
+Returns a table object and increments MySQL open handle count on the table. */
 
 dict_table_t*
 dict_table_get_and_increment_handle_count(
@@ -732,11 +761,12 @@ dict_table_add_to_cache(
 	}
 
 	/* Add table to hash table of tables */
-	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
+								   table);
 
 	/* Add table to hash table of tables based on table id */
 	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold,
-								table);
+								   table);
 	/* Add table to LRU list of tables */
 	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
 
@@ -828,7 +858,7 @@ dict_table_rename_in_cache(
 
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
-					ut_fold_string(table->name), table);	
+					ut_fold_string(table->name), table);
 
 	name_buf = mem_heap_alloc(table->heap, ut_strlen(new_name) + 1);
 					
@@ -837,7 +867,8 @@ dict_table_rename_in_cache(
 	table->name = name_buf;
 					
 	/* Add table to hash table of tables */
-	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
+								   table);
 	
 	dict_sys->size += (mem_heap_get_size(table->heap) - old_size);
 
@@ -1128,7 +1159,6 @@ dict_index_add_to_cache(
 	ulint		n_ord;
 	ibool		success;
 	ulint		i;
-	ulint		j;
 	
 	ut_ad(index);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1157,28 +1187,6 @@ dict_index_add_to_cache(
 		dict_mem_index_free(index);
 
 		return(FALSE);
-	}
-
-	/* Check that the same column does not appear twice in the index.
-	InnoDB assumes this in its algorithms, e.g., update of an index
-	entry */
-
-	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-
-		for (j = 0; j < i; j++) {
-			if (dict_index_get_nth_field(index, j)->col
-			    == dict_index_get_nth_field(index, i)->col) {
-
-				ut_print_timestamp(stderr);
-
-				fprintf(stderr,
-"  InnoDB: Error: column %s appears twice in index %s of table %s\n"
-"InnoDB: This is not allowed in InnoDB.\n"
-"InnoDB: UPDATE can cause such an index to become corrupt in InnoDB.\n",
-				dict_index_get_nth_field(index, i)->col->name,
-				index->name, table->name);
-			}
-		}
 	}
 	
 	/* Build the cache internal representation of the index,
@@ -1223,8 +1231,8 @@ dict_index_add_to_cache(
 	    
 		cluster = dict_table_get_low(table->cluster_name);
 
-		tree = dict_index_get_tree(UT_LIST_GET_FIRST(cluster->indexes));
-
+		tree = dict_index_get_tree(
+					UT_LIST_GET_FIRST(cluster->indexes));
 		new_index->tree = tree;
 		new_index->page_no = tree->page;
 	} else {
@@ -1352,13 +1360,14 @@ UNIV_INLINE
 void
 dict_index_add_col(
 /*===============*/
-	dict_index_t*	index,	/* in: index */
-	dict_col_t*	col,	/* in: column */
-	ulint		order)	/* in: order criterion */
+	dict_index_t*	index,		/* in: index */
+	dict_col_t*	col,		/* in: column */
+	ulint		order,		/* in: order criterion */
+	ulint		prefix_len)	/* in: column prefix length */
 {
 	dict_field_t*	field;
 
-	dict_mem_index_add_field(index, col->name, order);
+	dict_mem_index_add_field(index, col->name, order, prefix_len);
 
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
@@ -1384,7 +1393,8 @@ dict_index_copy(
 	for (i = start; i < end; i++) {
 
 		field = dict_index_get_nth_field(index2, i);
-		dict_index_add_col(index1, field->col, field->order);
+		dict_index_add_col(index1, field->col, field->order,
+						      field->prefix_len);
 	}
 }
 
@@ -1487,7 +1497,7 @@ dict_index_build_internal_clust(
 
 		/* Add the mix id column */
 		dict_index_add_col(new_index,
-			        dict_table_get_sys_col(table, DATA_MIX_ID), 0);
+			  dict_table_get_sys_col(table, DATA_MIX_ID), 0, 0);
 
 		/* Copy the rest of fields */
 		dict_index_copy(new_index, index, table->mix_len,
@@ -1525,14 +1535,15 @@ dict_index_build_internal_clust(
 
 		if (!(index->type & DICT_UNIQUE)) {
 			dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_ROW_ID), 0);
+			   dict_table_get_sys_col(table, DATA_ROW_ID), 0, 0);
 			trx_id_pos++;
 		}
 
 		dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_TRX_ID), 0);	
+			   dict_table_get_sys_col(table, DATA_TRX_ID), 0, 0);
+	
 		dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_ROLL_PTR), 0);
+			   dict_table_get_sys_col(table, DATA_ROLL_PTR), 0, 0);
 
 		for (i = 0; i < trx_id_pos; i++) {
 
@@ -1561,7 +1572,14 @@ dict_index_build_internal_clust(
 	for (i = 0; i < new_index->n_def; i++) {
 
 		field = dict_index_get_nth_field(new_index, i);
-		(field->col)->aux = 0;
+
+		/* If there is only a prefix of the column in the index
+		field, do not mark the column as contained in the index */
+
+		if (field->prefix_len == 0) {
+
+		        field->col->aux = 0;
+		}
 	}
 	
 	/* Add to new_index non-system columns of table not yet included
@@ -1572,7 +1590,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->type.mtype != DATA_SYS);
 
 		if (col->aux == ULINT_UNDEFINED) {
-			dict_index_add_col(new_index, col, 0);
+			dict_index_add_col(new_index, col, 0, 0);
 		}
 	}
 
@@ -1584,7 +1602,11 @@ dict_index_build_internal_clust(
 
 	for (i = 0; i < new_index->n_def; i++) {
 		field = dict_index_get_nth_field(new_index, i);
-		(field->col)->clust_pos = i;
+
+		if (field->prefix_len == 0) {
+
+		        field->col->clust_pos = i;
+		}
 	}
 	
 	new_index->cached = TRUE;
@@ -1646,25 +1668,33 @@ dict_index_build_internal_non_clust(
 	for (i = 0; i < clust_index->n_uniq; i++) {
 
 		field = dict_index_get_nth_field(clust_index, i);
-		(field->col)->aux = ULINT_UNDEFINED;
+		field->col->aux = ULINT_UNDEFINED;
 	}
 
 	/* Mark with 0 table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
 
 		field = dict_index_get_nth_field(new_index, i);
-		(field->col)->aux = 0;
+
+		/* If there is only a prefix of the column in the index
+		field, do not mark the column as contained in the index */
+
+		if (field->prefix_len == 0) {
+
+		        field->col->aux = 0;
+		}
 	}
 
-	/* Add to new_index columns necessary to determine the clustered
+	/* Add to new_index the columns necessary to determine the clustered
 	index entry uniquely */
 
 	for (i = 0; i < clust_index->n_uniq; i++) {
 
 		field = dict_index_get_nth_field(clust_index, i);
 
-		if ((field->col)->aux == ULINT_UNDEFINED) {
-			dict_index_add_col(new_index, field->col, 0);
+		if (field->col->aux == ULINT_UNDEFINED) {
+			dict_index_add_col(new_index, field->col, 0,
+						      field->prefix_len);
 		}
 	}
 
@@ -1787,6 +1817,14 @@ dict_foreign_find_index(
 			for (i = 0; i < n_cols; i++) {
 				col_name = dict_index_get_nth_field(index, i)
 							->col->name;
+				if (dict_index_get_nth_field(index, i)
+						->prefix_len != 0) {
+					/* We do not accept column prefix
+					indexes here */
+					
+					break;
+				}
+
 				if (ut_strlen(columns[i]) !=
 						ut_strlen(col_name)
 				    || 0 != ut_cmp_in_lower_case(columns[i],
@@ -3776,6 +3814,10 @@ dict_field_print_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	printf(" %s", field->name);
+
+	if (field->prefix_len != 0) {
+	        printf("(%lu)", field->prefix_len);
+	}
 }
 
 /**************************************************************************

@@ -115,6 +115,8 @@ int init_slave()
 {
   DBUG_ENTER("init_slave");
 
+  /* This is called when mysqld starts */
+
   /*
     TODO: re-write this to interate through the list of files
     for multi-master
@@ -126,11 +128,16 @@ int init_slave()
     If master_host is specified, create the master_info file if it doesn't
     exists.
   */
-  if (!active_mi ||
-      init_master_info(active_mi,master_info_file,relay_log_info_file,
+  if (!active_mi)
+  {
+    sql_print_error("Failed to allocate memory for the master info structure");
+    goto err;
+  }
+    
+  if(init_master_info(active_mi,master_info_file,relay_log_info_file,
 		       !master_host))
   {
-    sql_print_error("Note: Failed to initialized master info");
+    sql_print_error("Failed to initialize the master info structure");
     goto err;
   }
 
@@ -150,7 +157,7 @@ int init_slave()
 			    relay_log_info_file,
 			    SLAVE_IO | SLAVE_SQL))
     {
-      sql_print_error("Warning: Can't create threads to handle slave");
+      sql_print_error("Failed to create slave threads");
       goto err;
     }
   }
@@ -269,7 +276,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       goto err;
     rli->cur_log = &rli->cache_buf;
   }
-  if (pos > BIN_LOG_HEADER_SIZE)
+  if (pos >= BIN_LOG_HEADER_SIZE)
     my_b_seek(rli->cur_log,(off_t)pos);
 
 err:
@@ -282,6 +289,9 @@ err:
   pthread_cond_broadcast(&rli->data_cond);
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
+
+  /* Isn't this strange: if !need_data_lock, we broadcast with no lock ?? */
+
   pthread_mutex_unlock(log_lock);
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
@@ -962,13 +972,19 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
   
+  /*
+    Note the following switch will bug when we have MySQL branch 30 ;)
+  */
   switch (*mysql->server_version) {
   case '3':
-    mi->old_format = 1;
+    mi->old_format = 
+      (strncmp(mysql->server_version, "3.23.57", 7) < 0) /* < .57 */ ?
+      BINLOG_FORMAT_323_LESS_57 : 
+      BINLOG_FORMAT_323_GEQ_57 ;
     break;
   case '4':
   case '5':
-    mi->old_format = 0;
+    mi->old_format = BINLOG_FORMAT_CURRENT;
     break;
   default:
     errmsg = "Master reported unrecognized MySQL version";
@@ -1186,11 +1202,44 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     strmov(strcend(tmp,'.'),"-relay-bin");
     opt_relay_logname=my_strdup(tmp,MYF(MY_WME));
   }
+
+  /*
+    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
+    notable that the last kilobytes of it (8 kB for example) may live in memory,
+    not on disk (depending on what the thread using it does). While this is
+    efficient, it has a side-effect one must know: 
+    the size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
+    few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
+    happens when only the IO thread is started (not the SQL thread). The
+    "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
+    SLAVE IO_THREAD', and are flushed to disk when the slave's mysqld stops. So
+    this does not cause any bug. Example of how disk size grows by leaps:
+
+     Read_Master_Log_Pos: 7811 -rw-rw----    1 guilhem  qq              4 Jun  5 16:19 gbichot2-relay-bin.002
+     ...later...
+     Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
+
+    See how 4 is less than 7811 and 8192 is less than 9744.
+
+    WARNING: this is risky because the slave can stay like this for a long time;
+    then if it has a power failure, master.info says the I/O thread has read
+    until 9744 while the relay-log contains only until 8192 (the in-memory part
+    from 8192 to 9744 has been lost), so the SQL slave thread will miss some
+    events, silently breaking replication.
+    Ideally we would like to flush master.info only when we know that the relay
+    log has no in-memory tail.
+    Note that the above problem may arise only when only the IO thread is
+    started, which is unlikely.
+  */
+
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
 	       1 /* no auto events */))
+  {
+    sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
+  }
 
   /* if file does not exist */
   if (access(fname,F_OK))
@@ -1201,10 +1250,18 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     */
     if (info_fd >= 0)
       my_close(info_fd, MYF(MY_WME));
-    if ((info_fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
-		      MYF(MY_WME)))
+    if ((info_fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
     {
+      sql_print_error("Failed to create a new relay log info file (\
+file '%s', errno %d)", fname, my_errno);
+      msg= current_thd->net.last_error;
+      goto err;
+    }
+    if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
+		      MYF(MY_WME))) 
+    {
+      sql_print_error("Failed to create a cache on relay log info file (\
+file '%s')", fname);
       msg= current_thd->net.last_error;
       goto err;
     }
@@ -1212,7 +1269,11 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     /* Init relay log with first entry in the relay index file */
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
+    {
+      sql_print_error("Failed to open the relay log (relay_log_name='FIRST', \
+relay_log_pos=4");
       goto err;
+    }
     rli->master_log_name[0]= 0;
     rli->master_log_pos= 0;		
     rli->info_fd= info_fd;
@@ -1221,18 +1282,33 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   {
     if (info_fd >= 0)
       reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
-    else if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	     init_io_cache(&rli->info_file, info_fd,
-			   IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
+    else 
     {
-      if (info_fd >= 0)
-	my_close(info_fd, MYF(0));
-      rli->info_fd= -1;
-      rli->relay_log.close(1);
-      pthread_mutex_unlock(&rli->data_lock);
-      DBUG_RETURN(1);
+      int error=0;
+      if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
+      {
+        sql_print_error("Failed to open the existing relay log info file (\
+file '%s', errno %d)", fname, my_errno);
+        error= 1;
+      }
+      else if (init_io_cache(&rli->info_file, info_fd,
+                             IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
+      {
+        sql_print_error("Failed to create a cache on relay log info file (\
+file '%s')", fname);
+        error= 1;
+      }
+      if (error)
+      {
+        if (info_fd >= 0)
+          my_close(info_fd, MYF(0));
+        rli->info_fd= -1;
+        rli->relay_log.close(1);
+        pthread_mutex_unlock(&rli->data_lock);
+        DBUG_RETURN(1);
+      }
     }
-      
+         
     rli->info_fd = info_fd;
     int relay_log_pos, master_log_pos;
     if (init_strvar_from_file(rli->relay_log_name,
@@ -1256,7 +1332,12 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 			   rli->relay_log_pos,
 			   0 /* no data lock*/,
 			   &msg))
+    {
+      char llbuf[22];
+      sql_print_error("Failed to open the relay log (relay_log_name='%s', \
+relay_log_pos=%s", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
       goto err;
+    }
   }
   DBUG_ASSERT(rli->relay_log_pos >= BIN_LOG_HEADER_SIZE);
   DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->relay_log_pos);
@@ -1265,7 +1346,8 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     before flush_relay_log_info
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
-  error= flush_relay_log_info(rli);
+  if ((error= flush_relay_log_info(rli)))
+    sql_print_error("Failed to flush relay log info file");
   if (count_relay_log_space(rli))
   {
     msg="Error counting relay log space";
@@ -1310,18 +1392,18 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
   bool slave_killed=0;
   MASTER_INFO* mi = rli->mi;
-  const char* save_proc_info;
   THD* thd = mi->io_thd;
 
   DBUG_ENTER("wait_for_relay_log_space");
   pthread_mutex_lock(&rli->log_space_lock);
-  save_proc_info = thd->proc_info;
-  thd->proc_info = "Waiting for relay log space to free";
+  const char* save_proc_info= thd->enter_cond(&rli->log_space_cond,
+                                              &rli->log_space_lock, 
+                                              "Waiting for relay log space to free");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-  thd->proc_info = save_proc_info;
+  thd->exit_cond(save_proc_info);
   pthread_mutex_unlock(&rli->log_space_lock);
   DBUG_RETURN(slave_killed);
 }
@@ -1368,6 +1450,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 
   pthread_mutex_lock(&mi->data_lock);
   fd = mi->fd;
+
+  /* does master.info exist ? */
   
   if (access(fname,F_OK))
   {
@@ -1382,10 +1466,19 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
     */
     if (fd >= 0)
       my_close(fd, MYF(MY_WME));
-    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
-		      MYF(MY_WME)))
+    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+    {
+      sql_print_error("Failed to create a new master info file (\
+file '%s', errno %d)", fname, my_errno);
       goto err;
+    }
+    if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
+		      MYF(MY_WME)))
+    {
+      sql_print_error("Failed to create a cache on master info file (\
+file '%s')", fname);
+      goto err;
+    }
 
     mi->master_log_name[0] = 0;
     mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
@@ -1404,10 +1497,22 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   {
     if (fd >= 0)
       reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
-    else if ((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 ||
-	     init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
-			   0, MYF(MY_WME)))
-      goto err;
+    else 
+    {
+      if ((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+      {
+        sql_print_error("Failed to open the existing master info file (\
+file '%s', errno %d)", fname, my_errno);
+        goto err;
+      }
+      if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
+                        0, MYF(MY_WME)))
+      {
+        sql_print_error("Failed to create a cache on master info file (\
+file '%s')", fname);
+        goto err;
+      }
+    }
 
     mi->fd = fd;
     int port, connect_retry, master_log_pos;
@@ -1448,7 +1553,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  error=test(flush_master_info(mi));
+  if ((error=test(flush_master_info(mi))))
+    sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 
@@ -1675,6 +1781,13 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
      the master info. To catch this, these commands
      modify abort_pos_wait ; we just monitor abort_pos_wait
      and see if it has changed.
+     Why do we have this mechanism instead of simply monitoring slave_running in
+     the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that the
+     SQL thread be stopped? This is in case 
+     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
+     happens very quickly between the moment pthread_cond_wait() wakes up and
+     the while() is evaluated: in that case slave_running is again 1 when the
+     while() is evaluated.
   */
   init_abort_pos_wait= abort_pos_wait;
 
@@ -1711,7 +1824,12 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   //"compare and wait" main loop
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
-         mi->slave_running)
+         /* 
+            formerly we tested mi->slave_running, but what we care about is
+            rli->slave_running (because this concerns the SQL thread, while
+            mi->slave_running concerns the I/O thread). 
+         */
+         slave_running)
   {
     bool pos_reached;
     int cmp_result= 0;
@@ -1749,6 +1867,10 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
                                       "Waiting for master update");
+    /*
+      We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
+      will wake us up.
+    */
     if (timeout > 0)
     {
       /*
@@ -1766,6 +1888,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     else
       pthread_cond_wait(&data_cond, &data_lock);
+    DBUG_PRINT("info",("Got signal of master update"));
     thd->exit_cond(msg);
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -1774,6 +1897,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     error=0;
     event_count++;
+    DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
   }
 
 err:
@@ -1782,11 +1906,11 @@ err:
 improper_arguments: %d  timed_out: %d",
                      (int) thd->killed,
                      (int) (init_abort_pos_wait != abort_pos_wait),
-                     (int) mi->slave_running,
+                     (int) slave_running,
                      (int) (error == -2),
                      (int) (error == -1)));
   if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
-      !mi->slave_running) 
+      !slave_running) 
   {
     error= -2;
   }
@@ -2321,6 +2445,17 @@ reconnect done to recover from failed read");
         for no reason, but this function will do a clean read, notice the clean
         value and exit immediately.
       */
+#ifndef DBUG_OFF
+      {
+        char llbuf1[22], llbuf2[22];
+        DBUG_PRINT("info", ("log_space_limit=%s log_space_total=%s \
+ignore_log_space_limit=%d",
+                            llstr(mi->rli.log_space_limit,llbuf1),
+                            llstr(mi->rli.log_space_total,llbuf2),
+                            (int) mi->rli.ignore_log_space_limit)); 
+      }
+#endif
+
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
 	  mi->rli.log_space_total &&
           !mi->rli.ignore_log_space_limit)
@@ -2493,8 +2628,16 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
+  /* We need data_lock, at least to wake up any waiting master_pos_wait() */
+  pthread_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
-  rli->slave_running = 0;
+  /* When master_pos_wait() wakes up it will check this and terminate */
+  rli->slave_running= 0; 
+  /* Wake up master_pos_wait() */
+  pthread_mutex_unlock(&rli->data_lock);
+  DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
+  pthread_cond_broadcast(&rli->data_cond);
+  rli->ignore_log_space_limit= 0; /* don't need any lock */
   rli->save_temporary_tables = thd->temporary_tables;
 
   /*
@@ -3137,8 +3280,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
           log), and also when the SQL thread starts. We should also reset
           ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
           fact, no need as RESET SLAVE requires that the slave
-          be stopped, and when the SQL thread is later restarted
-          ignore_log_space_limit will be reset to 0.
+          be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
+          it stops.
         */
         pthread_mutex_lock(&rli->log_space_lock);
         // prevent the I/O thread from blocking next times
