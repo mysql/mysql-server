@@ -50,6 +50,15 @@ innobase_invalidate_query_cache(
 	ulint	full_name_len);	/* in: full name length where also the null
 				chars count */
 
+/**********************************************************************
+This function returns true if SQL-query in the current thread
+is either REPLACE or LOAD DATA INFILE REPLACE. 
+NOTE that /mysql/innobase/row/row0ins.c must contain the 
+prototype for this function ! */
+
+ibool
+innobase_query_is_replace(void);
+/*===========================*/
 
 /*************************************************************************
 Creates an insert node struct. */
@@ -1482,9 +1491,9 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
-        trx_t           *trx;
-        ibool           success;
-
+	trx_t*		trx;
+	const char*	ptr;
+	
 	n_unique = dict_index_get_n_unique(index);
 
 	/* If the secondary index is unique, but one of the fields in the
@@ -1523,9 +1532,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 		trx = thr_get_trx(thr);      
 		ut_ad(trx);
-		dict_accept(*trx->mysql_query_str, "REPLACE", &success);
 
-		if (success) {
+		if (innobase_query_is_replace()) {
 
 			/* The manual defines the REPLACE semantics that it 
 			is either an INSERT or DELETE(s) for duplicate key
@@ -1605,7 +1613,7 @@ row_ins_duplicate_error_in_clust(
 	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx	= thr_get_trx(thr);
-        ibool   success;
+	const char*	ptr;
 
 	UT_NOT_USED(mtr);
 	
@@ -1639,10 +1647,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			dict_accept(*trx->mysql_query_str, "REPLACE", 
-				    &success);
-
-			if (success) {
+			if (innobase_query_is_replace()) {
 
 				/* The manual defines the REPLACE semantics 
 				that it is either an INSERT or DELETE(s) 
@@ -1683,15 +1688,9 @@ row_ins_duplicate_error_in_clust(
 			/* The manual defines the REPLACE semantics that it 
 			is either an INSERT or DELETE(s) for duplicate key
 			+ INSERT. Therefore, we should take X-lock for
-			duplicates.
-		        */
+			duplicates. */
 
-			/* Is the first word in MySQL query REPLACE ? */
-
-		 	dict_accept(*trx->mysql_query_str, "REPLACE", 
-				    &success);
-
-			if (success) {
+			if (innobase_query_is_replace()) {
 
 				err = row_ins_set_exclusive_rec_lock(
 						LOCK_REC_NOT_GAP,
