@@ -131,8 +131,12 @@ ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 ALTER TABLE host
-ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+<<<<<<< gca scripts/mysql_fix_privilege_tables.sql 1.9.1.14
+ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+<<<<<<< local scripts/mysql_fix_privilege_tables.sql 1.12
+ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 
 #
 # Create VIEWs privrlages (v5.1)
