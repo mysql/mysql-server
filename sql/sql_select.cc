@@ -2683,7 +2683,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 			      (select->quick &&
 			       (select->quick->records >= 100L)))) ?
 	      2 : 1;
-	    sel->read_tables= used_tables;
+	    sel->read_tables= used_tables & ~current_map;
 	  }
 	  if (i != join->const_tables && tab->use_quick != 2)
 	  {					/* Read with cache */
