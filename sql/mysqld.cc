@@ -1260,7 +1260,8 @@ void yyerror(const char *s)
 {
   THD *thd=current_thd;
   char *yytext=(char*) thd->lex.tok_start;
-  if (!strcmp(s,"parse error"))
+  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
+  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
   net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
 	     thd->lex.yylineno);
