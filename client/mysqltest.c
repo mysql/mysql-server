@@ -73,6 +73,7 @@ struct query
   int has_result_set;
   int first_word_len;
   int abort_on_error;
+  uint expected_errno;
   char record_file[MAX_RECORD_FILE];
 };
 
@@ -382,19 +383,28 @@ int read_query(struct query* q)
 {
   char buf[MAX_QUERY];
   char* p = buf,* p1 ;
-  int c;
+  int c, expected_errno;
   
   q->record_file[0] = 0;
   q->abort_on_error = 1;
   q->has_result_set = 0;
   q->first_word_len = 0;
+  q->expected_errno = 0;
   
   if(read_line(buf, sizeof(buf)))
     return 1;
-  if(buf[0] == '!')
+  if(*p == '!')
     {
      q->abort_on_error = 0;
      p++;
+     if(*p == '$')
+       {
+	 expected_errno = 0;
+	 p++;
+	 for(;isdigit(*p);p++)
+	   expected_errno = expected_errno * 10 + *p - '0';
+	 q->expected_errno = expected_errno;
+       }
     }
 
   while(*p && isspace(*p)) p++ ;
@@ -629,12 +639,29 @@ int run_query(MYSQL* mysql, struct query* q)
 	die("query '%s' failed: %s", q->q, mysql_error(mysql));
       else
 	{
+	  if(q->expected_errno)
+	    {
+	      error = (q->expected_errno != mysql_errno(mysql));
+	      if(error)
+       	        verbose_msg("query '%s' failed with wrong errno\
+ %d instead of %d", q->q, mysql_errno(mysql), q->expected_errno);
+	      goto end;
+	    }
+	  
  	  verbose_msg("query '%s' failed: %s", q->q, mysql_error(mysql));
 	  /* if we do not abort on error, failure to run the query does
 	     not fail the whole test case
 	  */  
 	  goto end;
 	}
+    }
+
+  if(q->expected_errno)
+    {
+      error = 1;
+      verbose_msg("query '%s' succeeded - should have failed with errno %d",
+		  q->q, q->expected_errno);
+      goto end;
     }
   
   if(!q->has_result_set)
