@@ -2582,40 +2582,74 @@ static uint16 gbksortorder(uint16 i)
 }
 
 
-int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                     const uchar * s1, uint len1, 
-                     const uchar * s2, uint len2)
+int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
+			      uint length)
 {
-  uint len,c1,c2; 
+  const char *a= *a_res, *b= *b_res;
+  uint a_char,b_char; 
 
-  len = min(len1,len2);
-  while (len--)
+  while (length--)
   {
-    if ((len > 0) && isgbkcode(*s1,*(s1+1)) && isgbkcode(*s2, *(s2+1)))
+    if ((length > 0) && isgbkcode(*a,*(a+1)) && isgbkcode(*b, *(b+1)))
     {
-      c1=gbkcode(*s1,*(s1+1));
-      c2=gbkcode(*s2,*(s2+1));
-      if (c1!=c2)
-        return ((int) gbksortorder((uint16) c1) -
-		(int) gbksortorder((uint16) c2));
-      s1+=2;
-      s2+=2;
-      --len;
-    } else if (sort_order_gbk[(uchar) *s1++] != sort_order_gbk[(uchar) *s2++])
-      return ((int) sort_order_gbk[(uchar) s1[-1]] -
-	      (int) sort_order_gbk[(uchar) s2[-1]]);
+      a_char= gbkcode(*a,*(a+1));
+      b_char= gbkcode(*b,*(b+1));
+      if (a_char != b_char)
+        return ((int) gbksortorder((uint16) a_char) -
+		(int) gbksortorder((uint16) b_char));
+      a+= 2;
+      b+= 2;
+      length--;
+    }
+    else if (sort_order_gbk[(uchar) *a++] != sort_order_gbk[(uchar) *b++])
+      return ((int) sort_order_gbk[(uchar) a[-1]] -
+	      (int) sort_order_gbk[(uchar) b[-1]]);
   }
-  return (int) (len1-len2);
+  *a_res= a;
+  *b_res= b;
+  return 0;
 }
 
-static
-int my_strnncollsp_gbk(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+
+
+int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
+		     const uchar *a, uint a_length,
+		     const uchar *b, uint b_length)
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_gbk(cs,s,slen,t,tlen);
+  uint length= min(a_length, b_length);
+  int res= my_strnncoll_gbk_internal(&a, &b, length);
+  return res ? res : (int) (a_length - b_length);
+}
+
+
+static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
+			      const uchar *a, uint a_length, 
+			      const uchar *b, uint b_length)
+{
+  uint length= min(a_length, b_length);
+  int res= my_strnncoll_gbk_internal(&a, &b, length);
+  if (!res && a_length != b_length)
+  {
+    const uchar *end;
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in a */
+      a_length= b_length;
+      a= b;
+      swap= -1;				/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return res;
 }
 
 
@@ -2696,7 +2730,7 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
       *min_length= (uint) (min_str - min_org);
       *max_length= res_length;
       do {
-	*min_str++ = '\0';		/* Because if key compression */
+	*min_str++= 0;
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;

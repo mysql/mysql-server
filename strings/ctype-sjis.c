@@ -184,7 +184,7 @@ static uchar NEAR sort_order_sjis[]=
 
 
 static int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
-		  const char* p, const char *e)
+			 const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
@@ -197,40 +197,79 @@ static int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
-static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
-                      const uchar *s1, uint len1,
-                      const uchar *s2, uint len2)
+
+static int my_strnncoll_sjis_internal(CHARSET_INFO *cs,
+				      const uchar **a_res, uint a_length,
+				      const uchar **b_res, uint b_length)
 {
-  const uchar *e1 = s1 + len1;
-  const uchar *e2 = s2 + len2;
-  while (s1 < e1 && s2 < e2) {
-    if (ismbchar_sjis(cs,(char*) s1, (char*) e1) &&
-	ismbchar_sjis(cs,(char*) s2, (char*) e2)) {
-      uint c1 = sjiscode(*s1, *(s1+1));
-      uint c2 = sjiscode(*s2, *(s2+1));
-      if (c1 != c2)
-	return c1 - c2;
-      s1 += 2;
-      s2 += 2;
-    } else {
-      if (sort_order_sjis[(uchar)*s1] != sort_order_sjis[(uchar)*s2])
-	return sort_order_sjis[(uchar)*s1] - sort_order_sjis[(uchar)*s2];
-      s1++;
-      s2++;
+  const uchar *a= *a_res, *b= *b_res;
+  const uchar *a_end= a + a_length;
+  const uchar *b_end= b + b_length;
+  while (a < a_end && b < b_end)
+  {
+    if (ismbchar_sjis(cs,(char*) a, (char*) a_end) &&
+	ismbchar_sjis(cs,(char*) b, (char*) b_end))
+    {
+      uint a_char= sjiscode(*a, *(a+1));
+      uint b_char= sjiscode(*b, *(b+1));
+      if (a_char != b_char)
+	return a_char - b_char;
+      a += 2;
+      b += 2;
+    } else
+    {
+      if (sort_order_sjis[(uchar)*a] != sort_order_sjis[(uchar)*b])
+	return sort_order_sjis[(uchar)*a] - sort_order_sjis[(uchar)*b];
+      a++;
+      b++;
     }
   }
-  return len1 - len2;
+  *a_res= a;
+  *b_res= b;
+  return 0;
 }
 
-static
-int my_strnncollsp_sjis(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+
+static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
+			      const uchar *a, uint a_length, 
+			      const uchar *b, uint b_length)
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_sjis(cs,s,slen,t,tlen);
+  int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
+  return res ? res : (int) (a_length - b_length);
 }
+
+
+static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
+			       const uchar *a, uint a_length, 
+			       const uchar *b, uint b_length)
+{
+  const uchar *a_end= a + a_length;
+  const uchar *b_end= b + b_length;
+  int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
+  if (!res && (a != a_end || b != b_end))
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a == a_end)
+    {
+      /* put shorter key in a */
+      a_end= b_end;
+      a= b;
+      swap= -1;				/* swap sign of result */
+    }
+    for (; a < a_end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return res;
+}
+
+
 
 static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
                      uchar *dest, uint len,
@@ -238,17 +277,20 @@ static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
 {
   uchar *d_end = dest + len;
   uchar *s_end = (uchar*) src + srclen;
-  while (dest < d_end && src < s_end) {
-    if (ismbchar_sjis(cs,(char*) src, (char*) s_end)) {
+  while (dest < d_end && src < s_end)
+  {
+    if (ismbchar_sjis(cs,(char*) src, (char*) s_end))
+    {
       *dest++ = *src++;
       if (dest < d_end && src < s_end)
 	*dest++ = *src++;
-    } else {
-      *dest++ = sort_order_sjis[(uchar)*src++];
     }
+    else
+      *dest++ = sort_order_sjis[(uchar)*src++];
   }
   return srclen;
 }
+
 
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
@@ -300,12 +342,14 @@ static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
       ptr++;
       continue;
     }
-    if (*ptr == w_many) {		/* '%' in SQL */
+    if (*ptr == w_many)
+    {						/* '%' in SQL */
       *min_length = (uint)(min_str - min_org);
       *max_length = res_length;
-      do {
-	*min_str++ = ' ';		/* Because if key compression */
-	*max_str++ = max_sort_char;
+      do
+      {
+	*min_str++= 0;
+	*max_str++= max_sort_char;
       } while (min_str < min_end);
       return 0;
     }

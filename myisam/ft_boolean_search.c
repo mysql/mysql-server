@@ -124,7 +124,7 @@ static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
   int i= mi_compare_text(cs, (uchar*) (*b)->word+1,(*b)->len-1,
-                             (uchar*) (*a)->word+1,(*a)->len-1,0);
+                             (uchar*) (*a)->word+1,(*a)->len-1,0,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
   return i;
@@ -228,7 +228,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
                        ftbw->len     - (ftbw->flags & FTB_FLAG_TRUNC),
               (uchar*) ftbw->word    + (ftbw->flags & FTB_FLAG_TRUNC),
                        ftbw->len     - (ftbw->flags & FTB_FLAG_TRUNC),
-                       0);
+                       0,0);
   }
 
   if (r) /* not found */
@@ -633,7 +633,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
         ftbw=ftb->list[c];
         if (mi_compare_text(ftb->charset, (uchar*) word.pos, word.len,
                             (uchar*) ftbw->word+1, ftbw->len-1,
-                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
+                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC),0) >0)
           b=c;
         else
           a=c;
@@ -643,7 +643,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
         ftbw=ftb->list[c];
         if (mi_compare_text(ftb->charset, (uchar*) word.pos, word.len,
                             (uchar*) ftbw->word+1,ftbw->len-1,
-                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
+                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC),0))
           break;
         if (ftbw->docid[1] == docid)
           continue;

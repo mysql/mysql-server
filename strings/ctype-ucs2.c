@@ -90,8 +90,8 @@ static uchar to_upper_ucs2[] = {
 };
 
 
-static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)),
-                 my_wc_t * pwc, const uchar *s, const uchar *e)
+static int my_ucs2_uni(CHARSET_INFO *cs __attribute__((unused)),
+		       my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
     return MY_CS_TOOFEW(0);
@@ -100,8 +100,8 @@ static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-static int my_uni_ucs2 (CHARSET_INFO *cs __attribute__((unused)) ,
-                 my_wc_t wc, uchar *r, uchar *e)
+static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
+		       my_wc_t wc, uchar *r, uchar *e)
 {
   if ( r+2 > e ) 
     return MY_CS_TOOSMALL;
@@ -128,13 +128,15 @@ static void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
+
+static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen,
+			      ulong *n1, ulong *n2)
 {
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
 
-  while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e)) >0)
   {
     int plane = (wc>>8) & 0xFF;
     wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].sort : wc;
@@ -148,7 +150,7 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong
 
 
 static void my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)), 
-                        char * s __attribute__((unused)))
+			       char * s __attribute__((unused)))
 {
 }
 
@@ -173,13 +175,14 @@ static void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint slen)
 }
 
 static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
-                        char * s __attribute__((unused)))
+			       char * s __attribute__((unused)))
 {
 }
 
 
 static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
-		const uchar *s, uint slen, const uchar *t, uint tlen)
+			     const uchar *s, uint slen, 
+			     const uchar *t, uint tlen)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -213,8 +216,9 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
+
 static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
-		const char *s, const char *t,  uint len)
+			       const char *s, const char *t,  uint len)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -249,6 +253,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
+
 static int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t)
 {
   uint s_len=strlen(s);
@@ -256,6 +261,7 @@ static int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t)
   uint len = (s_len > t_len) ? s_len : t_len;
   return  my_strncasecmp_ucs2(cs, s, t, len);
 }
+
 
 static int my_strnxfrm_ucs2(CHARSET_INFO *cs, 
 	uchar *dst, uint dstlen, const uchar *src, uint srclen)
@@ -288,12 +294,14 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
   return dst - dst_orig;
 }
 
+
 static int my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                      const char *b __attribute__((unused)),
                      const char *e __attribute__((unused)))
 {
   return 2;
 }
+
 
 static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
                       uint c __attribute__((unused)))
@@ -380,8 +388,8 @@ static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
   return (uint) (dst - start);
 }
 
-static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
-			    ,char* to, uint n, const char* fmt, ...)
+static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			    char* to, uint n, const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
@@ -389,9 +397,9 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
 }
 
 
-long        my_strntol_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, int base,
-			   char **endptr, int *err)
+long my_strntol_ucs2(CHARSET_INFO *cs,
+		     const char *nptr, uint l, int base,
+		     char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -504,9 +512,9 @@ bs:
 }
 
 
-ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, int base, 
-			   char **endptr, int *err)
+ulong my_strntoul_ucs2(CHARSET_INFO *cs,
+		       const char *nptr, uint l, int base, 
+		       char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -1334,8 +1342,8 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
       do {
-        *min_str++ = '\0';
-	*min_str++ = ' ';		/* Because if key compression */
+        *min_str++ = 0;
+	*min_str++ = 0;
 	*max_str++ = (char) cs->max_sort_char >>8;
 	*max_str++ = (char) cs->max_sort_char & 255;
       } while (min_str + 1 < min_end);

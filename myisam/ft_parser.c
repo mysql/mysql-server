@@ -27,7 +27,7 @@ typedef struct st_ft_docstat {
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
   return mi_compare_text(cs, (uchar*) w1->pos, w1->len,
-                         (uchar*) w2->pos, w2->len, 0);
+                         (uchar*) w2->pos, w2->len, 0, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
