@@ -217,24 +217,24 @@ select count(*) from t1 x, t1 y, t1 z where x.a = y.a and y.a = z.a;
 drop table t1;
 
 # minimal multi-byte test
-
-create table t1 (
-  a char(5) character set ucs2,
-  b varchar(7) character set utf8,
-  primary key(a, b)
-) engine=ndb;
+# removed by jonas as this requires a configure --with-extra-charsets
+#create table t1 (
+#  a char(5) character set ucs2,
+#  b varchar(7) character set utf8,
+#  primary key(a, b)
+#) engine=ndb;
 #
-insert into t1 values
-  ('a','A '),('B   ','b'),('c','C    '),('D','d'),('e  ','E'),('F','f  '),
-  ('A','b '),('b   ','C'),('C','d  '),('d','E'),('E  ','f'),
-  ('a','C '),('B   ','d'),('c','E  '),('D','f');
--- error 1062
-insert into t1 values('d','f');
+#insert into t1 values
+#  ('a','A '),('B   ','b'),('c','C    '),('D','d'),('e  ','E'),('F','f  '),
+#  ('A','b '),('b   ','C'),('C','d  '),('d','E'),('E  ','f'),
+#  ('a','C '),('B   ','d'),('c','E  '),('D','f');
+#-- error 1062
+#insert into t1 values('d','f');
 #
-select a,b,length(a),length(b) from t1 order by a,b limit 3;
-select a,b,length(a),length(b) from t1 order by a desc, b desc limit 3;
-select a,b,length(a),length(b) from t1 where a='c' and b='c';
-drop table t1;
+#select a,b,length(a),length(b) from t1 order by a,b limit 3;
+#select a,b,length(a),length(b) from t1 order by a desc, b desc limit 3;
+#select a,b,length(a),length(b) from t1 where a='c' and b='c';
+#drop table t1;
 
 # bug 
 create table t1 (
