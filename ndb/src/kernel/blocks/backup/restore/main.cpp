@@ -96,7 +96,9 @@ public:
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
 protected:
+#ifdef USE_MYSQL
   int create_table_string(const TableS & table, char * ,char *);
+#endif
 };
 
 class BackupPrinter : public BackupConsumer 
@@ -361,7 +363,7 @@ main(int argc, const char** argv)
     return -1;
   }
   
-  if (res == -3) 
+  if (metaData.getNoOfTables() == 0) 
   {
     ndbout_c("Restore: The backup contains no tables ");
     return -1;
@@ -505,7 +507,7 @@ main(int argc, const char** argv)
 NdbOut &
 operator<<(NdbOut& ndbout, const AttributeS& attr){
   const AttributeData & data = attr.Data;
-  const AttributeDesc & desc = * attr.Desc;
+  const AttributeDesc & desc = *attr.Desc;
 
   if (data.null)
   {
@@ -513,89 +515,10 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
     return ndbout;
   }
   
-  if (desc.arraySize > 1)
-    ndbout << "[ ";
-  for (Uint32 j = 0; j < desc.arraySize; j++) 
-  {
-    // Print strings without spaces, 
-    //   (but ndbout char does not work as expected, see below)
-    switch (desc.type) 
-    {
-    case Signed:
-      switch (desc.size) 
-      {
-      case 8:
-	ndbout << (short)data.int8_value[j];
-	break;
-      case 16:
-	ndbout << data.int16_value[j];
-	break;
-      case 32:
-	ndbout << data.int32_value[j];
-	break;
-      case 64:
-	ndbout << data.int64_value[j];
-	break;
-      case 128:
-	ndbout << "Signed sz = 128 - this is something wrong??" << endl;
-	break;
-      default:
-	// Unknown, error
-	break;
-      } // switch size
-      break;
-    case UnSigned:
-      switch (desc.size) 
-      {
-      case 8:
-	ndbout << (short)data.u_int8_value[j];
-	break;
-      case 16:
-	ndbout << data.u_int16_value[j];
-	break;
-      case 32:
-	ndbout << data.u_int32_value[j];
-	break;
-      case 64:
-	ndbout << data.u_int64_value[j];
-	break;
-      case 128:
-	ndbout << "UnSigned sz = 128 - this is something wrong??" << endl;
-	break;
-      default:
-	// Unknown, error
-	break;
-      } // switch size
-      break;
-    case String:
-      if (desc.size == 8){ 
-	NdbDictionary::Column::Type type = desc.m_table->m_dictTable->getColumn(desc.attrId)->getType();
-	if(type == NdbDictionary::Column::Varchar){
-    	  short len = ntohs(data.u_int16_value[0]);
-  	  ndbout.print("%.*s", len, (data.string_value+2));
-  	} else {
-    	  ndbout << data.string_value;
-	}
-      } // if
-      else 
-      {
-	ndbout << "String sz != 8 - this is something wrong??" << endl;
-      }
-      j = desc.arraySize;
-      break;
-    case Float:
-      // Not yet supported to print float
-      ndbout << "float";
-      break;
-    default:
-      ndbout << "Not defined Attr Type";
-    } // switch AttrType
-    ndbout << " ";
-  } // for ArraySize
-  if (desc.arraySize > 1)
-  {
-    ndbout << "]";
-  }
+  NdbRecAttr tmprec;
+  tmprec.setup(desc.m_column, (char *)data.void_value);
+  ndbout << tmprec;
+
   return ndbout;
 }
 
@@ -607,7 +530,7 @@ operator<<(NdbOut& ndbout, const TupleS& tuple)
   for (int i = 0; i < tuple.getNoOfAttributes(); i++) 
   {
     const AttributeS * attr = tuple[i];
-    debug << i << " " << attr->Desc->name;
+    debug << i << " " << attr->Desc->m_column->getName();
     ndbout << (* attr);
     
     if (i != (tuple.getNoOfAttributes() - 1))
@@ -638,7 +561,7 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
   for (int i = 0; i < logE.m_values.size();i++) 
   {
     const AttributeS * attr = logE.m_values[i];
-    ndbout << attr->Desc->name << "=";
+    ndbout << attr->Desc->m_column->getName() << "=";
     ndbout << (* attr);
     if (i < (logE.m_values.size() - 1))
       ndbout << ", ";
@@ -653,55 +576,8 @@ operator<<(NdbOut& ndbout, const TableS & table){
   for (int j = 0; j < table.getNoOfAttributes(); j++) 
   {
     const AttributeDesc * desc = table[j];
-    ndbout << desc->name << ": ";
-    NdbDictionary::Column::Type type = table.m_dictTable->getColumn(desc->attrId)->getType();
-    switch(type){
-    case NdbDictionary::Column::Int:
-      ndbout << "Int ";
-      break;
-    case NdbDictionary::Column::Unsigned:
-      ndbout << "Unsigned ";
-      break;
-    case NdbDictionary::Column::Float:
-      ndbout << "Float ";
-      break;
-    case NdbDictionary::Column::Decimal:
-      ndbout << "Decimal ";
-      break;
-    case NdbDictionary::Column::Char:
-      ndbout << "Char ";
-      break;
-    case NdbDictionary::Column::Varchar:
-      ndbout << "Varchar ";
-      break;
-    case NdbDictionary::Column::Binary:
-      ndbout << "Binary ";
-      break;
-    case NdbDictionary::Column::Varbinary:
-      ndbout << "Varbinary ";
-      break;
-    case NdbDictionary::Column::Bigint:
-      ndbout << "Bigint ";
-      break;
-    case NdbDictionary::Column::Bigunsigned:
-      ndbout << "Bigunsigned ";
-      break;
-    case NdbDictionary::Column::Double:
-      ndbout << "Double ";
-      break;
-    case NdbDictionary::Column::Datetime:
-      ndbout << "Datetime ";
-      break;
-    case NdbDictionary::Column::Timespec:
-      ndbout << "Timespec ";
-      break;
-    case NdbDictionary::Column::Undefined:      
-      ndbout << "Undefined ";
-      break;
-    default:
-      ndbout << "Unknown(" << type << ")";
-    }
-    ndbout << " key: "  << desc->key;
+    ndbout << desc->m_column->getName() << ": " << desc->m_column->getType();
+    ndbout << " key: "  << desc->m_column->getPrimaryKey();
     ndbout << " array: " << desc->arraySize;
     ndbout << " size: " << desc->size << endl;
   } // for
@@ -973,7 +849,6 @@ BackupRestore::table(const TableS & table, MYSQL * mysqlp){
   
   return true;
 }
-#endif
 
 int
 BackupConsumer::create_table_string(const TableS & table,
@@ -991,9 +866,8 @@ BackupConsumer::create_table_string(const TableS & table,
   {
     const AttributeDesc * desc = table[j];
     //   ndbout << desc->name << ": ";
-    pos += sprintf(buf+pos, "%s%s", desc->name," ");
-    NdbDictionary::Column::Type type = table.m_dictTable->getColumn(desc->attrId)->getType();
-    switch(type){
+    pos += sprintf(buf+pos, "%s%s", desc->m_column->getName()," ");
+    switch(desc->m_column->getType()){
     case NdbDictionary::Column::Int:
       pos += sprintf(buf+pos, "%s", "int");
       break;
@@ -1048,9 +922,9 @@ BackupConsumer::create_table_string(const TableS & table,
 		     attrSize,
 		     ")");
     }
-    if (table.m_dictTable->getColumn(desc->attrId)->getPrimaryKey()) {
+    if (desc->m_column->getPrimaryKey()) {
       pos += sprintf(buf+pos, "%s", " not null");
-      pos2 += sprintf(buf2+pos2, "%s%s", desc->name, ",");
+      pos2 += sprintf(buf2+pos2, "%s%s", desc->m_column->getName(), ",");
     }
     pos += sprintf(buf+pos, "%s", ",");
   } // for
@@ -1063,6 +937,7 @@ BackupConsumer::create_table_string(const TableS & table,
   return 0;
 }
 
+#endif // USE_MYSQL
 
 
 bool
@@ -1198,10 +1073,9 @@ void BackupRestore::tupleAsynch(const TupleS & tup, restore_callback_t * cbData)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      const KeyType key = attr->Desc->key;
       char * dataPtr = attr->Data.string_value;
       Uint32 length = (size * arraySize) / 8;
-      if (key == TupleKey) 
+      if (attr->Desc->m_column->getPrimaryKey()) 
       {
 	ret = op->equal(i, dataPtr, length);
 	if (ret<0) 
@@ -1224,14 +1098,14 @@ void BackupRestore::tupleAsynch(const TupleS & tup, restore_callback_t * cbData)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      KeyType key = attr->Desc->key;
       char * dataPtr = attr->Data.string_value;
       Uint32 length = (size * arraySize) / 8;
 	
-      if (key == NoKey && !attr->Data.null) 
-	  ret = op->setValue(i, dataPtr, length);
-      else if (key == NoKey && attr->Data.null) 
+      if (!attr->Desc->m_column->getPrimaryKey())
+	if (attr->Data.null) 
 	  ret = op->setValue(i, NULL, 0);
+	else
+	  ret = op->setValue(i, dataPtr, length);
       
       if (ret<0) 
       {
@@ -1372,14 +1246,11 @@ BackupRestore::tuple(const TupleS & tup)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      KeyType key = attr->Desc->key;
       const char * dataPtr = attr->Data.string_value;
       
       const Uint32 length = (size * arraySize) / 8;
-      if (key == TupleKey) 
-      {
-	  op->equal(i, dataPtr, length);
-      }
+      if (attr->Desc->m_column->getPrimaryKey()) 
+	op->equal(i, dataPtr, length);
     }
     
     for (int i = 0; i < tup.getNoOfAttributes(); i++) 
@@ -1387,18 +1258,14 @@ BackupRestore::tuple(const TupleS & tup)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      KeyType key = attr->Desc->key;
       const char * dataPtr = attr->Data.string_value;
       
       const Uint32 length = (size * arraySize) / 8;
-      if (key == NoKey && !attr->Data.null) 
-      {
-	op->setValue(i, dataPtr, length);
-      } 
-      else if (key == NoKey && attr->Data.null) 
-      {
-	op->setValue(i, NULL, 0);
-      }
+      if (!attr->Desc->m_column->getPrimaryKey())
+	if (attr->Data.null)
+	  op->setValue(i, NULL, 0);
+	else
+	  op->setValue(i, dataPtr, length);
     }
     int ret = trans->execute(Commit);
     if (ret != 0)
@@ -1475,18 +1342,13 @@ BackupRestore::logEntry(const LogEntry & tup)
     const AttributeS * attr = tup.m_values[i];
     int size = attr->Desc->size;
     int arraySize = attr->Desc->arraySize;
-    KeyType key = attr->Desc->key;
     const char * dataPtr = attr->Data.string_value;
     
     const Uint32 length = (size / 8) * arraySize;
-    if (key == TupleKey) 
-    {
+    if (attr->Desc->m_column->getPrimaryKey()) 
       op->equal(attr->Desc->attrId, dataPtr, length);
-    } 
-    else if (key == NoKey) 
-    {
+    else
       op->setValue(attr->Desc->attrId, dataPtr, length);
-    }
   }
   
 #if 1

@@ -20,7 +20,6 @@
 #include <ndb_global.h>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
-#include <NdbSchemaCon.hpp>
 #include "myVector.hpp"
 
 #include <ndb_version.h>
@@ -62,29 +61,22 @@ struct AttributeData {
 
 struct AttributeDesc {
   //private:
-  // TODO (sometimes): use a temporary variable in DTIMAP so we can
-  //                   hide AttributeDesc private variables
   friend class TupleS;
   friend class TableS;
   friend class RestoreDataIterator;
   friend class RestoreMetaData;
   friend struct AttributeS;
-  char name[AttrNameLenC];
-  Uint32 attrId;
-  AttrType type;
-  bool nullable;
-  KeyType key; 
   Uint32 size; // bits       
   Uint32 arraySize;
+  Uint32 attrId;
+  NdbDictionary::Column *m_column;
 
   Uint32 m_nullBitIndex;
 public:
   
-  AttributeDesc() {
-    name[0] = 0;
-  } 
+  AttributeDesc(NdbDictionary::Column *column);
+  AttributeDesc();
 
-  const TableS * m_table;
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
 }; // AttributeDesc
 
@@ -118,8 +110,6 @@ class TableS {
   friend class RestoreMetaData;
   friend class RestoreDataIterator;
   
-  Uint32 tableId;
-  char tableName[TableNameLenC];
   Uint32 schemaVersion;
   Uint32 backupVersion;
   myVector<AttributeDesc *> allAttributesDesc;
@@ -138,26 +128,14 @@ class TableS {
   char mysqlDatabaseName[1024];
   */
 
-  void createAttr(const char* name, 
-		  const AttrType type, 
-		  const unsigned int size, // in bits 
-		  const unsigned int arraySize, 
-		  const bool nullable,
-		  const KeyType key);
+  void createAttr(NdbDictionary::Column *column);
 
 public:
   class NdbDictionary::Table* m_dictTable;
-  TableS (const char * name){
-    snprintf(tableName, sizeof(tableName), name);
-    m_noOfNullable = m_nullBitmaskSize = 0;
-  }
+  TableS (class NdbTableImpl* dictTable);
 
-  void setTableId (Uint32 id) { 
-    tableId = id; 
-  }
-  
   Uint32 getTableId() const { 
-    return tableId; 
+    return m_dictTable->getTableId(); 
   }
   /*
   void setMysqlTableName(char * tableName) {
@@ -174,7 +152,6 @@ public:
   void setBackupVersion(Uint32 version) { 
     backupVersion = version;
   }
-
   
   Uint32 getBackupVersion() const { 
     return backupVersion;
