@@ -12762,12 +12762,6 @@ example, @samp{x*} matches any number of @samp{x} characters,
 number of anything.
 
 @item
-Regular expressions are case sensitive, but you can use a character class to
-match both lettercases if you wish.  For example, @samp{[aA]} matches
-lowercase or uppercase @samp{a} and @samp{[a-zA-Z]} matches any letter in
-either case.
-
-@item
 The pattern matches if it occurs anywhere in the value being tested.
 (SQL patterns match only if they match the entire value.)
 
