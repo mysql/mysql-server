@@ -605,8 +605,8 @@ page_cur_insert_rec_write_log(
 		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 	}
 
-	if ((rec_get_info_bits(insert_rec, index->table->comp) !=
-	     rec_get_info_bits(cursor_rec, index->table->comp))
+	if ((rec_get_info_and_status_bits(insert_rec, index->table->comp) !=
+	     rec_get_info_and_status_bits(cursor_rec, index->table->comp))
 	    || (extra_size != cur_extra_size)
 	    || (rec_size != cur_rec_size)) {
 
@@ -622,7 +622,8 @@ page_cur_insert_rec_write_log(
 	if (extra_info_yes) {
 		/* Write the info bits */
 		mach_write_to_1(log_ptr,
-			rec_get_info_bits(insert_rec, index->table->comp));
+			rec_get_info_and_status_bits(insert_rec,
+							index->table->comp));
 		log_ptr++;
 
 		/* Write the record origin offset */
@@ -673,7 +674,7 @@ page_cur_parse_insert_rec(
 	byte	buf1[1024];
 	byte*	buf;
 	byte*   ptr2 = ptr;
-	ulint	info_bits = 0; /* remove warning */
+	ulint	info_and_status_bits = 0; /* remove warning */
 	page_cur_t cursor;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[100]	= { 100, };
@@ -723,7 +724,7 @@ page_cur_parse_insert_rec(
 			return(NULL);
 		}
 		
-		info_bits = mach_read_from_1(ptr);
+		info_and_status_bits = mach_read_from_1(ptr);
 		ptr++;
 
 		ptr = mach_parse_compressed(ptr, end_ptr, &origin_offset);
@@ -768,7 +769,8 @@ page_cur_parse_insert_rec(
 						ULINT_UNDEFINED, &heap);
 
 	if (extra_info_yes == 0) {
-		info_bits = rec_get_info_bits(cursor_rec, index->table->comp);
+		info_and_status_bits = rec_get_info_and_status_bits(
+					cursor_rec, index->table->comp);
 		origin_offset = rec_offs_extra_size(offsets);
 		mismatch_index = rec_offs_size(offsets) - end_seg_len;
 	}
@@ -783,11 +785,12 @@ page_cur_parse_insert_rec(
 	
         if (mismatch_index >= UNIV_PAGE_SIZE) {
 		fprintf(stderr,
-			"Is short %lu, info_bits %lu, offset %lu, "
+			"Is short %lu, info_and_status_bits %lu, offset %lu, "
 			"o_offset %lu\n"
                     "mismatch index %lu, end_seg_len %lu\n"
                     "parsed len %lu\n",
-		    (ulong) is_short, (ulong) info_bits, (ulong) offset,
+		    (ulong) is_short, (ulong) info_and_status_bits,
+		    (ulong) offset,
 		    (ulong) origin_offset,
 		    (ulong) mismatch_index, (ulong) end_seg_len,
 		    (ulong) (ptr - ptr2));
@@ -803,21 +806,14 @@ page_cur_parse_insert_rec(
 	ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
-	rec_set_info_bits(buf + origin_offset, index->table->comp, info_bits);
-
-	/* Set the status bits for new-style records. */
-	if (index->table->comp) {
-		/* Leaf pages (level 0) contain ordinary records;
-		non-leaf pages contain node pointer records. */
-		ulint	level	= page_header_get_field(
-				buf_frame_align(cursor_rec), PAGE_LEVEL);
-		rec_set_status(buf + origin_offset,
-			level ? REC_STATUS_NODE_PTR : REC_STATUS_ORDINARY);
-	}
+	rec_set_info_and_status_bits(buf + origin_offset, index->table->comp,
+							info_and_status_bits);
 
 	page_cur_position(cursor_rec, &cursor);
 
-	page_cur_rec_insert(&cursor, buf + origin_offset, index, mtr);
+	offsets = rec_get_offsets(buf + origin_offset, index, offsets,
+						ULINT_UNDEFINED, &heap);
+	page_cur_rec_insert(&cursor, buf + origin_offset, index, offsets, mtr);
 
 	if (buf != buf1) {
 
@@ -846,6 +842,7 @@ page_cur_insert_rec_low(
 	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record or NULL */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) or NULL */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	byte*		insert_buf	= NULL;
@@ -863,8 +860,6 @@ page_cur_insert_rec_low(
 	rec_t*		owner_rec;
 	ulint		n_owned;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
-	ulint*		offsets		= offsets_;
 	ibool		comp		= index->table->comp;
 
 	ut_ad(cursor && mtr);
@@ -882,8 +877,11 @@ page_cur_insert_rec_low(
 	if (tuple != NULL) {
 		rec_size = rec_get_converted_size(index, tuple);
 	} else {
-		offsets = rec_get_offsets(rec, index, offsets,
+		if (!offsets) {
+			offsets = rec_get_offsets(rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
+		}
+		ut_ad(rec_offs_validate(rec, index, offsets));
 		rec_size = rec_offs_size(offsets);
 	}
 
@@ -1130,8 +1128,6 @@ page_copy_rec_list_end_to_created_page(
 	count = 0;
 	slot_index = 0;
 	n_recs = 0;
-
-	heap = mem_heap_create(100);
 
 	/* should be do ... until, comment by Jani */
 	while (rec != page_get_supremum_rec(page)) {
