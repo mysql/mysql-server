@@ -42,14 +42,13 @@ extern
 void
 innobase_invalidate_query_cache(
 /*============================*/
-	trx_t*		trx,		/* in: transaction which modifies
-					the table */
-	const char*	full_name,	/* in: concatenation of database name,
-					null char '\0', table name, null char
-					'\0'; NOTE that in Windows this is
-					always in LOWER CASE! */
-	ulint		full_name_len);	/* in: full name length where also the
-					null chars count */
+	trx_t*	trx,		/* in: transaction which modifies the table */
+	char*	full_name,	/* in: concatenation of database name, null
+				char '\0', table name, null char'\0';
+				NOTE that in Windows this is always
+				in LOWER CASE! */
+	ulint	full_name_len);	/* in: full name length where also the null
+				chars count */
 
 
 /*************************************************************************
@@ -663,11 +662,12 @@ row_ins_foreign_check_on_constraint(
 
 	ptr = strchr(table->name, '/');
 	ut_a(ptr);
-	table_name = mem_strdupl(table->name, ptr - table->name);
+	table_name = mem_strdup(table->name);
+	table_name[ptr - table->name] = 0;
 	
 	/* We call a function in ha_innodb.cc */
 	innobase_invalidate_query_cache(thr_get_trx(thr), table_name,
-						ptr - table->name + 1);
+						strlen(table->name) + 1);
 	mem_free(table_name);
 #endif
 	node = thr->run_node;
