@@ -398,23 +398,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
-    using_update_log=1;
-  }
-
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   if (
