@@ -129,6 +129,8 @@ private:
 /*
  * Operate on entire tuple.  Used by TUX where the table has a single
  * Uint32 array attribute representing an index tree node.
+ *
+ * XXX this signal will be replaced by method in TUP
  */
 class TupStoreTh {
   friend class Dbtup;
@@ -153,8 +155,8 @@ private:
   Uint32 tableId;
   Uint32 fragId;
   Uint32 fragPtrI;
-  Uint32 tupAddr;
-  Uint32 tupVersion;
+  Uint32 tupAddr;       // no longer used
+  Uint32 tupVersion;    // no longer used
   Uint32 pageId;
   Uint32 pageOffset;
   Uint32 bufferId;

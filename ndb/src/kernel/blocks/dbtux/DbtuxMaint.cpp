@@ -199,7 +199,7 @@ Dbtux::tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = 0;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   req->tupAddr = ent.m_tupAddr;
   req->tupVersion = ent.m_tupVersion;
   req->pageId = RNIL;
@@ -246,7 +246,7 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = TupReadAttrs::ReadKeys;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   req->tupAddr = ent.m_tupAddr;
   req->tupVersion = RNIL; // not used
   req->pageId = RNIL;
@@ -284,9 +284,9 @@ Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, Store
   req->errorCode = RNIL;
   req->tableId = frag.m_indexId;
   req->fragId = frag.m_fragId;
-  req->fragPtrI = RNIL;
-  req->tupAddr = nodePtr.p->m_addr;
-  req->tupVersion = 0;
+  req->fragPtrI = frag.m_tupIndexFragPtrI;
+  req->tupAddr = RNIL;  // no longer used
+  req->tupVersion = 0;  // no longer used
   req->pageId = nodePtr.p->m_loc.m_pageId;
   req->pageOffset = nodePtr.p->m_loc.m_pageOffset;
   req->bufferId = 0;
@@ -346,21 +346,18 @@ Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, Store
       const Uint32* src = (const Uint32*)buffer + storePar.m_offset;
       memcpy(dst, src, storePar.m_size << 2);
     }
-    // fallthru
+    break;
   case TupStoreTh::OpInsert:
     jam();
-    // fallthru
-  case TupStoreTh::OpUpdate:
-    jam();
-    nodePtr.p->m_addr = req->tupAddr;
     nodePtr.p->m_loc.m_pageId = req->pageId;
     nodePtr.p->m_loc.m_pageOffset = req->pageOffset;
     break;
+  case TupStoreTh::OpUpdate:
+    jam();
+    break;
   case TupStoreTh::OpDelete:
     jam();
-    nodePtr.p->m_addr = NullTupAddr;
-    nodePtr.p->m_loc.m_pageId = RNIL;
-    nodePtr.p->m_loc.m_pageOffset = 0;
+    nodePtr.p->m_loc = NullTupLoc;
     break;
   default:
     ndbrequire(false);

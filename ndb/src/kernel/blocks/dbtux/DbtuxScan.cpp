@@ -47,7 +47,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     ndbrequire(frag.m_fragId < (1 << frag.m_fragOff));
     TreeHead& tree = frag.m_tree;
     // check for empty fragment
-    if (tree.m_root == NullTupAddr) {
+    if (tree.m_root == NullTupLoc) {
       jam();
       AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
       conf->scanPtr = req->senderData;
@@ -275,13 +275,13 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
   case NextScanReq::ZSCAN_CLOSE:
     jam();
     // unlink from tree node first to avoid state changes
-    if (scan.m_scanPos.m_addr != NullTupAddr) {
+    if (scan.m_scanPos.m_loc != NullTupLoc) {
       jam();
-      const TupAddr addr = scan.m_scanPos.m_addr;
+      const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandlePtr nodePtr;
-      selectNode(signal, frag, nodePtr, addr, AccHead);
+      selectNode(signal, frag, nodePtr, loc, AccHead);
       nodePtr.p->unlinkScan(scanPtr);
-      scan.m_scanPos.m_addr = NullTupAddr;
+      scan.m_scanPos.m_loc = NullTupLoc;
     }
     if (scan.m_lockwait) {
       jam();
@@ -407,8 +407,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       lockReq->userRef = reference();
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-      // should cache this at fragment create
-      lockReq->fragPtrI = RNIL;
+      lockReq->fragPtrI = frag.m_accTableFragPtrI[ent.m_fragBit];
       const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
       lockReq->hashValue = md5_hash(buf64, keyPar.m_size);
@@ -700,14 +699,14 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   TreeHead& tree = frag.m_tree;
-  if (tree.m_root == NullTupAddr) {
+  if (tree.m_root == NullTupLoc) {
     // tree may have become empty
     jam();
     scan.m_state = ScanOp::Last;
     return;
   }
   TreePos pos;
-  pos.m_addr = tree.m_root;
+  pos.m_loc = tree.m_root;
   NodeHandlePtr nodePtr;
   // unpack lower bound
   const ScanBound& bound = *scan.m_bound[0];
@@ -725,7 +724,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   boundPar.m_dir = 0;
 loop: {
     jam();
-    selectNode(signal, frag, nodePtr, pos.m_addr, AccPref);
+    selectNode(signal, frag, nodePtr, pos.m_loc, AccPref);
     const unsigned occup = nodePtr.p->getOccup();
     ndbrequire(occup != 0);
     for (unsigned i = 0; i <= 1; i++) {
@@ -751,11 +750,11 @@ loop: {
       }
       if (i == 0 && ret < 0) {
         jam();
-        const TupAddr tupAddr = nodePtr.p->getLink(i);
-        if (tupAddr != NullTupAddr) {
+        const TupLoc loc = nodePtr.p->getLink(i);
+        if (loc != NullTupLoc) {
           jam();
           // continue to left subtree
-          pos.m_addr = tupAddr;
+          pos.m_loc = loc;
           goto loop;
         }
         // start scanning this node
@@ -769,11 +768,11 @@ loop: {
       }
       if (i == 1 && ret > 0) {
         jam();
-        const TupAddr tupAddr = nodePtr.p->getLink(i);
-        if (tupAddr != NullTupAddr) {
+        const TupLoc loc = nodePtr.p->getLink(i);
+        if (loc != NullTupLoc) {
           jam();
           // continue to right subtree
-          pos.m_addr = tupAddr;
+          pos.m_loc = loc;
           goto loop;
         }
         // start scanning upwards
@@ -870,7 +869,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   TreePos pos = scan.m_scanPos;
   // get and remember original node
   NodeHandlePtr origNodePtr;
-  selectNode(signal, frag, origNodePtr, pos.m_addr, AccHead);
+  selectNode(signal, frag, origNodePtr, pos.m_loc, AccHead);
   ndbrequire(origNodePtr.p->islinkScan(scanPtr));
   // current node in loop
   NodeHandlePtr nodePtr = origNodePtr;
@@ -879,21 +878,21 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     if (pos.m_dir == 2) {
       // coming up from root ends the scan
       jam();
-      pos.m_addr = NullTupAddr;
+      pos.m_loc = NullTupLoc;
       scan.m_state = ScanOp::Last;
       break;
     }
-    if (nodePtr.p->m_addr != pos.m_addr) {
+    if (nodePtr.p->m_loc != pos.m_loc) {
       jam();
-      selectNode(signal, frag, nodePtr, pos.m_addr, AccHead);
+      selectNode(signal, frag, nodePtr, pos.m_loc, AccHead);
     }
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
       jam();
-      TupAddr addr = nodePtr.p->getLink(0);
-      if (addr != NullTupAddr) {
+      TupLoc loc = nodePtr.p->getLink(0);
+      if (loc != NullTupLoc) {
         jam();
-        pos.m_addr = addr;
+        pos.m_loc = loc;
         pos.m_dir = 4;  // unchanged
         continue;
       }
@@ -938,7 +937,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         if (ret < 0) {
           jam();
           // hit upper bound of single range scan
-          pos.m_addr = NullTupAddr;
+          pos.m_loc = NullTupLoc;
           scan.m_state = ScanOp::Last;
           break;
         }
@@ -952,10 +951,10 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         break;
       }
       // after node proceed to right child
-      TupAddr addr = nodePtr.p->getLink(1);
-      if (addr != NullTupAddr) {
+      TupLoc loc = nodePtr.p->getLink(1);
+      if (loc != NullTupLoc) {
         jam();
-        pos.m_addr = addr;
+        pos.m_loc = loc;
         pos.m_dir = 4;
         continue;
       }
@@ -965,7 +964,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     if (pos.m_dir == 1) {
       // coming from right child proceed to parent
       jam();
-      pos.m_addr = nodePtr.p->getLink(2);
+      pos.m_loc = nodePtr.p->getLink(2);
       pos.m_dir = nodePtr.p->getSide();
       continue;
     }
@@ -975,7 +974,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_scanPos = pos;
   // relink
   if (scan.m_state == ScanOp::Current) {
-    ndbrequire(pos.m_addr == nodePtr.p->m_addr);
+    ndbrequire(pos.m_loc == nodePtr.p->m_loc);
     if (origNodePtr.i != nodePtr.i) {
       jam();
       origNodePtr.p->unlinkScan(scanPtr);
@@ -983,7 +982,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     }
   } else if (scan.m_state == ScanOp::Last) {
     jam();
-    ndbrequire(pos.m_addr == NullTupAddr);
+    ndbrequire(pos.m_loc == NullTupLoc);
     origNodePtr.p->unlinkScan(scanPtr);
   } else {
     ndbrequire(false);
