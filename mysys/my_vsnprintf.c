@@ -24,7 +24,6 @@
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
-
   for (; *fmt ; fmt++)
   {
     if (fmt[0] != '%')
@@ -38,10 +37,14 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     fmt++;
     while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
+    if(*fmt == 'l')
+      fmt++;
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
-      uint plen = (uint) strlen(par);
+      uint plen;
+      if(!par) par = (char*)"(null)";
+      plen = (uint) strlen(par);
       if ((uint) (end-to) > plen)	/* Replace if possible */
       {
 	to=strmov(to,par);
@@ -68,3 +71,35 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
   *to='\0';				/* End of errmessage */
   return (uint) (to - start);
 }
+
+#ifdef MAIN
+static void my_printf(const char * fmt, ...)
+{
+  char buf[32];
+  int n;
+  va_list ar;
+  va_start(ar, fmt);
+  n = my_vsnprintf(buf, sizeof(buf),fmt, ar);
+  printf(buf);
+  printf("n=%d, strlen=%d\n", n, strlen(buf));
+  va_end(ar);
+}
+
+int main()
+{
+  
+  my_printf("Hello\n");
+  my_printf("Hello int, %d\n", 1);
+  my_printf("Hello string '%s'\n", "I am a string");
+  my_printf("Hello hack hack hack hack hack hack hack %d\n", 1);
+  my_printf("Hello %d hack  %d\n", 1, 4);
+  my_printf("Hello %d hack hack hack hack hack %d\n", 1, 4);
+  my_printf("Hello '%s' hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\n", "hack");
+  my_printf("Hello hhhhhhhhhhhhhh %d sssssssssssssss\n", 1);
+  my_printf("Hello  %u\n", 1);
+  my_printf("conn %ld to: '%-.64s' user: '%-.32s' host:\
+ `%-.64s' (%-.64s)", 1, 0,0,0,0);
+  return 0;
+}
+#endif
+
