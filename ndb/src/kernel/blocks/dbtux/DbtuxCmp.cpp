@@ -87,21 +87,23 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
 /*
  * Scan bound vs node prefix or entry.
  *
- * Compare lower or upper bound and index attribute data.  The attribute
- * data may be partial in which case CmpUnknown may be returned.
- * Returns -1 if the boundary is to the left of the compared key and +1
- * if the boundary is to the right of the compared key.
+ * Compare lower or upper bound and index entry data.  The entry data
+ * may be partial in which case CmpUnknown may be returned.  Otherwise
+ * returns -1 if the bound is to the left of the entry and +1 if the
+ * bound is to the right of the entry.
  *
- * To get this behaviour we treat equality a little bit special.  If the
- * boundary is a lower bound then the boundary is to the left of all
- * equal keys and if it is an upper bound then the boundary is to the
- * right of all equal keys.
+ * The routine is similar to cmpSearchKey, but 0 is never returned.
+ * Suppose all attributes compare equal.  Recall that all bounds except
+ * possibly the last one are non-strict.  Use the given bound direction
+ * (0-lower 1-upper) and strictness of last bound to return -1 or +1.
  *
- * When searching for the first key we are using the lower bound to try
- * to find the first key that is to the right of the boundary.  Then we
- * start scanning from this tuple (including the tuple itself) until we
- * find the first key which is to the right of the boundary.  Then we
- * stop and do not include that key in the scan result.
+ * Following example illustrates this.  We are at (a=2, b=3).
+ *
+ * dir  bounds                  strict          return
+ * 0    a >= 2 and b >= 3       no              -1
+ * 0    a >= 2 and b >  3       yes             +1
+ * 1    a <= 2 and b <= 3       no              +1
+ * 1    a <= 2 and b <  3       yes             -1
  */
 int
 Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
@@ -111,12 +113,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
   ndbrequire(dir <= 1);
   // number of words of data left
   unsigned len2 = maxlen;
-  /*
-   * No boundary means full scan, low boundary is to the right of all
-   * keys.  Thus we should always return -1.  For upper bound we are to
-   * the right of all keys, thus we should always return +1.  We achieve
-   * this behaviour by initializing type to 4.
-   */
+  // in case of no bounds, init last type to something non-strict
   unsigned type = 4;
   while (boundCount != 0) {
     if (len2 <= AttributeHeaderSize) {
@@ -124,7 +121,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
       return NdbSqlUtil::CmpUnknown;
     }
     len2 -= AttributeHeaderSize;
-    // get and skip bound type
+    // get and skip bound type (it is used after the loop)
     type = boundInfo[0];
     boundInfo += 1;
     if (! boundInfo.ah().isNULL()) {
@@ -166,30 +163,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
     boundCount -= 1;
   }
-  if (dir == 0) {
-    jam();
-    /*
-     * Looking for the lower bound.  If strict lower bound then the
-     * boundary is to the right of the compared key and otherwise (equal
-     * included in range) then the boundary is to the left of the key.
-     */
-    if (type == 1) {
-      jam();
-      return +1;
-    }
-    return -1;
-  } else {
-    jam();
-    /*
-     * Looking for the upper bound.  If strict upper bound then the
-     * boundary is to the left of all equal keys and otherwise (equal
-     * included in the range) then the boundary is to the right of all
-     * equal keys.
-     */
-    if (type == 3) {
-      jam();
-      return -1;
-    }
-    return +1;
-  }
+  // all attributes were equal
+  const int strict = (type & 0x1);
+  return (dir == 0 ? (strict == 0 ? -1 : +1) : (strict == 0 ? +1 : -1));
 }

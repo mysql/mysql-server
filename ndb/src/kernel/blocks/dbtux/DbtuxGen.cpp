@@ -245,7 +245,7 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
   const Uint32 numAttrs = frag.m_numAttrs - start;
   // skip to start position in keyAttrs only
   keyAttrs += start;
-  int ret = c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, keyAttrs, numAttrs, keyData);
+  int ret = c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupVersion, keyAttrs, numAttrs, keyData);
   jamEntry();
   // TODO handle error
   ndbrequire(ret > 0);
@@ -256,7 +256,7 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   const TupLoc tupLoc = ent.m_tupLoc;
-  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, pkData);
+  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData);
   jamEntry();
   // TODO handle error
   ndbrequire(ret > 0);
