@@ -74,6 +74,8 @@ public:
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
   virtual bool store(const char *from, uint length, CHARSET_INFO *cs)=0;
+  virtual bool store(const char *from, uint length, 
+  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
   virtual bool store(TIME *time)=0;
@@ -97,6 +99,8 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store(const char *from, uint length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, uint length,
+  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);
@@ -121,6 +125,8 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store(const char *from,uint length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, uint length,
+  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);

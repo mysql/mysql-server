@@ -526,13 +526,16 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store(field.db_name, (uint) strlen(field.db_name), cs) ||
-	  prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
-	  prot.store(field.org_table_name,
-		     (uint) strlen(field.org_table_name), cs) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
-	  prot.store(field.org_col_name, 
-		     (uint) strlen(field.org_col_name), cs) ||
+      if (prot.store(field.db_name, (uint) strlen(field.db_name),
+		     cs, thd->charset()) ||
+	  prot.store(field.table_name, (uint) strlen(field.table_name),
+		     cs, thd->charset()) ||
+	  prot.store(field.org_table_name, (uint) strlen(field.org_table_name),
+		     cs, thd->charset()) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name),
+		     cs, thd->charset()) ||
+	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name),
+		     cs, thd->charset()) ||
 	  packet->realloc(packet->length()+12))
 	goto err;
       /* Store fixed length fields */
@@ -549,8 +552,10 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     }
     else
     {
-      if (prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
+      if (prot.store(field.table_name, (uint) strlen(field.table_name),
+		     cs, thd->charset()) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name),
+		     cs, thd->charset()) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
       pos= (char*) packet->ptr()+packet->length();
@@ -694,7 +699,8 @@ bool Protocol_simple::store_null()
 #endif
 
 
-bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
+bool Protocol_simple::store(const char *from, uint length,
+			    CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -703,12 +709,34 @@ bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (!my_charset_same(cs, this->thd->charset()) &&
-      (cs != &my_charset_bin) &&
-      (this->thd->charset() != &my_charset_bin) &&
-      (this->thd->variables.convert_result_charset))
+  if (!my_charset_same(fromcs, tocs) &&
+      (fromcs != &my_charset_bin) &&
+      (tocs   != &my_charset_bin))
   {
-    convert.copy(from, length, cs, this->thd->charset());
+    convert.copy(from, length, fromcs, tocs);
+    return net_store_data(convert.ptr(), convert.length());
+  }
+  else
+    return net_store_data(from, length);
+}
+
+
+bool Protocol_simple::store(const char *from, uint length,
+			    CHARSET_INFO *fromcs)
+{
+  CHARSET_INFO *tocs= this->thd->result_charset(fromcs);
+#ifndef DEBUG_OFF
+  DBUG_ASSERT(field_types == 0 ||
+	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
+  field_pos++;
+#endif
+  if (!my_charset_same(fromcs, tocs) &&
+      (fromcs != &my_charset_bin) &&
+      (tocs   != &my_charset_bin))
+  {
+    convert.copy(from, length, fromcs, tocs);
     return net_store_data(convert.ptr(), convert.length());
   }
   else
@@ -912,6 +940,19 @@ void Protocol_prep::prepare_for_resend()
 
 
 bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
+{
+#ifndef DEBUG_OFF
+  DBUG_ASSERT(field_types == 0 ||
+	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
+#endif
+  field_pos++;
+  return net_store_data(from, length);
+}
+
+bool Protocol_prep::store(const char *from,uint length,
+			  CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
