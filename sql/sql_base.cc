@@ -108,6 +108,24 @@ static void check_unused(void)
 #define check_unused()
 #endif
 
+/*
+  Create a list for all open tables matching SQL expression
+
+  SYNOPSIS
+    list_open_tables()
+    thd			Thread THD
+    wild		SQL like expression
+
+  NOTES
+    One gets only a list of tables for which one has any kind of privilege.
+    db and table names are allocated in result struct, so one doesn't need
+    a lock on LOCK_open when traversing the return list.
+
+  RETURN VALUES
+    NULL	Error (Probably OOM)
+    #		Pointer to list of names of open tables.
+*/
+
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 {
   int result = 0;
