@@ -327,7 +327,6 @@ public:
     max_length=10*default_charset()->mbmaxlen;
   }
   int save_in_field(Field *to, bool no_conversions);
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_date(maybe_null, name, t_arg, default_charset()));
@@ -342,7 +341,6 @@ public:
   Item_date_func(Item *a) :Item_str_func(a) {}
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return  (new Field_datetime(maybe_null, name, t_arg, default_charset()));
@@ -366,7 +364,6 @@ public:
   longlong val_int() { return value; }
   String *val_str(String *str);
   void fix_length_and_dec();
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_time(maybe_null, name, t_arg, default_charset()));
@@ -533,7 +530,6 @@ public:
   }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   const char *func_name() const { return "sec_to_time"; }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_time(maybe_null, name, t_arg, default_charset()));
@@ -634,7 +630,6 @@ public:
   bool get_date(TIME *ltime, bool fuzzy_date);
   const char *func_name() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_date(maybe_null, name, t_arg, default_charset()));
@@ -650,7 +645,6 @@ public:
   bool get_time(TIME *ltime);
   const char *func_name() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_time(maybe_null, name, t_arg, default_charset()));
@@ -665,7 +659,6 @@ public:
   String *val_str(String *str);
   const char *func_name() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_datetime(maybe_null, name, t_arg, default_charset()));
@@ -684,7 +677,6 @@ public:
     decimals=0;
     max_length=8*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
@@ -711,7 +703,6 @@ public:
        Change this when we support 
        microseconds in TIME/DATETIME
 */
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     if (cached_field_type == MYSQL_TYPE_TIME)
@@ -735,7 +726,6 @@ public:
     decimals=0;
     max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
       return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
@@ -755,7 +745,6 @@ public:
     decimals=0;
     max_length=8*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
       return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
