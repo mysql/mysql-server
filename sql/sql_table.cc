@@ -569,6 +569,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
+      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
+         ft code anyway, and 0 (set to column width later) for char's.
+         it has to be correct col width for char's, as char data are not
+         prefixed with length (unlike blobs, where ft code takes data length
+         from a data prefix, ignoring column->length).
+      */
+      if (key->type == Key::FULLTEXT)
+        column->length=test(f_is_blob(sql_field->pack_flag));
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->table_flags() & HA_BLOB_KEY))
@@ -579,15 +587,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	}
 	if (!column->length)
 	{
-          if (key->type == Key::FULLTEXT)
-            column->length=1; /* ft-code ignores it anyway :-) */
-          else
-          {
-            my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-                            ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-                            column->field_name);
-            DBUG_RETURN(-1);
-          }
+          my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
+                          ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
+                          column->field_name);
+          DBUG_RETURN(-1);
 	}
       }
       if (!(sql_field->flags & NOT_NULL_FLAG))
