@@ -43,7 +43,7 @@ wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Charset	Checksum	Create_options	Comment
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Database
 mysql
