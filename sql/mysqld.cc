@@ -2450,7 +2450,7 @@ static struct option long_options[] = {
 #ifdef HAVE_INNOBASE_DB
   {"innobase_data_home_dir", required_argument, 0,
      OPT_INNOBASE_DATA_HOME_DIR},
-  {"innobase_data_file_path", required_argument, 0, 
+  {"innobase_data_file_path", required_argument, 0,
      OPT_INNOBASE_DATA_FILE_PATH},
   {"innobase_log_group_home_dir", required_argument, 0,
     OPT_INNOBASE_LOG_GROUP_HOME_DIR},
@@ -2575,15 +2575,15 @@ CHANGEABLE_VAR changeable_vars[] = {
 #ifdef HAVE_INNOBASE_DB
   {"innobase_mirrored_log_groups",
    (long*) &innobase_mirrored_log_groups, 1, 1, 10, 0, 1},
-  {"innobase_log_files_in_group", 
-     (long*) &innobase_mirrored_log_groups, 2, 2, 100, 0, 1},
-  {"innobase_log_file_size", 
+  {"innobase_log_files_in_group",
+     (long*) &innobase_log_files_in_group, 2, 2, 100, 0, 1},
+  {"innobase_log_file_size",
      (long*) &innobase_log_file_size, 5*1024*1024L, 1*1024*1024L,
      ~0L, 0, 1024*1024L},
-  {"innobase_log_buffer_size", 
+  {"innobase_log_buffer_size",
      (long*) &innobase_log_buffer_size, 1024*1024L, 256*1024L,
      ~0L, 0, 1024},
-  {"innobase_buffer_pool_size", 
+  {"innobase_buffer_pool_size",
      (long*) &innobase_buffer_pool_size, 8*1024*1024L, 1024*1024L,
      ~0L, 0, 1024*1024L},
   {"innobase_additional_mem_pool_size",
@@ -2591,6 +2591,9 @@ CHANGEABLE_VAR changeable_vars[] = {
      ~0L, 0, 1024},
   {"innobase_file_io_threads",
      (long*) &innobase_file_io_threads, 9, 4, 64, 0, 1},
+  {"innobase_lock_wait_timeout",
+     (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
+						1024 * 1024 * 1024, 0, 1},
 #endif
   { "interactive_timeout",     (long*) &net_interactive_timeout,
       NET_WAIT_TIMEOUT, 1, 31*24*60*60, 0, 1 },
@@ -3463,13 +3466,13 @@ static void get_options(int argc,char **argv)
     case OPT_GEMINI_SKIP:
 #ifdef HAVE_GEMINI_DB
       gemini_skip=1;
-      have_gemini_db=SHOW_OPTION_DISABLED;  
+      have_gemini=SHOW_OPTION_DISABLED;  
 #endif
       break;
     case OPT_INNOBASE_SKIP:
 #ifdef HAVE_INNOBASE_DB
       innobase_skip=1;
-      have_innobase_db=SHOW_HAVE_DISABLED;
+      have_innobase=SHOW_OPTION_DISABLED;
 #endif
       break;
 #ifdef HAVE_INNOBASE_DB

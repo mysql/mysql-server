@@ -30719,6 +30719,10 @@ of real fatal errors) as @code{myisamchk}.  On the other hand,
 flushing tables.
 @xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}.
 
+Even that the repair in @code{myisamchk} is quite secure, it's always a
+good idea to make a backup BEFORE doing a repair (or anything that could
+make a lot of changes to a table)
+
 @menu
 * myisamchk syntax::            @code{myisamchk} invocation syntax
 * myisamchk memory::            @code{myisamchk} memory usage
@@ -30739,7 +30743,7 @@ described below.  (You can also get a list of options by invoking
 table.  To get more information or to tell @code{myisamchk} to take corrective
 action, specify options as described below and in the following sections.
 
-@code{tbl_name} is the database table you want to check.  If you run
+@code{tbl_name} is the database table you want to check/repair.  If you run
 @code{myisamchk} somewhere other than in the database directory, you must
 specify the path to the file, because @code{myisamchk} has no idea where your
 database is located.  Actually, @code{myisamchk} doesn't care whether or not
@@ -30775,18 +30779,19 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 The recommended way to quickly check all tables is:
 
 @example
-myisamchk --fast --silent /path/to/datadir/*/*.MYI
+myisamchk --silent --fast /path/to/datadir/*/*.MYI
 isamchk --silent /path/to/datadir/*/*.ISM
 @end example
 
-@code{myisamchk} supports the following options.
+If you want to check all tables and repair all tables that are corrupted,
+you can use the following line:
 
-@menu
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
-@end menu
+@example
+myisamchk --silent --force --fast --update-state -O key_buffer=64M -O sort_buffer=64M -O read_buffer=1M -O write_buffer=1M /path/to/datadir/*/*.MYI
+isamchk --silent --force -O key_buffer=64M -O sort_buffer=64M -O read_buffer=1M -O write_buffer=1M /path/to/datadir/*/*.ISM
+@end example
+
+The above assumes that you have more than 64 M free.
 
 Note that if you get an error like:
 
@@ -30804,10 +30809,19 @@ tables while you are running @code{myisamchk}.  In @strong{MySQL} Version 3.23
 the easiest way to avoid this problem is to use @code{CHECK TABLE}
 instead of @code{myisamchk} to check tables.
 
+@menu
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
+@end menu
+
 @cindex options, @code{myisamchk}
 @cindex @code{myisamchk}, options
 @node myisamchk general options, myisamchk check options, myisamchk syntax, myisamchk syntax
 @subsubsection General Options for @code{myisamchk}
+
+@code{myisamchk} supports the following options.
 
 @table @code
 @item -# or --debug=debug_options
@@ -33535,26 +33549,29 @@ Here are some reasons the @code{Can't connect to local MySQL server}
 error might occur:
 
 @itemize @bullet
-@item @code{mysqld} is not running.
-@item You are running on a system that uses MIT-pthreads.
-If you are running on a system that doesn't have native threads, @code{mysqld}
-uses the MIT-pthreads package.
-@xref{Which OS}.
-However, MIT-pthreads doesn't support Unix sockets, so on such a system you
-must always specify the hostname explicitly when connecting to the server.
-Try using this command to check the connection to the server:
+@item
+@code{mysqld} is not running.
+@item
+You are running on a system that uses MIT-pthreads.
+If you are running on a system that doesn't have native threads,
+@code{mysqld} uses the MIT-pthreads package.  @xref{Which OS}.  However,
+all MIT-pthreads versions doesn't support Unix sockets. On a system
+without sockets support you must always specify the hostname explicitly
+when connecting to the server. Try using this command to check the
+connection to the server:
 @example
 shell> mysqladmin -h `hostname` version
 @end example
-@item Someone has removed the Unix socket that @code{mysqld} uses (default
-@file{/tmp/mysqld.sock}).  You might have a @code{cron} job that removes the
-@strong{MySQL} socket (for example, a job that removes old files from the @file{/tmp}
-directory).  You can always run @code{mysqladmin version} and
-check that the socket @code{mysqladmin} is trying to use really exists.
-The fix in this case is to change the @code{cron} job to not remove
-@file{mysqld.sock} or to place the socket somewhere else. You can specify
-a different socket location at @strong{MySQL} configuration time with this
-command:
+@item
+Someone has removed the Unix socket that @code{mysqld} uses (default
+@file{/tmp/mysqld.sock}).  You might have a @code{cron} job that removes
+the @strong{MySQL} socket (for example, a job that removes old files
+from the @file{/tmp} directory).  You can always run @code{mysqladmin
+version} and check that the socket @code{mysqladmin} is trying to use
+really exists.  The fix in this case is to change the @code{cron} job to
+not remove @file{mysqld.sock} or to place the socket somewhere else. You
+can specify a different socket location at @strong{MySQL} configuration
+time with this command:
 @example
 shell> ./configure --with-unix-socket-path=/path/to/socket
 @end example
@@ -33562,7 +33579,8 @@ You can also start @code{safe_mysqld} with the
 @code{--socket=/path/to/socket} option and set the environment variable
 @code{MYSQL_UNIX_PORT} to the socket pathname before starting your
 @strong{MySQL} clients.
-@item You have started the @code{mysqld} server with
+@item
+You have started the @code{mysqld} server with
 the @code{--socket=/path/to/socket} option.  If you change the socket
 pathname for the server, you must also notify the @strong{MySQL} clients
 about the new path. You can do this by setting the environment variable
@@ -33577,6 +33595,11 @@ You are using Linux and one thread has died (core dumped).  In this case
 you must kill the other @code{mysqld} threads (for example, with the
 @code{mysql_zap} script before you can start a new @strong{MySQL}
 server.  @xref{Crashing}.
+@item
+You may not have read and write privilege to either the directory that holds
+the socket file or privilege to the socket file itself. In this case you
+have to either change the privilege for the directory / file or restart
+@code{mysqld} so that it uses a directory that you can access.
 @end itemize
 
 If you get the error message @code{Can't connect to MySQL server on
@@ -33871,12 +33894,12 @@ You can check which tables you have in the current database with
 
 @cindex multibyte character sets
 @node Cannot initialize character set,  , Cannot find table, Common errors
-@subsection @code{Can't initialize character set 'xxx'} error.
+@subsection @code{Can@'t initialize character set xxx} error.
 
 If you get an error like:
 
 @example
-MySQL Connection Failed: Can't initialize character set xx
+MySQL Connection Failed: Can't initialize character set xxx
 @end example
 
 This means one of the following things:

@@ -178,7 +178,7 @@ void ha_close_connection(THD* thd)
 {
 #ifdef HAVE_INNOBASE_DB
   if (!innobase_skip)
-    innobase_close_connection(THD* thd);
+    innobase_close_connection(thd);
 #endif
 }
 
@@ -236,7 +236,6 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
-    trans->innobase_tid=0;
   }
 #endif
   if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
@@ -263,12 +262,11 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 #ifdef HAVE_INNOBASE_DB
   if (trans->innobase_tid)
   {
-    if ((error=innobase_rollback(thd)))
+    if ((error=innobase_rollback(thd, trans->innobase_tid)))
     {
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
-    trans->innobase_tid=0;
   }
 #endif
 #ifdef USING_TRANSACTIONS
