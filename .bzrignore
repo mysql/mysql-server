@@ -368,3 +368,5 @@ libmysqld/hash_filo.cc
 libmysqld/sql_unions.cc
 libmysqld/stacktrace.c
 sql/share/mysql
+.gdbinit
+.vimrc
