@@ -279,7 +279,7 @@ character-set=latin1
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
 "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
+"Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
 "It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart",

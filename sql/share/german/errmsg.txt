@@ -289,7 +289,7 @@ character-set=latin1
 "Variable '%-.64s' ist keine Variablen-Komponenten (kann nicht als XXXX.variablen_name verwendet werden)",
 "Unbekannte Kollation: '%-.64s'",
 "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn der MySQL-Slave mit SSL gestartet wird",
-"Server läuft im Modus --secure-auth, aber '%s@%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
+"Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
 "Feld oder Verweis '%-.64s%s%-.64s%s%-.64s' im SELECT-Befehl Nr. %d wurde im SELECT-Befehl Nr. %d aufgelöst",
 "Falscher Parameter oder falsche Kombination von Parametern für START SLAVE UNTIL",
 "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet",
