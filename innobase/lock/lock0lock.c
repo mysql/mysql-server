@@ -694,7 +694,7 @@ lock_is_table_exclusive(
 	trx_t*		trx)	/* in: transaction */
 {
 	lock_t*	lock;
-	bool	ok	= FALSE;
+	ibool	ok	= FALSE;
 
 	ut_ad(table && trx);
 
@@ -4219,7 +4219,8 @@ lock_get_n_rec_locks(void)
 
 	return(n_locks);
 }
-	
+
+#ifndef UNIV_HOTBACKUP	
 /*************************************************************************
 Prints info of locks for all transactions. */
 
@@ -4743,7 +4744,7 @@ lock_validate(void)
 
 	return(TRUE);
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/
 
 /*************************************************************************
