@@ -28,9 +28,9 @@ select convert_tz(b, 'Europe/Moscow', 'UTC') from t1;
 update t1, t2 set t1.b = convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC')
               where t1.a = t2.c and t2.d = (select max(d) from t2);
 # But still these two statements should not work:
---error 1044
+--error 1142
 select * from mysql.time_zone_name;
---error 1044
+--error 1142
 select Name, convert_tz('2004-10-21 19:00:00', Name, 'UTC') from mysql.time_zone_name;
 
 #
