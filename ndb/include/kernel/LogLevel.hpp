@@ -64,7 +64,7 @@ public:
   /**
    * No of categories
    */
-#define _LOGLEVEL_CATEGORIES (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1);
+#define _LOGLEVEL_CATEGORIES (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)
   static const Uint32 LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES;
   
   void clear();
