@@ -174,7 +174,7 @@ struct st_VioSSLConnectorFd
   SSL_METHOD* ssl_method_;
 };
 
-void sslaccept(struct st_VioSSLAcceptorFd*, Vio*, long timeout);
+int sslaccept(struct st_VioSSLAcceptorFd*, Vio*, long timeout);
 int sslconnect(struct st_VioSSLConnectorFd*, Vio*, long timeout);
 
 struct st_VioSSLConnectorFd
@@ -231,7 +231,6 @@ struct st_vio
 
 #ifdef HAVE_OPENSSL
   SSL* ssl_;
-  my_bool open_;
 #endif /* HAVE_OPENSSL */
 #endif /* HAVE_VIO */
 };

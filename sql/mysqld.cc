@@ -339,7 +339,7 @@ volatile ulong cached_thread_count=0;
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info",
   relay_log_info_file = (char*) "relay-log.info",
-  master_ssl_key=0, master_ssl_cert=0;
+  master_ssl_key=0, master_ssl_cert=0, master_ssl_capath=0, master_ssl_cipher=0;
 my_string report_user = 0, report_password = 0, report_host=0;
  
 const char *localhost=LOCAL_HOST;
@@ -2819,8 +2819,9 @@ enum options {
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
   OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
   OPT_MASTER_RETRY_COUNT,
-  OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
-  OPT_MASTER_SSL_CERT,            
+  OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
+  OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
+  OPT_MASTER_SSL_CIPHER,
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -3128,6 +3129,14 @@ struct my_option my_long_options[] =
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
    "Master SSL certificate file name. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
+   "Master SSL CA path. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
+   "Master SSL cipher. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP or FORCE.",
