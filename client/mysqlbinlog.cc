@@ -306,6 +306,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 		  my_off_t pos, int old_format)
 {
   char ll_buff[21];
+
   if ((*rec_count) >= offset)
   {
     if (!short_form)
@@ -566,8 +567,6 @@ static MYSQL* safe_connect()
   if(!local_mysql)
     die("Failed on mysql_init");
   
-  mysql_options(local_mysql, MYSQL_INIT_COMMAND,
-		"/*!32210 SET @@session.max_insert_delayed_threads=0*/");
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 
@@ -952,6 +951,8 @@ int main(int argc, char** argv)
     load_processor.init_by_cur_dir();
 
   exit_value= 0;
+  fprintf(result_file,
+	  "/*!40001 SET @@session.max_insert_delayed_threads=0*/;\n");
   while (--argc >= 0)
   {
     if (dump_log_entries(*(argv++)))
