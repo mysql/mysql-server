@@ -236,3 +236,11 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+bdb/btree/btree_auto.c
+bdb/build_vxworks/db_int.h
+bdb/build_win32/db_int.h
+bdb/build_win32/include.tcl
+bdb/build_win32/libdb.rc
+bdb/db/crdel_auto.c
+bdb/db/db_auto.c
+bdb/dist/config.hin
