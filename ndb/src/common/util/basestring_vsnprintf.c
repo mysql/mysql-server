@@ -40,7 +40,6 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
    *  Let's hope vsnprintf works anyways
    */
   #define BASESTRING_VSNPRINTF_FUNC(a,b,c,d) vsnprintf(a,b,c,d)
-  extern int my_vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #endif
 #ifdef SNPRINTF_RETURN_TRUNC
 static char basestring_vsnprintf_buf[16*1024];
