@@ -8377,6 +8377,68 @@ static void test_subqueries_ref()
   myquery(rc);
 }
 
+static void test_bug3117()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND buffer;
+  longlong lii;
+  ulong length;
+  my_bool is_null;
+  int rc;
+
+  myheader("test_bug3117");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (id int auto_increment primary key)");
+  myquery(rc);
+
+  stmt = mysql_simple_prepare(mysql, "SELECT LAST_INSERT_ID()");
+  mystmt_init(stmt);
+
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (NULL)");
+  myquery(rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  buffer.buffer_type= MYSQL_TYPE_LONGLONG;
+  buffer.buffer_length= sizeof(lii);
+  buffer.buffer= (char *)&lii;
+  buffer.length= &length;
+  buffer.is_null= &is_null;
+
+  rc= mysql_bind_result(stmt, &buffer);
+  mystmt(stmt,rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+
+  assert(is_null == 0 && lii == 1);
+  fprintf(stdout, "\n\tLAST_INSERT_ID() = 1 ok\n");
+
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (NULL)");
+  myquery(rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+
+  assert(is_null == 0 && lii == 2);
+  fprintf(stdout, "\tLAST_INSERT_ID() = 2 ok\n");
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -8634,8 +8696,7 @@ int main(int argc, char **argv)
     test_distinct();	    /* distinct aggregate functions */
     test_subqueries_ref();  /* outer reference in subqueries converted
 			       Item_field -> Item_ref */
-
-
+    test_bug3117();	    /* BUG#3117: LAST_INSERT_ID() */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
