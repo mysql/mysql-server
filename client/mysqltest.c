@@ -337,8 +337,10 @@ static void free_used_memory()
 {
   uint i;
   DBUG_ENTER("free_used_memory");
+#ifndef EMBEDDED_LIBRARY  
   if (manager)
     mysql_manager_close(manager);
+#endif  
   close_cons();
   close_files();
   hash_free(&var_hash);
@@ -599,6 +601,7 @@ int open_file(const char* name)
   return 0;
 }
 
+#ifndef EMBEDDED_LIBRARY
 int do_server_start(struct st_query* q)
 {
   return do_server_op(q,"start");
@@ -636,6 +639,7 @@ int do_server_op(struct st_query* q,const char* op)
 
   return 0;
 }
+#endif
 
 int do_source(struct st_query* q)
 {
@@ -1182,6 +1186,7 @@ char* safe_get_param(char* str, char** arg, const char* msg)
   DBUG_RETURN(str);
 }
 
+#ifndef EMBEDDED_LIBRARY
 void init_manager()
 {
   if (!(manager=mysql_manager_init(0)))
@@ -1192,6 +1197,7 @@ void init_manager()
 	manager->last_errno);
 
 }
+#endif
 
 int safe_connect(MYSQL* con, const char* host, const char* user,
 		 const char* pass,
@@ -2101,8 +2107,9 @@ int main(int argc, char** argv)
   if (cur_file == file_stack)
     *++cur_file = stdin;
   *lineno=1;
+#ifndef EMBEDDED_LIBRARY  
   init_manager();
-
+#endif
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   cur_con->name = my_strdup("default", MYF(MY_WME));
@@ -2134,8 +2141,10 @@ int main(int argc, char** argv)
       case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+#ifndef EMBEDDED_LIBRARY	
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
+#endif	
       case Q_INC: do_inc(q); break;
       case Q_DEC: do_dec(q); break;
       case Q_ECHO: do_echo(q); break;
