@@ -25,11 +25,10 @@
 //----------------------------------------------------------------
 
 
+#include <ndb_global.h>
+
 #include "records.hpp"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+
 #define RETURN_ERROR 1
 #define RETURN_OK 0
 

@@ -85,20 +85,12 @@
  */
 
 
+#include <ndb_global.h>
+
 #include <NdbApi.hpp>
 #include <NdbScanFilter.hpp>
 // Used for cout
 #include <iostream>
-
-#ifdef SOLARIS
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
-#if defined LINUX || defined MACOSX
-#include <time.h>
-#include <unistd.h>
-#endif
 
 /**
  * Helper sleep function

@@ -14,12 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <NdbOut.hpp>
 #include "NdbThread.h"
 #include <NdbMem.h>
 #include <NdbMain.h>
-
-#include <stdlib.h>
 
 NDB_COMMAND(ndbmem, "ndbmem", "ndbmem", "Test the ndbmem functionality", 4096){
 

@@ -17,8 +17,7 @@
 #ifndef SIMPLE_PROPERTIES_HPP
 #define SIMPLE_PROPERTIES_HPP
 
-#include <ndb_types.h>
-#include <stddef.h> // offsetof
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 
 /**

@@ -19,6 +19,6 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	libsync.a
 
-libsync_a_SOURCES =	sync0arr.c sync0ipm.c sync0rw.c sync0sync.c
+libsync_a_SOURCES =	sync0arr.c sync0rw.c sync0sync.c
 
 EXTRA_PROGRAMS =	

@@ -18,11 +18,9 @@
 #define NdbSchemaOp_H
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
-#include <ndb_types.h>
+#include "NdbDictionary.hpp"
 #include "AttrType.hpp"
 #include "NdbSchemaCon.hpp"
-#include <stdlib.h>
-#include "NdbDictionary.hpp"
 
 class NdbApiSignal;
 class Ndb;

@@ -61,7 +61,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
-static bool one_database = 0;
+static bool one_database=0, to_last_remote_log= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -489,6 +489,12 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &sock, (gptr*) &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 
    0, 0},
+  {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
+requested binlog but rather continue printing until the end of the last \
+binlog of the MySQL server. If you send the output to the same MySQL server, \
+that may lead to an endless loop.",
+   (gptr*) &to_last_remote_log, (gptr*) &to_last_remote_log, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
@@ -533,9 +539,12 @@ static void die(const char* fmt, ...)
   exit(1);
 }
 
+#include <help_start.h>
+
 static void print_version()
 {
   printf("%s Ver 3.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -553,6 +562,8 @@ the mysql command line client\n\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -795,7 +806,7 @@ could be out of memory");
           part of our log) and then we will stop when we receive the fake one
           soon.
         */
-        if (rev->when == 0)
+        if ((rev->when == 0) && !to_last_remote_log)
         {
           if ((rev->ident_len != logname_len) ||
               memcmp(rev->new_log_ident, logname, logname_len))
@@ -831,7 +842,7 @@ could be out of memory");
  	DBUG_RETURN(1);
       }
       my_close(file,MYF(MY_WME));
-    }    
+    }
     /*
       Let's adjust offset for remote log as for local log to produce 
       similar text. As we don't print the fake Rotate event, all events are

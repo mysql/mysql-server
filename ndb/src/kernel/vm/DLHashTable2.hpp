@@ -17,10 +17,9 @@
 #ifndef DL_HASHTABLE2_HPP
 #define DL_HASHTABLE2_HPP
 
+#include <ndb_global.h>
+
 #include "ArrayList.hpp"
-#include <assert.h>
-#include <stddef.h>
-#include <new>
 
 /**
  * DLHashTable2 is a DLHashTable variant meant for cases where different

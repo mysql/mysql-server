@@ -36,6 +36,12 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
+#if defined(__WIN__) && !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT) && !defined(EMBEDDED_LIBRARY)
+#define dll_import_spec __declspec( dllimport )
+#else
+#define dll_import_spec
+#endif
+
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
@@ -311,8 +317,8 @@ typedef struct st_udf_init
 extern "C" {
 #endif
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
+dll_import_spec extern unsigned long max_allowed_packet;
+dll_import_spec extern unsigned long net_buffer_length;
 
 /*
   These functions are used for authentication by client and server and
@@ -364,6 +370,6 @@ char *net_store_length(char *pkg, ulonglong length);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 #define MYSQL_STMT_HEADER       4
-#define	MYSQL_LONG_DATA_HEADER	6
+#define MYSQL_LONG_DATA_HEADER  6
 
 #endif

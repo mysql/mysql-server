@@ -57,8 +57,6 @@ Revision history:
 #include <NdbTimer.hpp>
 #include <NdbTick.h>
 #include <NdbTest.hpp>
-#include <string.h>
-#include <assert.h>
 #include <NDBT_Error.hpp>
 
 ErrorData * flexHammerErrorData;

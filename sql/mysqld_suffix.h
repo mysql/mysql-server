@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,26 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_UNISTD_H
-#define NDB_UNISTD_H
+/*
+  Set MYSQL_SERVER_SUFFIX_STR
+  The following code is quite ugly as there is no portable way to easily set a
+  string to the value of a macro
+*/
 
-#ifdef NDB_WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#include <limits.h>
-
-#define DIR_SEPARATOR "\\"
-#define PATH_MAX 256
-
-#pragma warning(disable: 4503 4786)
-
+#ifdef MYSQL_SERVER_SUFFIX
+#define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
 #else
-#include <unistd.h>
-#include <limits.h>
-
-#define DIR_SEPARATOR "/"
-
-#endif
-
+#define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
 #endif

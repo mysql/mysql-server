@@ -2410,8 +2410,7 @@ row_sel_get_clust_rec_for_mysql(
 			trx_print(stderr, thr_get_trx(thr));
 
 			fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 		}
 
 		clust_rec = NULL;
@@ -2572,10 +2571,35 @@ row_sel_pop_cached_row_for_mysql(
 					row */
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct */
 {
-	ut_ad(prebuilt->n_fetch_cached > 0);
+	ulint			i;
+	mysql_row_templ_t*	templ;
+	byte*			cached_rec;
+        ut_ad(prebuilt->n_fetch_cached > 0);
+	
+	if (prebuilt->keep_other_fields_on_keyread)
+	{
+		/* Copy cache record field by field, don't touch fields that 
+		are not covered by current key */
+		cached_rec = 
+			prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
-	ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
-						prebuilt->mysql_row_len);
+		for (i = 0; i < prebuilt->n_template; i++) {
+			templ = prebuilt->mysql_template + i;
+			ut_memcpy(
+				buf + templ->mysql_col_offset, 
+				cached_rec + templ->mysql_col_offset,
+				templ->mysql_col_len);
+
+			if (templ->mysql_null_bit_mask)
+				buf[templ->mysql_null_byte_offset] &= 
+					cached_rec[templ->mysql_null_byte_offset];
+		}
+	}
+	else
+	{
+		ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
+				prebuilt->mysql_row_len);
+	}
 	prebuilt->n_fetch_cached--;
 	prebuilt->fetch_cache_first++;
 
@@ -3586,11 +3610,11 @@ consistent read result, or store it to the query cache. */
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
-				/* out: TRUE if storing or retrieving from
-				the query cache is permitted */
-	trx_t*	trx,		/* in: transaction object */
-	char*	norm_name)	/* in: concatenation of database name, '/'
-				char, table name */
+					/* out: TRUE if storing or retrieving
+					from the query cache is permitted */
+	trx_t*		trx,		/* in: transaction object */
+	const char*	norm_name)	/* in: concatenation of database name,
+					'/' char, table name */
 {
 	dict_table_t*	table;
 	ibool		ret 	= FALSE;

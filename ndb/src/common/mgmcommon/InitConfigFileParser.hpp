@@ -17,7 +17,8 @@
 #ifndef InitConfigFileParser_H
 #define InitConfigFileParser_H
 
-#include <stdio.h>
+#include <ndb_global.h>
+
 #include <Properties.hpp>
 
 class Config;

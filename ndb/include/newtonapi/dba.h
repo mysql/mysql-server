@@ -102,10 +102,8 @@
 
 /* --- Include files ---- */
 
+#include <ndb_global.h>
 #include <defs/pcn_types.h>
-
-#include <stdio.h>
-
 
 /* --- Types and definitions --- */
 

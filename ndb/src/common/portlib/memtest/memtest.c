@@ -16,10 +16,8 @@
 
 
 
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/mman.h>
+#include <ndb_global.h>
+
 long long getMilli();
 long long getMicro();
 void malloctest(int loopcount, int memsize, int touch);

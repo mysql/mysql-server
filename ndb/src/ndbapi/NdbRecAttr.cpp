@@ -26,8 +26,8 @@ Description:   Interface between TIS and NDB
 Documentation:
 Adjust:  971206  UABRONM First version
 ************************************************************************************************/
+#include <ndb_global.h>
 #include "NdbRecAttr.hpp"
-#include <stdlib.h>
 #include "NdbDictionaryImpl.hpp"
 
 NdbRecAttr::NdbRecAttr() :

@@ -316,15 +316,16 @@ fields than mentioned in the constraint. */
 int
 row_table_add_foreign_constraints(
 /*==============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create statement where
-				foreign keys are declared like:
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2 */
-	char*	name);		/* in: table full name in the normalized form
-				database_name/table_name */
+					table2 can be written also with the
+					database name before it: test.table2 */
+	const char*	name);		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 /*************************************************************************
 The master thread in srv0srv.c calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
@@ -351,10 +352,10 @@ output by the master thread. */
 int
 row_drop_table_for_mysql(
 /*=====================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx,	/* in: transaction handle */
-	ibool	drop_db);/* in: TRUE=dropping whole database */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx,	/* in: transaction handle */
+	ibool		drop_db);/* in: TRUE=dropping whole database */
 
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -382,9 +383,9 @@ discard ongoing operations. */
 int
 row_discard_tablespace_for_mysql(
 /*=============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx);	/* in: transaction handle */
 /*********************************************************************
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary. */
@@ -392,28 +393,28 @@ of the table in the data dictionary. */
 int
 row_import_tablespace_for_mysql(
 /*============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
 Drops a database for MySQL. */
 
 int
 row_drop_database_for_mysql(
 /*========================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: database name which ends to '/' */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: database name which ends to '/' */
+	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
 Renames a table for MySQL. */
 
 int
 row_rename_table_for_mysql(
 /*=======================*/
-				/* out: error code or DB_SUCCESS */
-	char*	old_name,	/* in: old table name */
-	char*	new_name,	/* in: new table name */
-	trx_t*	trx);		/* in: transaction handle */
+					/* out: error code or DB_SUCCESS */
+	const char*	old_name,	/* in: old table name */
+	const char*	new_name,	/* in: new table name */
+	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
 Checks a table for corruption. */
 
@@ -572,6 +573,10 @@ struct row_prebuilt_struct {
 					allocated mem buf start, because
 					there is a 4 byte magic number at the
 					start and at the end */
+	ibool		keep_other_fields_on_keyread; /* when using fetch 
+					cache with HA_EXTRA_KEYREAD, don't 
+					overwrite other fields in mysql row 
+					row buffer.*/
 	ulint		fetch_cache_first;/* position of the first not yet
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows

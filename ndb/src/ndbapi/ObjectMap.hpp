@@ -17,10 +17,8 @@
 #ifndef NDB_OBJECT_ID_MAP_HPP
 #define NDB_OBJECT_ID_MAP_HPP
 
-#include <ndb_types.h>
+#include <ndb_global.h>
 //#include <NdbMutex.h>
-#include <stdlib.h>
-#include <string.h>
 #include <NdbOut.hpp>
 
 //#define DEBUG_OBJECTMAP

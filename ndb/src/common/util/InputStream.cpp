@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "InputStream.hpp"
 #include <socket_io.h>
-#include <assert.h>
-#include <string.h>
 
 FileInputStream Stdin(stdin);
 

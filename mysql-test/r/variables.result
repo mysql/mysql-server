@@ -48,7 +48,7 @@ explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Note	1003	select sql_no_cache (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
 select @t5;
 @t5
 1.23456
@@ -107,7 +107,7 @@ explain extended select last_insert_id(345);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache last_insert_id(345) AS `last_insert_id(345)`
+Note	1003	select sql_no_cache last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
@@ -115,7 +115,7 @@ explain extended select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
+Note	1003	select sql_no_cache 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=ON;
 show variables like 'concurrent_insert';
@@ -364,7 +364,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1308	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
+Note	1308	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;
@@ -421,6 +421,11 @@ set ft_boolean_syntax = @@init_connect;
 ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
 set global ft_boolean_syntax = @@init_connect;
 ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
+set global myisam_max_sort_file_size=4294967296;
+show global variables like 'myisam_max_sort_file_size';
+Variable_name	Value
+myisam_max_sort_file_size	4294967296
+set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size
 100	200

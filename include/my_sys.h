@@ -748,6 +748,7 @@ extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
 extern uint my_count_bits(ulonglong v);
+extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
@@ -770,6 +771,8 @@ extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
+extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+                                     const char *from, ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

@@ -371,10 +371,16 @@ int main(int argc,char *argv[])
       !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
   {
     free_defaults(defaults_argv);
+    my_end(0);
+    exit(1);
+  }
+  if (mysql_server_init(0, NULL, (char**) server_default_groups))
+  {
+    free_defaults(defaults_argv);
+    my_end(0);
     exit(1);
   }
   glob_buffer.realloc(512);
-  mysql_server_init(0, NULL, (char**) server_default_groups);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
   bzero((char*) &mysql, sizeof(mysql));
@@ -494,7 +500,7 @@ static struct my_option my_long_options[] =
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
-   "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -515,7 +521,7 @@ static struct my_option my_long_options[] =
    (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", (gptr*) &delimiter_str,
    (gptr*) &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
+  {"execute", 'e', "Execute command and quit. (Disables --force and history file)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    (gptr*) &vertical, (gptr*) &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -597,7 +603,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"reconnect", OPT_RECONNECT, "Reconnect if the connection is lost. Disable with --disable-reconnect. This option is enabled by default.", 
    (gptr*) &opt_reconnect, (gptr*) &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
+  {"silent", 's', "Be more silent. Print results with a tab as separator, each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
@@ -663,6 +669,10 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
+  /* Divert all help information on NetWare to logger screen. */
+#ifdef __NETWARE__
+#define printf	consoleprintf
+#endif
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
@@ -675,7 +685,12 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
+  NETWARE_SET_SCREEN_MODE(1);
+#ifdef __NETWARE__
+#undef printf
+#endif
 }
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -755,10 +770,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'e':
     status.batch= 1;
     status.add_to_history= 0;
-    batch_readline_end(status.line_buff);	// If multiple -e
-    if (!(status.line_buff= batch_readline_command(argument)))
+    if (!status.line_buff)
+      ignore_errors= 0;                         // do it for the first -e only
+    if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
-    ignore_errors= 0;
     break;
   case 'o':
     if (argument == disabled_my_option)
@@ -798,12 +813,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       verbose++;
     break;
   case 'B':
-    if (!status.batch)
-    {
-      status.batch= 1;
-      status.add_to_history= 0;
-      opt_silent++;				// more silent
-    }
+    status.batch= 1;
+    status.add_to_history= 0;
+    set_if_bigger(opt_silent,1);                         // more silent
     break;
   case 'W':
 #ifdef __WIN__
@@ -913,6 +925,7 @@ static int read_lines(bool execute_commands)
 #ifdef __NETWARE__
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
       /* Remove the '\n' */
+      if (line)
       {
         char *p = strrchr(line, '\n');
         if (p != NULL)
@@ -928,7 +941,11 @@ static int read_lines(bool execute_commands)
       line= readline(prompt);
 #endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
 
-      if (opt_outfile)
+      /*
+        When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
+        which may cause coredump.
+      */
+      if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
     if (!line)					// End of file
@@ -1108,11 +1125,8 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       else
       {
-	int error= com_go(&buffer, 0);
-	if (error)
-	{
-	  return error < 0 ? 0 : 1;		// < 0 is not fatal
-	}
+	if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+	  return 1;
       }
       buffer.length(0);
       out= line;
@@ -1245,7 +1259,6 @@ static void fix_history(String *final_command)
 static int not_in_history(const char *line) 
 {
   HIST_ENTRY *oldhist = history_get(history_length);
-  int num;
   
   if (oldhist == 0)
     return 1;
@@ -1595,7 +1608,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
   MYSQL_RES *result;
-  MYSQL_FIELD *fields;
   int error;
   
   if (help_arg[0] != '\'')
@@ -1621,7 +1633,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
   {
     unsigned int num_fields= mysql_num_fields(result);
     my_ulonglong num_rows= mysql_num_rows(result);
-    fields= mysql_fetch_fields(result);
+    mysql_fetch_fields(result);
     if (num_fields==3 && num_rows==1)
     {
       if (!(cur= mysql_fetch_row(result)))
@@ -2386,10 +2398,8 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-#ifdef __NETWARE__
-  // let the screen auto close on a normal shutdown
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
+  /* let the screen auto close on a normal shutdown */
+  NETWARE_SET_SCREEN_MODE(SCR_AUTOCLOSE_ON_EXIT);
   status.exit_status=0;
   return 1;
 }
@@ -2410,6 +2420,10 @@ static int
 com_shell(String *buffer, char *line __attribute__((unused)))
 {
   char *shell_cmd;
+
+  /* Skip space from line begin */
+  while (my_isspace(charset_info, *line))
+    line++;
   if (!(shell_cmd = strchr(line, ' ')))
   {
     put_info("Usage: \\! shell-command", INFO_ERROR);
@@ -2991,7 +3005,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
-  NETWARE_YIELD
+  NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
 #ifdef OS2
@@ -3005,7 +3019,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
-  NETWARE_YIELD
+  NETWARE_YIELD;
   fputs(s, file);
 #ifdef OS2
   fflush( file);
@@ -3017,7 +3031,7 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
-  NETWARE_YIELD
+  NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
 #ifdef OS2

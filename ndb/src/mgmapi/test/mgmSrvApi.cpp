@@ -25,11 +25,9 @@
  *       Server API" document
  *  
  *****************************************************/
+#include <ndb_global.h>
 #include "mgmapi.h"
 #include "mgmapi_commands.h"
-#include <stdlib.h>
-#include <string.h> 
-#include <stdio.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 

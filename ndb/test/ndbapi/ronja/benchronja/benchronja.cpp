@@ -26,6 +26,8 @@
 
  * *************************************************** */
 
+#include <ndb_global.h>
+
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
 #include <NdbOut.hpp>
@@ -35,11 +37,6 @@
 #include <NdbTimer.hpp>
 #include <NdbTick.h>
 #include <random.h>
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
 
 #define MAX_TIMERS 4 
 #define MAXSTRLEN 16 

@@ -264,16 +264,22 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   TABLE_LIST *delete_table_list= ((TABLE_LIST*) thd->lex->
 				  select_lex.table_list.first);
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
   if (setup_conds(thd, delete_table_list, conds) || 
-      setup_ftfuncs(&thd->lex->select_lex))
+      setup_ftfuncs(select_lex))
     DBUG_RETURN(-1);
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
+  }
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
   }
   DBUG_RETURN(0);
 }
@@ -285,10 +291,10 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-extern "C" int refposcmp2(void* arg, const void *a,const void *b)
+extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 {
-  /* arg is a pointer to file->ref_length */
-  return memcmp(a,b, *(int*) arg);
+  handler *file= (handler*)arg;
+  return file->cmp_ref((const byte*)a, (const byte*)b);
 }
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
@@ -352,8 +358,8 @@ multi_delete::initialize_tables(JOIN *join)
   for (walk=walk->next ; walk ; walk=walk->next)
   {
     TABLE *table=walk->table;
-    *tempfiles_ptr++= new Unique (refposcmp2,
-				  (void *) &table->file->ref_length,
+    *tempfiles_ptr++= new Unique (refpos_order_cmp,
+				  (void *) table->file,
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }

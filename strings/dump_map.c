@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <string.h>
 
-static void print_short_array(unsigned short *a)
+static void print_short_array(unsigned short *a, size_t width)
 {
   int i;
   printf("{\n");
   for (i=0; i<=0xFF; i++)
   {
-    printf("0x%04X%s%s",(int)a[i],i<0xFF?",":"",(i+1) % 8 ? "" :"\n");
+    const char *fmt= (width==4) ? "0x%04X" : "0x%02X";
+    printf(fmt,(int)a[i]);
+    printf("%s%s",i<0xFF?",":"",(i+1) % 8 ? "" :"\n");
   }
   printf("};\n");
   
@@ -41,7 +43,7 @@ int main(void)
   }
   
   printf("unsigned short cs_to_uni[256]=");
-  print_short_array(touni);
+  print_short_array(touni, 4);
   
   for (i=0;i<=0xFF;i++)
   {
@@ -53,7 +55,7 @@ int main(void)
     if (fromstat[i])
     { 
       printf("unsigned char pl%02X[256]=",i);
-      print_short_array(fromuni+i*256);
+      print_short_array(fromuni+i*256, 2);
     }
   }
   

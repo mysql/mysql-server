@@ -46,6 +46,8 @@ extern my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern uint bitmap_set_next(MY_BITMAP *map);
+extern uint bitmap_get_first(const MY_BITMAP *map);
+extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_clear_all(MY_BITMAP *map);
 extern void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_free(MY_BITMAP *map);
@@ -55,6 +57,12 @@ extern void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
+
+/* Fast, not thread safe, bitmap functions */
+#define bitmap_fast_set_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] |= (1 << ((BIT) & 7))
+#define bitmap_fast_clear_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] &= ~ (1 << ((BIT) & 7))
+#define bitmap_fast_is_set(MAP, BIT) (MAP)->bitmap[(BIT) / 8] & (1 << ((BIT) & 7))
+
 #ifdef	__cplusplus
 }
 #endif
