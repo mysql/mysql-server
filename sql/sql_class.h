@@ -401,10 +401,13 @@ struct system_variables
   my_bool new_mode;
   my_bool old_passwords;
   
-  CHARSET_INFO	*character_set_server;
-  CHARSET_INFO	*character_set_database;
+  /* Only charset part of these variables is sensible */
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
+  
+  /* Both charset and collation parts of these variables are important */
+  CHARSET_INFO	*collation_server;
+  CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 };
 
