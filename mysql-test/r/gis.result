@@ -259,6 +259,21 @@ fid	AsText(InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
+SELECT fid, IsClosed(g) FROM mls;
+fid	IsClosed(g)
+114	0
+115	0
+116	0
+SELECT fid, AsText(Centroid(g)) FROM mp;
+fid	AsText(Centroid(g))
+117	POINT(55.588527753042 17.426536064114)
+118	POINT(55.588527753042 17.426536064114)
+119	POINT(2 2)
+SELECT fid, Area(g) FROM mp;
+fid	Area(g)
+117	1684.5
+118	1684.5
+119	4.5
 SELECT fid, NumGeometries(g) from mpt;
 fid	NumGeometries(g)
 111	4
