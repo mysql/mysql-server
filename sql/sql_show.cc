@@ -759,17 +759,16 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
     convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
-    if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
+    if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
       DBUG_RETURN(-1);
     VOID(net_flush(&thd->net));
   }
   else
   {
-    if(my_write(fd, (const byte*) packet->ptr(), packet->length(),
-                MYF(MY_WME)))
+    if (my_write(fd, (const byte*) packet->ptr(), packet->length(),
+		 MYF(MY_WME)))
       DBUG_RETURN(-1);
   }
-
   DBUG_RETURN(0);
 }
 

@@ -3335,7 +3335,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
  }
  | CIPHER_SYM TEXT_STRING
  {
-   LEX *lex=lex;
+   LEX *lex=Lex;
    if (lex->ssl_cipher)
    {
      net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CHIPER");
