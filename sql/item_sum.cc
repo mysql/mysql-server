@@ -1966,14 +1966,13 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     Fix fields for select list and ORDER clause
   */
 
-  for (i= 0 ; i < arg_count ; i++)
+  for (uint i=0 ; i < arg_count ; i++)  
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
-    if (i < arg_count_field && args[i]->maybe_null)
-      maybe_null= 0;
+    maybe_null |= args[i]->maybe_null;
   }
-
+  
   result_field= 0;
   null_value= 1;
   max_length= group_concat_max_len;
@@ -1993,6 +1992,8 @@ bool Item_func_group_concat::setup(THD *thd)
   uint const_fields;
   byte *record;
   qsort_cmp2 compare_key;
+  Copy_field *ptr;  
+  Copy_field *end;
   DBUG_ENTER("Item_func_group_concat::setup");
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
@@ -2053,6 +2054,16 @@ bool Item_func_group_concat::setup(THD *thd)
 
   key_length= table->reclength;
   record= table->record[0];
+
+  /*
+    We need to store value of blob in buffer of a record instead of a pointer of 
+	one. 
+  */
+  ptr=tmp_table_param->copy_field; 
+  end=tmp_table_param->copy_field_end;
+
+  for (; ptr != end; ptr++)
+    ptr->set(ptr->to_field,ptr->from_field,1);
 
   /* Offset to first result field in table */
   field_list_offset= table->fields - (list.elements - const_fields);
