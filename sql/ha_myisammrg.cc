@@ -160,6 +160,16 @@ int ha_myisammrg::index_last(byte * buf)
   return error;
 }
 
+int ha_myisammrg::index_next_same(byte * buf,
+                                  const byte *key __attribute__((unused)),
+                                  uint length __attribute__((unused)))
+{
+  statistic_increment(ha_read_next_count,&LOCK_status);
+  int error=myrg_rnext_same(file,buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 int ha_myisammrg::rnd_init(bool scan)
 {
   return myrg_extra(file,HA_EXTRA_RESET,0);
