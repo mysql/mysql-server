@@ -14,11 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This is defines strtoll() if neaded */
+/* This implements strtoll() if needed */
 
-#define strtoll glob_strtoll		/* Fix for True64 */
 
+/*
+   These includes are mandatory because they check for type sizes and
+   functions, especially they handle tricks for Tru64 where 'long' is
+   64 bit already and our 'longlong' is just a 'long'.
+   This solves a problem on Tru64 where the C99 compiler has a prototype
+   for 'strtoll()' but no implementation, see "6.1 New C99 library functions" 
+   in file '/usr/share/doclib/cc.dtk/release_notes.txt'.
+ */
 #include <my_global.h>
+#include <m_string.h>
+
 #if !defined(HAVE_STRTOLL) && defined(HAVE_LONG_LONG)
 #define USE_LONGLONG
 #include "strto.c"
