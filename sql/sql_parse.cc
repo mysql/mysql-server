@@ -1868,6 +1868,109 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
+int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
+                         enum enum_schema_tables schema_table_idx)
+{
+  DBUG_ENTER("prepare_schema_table");
+  SELECT_LEX *sel= 0;
+  switch(schema_table_idx) {
+  case SCH_SCHEMATA:
+#if defined(DONT_ALLOW_SHOW_COMMANDS)
+    send_error(thd,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
+    DBUG_RETURN(1);
+#else
+    if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
+	check_global_access(thd, SHOW_DB_ACL))
+      DBUG_RETURN(1);
+    break;
+#endif
+  case SCH_TABLE_NAMES:
+  case SCH_TABLES:
+  case SCH_VIEWS:
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    DBUG_RETURN(1);
+#else
+    {
+      char *db= lex->select_lex.db ? lex->select_lex.db : thd->db;
+      if (!db)
+      {
+	send_error(thd,ER_NO_DB_ERROR);		/* purecov: inspected */
+        DBUG_RETURN(1);				/* purecov: inspected */
+      }
+      remove_escape(db);				// Fix escaped '_'
+      if (check_db_name(db))
+      {
+        net_printf(thd,ER_WRONG_DB_NAME, db);
+        DBUG_RETURN(1);
+      }
+      if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
+        DBUG_RETURN(1);			        /* purecov: inspected */
+      if (!thd->col_access && check_grant_db(thd,db))
+      {
+	net_printf(thd, ER_DBACCESS_DENIED_ERROR,
+		   thd->priv_user,
+		   thd->priv_host,
+		   db);
+	DBUG_RETURN(1);
+      }
+      lex->select_lex.db= db;
+      break;
+    }
+#endif
+  case SCH_COLUMNS:
+  case SCH_STATISTICS:
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    DBUG_RETURN(1);
+#else
+    if (table_ident)
+    {
+      TABLE_LIST **query_tables_last= lex->query_tables_last;
+      sel= new SELECT_LEX();
+      sel->init_query();
+      if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
+                                 (List<String> *) 0, (List<String> *) 0))
+        DBUG_RETURN(1);
+      lex->query_tables_last= query_tables_last;
+      TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
+      char *db= table_list->db;
+      remove_escape(db);			// Fix escaped '_'
+      remove_escape(table_list->real_name);
+      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
+                       &table_list->grant.privilege, 0, 0))
+        DBUG_RETURN(1);				/* purecov: inspected */
+      if (grant_option && check_grant(thd, SELECT_ACL, table_list, 2,
+                                      UINT_MAX, 0))
+        DBUG_RETURN(1);
+      break;
+    }
+#endif
+  case SCH_PROCEDURES:
+  case SCH_CHARSETS:
+  case SCH_COLLATIONS:
+  case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
+  case SCH_USER_PRIVILEGES:
+  case SCH_SCHEMA_PRIVILEGES:
+  case SCH_TABLE_PRIVILEGES:
+  case SCH_COLUMN_PRIVILEGES:
+  case SCH_TABLE_CONSTRAINTS:
+  case SCH_KEY_COLUMN_USAGE:
+  default:
+    break;
+  }
+  
+  SELECT_LEX *select_lex= lex->current_select;
+  if (make_schema_select(thd, select_lex, schema_table_idx))
+  {
+    DBUG_RETURN(1);
+  }
+  TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+  table_list->schema_select_lex= sel;
+  DBUG_RETURN(0);
+}
+
+
 /*
   Read query from packet and store in thd->query
   Used in COM_QUERY and COM_PREPARE
@@ -3004,17 +3107,6 @@ unsent_create_error:
     else
       res = mysql_drop_index(thd, first_table, &lex->alter_info);
     break;
-  case SQLCOM_SHOW_DATABASES:
-#if defined(DONT_ALLOW_SHOW_COMMANDS)
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
-    goto error;
-#else
-    if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
-	check_global_access(thd, SHOW_DB_ACL))
-      goto error;
-    res= mysqld_show_dbs(thd, (lex->wild ? lex->wild->ptr() : NullS));
-    break;
-#endif
   case SQLCOM_SHOW_PROCESSLIST:
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
@@ -3062,95 +3154,9 @@ unsent_create_error:
       break;
     }
 #endif
-  case SQLCOM_SHOW_TABLES:
-    /* FALL THROUGH */
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    goto error;
-#else
-    {
-      char *db=select_lex->db ? select_lex->db : thd->db;
-      if (!db)
-      {
-	send_error(thd,ER_NO_DB_ERROR);		/* purecov: inspected */
-	goto error;				/* purecov: inspected */
-      }
-      remove_escape(db);				// Fix escaped '_'
-      if (check_db_name(db))
-      {
-        net_printf(thd,ER_WRONG_DB_NAME, db);
-        goto error;
-      }
-      if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
-	goto error;				/* purecov: inspected */
-      if (!thd->col_access && check_grant_db(thd,db))
-      {
-	net_printf(thd, ER_DBACCESS_DENIED_ERROR,
-		   thd->priv_user,
-		   thd->priv_host,
-		   db);
-	goto error;
-      }
-      /* grant is checked in mysqld_show_tables */
-      if (lex->describe)
-        res= mysqld_extend_show_tables(thd,db,
-				       (lex->wild ? lex->wild->ptr() : NullS));
-      else
-	res= mysqld_show_tables(thd, db,
-				(lex->wild ? lex->wild->ptr() : NullS),
-				lex->verbose);
-      break;
-    }
-#endif
   case SQLCOM_SHOW_OPEN_TABLES:
     res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
     break;
-  case SQLCOM_SHOW_CHARSETS:
-    res= mysqld_show_charsets(thd,(lex->wild ? lex->wild->ptr() : NullS));
-    break;
-  case SQLCOM_SHOW_COLLATIONS:
-    res= mysqld_show_collations(thd,(lex->wild ? lex->wild->ptr() : NullS));
-    break;
-  case SQLCOM_SHOW_FIELDS:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    goto error;
-#else
-    {
-      char *db= first_table->db;
-      remove_escape(db);			// Fix escaped '_'
-      remove_escape(first_table->real_name);
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
-		       &first_table->grant.privilege, 0, 0))
-	goto error;				/* purecov: inspected */
-      if (grant_option && check_grant(thd, SELECT_ACL, first_table, 2, UINT_MAX, 0))
-	goto error;
-      res= mysqld_show_fields(thd, first_table,
-			      (lex->wild ? lex->wild->ptr() : NullS),
-			      lex->verbose);
-      break;
-    }
-#endif
-  case SQLCOM_SHOW_KEYS:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    goto error;
-#else
-    {
-      char *db= first_table->db;
-      remove_escape(db);			// Fix escaped '_'
-      remove_escape(first_table->real_name);
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
-		       &first_table->grant.privilege, 0, 0))
-	goto error;				/* purecov: inspected */
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
-	goto error;
-      res= mysqld_show_keys(thd, first_table);
-      break;
-    }
-#endif
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
@@ -4234,7 +4240,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables; tables= tables->next_global)
   {
-    if (tables->derived ||
+    if (tables->derived || tables->schema_table ||
         (tables->table && (int)tables->table->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
@@ -4490,6 +4496,8 @@ mysql_init_select(LEX *lex)
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
   select_lex->select_limit= HA_POS_ERROR;
+  lex->orig_sql_command= SQLCOM_END;
+  lex->wild= 0;
   if (select_lex == &lex->select_lex)
   {
     DBUG_ASSERT(lex->result == 0);
@@ -5286,6 +5294,18 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
+  if (!my_strcasecmp(system_charset_info, ptr->db,
+                     information_schema_name.str))
+  {
+    ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->real_name);
+    if (!schema_table)
+    {
+      net_printf(thd, ER_UNKNOWN_TABLE, ptr->real_name,
+                 information_schema_name.str);
+      DBUG_RETURN(0);
+    }
+    ptr->schema_table= schema_table;
+  }
   ptr->select_lex=  lex->current_select;
   ptr->cacheable_table= 1;
   if (use_index_arg)

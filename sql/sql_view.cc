@@ -188,7 +188,8 @@ int mysql_create_view(THD *thd,
   for (tbl= tables; tbl; tbl= tbl->next_global)
   {
     /* is this table temporary and is not view? */
-    if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view)
+    if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view &&
+        !tbl->schema_table)
     {
       my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
       res= -1;
@@ -494,7 +495,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
          tbl;
          tbl= tbl->next_local)
     {
-      if (tbl->view && !tbl->updatable_view)
+      if ((tbl->view && !tbl->updatable_view) || tbl->schema_table)
       {
         view->updatable_view= 0;
         break;

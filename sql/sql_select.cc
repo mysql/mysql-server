@@ -1221,6 +1221,12 @@ JOIN::exec()
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
 
+  if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
+      get_schema_tables_result(curr_join))
+  {
+    DBUG_VOID_RETURN;
+  }
+
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -2129,6 +2135,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
     s->dependent= tables->dep_tables;
     s->key_dependent= 0;
+    if (tables->schema_table)
+      table->file->records= 2;
 
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
@@ -7724,7 +7732,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	blob_count,group_null_items;
   bool	using_unique_constraint=0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char	*tmpname,path[FN_REFLEN];
+  char	*tmpname,path[FN_REFLEN], filename[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
   Field **reg_field, **from_field, **blob_field;
@@ -7746,14 +7754,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix,
-	    current_pid, temp_pool_slot);
+    sprintf(filename, "%s_%lx_%i", tmp_file_prefix,
+            current_pid, temp_pool_slot);
   else // if we run out of slots or we are not using tempool
-    sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
+    sprintf(filename,"%s%lx_%lx_%x",tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
 
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, path);
+  sprintf(path, "%s%s", mysql_tmpdir, filename);
 
   if (group)
   {
@@ -12879,8 +12888,16 @@ void st_table_list::print(THD *thd, String *str)
     {
       append_identifier(thd, str, db, db_length);
       str->append('.');
-      append_identifier(thd, str, real_name, real_name_length);
-      cmp_name= real_name;
+      if (schema_table)
+      {
+        append_identifier(thd, str, alias, strlen(alias));
+        cmp_name= alias;
+      }
+      else
+      {
+        append_identifier(thd, str, real_name, real_name_length);
+        cmp_name= real_name;
+      }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
