@@ -86,7 +86,6 @@ bool select_union::send_data(List<Item> &values)
     }
     else
       return 1;
-    thd->net.report_error=0; // donno why does it work, but it does ...
   }
   return 0;
 }

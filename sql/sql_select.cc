@@ -324,6 +324,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   this->group= group_list != 0;
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
+  do_send_rows = (row_limit) ? 1 : 0;
   this->unit= unit;
 
 #ifdef RESTRICTED_GROUP
@@ -664,7 +665,7 @@ JOIN::exec()
       result->send_fields(fields_list,1);
       if (!having || having->val_int())
       {
-	if (do_send_rows && unit->select_limit_cnt && result->send_data(fields_list))
+	if (do_send_rows && result->send_data(fields_list))
 	  error= 1;
 	else
 	{
@@ -2611,8 +2612,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->sum_funcs=0;
   join->send_records=(ha_rows) 0;
   join->group=0;
-  join->do_send_rows = 1;
   join->row_limit=join->unit->select_limit_cnt;
+  join->do_send_rows = (join->row_limit) ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -5184,7 +5185,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     error=0;
     if (join->procedure)
       error=join->procedure->send_row(*join->fields);
-    else if (join->do_send_rows && join->unit->select_limit_cnt)
+    else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
