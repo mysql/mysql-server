@@ -1474,6 +1474,59 @@ void Item_typecast::print(String *str)
   str->append(')');
 }
 
+String *Item_char_typecast::val_str(String *str)
+{
+  String *res, *res1;
+  uint32 length;
+
+  if (!charset_conversion && !(res= args[0]->val_str(str)))
+  {
+    null_value= 1;
+    return 0;
+  }
+  else
+  {
+    // Convert character set if differ
+    if (!(res1= args[0]->val_str(&tmp_value)) ||
+	str->copy(res1->ptr(), res1->length(),res1->charset(), cast_cs))
+    {
+      null_value= 1;
+      return 0;
+    }
+    res= str;
+  }
+  
+  /*
+     Cut the tail if cast with length
+     and the result is longer than cast length, e.g.
+     CAST('string' AS CHAR(1))
+  */
+  if (cast_length >= 0 && 
+      (res->length() > (length= (uint32) res->charpos(cast_length))))
+  {						// Safe even if const arg
+    if (!res->alloced_length())
+    {						// Don't change const str
+      str_value= *res;				// Not malloced string
+      res= &str_value;
+    }
+    res->length((uint) length);
+  } 
+  null_value= 0;
+  return res;
+}
+
+void Item_char_typecast::fix_length_and_dec()
+{
+  uint32 char_length;
+  charset_conversion= !my_charset_same(args[0]->collation.collation, cast_cs) &&
+		      args[0]->collation.collation != &my_charset_bin &&
+		      cast_cs != &my_charset_bin;
+  collation.set(cast_cs, DERIVATION_IMPLICIT);
+  char_length= (cast_length >= 0) ? cast_length : 
+	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+  max_length= char_length * cast_cs->mbmaxlen;
+}
+
 String *Item_datetime_typecast::val_str(String *str)
 {
   TIME ltime;

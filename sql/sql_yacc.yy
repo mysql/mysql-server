@@ -642,7 +642,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
-%type <cast_type> cast_type
+%type <cast_type> cast_type cast_type_finalize
 
 %type <udf_type> udf_func_type
 
@@ -2355,11 +2355,19 @@ simple_expr:
 					    6, &my_charset_latin1));
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
-	  { $$= create_func_cast($3, $5, Lex->charset); }
+	  { 
+	    $$= create_func_cast($3, $5, 
+				 Lex->length ? atoi(Lex->length) : -1,
+				 Lex->charset); 
+	  }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'
-	  { $$= create_func_cast($3, $5, Lex->charset); }
+	  {
+	    $$= create_func_cast($3, $5,
+				 Lex->length ? atoi(Lex->length) : -1,
+				 Lex->charset);
+	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
@@ -2800,16 +2808,25 @@ in_sum_expr:
 	  $$= $3;
 	};
 
+cast_type_init:
+	{ Lex->charset= NULL; Lex->length= (char*)0; }
+	;
+
+cast_type_finalize:
+	BINARY			{ $$=ITEM_CAST_BINARY; }
+	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
+	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	;
+
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; }
-	| CHAR_SYM opt_binary	{ $$=ITEM_CAST_CHAR; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; }
+	cast_type_init cast_type_finalize { $$= $2; }
 	;
 
 expr_list:
