@@ -920,6 +920,22 @@ public:
   bool send_data(List<Item> &items);
 };
 
+/* used in independent ALL/ANY optimisation */
+class select_max_min_finder_subselect :public select_subselect
+{
+  Item_cache *cache;
+  bool (select_max_min_finder_subselect::*op)();
+  bool fmax;
+public:
+  select_max_min_finder_subselect(Item_subselect *item, bool mx)
+    :select_subselect(item), cache(0), fmax(mx)
+  {}
+  bool send_data(List<Item> &items);
+  bool cmp_real();
+  bool cmp_int();
+  bool cmp_str();
+};
+
 /* EXISTS subselect interface class */
 class select_exists_subselect :public select_subselect
 {

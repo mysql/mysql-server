@@ -986,6 +986,95 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+bool select_max_min_finder_subselect::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_max_min_finder_subselect::send_data");
+  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
+  List_iterator_fast<Item> li(items);
+  Item *val_item= li++;
+  if (it->assigned())
+  {
+    cache->store(val_item);
+    if ((this->*op)())
+      it->store(0, cache);
+  }
+  else
+  {
+    if (!cache)
+    {
+      cache= Item_cache::get_cache(val_item->result_type());
+      switch (val_item->result_type())
+      {
+      case REAL_RESULT:
+	op= &select_max_min_finder_subselect::cmp_real;
+	break;
+      case INT_RESULT:
+	op= &select_max_min_finder_subselect::cmp_int;
+	break;
+      case STRING_RESULT:
+	op= &select_max_min_finder_subselect::cmp_str;
+	break;
+      case ROW_RESULT:
+        // This case should never be choosen
+	DBUG_ASSERT(0);
+	op= 0;
+      }
+    }
+    cache->store(val_item);
+    it->store(0, cache);
+  }
+  it->assigned(1);
+  DBUG_RETURN(0);
+}
+
+bool select_max_min_finder_subselect::cmp_real()
+{
+  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  double val1= cache->val(), val2= maxmin->val();
+  if (fmax)
+    return (cache->null_value && !maxmin->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       val1 > val2);
+  else
+    return (maxmin->null_value && !cache->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       val1 < val2);
+}
+
+bool select_max_min_finder_subselect::cmp_int()
+{
+  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  longlong val1= cache->val_int(), val2= maxmin->val_int();
+  if (fmax)
+    return (cache->null_value && !maxmin->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       val1 > val2);
+  else
+    return (maxmin->null_value && !cache->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       val1 < val2);
+}
+
+bool select_max_min_finder_subselect::cmp_str()
+{
+  String *val1, *val2, buf1, buf2;
+  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  /*
+    as far as both operand is Item_cache buf1 & buf2 will not be used,
+    but added for safety
+  */
+  val1= cache->val_str(&buf1);
+  val2= maxmin->val_str(&buf1);
+  if (fmax)
+    return (cache->null_value && !maxmin->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       sortcmp(val1, val2, cache->collation.collation) > 0) ;
+  else
+    return (maxmin->null_value && !cache->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       sortcmp(val1, val2, cache->collation.collation) < 0);
+}
+
 bool select_exists_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_exists_subselect::send_data");

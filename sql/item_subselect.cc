@@ -152,14 +152,27 @@ inline table_map Item_subselect::used_tables() const
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(THD *thd,
-						   st_select_lex *select_lex):
-  Item_subselect(), value(0)
+						   st_select_lex *select_lex)
+  :Item_subselect(), value(0)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(thd, select_lex, new select_singlerow_subselect(this));
   max_columns= 1;
   maybe_null= 1;
   max_columns= UINT_MAX;
+  DBUG_VOID_RETURN;
+}
+
+Item_maxmin_subselect::Item_maxmin_subselect(THD *thd,
+					     st_select_lex *select_lex,
+					     bool max)
+  :Item_singlerow_subselect()
+{
+  DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
+  init(thd, select_lex, new select_max_min_finder_subselect(this, max));
+  max_columns= 1;
+  maybe_null= 1;
+  max_columns= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -499,38 +512,50 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       (func == &Item_bool_func2::gt_creator ||
        func == &Item_bool_func2::lt_creator ||
        func == &Item_bool_func2::ge_creator ||
-       func == &Item_bool_func2::le_creator) &&
-      !select_lex->group_list.elements &&
-      !select_lex->with_sum_func)
+       func == &Item_bool_func2::le_creator))
   {
-    Item *item;
-    subs_type type= substype();
-    if (func == &Item_bool_func2::le_creator ||
-	func == &Item_bool_func2::lt_creator)
+    Item *subs;
+    if (!select_lex->group_list.elements &&
+	!select_lex->with_sum_func)
     {
-      /*
-	(ALL && (> || =>)) || (ANY && (< || =<))
-	for ALL condition is inverted
-      */
-      item= new Item_sum_max(*select_lex->ref_pointer_array);
+      Item *item;
+      subs_type type= substype();
+      if (func == &Item_bool_func2::le_creator ||
+	  func == &Item_bool_func2::lt_creator)
+      {
+	/*
+	  (ALL && (> || =>)) || (ANY && (< || =<))
+	  for ALL condition is inverted
+	*/
+	item= new Item_sum_max(*select_lex->ref_pointer_array);
+      }
+      else
+      {
+	/*
+	  (ALL && (< || =<)) || (ANY && (> || =>))
+	  for ALL condition is inverted
+	*/
+	item= new Item_sum_min(*select_lex->ref_pointer_array);
+      }
+      *select_lex->ref_pointer_array= item;
+      select_lex->item_list.empty();
+      select_lex->item_list.push_back(item);
+    
+      if (item->fix_fields(thd, join->tables_list, &item))
+      {
+	DBUG_RETURN(ERROR);
+      }
+      subs= new Item_singlerow_subselect(thd, select_lex);
     }
     else
     {
-      /*
-	(ALL && (< || =<)) || (ANY && (> || =>))
-	for ALL condition is inverted
-      */
-      item= new Item_sum_min(*select_lex->ref_pointer_array);
+      // remove LIMIT placed  by ALL/ANY subquery
+      select_lex->master_unit()->global_parameters->select_limit=
+	HA_POS_ERROR;
+      subs= new Item_maxmin_subselect(thd, select_lex,
+				      (func == &Item_bool_func2::le_creator ||
+				       func == &Item_bool_func2::lt_creator));
     }
-    *select_lex->ref_pointer_array= item;
-    select_lex->item_list.empty();
-    select_lex->item_list.push_back(item);
-
-    if (item->fix_fields(thd, join->tables_list, &item))
-    {
-      DBUG_RETURN(ERROR);
-    }
-
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex.current_select, *up;
     thd->lex.current_select= up= current->return_after_parsing();
@@ -540,8 +565,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       DBUG_RETURN(ERROR);
     }
     thd->lex.current_select= current;
-    substitution= (*func)(left_expr,
-			  new Item_singlerow_subselect(thd, select_lex));
+    substitution= (*func)(left_expr, subs);
     DBUG_RETURN(OK);
   }
 
