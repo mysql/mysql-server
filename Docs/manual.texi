@@ -632,6 +632,7 @@ Examples of Common Queries
 * example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       
+* Calculating days::            
 
 Queries from Twin Project
 
@@ -16548,6 +16549,7 @@ mysql> select 2 > 2;
         -> 0
 @end example
 
+@cindex @code{NULL}, testing for null
 @findex <=> (Equal to)
 @item <=>
 Null safe equal:
@@ -16556,6 +16558,7 @@ mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
         -> 1 1 0
 @end example
 
+@cindex @code{NULL}, testing for null
 @findex IS NULL
 @findex IS NOT NULL
 @item IS NULL
@@ -16640,6 +16643,7 @@ mysql> select ISNULL(1/0);
 Note that a comparison of @code{NULL} values using @code{=} will always be
 false!
 
+@cindex @code{NULL}, testing for null
 @findex COALESCE()
 @item COALESCE(list)
 Returns first non-@code{NULL} element in list:
@@ -16857,6 +16861,7 @@ make string comparison even more flexible.
 @subsection Control Flow Functions
 
 @table @code
+@cindex @code{NULL}, testing for null
 @findex IFNULL()
 @item IFNULL(expr1,expr2)
 If @code{expr1} is not @code{NULL}, @code{IFNULL()} returns @code{expr1},
@@ -17133,10 +17138,13 @@ mysql> select SQRT(20);
 
 @findex PI()
 @item PI()
-Returns the value of PI:
+Returns the value of PI. The default shown number of decimals is 5, but
+@strong{MySQL} internally uses the full double precession for PI.
 @example
 mysql> select PI();
         -> 3.141593
+mysql> SELECT PI()+0.000000000000000000;
+        -> 3.141592653589793116
 @end example
 
 @findex COS()
@@ -19265,7 +19273,7 @@ The options work for all table types, if not otherwise indicated:
 @item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM).
 @item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard @strong{MySQL} version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
-@item @code{ROW_FORMAT} @tab Defines how the rows should be stored (for the future).
+@item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently you can only use the DYNAMIC and STATIC options for MyISAM tables.
 @end multitable
 
 When you use a @code{MyISAM} table, @strong{MySQL} uses the product of
@@ -19456,9 +19464,8 @@ normally do @code{ALTER TABLE} that often this isn't that high on our TODO.
 
 @itemize @bullet
 @item
-To use @code{ALTER TABLE}, you need @strong{select}, @strong{insert},
-@strong{delete}, @strong{update}, @strong{create}, and @strong{drop}
-privileges on the table.
+To use @code{ALTER TABLE}, you need @strong{ALTER}, @strong{INSERT},
+and @strong{CREATE} privileges on the table.
 
 @item
 @code{IGNORE} is a @strong{MySQL} extension to ANSI SQL92.
@@ -19548,7 +19555,7 @@ assigns a default value, as described in
 @findex DROP INDEX
 @item
 @code{DROP INDEX} removes an index. This is a @strong{MySQL} extension to
-ANSI SQL92.
+ANSI SQL92. @xref{DROP INDEX}.
 
 @item
 If columns are dropped from a table, the columns are also removed from any
@@ -22240,8 +22247,8 @@ tables to use the slower key cache method to create the index.
 @strong{NOTE} that this parameter is given in megabytes!
 
 @item @code{myisam_max_sort_file_size}
-The maximum size of the temporary file @strong{MySQL} is allowed to create
-to while recreating the index (during @code{REPAIR}, @code{ALTER TABLE}
+The maximum size of the temporary file @strong{MySQL} is allowed to use
+while recreating the index (during @code{REPAIR}, @code{ALTER TABLE}
 or @code{LOAD DATA INFILE}.  If the file size would be bigger than this,
 the index will be created through the key cache (which is slower).
 @strong{NOTE} that this parameter is given in megabytes!
@@ -22556,8 +22563,23 @@ combination after it has found the first matching row.
 
 @item Not exists
 @strong{MySQL} was able to do a @code{LEFT JOIN} optimization on the
-query and will not examine more rows in this table for a row combination
-after it finds one row that matches the @code{LEFT JOIN} criteria.
+query and will not examine more rows in this table for the previous row
+combination after it finds one row that matches the @code{LEFT JOIN} criteria.
+
+Here is an example for this:
+
+@example
+SELECT * FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.id IS NULL;
+@end example
+
+Assume that @code{t2.id} is defined with @code{NOT NULL}.  In this case
+@strong{MySQL} will scan @code{t1} and look up the rows in @code{t2}
+through @code{t1.id}. If @strong{MySQL} finds a matching row in
+@code{t2}, it knows that @code{t2.id} can never be @code{NULL}, and will
+not scan through the rest of the rows in @code{t2} that has the same
+@code{id}.  In other words, for each row in @code{t1}, @strong{MySQL}
+only needs to do a single lookup in @code{t2}, independent of how many
+matching rows there are in @code{t2}.
 
 @item @code{range checked for each record (index map: #)}
 @strong{MySQL} didn't find a real good index to use. It will, instead, for
@@ -22814,6 +22836,9 @@ the @code{FROM} clause.
 @{DESCRIBE | DESC@} tbl_name @{col_name | wild@}
 @end example
 
+@code{DESCRIBE} is a shortcut for @code{SHOW COLUMNS FROM}.
+@xref{SHOW DATABASE INFO}.
+
 @code{DESCRIBE} provides information about a table's columns.  @code{col_name}
 may be a column name or a string containing the SQL @samp{%} and @samp{_}
 wild-card characters.
@@ -22904,6 +22929,18 @@ TABLES} releases any locks held by the current thread.  All tables that
 are locked by the current thread are automatically unlocked when the
 thread issues another @code{LOCK TABLES}, or when the connection to the
 server is closed.
+
+The main reasons to use @code{LOCK TABLES} are:
+
+@itemize @bullet
+@item
+Emulate transactions with not transaction safe tables.
+@item
+To get more speed with @code{MyISAM} tables when inserting/updating data
+over many statements. The main reason this gives more speed is that
+@strong{MySQL} will not flush the key cache for the locked tables until
+@code{UNLOCK TABLES} is called.
+@end itemize
 
 If a thread obtains a @code{READ} lock on a table, that thread (and all other
 threads) can only read from the table. If a thread obtains a @code{WRITE}
@@ -24429,7 +24466,7 @@ mysql> ALTER TABLE tbl_name TYPE = MYISAM;
 @end example
 
 @cindex tables, @code{HEAP}
-@node HEAP, BDB, ISAM, Table types
+@node HEAP, InnoDB, ISAM, Table types
 @section HEAP Tables
 
 @code{HEAP} tables use a hashed index and are stored in memory.  This
@@ -24506,7 +24543,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 
 @code{sizeof(char*)} is 4 on 32-bit machines and 8 on 64-bit machines.
 
-@node InnoDB,  , GEMINI, Table types
+@node InnoDB, BDB, HEAP, Table types
 @section InnoDB Tables
 
 @menu
@@ -25807,7 +25844,7 @@ Finland
 
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
-@node BDB, GEMINI, HEAP, Table types
+@node BDB, GEMINI, InnoDB, Table types
 @section BDB or Berkeley_DB Tables
 
 @menu
@@ -26093,7 +26130,7 @@ not trivial).
 @end itemize
 
 @cindex GEMINI tables
-@node GEMINI, InnoDB, BDB, Table types
+@node GEMINI,  , BDB, Table types
 @section GEMINI Tables
 
 @cindex GEMINI tables, overview
@@ -28710,6 +28747,7 @@ mysql> SELECT * FROM shop;
 * example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       
+* Calculating days::            
 @end menu
 
 @node example-Maximum-column, example-Maximum-row, Examples, Examples
@@ -28966,7 +29004,7 @@ SELECT s.* FROM persons p, shirts s
 @findex UNION
 @cindex searching, two keys
 @cindex keys, searching on two
-@node Searching on two keys,  , example-Foreign keys, Examples
+@node Searching on two keys, Calculating days, example-Foreign keys, Examples
 @subsection Searching on Two Keys
 
 @strong{MySQL} doesn't yet optimize when you search on two different
@@ -28997,6 +29035,35 @@ DROP TABLE tmp;
 @end example
 
 The above way to solve this query is in effect an @code{UNION} of two queries.
+
+@cindex bit_functions, example
+@findex BIT_OR
+@findex BIT_COUNT
+@findex <<
+@node Calculating days,  , Searching on two keys, Examples
+@subsection Calculating visits per day
+
+The following shows an idea of how you can use the bit group functions
+to calculate the number of days per month a user has visited a web page.
+
+@example
+CREATE TABLE t1 (year YEAR(4), month INT(2) UNSIGNED ZEROFILL, day INT(2) UNSIGNED ZEROFILL);                                                            
+INSERT INTO t1 VALUES(2000,1,1),(2000,1,20),(2000,1,30),(2000,2,2),(2000,2,23),(2000,2,23);
+
+SELECT year,month,BIT_COUNT(BIT_OR(1<<day)) AS days FROM t1 GROUP BY year,month;
+
+Which returns:
+
++------+-------+------+
+| year | month | days |
++------+-------+------+
+| 2000 |    01 |    3 |
+| 2000 |    02 |    2 |
++------+-------+------+
+@end example
+
+The above calculates how many different days was used for a given
+year/month combination, with automatic removal of duplicate entries.
 
 @cindex modes, batch
 @cindex batch mode
@@ -39167,7 +39234,7 @@ directory and delete all files that have names starting with @code{A-} or
 If something goes wrong with the renaming operation, @strong{MySQL} tries to
 undo the changes.  If something goes seriously wrong (this shouldn't happen,
 of course), @strong{MySQL} may leave the old table as @file{B-xxx}, but a
-simple rename should get your data back.
+simple rename on the system level should get your data back.
 
 @cindex reordering, columns
 @cindex columns, changing
@@ -46356,6 +46423,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Don't anymore support the client protocol prior to 3.21.
+@item
+Don't include the old C API functions @code{mysql_drop_db},
+@code{mysql_create_db} and @code{mysql_connect}, if not compiled with
+@code{USE_OLD_FUNCTIONS}.
+@item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
 Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
@@ -51816,7 +51889,7 @@ The @code{mysqld} will support all standard @strong{MySQL} features and
 one can use it in a threaded client to run different queries in each
 thread.
 @item
-Replication should work with @code{RAND()}.
+Replication should work with @code{RAND()} and user variables @code{@@var}.
 @item
 Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the
