@@ -1709,6 +1709,7 @@ int ha_berkeley::extra(enum ha_extra_function operation)
 
 int ha_berkeley::reset(void)
 {
+  ha_berkeley::extra(HA_EXTRA_RESET);
   key_read=0;					// Reset to state after open
   return 0;
 }

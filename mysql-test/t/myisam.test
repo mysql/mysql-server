@@ -479,3 +479,26 @@ checksum table t1, t2, t3;
 checksum table t1, t2, t3 extended;
 #show table status;
 drop table t1,t2;
+
+create table t1 (a int, key (a));
+show keys from t1;
+alter table t1 disable keys;
+show keys from t1;
+create table t2 (a int);
+let $i=1000;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  eval insert t2 values (rand()*100000);
+}
+--enable_query_log
+insert t1 select * from t2;
+show keys from t1;
+alter table t1 enable keys;
+show keys from t1;
+alter table t1 engine=heap;
+alter table t1 disable keys;
+show keys from t1;
+drop table t1,t2;
+

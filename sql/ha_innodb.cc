@@ -4541,16 +4541,6 @@ ha_innobase::extra(
 }
 
 /**********************************************************************
-????????????? */
-
-int
-ha_innobase::reset(void)
-/*====================*/
-{
-  	return(0);
-}
-
-/**********************************************************************
 MySQL calls this function at the start of each SQL statement inside LOCK
 TABLES. Inside LOCK TABLES the ::external_lock method does not work to
 mark SQL statement borders. Note also a special case: if a temporary table

@@ -237,11 +237,6 @@ int ha_isam::extra(enum ha_extra_function operation)
   return nisam_extra(file,operation);
 }
 
-int ha_isam::reset(void)
-{
-  return nisam_extra(file,HA_EXTRA_RESET);
-}
-
 int ha_isam::external_lock(THD *thd, int lock_type)
 {
   if (!table->tmp_table)
