@@ -1124,14 +1124,19 @@ void
 mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 {
   TABLE *table;
+  int res;
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->real_name));
 
-  if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
+  table_list->lock_type= TL_UNLOCK;
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_VOID_RETURN;
   }
+  table= table_list->table;
+
   List<Item> field_list;
 
   Field **ptr,*field;
