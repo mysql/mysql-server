@@ -44880,7 +44880,7 @@ Floating point numbers cause confusion sometimes, because these numbers
 are not stored as exact values inside computer architecture. What one
 can see on the screen usually is not the exact value of the number.
 
-Field types @code{FLOAT} and @code{DECIMAL} are such.
+Field types @code{FLOAT}, @code{DOUBLE} and @code{DECIMAL} are such.
 
 @example
 CREATE TABLE t1 (i int, d1 decimal(9,2), d2 decimal(9,2));
