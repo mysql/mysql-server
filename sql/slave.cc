@@ -1236,6 +1236,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     goto err;
   }
   
+connected:
+  
   while (!slave_killed(thd))
   {
       thd->proc_info = "Requesting binlog dump";
@@ -1278,9 +1280,8 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      goto err;
 	    }
 
-	  continue;
+	  goto connected;
 	}
-
 
       while(!slave_killed(thd))
 	{
@@ -1291,7 +1292,6 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      sql_print_error("Slave thread killed while reading event");
 	      goto err;
 	    }
-
 	  	  
 	  if (event_len == packet_error)
 	  {
@@ -1329,8 +1329,9 @@ reconnecting to retry, log '%s' position %s", RPL_LOG_NAME,
 reconnect done to recover from failed read");
 	        goto err;
 	      }
-	    break;
-	  }
+	    
+	    goto connected;
+	  } // if(event_len == packet_error)
 	  
 	  thd->proc_info = "Processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
@@ -1373,9 +1374,8 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	        events_till_disconnect++;
 	    }
 #endif	  
-
-	}
-    }
+	} // while(!slave_killed(thd)) - read/exec loop
+  } // while(!slave_killed(thd)) - slave loop
 
   // error = 0;
  err:
