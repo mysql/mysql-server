@@ -755,24 +755,32 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     {
       char* backup_dir = thd->lex.backup_dir;
       char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-      int backup_dir_len = strlen(backup_dir);
       char* table_name = table->name;
-      int table_name_len = strlen(table_name);
       char* db = thd->db ? thd->db : table->db;
 	
-      if(backup_dir_len + table_name_len + 4 >= FN_REFLEN)
+      if(!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
 	return -1; // protect buffer overflow
 	    
-      memcpy(src_path, backup_dir, backup_dir_len);
-      char* p = src_path + backup_dir_len;
-      *p++ = '/';
-      memcpy(p, table_name, table_name_len);
-      p += table_name_len;
-      *p = 0;
       sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
 
-      if(my_copy(fn_format(src_path, src_path, "", reg_ext, 4),
-		 fn_format(dst_path, dst_path, "", reg_ext, 4),
+      int lock_retcode;
+      pthread_mutex_lock(&LOCK_open);
+      if((lock_retcode = lock_table_name(thd, table)) < 0)
+	{
+	  pthread_mutex_unlock(&LOCK_open);
+	  return -1;
+	}
+      
+      if(lock_retcode && wait_for_locked_table_names(thd, table))
+	{
+          pthread_mutex_unlock(&LOCK_open);
+	  return -1;
+	}
+      pthread_mutex_unlock(&LOCK_open);
+      
+      if(my_copy(src_path,
+		 fn_format(dst_path, dst_path,"",
+			   reg_ext, 4),
 		 MYF(MY_WME)))
 	{
            return send_check_errmsg(thd, table, "restore",
@@ -840,7 +848,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
 	// now we should be able to open the partially restored table
 	// to finish the restore in the handler later on
-	table->table = open_ltable(thd, table, lock_type);
+	table->table = reopen_name_locked_table(thd, table);
       }
     
     if (!table->table)
