@@ -546,7 +546,6 @@ innobase_query_caching_of_table_permitted(
 {
 	ibool	is_autocommit;
 	trx_t*	trx;
-	char*	ptr;
 	char	norm_name[1000];
 
 	ut_a(full_name_len < 999);
@@ -606,7 +605,7 @@ innobase_query_caching_of_table_permitted(
 #ifdef __WIN__
 	/* Put to lower case */
 
-	ptr = norm_name;
+	char*	ptr = norm_name;
 
 	while (*ptr != '\0') {
 	        *ptr = tolower(*ptr);
@@ -1391,7 +1390,6 @@ ha_innobase::open(
 	uint 		test_if_locked)	/* in: not used */
 {
 	dict_table_t*	ib_table;
-  	int 		error	= 0;
   	char		norm_name[1000];
 
 	DBUG_ENTER("ha_innobase::open");

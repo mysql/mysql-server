@@ -321,7 +321,7 @@ static struct my_option my_long_options[] =
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
     (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXLEN, 10,
     HA_FT_MAXLEN, 0, 1, 0},
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -1032,8 +1032,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
-	  VOID(init_key_cache(dflt_keycache,opt_key_cache_block_size,
-                              param->use_buffers,&dflt_key_cache_var));
+	  VOID(init_key_cache(dflt_key_cache,opt_key_cache_block_size,
+                              param->use_buffers, 0, 0));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1047,7 +1047,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=flush_blocks(param, *share->key_cache, share->kfile);
+	error|=flush_blocks(param, share->key_cache, share->kfile);
 	VOID(end_io_cache(&param->read_cache));
       }
       if (!error)
@@ -1456,8 +1456,8 @@ static int mi_sort_records(MI_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_keycache, opt_key_cache_block_size, param->use_buffers,
-                 &dflt_key_cache_var);
+  init_key_cache(dflt_key_cache, opt_key_cache_block_size, param->use_buffers,
+                 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
@@ -1571,7 +1571,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(flush_blocks(param, *share->key_cache, share->kfile) |
+  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
 	      got_error);
 } /* sort_records */
 

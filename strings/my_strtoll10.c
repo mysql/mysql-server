@@ -82,7 +82,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
   unsigned long i, j, k;
   ulonglong li;
   int negative;
-  long cutoff, cutoff2, cutoff3;
+  ulong cutoff, cutoff2, cutoff3;
 
   s= nptr;
   /* If fixed length string */

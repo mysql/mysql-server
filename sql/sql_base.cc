@@ -35,7 +35,6 @@ HASH assign_cache;
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
-static void free_assign_entry(KEY_CACHE_ASMT *key_cache_asmt);
 static void mysql_rm_tmp_tables(void);
 
 

@@ -251,7 +251,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     }
 
     /* going up to the first-level tree to continue search there */
-    _mi_dpointer(info, ftbw->word+ftbw->off+HA_FT_WLEN, ftbw->key_root);
+    _mi_dpointer(info, (uchar*) (ftbw->word+ftbw->off+HA_FT_WLEN),
+		 ftbw->key_root);
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;
