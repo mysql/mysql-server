@@ -162,6 +162,14 @@ static bool test_if_real(const char *str,int length)
 }
 
 
+static inline uint field_length_without_space(const char *ptr, uint length)
+{
+  const char *end= ptr+length;
+  while (end > ptr && end[-1] == ' ')
+    end--;
+  return (uint) (end-ptr);
+}
+
 /****************************************************************************
 ** Functions for the base classes
 ** This is an unpacked number.
@@ -3673,8 +3681,21 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
   if (binary_flag)
     return memcmp(a_ptr,b_ptr,field_length);
-  else
-    return my_sortcmp(a_ptr,b_ptr,field_length);
+#ifdef USE_STRCOLL
+  if (use_strcoll(default_charset_info))
+  {
+    /*
+      We have to remove end space to be able to compare multi-byte-characters
+      like in latin_de 'ae' and 0xe4
+    */
+    uint a_length= field_length_without_space(a_ptr, field_length);
+    uint b_length= field_length_without_space(b_ptr, field_length);
+    return my_strnncoll(default_charset_info,
+			(const uchar*) a_ptr, a_length,
+			(const uchar*) b_ptr, b_length);
+  }
+#endif
+  return my_sortcmp(a_ptr,b_ptr,field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)

@@ -1441,6 +1441,37 @@ uint _mi_keylength(MI_KEYDEF *keyinfo, register uchar *key)
 } /* _mi_keylength */
 
 
+/*
+  Calculate length of part key.
+
+  Used in mi_rkey() to find the key found for the key-part that was used.
+  This is needed in case of multi-byte character sets where we may search
+  after '0xDF' but find 'ss'
+*/
+
+uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
+			MI_KEYSEG *end)
+{
+  reg1 MI_KEYSEG *keyseg;
+  uchar *start= key;
+
+  for (keyseg=keyinfo->seg ; keyseg != end ; keyseg++)
+  {
+    if (keyseg->flag & HA_NULL_PART)
+      if (!*key++)
+        continue;
+    if (keyseg->flag & (HA_SPACE_PACK | HA_BLOB_PART | HA_VAR_LENGTH))
+    {
+      uint length;
+      get_key_length(length,key);
+      key+=length;
+    }
+    else
+      key+= keyseg->length;
+  }
+  return (uint) (key-start);
+}
+
         /* Move a key */
 
 uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, uchar *from)
