@@ -55,7 +55,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  TABLE_LIST *table;
 	  for (table=tables; table ; table=table->next)
 	  {
-	    if (table->on_expr || (table->table->file->option_flag() &
+	    if (table->on_expr || (table->table->file->table_flags() &
 				   HA_NOT_EXACT_COUNT))
 	    {
 	      const_result=0;			// Can't optimize left join
@@ -141,7 +141,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    break;
 	  }
 	  TABLE *table=((Item_field*) expr)->field->table;
-	  if ((table->file->option_flag() & HA_NOT_READ_AFTER_KEY))
+	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
 	  {
 	    const_result=0;
 	    break;
@@ -294,16 +294,22 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
     return 0;				// Not part of a key. Skip it
 
   TABLE *table=field->table;
-  if (table->file->option_flag() & HA_WRONG_ASCII_ORDER)
-    return(0);				// Can't use key to find last row
   uint idx=0;
 
   /* Check if some key has field as first key part */
   if ((field->key_start & field->table->keys_in_use_for_query) &&
       (! cond || ! (cond->used_tables() & table->map)))
   {
-    for (key_map key=field->key_start ; !(key & 1) ; idx++)
-      key>>=1;
+    for (key_map key=field->key_start ;;) 
+    {
+      for (; !(key & 1) ; idx++)
+	key>>=1;
+      if (!(table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER))
+	break;					// Key is ok
+      /* Can't use this key, for looking up min() or max(), end if last one */
+      if (key == 1)
+	return 0;
+    }
     ref->key_length=0;
     ref->key=idx;
     if (field->part_of_key & ((key_map) 1 << idx))
@@ -323,6 +329,7 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
     return 0;
 
   KEY *keyinfo,*keyinfo_end;
+  idx=0;
   for (keyinfo=table->key_info, keyinfo_end=keyinfo+table->keys ;
        keyinfo != keyinfo_end;
        keyinfo++,idx++)
@@ -338,7 +345,8 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 	   part++)
       {
 	if (!part_of_cond(cond,part->field) ||
-	    left_length < part->store_length)
+	    left_length < part->store_length ||
+	    (table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER))
 	  break;
 	// Save found constant
 	if (part->null_bit)

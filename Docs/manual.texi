@@ -6147,6 +6147,9 @@ and are configured with the following compilers and options:
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
+@item Solaris 2.8 sparc with @code{gcc 2.95.3}
+@code{CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex "--with-server-suffix=" --enable-thread-safe-client --enable-local-infile --enable-assembler --disable-shared}
+
 @item Linux 2.0.33 i386 with @code{pgcc} 2.90.29 (@code{egcs} 1.0.3a)
 @code{CFLAGS="-O3 -mpentium -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 
@@ -10899,16 +10902,10 @@ CC=gcc CXX=gcc ./configure ... (options)
 
 @enumerate
 @item
-For OpenServer 5.0.X you need to use GDS in Skunkware 95 (95q4c).  This
-is necessary because GNU @code{gcc} 2.7.2 in Skunkware 97 does not have
-GNU @code{as}.  You can also use @code{egcs} 1.1.2 or newer
-@uref{http://www.egcs.com/}.  If you are using @code{egcs} 1.1.2 you have
-to execute the following command:
-
-@example
-shell> cp -p /usr/include/pthread/stdtypes.h \
-/usr/local/lib/gcc-lib/i386-pc-sco3.2v5.0.5/egcs-2.91.66/include/pthread/
-@end example
+For OpenServer 5.0.X you need to use gcc-2.95.2p1 or newer from the
+Skunkware.  http://www.caldera.com/skunkware/ and choose browser
+OpenServer packages or by ftp to ftp2.caldera.com in the
+pub/skunkware/osr5/devtools/gcc directory.
 
 @item
 You need the port of GCC 2.5.x for this product and the Development
@@ -10994,7 +10991,6 @@ MySQL should automatically detect FSU Pthreads and link @code{mysqld}
 with @code{-lgthreads -lsocket -lgthreads}.
 
 @item
-
 The Caldera (SCO) development libraries are re-entrant in FSU Pthreads.
 Caldera claim sthat its libraries' functions are re-entrant, so they must
 be reentrant with FSU Pthreads.  FSU Pthreads on OpenServer tries to use
@@ -11064,7 +11060,18 @@ CC=cc CXX=CC ./configure --prefix=/usr/local/mysql
 
 If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 
+Caldera provides libsocket.so.2 at
+@uref{ftp://stage.caldera.com/pub/security/tools} for 
+pre-OSR506 security fixes. Also, the telnetd fix at
+@url{ftp://stage.caldera.com/pub/security/openserver/CSSA-2001-SCO.10/}
+as both libsocket.so.2 and libresolv.so.1 with instructions for
+installing on pre-OSR506 systems.
+
+It's probably a good idea to install the above patches before trying to
+compile/use MySQL.
+
 @node OS/2, BeOS, Other Unix Notes, Operating System Specific Notes
+
 @subsection OS/2 Notes
 
 MySQL uses quite a few open files. Because of this, you should add
@@ -46625,7 +46632,7 @@ Many crashes of MySQL are caused by corrupted index / data
 files.  MySQL will update the data on disk, with the
 @code{write()} system call, after every SQL statement and before the
 client is notified about the result. (This is not true if you are running
-with @code{delayed_key_writes}, in which case only the data is written.)
+with @code{delay_key_write}, in which case only the data is written.)
 This means that the data is safe even if @code{mysqld} crashes, as the OS will
 ensure that the not flushed data is written to disk.  You can force
 MySQL to sync everything to disk after every SQL command by
@@ -48911,6 +48918,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+@code{INET_NTOA()} now returns @code{NULL} if you give it a too big argument.
+@item
 Fix @code{SQL_CALC_FOUND_ROWS} to work with @code{UNION}s. It will work only
 if the first @code{SELECT} has this option and if there is global @code{LIMIT}
 for the entire statement. For the moment, this requires using parentheses for
@@ -49351,7 +49360,7 @@ not yet 100% confident in this code.
 @item
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
 @item
-Fixed bug in character table converts.
+Fixed bug in character table converts when used with big ( > 64K) strings.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
@@ -51248,7 +51257,7 @@ Put @code{CREATE TEMPORARY TABLE} commands in the update log.
 @item
 Fixed bug in handling of masked IP numbers in the privilege tables.
 @item
-Fixed bug with @code{delayed_key_writes} tables and @code{CHECK TABLE}.
+Fixed bug with @code{delay_key_write} tables and @code{CHECK TABLE}.
 @item
 Added @code{replicate-do-db} and @code{replicate-ignore-db} options to
 @code{mysqld}, to restrict which databases get replicated.
@@ -51642,7 +51651,7 @@ threads are reading from the table.
 Added @code{max_write_lock_count} variable to @code{mysqld} to force a
 @code{READ} lock after a certain number of @code{WRITE} locks.
 @item
-Inverted flag @code{delayed_key_write} on @code{show variables}.
+Inverted flag @code{delay_key_write} on @code{show variables}.
 @item
 Renamed @code{concurrency} variable to @code{thread_concurrency}.
 @item

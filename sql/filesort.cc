@@ -303,7 +303,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   ref_pos= ref_buff;
   quick_select=select && select->quick;
   record=0;
-  flag= ((!indexfile && file->option_flag() & HA_REC_NOT_IN_SEQ)
+  flag= ((!indexfile && file->table_flags() & HA_REC_NOT_IN_SEQ)
 	 || quick_select);
   if (indexfile || flag)
     ref_pos= &file->ref[0];

@@ -982,7 +982,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       s->dependent=(table_map) 0;
     s->key_dependent=(table_map) 0;
     if ((table->system || table->file->records <= 1) && ! s->dependent &&
-	!(table->file->option_flag() & HA_NOT_EXACT_COUNT) &&
+	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
         !table->fulltext_searched)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -1073,7 +1073,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	if (s->dependent & ~(join->const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
-	    !(table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{					// system table
 	  int tmp;
 	  s->type=JT_SYSTEM;
@@ -1882,7 +1882,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    ** Set tmp to (previous record count) * (records / combination)
 	    */
 	    if ((found_part & 1) &&
-		!(table->file->option_flag() & HA_ONLY_WHOLE_INDEX))
+		!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX))
 	    {
 	      max_key_part=max_part_bit(found_part);
 	      /* Check if quick_range could determinate how many rows we
@@ -1970,7 +1970,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       if ((records >= s->found_records || best > s->read_time) &&
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
-	  !((s->table->file->option_flag() & HA_TABLE_SCAN_ON_INDEX) &&
+	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
 	    s->table->used_keys && best_key))
       {						// Check full join
 	if (s->on_expr)
@@ -4899,7 +4899,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	JOIN_TAB *jt=join->join_tab;
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
-	    !(jt->table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
@@ -5533,7 +5533,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-	  if (table->file->option_flag() & HA_NOT_READ_PREFIX_LAST)
+	  if (table->file->table_flags() & HA_NOT_READ_PREFIX_LAST)
 	    DBUG_RETURN(1);
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
