@@ -155,6 +155,10 @@ os_mutex_t os_file_count_mutex;
 ulint	os_file_n_pending_preads  = 0;
 ulint	os_file_n_pending_pwrites = 0;
 
+/* These are not protected by any mutex */
+ulint os_n_pending_writes = 0;
+ulint os_n_pending_reads = 0;
+
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 
@@ -1987,7 +1991,11 @@ try_again:
 		goto error_handling;
 	} 
 	
+        os_n_pending_reads++;
+        
 	ret = ReadFile(file, buf, n, &len, NULL);
+
+        os_n_pending_reads--;
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 	
@@ -2001,7 +2009,11 @@ try_again:
 	os_bytes_read_since_printout += n;
 
 try_again:
+        os_n_pending_reads++;
+        
 	ret = os_file_pread(file, buf, n, offset, offset_high);
+
+        os_n_pending_reads--;
 
 	if ((ulint)ret == n) {
 
@@ -2090,8 +2102,12 @@ try_again:
 		goto error_handling;
 	} 
 	
+        os_n_pending_reads++;
+        
 	ret = ReadFile(file, buf, n, &len, NULL);
 
+        os_n_pending_reads--;
+        
 	os_mutex_exit(os_file_seek_mutexes[i]);
 	
 	if (ret && len == n) {
@@ -2104,7 +2120,11 @@ try_again:
 	os_bytes_read_since_printout += n;
 
 try_again:
+        os_n_pending_reads++;
+
 	ret = os_file_pread(file, buf, n, offset, offset_high);
+
+        os_n_pending_reads--;
 
 	if ((ulint)ret == n) {
 
@@ -2187,7 +2207,11 @@ retry:
 		return(FALSE);
 	} 
 
+        os_n_pending_writes++;
+        
 	ret = WriteFile(file, buf, n, &len, NULL);
+
+        os_n_pending_writes--;
 	
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
@@ -2248,8 +2272,12 @@ retry:
 #else
 	ssize_t	ret;
 	
+        os_n_pending_writes++;
+        
 	ret = os_file_pwrite(file, buf, n, offset, offset_high);
 
+        os_n_pending_writes--;
+        
 	if ((ulint)ret == n) {
 
 		return(TRUE);
