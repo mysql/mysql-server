@@ -1437,7 +1437,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd,table->table_cache_key,table_name);
-    if (rename_temporary_table(new_table, new_db, new_name))
+    if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));
@@ -1615,6 +1615,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       (copy_end++)->set(*ptr,def->field,0);
   }
 
+  found_count=delete_count=0;
+
   if(order) {
     from->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                          MYF(MY_FAE | MY_ZEROFILL));
@@ -1632,7 +1634,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
 
-  found_count=delete_count=0;
   next_field=to->next_number_field;
   while (!(error=info.read_record(&info)))
   {

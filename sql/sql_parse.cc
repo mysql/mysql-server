@@ -860,7 +860,7 @@ mysql_execute_command(void)
   TABLE_LIST *tables=(TABLE_LIST*) lex->table_list.first;
   DBUG_ENTER("mysql_execute_command");
 
-  if(thd->slave_thread && table_rules_on && tables && !tables_ok(thd,tables))
+  if(table_rules_on && thd->slave_thread && tables && !tables_ok(thd,tables))
     DBUG_VOID_RETURN; // skip if we are in the slave thread, some table
   // rules have been given and the table list says the query should not be
   // replicated
