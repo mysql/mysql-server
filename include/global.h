@@ -105,6 +105,7 @@
 #define _SYS_STREAM_H
 #define _AIX32_CURSES
 #define ulonglong2double(A) my_ulonglong2double(A)
+#define my_off_t2double(A)  my_ulonglong2double(A)
 #ifdef	__cplusplus
 extern "C" {
 #endif
