@@ -3028,14 +3028,13 @@ static void usage(void)
   puts("\
   -O, --set-variable var=option\n\
 			Give a variable an value. --help lists variables\n\
-  -Sg, --skip-grant-tables\n\
-			Start without grant tables. This gives all users\n\
-			FULL ACCESS to all tables!\n\
   --safe-mode		Skip some optimize stages (for testing)\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
 			Ignore the delay_key_write option for all tables\n\
+  --skip-grant-tables	Start without grant tables. This gives all users\n\
+			FULL ACCESS to all tables!\n\
   --skip-host-cache	Don't cache host names\n\
   --skip-locking	Don't use system locking. To use isamchk one has\n\
 			to shut down the server.\n\
@@ -3172,7 +3171,7 @@ static void set_options(void)
 #endif
 
 #if defined( HAVE_mit_thread ) || defined( __WIN__ ) || defined( HAVE_LINUXTHREADS )
-  my_disable_locking = 1;
+  my_disable_locking=myisam_single_user= 1;
 #endif
   my_bind_addr = htonl( INADDR_ANY );
 }
@@ -3264,20 +3263,6 @@ static void get_options(int argc,char **argv)
     case 'T':
       test_flags= optarg ? (uint) atoi(optarg) : 0;
       opt_endinfo=1;
-      break;
-    case 'S':
-      if (!optarg)
-	opt_specialflag|= SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE;
-      else if (!strcmp(optarg,"l"))
-	my_disable_locking=1;
-      else if (!strcmp(optarg,"g"))
-	opt_noacl=1;
-      else
-      {
-	fprintf(stderr,"%s: Unrecognized option: %s\n",my_progname,optarg);
-	use_help();
-	exit(1);
-      }
       break;
     case (int) OPT_BIG_TABLES:
       thd_startup_options|=OPTION_BIG_TABLES;
@@ -3456,7 +3441,7 @@ static void get_options(int argc,char **argv)
       opt_noacl=1;
       break;
     case (int) OPT_SKIP_LOCK:
-      my_disable_locking=1;
+      my_disable_locking=myisam_single_user= 1;
       break;
     case (int) OPT_SKIP_HOST_CACHE:
       opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -4022,7 +4007,7 @@ static int get_service_parameters()
     }
     else if ( lstrcmp(szKeyValueName, TEXT("KeyBufferSize")) == 0 )
     {
-      SET_CHANGEABLE_VARVAL( "key_buffer" );
+      SET_CHANGEABLE_VARVAL( "key_buffer_size" );
     }
     else if ( lstrcmp(szKeyValueName, TEXT("LongQueryTime")) == 0 )
     {

@@ -32,7 +32,7 @@ my_string myisam_log_filename=(char*) "myisam.log";
 File	myisam_log_file= -1;
 uint	myisam_quick_table_bits=9;
 uint	myisam_block_size=MI_KEY_BLOCK_LENGTH;		/* Best by test */
-my_bool myisam_flush=0,myisam_delay_key_write=0;
+my_bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
 #if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
 my_bool myisam_concurrent_insert=1;
 #else

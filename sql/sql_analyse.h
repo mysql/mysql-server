@@ -21,8 +21,6 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
-#include <my_tree.h>
-
 #define DEC_IN_AVG 4
 
 typedef struct st_number_info
