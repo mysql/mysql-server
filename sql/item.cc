@@ -1372,7 +1372,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  enum_parsing_place place;
+  enum_parsing_place place= NO_MATTER;
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
@@ -2044,7 +2044,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
-  enum_parsing_place place;
+  enum_parsing_place place= NO_MATTER;
   bool not_used;
   if (!ref)
   {
