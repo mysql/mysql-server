@@ -48919,13 +48919,13 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed @code{SIGINT} and @code{SIGQUIT} problems in mysql.cc
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @file{mysql.cc}.
 @item
-Fixed bug in convert.cc, which is caused by having a wrong net_store_length 
-linked in CONVERT::store method
+Fixed bug in @file{convert.cc}, which is caused by having an incorrect
+@code{net_store_length()} linked in the @code{CONVERT::store()} method.
 @item
-@code{DOUBLE} and @code{FLOAT} columns are now honoring the
-@code{UNSIGNED} flag on storage.
+@code{DOUBLE} and @code{FLOAT} columns now honor the @code{UNSIGNED} flag
+on storage.
 @item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.
@@ -51940,7 +51940,7 @@ Fixed some compilation problems.
 @itemize @bullet
 @item
 A new table handler library (@code{MyISAM}) with a lot of new features.
-@xref{MyISAM}.
+@xref{MyISAM, , @code{MyISAM}}.
 @item
 You can create in-memory @code{HEAP} tables which are extremely fast for
 lookups.
@@ -51991,7 +51991,8 @@ Allow creation of @code{CHAR(0)} columns.
 An example procedure is added: @code{analyse}, file: @file{sql_analyse.c}.
 This will describe the data in your query.  Try the following:
 @example
-SELECT ... FROM ... WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
+SELECT ... FROM ...
+WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
 @end example
 
 This procedure is extremely useful when you want to check the data in your
@@ -52181,7 +52182,7 @@ Fixed problem when storing numbers in timestamps.
 @item
 Fix problem with timezones that have half hour offsets.
 @item
-@code{mysqlhotcopy} - fast on-line hot-backup utility for local MySQL
+Added @code{mysqlhotcopy}, a fast on-line hot-backup utility for local MySQL
 databases. By Tim Bunce.
 @item
 New more secure @code{mysqlaccess}. Thanks to Steve Harvey for this.
@@ -52285,7 +52286,8 @@ Fixed problem when sorting on big blob columns.
 
 @itemize @bullet
 @item
-Fixed core dump with empty @code{BLOB/TEXT} column to @code{REVERSE()}.
+Fixed core dump with empty @code{BLOB/TEXT} column argument to
+@code{REVERSE()}.
 @item
 Extended @code{/*! */} with version numbers.
 @item
