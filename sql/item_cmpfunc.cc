@@ -145,9 +145,9 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       for (uint i=0; i < n; i++)
       {
-	if ((*a)->cols() != (*a)->cols())
+	if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
 	{
-	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->cols());
+	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
 	  return 1;
 	}
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
