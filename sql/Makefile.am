@@ -83,9 +83,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
-			mini_client.cc mini_client_errors.c \
+			mini_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc sql_olap.cc\
-			gstream.cc spatial.cc sql_help.cc
+			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 
@@ -102,6 +102,8 @@ AM_YFLAGS =		-d
 link_sources:
 	rm -f mini_client_errors.c
 	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
+	rm -f pack.c
+	@LN_CP_F@ ../sql-common/pack.c pack.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<

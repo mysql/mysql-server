@@ -330,6 +330,11 @@ void load_defaults(const char *conf_file, const char **groups,
 my_bool my_thread_init(void);
 void my_thread_end(void);
 
+#ifdef _global_h
+ulong STDCALL net_field_length(uchar **packet);
+my_ulonglong net_field_length_ll(uchar **packet);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

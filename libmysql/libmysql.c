@@ -612,71 +612,6 @@ net_safe_read(MYSQL *mysql)
   return len;
 }
 
-
-/* Get the length of next field. Change parameter to point at fieldstart */
-static ulong
-net_field_length(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos < 251)
-  {
-    (*packet)++;
-    return (ulong) *pos;
-  }
-  if (*pos == 251)
-  {
-    (*packet)++;
-    return NULL_LENGTH;
-  }
-  if (*pos == 252)
-  {
-    (*packet)+=3;
-    return (ulong) uint2korr(pos+1);
-  }
-  if (*pos == 253)
-  {
-    (*packet)+=4;
-    return (ulong) uint3korr(pos+1);
-  }
-  (*packet)+=9;					/* Must be 254 when here */
-  return (ulong) uint4korr(pos+1);
-}
-
-/* Same as above, but returns ulonglong values */
-
-static my_ulonglong
-net_field_length_ll(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos < 251)
-  {
-    (*packet)++;
-    return (my_ulonglong) *pos;
-  }
-  if (*pos == 251)
-  {
-    (*packet)++;
-    return (my_ulonglong) NULL_LENGTH;
-  }
-  if (*pos == 252)
-  {
-    (*packet)+=3;
-    return (my_ulonglong) uint2korr(pos+1);
-  }
-  if (*pos == 253)
-  {
-    (*packet)+=4;
-    return (my_ulonglong) uint3korr(pos+1);
-  }
-  (*packet)+=9;					/* Must be 254 when here */
-#ifdef NO_CLIENT_LONGLONG
-  return (my_ulonglong) uint4korr(pos+1);
-#else
-  return (my_ulonglong) uint8korr(pos+1);
-#endif
-}
-
-
 static void free_rows(MYSQL_DATA *cur)
 {
   if (cur)
@@ -1388,7 +1323,8 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 {
   uint field;
   ulong pkt_len,len;
-  uchar *pos,*prev_pos, *end_pos;
+  uchar *pos, *end_pos;
+  uchar *prev_pos;
 
   if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
@@ -1422,7 +1358,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     }
     if (prev_pos)
       *prev_pos=0;				/* Terminate prev field */
-    prev_pos=pos;
+    prev_pos= pos;
   }
   row[field]=(char*) prev_pos+1;		/* End of last field */
   *prev_pos=0;					/* Terminate last field */
@@ -5009,7 +4945,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   {
     MYSQL_TIME tm;
  
-    length= read_binary_date(&tm,row);
+    length= read_binary_date(&tm, row);
     tm.time_type= MYSQL_TIMESTAMP_DATE;
     send_data_time(param, tm, length);
     break;
