@@ -1065,7 +1065,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
-  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
     send_error(thd);
     goto err;
@@ -1503,7 +1503,7 @@ static bool init_param_array(Prepared_statement *stmt)
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
     stmt->param_array= (Item_param **)
-                       alloc_root(&stmt->thd->mem_root,
+                       alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
     {
@@ -1569,7 +1569,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (char*)name->str,
+    if (!(stmt->name.str= memdup_root(stmt->mem_root, (char*)name->str,
                                       name->length)))
     {
       delete stmt;
