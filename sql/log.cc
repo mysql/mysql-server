@@ -767,6 +767,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
          !log_in_use(log_info.log_file_name))
   {
     ulong tmp;
+    LINT_INIT(tmp);
     if (decrease_log_space) //stat the file we want to delete
     {
       MY_STAT s;

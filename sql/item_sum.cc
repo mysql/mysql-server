@@ -1348,7 +1348,7 @@ static int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 					      byte* key2)
 {
   Item_func_group_concat* item= (Item_func_group_concat*)arg;
-  for (int i= 0; i<item->arg_count_field; i++)
+  for (uint i= 0; i < item->arg_count_field; i++)
   {
     Item *field_item= item->expr[i];
     Field *field= field_item->tmp_table_field();
@@ -1377,7 +1377,7 @@ static int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 static int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
 {
   Item_func_group_concat* item= (Item_func_group_concat*)arg;
-  for (int i=0; i<item->arg_count_order; i++)
+  for (uint i=0; i < item->arg_count_order; i++)
   {
     ORDER *order_item= item->order[i];
     Item *item= *order_item->item;
@@ -1428,7 +1428,7 @@ static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
 
   tmp.length(0);
   
-  for (int i= 0; i < group_concat_item->arg_show_fields; i++)
+  for (uint i= 0; i < group_concat_item->arg_show_fields; i++)
   {
     Item *show_item= group_concat_item->expr[i];
     if (!show_item->const_item())
@@ -1482,13 +1482,13 @@ static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   is_separator - string value of separator
 */
 
-Item_func_group_concat::Item_func_group_concat(int is_distinct,
+Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 					       List<Item> *is_select,
 					       SQL_LIST *is_order,
 					       String *is_separator)
   :Item_sum(), tmp_table_param(0), warning_available(false),
-   separator(is_separator), tree(&tree_base), table(0), distinct(is_distinct),
-   tree_mode(0), count_cut_values(0)
+   separator(is_separator), tree(&tree_base), table(0), 
+   count_cut_values(0), tree_mode(0), distinct(is_distinct)
 {
   original= 0;
   quick_group= 0;
@@ -1507,39 +1507,31 @@ Item_func_group_concat::Item_func_group_concat(int is_distinct,
     expr - arg_count_field
     order - arg_count_order
   */
-  args= (Item**)sql_alloc(sizeof(Item*)*(arg_count+arg_count_order+arg_count_field)+
-                          sizeof(ORDER*)*arg_count_order);
+  args= (Item**) sql_alloc(sizeof(Item*)*(arg_count+arg_count_order+
+					  arg_count_field)+
+			   sizeof(ORDER*)*arg_count_order);
   if (!args)
-  {
-    my_error(ER_OUTOFMEMORY,MYF(0));
-  } 
+    return;					// thd->fatal is set
   expr= args;
   expr+= arg_count+arg_count_order;
-  if (arg_count_order) 
-  {
-    order= (ORDER**)(expr + arg_count_field);
-  }
-  /*
-    fill args items of show and sort
-  */
+
+  /* fill args items of show and sort */
   int i= 0;
   List_iterator_fast<Item> li(*is_select);
   Item *item_select;
 
-  while ((item_select= li++))
-  {
+  for ( ; (item_select= li++) ; i++)
     args[i]= expr[i]= item_select;
-    i++;
-  }
-      
-  if (order)
+
+  if (arg_count_order) 
   {
-    uint j= 0;	
-    for (ORDER *order_item= (ORDER*)is_order->first;
+    i= 0;
+    order= (ORDER**)(expr + arg_count_field);
+    for (ORDER *order_item= (ORDER*) is_order->first;
                 order_item != NULL;
                 order_item= order_item->next)
     {
-      order[j++]= order_item;
+      order[i++]= order_item;
     }
   }
 }
@@ -1562,8 +1554,7 @@ Item_func_group_concat::~Item_func_group_concat()
     }
     if (table)
       free_tmp_table(thd, table);
-    if (tmp_table_param)
-      delete tmp_table_param;
+    delete tmp_table_param;
     if (tree_mode)
       delete_tree(tree); 
   }
@@ -1594,14 +1585,17 @@ bool Item_func_group_concat::add()
   copy_funcs(tmp_table_param->items_to_copy);
 
   bool record_is_null= TRUE;
-  for (int i= 0; i < arg_show_fields; i++)
+  for (uint i= 0; i < arg_show_fields; i++)
   {
     Item *show_item= expr[i];
     if (!show_item->const_item())
     {
       Field *f= show_item->tmp_table_field();
       if (!f->is_null())
+      {
         record_is_null= FALSE;      
+	break;
+      }
     }
   }
   if (record_is_null)

@@ -57,7 +57,8 @@
 #endif
 
 #define MAX_FIELD_WIDTH 256			/* Max column width +1 */
-#define MAX_TABLES	(sizeof(table_map)*8-1)	/* Max tables in join */
+#define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */
+#define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))
 #define RAND_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-1))
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
 

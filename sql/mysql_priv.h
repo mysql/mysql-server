@@ -30,7 +30,7 @@
 #undef write  /* remove pthread.h macro definition for EMX */
 #endif
 
-typedef ulong table_map;		/* Used for table bits in join */
+typedef ulonglong table_map;		/* Used for table bits in join */
 typedef ulong key_map;			/* Used for finding keys */
 typedef ulong key_part_map;		/* Used for finding key parts */
 
@@ -846,6 +846,7 @@ void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, ha_rows *examined_rows);
+void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);

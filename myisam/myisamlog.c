@@ -448,10 +448,6 @@ static int examine_log(my_string file_name, char **table_names)
 	  goto end;
 	files_open++;
 	file_info.closed=0;
-	if (opt_myisam_with_debug)
-	  file_info.isam->s->rnd= 0;
-	else
-	  file_info.isam->s->rnd= isamlog_process;
       }
       VOID(tree_insert(&tree, (gptr) &file_info, 0, tree.custom_arg));
       if (file_info.used)
@@ -806,7 +802,6 @@ static int close_some_file(TREE *tree)
 		 (void*) &access_param,left_root_right));
   if (!access_param.found)
     return 1;			/* No open file that is possibly to close */
-  access_param.found->rnd=access_param.found->isam->s->rnd;
   if (mi_close(access_param.found->isam))
     return 1;
   access_param.found->closed=1;
@@ -826,7 +821,6 @@ static int reopen_closed_file(TREE *tree, struct file_info *fileinfo)
   if (!(fileinfo->isam= mi_open(name,O_RDWR,HA_OPEN_WAIT_IF_LOCKED)))
     return 1;
   fileinfo->closed=0;
-  fileinfo->isam->s->rnd=fileinfo->rnd;
   re_open_count++;
   return 0;
 }

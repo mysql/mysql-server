@@ -868,12 +868,14 @@ JOIN::reinit()
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table1->file->delete_all_rows();
     free_io_cache(exec_tmp_table1);
+    filesort_free_buffers(exec_tmp_table1);
   }
   if (exec_tmp_table2)
   {
     exec_tmp_table2->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table2->file->delete_all_rows();
     free_io_cache(exec_tmp_table2);
+    filesort_free_buffers(exec_tmp_table2);
   }
   if (items0)
     memcpy(ref_pointer_array, items0, ref_pointer_array_size);
@@ -2319,7 +2321,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  we don't make rec less than 100.
 		*/
 		if (keyuse->used_tables &
-		    (map=(keyuse->used_tables & ~join->const_table_map)))
+		    (map=(keyuse->used_tables & ~join->const_table_map &
+			  ~OUTER_REF_TABLE_BIT)))
 		{
 		  uint tablenr;
 		  for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
@@ -2631,7 +2634,7 @@ static double
 prev_record_reads(JOIN *join,table_map found_ref)
 {
   double found=1.0;
-
+  found_ref&= ~OUTER_REF_TABLE_BIT;
   for (POSITION *pos=join->positions ; found_ref ; pos++)
   {
     if (pos->table->table->map & found_ref)
@@ -2665,7 +2668,7 @@ get_best_combination(JOIN *join)
 
   join->full_join=0;
 
-  used_tables=0;
+  used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
   for (j=join_tab, tablenr=0 ; tablenr < table_count ; tablenr++,j++)
   {
     TABLE *form;
@@ -2936,7 +2939,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	DBUG_RETURN(1);				// Impossible const condition
       }
     }
-    used_tables=(select->const_tables=join->const_table_map) | RAND_TABLE_BIT;
+    used_tables=((select->const_tables=join->const_table_map) |
+		 OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
       JOIN_TAB *tab=join->join_tab+i;
@@ -2946,7 +2950,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
       */
       if (i == join->tables-1)
-	current_map|= RAND_TABLE_BIT;
+	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
       bool use_quick_range=0;
       used_tables|=current_map;
 
@@ -3265,7 +3269,10 @@ join_free(JOIN *join, bool full)
       first non const table in join->table
     */
     if (join->tables > join->const_tables) // Test for not-const tables
+    {
       free_io_cache(join->table[join->const_tables]);
+      filesort_free_buffers(join->table[join->const_tables]);
+    }
     if (join->select_lex->dependent && !full)
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
@@ -3450,7 +3457,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
     table_map depend_map;
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
-    if (!(order->depend_map & RAND_TABLE_BIT))	// Not item_sum() or RAND()
+    // Not item_sum(), RAND() and no reference to table outside of sub select
+    if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)))
     {
       for (JOIN_TAB **tab=join->map2table;
 	   depend_map ;
@@ -3497,7 +3505,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
     }
     else
     {
-      if (order_tables & RAND_TABLE_BIT)
+      if (order_tables & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT))
 	*simple_order=0;
       else
       {
@@ -7428,7 +7436,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
-  if (!map || (map & RAND_TABLE_BIT))
+  if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
   for (; !(map & tables->table->map) ; tables=tables->next) ;

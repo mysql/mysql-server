@@ -346,7 +346,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   if (cache->cols() == 1)
   {
     if (args[0]->used_tables())
-      cache->set_used_tables(RAND_TABLE_BIT);
+      cache->set_used_tables(OUTER_REF_TABLE_BIT);
     else
       cache->set_used_tables(0);
   }
@@ -356,7 +356,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     for (uint i= 0; i < n; i++)
     {
       if (args[0]->el(i)->used_tables())
-	((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+	((Item_cache *)cache->el(i))->set_used_tables(OUTER_REF_TABLE_BIT);
       else
 	((Item_cache *)cache->el(i))->set_used_tables(0);
     }
