@@ -376,7 +376,7 @@ public:
   void sendSubStartComplete(Signal*, SubscriberPtr, Uint32, 
 			    SubscriptionData::Part);
   void sendSubStopComplete(Signal*, SubscriberPtr);
-  void sendSubStopReq(Signal* signal);
+  void sendSubStopReq(Signal* signal, bool unlock= false);
 
   void completeSubRemoveReq(Signal* signal, SubscriptionPtr subPtr);
 
