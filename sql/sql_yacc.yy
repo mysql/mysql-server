@@ -1238,8 +1238,9 @@ create:
               my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
               YYABORT;
             }
-            
-            sp= new sp_head();
+
+            if (!(sp= new sp_head()))
+              YYABORT;
             sp->reset_thd_mem_root(YYTHD);
             sp->init(lex);
             
@@ -6622,6 +6623,7 @@ simple_ident_q:
               (!my_strcasecmp(system_charset_info, $1.str, "NEW") || 
                !my_strcasecmp(system_charset_info, $1.str, "OLD")))
           {
+            Item_trigger_field *trg_fld;
             bool new_row= ($1.str[0]=='N' || $1.str[0]=='n');
             
             if (lex->trg_chistics.event == TRG_EVENT_INSERT &&
@@ -6638,23 +6640,18 @@ simple_ident_q:
               YYABORT;
             }
             
-            Item_trigger_field *trg_fld= 
-              new Item_trigger_field(new_row ? Item_trigger_field::NEW_ROW :
-                                               Item_trigger_field::OLD_ROW,
-                                               $3.str);
-            
-            if (lex->trg_table &&
-                trg_fld->setup_field(thd, lex->trg_table,
-                                     lex->trg_chistics.event))
-            {
-              /*
-                FIXME. Far from perfect solution. See comment for 
-                "SET NEW.field_name:=..." for more info.
-              */
-              my_error(ER_BAD_FIELD_ERROR, MYF(0),
-                       $3.str, new_row ? "NEW": "OLD");
+            if (!(trg_fld= new Item_trigger_field(new_row ?
+                                                  Item_trigger_field::NEW_ROW:
+                                                  Item_trigger_field::OLD_ROW,
+                                                  $3.str)))
               YYABORT;
-            }
+          
+            /*
+              Let us add this item to list of all Item_trigger_field objects
+              in trigger.
+            */
+            lex->trg_table_fields.link_in_list((byte *)trg_fld,
+              (byte**)&trg_fld->next_trg_field);
             
             $$= (Item *)trg_fld;
           }
@@ -7156,28 +7153,19 @@ option_value:
                 /* QQ: Shouldn't this be field's default value ? */
                 it= new Item_null();
               }
-              i= new sp_instr_set_trigger_field(lex->sphead->instructions(),
-                                                lex->spcont, $1.base_name, it);
-              if (lex->trg_table && i->setup_field(YYTHD, lex->trg_table,
-                                                   lex->trg_chistics.event))
-              {
-                /*
-                  FIXME. Now we are catching this kind of errors only
-                  during opening tables. But this doesn't save us from most
-                  common user error - misspelling field name, because we
-                  will bark too late in this case... Moreover it is easy to
-                  make table unusable with such kind of error...
-
-                  So in future we either have to parse trigger definition
-                  second time during create trigger or gather all trigger
-                  fields in one list and perform setup_field() for them as
-                  separate stage.
-
-                  Error message also should be improved.
-                */
-                my_error(ER_BAD_FIELD_ERROR, MYF(0), $1.base_name, "NEW");
+              
+              if (!(i= new sp_instr_set_trigger_field(
+                             lex->sphead->instructions(), lex->spcont,
+                             $1.base_name, it)))
                 YYABORT;
-              }
+              
+              /*
+                Let us add this item to list of all Item_trigger_field
+                objects in trigger.
+              */
+              lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
+                     (byte **)&i->trigger_field.next_trg_field);
+
               lex->sphead->add_instr(i);
             }
             else if ($1.var)
