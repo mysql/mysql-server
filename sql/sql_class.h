@@ -389,6 +389,9 @@ public:
   MEM_ROOT mem_root;			// 1 command-life memory pool
   MEM_ROOT con_root;                    // connection-life memory
   MEM_ROOT warn_root;			// For warnings and errors
+  Protocol *protocol;			// Current protocol
+  Protocol_simple protocol_simple;	// Normal protocol
+  Protocol_prep protocol_prep;		// Binary protocol
   HASH    user_vars;			// hash for user variables
   TREE	  prepared_statements;
   String  packet;			// dynamic buffer for network I/O

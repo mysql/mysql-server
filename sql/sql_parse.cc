@@ -3012,11 +3012,11 @@ mysql_init_query(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+
 void
 mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select->select_lex();
-  DBUG_ASSERT(select_lex->linkage != GLOBAL_OPTIONS_TYPE);
   select_lex->init_select();
   select_lex->master_unit()->select_limit= select_lex->select_limit=
     lex->thd->variables.select_limit;

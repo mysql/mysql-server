@@ -150,7 +150,7 @@ void store_warning(THD *thd, uint errcode, ...)
 */
 
 static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
-
+static int warning_level_length[]= { 4, 7, 5, 1 };
 
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
@@ -161,12 +161,13 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   field_list.push_back(new Item_int("Code",0,4));
   field_list.push_back(new Item_empty_string("Message",MYSQL_ERRMSG_SIZE));
 
-  if (send_fields(thd,field_list,1))
+  if (thd->protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   MYSQL_ERROR *err;
   SELECT_LEX *sel= &thd->lex.select_lex;
   ha_rows offset= sel->offset_limit, limit= sel->select_limit;
+  Protocol *protocol=thd->protocol;
   
   List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
   while ((err= it++))
@@ -179,11 +180,12 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
       offset--;
       continue;
     }
-    thd->packet.length(0);
-    net_store_data(&thd->packet,warning_level_names[err->level]);
-    net_store_data(&thd->packet,(uint32) err->code);
-    net_store_data(&thd->packet,err->msg);
-    if (my_net_write(&thd->net,(char*)thd->packet.ptr(),thd->packet.length()))
+    protocol->prepare_for_resend();
+    protocol->store(warning_level_names[err->level],
+		    warning_level_length[err->level]);
+    protocol->store((uint32) err->code);
+    protocol->store(err->msg, strlen(err->msg));
+    if (protocol->write())
       DBUG_RETURN(1);
     if (!--limit)
       break;

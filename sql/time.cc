@@ -724,3 +724,20 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   }
   return 0;
 }
+
+
+/*
+  Convert a system time structure to TIME
+*/
+
+void localtime_to_TIME(TIME *to, struct tm *from)
+{
+  to->neg=0;
+  to->second_part=0;
+  to->year=	(int) ((from->tm_year+1900) % 10000);
+  to->month=	(int) from->tm_mon+1;
+  to->day=	(int) from->tm_mday;
+  to->hour=	(int) from->tm_hour;
+  to->minute=	(int) from->tm_min;
+  to->second=   (int) from->tm_sec;
+}

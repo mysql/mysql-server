@@ -1042,7 +1042,8 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     DBUG_RETURN(0);
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
-  field->get_key_image(str+maybe_null,key_part->part_length, key_part->image_type);
+  field->get_key_image(str+maybe_null,key_part->part_length,
+		       key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
 
@@ -2284,9 +2285,11 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
       key_tree->min_flag : key_tree->min_flag | key_tree->max_flag;
   }
 
-  /* Ensure that some part of min_key and max_key are used.  If not,
-     regard this as no lower/upper range */
-  if((flag & GEOM_FLAG) == 0)
+  /*
+    Ensure that some part of min_key and max_key are used.  If not,
+    regard this as no lower/upper range
+  */
+  if ((flag & GEOM_FLAG) == 0)
   {
     if (tmp_min_key != param->min_key)
       flag&= ~NO_MIN_RANGE;
@@ -2451,17 +2454,17 @@ int QUICK_SELECT::get_next()
     if (!(range=it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
-    if(range->flag & GEOM_FLAG)
+    if (range->flag & GEOM_FLAG)
     {
       if ((result = file->index_read(record,
-                           (byte*) (range->min_key + ((range->flag & GEOM_FLAG) > 0)),
-			   range->min_length,
-                           (ha_rkey_function)(range->flag ^ GEOM_FLAG))))
-
+				     (byte*) (range->min_key +1),
+				     range->min_length,
+				     (ha_rkey_function)(range->flag ^
+							GEOM_FLAG))))
       {
         if (result != HA_ERR_KEY_NOT_FOUND)
 	  DBUG_RETURN(result);
-        range=0;					// Not found, to next range
+        range=0;				// Not found, to next range
         continue;
       }
       DBUG_RETURN(0);
@@ -2478,13 +2481,14 @@ int QUICK_SELECT::get_next()
       continue;
     }
     if ((result = file->index_read(record,
-                         (byte*) (range->min_key + ((range->flag & GEOM_FLAG) > 0)),
-			 range->min_length,
-			 (range->flag & NEAR_MIN) ?
-			  HA_READ_AFTER_KEY:
-			  (range->flag & EQ_RANGE) ?
-			  HA_READ_KEY_EXACT :
-			  HA_READ_KEY_OR_NEXT)))
+				   (byte*) (range->min_key +
+					    test(range->flag & GEOM_FLAG)),
+				   range->min_length,
+				   (range->flag & NEAR_MIN) ?
+				   HA_READ_AFTER_KEY:
+				   (range->flag & EQ_RANGE) ?
+				   HA_READ_KEY_EXACT :
+				   HA_READ_KEY_OR_NEXT)))
 
     {
       if (result != HA_ERR_KEY_NOT_FOUND)
@@ -2502,8 +2506,11 @@ int QUICK_SELECT::get_next()
   }
 }
 
-	/* compare if found key is over max-value */
-	/* Returns 0 if key <= range->max_key */
+
+/*
+  Compare if found key is over max-value
+  Returns 0 if key <= range->max_key
+*/
 
 int QUICK_SELECT::cmp_next(QUICK_RANGE *range_arg)
 {
