@@ -992,10 +992,11 @@ void usage()
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
   -r, --record             Record output of test_file into result file.\n\
-  -R, --result-file=...    Read/Store result from/in this file\n\
+  -R, --result-file=...    Read/Store result from/in this file.\n\
   -v, --verbose            Write more.\n\
   -q, --quiet, --silent    Suppress all normal output.\n\
-  -V, --version            Output version information and exit.\n\n");
+  -V, --version            Output version information and exit.\n\
+  --no-defaults            Don't read default options from any options file.\n\n");
 }
 
 int parse_args(int argc, char **argv)
@@ -1004,6 +1005,7 @@ int parse_args(int argc, char **argv)
   my_bool tty_password=0;
 
   load_defaults("my",load_default_groups,&argc,&argv);
+
   while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
