@@ -2947,6 +2947,12 @@ void Qmgr::sendPrepFailReq(Signal* signal, Uint16 aNode)
  */
 
 /**
+ * Should < 1/2 nodes die unconditionally.  Affects only >= 3-way
+ * replication.
+ */
+static const bool g_ndb_arbit_one_half_rule = false;
+
+/**
  * Config signals are logically part of CM_INIT.
  */
 void
@@ -3157,7 +3163,8 @@ Qmgr::handleArbitCheck(Signal* signal)
   ndbrequire(cpresident == getOwnNodeId());
   NodeBitmask ndbMask;
   computeArbitNdbMask(ndbMask);
-  if (2 * ndbMask.count() < cnoOfNodes) {
+  if (g_ndb_arbit_one_half_rule &&
+      2 * ndbMask.count() < cnoOfNodes) {
     jam();
     arbitRec.code = ArbitCode::LoseNodes;
   } else {
@@ -3181,6 +3188,11 @@ Qmgr::handleArbitCheck(Signal* signal)
     case CheckNodeGroups::Partitioning:
       jam();
       arbitRec.code = ArbitCode::Partitioning;
+      if (g_ndb_arbit_one_half_rule &&
+          2 * ndbMask.count() > cnoOfNodes) {
+        jam();
+        arbitRec.code = ArbitCode::WinNodes;
+      }
       break;
     default:
       ndbrequire(false);
@@ -3190,8 +3202,12 @@ Qmgr::handleArbitCheck(Signal* signal)
   switch (arbitRec.code) {
   case ArbitCode::LoseNodes:
     jam();
+  case ArbitCode::LoseGroups:
+    jam();
     goto crashme;
-  case ArbitCode::WinGroups:  
+  case ArbitCode::WinNodes:
+    jam();
+  case ArbitCode::WinGroups:
     jam();
     if (arbitRec.state == ARBIT_RUN) {
       jam();
@@ -3200,9 +3216,6 @@ Qmgr::handleArbitCheck(Signal* signal)
     arbitRec.state = ARBIT_INIT;
     arbitRec.newstate = true;
     break;
-  case ArbitCode::LoseGroups:
-    jam();
-    goto crashme;
   case ArbitCode::Partitioning:
     if (arbitRec.state == ARBIT_RUN) {
       jam();
@@ -3762,8 +3775,7 @@ Qmgr::execARBIT_CHOOSEREF(Signal* signal)
 }
 
 /**
- * Handle CRASH state.  We must crash immediately.  But it
- * would be nice to wait until event reports have been sent.
+ * Handle CRASH state.  We must crash immediately.
  * XXX tell other nodes in our party to crash too.
  */
 void
@@ -3773,12 +3785,11 @@ Qmgr::stateArbitCrash(Signal* signal)
   if (arbitRec.newstate) {
     jam();
     CRASH_INSERTION((Uint32)910 + arbitRec.state);
-
     arbitRec.setTimestamp();
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
-#if 0
+#ifdef ndb_arbit_crash_wait_for_event_report_to_get_out
   if (! (arbitRec.getTimediff() > getArbitTimeout()))
     return;
 #endif

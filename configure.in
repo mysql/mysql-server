@@ -399,7 +399,6 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CFLAGS="$CFLAGS -DDEFINE_CXA_PURE_VIRTUAL"
       CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
     fi
   fi
