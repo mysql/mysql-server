@@ -380,9 +380,11 @@ enum db_type default_table_type=DB_TYPE_MYISAM;
 #ifdef __WIN__
 #undef	 getpid
 #include <process.h>
+#if !defined(EMBEDDED_LIBRARY)
 HANDLE hEventShutdown;
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
+#endif
 #endif
 
 #ifdef OS2
@@ -609,6 +611,7 @@ void kill_mysql(void)
 #endif  
 
 #if defined(__WIN__)
+#if !defined(EMBEDDED_LIBRARY)
   {
     if (!SetEvent(hEventShutdown))
     {
@@ -621,6 +624,7 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
+#endif
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
@@ -1558,8 +1562,9 @@ pthread_handler_decl(handle_shutdown,arg)
 
   /* this call should create the message queue for this thread */
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
-
+#if !defined(EMBEDDED_LIBRARY)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+#endif
      kill_server(MYSQL_KILL_SIGNAL);
   return 0;
 }
@@ -1976,7 +1981,7 @@ The server will not act as a slave.");
     }
   }
   (void) thr_setconcurrency(concurrency);	// 10 by default
-#ifdef __WIN__			        //IRENA
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)	  //IRENA
   {
     hEventShutdown=CreateEvent(0, FALSE, FALSE, "MySqlShutdown");
     pthread_t hThread;
@@ -2084,6 +2089,7 @@ The server will not act as a slave.");
   sql_print_error("After lock_thread_count");
 #endif
 #else
+#if !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT())
   {
     if(start_mode)
@@ -2102,6 +2108,7 @@ The server will not act as a slave.");
     Service.SetShutdownEvent(0);
     if(hEventShutdown) CloseHandle(hEventShutdown);
   }
+#endif
 #endif
 #ifdef HAVE_OPENSSL
   my_free((gptr)ssl_acceptor_fd,MYF(MY_ALLOW_ZERO_PTR));
@@ -2123,7 +2130,7 @@ The server will not act as a slave.");
 }
 
 
-#ifdef __WIN__
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 /* ------------------------------------------------------------------------
    main and thread entry function for Win32
    (all this is needed only to run mysqld as a service on WinNT)

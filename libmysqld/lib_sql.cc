@@ -24,8 +24,10 @@
 #define main main1
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
+#if !defined(__WIN__)
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
+#endif
 #define changeable_vars changeable_vars1
 
 extern "C"
@@ -45,7 +47,11 @@ static bool check_user(THD *thd, enum_server_command command,
 void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
 #define free_defaults free_defaults_internal
 
+#if defined (__WIN__)
+#include "../sql/mysqld.cpp"
+#else
 #include "../sql/mysqld.cc"
+#endif
 
 #define SCRAMBLE_LENGTH 8
 C_MODE_START

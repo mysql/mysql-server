@@ -62,12 +62,12 @@ ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 
-#ifdef __WIN__
-/* The following is because alarms doesn't work on windows. */
-#undef MYSQL_SERVER
+#if defined(__WIN__) || !defined(MYSQL_SERVER)
+  /* The following is because alarms doesn't work on windows. */
+#define NO_ALARM
 #endif
-
-#ifdef MYSQL_SERVER
+  
+#ifndef NO_ALARM
 #include "my_pthread.h"
 void sql_print_error(const char *format,...);
 #define RETRY_COUNT mysqld_net_retry_count
@@ -79,7 +79,7 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #define statistic_add(A,B,C)
 #define DONT_USE_THR_ALARM
 #define RETRY_COUNT 1
-#endif /* MYSQL_SERVER */
+#endif /* NO_ALARM */
 
 #include "thr_alarm.h"
 
@@ -322,14 +322,14 @@ net_real_write(NET *net,const char *packet,ulong len)
   long int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if defined(MYSQL_SERVER)
+#ifndef NO_ALARM
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
   my_bool net_blocking = vio_is_blocking(net->vio);
   DBUG_ENTER("net_real_write");
 
-#ifdef USE_QUERY_CACHE
+#ifdef MYSQL_SERVER
   if (net->query_cache_query != 0)
     query_cache_insert(net, packet, len);
 #endif
@@ -371,13 +371,13 @@ net_real_write(NET *net,const char *packet,ulong len)
 #endif /* HAVE_COMPRESS */
 
   /* DBUG_DUMP("net",packet,len); */
-#ifdef MYSQL_SERVER
+#ifndef NO_ALARM
   thr_alarm_init(&alarmed);
   if (net_blocking)
     thr_alarm(&alarmed,(uint) net_write_timeout,&alarm_buff);
 #else
   alarmed=0;
-#endif /* MYSQL_SERVER */
+#endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
   while (pos != end)
@@ -459,8 +459,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 ** Read something from server/clinet
 *****************************************************************************/
 
-#ifdef MYSQL_SERVER
-
+#ifndef NO_ALARM
 /*
   Help function to clear the commuication buffer when we get a too
   big packet
@@ -493,7 +492,7 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
     statistic_add(bytes_received,length,&LOCK_bytes_received);
   }
 }
-#endif /* MYSQL_SERVER */
+#endif /* NO_ALARM */
 
 
 /*
@@ -510,7 +509,7 @@ my_real_read(NET *net, ulong *complen)
   uint i,retry_count=0;
   ulong len=packet_error;
   thr_alarm_t alarmed;
-#if defined(MYSQL_SERVER)
+#ifndef NO_ALARM
   ALARM alarm_buff;
 #endif
   my_bool net_blocking=vio_is_blocking(net->vio);
@@ -520,10 +519,10 @@ my_real_read(NET *net, ulong *complen)
 
   net->reading_or_writing=1;
   thr_alarm_init(&alarmed);
-#ifdef MYSQL_SERVER
+#ifndef NO_ALARM
   if (net_blocking)
     thr_alarm(&alarmed,net->timeout,&alarm_buff);
-#endif /* MYSQL_SERVER */
+#endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
     for (i=0 ; i < 2 ; i++)
@@ -646,7 +645,7 @@ my_real_read(NET *net, ulong *complen)
 	{
 	  if (net_realloc(net,helping))
 	  {
-#ifdef MYSQL_SERVER
+#ifndef NO_ALARM
 	    if (i == 1)
 	      my_net_skip_rest(net, (uint32) len, &alarmed);
 #endif
