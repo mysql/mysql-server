@@ -333,17 +333,11 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
-#ifndef DBUG_OFF
-  bool double_fix;
-#endif
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
      field(0), result_field(0)
-#ifndef DBUG_OFF
-    ,double_fix(0)
-#endif
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
