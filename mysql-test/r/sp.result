@@ -1353,6 +1353,13 @@ drop procedure bug2564_1|
 drop procedure bug2564_2|
 drop function bug2564_3|
 drop function bug2564_4|
+create function bug3132(s char(20)) returns char(50)
+return concat('Hello, ', s, '!')|
+select bug3132('Bob') union all select bug3132('Judy')|
+bug3132('Bob')
+Hello, Bob!
+Hello, Judy!
+drop function bug3132|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
