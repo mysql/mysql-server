@@ -69,15 +69,15 @@ inline uint my_decimal_size(uint precision, uint scale)
 
 
 /*
-  my_decimal class limits 'decimal' type to what we need in MySQL
+  my_decimal class limits 'decimal_t' type to what we need in MySQL
   It contains internally all necessary space needed by the instance so
   no extra memory is needed. One should call fix_buffer_pointer() function
   when he moves my_decimal objects in memory
 */
 
-class my_decimal :public decimal
+class my_decimal :public decimal_t
 {
-  decimal_digit buffer[DECIMAL_BUFF_LENGTH];
+  decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
 
 public:
 
@@ -97,8 +97,8 @@ public:
   }
   void fix_buffer_pointer() { buf= buffer; }
 
-  bool sign() const { return decimal::sign; }
-  void sign(bool s) { decimal::sign= s; }
+  bool sign() const { return decimal_t::sign; }
+  void sign(bool s) { decimal_t::sign= s; }
 };
 
 
@@ -165,7 +165,7 @@ inline
 int binary2my_decimal(uint mask, const char *bin, my_decimal *d, int prec,
 		      int scale)
 {
-  return check_result(mask, bin2decimal((char *)bin, (decimal*) d, prec,
+  return check_result(mask, bin2decimal((char *)bin, (decimal_t*) d, prec,
 					scale));
 }
 
@@ -173,7 +173,7 @@ int binary2my_decimal(uint mask, const char *bin, my_decimal *d, int prec,
 inline
 int my_decimal_set_zero(my_decimal *d)
 {
-  decimal_make_zero(((decimal*) d));
+  decimal_make_zero(((decimal_t*) d));
   return 0;
 }
 
@@ -181,7 +181,7 @@ int my_decimal_set_zero(my_decimal *d)
 inline
 bool my_decimal_is_zero(const my_decimal *decimal_value)
 {
-  return decimal_is_zero((decimal*) decimal_value);
+  return decimal_is_zero((decimal_t*) decimal_value);
 }
 
 
@@ -189,7 +189,7 @@ inline
 int my_decimal_round(uint mask, const my_decimal *from, int scale,
                      bool truncate, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal*) from, to, scale,
+  return check_result(mask, decimal_round((decimal_t*) from, to, scale,
 					  (truncate ? TRUNCATE : HALF_UP)));
 }
 
@@ -197,14 +197,14 @@ int my_decimal_round(uint mask, const my_decimal *from, int scale,
 inline
 int my_decimal_floor(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal*) from, to, 0, FLOOR));
+  return check_result(mask, decimal_round((decimal_t*) from, to, 0, FLOOR));
 }
 
 
 inline
 int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal*) from, to, 0, CEILING));
+  return check_result(mask, decimal_round((decimal_t*) from, to, 0, CEILING));
 }
 
 
@@ -219,7 +219,7 @@ int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
 {
   my_decimal rounded;
   /* decimal_round can return only E_DEC_TRUNCATED */
-  decimal_round((decimal*)d, &rounded, 0, HALF_UP);
+  decimal_round((decimal_t*)d, &rounded, 0, HALF_UP);
   return check_result(mask, (unsigned_flag ?
 			     decimal2ulonglong(&rounded, (ulonglong *)l) :
 			     decimal2longlong(&rounded, l)));
@@ -230,14 +230,14 @@ inline
 int my_decimal2double(uint mask, const my_decimal *d, double *result)
 {
   /* No need to call check_result as this will always succeed */
-  return decimal2double((decimal*) d, result);
+  return decimal2double((decimal_t*) d, result);
 }
 
 
 inline
 int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
 {
-  return check_result(mask, string2decimal(str, (decimal*) d, end));
+  return check_result(mask, string2decimal(str, (decimal_t*) d, end));
 }
 
 
@@ -255,7 +255,7 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 inline
 int double2my_decimal(uint mask, double val, my_decimal *d)
 {
-  return check_result(mask, double2decimal(val, (decimal*) d));
+  return check_result(mask, double2decimal(val, (decimal_t*) d));
 }
 
 
@@ -269,7 +269,7 @@ int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
 
 
 inline
-void my_decimal_neg(st_decimal *arg)
+void my_decimal_neg(decimal_t *arg)
 {
   decimal_neg(arg);
 }
@@ -279,7 +279,7 @@ inline
 int my_decimal_add(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
-  return check_result(mask, decimal_add((decimal*) a, (decimal*) b, res));
+  return check_result(mask, decimal_add((decimal_t*) a, (decimal_t*) b, res));
 }
 
 
@@ -287,7 +287,7 @@ inline
 int my_decimal_sub(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
-  return check_result(mask, decimal_sub((decimal*) a, (decimal*) b, res));
+  return check_result(mask, decimal_sub((decimal_t*) a, (decimal_t*) b, res));
 }
 
 
@@ -295,7 +295,7 @@ inline
 int my_decimal_mul(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
-  return check_result(mask, decimal_mul((decimal*) a, (decimal*) b, res));
+  return check_result(mask, decimal_mul((decimal_t*) a, (decimal_t*) b, res));
 }
 
 
@@ -303,7 +303,7 @@ inline
 int my_decimal_div(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b, int div_scale_inc)
 {
-  return check_result(mask, decimal_div((decimal*) a, (decimal*) b, res,
+  return check_result(mask, decimal_div((decimal_t*) a, (decimal_t*) b, res,
 					div_scale_inc));
 }
 
@@ -312,7 +312,7 @@ inline
 int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
-  return check_result(mask, decimal_mod((decimal*) a, (decimal*) b, res));
+  return check_result(mask, decimal_mod((decimal_t*) a, (decimal_t*) b, res));
 }
 
 
@@ -320,14 +320,14 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 inline
 int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
 {
-  return decimal_cmp((decimal*) a, (decimal*) b);
+  return decimal_cmp((decimal_t*) a, (decimal_t*) b);
 }
 
 inline
 void max_my_decimal(my_decimal *to, int precision, int frac)
 {
   DBUG_ASSERT(precision <= DECIMAL_MAX_LENGTH);
-  max_decimal(precision, frac, (decimal*) to);
+  max_decimal(precision, frac, (decimal_t*) to);
 }
 
 #endif /*my_decimal_h*/
