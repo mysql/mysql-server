@@ -289,3 +289,5 @@ tags
 tmp/*
 myisam/test1.MYD
 myisam/test1.MYI
+.gdbinit
+.vimrc

@@ -65,6 +65,13 @@ replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1;
 drop table t1;
 
+# test for bug in replace with secondary key
+create table t1 (id int not null primary key, x int not null, key (x)) type=bdb;
+insert into t1 (id, x) values (1, 1);
+replace into t1 (id, x) values (1, 2);
+select * from t1;
+drop table t1;
+
 #
 # test delete using hidden_primary_key
 #
