@@ -2536,6 +2536,10 @@ fseg_free_page(
 	seg_inode = fseg_inode_get(seg_header, mtr);
 
 	fseg_free_page_low(seg_inode, space, page, mtr);
+
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	buf_page_set_file_page_was_freed(space, page);
+#endif
 }
 
 /**************************************************************************
@@ -2599,6 +2603,14 @@ fseg_free_extent(
 	}
 
 	fsp_free_extent(space, page, mtr);
+
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	for (i = 0; i < FSP_EXTENT_SIZE; i++) {
+
+	        buf_page_set_file_page_was_freed(space,
+						first_page_in_extent + i);
+	}
+#endif
 }
 
 /**************************************************************************

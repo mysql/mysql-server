@@ -11,6 +11,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "srv0srv.h"
 
+#undef HAVE_FDATASYNC
 
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
@@ -562,6 +563,11 @@ os_file_flush(
 		return(TRUE);
 	}
 	
+	fprintf(stderr,
+		"InnoDB: Error: the OS said file flush did not succeed\n");
+
+	os_file_handle_error(file, NULL);
+
 	return(FALSE);
 #endif
 }
