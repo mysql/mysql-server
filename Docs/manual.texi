@@ -1969,8 +1969,10 @@ for different purposes, with a description of each site.
 This information can give you an idea of who uses the @code{MySQL}
 database software and how @code{MySQL Server} can fulfill
 requirements.
+
 Do let us know about @emph{your} site or success story too!
- 
+@uref{http://www.mysql.com/feedback/testimonial.php}.
+
 @item Software
 Find, buy, download several applications and wrappers that make
 use of the @code{MySQL} server.

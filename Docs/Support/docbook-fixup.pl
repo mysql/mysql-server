@@ -1,10 +1,18 @@
 #!/usr/bin/perl
 
-sub fix {
+sub fix_underscore {
   $str = shift;
   $str =~ tr/_/-/;
   return $str;
 };
+
+sub strip_emph {
+  $str = shift;
+  $str =~ s{<emphasis>(.+?)</emphasis>}
+           {$1}gs;
+  return $str;
+};
+
 
 $data = join "", <STDIN>;
 
@@ -13,9 +21,9 @@ $data =~ s/@@/@/gs;
 
 print STDERR "Changing '_' to '-' in references...\n";
 $data =~ s{id=\"(.+?)\"}
-          {"id=\"".&fix($1)."\""}gsex;
+          {"id=\"".&fix_underscore($1)."\""}gsex;
 $data =~ s{linkend=\"(.+?)\"}
-          {"linkend=\"".&fix($1)."\""}gsex;
+          {"linkend=\"".&fix_underscore($1)."\""}gsex;
 
 print STDERR "Changing ULINK to SYSTEMITEM...\n";
 $data =~ s{<ulink url=\"(.+?)\"></ulink>}
@@ -26,7 +34,7 @@ $data =~ s{<informalfigure>(.+?)</informalfigure>}
           {}gs;
 
 print STDERR "Adding PARA inside ENTRY...\n";
-$data =~ s{<entry>(.+?)</entry>}
+$data =~ s{<entry>(.*?)</entry>}
           {<entry><para>$1</para></entry>}gs;
 
 print STDERR "Removing mailto: from email addresses...\n";
@@ -41,6 +49,38 @@ $data =~ s{</(\w+)>(\w{2,})}
 print STDERR "Removing COLSPEC...\n";
 $data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
           {}gs;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Making first row in table THEAD...\n";
+$data =~ s{([ ]*)<tbody>\n([ ]*<row>(.+?)</row>)}
+          {$1<thead>\n$2\n$1</thead>\n$1<tbody>}gs;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Removing EMPHASIS inside THEAD...\n";
+$data =~ s{<thead>(.+?)</thead>}
+          {"<thead>".&strip_emph($1)."</thead>"}gsex;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Removing lf before /PARA in ENTRY...\n";
+$data =~ s{(<entry><para>(.+?))\n(</para></entry>)}
+          {$1$3}gs;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Removing whitespace before /PARA...\n";
+$data =~ s{[ ]+</para>}
+          {</para>}gs;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Removing empty PARA in ENTRY...\n";
+$data =~ s{<entry><para></para></entry>}
+          {<entry></entry>}gs;
+
+# 2002-01-31 arjen@mysql.com
+print STDERR "Removing PARA around INDEXENTRY if no text in PARA...\n";
+$data =~ s{<para>((<indexterm role=\"(cp|fn)\">(<(primary|secondary)>[^<]+?</(primary|secondary)>)+?</indexterm>)+?)[\n]*</para>[\n]*}
+          {$1\n}gs;
+
+# -----
 
 @apx = ("Users", "MySQL Testimonials", "News",
         "GPL-license", "LGPL-license");
