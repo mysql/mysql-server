@@ -17,7 +17,9 @@
 
 ## Process this file with automake to create Makefile.in
 
+if HAVE_NDBCLUSTER_DB
 SUBDIRS = ndb
+endif
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
