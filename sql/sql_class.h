@@ -494,6 +494,7 @@ public:
   uint32     query_length;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
+  uint       check_loops_counter;       //last id used to check loops
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   char	     scramble[9];

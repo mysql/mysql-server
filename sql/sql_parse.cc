@@ -2867,7 +2867,8 @@ mysql_init_query(THD *thd)
   lex->select_lex.prev= &lex->unit.slave;
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
-  thd->select_number= lex->select_lex.select_number= 1;
+  thd->check_loops_counter= thd->select_number= 
+    lex->select_lex.select_number= 1;
   thd->free_list= 0;
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
