@@ -262,27 +262,32 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Statement *stmt= thd->current_statement;
-      Statement backup;
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      Item_arena *arena= thd->current_arena;
+      Item_arena backup;
+      if (arena)
+	thd->set_n_backup_item_arena(arena, &backup);
       Field **field;
       for (field= table->field; *field; field++)
       {
 	Item_field *item= new Item_field(*field);
 	if (!item || item_list.push_back(item))
 	{
-	  if (stmt)
-	    thd->restore_backup_item_arena(stmt, &backup);
+	  if (arena)
+	    thd->restore_backup_item_arena(arena, &backup);
 	  DBUG_RETURN(-1);
 	}
       }
-      if (stmt)
+      if (arena)
       {
-	thd->restore_backup_item_arena(stmt, &backup);
+	thd->restore_backup_item_arena(arena, &backup);
 
 	/* prepare fake select to initialize it correctly */
 	ulong options_tmp= init_prepare_fake_select_lex(thd);
+        /*
+          it should be done only once (because item_list builds only onece
+          per statement)
+        */
+        DBUG_ASSERT(fake_select_lex->join == 0);
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
 					      result)))
 	{

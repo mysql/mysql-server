@@ -77,15 +77,15 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 */
 bool Item_sum::save_args_for_prepared_statements(THD *thd)
 {
-  if (thd->current_statement)
-    return save_args(thd->current_statement);
+  if (thd->current_arena && args_copy == 0)
+    return save_args(thd->current_arena);
   return 0;
 }
 
 
-bool Item_sum::save_args(Statement* stmt)
+bool Item_sum::save_args(Item_arena* arena)
 {
-  if (!(args_copy= (Item**) stmt->alloc(sizeof(Item*)*arg_count)))
+  if (!(args_copy= (Item**) arena->alloc(sizeof(Item*)*arg_count)))
     return 1;
   memcpy(args_copy, args, sizeof(Item*)*arg_count);
   return 0;
