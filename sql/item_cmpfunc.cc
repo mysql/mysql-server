@@ -90,38 +90,58 @@ static bool convert_constant_item(Field *field, Item **item)
 bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
 				      CHARSET_INFO *cs2, enum coercion co2)
 {
-  if ((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
   {
     cmp_charset= &my_charset_bin;
+    coercibility= co1 > co2 ? co1 : co2;
     return 0;
   }
 
-  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
-    return 1;
-
-  if (!my_charset_same(cs1,cs2))
-    return 1;
-
-  if (co1 < co2)
-    cmp_charset= cs1;
-  else if (co2 < co1)
-    cmp_charset= cs2;
-  else // co1==co2
+  if (!my_charset_same(cs1, cs2))
   {
-    if (cs1 == cs2)
+    /* 
+       We do allow to use BLOBS together with character strings
+       BLOBS have more precedance
+    */
+    if ((co1 <= co2) && (cs1==&my_charset_bin))
+    {
       cmp_charset= cs1;
+      coercibility= co1;
+    }
+    else if ((co2 <= co1) && (cs2==&my_charset_bin))
+    {
+      cmp_charset= cs2;
+      coercibility= co2;
+    }
     else
     {
-      if (co1 == COER_COERCIBLE)
-      {
-        CHARSET_INFO *c;
-	if ((c= get_charset_by_csname(cs1->csname, MY_CS_PRIMARY, MYF(0))))
-	{
-	  cmp_charset= c;
-	  return 0;
-	}
-      }
-      return 1;
+      cmp_charset= 0;
+      coercibility= COER_NOCOLL;
+      return 1; 
+    }
+  }
+  else if (co1 < co2)
+  {
+    cmp_charset= cs1;
+    coercibility= co1;
+  }
+  else if (co2 < co1)
+  {
+    cmp_charset= cs2;
+    coercibility= co1;
+  }
+  else
+  { 
+    if (cs1 == cs2)
+    {
+      cmp_charset= cs1;
+      coercibility= co1;
+    }
+    else 
+    {
+      coercibility= COER_NOCOLL;
+      cmp_charset= 0;
+      return  (co1 == COER_EXPLICIT) ? 1 : 0;
     }
   }
   return 0;
