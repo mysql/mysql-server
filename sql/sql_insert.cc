@@ -1392,7 +1392,7 @@ bool select_insert::send_eof()
 	      thd->cuted_fields);
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
-    ::send_ok(&thd->net,info.copied,last_insert_id,buff);
+    ::send_ok(&thd->net,info.copied+info.deleted,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
     return 0;
   }
