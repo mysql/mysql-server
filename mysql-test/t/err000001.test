@@ -1,3 +1,18 @@
-use test;
-drop table if exists foo;
-!$1146 insert into foo values(1);
+#
+# Test some error conditions
+#
+
+drop table if exists t1;
+!$1146 insert into t1 values(1);
+!$1146 delete from t1;
+!$1146 update t1 set a=1;
+create table t1 (a int);
+!$1054 select count(test.t1.b) from t1;
+!$1109 select count(not_existing_database.t1) from t1;
+!$1109 select count(not_existing_database.t1.a) from t1;
+!$1044 select count(not_existing_database.t1.a) from not_existing_database.t1;
+!$1054 select 1 from t1 order by 2;
+!$1054 select 1 from t1 group by 2;
+!$1054 select 1 from t1 order by t1.b;
+!$1054 select count(*),b from t1;
+drop table t1;

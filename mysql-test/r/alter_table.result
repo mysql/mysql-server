@@ -1,0 +1,27 @@
+bandID	payoutID	new_col
+6	1	NULL
+3	4	NULL
+1	6	NULL
+2	6	NULL
+4	9	NULL
+5	10	NULL
+7	12	NULL
+8	12	NULL
+bandID	payoutID	new_col
+1	6	NULL
+2	6	NULL
+3	4	NULL
+4	9	NULL
+5	10	NULL
+6	1	NULL
+7	12	NULL
+8	12	NULL
+Field	Type	Null	Key	Default	Extra	Privileges
+GROUP_ID	int(10) unsigned		PRI	0		select,insert,update,references
+LANG_ID	smallint(5) unsigned		PRI	0		select,insert,update,references
+NAME	char(80)		MUL			select,insert,update,references
+n
+3
+9
+10
+12

@@ -1,0 +1,4 @@
+database()	user()
+test	test@localhost
+version()>="3.23.29"
+1

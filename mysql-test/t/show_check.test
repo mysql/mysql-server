@@ -1,0 +1,28 @@
+#
+# Test of some show commands
+#
+create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
+insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+create table t2 type=isam select * from t1;
+optimize table t1;
+check table t1,t2;
+repair table t1,t2;
+check table t2,t1;
+lock tables t1 read;
+check table t2,t1;
+show keys from t1;
+drop table t1,t2;
+
+create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
+insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+check table t1 type=fast;
+check table t1 type=fast;
+check table t1 type=changed;
+insert into t1 values (5,5,5);
+check table t1 type=changed;
+check table t1 type=extended;
+show keys from t1;
+!$1062 insert into t1 values (5,5,5);
+optimize table t1;
+optimize table t1;
+drop table t1;

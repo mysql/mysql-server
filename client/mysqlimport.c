@@ -456,9 +456,14 @@ static char *add_load_option(char *ptr,const char *object,const char *statement)
 {
   if (object)
   {
-    ptr= strxmov(ptr," ",statement," '",NullS);
-    ptr= field_escape(ptr,object,(uint) strlen(object));
-    *ptr++= '\'';
+	if (!strncasecmp(object,"0x",2))	/* hex constant; don't escape */
+		ptr= strxmov(ptr," ",statement," ",object,NullS);
+	else								/* char constant; escape */
+	{
+		ptr= strxmov(ptr," ",statement," '",NullS);
+		ptr= field_escape(ptr,object,(uint) strlen(object));
+		*ptr++= '\'';
+	}
   }
   return ptr;
 }

@@ -1,0 +1,9 @@
+id	id
+107	107
+75	75
+id	count(t2.id)
+75	1
+107	1
+id	count(t2.id)
+75	1
+107	1

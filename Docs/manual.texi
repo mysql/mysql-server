@@ -40050,6 +40050,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
+Allow hex constants in the @code{--fields-*-by} and
+@code{--lines-terminated-by} options to @code{mysqldump}. By Paul DuBois.
+@item
 Added option @code{--safe-show-databases}.
 @item
 Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},

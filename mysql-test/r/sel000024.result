@@ -1,2 +1,0 @@
-"a" LIKE "%%b"	"a" LIKE "%%ab"	"ab" LIKE "a\%"	"ab" LIKE "_"	"ab" LIKE "ab_"	"abc" LIKE "%_d"	"abc" LIKE "abc%d"
-0	0	0	0	0	0	0

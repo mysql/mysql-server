@@ -1,0 +1,4 @@
+time	date	timestamp
+12:22:22	1997-02-03	19970102000000
+t1.time+0	t1.date+0	t1.timestamp+0	concat(date," ",time)
+122222	19970203	19970102000000	1997-02-03 12:22:22

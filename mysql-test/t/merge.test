@@ -1,0 +1,79 @@
+#
+# test of MERGE TABLES
+#
+
+drop table if exists t1,t2,t3;
+create table t1 (a int not null primary key auto_increment, message char(20));
+create table t2 (a int not null primary key auto_increment, message char(20));
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
+INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
+create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(t1,t2);
+select * from t3;
+select * from t3 order by a desc;
+drop table t3;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(t1,t2);
+explain select * from t3 where a < 10;
+explain select * from t3 where a > 10 and a < 20;
+select * from t3 where a = 10;
+select * from t3 where a < 10;
+select * from t3 where a > 10 and a < 20;
+explain select a from t3 order by a desc limit 10;
+select a from t3 order by a desc limit 10;
+select a from t3 order by a desc limit 300,10;
+
+# The following should give errors
+create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
+
+drop table if exists t1,t2,t3,t4;
+
+create table t1 (c char(10)) type=myisam;
+create table t2 (c char(10)) type=myisam;
+create table t3 (c char(10)) union=(t1,t2) type=merge;
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+select * from t3;
+select * from t3;
+delete from t3;
+select * from t3;
+select * from t1;
+drop table t3,t2,t1;
+
+#
+# Test 2
+#
+
+CREATE TABLE t1 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t2 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+TYPE=MERGE UNION=(t1,t2);
+
+SELECT * from t3;
+
+INSERT INTO t1 VALUES ( 1,10),( 3,53),( 5,21),( 7,12),( 9,17);
+INSERT INTO t2 VALUES ( 2,24),( 4,33),( 6,41),( 8,26),( 0,32);
+INSERT INTO t1 VALUES (11,20),(13,43),(15,11),(17,22),(19,37);
+INSERT INTO t2 VALUES (12,25),(14,31),(16,42),(18,27),(10,30);
+
+SELECT * from t3 where incr in (1,2,3,4) order by othr;
+drop table t3,t2,t1;
+
+#
+# Test table without unions
+#
+select * from m;
+

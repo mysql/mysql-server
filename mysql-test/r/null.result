@@ -1,0 +1,25 @@
+NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
+NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
+1 | NULL	1 & NULL	1+NULL	1-NULL
+NULL	NULL	NULL	NULL
+NULL=NULL	NULL<>NULL	IFNULL(NULL,1.1)+0	IFNULL(NULL,1) | 0
+NULL	NULL	1.1	1
+strcmp("a",NULL)	(1<NULL)+0.0	NULL regexp "a"	null like "a%"	"a%" like null
+NULL	NULL	NULL	NULL	NULL
+concat("a",NULL)	replace(NULL,"a","b")	replace("string","i",NULL)	replace("string",NULL,"i")	insert("abc",1,1,NULL)	left(NULL,1)
+NULL	NULL	NULL	NULL	NULL	NULL
+repeat("a",0)	repeat("ab",5+5)	repeat("ab",-1)	reverse(NULL)
+	abababababababababab		NULL
+field(NULL,"a","b","c")
+0
+2 between null and 1	2 between 3 AND NULL	NULL between 1 and 2	2 between NULL and 3	2 between 1 AND null
+0	0	NULL	NULL	NULL
+NULL AND NULL	1 AND NULL	NULL AND 1	NULL OR NULL	0 OR NULL	NULL OR 0
+NULL	NULL	NULL	NULL	NULL	NULL
+(NULL OR NULL) IS NULL
+1
+NULL AND 0	0 and NULL
+NULL	0
+inet_ntoa(null)	inet_aton(null)	inet_aton("122.256")	inet_aton("122.226.")	inet_aton("")
+NULL	NULL	NULL	NULL	NULL
+x
