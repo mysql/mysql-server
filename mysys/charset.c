@@ -469,7 +469,6 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     }
     cs= (cs->state & MY_CS_AVAILABLE) ? cs : NULL;
   }
-  pthread_mutex_unlock(&THR_LOCK_charset);
   if (cs && !(cs->state & MY_CS_READY))
   {
     if ((cs->cset->init && cs->cset->init(cs, cs_alloc)) ||
@@ -478,6 +477,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     else
       cs->state|= MY_CS_READY;
   }
+  pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
 }
 

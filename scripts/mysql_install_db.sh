@@ -155,7 +155,7 @@ then
     resolved=`$bindir/resolveip localhost 2>&1`
     if [ $? -ne 0 ]
     then
-      echo "Neither host '$hostname' and 'localhost' could not be looked up with"
+      echo "Neither host '$hostname' nor 'localhost' could be looked up with"
       echo "$bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct hostname."
       echo "If you want to solve this at a later stage, restart this script with"

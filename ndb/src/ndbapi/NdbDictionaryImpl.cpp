@@ -34,6 +34,7 @@
 #include <AttributeList.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
+#include "NdbBlob.hpp"
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -178,7 +179,14 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Datetime:
   case NdbDictionary::Column::Timespec:
+    break;
   case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Clob:
+    if (m_precision != col.m_precision ||
+        m_scale != col.m_scale ||
+        m_length != col.m_length) {
+      return false;
+    }
     break;
   }
   if (m_autoIncrement != col.m_autoIncrement){
@@ -223,6 +231,8 @@ NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), m_facade(this)
 {
   m_noOfKeys = 0;
+  m_sizeOfKeysInWords = 0;
+  m_noOfBlobs = 0;
   m_index = 0;
   init();
 }
@@ -258,6 +268,8 @@ NdbTableImpl::init(){
   
   m_noOfKeys = 0;
   m_fragmentCount = 0;
+  m_sizeOfKeysInWords = 0;
+  m_noOfBlobs = 0;
 }
 
 bool
@@ -336,6 +348,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_index = org.m_index;
   
   m_noOfKeys = org.m_noOfKeys;
+  m_sizeOfKeysInWords = org.m_sizeOfKeysInWords;
+  m_noOfBlobs = org.m_noOfBlobs;
 
   m_version = org.m_version;
   m_status = org.m_status;
@@ -1077,6 +1091,8 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtVarbinary,       NdbDictionary::Column::Varbinary },
   { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
   { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
+  { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
+  { DictTabInfo::ExtClob,            NdbDictionary::Column::Clob },
   { -1, -1 }
 };
 
@@ -1133,6 +1149,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   
   Uint32 keyInfoPos = 0;
   Uint32 keyCount = 0;
+  Uint32 blobCount;
   
   for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
@@ -1189,6 +1206,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     } else {
       col->m_keyInfoPos = 0;
     }
+    if (col->getBlobType())
+      blobCount++;
     
     NdbColumnImpl * null = 0;
     impl->m_columns.fill(attrDesc.AttributeId, null);
@@ -1202,7 +1221,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   }
   impl->m_noOfKeys = keyCount;
   impl->m_keyLenInWords = keyInfoPos;
-  
+  impl->m_sizeOfKeysInWords = keyInfoPos;
+  impl->m_noOfBlobs = blobCount;
   * ret = impl;
   return 0;
 }
@@ -1210,6 +1230,43 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 /*****************************************************************
  * Create table and alter table
  */
+int
+NdbDictionaryImpl::createTable(NdbTableImpl &t)
+{ 
+  if (m_receiver.createTable(m_ndb, t) != 0)
+    return -1;
+  if (t.m_noOfBlobs == 0)
+    return 0;
+  // update table def from DICT
+  NdbTableImpl * tp = getTable(t.m_externalName.c_str());
+  if (tp == NULL) {
+    m_error.code = 709;
+    return -1;
+  }
+  if (createBlobTables(* tp) != 0) {
+    int save_code = m_error.code;
+    (void)dropTable(t);
+    m_error.code = save_code;
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
+{
+  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType())
+      continue;
+    NdbTableImpl bt;
+    NdbBlob::getBlobTable(bt, &t, &c);
+    if (createTable(bt) != 0)
+      return -1;
+  }
+  return 0;
+}
+
 int 
 NdbDictInterface::createTable(Ndb & ndb,
 			      NdbTableImpl & impl)
@@ -1544,6 +1601,12 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
     if (dropIndex(element.name, name) == -1)
       return -1;
   }
+
+  if (impl.m_noOfBlobs != 0) {
+    if (dropBlobTables(impl) != 0)
+      return -1;
+  }
+
   int ret = m_receiver.dropTable(impl);  
   if(ret == 0){
     const char * internalTableName = impl.m_internalName.c_str();
@@ -1556,6 +1619,23 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   
   return ret;
+}
+
+int
+NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
+{
+  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType())
+      continue;
+    char btname[NdbBlob::BlobTableNameSize];
+    NdbBlob::getBlobTableName(btname, &t, &c);
+    if (dropTable(btname) != 0) {
+      if (m_error.code != 709)
+        return -1;
+    }
+  }
+  return 0;
 }
 
 int

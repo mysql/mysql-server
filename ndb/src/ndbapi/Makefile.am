@@ -33,7 +33,8 @@ libndbapi_la_SOURCES = \
         NdbReceiver.cpp \
         NdbDictionary.cpp \
         NdbDictionaryImpl.cpp \
-        DictCache.cpp
+        DictCache.cpp \
+	NdbBlob.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
 

@@ -273,6 +273,9 @@ NdbDictionary::Table::addColumn(const Column & c){
   if(c.getPrimaryKey()){
     m_impl.m_noOfKeys++;
   }
+  if (col->getBlobType()) {
+    m_impl.m_noOfBlobs++;
+  }
   m_impl.buildColumnHash();
 }
 

@@ -177,7 +177,7 @@ character-set=latin1
 "Zeitüberschreitung beim Lesen eines Kommunikationspakets",
 "Fehler beim Schreiben eines Kommunikationspakets",
 "Zeitüberschreitung beim Schreiben eines Kommunikationspakets",
-"Ergebnis ist länger als max_allowed_packet",
+"Ergebnis ist länger als 'max_allowed_packet'",
 "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Spalten",
 "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Spalten",
 "INSERT DELAYED kann nicht auf Tabelle '%-.64s' angewendet werden, da diese mit LOCK TABLES gesperrt ist",
@@ -272,10 +272,10 @@ character-set=latin1
 "Slave läuft bereits",
 "Slave wurde bereits angehalten",
 "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d",
-"Z_MEM_ERROR: Für zlib steht nicht genug Speicher zur Verfügung",
-"Z_BUF_ERROR: Im Ausgabepuffer ist nicht genug Platz für zlib vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
-"Z_DATA_ERROR: Eingabedaten für zlib beschädigt",
-"%d Zeile(n) durch group_concat() abgeschnitten",
+"ZLIB: Steht nicht genug Speicher zur Verfügung",
+"ZLIB: Im Ausgabepuffer ist nicht genug Platz vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
+"ZLIB: Eingabedaten beschädigt",
+"%d Zeile(n) durch GROUP_CONCAT() abgeschnitten",
 "Anzahl der Datensätze in Zeile %ld geringer als Anzahl der Spalten",
 "Anzahl der Datensätze in Zeile %ld größer als Anzahl der Spalten",
 "Daten abgeschnitten, NULL für NOT NULL-Spalte '%s' in Zeile %ld angegeben",
@@ -308,8 +308,8 @@ character-set=latin1
 "The MySQL server is running with the %s option so it cannot execute this statement",
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
 "Truncated wrong %-.32s value: '%-.128s'"
-"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
-"Invalid ON UPDATE clause for '%-.64s' field",
+"Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' column",
 "This command is not supported in the prepared statement protocol yet",
 "Got error %d '%-.100s' from %s",
 "Got temporary error %d '%-.100s' from %s",

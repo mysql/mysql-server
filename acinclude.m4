@@ -1383,6 +1383,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
               [ndb_test="$withval"],
               [ndb_test=no])
+  AC_ARG_WITH([ndb-docs],
+              [
+  --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
+              [ndb_docs="$withval"],
+              [ndb_docs=no])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1422,6 +1427,17 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
+  have_ndb_docs=no
+  case "$ndb_docs" in
+    yes )
+      AC_MSG_RESULT([-- including ndbapi and mgmapi documentation])
+      have_ndb_docs="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndbapi and mgmapi documentation])
+      ;;
+  esac
+
   AC_MSG_RESULT([done.])
 ])
 
@@ -1452,6 +1468,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ;;
   esac
 
+  AM_CONDITIONAL([HAVE_NDBCLUSTER_DB], [ test "$have_ndbcluster" = "yes" ])
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)

@@ -6,7 +6,7 @@ explain extended select (select 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select 2 AS `(select 2)`
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 (SELECT 1)
@@ -18,8 +18,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
-Note	1249	Select 4 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
+Note	1249	Select 4 was reduced during optimization
 Note	1003	select 1 AS `(SELECT 1)` union select 2 AS `(SELECT 2)`
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 (SELECT (SELECT 0 UNION SELECT 0))
@@ -31,7 +31,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select (select 0 AS `0` union select 0 AS `0`) AS `(SELECT (SELECT 0 UNION SELECT 0))`
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 ERROR 42S22: Reference 'a' not supported (forward reference in item list)
@@ -73,7 +73,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 1
 1
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
-ERROR HY000: Wrong usage of PROCEDURE and subquery
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
@@ -333,7 +333,7 @@ Warnings:
 Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select 1 AS `Not_used` from test.t7 where (test.t7.uq = test.t6.clinic_uq))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
-ERROR 23000: Column: 'a' in field list is ambiguous
+ERROR 23000: Column 'a' in field list is ambiguous
 drop table t1,t2,t3;
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
@@ -712,7 +712,7 @@ EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select test.t2.id AS `id` from test.t2 where (test.t2.id = 1)
 SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id
@@ -724,8 +724,8 @@ EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 Warnings:
-Note	1249	Select 3 was reduced during optimisation
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 3 was reduced during optimization
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select test.t2.id AS `id` from test.t2 where (test.t2.id = (1 + 1))
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -859,7 +859,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #2 was resolved in SELECT #1
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select (test.t1.a + 1) AS `(select a+1)` from test.t1
 select (select a+1) from t1;
 (select a+1)
@@ -976,7 +976,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
@@ -1714,7 +1714,7 @@ create table t1(id int);
 create table t2(id int);
 create table t3(flag int);
 select (select * from t3 where id not null) from t1, t2;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
 drop table t1,t2,t3;
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);

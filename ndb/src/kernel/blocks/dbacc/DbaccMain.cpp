@@ -2432,6 +2432,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     }
     fragrecptr.i = req->fragPtrI;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ndbrequire(req->fragId == fragrecptr.p->myfid);
     // caller must be explicit here
     ndbrequire(req->accOpPtr == RNIL);
     // seize operation to hold the lock
