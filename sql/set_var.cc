@@ -110,6 +110,7 @@ sys_var_str			sys_charset_system("character_set_system",
 				    sys_set_default_charset);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
+sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
@@ -363,6 +364,7 @@ sys_var *sys_variables[]=
   &sys_character_set_server,
   &sys_character_set_database,
   &sys_character_set_client,
+  &sys_character_set_connection,
   &sys_character_set_results,
   &sys_collation_connection,
   &sys_concurrent_insert,
@@ -485,6 +487,7 @@ struct show_var_st init_vars[]= {
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
   {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client,SHOW_SYS},
+  {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
@@ -1301,6 +1304,22 @@ byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type)
   return cs ? (byte*) cs->csname : (byte*) "NULL";
 }
 
+
+CHARSET_INFO ** sys_var_character_set_connection::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.collation_connection;
+  else
+    return &thd->variables.collation_connection;
+}
+
+void sys_var_character_set_connection::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_connection= default_charset_info;
+ else
+   thd->variables.collation_connection= global_system_variables.collation_connection;
+}
 
 
 CHARSET_INFO ** sys_var_character_set_client::ci_ptr(THD *thd, enum_var_type type)
