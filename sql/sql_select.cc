@@ -154,8 +154,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
-
- if (select_lex->next_select())
+  fix_tables_pointers(select_lex);
+  if (select_lex->next_select())
     res=mysql_union(thd,lex,result);
   else
     res=mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
@@ -171,7 +171,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     result->abort();
   if (res || thd->net.report_error)
   {
-    send_error(&thd->net, 0, MYF(0));
+    send_error(thd, 0, MYF(0));
     res= 1;
   }
   delete result;
@@ -7215,6 +7215,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       String tmp2(buff2,sizeof(buff2),default_charset_info);
       tmp1.length(0);
       tmp2.length(0);
+
+      item_list.empty();
       item_list.push_back(new Item_int((int)thd->lex.select->select_number));
       item_list.push_back(new Item_string(thd->lex.select->type,
 					  strlen(thd->lex.select->type),
@@ -7224,7 +7226,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       if (table->tmp_table == TMP_TABLE && table->derived_select_number != 0)
       {
 	// Derived table name generation
-	buff[512];
+	char buff[512];
 	int len= my_snprintf(buff, 512, "<derived%u>",
 			     table->derived_select_number);
 	item_list.push_back(new Item_string(buff, len, default_charset_info));

@@ -1339,7 +1339,7 @@ mysql_execute_command(THD *thd)
   {
     if (!(explain_result= new select_send()))
     {
-      send_error(&thd->net, ER_OUT_OF_RESOURCES);
+      send_error(thd, ER_OUT_OF_RESOURCES);
       DBUG_VOID_RETURN;
     }
     //check rights
@@ -1478,7 +1478,7 @@ mysql_execute_command(THD *thd)
 	if (!explain_result)
 	  if (!(explain_result= new select_send()))
 	  {
-	    send_error(&thd->net, ER_OUT_OF_RESOURCES);
+	    send_error(thd, ER_OUT_OF_RESOURCES);
 	    DBUG_VOID_RETURN;
 	  }
 	  else
