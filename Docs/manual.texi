@@ -4979,8 +4979,8 @@ shell> ./configure --with-charset=CHARSET
 @code{czech}, @code{danish},@code{dec8}, @code{dos}, @code{euc_kr},
 @code{gb2312}, @code{gbk}, @code{german1}, @code{hebrew}, @code{hp8},
 @code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1}, @code{latin2},
-@code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, @code{usa7},
-@code{win1251} or @code{win1251ukr}.
+@code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, @code{usa7} or
+@code{win1251ukr}.
 @xref{Character sets}.
 
 If you want to convert characters between the server and the client,
