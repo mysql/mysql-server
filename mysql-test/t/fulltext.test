@@ -45,3 +45,21 @@ select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ti
 show keys from t2;
 show create table t2;
 drop table t1,t2;
+
+# check for bug reported by Stephan Skusa
+
+drop table if exists fulltextTEST;
+CREATE TABLE fulltextTEST (
+   field1 varchar(40) NOT NULL,
+   field2 varchar(20) NOT NULL,
+   field3 varchar(40) NOT NULL,
+   PRIMARY KEY (field1),
+   FULLTEXT idx_fulltext (field1, field2, field3)
+);
+
+INSERT INTO fulltextTEST VALUES ( 'test1', 'test1.1', 'test1.1.1');
+INSERT INTO fulltextTEST VALUES ( 'test2', 'test2.1', 'test2.1.1');
+select *
+from fulltextTEST
+where MATCH (field1,field2,field3) AGAINST (NULL);
+drop table fulltextTEST;
