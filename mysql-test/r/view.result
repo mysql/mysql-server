@@ -1,5 +1,5 @@
-drop table if exists t1,t2;
-drop view if exists v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 use test;
 create view v1 (c,d) as select a,b from t1;
@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 Table	Create Table
-v1	CREATE VIEW test.v1 AS select (test.t1.b + 1) AS `c` from test.t1
+v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view v1;
 Table	Create Table
-v1	CREATE VIEW test.v1 AS select (test.t1.b + 1) AS `c` from test.t1
+v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -51,11 +51,11 @@ explain extended select c from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select (test.t1.b + 1) AS `c` from test.v1
+Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`v1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create table v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW test.v2 AS select (test.t1.b + 1) AS `c` from test.t1
+v2	CREATE ALGORITHM=TMPTABLE VIEW test.v2 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 select c from v2;
 c
 3
@@ -66,9 +66,9 @@ c
 explain extended select c from v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select v2.c AS `c` from test.v2
+Note	1003	select `v2`.`c` AS `c` from `test`.`v2`
 create view v3 (c) as select a+1 from v1;
 ERROR 42S22: Unknown column 'a' in 'field list'
 create view v3 (c) as select b+1 from v1;
@@ -85,7 +85,7 @@ explain extended select c from v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select ((test.t1.b + 1) + 1) AS `c` from test.v3
+Note	1003	select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`v3`
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
 c
@@ -97,10 +97,10 @@ c
 explain extended select c from v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select v4.c AS `c` from test.v4
+Note	1003	select `v4`.`c` AS `c` from `test`.`v4`
 create view v5 (c) as select c+1 from v2;
 select c from v5;
 c
@@ -112,9 +112,9 @@ c
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select (v2.c + 1) AS `c` from test.v5
+Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v5`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
 c
@@ -126,9 +126,9 @@ c
 explain extended select c from v6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select v6.c AS `c` from test.v6
+Note	1003	select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
 Tables_in_test	table_type
 t1	BASE TABLE
@@ -306,14 +306,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v1;
 Table	Create Table
-v1	CREATE VIEW mysqltest.v1 AS select (mysqltest.t1.a + 1) AS `c`,(mysqltest.t1.b + 1) AS `d` from mysqltest.t1
+v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (mysqltest.t1.a + 1) AS `c`,(mysqltest.t1.b + 1) AS `d` from mysqltest.t1
+v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create table mysqltest.v3;
@@ -328,27 +328,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v1;
 Table	Create Table
-v1	CREATE VIEW mysqltest.v1 AS select (mysqltest.t1.a + 1) AS `c`,(mysqltest.t1.b + 1) AS `d` from mysqltest.t1
+v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (mysqltest.t1.a + 1) AS `c`,(mysqltest.t1.b + 1) AS `d` from mysqltest.t1
+v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v3;
 Table	Create Table
-v3	CREATE VIEW mysqltest.v3 AS select (mysqltest.t2.a + 1) AS `c`,(mysqltest.t2.b + 1) AS `d` from mysqltest.t2
+v3	CREATE VIEW mysqltest.v3 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 explain select c from mysqltest.v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v4;
 Table	Create Table
-v4	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v4 AS select (mysqltest.t2.a + 1) AS `c`,(mysqltest.t2.b + 1) AS `d` from mysqltest.t2
+v4	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v4 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
@@ -464,7 +464,7 @@ a
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
 1
@@ -527,7 +527,7 @@ a+1
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 drop table t1;
 create table t1 (a int);
@@ -663,7 +663,7 @@ explain extended select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 Warnings:
-Note	1003	select test.t1.b AS `c` from test.v1 where (test.t1.a < 3)
+Note	1003	select `test`.`t1`.`b` AS `c` from `test`.`v1` where (`test`.`t1`.`a` < 3)
 update v1 set c=c+1;
 select * from t1;
 a	b
@@ -941,3 +941,27 @@ create view v4 as select b+1 from mysqltest.t2;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
 drop view v1,v2;
+set sql_mode='ansi';
+create table t1 ("a*b" int);
+create view v1 as select "a*b" from t1;
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW test.v1 AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
+drop view v1;
+drop table t1;
+set sql_mode=default;
+create table t1 (t_column int);
+create view v1 as select 'a';
+select * from v1, t1;
+a	t_column
+drop view v1;
+drop table t1;
+create table `t1a``b` (col1 char(2));
+create view v1 as select * from `t1a``b`;
+select * from v1;
+col1
+describe v1;
+Field	Type	Null	Key	Default	Extra
+col1	char(2)	YES		NULL	
+drop view v1;
+drop table `t1a``b`;
