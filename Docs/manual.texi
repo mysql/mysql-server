@@ -3471,13 +3471,14 @@ source distribution.
 Check the @uref{http://www.mysql.com/, @strong{MySQL} home page} for
 information about the current version and for downloading instructions.
 
-Our main download mirror is located at @uref{http://www.sourceforge.net/, SourceForge.net}:
+Our main download mirror is located at:
+
 @uref{http://download.sourceforge.net/mirrors/mysql/, http://download.sourceforge.net/mirrors/mysql/}
 
 If you are interested in becoming a @strong{MySQL} mirror site, you may anonymously
-rsync with: @uref{rsync://download.sourceforge.net/mysql/, rsync://download.sourceforge.net/mysql/}.
-Please send mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
-added to the list below.
+rsync with: @code{rsync://download.sourceforge.net/mysql/}. Please send mail to
+@email{webmaster@@mysql.com} notifying us of your mirror to be added to the list
+below.
 
 If you have problems downloading from our main site, try using one of the
 mirrors listed below.
@@ -3492,7 +3493,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: sl@iuinfo.tuwien.ac.at (Tony Sprinzl)
-@image{Flags/austria} Austria [Univ. of Technology/Vienna] @
+@c @image{Flags/austria} Austria [Univ. of Technology/Vienna] @
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
 
@@ -3514,7 +3515,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added: 990614
 @c EMAIL: kas@informatics.muni.cz (Jan Kasprzak)
-@image{Flags/czech-republic} Czech Republic [Masaryk University in Brno] @
+@c @image{Flags/czech-republic} Czech Republic [Masaryk University in Brno] @
 @uref{http://mysql.linux.cz/index.html, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
 
@@ -3528,7 +3529,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added: 000418
 @c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
-@image{Flags/czech-republic} Czech Republic [www.gin.cz] @
+@c @image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
 
@@ -3536,12 +3537,12 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
 @c EMAIL: mirrorman@borsen.dk  (Michael Kyed)
-@image{Flags/denmark} Denmark [Borsen] @
+@c @image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
 @item
 @c EMAIL: mkp@socsci.auc.dk (Martin Kasper Petersen)
-@image{Flags/denmark} Denmark [SunSITE] @
+@c @image{Flags/denmark} Denmark [SunSITE] @
 @uref{http://SunSITE.auc.dk/mysql/, WWW}
 @uref{ftp://SunSITE.auc.dk/pub/databases/mysql/, FTP}
 
@@ -3553,7 +3554,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: tonu@spamm.ee (Tõnu Samuel)
-@image{Flags/estonia} Estonia [OKinteractive] @
+@c @image{Flags/estonia} Estonia [OKinteractive] @
 @uref{http://mysql.mirror.ok.ee, WWW}
 
 @c @item
@@ -3579,13 +3580,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
-@image{Flags/germany} Germany [Bonn University, Bonn] @
+@c @image{Flags/germany} Germany [Bonn University, Bonn] @
 @uref{http://www.wipol.uni-bonn.de/MySQL//, WWW}
 @uref{ftp://ftp.wipol.uni-bonn.de/pub/mirror/MySQL/, FTP}
 
 @item
 @c EMAIL: th@rz.fh-wolfenbuettel.de (Thorsten Ludewig)
-@image{Flags/germany} Germany [Wolfenbuettel] @
+@c @image{Flags/germany} Germany [Wolfenbuettel] @
 @uref{http://www.fh-wolfenbuettel.de/ftp/pub/database/mysql/, WWW}
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
 
@@ -3606,7 +3607,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 981208
 @c EMAIL: christias@noc.ntua.gr (Panagiotis Christias)
-@image{Flags/greece} Greece [NTUA, Athens] @
+@c @image{Flags/greece} Greece [NTUA, Athens] @
 @uref{http://www.ntua.gr/mysql/, WWW}
 @uref{ftp://ftp.ntua.gr/pub/databases/mysql/, FTP}
 
@@ -3638,7 +3639,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: irena@yacc.it
-@image{Flags/italy} Italy [Teta Srl] @
+@c @image{Flags/italy} Italy [Teta Srl] @
 @uref{http://www.teta.it/mysql/, WWW}
 
 @c @item
@@ -3652,7 +3653,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
-@image{Flags/poland} Poland [Sunsite] @
+@c @image{Flags/poland} Poland [Sunsite] @
 @uref{http://sunsite.icm.edu.pl/mysql/, WWW}
 @uref{ftp://sunsite.icm.edu.pl/pub/unix/mysql/, FTP}
 
@@ -3693,7 +3694,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 990507
 @c EMAIL: demon@gpad.ac.ru (Dima Sivachenko)
-@image{Flags/russia} Russia [Scientific Center/Chernogolovka] @
+@c @image{Flags/russia} Russia [Scientific Center/Chernogolovka] @
 @uref{ftp://ftp.chg.ru/pub/databases/mysql/, FTP}
 
 @c @item
@@ -3705,7 +3706,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: tim@lbi.ro (Bogdan Surdu)
-@image{Flags/romania} Romania [Bucharest] @
+@c @image{Flags/romania} Romania [Bucharest] @
 @uref{http://www.lbi.ro/MySQL/, WWW}
 @uref{ftp://ftp.lbi.ro/mirrors/ftp.tcx.se, FTP}
 
@@ -3725,7 +3726,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: archive@sunsite.cnlab-switch.ch (Thomas Lenggenhager)
-@image{Flags/switzerland} Switzerland [Sunsite] @
+@c @image{Flags/switzerland} Switzerland [Sunsite] @
 @uref{http://sunsite.cnlab-switch.ch/ftp/mirror/mysql/, WWW}
 @uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/, FTP}
 
@@ -3744,7 +3745,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c keet@mordor.plig.net (Christiaan Keet)
-@image{Flags/great-britain} UK [PLiG/UK] @
+@c @image{Flags/great-britain} UK [PLiG/UK] @
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
@@ -3781,7 +3782,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Ok 980109
 @c EMAIL: wojtek@tryc.on.ca (Wojtjeck Tryc)
-@image{Flags/canada} Canada [Tryc] @
+@c @image{Flags/canada} Canada [Tryc] @
 @uref{http://web.tryc.on.ca/mysql/, WWW}
 
 @c @item
@@ -3795,7 +3796,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c EMAIL:  mleber@he.net (Mike Leber)
 @c Added 980312
-@image{Flags/usa} USA [Hurricane Electric/San Jose] @
+@c @image{Flags/usa} USA [Hurricane Electric/San Jose] @
 @uref{http://mysql.he.net, WWW}
 
 @c @item
@@ -3843,7 +3844,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: tcobb@staff.circle.net (Troy Cobb)
-@image{Flags/usa} USA [Circle Net/North Carolina] @
+@c @image{Flags/usa} USA [Circle Net/North Carolina] @
 @uref{http://www.mysql.net, WWW}
 
 @c @item
@@ -3875,7 +3876,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: andrew.sawyers@thelinuxstore.com
-@image{Flags/usa} USA [LinuxWired/Scottsdale, AZ] @
+@c @image{Flags/usa} USA [LinuxWired/Scottsdale, AZ] @
 @uref{http://mysql.linuxwired.net/, WWW}
 @uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/, FTP}
 
@@ -3915,7 +3916,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
-@image{Flags/china} China [Hong Kong] @
+@c @image{Flags/china} China [Hong Kong] @
 @uref{http://mysql.islnet.net, WWW}
 
 @c @item
@@ -3939,7 +3940,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Ok 980805
 @c EMAIL: takeshi@SoftAgency.co.jp
-@image{Flags/japan} Japan [Soft Agency] @
+@c @image{Flags/japan} Japan [Soft Agency] @
 @uref{http://www.softagency.co.jp/MySQL, WWW}
 
 @c @item
@@ -3966,7 +3967,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: csy@hjc.edu.sg
-@image{Flags/singapore} Singapore [HJC] @
+@c @image{Flags/singapore} Singapore [HJC] @
 @uref{http://mysql.hjc.edu.sg, WWW}
 @uref{ftp://ftp.hjc.edu.sg/mysql, FTP}
 
@@ -4017,7 +4018,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
-@image{Flags/australia} Australia [AARNet/Queensland] @
+@c @image{Flags/australia} Australia [AARNet/Queensland] @
 @uref{http://mirror.aarnet.edu.au/mysql, WWW}
 @uref{ftp://mirror.aarnet.edu.au/pub/mysql, FTP}
 
@@ -4040,7 +4041,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 990531
 @c EMAIL: gavin@itworks.com.au (Gavin Cameron)
-@image{Flags/australia} Australia [ITworks Consulting/Victoria] @
+@c @image{Flags/australia} Australia [ITworks Consulting/Victoria] @
 @uref{http://mysql.itworks.com.au, WWW}
 
 @c @item
@@ -4064,7 +4065,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Ok 981010
 @c EMAIL: oskar@is.co.za (Oskar Pearson)
-@image{Flags/south-africa1} South-Africa [The Internet Solution/Johannesburg] @
+@c @image{Flags/south-africa1} South-Africa [The Internet Solution/Johannesburg] @
 @uref{ftp://ftp.is.co.za/linux/mysql/, FTP}
 
 @end itemize
