@@ -2082,14 +2082,17 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-      
+    unaliased                   Set to true if item is field which was found
+                                by original field name and not by its alias
+                                in item list. Set to false otherwise.
+
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
     not_found_item	Function was called with
 			report_error == REPORT_EXCEPT_NOT_FOUND and
 			item was not found. No error message was reported
-    found field 
+                        found field
 */
 
 // Special Item pointer for find_item_in_list returning
@@ -2098,7 +2101,7 @@ const Item **not_found_item= (const Item**) 0x1;
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
-		  find_item_error_report_type report_error)
+                  find_item_error_report_type report_error, bool *unaliased)
 {
   List_iterator<Item> li(items);
   Item **found=0, **found_unaliased= 0, *item;
@@ -2107,6 +2110,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   const char *table_name=0;
   bool found_unaliased_non_uniq= 0;
   uint unaliased_counter;
+
+  *unaliased= FALSE;
+
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
@@ -2134,17 +2140,18 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         /*
           If table name is specified we should find field 'field_name' in
           table 'table_name'. According to SQL-standard we should ignore
-          aliases in this case. Note that we should prefer fields from the
-          select list over other fields from the tables participating in
-          this select in case of ambiguity.
+          aliases in this case.
+
+          Since we should NOT prefer fields from the select list over
+          other fields from the tables participating in this select in
+          case of ambiguity we have to do extra check outside this function.
 
           We use strcmp for table names and database names as these may be
-          case sensitive.
-          In cases where they are not case sensitive, they are always in lower
-          case.
+          case sensitive. In cases where they are not case sensitive, they
+          are always in lower case.
 
 	  item_field->field_name and item_field->table_name can be 0x0 if
-	  item is not fix fielded yet.
+	  item is not fix_field()'ed yet.
         */
         if (item_field->field_name && item_field->table_name &&
 	    !my_strcasecmp(system_charset_info, item_field->field_name,
@@ -2153,17 +2160,22 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
             (!db_name || (item_field->db_name &&
                           !strcmp(item_field->db_name, db_name))))
         {
-          if (found)
+          if (found_unaliased)
           {
-            if ((*found)->eq(item, 0))
-              continue;                         // Same field twice
+            if ((*found_unaliased)->eq(item, 0))
+              continue;
+            /*
+              Two matching fields in select list.
+              We already can bail out because we are searching through
+              unaliased names only and will have duplicate error anyway.
+            */
             if (report_error != IGNORE_ERRORS)
               my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
                               MYF(0), find->full_name(), current_thd->where);
             return (Item**) 0;
           }
-          found= li.ref();
-          *counter= i;
+          found_unaliased= li.ref();
+          unaliased_counter= i;
           if (db_name)
             break;                              // Perfect match
         }
@@ -2235,6 +2247,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       found= found_unaliased;
       *counter= unaliased_counter;
+      *unaliased= TRUE;
     }
   }
   if (found)
