@@ -56,6 +56,7 @@ sp_multi_results_command(enum enum_sql_command cmd)
 {
   switch (cmd) {
   case SQLCOM_ANALYZE:
+  case SQLCOM_CHECKSUM:
   case SQLCOM_HA_READ:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
