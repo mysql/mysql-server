@@ -392,7 +392,7 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them=false)
   if (lu)  // for GRANT 
   {
     USER_CONN *uc;
-    volatile uint temp_len=lu->user.length+lu->host.length+2;
+    uint temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
