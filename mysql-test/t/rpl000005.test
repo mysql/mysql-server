@@ -1,5 +1,10 @@
 source include/master-slave.inc;
 
+#
+# Bug#7100 relay_log_space_max missing from SHOW VARIABLES
+#
+SHOW VARIABLES LIKE 'relay_log_space_limit';
+
 CREATE TABLE t1 (name varchar(64), age smallint(3));
 INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;
