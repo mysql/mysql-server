@@ -48,7 +48,7 @@ id	parent_id	level
 15	102	2
 update t1 set id=id+1000;
 update t1 set id=1024 where id=1009;
-Duplicate entry '1024' for key 1
+Got one of the listed errors
 select * from t1;
 id	parent_id	level
 1001	100	0

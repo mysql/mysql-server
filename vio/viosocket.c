@@ -27,36 +27,10 @@
 #include <mysql_com.h>
 
 #include <errno.h>
-#include <assert.h>
 #include <violite.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
-#ifdef HAVE_POLL
-#include <sys/poll.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-
-
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
-#include <netinet/ip.h>
-#if !defined(alpha_linux_port)
-#include <netinet/tcp.h>
-#endif
-#endif
-
-#if defined(__EMX__) || defined(OS2)
-#define ioctlsocket ioctl
-#endif	/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define SOCKET_EWOULDBLOCK SOCKET_EAGAIN
-#endif
 
 #ifndef __WIN__
 #define HANDLE void *
@@ -243,7 +217,8 @@ my_bool
 vio_should_retry(Vio * vio __attribute__((unused)))
 {
   int en = socket_errno;
-  return en == SOCKET_EAGAIN || en == SOCKET_EINTR || en == SOCKET_EWOULDBLOCK;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK);
 }
 
 

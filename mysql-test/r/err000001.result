@@ -13,7 +13,7 @@ Unknown table 'not_existing_database' in field list
 select count(not_existing_database.t1.a) from t1;
 Unknown table 'not_existing_database.t1' in field list
 select count(not_existing_database.t1.a) from not_existing_database.t1;
-Table 'not_existing_database.t1' doesn't exist
+Got one of the listed errors
 select 1 from t1 order by 2;
 Unknown column '2' in 'order clause'
 select 1 from t1 group by 2;
