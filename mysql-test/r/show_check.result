@@ -37,6 +37,9 @@ drop table t1;
 show variables like "wait_timeout%";
 Variable_name	Value
 wait_timeout	28800
+show variables like "WAIT_timeout%";
+Variable_name	Value
+wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
