@@ -2189,21 +2189,21 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 
 extern "C"
 NDB_SOCKET_TYPE
-ndb_mgm_convert_to_transporter(NdbMgmHandle handle)
+ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
   NDB_SOCKET_TYPE s;
 
-  CHECK_HANDLE(handle, NDB_INVALID_SOCKET);
-  CHECK_CONNECTED(handle, NDB_INVALID_SOCKET);
+  CHECK_HANDLE((*handle), NDB_INVALID_SOCKET);
+  CHECK_CONNECTED((*handle), NDB_INVALID_SOCKET);
 
-  handle->connected= 0;   // we pretend we're disconnected
-  s= handle->socket;
+  (*handle)->connected= 0;   // we pretend we're disconnected
+  s= (*handle)->socket;
 
   SocketOutputStream s_output(s);
   s_output.println("transporter connect");
   s_output.println("");
 
-  ndb_mgm_destroy_handle(&handle); // set connected=0, so won't disconnect
+  ndb_mgm_destroy_handle(handle); // set connected=0, so won't disconnect
 
   return s;
 }
