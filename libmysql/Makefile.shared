@@ -58,12 +58,6 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
                         charset.lo hash.lo mf_iocache.lo my_seek.lo \
 			my_pread.lo mf_cache.lo my_vsnprintf.lo
 
-link_sources:
-	for f in $(mysys_src); do \
-	rm -f $$f; \
-	@LN_CP_F@ ../mysys/$$f $$f; \
-	done;
-
 # Not needed in the minimum library
 mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
