@@ -192,6 +192,7 @@ static void init_tmptable_sum_functions(Item_sum **func);
 static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
 static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
@@ -990,13 +991,15 @@ JOIN::optimize()
       if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  alloc_group_fields(this, group_list) ||
-	  make_sum_func_list(all_fields, fields_list, 1))
+          make_sum_func_list(all_fields, fields_list, 1) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       group_list=0;
     }
     else
     {
-      if (make_sum_func_list(all_fields, fields_list, 0))
+      if (make_sum_func_list(all_fields, fields_list, 0) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
@@ -1372,6 +1375,7 @@ JOIN::exec()
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 					1, TRUE) ||
+          setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1459,7 +1463,9 @@ JOIN::exec()
     set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-				      1, TRUE) || thd->is_fatal_error)
+				      1, TRUE) || 
+        setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
+        thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -11794,9 +11800,6 @@ bool JOIN::alloc_func_list()
     before_group_by	Set to 1 if this is called before GROUP BY handling
     recompute           Set to TRUE if sum_funcs must be recomputed
 
-  NOTES
-    Calls ::setup() for all item_sum objects in field_list
-
   RETURN
     0  ok
     1  error
@@ -11817,12 +11820,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
   while ((item=it++))
   {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
-    {
       *func++= (Item_sum*) item;
-      /* let COUNT(DISTINCT) create the temporary table */
-      if (((Item_sum*) item)->setup(thd))
-	DBUG_RETURN(TRUE);
-    }
   }
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
   {
@@ -11966,6 +11964,30 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
 /******************************************************************************
   Code for calculating functions
 ******************************************************************************/
+
+
+/*
+  Call ::setup for all sum functions
+
+  SYNOPSIS
+    setup_sum_funcs()
+    thd           thread handler
+    func_ptr      sum function list
+
+  RETURN
+    FALSE  ok
+    TRUE   error
+*/
+
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
+{
+  Item_sum *func;
+  while ((func= *(func_ptr++)))
+    if (func->setup(thd))
+      return TRUE;
+  return FALSE;
+}
+
 
 static void
 init_tmptable_sum_functions(Item_sum **func_ptr)
