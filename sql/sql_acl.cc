@@ -5197,6 +5197,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name)
     DBUG_RETURN(TRUE);
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
   result= mysql_procedure_grant(thd, tables, user_list,
   				DEFAULT_CREATE_PROC_ACLS, 0, 1);
