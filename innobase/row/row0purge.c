@@ -428,7 +428,9 @@ skip_secondaries:
 			index = dict_table_get_first_index(node->table);
 
 			mtr_x_lock(dict_tree_get_lock(index->tree), &mtr);
-			
+
+			btr_root_get(index->tree, &mtr);
+
 			/* We assume in purge of externally stored fields
 			that the space id of the undo log record is 0! */
 
