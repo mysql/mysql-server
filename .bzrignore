@@ -1052,3 +1052,4 @@ ndb/tools/ndb_drop_index.dsp
 ndb/tools/ndb_show_tables.dsp
 ndb/tools/ndb_select_all.dsp
 ndb/tools/ndb_select_count.dsp
+support-files/ndb-config-2-node.ini
