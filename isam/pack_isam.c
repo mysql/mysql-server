@@ -574,9 +574,9 @@ static int compress(MRG_INFO *mrg,char *result_table)
   end_file_buffer();
 
   if (verbose && mrg->records)
-    printf("Min record length: %6d   Max length: %6d   Mean total length: %6d\n",
+    printf("Min record length: %6d   Max length: %6d   Mean total length: %6lu\n",
 	   mrg->min_pack_length,mrg->max_pack_length,
-	   (long) new_length/mrg->records);
+	   (ulong) new_length/mrg->records);
 
   if (!test_only)
   {
@@ -763,11 +763,11 @@ static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  global_count=count;
 	  if (!(element=tree_insert(&count->int_tree,pos,0)) ||
-	      element->count == 1 &&
-	      count->tree_buff + tree_buff_length <
-	      count->tree_pos + count->field_length ||
-	      count->field_length == 1 &&
-	      count->int_tree.elements_in_tree > 1)
+	      (element->count == 1 &&
+	       count->tree_buff + tree_buff_length <
+	       count->tree_pos + count->field_length ||
+	       count->field_length == 1 &&
+	       count->int_tree.elements_in_tree > 1))
 	  {
 	    delete_tree(&count->int_tree);
 	    my_free(count->tree_buff,MYF(0));
@@ -1760,8 +1760,8 @@ static int compress_isam_file(MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	if (max_record_length >= max_allowed_length)
 	{
 	  fprintf(stderr,
-		  "Error: Found record with packed-length: %d, max is: %d\n",
-		  max_record_length,max_allowed_length);
+		  "Error: Found record with packed-length: %d, max is: %lu\n",
+		  max_record_length, (ulong) max_allowed_length);
 	  error=1;
 	  break;
 	}

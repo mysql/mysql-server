@@ -37,9 +37,8 @@ static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
   byte *pos;
   uint i;
 
-  i=info->s->keyinfo[keynr].keysegs-FT_SEGS;
   keyseg=info->s->keyinfo[keynr].seg;
-  while(i--)
+  for (i=info->s->keyinfo[keynr].keysegs-FT_SEGS ; i-- ; )
   {
     uint len;
 
@@ -61,10 +60,12 @@ static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
     }
     else
       len=keyseg->length;
-
-    parsed=ft_parse(parsed, pos, len);
-    if (parsed==NULL) return NULL;
+    if (!(parsed=ft_parse(parsed, pos, len)))
+      return NULL;
   }
+  /* Handle the case where all columns are NULL */
+  if (!parsed && !(parsed=ft_parse(0, "", 0)))
+    return NULL;
   return ft_linearize(info, keynr, keybuf, parsed);
 }
 

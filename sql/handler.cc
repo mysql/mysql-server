@@ -37,7 +37,6 @@
 
 	/* static functions defined in this file */
 
-static void NEAR_F set_form_timestamp(TABLE *table, byte *record);
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 
 ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,

@@ -20,6 +20,7 @@
 #include "mysys_priv.h"
 #include "mysys_err.h"
 #include <errno.h>
+#include <stdio.h>
 
 #ifdef HAVE_FSEEKO
 #undef ftell

@@ -314,7 +314,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 
 int chk_key(MI_CHECK *param, register MI_INFO *info)
 {
-  uint key,found_keys=0,full_text_keys=0;
+  uint key,found_keys=0,full_text_keys=0,result=0;
   ha_rows keys;
   ha_checksum old_record_checksum,init_checksum;
   my_off_t all_keydata,all_totaldata,key_totlength,length;
@@ -361,7 +361,10 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     {
       mi_check_print_error(param,"Can't read indexpage from filepos: %s",
 		  llstr(share->state.key_root[key],buff));
-      DBUG_RETURN(-1);
+      if (!(param->testflag & T_INFO))
+	DBUG_RETURN(-1);
+      result= -1;
+      continue;
     }
     param->key_file_blocks+=keyinfo->block_length;
     keys=0;
@@ -377,7 +380,10 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       {
 	mi_check_print_error(param,"Found %s keys of %s",llstr(keys,buff),
 		    llstr(info->state->records,buff2));
+	if (!(param->testflag & T_INFO))
 	DBUG_RETURN(-1);
+	result= -1;
+	continue;
       }
       if (found_keys - full_text_keys == 1 &&
 	  ((share->options &
@@ -391,7 +397,10 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 		      key+1);
 	else
 	  mi_check_print_error(param,"Key 1 doesn't point at all records");
-	DBUG_RETURN(-1);
+	if (!(param->testflag & T_INFO))
+	  DBUG_RETURN(-1);
+	result= -1;
+	continue;
       }
     }
     else

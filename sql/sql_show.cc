@@ -753,13 +753,11 @@ store_create_info(THD *thd, TABLE *table, String* packet)
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
-      if(j)
+      if (j)
         packet->append(',');
 
-      if(key_part->field)
+      if (key_part->field)
         packet->append(key_part->field->field_name);
-      KEY *key=table->key_info+i;
-
       if (!key_part->field ||
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
