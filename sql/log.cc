@@ -1133,24 +1133,26 @@ bool MYSQL_LOG::write(Log_event* event_info)
       was a MyISAM event!
     */
 
-    if (file == &log_file && opt_using_transactions
-			  && !my_b_tell(&thd->transaction.trans_log))
+    if (file == &log_file) // we are writing to the real log (disk)
     {
-      /*
-	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
-	chunks also before it is successfully completed. We only report
-	the binlog write and do the commit inside the transactional table
-	handler if the log event type is appropriate.
-      */
-
-      if (event_info->get_type_code() == QUERY_EVENT
-          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
-	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
-                                                 file->pos_in_file);
-	called_handler_commit=1;
+        /*
+          LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+          chunks also before it is successfully completed. We only report
+          the binlog write and do the commit inside the transactional table
+          handler if the log event type is appropriate.
+        */
+        
+        if (event_info->get_type_code() == QUERY_EVENT
+            || event_info->get_type_code() == EXEC_LOAD_EVENT)
+        {
+          error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+                                                     file->pos_in_file);
+          called_handler_commit=1;
+        }
       }
-
+      /* we wrote to the real log, check automatic rotation */
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
 
