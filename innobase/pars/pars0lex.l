@@ -35,6 +35,19 @@ These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
 Linux.
 *******************************************************/
 
+%option nostdinit
+%option 8bit
+%option warn
+%option pointer
+%option never-interactive
+%option nodefault
+%option noinput
+%option nounput
+%option noyywrap
+%option noyy_scan_buffer
+%option noyy_scan_bytes
+%option noyy_scan_string
+
 %{
 #define YYSTYPE que_node_t*
 
@@ -45,18 +58,47 @@ Linux.
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define isatty(A)	0
 #define malloc(A)	mem_alloc(A)
 #define free(A)		mem_free(A)
 #define realloc(P, A)	mem_realloc(P, A, __FILE__, __LINE__)
-#define exit(A) 	ut_a(0)
+#define exit(A) 	ut_error
 
 #define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
+
+/* String buffer for removing quotes */
+static ulint	stringbuf_len_alloc = 0; /* Allocated length */
+static ulint	stringbuf_len = 0; /* Current length */
+static char*	stringbuf; /* Start of buffer */
+/* Appends a string to the buffer. */
+static
+void
+string_append(
+/*==========*/
+	const char*	str,	/* in: string to be appended */
+	ulint		len)	/* in: length of the string */
+{
+	if (stringbuf_len + len > stringbuf_len_alloc) {
+		if (stringbuf_len_alloc == 0) {
+			stringbuf_len_alloc++;
+		}
+		while (stringbuf_len + len > stringbuf_len_alloc) {
+			stringbuf_len_alloc <<= 1;
+		}
+		stringbuf = stringbuf
+			? realloc(stringbuf, stringbuf_len_alloc)
+			: malloc(stringbuf_len_alloc);
+	}
+
+	memcpy(stringbuf + stringbuf_len, str, len);
+	stringbuf_len += len;
+}
+
 %}
 								
 DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
 %x comment
+%x quoted
 %%
 
 {DIGIT}+	{
@@ -71,13 +113,19 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 			return(PARS_FLOAT_LIT);
 }
 
-"\'"[^\']*"\'"	{
-			/* Remove the single quotes around the string */
-
-			yylval = sym_tab_add_str_lit(pars_sym_tab_global,
-						(byte*)yytext,
-						ut_strlen(yytext));
-			return(PARS_STR_LIT);
+"'"		{
+			BEGIN(quoted);
+			stringbuf_len = 0;
+}
+<quoted>[^\']+		string_append(yytext, yyleng);
+<quoted>"'"+	{	string_append(yytext, yyleng / 2);
+			if (yyleng % 2) {
+				BEGIN(INITIAL);
+				yylval = sym_tab_add_str_lit(
+					pars_sym_tab_global,
+					stringbuf, stringbuf_len);
+				return(PARS_STR_LIT);
+			}
 }
 
 "NULL"		{
@@ -89,7 +137,7 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 "SQL"		{
 			/* Implicit cursor name */
 			yylval = sym_tab_add_str_lit(pars_sym_tab_global,
-							(byte*)"\'SQL\'", 5);
+							yytext, yyleng);
 			return(PARS_SQL_TOKEN);
 }
 
@@ -485,17 +533,16 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 
 "/*"			BEGIN(comment); /* eat up comment */
 
-<comment>[^*\n]*
-<comment>[^*\n]*\n
-<comment>"*"+[^*/\n]*
-<comment>"*"+[^*/\n]*\n
+<comment>[^*]*
+<comment>"*"+[^*/]*
 <comment>"*"+"/"        BEGIN(INITIAL);
 
 [ \t\n]+		/* eat up whitespace */
 
 
 .		{
-			printf("Unrecognized character: %s\n", yytext);
+			fprintf(stderr,"Unrecognized character: %02x\n",
+				*yytext);
 
 			ut_error;
 

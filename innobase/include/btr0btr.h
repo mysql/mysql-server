@@ -392,6 +392,7 @@ btr_page_free_low(
 	page_t*		page,	/* in: page to be freed, x-latched */	
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Prints size info of a B-tree. */
 
@@ -408,6 +409,7 @@ btr_print_tree(
 	dict_tree_t*	tree,	/* in: tree */
 	ulint		width);	/* in: print this many entries from start
 				and end */
+#endif /* UNIV_DEBUG */
 /****************************************************************
 Checks the size and number of fields in a record based on the definition of
 the index. */

@@ -36,9 +36,9 @@ Copies a string to a memory location, setting characters to lower case. */
 void
 ut_cpy_in_lower_case(
 /*=================*/
-        char*   dest,  /* in: destination */
-	char*   source,/* in: source */
-        ulint   len)   /* in: string length */
+	char*		dest,	/* in: destination */
+	const char*	source,	/* in: source */
+	ulint		len)	/* in: string length */
 {
         ulint i;
 
@@ -53,23 +53,27 @@ Compares two strings when converted to lower case. */
 int
 ut_cmp_in_lower_case(
 /*=================*/
-		       /* out: -1, 0, 1 if str1 < str2, str1 == str2,
-		       str1 > str2, respectively */
-       char*   str1,   /* in: string1 */
-       char*   str2,   /* in: string2 */
-       ulint   len)    /* in: length of both strings */
+				/* out: -1, 0, 1 if str1 < str2, str1 == str2,
+				str1 > str2, respectively */
+	const char*	str1,	/* in: string1 */
+	const char*	str2)	/* in: string2 */
 {
-       ulint i;
+	for (;;) {
+		int c1, c2;
+		if (!*str1) {
+			return(*str2 ? -1 : 0);
+		} else if (!*str2) {
+			return 1;
+		}
+		c1 = tolower(*str1++);
+		c2 = tolower(*str2++);
+		if (c1 < c2) {
+			return(-1);
+		}
+		if (c1 > c2) {
+			return(1);
+		}
+	}
 
-       for (i = 0; i < len; i++) {
-	       if (tolower(str1[i]) < tolower(str2[i])) {
-		       return(-1);
-	       }
-
-	       if (tolower(str1[i]) > tolower(str2[i])) {
-	               return(1);
-	       }
-       }
-
-       return(0);
+	return(0);
 }

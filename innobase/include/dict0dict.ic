@@ -582,37 +582,6 @@ dict_table_get_low(
 }
 
 /**************************************************************************
-Returns a stored procedure object and memoryfixes it. */
-UNIV_INLINE
-dict_proc_t*
-dict_procedure_get(
-/*===============*/
-				/* out: procedure, NULL if does not exist */
-	char*	proc_name,	/* in: table name */
-	trx_t*	trx)		/* in: transaction handle or NULL */
-{
-	dict_proc_t*	proc;
-	ulint		name_fold;
-
-	UT_NOT_USED(trx);
-
-	mutex_enter(&(dict_sys->mutex));
-	
-	/* Look for the table name in the hash table */
-	name_fold = ut_fold_string(proc_name);
-
-	HASH_SEARCH(name_hash, dict_sys->procedure_hash, name_fold, proc,
-				ut_strcmp(proc->name, proc_name) == 0);
-	if (proc != NULL) {
-		proc->mem_fix++;
-	}
-	
-	mutex_exit(&(dict_sys->mutex));
-
-	return(proc);
-}
-
-/**************************************************************************
 Returns a table object, based on table id, and memoryfixes it. */
 UNIV_INLINE
 dict_table_t*
