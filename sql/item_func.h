@@ -28,10 +28,42 @@ extern "C"				/* Bug in BSDI include file */
 }
 #endif
 
+extern Item_result item_cmp_type(Item_result a,Item_result b);
+class Item_bool_func2;
+class Arg_comparator;
+
+typedef int (Arg_comparator::*arg_cmp_func)();
+
+class Arg_comparator: public Sql_alloc
+{
+  Item *args[2];
+  arg_cmp_func func;
+  Item_bool_func2 *owner;
+  Arg_comparator *comparators;   // used only for compare_row()
+
+public:
+  inline void set_arg(int i, Item *item) { args[i]= item; }
+  int set_compare_func(Item_bool_func2 *owner, Item_result type);
+  inline int set_compare_func(Item_bool_func2 *owner)
+  {
+    return set_compare_func(owner, item_cmp_type(args[0]->result_type(),
+						 args[1]->result_type()));
+  }
+  inline int compare() { return (this->*func)(); }
+
+  int compare_string();		 // compare args[0] & args[1]
+  int compare_real();            // compare args[0] & args[1]
+  int compare_int();             // compare args[0] & args[1]
+  int compare_row();             // compare args[0] & args[1]
+
+  friend class Item_func;
+};
+
 class Item_func :public Item_result_field
 {
 protected:
-  Item **args,*tmp_arg[2];
+  Item **args;
+  Arg_comparator arg_store;
   uint allowed_arg_cols;
 public:
   uint arg_count;
@@ -53,54 +85,54 @@ public:
   Item_func(void):
     allowed_arg_cols(1), arg_count(0)
   {
-    with_sum_func=0;
+    with_sum_func= 0;
   }
   Item_func(Item *a):
     allowed_arg_cols(1), arg_count(1)
   {
-    args=tmp_arg;
-    args[0]=a;
-    with_sum_func=a->with_sum_func;
+    args= arg_store.args;
+    args[0]= a;
+    with_sum_func= a->with_sum_func;
   }
   Item_func(Item *a,Item *b):
     allowed_arg_cols(1), arg_count(2)
   {
-    args=tmp_arg;
-    args[0]=a; args[1]=b;
-    with_sum_func=a->with_sum_func || b->with_sum_func;
+    args= arg_store.args;
+    args[0]= a; args[1]= b;
+    with_sum_func= a->with_sum_func || b->with_sum_func;
   }
   Item_func(Item *a,Item *b,Item *c):
     allowed_arg_cols(1)
   {
-    arg_count=0;
-    if ((args=(Item**) sql_alloc(sizeof(Item*)*3)))
+    arg_count= 0;
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
-      arg_count=3;
-      args[0]=a; args[1]=b; args[2]=c;
-      with_sum_func=a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      arg_count= 3;
+      args[0]= a; args[1]= b; args[2]= c;
+      with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d):
     allowed_arg_cols(1)
   {
-    arg_count=0;
-    if ((args=(Item**) sql_alloc(sizeof(Item*)*4)))
+    arg_count= 0;
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
-      arg_count=4;
-      args[0]=a; args[1]=b; args[2]=c; args[3]=d;
-      with_sum_func=a->with_sum_func || b->with_sum_func || c->with_sum_func ||
-	d->with_sum_func;
+      arg_count= 4;
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d;
+      with_sum_func= a->with_sum_func || b->with_sum_func ||
+	c->with_sum_func || d->with_sum_func;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
     allowed_arg_cols(1)
   {
-    arg_count=5;
-    if ((args=(Item**) sql_alloc(sizeof(Item*)*5)))
+    arg_count= 5;
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
-      args[0]=a; args[1]=b; args[2]=c; args[3]=d; args[4]=e;
-      with_sum_func=a->with_sum_func || b->with_sum_func || c->with_sum_func ||
-	d->with_sum_func || e->with_sum_func ;
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
+      with_sum_func= a->with_sum_func || b->with_sum_func ||
+	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
     }
   }
   Item_func(List<Item> &list);

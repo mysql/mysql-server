@@ -107,7 +107,7 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[1]))
       {
-	cmp_func= new Compare_func_int(this);  // Works for all types.
+	arg_store.set_compare_func(this, INT_RESULT); // Works for all types.
 	return;
       }
     }
@@ -119,52 +119,63 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[0]))
       {
-	cmp_func= new Compare_func_int(this);  // Works for all types.
+	arg_store.set_compare_func(this, INT_RESULT); // Works for all types.
 	return;
       }
     }
   }
-  set_cmp_func(args[0], args[1]);
+  set_cmp_func();
 }
 
-Compare_func* Compare_func::get_compare_func(Item_bool_func2 *owner,
-					     Item *a, Item* b)
+int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 {
-  switch (item_cmp_type(a->result_type(), b->result_type()))
+  owner= item;
+  switch (type)
   {
   case STRING_RESULT:
-    return new Compare_func_string(owner);
+    func= &Arg_comparator::compare_string;
+    break;
   case REAL_RESULT:
-    return new Compare_func_real(owner);
+    func= &Arg_comparator::compare_real;
+    break;
   case INT_RESULT:
-    return new Compare_func_int(owner);
+    func= &Arg_comparator::compare_int;
+    break;
   case ROW_RESULT:
-    return new Compare_func_row(owner, a, b);
+  {
+    func= &Arg_comparator::compare_row;
+    uint n= args[0]->cols();
+    if (n != args[1]->cols())
+    {
+      my_error(ER_CARDINALITY_COL, MYF(0), n);
+      comparators= 0;
+      return 1;
+    }
+    if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
+      for (uint i=0; i < n; i++)
+      {
+	comparators[i].set_arg(0, args[0]->el(i));
+	comparators[i].set_arg(1, args[1]->el(i));
+	comparators[i].set_compare_func(owner);
+      }
+    else
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      current_thd->fatal_error= 1;
+      return 1;
+    }
+    break;
+  }
   }
   return 0;
 }
 
-Compare_func_row::Compare_func_row(Item_bool_func2 *owner, Item *a, Item* b):
-  Compare_func(owner)
-{
-  uint n= a->cols();
-  if (n != b->cols())
-  {
-    my_error(ER_CARDINALITY_COL, MYF(0), n);
-    cmp_func= 0;
-    return;
-  }
-  cmp_func= (Compare_func **) sql_alloc(sizeof(Compare_func*)*n);
-  for (uint i=0; i < n; i++)
-    cmp_func[i]= Compare_func::get_compare_func(owner, a->el(i), b->el(i));
-}
-
-int Compare_func_string::compare(Item *a, Item *b)
+int Arg_comparator::compare_string()
 {
   String *res1,*res2;
-  if ((res1= a->val_str(&owner->tmp_value1)))
+  if ((res1= args[0]->val_str(&owner->tmp_value1)))
   {
-    if ((res2= b->val_str(&owner->tmp_value2)))
+    if ((res2= args[1]->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
       return owner->binary() ? stringcmp(res1,res2) : sortcmp(res1,res2);
@@ -174,13 +185,13 @@ int Compare_func_string::compare(Item *a, Item *b)
   return -1;
 }
 
-int Compare_func_real::compare(Item *a, Item *b)
+int Arg_comparator::compare_real()
 {
-  double val1= a->val();
-  if (!a->null_value)
+  double val1= args[0]->val();
+  if (!args[0]->null_value)
   {
-    double val2= b->val();
-    if (!b->null_value)
+    double val2= args[1]->val();
+    if (!args[1]->null_value)
     {
       owner->null_value= 0;
       if (val1 < val2)	return -1;
@@ -193,13 +204,13 @@ int Compare_func_real::compare(Item *a, Item *b)
 }
 
 
-int Compare_func_int::compare(Item *a, Item *b)
+int Arg_comparator::compare_int()
 {
-  longlong val1= a->val_int();
-  if (!a->null_value)
+  longlong val1= args[0]->val_int();
+  if (!args[0]->null_value)
   {
-    longlong val2= b->val_int();
-    if (!b->null_value)
+    longlong val2= args[1]->val_int();
+    if (!args[1]->null_value)
     {
       owner->null_value= 0;
       if (val1 < val2)	return -1;
@@ -211,13 +222,13 @@ int Compare_func_int::compare(Item *a, Item *b)
   return -1;
 }
 
-int Compare_func_row::compare(Item *a, Item *b)
+int Arg_comparator::compare_row()
 {
   int res= 0;
-  uint n= a->cols();
+  uint n= args[0]->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= cmp_func[i]->compare(a->el(i), b->el(i))))
+    if ((res= comparators[i].compare()))
       return res;
     if (owner->null_value)
       return -1;
@@ -227,7 +238,7 @@ int Compare_func_row::compare(Item *a, Item *b)
 
 longlong Item_func_eq::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value == 0 ? 1 : 0;
 }
 
@@ -281,34 +292,34 @@ longlong Item_func_equal::val_int()
 
 longlong Item_func_ne::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value != 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_ge::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value >= 0 ? 1 : 0;
 }
 
 
 longlong Item_func_gt::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value > 0 ? 1 : 0;
 }
 
 longlong Item_func_le::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value <= 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_lt::val_int()
 {
-  int value= cmp_func->compare(args[0], args[1]);
+  int value= arg_store.compare();
   return value < 0 && !null_value ? 1 : 0;
 }
 
@@ -657,7 +668,7 @@ double
 Item_func_nullif::val()
 {
   double value;
-  if (!cmp_func->compare(args[0], args[1]) || null_value)
+  if (!arg_store.compare() || null_value)
   {
     null_value=1;
     return 0.0;
@@ -671,7 +682,7 @@ longlong
 Item_func_nullif::val_int()
 {
   longlong value;
-  if (!cmp_func->compare(args[0], args[1]) || null_value)
+  if (!arg_store.compare() || null_value)
   {
     null_value=1;
     return 0;
@@ -685,7 +696,7 @@ String *
 Item_func_nullif::val_str(String *str)
 {
   String *res;
-  if (!cmp_func->compare(args[0], args[1]) || null_value)
+  if (!arg_store.compare() || null_value)
   {
     null_value=1;
     return 0;
