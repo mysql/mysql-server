@@ -7059,6 +7059,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
 
 @item
+@c EMAIL: mirror@adzu.edu.ph (mirror@adzu.edu.ph)
+@image{Flags/philippines} Philippines [Ateneo de Zamboanga University] @
+@uref{http://mysql.adzu.edu.ph/, WWW}
+
+@item
 @c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
 @image{Flags/south-korea} South Korea [Webiiz] @
 @uref{http://mysql.webiiz.com/, WWW}
