@@ -10,7 +10,7 @@ explain select * from t2 where p NOT IN (select p from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
-select * from t2 where p NOT IN (select p from t1);
+select * from t2 where p NOT IN (select p from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
@@ -18,7 +18,7 @@ explain select * from t2 where p NOT IN (select u from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t1	unique_subquery	u	u	4	func	1	Using index
-select * from t2 where p NOT IN (select u from t1);
+select * from t2 where p NOT IN (select u from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
@@ -26,7 +26,7 @@ explain select * from t2 where p NOT IN (select o from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t1	index_subquery	o	o	4	func	1	Using index
-select * from t2 where p NOT IN (select o from t1);
+select * from t2 where p NOT IN (select o from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
@@ -34,7 +34,7 @@ explain select * from t2 where p NOT IN (select p+0 from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-select * from t2 where p NOT IN (select p+0 from t1);
+select * from t2 where p NOT IN (select p+0 from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
