@@ -2811,8 +2811,15 @@ loop:
 	        	goto loop;
 		}
 
-		ptr = dict_scan_id(ptr, &constraint_name, &constraint_name_len,
-									FALSE);
+		do {
+			ptr++;
+		} while (isspace(*ptr));
+
+		/* read constraint name unless got "CONSTRAINT FOREIGN" */
+		if (ptr != ptr2) {
+			ptr = dict_scan_id(ptr, &constraint_name,
+						&constraint_name_len, FALSE);
+		}
 	} else {
 		ptr = ptr2;
 	}
