@@ -24113,7 +24113,7 @@ updates that uses a table in any databases that start with @code{foo}
 and whose table names start with @code{bar}.
 
 @item @code{replicate-wild-ignore-table=db_name.table_name} @tab
-Tells the slave thread to not replicate a query whare any table matches the
+Tells the slave thread to not replicate a query where any table matches the
 given wildcard pattern. To specify more than one table to ignore, use
 the directive multiple times, once for each table. This will work for
 cross-database updates.
