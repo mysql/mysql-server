@@ -633,7 +633,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <charset>
 	charset_name
 	charset_name_or_default
-	opt_default_charset
+	collation_name
+	collation_name_or_default
 
 %type <variable> internal_variable_name
 
@@ -857,13 +858,14 @@ create:
 	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident opt_default_charset
+	| CREATE DATABASE opt_if_not_exists ident 
+	  { Lex->create_info.table_charset=NULL; }
+	  opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
 	    lex->name=$4.str;
             lex->create_info.options=$3;
-	    lex->create_info.table_charset=$5;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {
@@ -906,6 +908,22 @@ create3:
 opt_as:
 	/* empty */ {}
 	| AS	    {};
+
+opt_create_database_options:
+	/* empty */			{}
+	| create_database_options	{};
+
+create_database_options:
+	create_database_option					{}
+	| create_database_options create_database_option	{};
+
+create_database_option:
+	  COLLATE_SYM collation_name_or_default	
+	  { Lex->create_info.table_charset=$2; }
+	| opt_default CHAR_SYM SET charset_name_or_default
+	  { Lex->create_info.table_charset=$4; }
+	| opt_default CHARSET charset_name_or_default
+	  { Lex->create_info.table_charset=$3; };
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -972,6 +990,11 @@ create_table_option:
 	| opt_default CHAR_SYM SET opt_equal charset_name_or_default
 	  {
 	    Lex->create_info.table_charset= $5;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
+	| COLLATE_SYM opt_equal collation_name_or_default
+	  {
+	    Lex->create_info.table_charset= $3;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
@@ -1232,13 +1255,13 @@ attribute:
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; }
-	| COLLATE_SYM charset_name { Lex->charset=$2; };
+	| COLLATE_SYM collation_name { Lex->charset=$2; };
 
 
 charset_name:
 	ident
 	{
-	  if (!($$=get_charset_by_name($1.str,MYF(0))))
+	  if (!($$=get_charset_by_csname($1.str,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
@@ -1249,14 +1272,23 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+collation_name:
+	ident
+	{
+	  if (!($$=get_charset_by_name($1.str,MYF(0))))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    YYABORT;
+	  }
+	};
+
+collation_name_or_default:
+	collation_name { $$=$1;   }
+	| DEFAULT    { $$=NULL; } ;
+
 opt_default:
 	/* empty */	{}
 	| DEFAULT	{};
-
-opt_default_charset:
-	/* empty */	{ $$=default_charset_info; }
-	| opt_default CHAR_SYM SET charset_name_or_default	{ $$=$4; }
-	| opt_default CHARSET charset_name_or_default		{ $$=$3; };
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
@@ -1400,12 +1432,11 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident opt_default_charset
+	| ALTER DATABASE ident opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
-	    lex->create_info.table_charset=$4;
 	  };
 
 
@@ -1892,7 +1923,7 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| expr '-' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,1); }
-	| expr COLLATE_SYM charset_name
+	| expr COLLATE_SYM collation_name
 	  { $$= new Item_func_set_collation($1,$3); };
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */

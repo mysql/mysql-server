@@ -676,6 +676,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
+  field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
@@ -721,6 +722,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length());
+	protocol->store(field->charset()->name);
 
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -1050,6 +1052,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     bool has_default = (field->type() != FIELD_TYPE_BLOB &&
 			field->type() != FIELD_TYPE_TIMESTAMP &&
 			field->unireg_check != Field::NEXT_NUMBER);
+    
+    /* 
+      For string types dump collation name only if 
+      collation is not primary for the given charset
+    */
+    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY))
+    {
+      packet->append(" collate ",9);
+      packet->append(field->charset()->name);
+    }
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
@@ -1162,7 +1174,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   if (table->table_charset)
   {
     packet->append(" CHARSET=");
-    packet->append(table->table_charset->name);
+    packet->append(table->table_charset->csname);
+    if (!(table->table_charset->state & MY_CS_PRIMARY))
+    {
+      packet->append(" COLLATE=");
+      packet->append(table->table_charset->name);
+    }
   }
 
   if (table->min_rows)

@@ -558,7 +558,7 @@ int yylex(void *arg, void *yythd)
       */
 
       if ((yylval->lex_str.str[0]=='_') && 
-          (lex->charset=get_charset_by_name(yylval->lex_str.str+1,MYF(0))))
+          (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,MYF(0))))
         return(UNDERSCORE_CHARSET);
       else
         return(IDENT);

@@ -258,7 +258,7 @@ void Field_str::add_binary_or_charset(String &res) const
     if (binary())
       len=cs->snprintf(cs,end,len," binary");
     else
-      len=cs->snprintf(cs,end,len," character set %s",field_charset->name);
+      len=cs->snprintf(cs,end,len," character set %s",field_charset->csname);
     res.length(oldlen+len);
   }
 }
