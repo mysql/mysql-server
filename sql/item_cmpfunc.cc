@@ -1101,6 +1101,8 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;
     const_item_cache&=item->const_item();
+    if (item->maybe_null)
+      maybe_null=1;
   }
   if (thd)
     thd->cond_count+=list.elements;

@@ -209,6 +209,7 @@ class JOIN :public Sql_alloc{
     send_records(0), found_records(0), examined_rows(0),
     thd(thd),
     sum_funcs(0),
+    procedure(0),
     having(0),
     select_options(select_options),
     result(result),
@@ -235,7 +236,8 @@ class JOIN :public Sql_alloc{
   
   int prepare(TABLE_LIST *tables,
 	      COND *conds, ORDER *order, ORDER *group, Item *having,
-	      ORDER *proc_param, SELECT_LEX *select, SELECT_LEX_UNIT *unit);
+	      ORDER *proc_param, SELECT_LEX *select, SELECT_LEX_UNIT *unit,
+	      bool fake_select_lex);
   int optimize();
   int global_optimize();
   int reinit();

@@ -1763,10 +1763,10 @@ simple_expr:
 	| singleval_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
-          { Select->ftfunc_list.push_back((Item_func_match *)
+          { Select->ftfunc_list->push_back((Item_func_match *)
                    ($$=new Item_func_match_nl(*$2,$5))); }
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
-          { Select->ftfunc_list.push_back((Item_func_match *)
+          { Select->ftfunc_list->push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
@@ -3999,7 +3999,8 @@ singleval_subselect:
 singleval_subselect_init:
   select_init
   {
-    $$= new Item_singleval_subselect(current_thd, Lex->select);
+    $$= new Item_singleval_subselect(current_thd, 
+				     Lex->select->master_unit()->first_select());
   };
 
 exists_subselect:
@@ -4012,7 +4013,8 @@ exists_subselect:
 exists_subselect_init:
   select_init
   {
-    $$= new Item_exists_subselect(current_thd, Lex->select);
+    $$= new Item_exists_subselect(current_thd, 
+				  Lex->select->master_unit()->first_select());
   };
 
 subselect_start:

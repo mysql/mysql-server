@@ -216,7 +216,22 @@ private:
 */
 class st_lex;
 class st_select_lex;
+class THD;
+class select_result;
+class JOIN;
+class select_union;
 class st_select_lex_unit: public st_select_lex_node {
+protected:
+  List<Item> item_list; 
+  List<JOIN*> joins; /* list of *JOINs, to delete it in cleanup() */
+  TABLE_LIST result_table_list;
+  select_union *union_result;
+  TABLE *table; /* temporary table using for appending UNION results */
+  THD *thd;
+  select_result *result;
+  int res;
+  bool describe, found_rows_for_union,
+    optimized; // optimize phase already performed for UNION (unit)
 public:
   /*
     Pointer to 'last' select or pointer to unit where stored
@@ -225,12 +240,21 @@ public:
   st_select_lex_node *global_parameters;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
+  bool depended; /* depended from outer select subselect */
+  /* not NULL if union used in subselect, point to subselect item */
+  Item_subselect *item;
+
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex* outer_select() { return (st_select_lex*) master; }
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
 
+  /* UNION methods */
+  int prepare(THD *thd, select_result *result);
+  int exec();
+  int cleanup();
+  
   friend void mysql_init_query(THD *thd);
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
@@ -241,7 +265,6 @@ typedef struct st_select_lex_unit SELECT_LEX_UNIT;
 /*
   SELECT_LEX - store information of parsed SELECT_LEX statment
 */
-class JOIN;
 class st_select_lex: public st_select_lex_node {
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
@@ -252,7 +275,12 @@ public:
   List<Item>          item_list; /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
-  List<Item_func_match> ftfunc_list;
+  /* 
+    Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
+    select_lex for calling mysql_select under results of union
+  */
+  List<Item_func_match> *ftfunc_list;
+  List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
   uint in_sum_expr;
   bool	create_refs, 

@@ -642,6 +642,8 @@ bool multi_update::send_data(List<Item> &values)
 
 void multi_update::send_error(uint errcode,const char *err)
 {
+
+  //TODO error should be sent at the query processing end
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
@@ -766,6 +768,7 @@ bool multi_update::send_eof()
   if (error == -1)
     error = 0;
   thd->proc_info="end";
+  //TODO error should be sent at the query processing end
   if (error)
     send_error(error,"An error occured in multi-table update");
 
