@@ -5426,8 +5426,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
       if (context->table == field->table)
       {	
 	const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
-	const NDBCOL *col= tab->getColumn(field->field_name);
-	DBUG_ASSERT(col);
 	DBUG_PRINT("info", ("FIELD_ITEM"));
 	DBUG_PRINT("info", ("table %s", tab->getName()));
 	DBUG_PRINT("info", ("column %s", field->field_name));
@@ -5442,6 +5440,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
 	    *context->supported_ptr= FALSE;  
 	  else
 	  {
+	    const NDBCOL *col= tab->getColumn(field->field_name);
+	    DBUG_ASSERT(col);
 	    curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
 	    context->dont_expect(Item::FIELD_ITEM);
 	    context->expect_no_field_result();

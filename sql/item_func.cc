@@ -349,13 +349,23 @@ void Item_func::traverse_cond(Item_cond_traverser traverser,
   if (arg_count)
   {
     Item **arg,**arg_end;
-    if (order == PREFIX) (traverser)(this, argument);
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      (*arg)->traverse_cond(traverser, argument, order);
+
+    switch (order) {
+    case(PREFIX):
+      (traverser)(this, argument);
+      for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+      {
+	(*arg)->traverse_cond(traverser, argument, order);
+      }
+      break;
+    case (POSTFIX):
+      for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+      {
+	(*arg)->traverse_cond(traverser, argument, order);
+      }
+      (traverser)(this, argument);
     }
   }
-  if (order == POSTFIX) (traverser)(this, argument);
 }
 
 
