@@ -69,8 +69,8 @@ static void print_relative_header();
 static void print_relative_line();
 static void truncate_names();
 static my_bool get_pidfile(MYSQL *mysql, char *pidfile);
-static void wait_pidfile(char *pidfile, my_bool check_pidfile_status,
-			 time_t last_modified, struct stat pidfile_status);
+static void wait_pidfile(char *pidfile, time_t last_modified,
+			 struct stat *pidfile_status);
 static void store_values(MYSQL_RES *result);
 
 /*
@@ -455,9 +455,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       char pidfile[FN_REFLEN];
       my_bool got_pidfile= 0;
-      time_t last_modified= 0; /* to keep compiler happy */
+      time_t last_modified= 0;
       struct stat pidfile_status;
-      my_bool check_pidfile_status= 0;
 
       /*
 	Only wait for pidfile on local connections
@@ -465,10 +464,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       */
       if (mysql->unix_socket && (got_pidfile= !get_pidfile(mysql, pidfile)) &&
 	  !stat(pidfile, &pidfile_status))
-      {
-	check_pidfile_status= 1;
 	last_modified= pidfile_status.st_mtime;
-      }
 
       if (mysql_shutdown(mysql))
       {
@@ -483,8 +479,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  printf("Shutdown signal sent to server;  Waiting for pid file to disappear\n");
 
 	/* Wait until pid file is gone */
-	wait_pidfile(pidfile, check_pidfile_status, last_modified,
-		     pidfile_status);
+	wait_pidfile(pidfile, last_modified, &pidfile_status);
       }
       break;
     }
@@ -1114,25 +1109,27 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
 }
 
 
-static void wait_pidfile(char *pidfile, my_bool check_pidfile_status,
-			 time_t last_modified, struct stat pidfile_status)
+static void wait_pidfile(char *pidfile, time_t last_modified,
+			 struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
-  int fd;
+  int fd = -1;
   uint count=0;
 
   system_filename(buff, pidfile);
-  while ((fd = my_open(buff, O_RDONLY, MYF(0))) >= 0 &&
-	 count++ < opt_shutdown_timeout && !interrupted &&
-	 (!check_pidfile_status || (last_modified == pidfile_status.st_mtime)))
+  while (count++ <= opt_shutdown_timeout && !interrupted &&
+	 (!last_modified || (last_modified == pidfile_status->st_mtime)) &&
+	 (fd= my_open(buff, O_RDONLY, MYF(0))) >= 0)
   {
     my_close(fd,MYF(0));
     sleep(1);
-    if (stat(pidfile, &pidfile_status))
-      check_pidfile_status= 0;
+    if (last_modified && stat(pidfile, pidfile_status))
+      last_modified= 0;
   }
-  if (check_pidfile_status && (last_modified != pidfile_status.st_mtime))
-    printf("Warning;  pid file changed while waiting for it to disappear!\n");
+  if (opt_verbose && last_modified &&
+      last_modified != pidfile_status->st_mtime)
+    printf("Warning;  pid file '%s' changed while waiting for it to disappear!\n",
+	   buff);
   if (fd >= 0)
   {
     my_close(fd,MYF(0));
