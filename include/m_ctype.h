@@ -92,6 +92,8 @@ typedef struct charset_info_st
     int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
     int  (*strncasecmp)(struct charset_info_st *, const char *, const char *, uint);
     
+    /* Hash calculation */
+    uint (*hash_caseup)(struct charset_info_st *cs, const byte *key, uint len);
     char    max_sort_char; /* For LIKE otimization */
 } CHARSET_INFO;
 
@@ -275,6 +277,9 @@ int my_strncasecmp_utf8(CHARSET_INFO *cs, const char *s,const char *t,uint l);
 
 int my_utf8_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
 int my_uni_utf8 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
+
+uint my_hash_caseup_utf8(struct charset_info_st *cs, const byte *key, uint len);
+
 #endif
 
 #define	_U	01	/* Upper case */

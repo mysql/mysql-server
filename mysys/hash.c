@@ -59,7 +59,12 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   hash->flags=flags;
   hash->charset=charset;
   if (flags & HASH_CASE_INSENSITIVE)
-    hash->calc_hashnr=calc_hashnr_caseup;
+  {
+    if (charset->hash_caseup)
+      hash->calc_hashnr=charset->hash_caseup;
+    else
+      hash->calc_hashnr=calc_hashnr_caseup;
+  }
   else
     hash->calc_hashnr=calc_hashnr;
   DBUG_RETURN(0);

@@ -1732,6 +1732,28 @@ void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
+uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
+{
+  my_wc_t wc;
+  register uint nr=1, nr2=4;
+  int res;
+  const char *e=s+slen;
+
+  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  {
+    int plane = (wc>>8) & 0xFF;
+    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
+    nr^= (((nr & 63)+nr2)*(wc & 0xFF))+ (nr << 8);
+    nr2+=3;
+    nr^= (((nr & 63)+nr2)*(wc >> 8))+ (nr << 8);
+    nr2+=3;
+    
+    s+=res;
+  }
+
+  return nr;
+}
+
 void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
 {
   my_caseup_utf8(cs, s, strlen(s));
@@ -1938,7 +1960,7 @@ int main()
   
   test_mb(cs,(uchar*)str);
   
-  printf("orig      :'%s'\n",str);
+  pr1;2cintf("orig      :'%s'\n",str);
   
   my_caseup_utf8(cs,str,15);
   printf("caseup    :'%s'\n",str);
