@@ -45,3 +45,49 @@ select * from t1 where (a is null or a = 7) and b=7 and c=0;
 select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 select * from t1 where b like "6%";
 drop table t1;
+
+
+#
+# The following failed for Matt Loschert
+#
+
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (
+  id int(10) unsigned NOT NULL auto_increment,
+  uniq_id int(10) unsigned default NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY idx1 (uniq_id)
+) TYPE=MyISAM;
+
+CREATE TABLE t2 (
+  id int(10) unsigned NOT NULL auto_increment,
+  uniq_id int(10) unsigned default NULL,
+  PRIMARY KEY  (id)
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
+INSERT INTO t2 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
+
+#
+# Check IS NULL optimization
+#
+explain select id from t1 where uniq_id is null;
+explain select id from t1 where uniq_id =1;
+#
+# Check updates
+#
+UPDATE t1 SET id=id+100 where uniq_id is null;
+UPDATE t2 SET id=id+100 where uniq_id is null;
+select id from t1 where uniq_id is null;
+select id from t2 where uniq_id is null;
+#
+# Delete all records from each table where the uniq_id field is null
+#
+DELETE FROM t1 WHERE uniq_id IS NULL;
+DELETE FROM t2 WHERE uniq_id IS NULL;
+#
+# Select what is left -- notice the difference
+#
+SELECT * FROM t1 ORDER BY uniq_id, id;
+SELECT * FROM t2 ORDER BY uniq_id, id;
+DROP table t1,t2;

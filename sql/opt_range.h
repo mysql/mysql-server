@@ -30,6 +30,7 @@
 #define NEAR_MAX	8
 #define UNIQUE_RANGE	16
 #define EQ_RANGE	32
+#define NULL_RANGE	64
 
 typedef struct st_key_part {
   uint16 key,part,part_length;
