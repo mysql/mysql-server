@@ -278,6 +278,21 @@ TODO list:
   - Move MRG_MYISAM table type processing to handlers, something like:
         tables_used->table->file->register_used_filenames(callback,
                                                           first_argument);
+  - Make derived tables cachable.
+  - QC improvement suggested by Monty:
+    - Add a counter in open_table() for how many MERGE (ISAM or MyISAM)
+      tables are cached in the table cache.
+      (This will be trivial when we have the new table cache in place I
+      have been working on)
+    - After this we can add the following test around the for loop in
+      is_cacheable::
+
+      if (thd->temp_tables || global_merge_table_count)
+
+    - Another option would be to set thd->safe_to_cache_query to 0
+      in 'get_lock_data' if any of the tables was a tmp table or a
+      MRG_ISAM table.
+      (This could be done with almost no speed penalty)
 */
 
 #include "mysql_priv.h"

@@ -509,6 +509,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   item->maybe_null=1;
   field_list.push_back(item=new Item_datetime("Check_time"));
   item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("Charset",32));
+  item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Create_options",255));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
@@ -584,6 +586,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         localtime_r(&file->check_time,&tm_tmp);
         net_store_data(packet, &tm_tmp);
       }
+      net_store_data(packet, convert, table->table_charset ?
+				      table->table_charset->name : "default");
       {
         char option_buff[350],*ptr;
         ptr=option_buff;
@@ -1421,7 +1425,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,convert,cs->name);
       net_store_data(&packet2,(uint32) cs->number);
       net_store_data(&packet2,(uint32) cs->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) cs->mbmaxlen);
+      net_store_data(&packet2,(uint32) cs->mbmaxlen ? cs->mbmaxlen : 1);
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
          goto err;

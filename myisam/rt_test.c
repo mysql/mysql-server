@@ -32,7 +32,7 @@ static void print_record(char * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
 
 
-int main(int argc __attribute__((unused)),char *argv[])
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {
   MY_INIT(argv[0]);
   exit(run_test("rt_test"));
@@ -198,7 +198,6 @@ int run_test(const char *filename)
     }
   }
 
-/*
 
   if (!silent)
     printf("- Updating rows with position\n");
@@ -225,8 +224,6 @@ int run_test(const char *filename)
       goto err;
     }
   }
-
-*/
 
 
   if((error=read_with_pos(file,silent)))
