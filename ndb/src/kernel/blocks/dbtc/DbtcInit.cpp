@@ -365,5 +365,5 @@ Dbtc::~Dbtc()
 		capiConnectFilesize);
 }//Dbtc::~Dbtc()
 
-BLOCK_FUNCTIONS(Dbtc);
+BLOCK_FUNCTIONS(Dbtc)
 

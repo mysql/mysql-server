@@ -1110,7 +1110,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 }//Cmvmi::execDUMP_STATE_ORD()
 
 
-BLOCK_FUNCTIONS(Cmvmi);
+BLOCK_FUNCTIONS(Cmvmi)
 
 static Uint32 g_print;
 static LinearSectionPtr g_test[3];
