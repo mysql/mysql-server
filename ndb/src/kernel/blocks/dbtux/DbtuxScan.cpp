@@ -34,7 +34,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     fragPtr.i = RNIL;
     for (unsigned i = 0; i < indexPtr.p->m_numFrags; i++) {
       jam();
-      if (indexPtr.p->m_fragId[i] == req->fragmentNo) {
+      if (indexPtr.p->m_fragId[i] == req->fragmentNo << 1) {
         jam();
         c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
         break;
@@ -43,7 +43,6 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // must be normal DIH/TC fragment
-    ndbrequire(frag.m_fragId < (1 << frag.m_fragOff));
     TreeHead& tree = frag.m_tree;
     // check for empty fragment
     if (tree.m_root == NullTupLoc) {
@@ -354,7 +353,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
-    conf->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
+    conf->fragId = frag.m_fragId | ent.m_fragBit;
     unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
     sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
@@ -397,7 +396,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       lockReq->userPtr = scanPtr.i;
       lockReq->userRef = reference();
       lockReq->tableId = scan.m_tableId;
-      lockReq->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
+      lockReq->fragId = frag.m_fragId | ent.m_fragBit;
       lockReq->fragPtrI = frag.m_accTableFragPtrI[ent.m_fragBit];
       const Uint32* const buf32 = static_cast<Uint32*>(pkData);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
@@ -496,7 +495,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       accLockOp = (Uint32)-1;
     }
     conf->accOperationPtr = accLockOp;
-    conf->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
+    conf->fragId = frag.m_fragId | ent.m_fragBit;
     conf->localKey[0] = getTupAddr(frag, ent);
     conf->localKey[1] = 0;
     conf->localKeyLength = 1;
@@ -890,7 +889,7 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   Uint32 fragBit = ent.m_fragBit;
   Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[fragBit];
-  Uint32 fragId = frag.m_fragId | (fragBit << frag.m_fragOff);
+  Uint32 fragId = frag.m_fragId | fragBit;
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   // check for same tuple twice in row
