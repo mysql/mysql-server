@@ -177,7 +177,11 @@ HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
 	ERR(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
-    } else {
+    }
+  }
+  
+  for(a = 0; a<tab.getNoOfColumns(); a++){
+    if (tab.getColumn(a)->getPrimaryKey() == false){
       if(setValueForAttr(pOp, a, rowId, updateId ) != 0){ 
 	ERR(pTrans->getNdbError());
 	return NDBT_FAILED;

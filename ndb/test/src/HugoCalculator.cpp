@@ -98,7 +98,7 @@ HugoCalculator::calcValue(int record,
     
     if (attr->getPrimaryKey())
     {
-      srand(record + attrib + updates);
+      srand(record + attrib);
       val = (record + attrib);
     }
     else
@@ -198,12 +198,11 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	}
       } else{
 	if (memcmp(res, pRow->attributeStore(i)->aRef(), len) != 0){
-	  //	  if (memcmp(res, pRow->attributeStore(i)->aRef(), pRow->attributeStore(i)->getLength()) != 0){
 	  g_err << "Column: " << attr->getName() << endl;
 	  const char* buf2 = pRow->attributeStore(i)->aRef();
 	  for (Uint32 j = 0; j < len; j++)
 	  {
-	    g_err << j << ":" << hex << (int)buf[j] << "[" << hex << (int)buf2[j] << "]";
+	    g_err << j << ":" << hex << (Uint32)(Uint8)buf[j] << "[" << hex << (Uint32)(Uint8)buf2[j] << "]";
 	    if (buf[j] != buf2[j])
 	    {
 	      g_err << "==>Match failed!";
