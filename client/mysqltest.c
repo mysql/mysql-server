@@ -87,11 +87,8 @@
 #define CON_RETRY_SLEEP 2
 #define MAX_CON_TRIES	5
 
-#ifndef OS2
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
-#else
-#defile SLAVE_POLL_INTERVAL 0.3
-#endif
+
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
@@ -423,6 +420,7 @@ static void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
+  free_replace();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   mysql_server_end();
@@ -687,13 +685,23 @@ int open_file(const char* name)
   return 0;
 }
 
+static void my_sleep(ulong m_seconds)
+{
+#ifndef OS2
+   struct timeval t;
+   t.tv_sec=  m_seconds / 1000000L;
+   t.tv_usec= m_seconds % 1000000L;
+   select(0,0,0,0,&t); /* sleep */
+#else
+   DosSleep(m_seconds/1000+1);
+#endif
+}
+
+
 /* ugly long name, but we are following the convention */
 int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
 {
   MYSQL* mysql = &cur_con->mysql;
-#ifndef OS2
-  struct timeval t;
-#endif
   for (;;)
   {
     MYSQL_RES* res;
@@ -714,15 +722,8 @@ int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
     mysql_free_result(res);
     if (done)
       break;
-#ifndef OS2
-    t.tv_sec=0;
-    t.tv_usec=SLAVE_POLL_INTERVAL;
-    select(0,0,0,0,&t); /* sleep */
-#else
-    DosSleep(OS2_SLAVE_POLL_INTERVAL);
-#endif
+    my_sleep(SLAVE_POLL_INTERVAL);
   }
-
   return 0;
 }
 
@@ -1000,10 +1001,18 @@ int do_sync_with_master2(const char* p)
     die("line %u: empty result in %s", start_lineno, query_buf);
   if (!row[0])
     die("Error on slave while syncing with master");
-  mysql_free_result(res);   last_result=0;
+  mysql_free_result(res);
+  last_result=0;
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
+#ifndef TO_BE_REMOVED
+  /*
+    We need this because wait_for_pos() only waits for the relay log,
+    which doesn't guarantee that the slave has executed the statement.
+  */
+  my_sleep(2*1000000L);
+#endif
   return 0;
 }
 
@@ -1082,53 +1091,15 @@ int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 int do_sleep(struct st_query* q, my_bool real_sleep)
 {
   char* p=q->first_argument;
-  struct timeval t;
-  int dec_mul = 1000000;
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace(*p))
+    p++;
   if (!*p)
     die("Missing argument in sleep\n");
-  t.tv_usec = 0;
-
-#ifdef OS2
-
   if (opt_sleep && !real_sleep)
-    DosSleep( opt_sleep * 1000);
+    my_sleep(opt_sleep * 1000000L);
   else
-    DosSleep( atof( p) * 1000);
-
+    my_sleep((ulong) (atof(p) * 1000000L));
   return 0;
-
-#else
-  if (opt_sleep && !real_sleep)
-    t.tv_sec = opt_sleep;
-  else
-  {
-    t.tv_sec = atoi(p);
-    while (*p && *p != '.' && !isspace(*p))
-      p++;
-    if (*p == '.')
-    {
-      int c;
-      char *p_end;
-      p++;
-      p_end = p + 6;
-
-      for (;p <= p_end; ++p)
-      {
-	c = (int) (*p - '0');
-	if (c < 10 && (int) c >= 0)
-	{
-	  t.tv_usec = t.tv_usec * 10 + c;
-	  dec_mul /= 10;
-	}
-	else
-	  break;
-      }
-    }
-  }
-  t.tv_usec *= dec_mul;
-  return select(0,0,0,0, &t);
-#endif
 }
 
 static void get_file_name(char *filename, struct st_query* q)
@@ -1261,8 +1232,7 @@ static void get_replace(struct st_query *q)
   POINTER_ARRAY to_array,from_array;
   DBUG_ENTER("get_replace");
 
-  if (glob_replace)
-    free_replace();
+  free_replace();
 
   bzero((char*) &to_array,sizeof(to_array));
   bzero((char*) &from_array,sizeof(from_array));
@@ -1298,9 +1268,12 @@ static void get_replace(struct st_query *q)
 void free_replace()
 {
   DBUG_ENTER("free_replace");
-  my_free((char*) glob_replace,MYF(0));
-  glob_replace=0;
-  free_replace_buffer();
+  if (glob_replace)
+  {
+    my_free((char*) glob_replace,MYF(0));
+    glob_replace=0;
+    free_replace_buffer();
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2077,7 +2050,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   char* query;
   int query_len;
   DBUG_ENTER("run_query");
-
+  
   if (q->type != Q_EVAL)
   {
     query = q->query;
@@ -2090,6 +2063,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     query = eval_query.str;
     query_len = eval_query.length;
   }
+  DBUG_PRINT("enter", ("query: '%-.60s'", query));
 
   if (q->record_file[0])
   {

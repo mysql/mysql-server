@@ -81,3 +81,15 @@ my_string my_strdup(const char *from, myf MyFlags)
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
   return((my_string) ptr);
 }
+
+
+gptr my_strdup_with_length(const byte *from, uint length, myf MyFlags)
+{
+  gptr ptr;
+  if ((ptr=my_malloc(length+1,MyFlags)) != 0)
+  {
+    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    ptr[length]=0;
+  }
+  return(ptr);
+}

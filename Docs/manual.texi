@@ -1793,7 +1793,7 @@ and @code{row-level locking}.
 
 @item
 Our German, Austrian, and Swiss users will note that we have a new character
-set, @code{latin_de}, which corrects the @emph{German sorting order},
+set, @code{latin1_de}, which corrects the @emph{German sorting order},
 placing German umlauts in the same order as German telephone books.
 
 @item
@@ -3409,9 +3409,6 @@ database if you are not using the @code{-A} option or if you are using
 @code{rehash}. This is especially notable when you have a big table
 cache.
 
-@item
-The current replication protocol cannot deal with @code{LOAD DATA INFILE}
-and line terminator characters of more than 1 character.
 @end itemize
 
 The following problems are known and will be fixed in due time:
@@ -3421,6 +3418,10 @@ The following problems are known and will be fixed in due time:
 @item
 When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table, and column names.
+
+@item
+One can't use @code{_} or @code{%} with @code{ESCAPE} in @code{LIKE
+... ESCAPE}.
 
 @item
 If you have a @code{DECIMAL} column with a  number stored in different
@@ -20614,7 +20615,7 @@ but normally this is never needed.
 @subsubsection German character set
 
 To get German sorting order, you should start @code{mysqld} with
-@code{--default-character-set=latin_de}.  This will give you the following
+@code{--default-character-set=latin1_de}.  This will give you the following
 characteristics.
 
 When sorting and comparing string's the following mapping is done on the
@@ -50393,8 +50394,18 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-Fixed a bug, that caused MySQL to create unusable MyISAM tables, when key
-length (in @code{CREATE TABLE}) exceeded 500 bytes.
+@code{SELECT @@@@[global|session].var_name} didn't report
+@code{global | session} in the result column name.
+@item
+Fixed problem in replication that @code{FLUSH LOGS} in a circular
+replication setup created an infinite number of binary log files.
+Now a @code{rotate-binary-log} command in the binary log will not cause slaves
+to rotate logs.
+@item
+Removed @code{STOP EVENT} from binary log when doing @code{FLUSH LOGS}.
+@item
+Disable the use of @code{SHOW NEW MASTER FOR SLAVE} as this needs to be
+completely changed in 4.1.
 @item
 Fixed a bug with constant expression (e.g. field of a one-row table, or field
 from a table, referenced by a @code{UNIQUE} key) appeared in @code{ORDER BY}
@@ -50963,7 +50974,7 @@ Secure connections (with SSL).
 Unsigned @code{BIGINT} constants now work. @code{MIN()} and @code{MAX()}
 now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
-New character set @code{latin_de} which provides correct German sorting.
+New character set @code{latin1_de} which provides correct German sorting.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
 which means that the default comparison behaviour now is case-insensitive.

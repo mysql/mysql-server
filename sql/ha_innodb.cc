@@ -101,7 +101,7 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-my_bool innobase_flush_log_at_trx_commit	= FALSE;
+uint	innobase_flush_log_at_trx_commit	= 0;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;

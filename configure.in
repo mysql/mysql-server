@@ -922,13 +922,21 @@ case $SYSTEM_TYPE in
       fi
     fi
     ;;
-  *darwin*)
+  *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
       CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
       MAX_C_OPTIMIZE="-O"
       with_named_curses=""
+    fi
+    ;;
+  *darwin6*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      MAX_C_OPTIMIZE="-O"
     fi
     ;;
   *freebsd*)
