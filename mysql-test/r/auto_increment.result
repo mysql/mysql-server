@@ -289,3 +289,55 @@ a	b
 0	13
 500	14
 drop table t1;
+create table t1 (a bigint);
+insert into t1 values (1), (2), (3), (NULL), (NULL);
+alter table t1 modify a bigint not null auto_increment primary key;
+select * from t1;
+a
+1
+2
+3
+4
+5
+drop table t1;
+create table t1 (a bigint);
+insert into t1 values (1), (2), (3), (0), (0);
+alter table t1 modify a bigint not null auto_increment primary key;
+select * from t1;
+a
+1
+2
+3
+4
+5
+drop table t1;
+create table t1 (a bigint);
+insert into t1 values (0), (1), (2), (3);
+set sql_mode=NO_AUTO_VALUE_ON_ZERO;
+alter table t1 modify a bigint not null auto_increment primary key;
+set sql_mode= '';
+select * from t1;
+a
+0
+1
+2
+3
+drop table t1;
+create table t1 (a int auto_increment primary key , b int null);
+set sql_mode=NO_AUTO_VALUE_ON_ZERO;
+insert into t1 values (0,1),(1,2),(2,3);
+select * from t1;
+a	b
+0	1
+1	2
+2	3
+set sql_mode= '';
+alter table t1 modify b varchar(255);
+insert into t1 values (0,4);
+select * from t1;
+a	b
+0	1
+1	2
+2	3
+3	4
+drop table t1;

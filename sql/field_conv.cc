@@ -252,7 +252,8 @@ static void do_copy_timestamp(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
   {
-    ((Field_timestamp*) copy->to_field)->set_time();// Same as set_field_to_null
+    /* Same as in set_field_to_null_with_conversions() */
+    ((Field_timestamp*) copy->to_field)->set_time();
   }
   else
     (copy->do_copy2)(copy);
@@ -262,7 +263,11 @@ static void do_copy_timestamp(Copy_field *copy)
 static void do_copy_next_number(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
-    copy->to_field->reset();			// Same as set_field_to_null
+  {
+    /* Same as in set_field_to_null_with_conversions() */
+    copy->to_field->table->auto_increment_field_not_null= FALSE;
+    copy->to_field->reset();
+  }
   else
     (copy->do_copy2)(copy);
 }
@@ -437,18 +442,20 @@ void Copy_field::set(Field *to,Field *from,bool save)
       }
     }
     else
-      do_copy=do_copy_not_null;
+    {
+      if (to_field->type() == FIELD_TYPE_TIMESTAMP)
+        do_copy= do_copy_timestamp;               // Automatic timestamp
+      else if (to_field == to_field->table->next_number_field)
+        do_copy= do_copy_next_number;
+      else
+        do_copy= do_copy_not_null;
+    }
   }
   else if (to_field->real_maybe_null())
   {
     to_null_ptr=	to->null_ptr;
     to_bit=		to->null_bit;
-    if (to_field->type() == FIELD_TYPE_TIMESTAMP)
-      do_copy=do_copy_timestamp;		// Automatic timestamp
-    else if (to_field == to_field->table->next_number_field)
-      do_copy=do_copy_next_number;
-    else
-      do_copy=do_copy_maybe_null;
+    do_copy= do_copy_maybe_null;
   }
   else
    do_copy=0;
