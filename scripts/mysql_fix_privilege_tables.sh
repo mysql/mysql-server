@@ -74,7 +74,7 @@ parse_arguments()
 parse_arguments "$@"
 
 if test -z "$cmd"; then
-  cmd="$bindir/mysql -f --user=$user --host=$host"
+  cmd="$bindir/mysql --no-defaults --force --user=$user --host=$host"
   if test ! -z "$root_password"; then
     cmd="$cmd --password=$root_password"
   fi
