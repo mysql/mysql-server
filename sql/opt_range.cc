@@ -662,6 +662,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 
 int QUICK_RANGE_SELECT::init()
 {
+  key_part_info= head->key_info[index].key_part;
   return (error= file->index_init(index));
 }
 
@@ -2154,7 +2155,7 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     {
       /* one tree is index merge tree and another is range tree */
       if (tree1->merges.is_empty())
-        swap(SEL_TREE*, tree1, tree2);
+        swap_variables(SEL_TREE*, tree1, tree2);
 
       /* add tree2 to tree1->merges, checking if it collapses to ALWAYS */
       if (imerge_list_or_tree(param, &tree1->merges, tree2))
