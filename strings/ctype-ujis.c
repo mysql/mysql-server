@@ -252,25 +252,25 @@ my_wc_mb_jisx0201(CHARSET_INFO *cs __attribute__((unused)),
 		  uchar *e __attribute__((unused)))
 {
 
-  if (wc <= 0x7D)
+  if ((int) wc <= 0x7D)
   {
-    *s = wc;
+    *s = (uchar) wc;
     return (wc == 0x5C) ? MY_CS_ILUNI : 1;
   }
   
   if (wc >= 0xFF61 && wc <= 0xFF9F)
   {
-    *s = (wc - 0xFEC0);
+    *s = (uchar) (wc - 0xFEC0);
     return 1;
   }
   
-  if (wc==0x00A5)
+  if (wc == 0x00A5)
   {
     *s = 0x5C;
     return 1;
   }
   
-  if (wc==0x203E)
+  if (wc == 0x203E)
   {
     *s =  0x7E;
     return 1;
@@ -8349,12 +8349,12 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if (wc<0x80)
+  if ((int) wc < 0x80)
   { 
     if (s>e)
       return MY_CS_TOOSMALL;
       
-    *s=wc;
+    *s= (uchar) wc;
     return 1;
   }
   
