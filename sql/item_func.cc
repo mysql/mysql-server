@@ -27,22 +27,18 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
-#ifdef HAVE_COMPRESS
-#include <zlib.h>
-#endif
 
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
+	   c1.collation->name,c1.derivation_name(),
 	   c2.collation->name,c2.derivation_name(),
 	   fname);
 }
 
-
-static void my_coll_agg_error(DTCollation &c1, 
+static void my_coll_agg_error(DTCollation &c1,
 			       DTCollation &c2,
 			       DTCollation &c3,
 			       const char *fname)
@@ -134,6 +130,27 @@ Item_func::Item_func(List<Item> &list)
   set_arguments(list);
 }
 
+Item_func::Item_func(THD *thd, Item_func &item)
+  :Item_result_field(thd, item),
+   allowed_arg_cols(item.allowed_arg_cols),
+   arg_count(item.arg_count),
+   used_tables_cache(item.used_tables_cache),
+   not_null_tables_cache(item.not_null_tables_cache),
+   const_item_cache(item.const_item_cache)
+{
+  if (arg_count)
+  {
+    if (arg_count <=2)
+      args= tmp_arg;
+    else
+    {
+      if (!(args=(Item**) thd->alloc(sizeof(Item*)*arg_count)))
+	return;
+    }
+    memcpy((char*) args, (char*) item.args, sizeof(Item*)*arg_count);
+  }
+}
+
 
 /*
   Resolve references to table column for a function and it's argument
@@ -173,13 +190,15 @@ bool
 Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
+    return 1;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -1085,36 +1104,6 @@ longlong Item_func_min_max::val_int()
   return value;
 }
 
-
-#ifdef HAVE_COMPRESS
-longlong Item_func_crc32::val_int()
-{
-  String *res=args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
-}
-
-
-longlong Item_func_uncompressed_length::val_int()
-{
-  String *res= args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  if (res->is_empty()) return 0;
-  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
-}
-#endif /* HAVE_COMPRESS */
-
-
 longlong Item_func_length::val_int()
 {
   String *res=args[0]->val_str(&value);
@@ -1164,7 +1153,6 @@ longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
-  bool binary_cmp= (cmp_collation.collation->state & MY_CS_BINSORT) ? 1 : 0;
   if (!a || !b)
   {
     null_value=1;
@@ -1172,55 +1160,27 @@ longlong Item_func_locate::val_int()
   }
   null_value=0;
   uint start=0;
-#ifdef USE_MB
   uint start0=0;
-#endif
+  my_match_t match;
+
   if (arg_count == 3)
   {
-    start=(uint) args[2]->val_int()-1;
-#ifdef USE_MB
-    if (use_mb(cmp_collation.collation))
-    {
-      start0=start;
-      if (!binary_cmp)
-        start=a->charpos(start);
-    }
-#endif
+    start0= start =(uint) args[2]->val_int()-1;
+    start=a->charpos(start);
+    
     if (start > a->length() || start+b->length() > a->length())
       return 0;
   }
+
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
-#ifdef USE_MB
-  if (use_mb(cmp_collation.collation) && !binary_cmp)
-  {
-    const char *ptr=a->ptr()+start;
-    const char *search=b->ptr();
-    const char *strend = ptr+a->length();
-    const char *end=strend-b->length()+1;
-    const char *search_end=search+b->length();
-    register  uint32 l;
-    while (ptr < end)
-    {
-      if (*ptr == *search)
-      {
-        register char *i,*j;
-        i=(char*) ptr+1; j=(char*) search+1;
-        while (j != search_end)
-          if (*i++ != *j++) goto skipp;
-        return (longlong) start0+1;
-      }
-  skipp:
-      if ((l=my_ismbchar(cmp_collation.collation,ptr,strend)))
-	ptr+=l;
-      else ++ptr;
-      ++start0;
-    }
+  
+  if (!cmp_collation.collation->coll->instr(cmp_collation.collation,
+                                            a->ptr()+start, a->length()-start,
+                                            b->ptr(), b->length(),
+                                            &match, 1))
     return 0;
-  }
-#endif /* USE_MB */
-  return (longlong) (binary_cmp ? a->strstr(*b,start) :
-		     (a->strstr_case(*b,start)))+1;
+  return (longlong) match.mblen + start0 + 1;
 }
 
 
@@ -1431,13 +1391,15 @@ bool
 udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)
   {
     if (check_stack_overrun(thd,buff))
-      return 0;					// Fatal error flag is set!
+      DBUG_RETURN(1);				// Fatal error flag is set!
   }
   else
     thd=current_thd;				// In WHERE / const clause
@@ -1751,7 +1713,7 @@ public:
     pthread_cond_init(&cond,NULL);
     if (key)
     {
-      if (hash_insert(&hash_user_locks,(byte*) this))
+      if (my_hash_insert(&hash_user_locks,(byte*) this))
       {
 	my_free((gptr) key,MYF(0));
 	key=0;
@@ -2109,10 +2071,20 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    /*
+      If we are here, we were called from a SET or a query which sets a
+      variable. Imagine it is this:
+      INSERT INTO t SELECT @a:=10, @a:=@a+1.
+      Then when we have a Item_func_get_user_var (because of the @a+1) so we
+      think we have to write the value of @a to the binlog. But before that,
+      we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+      the variable as "already logged" (line below) so that it won't be logged
+      by Item_func_get_user_var (because that's not necessary).
+    */
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
-    if (hash_insert(hash,(byte*) entry))
+    if (my_hash_insert(hash,(byte*) entry))
     {
       my_free((char*) entry,MYF(0));
       return 0;
@@ -2121,7 +2093,10 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
   return entry;
 }
 
-
+/*
+  When a user variable is updated (in a SET command or a query like SELECT @a:=
+  ).
+*/
 
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
@@ -2131,6 +2106,11 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
   entry->type= cached_result_type;
+  /* 
+     Remember the last query which updated it, this way a query can later know
+     if this variable is a constant item in the query (it is if update_query_id
+     is different from query_id).
+  */
   entry->update_query_id=thd->query_id;
   return 0;
 }
@@ -2353,53 +2333,92 @@ longlong Item_func_get_user_var::val_int()
 }
 
 
+/*
+  When a user variable is invoked from an update query (INSERT, UPDATE etc),
+  stores this variable and its value in thd->user_var_events, so that it can be
+  written to the binlog (will be written just before the query is written, see
+  log.cc).
+*/
+
 void Item_func_get_user_var::fix_length_and_dec()
 {
-  BINLOG_USER_VAR_EVENT *user_var_event;
   THD *thd=current_thd;
+  BINLOG_USER_VAR_EVENT *user_var_event;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
-  {
-    if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
-	var_entry->used_query_id != thd->query_id)
-    {
-      uint size;
-      /*
-	First we need to store value of var_entry, when the next situation
-	appers:
-        > set @a:=1;
-	> insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
-	We have to write to binlog value @a= 1;
-      */
-      size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
-      if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
-        goto err;
+  var_entry= get_variable(&thd->user_vars, name, 0);
 
-      user_var_event->value= (char*) user_var_event +
-	                     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
-      user_var_event->user_var_event= var_entry;
-      user_var_event->type= var_entry->type;
-      user_var_event->charset_number= var_entry->collation.collation->number;
-      if (!var_entry->value)
-      {
-	/* NULL value*/
-	user_var_event->length= 0;
-	user_var_event->value= 0;
-      }
-      else
-      {
-	user_var_event->length= var_entry->length;
-	memcpy(user_var_event->value, var_entry->value,
-	       var_entry->length);
-      }
-      var_entry->used_query_id= thd->query_id;
-      if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
-        goto err;
-    }
+  if (!(opt_bin_log && is_update_query(thd->lex.sql_command)))
+    return;
+
+  if (!var_entry)
+  {
+    /*
+      If the variable does not exist, it's NULL, but we want to create it so
+      that it gets into the binlog (if it didn't, the slave could be
+      influenced by a variable of the same name previously set by another
+      thread).
+      We create it like if it had been explicitely set with SET before.
+      The 'new' mimicks what sql_yacc.yy does when 'SET @a=10;'.
+      sql_set_variables() is what is called from 'case SQLCOM_SET_OPTION'
+      in dispatch_command()). Instead of building a one-element list to pass to
+      sql_set_variables(), we could instead manually call check() and update();
+      this would save memory and time; but calling sql_set_variables() makes one
+      unique place to maintain (sql_set_variables()). 
+    */
+
+    List<set_var_base> tmp_var_list;
+    tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
+                                                                       new Item_null())));
+    if (sql_set_variables(thd, &tmp_var_list)) /* this will create the variable */
+      goto err;
+    if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
+      goto err;
   }
+  /* 
+     If this variable was already stored in user_var_events by this query
+     (because it's used in more than one place in the query), don't store
+     it.
+  */
+  else if (var_entry->used_query_id == thd->query_id)
+    return;
+
+  uint size;
+  /*
+    First we need to store value of var_entry, when the next situation
+    appers:
+    > set @a:=1;
+    > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
+    We have to write to binlog value @a= 1;
+  */
+  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
+  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
+    goto err;
+  
+  user_var_event->value= (char*) user_var_event +
+    ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
+  user_var_event->user_var_event= var_entry;
+  user_var_event->type= var_entry->type;
+  user_var_event->charset_number= var_entry->collation.collation->number;
+  if (!var_entry->value)
+  {
+    /* NULL value*/
+    user_var_event->length= 0;
+    user_var_event->value= 0;
+  }
+  else
+  {
+    user_var_event->length= var_entry->length;
+    memcpy(user_var_event->value, var_entry->value,
+           var_entry->length);
+  }
+  /* Mark that this variable has been used by this query */
+  var_entry->used_query_id= thd->query_id;
+  if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
+    goto err;
+
   return;
 
 err:

@@ -771,7 +771,7 @@ int Field_decimal::store(double nr)
   char buff[320];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
-#ifdef HAVE_SNPRINTF_
+#ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
   length=(uint) strlen(buff);
@@ -2016,8 +2016,15 @@ double Field_longlong::val_real(void)
   else
 #endif
     longlongget(j,ptr);
-  return unsigned_flag ? ulonglong2double((ulonglong) j) : (double) j;
+  /* The following is open coded to avoid a bug in gcc 3.3 */
+  if (unsigned_flag)
+  {
+    ulonglong tmp= (ulonglong) j;
+    return ulonglong2double(tmp);
+  }
+  return (double) j;
 }
+
 
 longlong Field_longlong::val_int(void)
 {
@@ -3968,12 +3975,8 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
   char *end=ptr+field_length;
-#ifdef WANT_TRUE_BINARY_STRINGS
-  if (!binary)
-#endif
-    while (end > ptr && end[-1] == ' ')
-      end--;
-  val_ptr->set((const char*) ptr,(uint) (end - ptr),field_charset);
+  uint length= field_charset->cset->lengthsp(field_charset, ptr, field_length);
+  val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;
 }
 
@@ -4413,8 +4416,11 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
-      value.copy(from,length,charset());
-      from=value.ptr();
+      if (from != value.ptr())			// For valgrind
+      {
+	value.copy(from,length,charset());
+	from=value.ptr();
+      }
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }
@@ -5480,6 +5486,27 @@ create_field::create_field(Field *old_field,Field *orig_field)
   if (flags & BLOB_FLAG)
     pack_length= (pack_length- old_field->table->blob_ptr_size +
 		  portable_sizeof_char_ptr);
+
+  switch (sql_type)
+  {
+    case FIELD_TYPE_BLOB:
+      switch (pack_length - portable_sizeof_char_ptr)
+      {
+        case  1: sql_type= FIELD_TYPE_TINY_BLOB; break;
+        case  2: sql_type= FIELD_TYPE_BLOB; break;
+        case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
+        default: sql_type= FIELD_TYPE_LONG_BLOB; break;
+      }
+      length /= charset->mbmaxlen;
+      break;
+    case FIELD_TYPE_STRING:
+    case FIELD_TYPE_VAR_STRING:
+      length /= charset->mbmaxlen;
+      break;
+    default:
+      break;
+  }
+  
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {

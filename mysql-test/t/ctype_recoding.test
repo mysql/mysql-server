@@ -13,8 +13,8 @@ DROP TABLE t1;
 
 CREATE TABLE таблица 
 (
-  поле CHAR(32) CHARACTER SET koi8r NOT NULL
-);
+  поле CHAR(32) CHARACTER SET koi8r NOT NULL COMMENT "комментарий поля"
+) COMMENT "комментарий таблицы";
 
 SHOW TABLES;
 SHOW CREATE TABLE таблица;
@@ -45,3 +45,8 @@ SHOW TABLES;
 SHOW TABLES IN РЕЯР;
 SET CHARACTER SET koi8r;
 DROP DATABASE тест;
+
+SET NAMES koi8r;
+SELECT hex('тест');
+SET character_set_connection=cp1251;
+SELECT hex('тест');

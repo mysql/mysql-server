@@ -60,9 +60,11 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 		      MYF(0),counter);
       return -1;
     }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option &&
 	check_grant_all_columns(thd,INSERT_ACL,table))
       return -1;
+#endif
     table->time_stamp=0;			// This is saved by caller
   }
   else
@@ -96,7 +98,9 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
       table->time_stamp= table->timestamp_field->offset()+1;
   }
   // For the values we need select_priv
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+#endif
   return 0;
 }
 
@@ -130,14 +134,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->master_access & SUPER_ACL)
+#endif
   {
     if (!(thd->options & OPTION_UPDATE_LOG))
       log_on&= ~(int) DELAYED_LOG_UPDATE;
     if (!(thd->options & OPTION_BIN_LOG))
       log_on&= ~(int) DELAYED_LOG_BIN;
   }
-
   /*
     in safe mode or with skip-new change delayed insert to be regular
     if we are told to replace duplicates, the insert cannot be concurrent
@@ -172,7 +177,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       else
 	res= (table == 0);
     else
+    {
+      lock_type=TL_WRITE;
       res= open_and_lock_tables(thd, table_list);
+    }
   }
   else
     res= open_and_lock_tables(thd, table_list);
@@ -623,10 +631,11 @@ public:
      group_count(0)
   {
     thd.user=thd.priv_user=(char*) delayed_user;
-    thd.host=(char*) localhost;
+    thd.host=(char*) my_localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
+    thd.lex.current_select= 0; /* for my_message_sql */
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;
@@ -1448,6 +1457,8 @@ void select_insert::send_error(uint errcode,const char *err)
                             table->file->has_transactions());
       mysql_bin_log.write(&qinfo);
     }
+    if (!table->tmp_table)
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
   }
   if (info.copied || info.deleted)
     query_cache_invalidate3(thd, table, 1);
@@ -1468,7 +1479,11 @@ bool select_insert::send_eof()
   */
 
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
+    if (!(table->file->has_transactions() || table->tmp_table))
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+  }
 
   if (last_insert_id)
     thd->insert_id(last_insert_id);		// For binary log
@@ -1558,8 +1573,6 @@ bool select_create::send_data(List<Item> &values)
   }
   return 0;
 }
-
-extern HASH open_cache;
 
 
 bool select_create::send_eof()

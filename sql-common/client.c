@@ -48,14 +48,12 @@
 #endif
 
 #define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
-#define CLI_MYSQL_CLOSE cli_mysql_close
 
 #undef net_flush
 my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
-#define CLI_MYSQL_CLOSE mysql_close
 #endif /*EMBEDDED_LIBRARY*/
 
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
@@ -587,7 +585,7 @@ net_safe_read(MYSQL *mysql)
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
 #ifdef MYSQL_SERVER
-    if (socket_errno == SOCKET_EINTR)
+    if (vio_errno(net->vio) == SOCKET_EINTR)
       return (packet_error);
 #endif /*MYSQL_SERVER*/
     end_server(mysql);
@@ -636,10 +634,10 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-static my_bool
+my_bool STDCALL
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		 const char *header, ulong header_length,
-		 const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
@@ -1008,7 +1006,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -1139,8 +1137,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
 /* Read all rows (fields or data) from server */
 
-MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			     uint fields)
+MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			  unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -1150,7 +1148,7 @@ MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   MYSQL_DATA *result;
   MYSQL_ROWS **prev_ptr,*cur;
   NET *net = &mysql->net;
-  DBUG_ENTER("read_rows");
+  DBUG_ENTER("cli_read_rows");
 
   if ((pkt_len= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
@@ -1392,91 +1390,29 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 
 
 /*
-  Handle password authentication
-*/
-
-my_bool mysql_autenticate(MYSQL *mysql, const char *passwd)
-{
-  ulong pkt_length;
-  NET *net= &mysql->net;
-  char buff[SCRAMBLE41_LENGTH];
-  char password_hash[SCRAMBLE41_LENGTH]; /* Used for storage of stage1 hash */
-
-  /* We shall only query server if it expect us to do so */
-  if ((pkt_length=net_safe_read(mysql)) == packet_error)
-    goto error;
-
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      This should always happen with new server unless empty password
-      OK/Error packets have zero as the first char
-    */
-    if (pkt_length == 24 && net->read_pos[0])
-    {
-      /* Old passwords will have '*' at the first byte of hash */
-      if (net->read_pos[0] != '*')
-      {
-        /* Build full password hash as it is required to decode scramble */
-        password_hash_stage1(buff, passwd);
-        /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
-        /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,(const char*) net->read_pos);
-        /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-        /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
-      }
-      else
-      {
-	/* Create password to decode scramble */
-	create_key_from_old_password(passwd,password_hash);
-	/* Decypt and store scramble 4 = hash for stage2 */
-	password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-	mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-	/* Finally scramble decoded scramble with password */
-	scramble(buff, mysql->scramble_buff, passwd,0);
-      }
-      /* Write second package of authentication */
-      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
-      {
-        net->last_errno= CR_SERVER_LOST;
-	strmov(net->sqlstate, unknown_sqlstate);
-        strmov(net->last_error,ER(net->last_errno));
-        goto error;
-      }
-      /* Read what server thinks about out new auth message report */
-      if (net_safe_read(mysql) == packet_error)
-	goto error;
-    }
-  }
-  return 0;
-
-error:
-  return 1;
-}
-
-
-/*
   Note that the mysql argument must be initialized with mysql_init()
   before calling mysql_real_connect !
 */
 
 static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
-static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
   cli_mysql_read_query_result,
   cli_advanced_command,
-  cli_mysql_store_result,
+  cli_read_rows,
   cli_mysql_use_result,
   cli_fetch_lengths
+#ifndef MYSQL_SERVER
+  ,cli_list_fields,
+  cli_read_prepare_result,
+  cli_stmt_execute,
+  cli_read_binary_rows,
+  cli_unbuffered_fetch,
+  NULL,
+  cli_read_statistic
+#endif
 };
 
 MYSQL * STDCALL 
@@ -1502,6 +1438,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
+
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
@@ -1553,7 +1490,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
 
   /*
-    Grab a socket and connect it to the server
+    Part 0: Grab a socket and connect it to the server
   */
 #if defined(HAVE_SMEM)
   if ((!mysql->options.protocol ||
@@ -1754,6 +1691,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
+
+  /*
+    Part 1: Connection established, read and parse first packet
+  */
+
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -1774,8 +1716,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   end=strend((char*) net->read_pos+1);
   mysql->thread_id=uint4korr(end+1);
   end+=5;
-  strmake(mysql->scramble_buff,end,8);
-  end+=9;
+  /* 
+    Scramble is split into two parts because old clients does not understand
+    long scrambles; here goes the first part.
+  */
+  strmake(mysql->scramble, end, SCRAMBLE_LENGTH_323);
+  end+= SCRAMBLE_LENGTH_323+1;
+
   if (pkt_length >= (uint) (end+1 - (char*) net->read_pos))
     mysql->server_capabilities=uint2korr(end);
   if (pkt_length >= (uint) (end+18 - (char*) net->read_pos))
@@ -1784,6 +1731,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->server_language=end[2];
     mysql->server_status=uint2korr(end+3);
   }
+  end+= 18;
+  if (pkt_length >= (uint) (end + SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323 + 1 - 
+                           (char *) net->read_pos))
+    strmake(mysql->scramble+SCRAMBLE_LENGTH_323, end,
+            SCRAMBLE_LENGTH-SCRAMBLE_LENGTH_323);
+  else
+    mysql->server_capabilities&= ~CLIENT_SECURE_CONNECTION;
+
   charset_number= mysql->server_language;
 
   /* Set character set */
@@ -1860,9 +1815,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->unix_socket=0;
   strmov(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
-  client_flag|=mysql->options.client_flag;
 
-  /* Send client information for access check */
+  /*
+    Part 2: format and send client info to the server for access check
+  */
+  
+  client_flag|=mysql->options.client_flag;
   client_flag|=CLIENT_CAPABILITIES;
   if (client_flag & CLIENT_MULTI_QUERIES)
     client_flag|= CLIENT_MULTI_RESULTS;
@@ -1949,7 +1907,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,32);			/* Max user name */
+    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -1958,41 +1916,30 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #include "_cust_libmysql.h"
 #endif
   DBUG_PRINT("info",("user: %s",end));
-  /*
-    We always start with old type handshake the only difference is message sent
-    If server handles secure connection type we'll not send the real scramble
-  */
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  end= strend(end) + 1;
+  if (passwd[0])
   {
-    if (passwd[0])
+    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      /* Prepare false scramble  */
-      end=strend(end)+1;
-      bfill(end, SCRAMBLE_LENGTH, 'x');
-      end+=SCRAMBLE_LENGTH;
-      *end=0;
+      *end++= SCRAMBLE_LENGTH;
+      scramble(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH;
     }
-    else				/* For empty password*/
+    else
     {
-      end=strend(end)+1;
-      *end=0;				/* Store zero length scramble */
+      scramble_323(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH_323 + 1;
     }
   }
   else
-  {
-    /*
-      Real scramble is only sent to old servers. This can be blocked 
-      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
-    */
-    end=scramble(strend(end)+1, mysql->scramble_buff, passwd,
-                 (my_bool) (mysql->protocol_version == 9));
-  }
+    *end++= '\0';                               /* empty password */
+
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmake(end+1,db,NAME_LEN);
-    mysql->db=my_strdup(db,MYF(MY_WME));
-    db=0;
+    end= strmake(end, db, NAME_LEN) + 1;
+    mysql->db= my_strdup(db,MYF(MY_WME));
+    db= 0;
   }
   /* Write authentication package */
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
@@ -2002,9 +1949,35 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
+  
+  /*
+    Part 3: Authorization data's been sent. Now server can reply with
+    OK-packet, or re-request scrambled password.
+  */
 
-  if (mysql_autenticate(mysql, passwd))
+  if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
+
+  if (pkt_length == 1 && net->read_pos[0] == 254 && 
+      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      By sending this very specific reply server asks us to send scrambled
+      password in old format.
+    */
+    scramble_323(buff, mysql->scramble, passwd);
+    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;
+    }
+    /* Read what server thinks about out new auth message report */
+    if (net_safe_read(mysql) == packet_error)
+      goto error;
+  }
+
 
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
@@ -2028,7 +2001,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= mysql_use_result(mysql)))
+	if (!(res= cli_mysql_use_result(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }
@@ -2157,6 +2130,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -2189,7 +2163,7 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
-void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
+void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -2235,6 +2209,10 @@ void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
 #endif
     if (mysql != mysql->master)
       mysql_close(mysql->master);
+#ifndef MYSQL_SERVER
+    if (mysql->thd)
+      (*mysql->methods->free_embedded_thd)(mysql);
+#endif
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
   }
@@ -2247,7 +2225,7 @@ static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
   ulong field_count;
   MYSQL_DATA *fields;
   ulong length;
-  DBUG_ENTER("mysql_read_query_result");
+  DBUG_ENTER("cli_mysql_read_query_result");
 
   /*
     Read from the connection which we actually used, which
@@ -2296,7 +2274,8 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
-  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0,protocol_41(mysql) ? 7 : 5)))
+  if (!(fields=(*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,
+					    protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
@@ -2349,7 +2328,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);
-  DBUG_RETURN((int) mysql_read_query_result(mysql));
+  DBUG_RETURN((int) (*mysql->methods->read_query_result)(mysql));
 }
 
 
@@ -2358,7 +2337,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
+MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
@@ -2387,7 +2366,8 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
   result->methods= mysql->methods;
   result->eof=1;				/* Marker for buffered */
   result->lengths=(ulong*) (result+1);
-  if (!(result->data=read_rows(mysql,mysql->fields,mysql->field_count)))
+  if (!(result->data=
+	(*mysql->methods->read_rows)(mysql,mysql->fields,mysql->field_count)))
   {
     my_free((gptr) result,MYF(0));
     DBUG_RETURN(0);
@@ -2417,7 +2397,7 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_use_result");
+  DBUG_ENTER("cli_mysql_use_result");
 
   mysql = mysql->last_used_con;
 
@@ -2557,6 +2537,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
   case MYSQL_OPT_GUESS_CONNECTION:
     mysql->options.methods_to_use= option;
     break;
+  case MYSQL_SET_CLIENT_IP:
+    mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
   default:
     DBUG_RETURN(1);
   }

@@ -104,6 +104,8 @@ public:
     }
   }
   Item_func(List<Item> &list);
+  // Constructor used for Item_cond_and/or (see Item comment)
+  Item_func(THD *thd, Item_func &item);
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
   table_map used_tables() const;
@@ -196,6 +198,7 @@ public:
   Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length=21; }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { max_length=21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length=21; }
+  Item_int_func(THD *thd, Item_int_func &item) :Item_func(thd, item) {}
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
@@ -538,6 +541,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_min :public Item_func_min_max
@@ -554,27 +558,6 @@ public:
   const char *func_name() const { return "greatest"; }
 };
 
-
-#ifdef HAVE_COMPRESS
-class Item_func_crc32 :public Item_int_func
-{
-  String value;
-public:
-  Item_func_crc32(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "crc32"; }
-  void fix_length_and_dec() { max_length=10; }
-};
-class Item_func_uncompressed_length : public Item_int_func 
-{
-  String value;
-public:
-  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
-  longlong val_int();
-  const char *func_name() const{return "uncompressed_length";}
-  void fix_length_and_dec() { max_length=10; }
-};
-#endif
 
 class Item_func_length :public Item_int_func
 {

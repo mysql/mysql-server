@@ -129,7 +129,7 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update() { pthread_cond_broadcast(&update_cond);}
-  void wait_for_update(THD* thd);
+  void wait_for_update(THD* thd, bool master_or_slave);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg,
@@ -146,7 +146,7 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache, bool commit_or_rollback);
 
   /*
     v stands for vector
@@ -341,7 +341,11 @@ typedef struct st_prep_stmt
   char last_error[MYSQL_ERRMSG_SIZE];
   bool error_in_prepare, long_data_used;
   bool log_full_query;
+#ifndef EMBEDDED_LIBRARY
   bool (*setup_params)(st_prep_stmt *stmt, uchar *pos, uchar *read_pos);
+#else
+  bool (*setup_params_data)(st_prep_stmt *stmt);
+#endif
 } PREP_STMT;
 
 
@@ -385,6 +389,7 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  /* Determines if which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;
   ulong max_seeks_for_key;
@@ -398,11 +403,15 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
+  my_bool old_passwords;
   
-  CHARSET_INFO	*character_set_server;
-  CHARSET_INFO	*character_set_database;
+  /* Only charset part of these variables is sensible */
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
+  
+  /* Both charset and collation parts of these variables are important */
+  CHARSET_INFO	*collation_server;
+  CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 };
 
@@ -417,6 +426,12 @@ class THD :public ilink
 public:
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
+  struct st_mysql_data *data;
+  unsigned long	 client_stmt_id;
+  unsigned long  client_param_count;
+  struct st_mysql_bind *client_params;
+  char *extra_data;
+  ulong extra_length;
 #endif
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
@@ -459,7 +474,6 @@ public:
   const char *host_or_ip;
 
   ulong client_capabilities;		/* What the client supports */
-  /* Determines if which non-standard SQL behaviour should be enabled */
   ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
@@ -556,11 +570,10 @@ public:
   enum_tx_isolation session_tx_isolation;
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
-             // extend scramble to handle new auth
-  char	     scramble[SCRAMBLE41_LENGTH+1];
-             // old scramble is needed to handle old clients
-  char       old_scramble[SCRAMBLE_LENGTH+1];
-  uint8	     query_cache_type;		// type of query cache processing
+
+  /* scramble - random string sent to client on handshake */
+  char	     scramble[SCRAMBLE_LENGTH+1];
+
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool       last_cuted_field;
@@ -580,7 +593,6 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
-  my_off_t   log_pos;
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -980,7 +992,6 @@ typedef struct st_sort_buffer {
   char **buff;
   SORT_FIELD *sortorder;
 } SORT_BUFFER;
-
 
 /* Structure for db & table in sql_yacc */
 

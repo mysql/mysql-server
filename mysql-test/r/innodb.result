@@ -251,6 +251,18 @@ n
 6
 rollback;
 drop table t1;
+create table t1 (n int not null primary key) type=innodb;
+start transaction;
+insert into t1 values (4);
+flush tables with read lock;
+commit;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+commit;
+select * from t1;
+n
+4
+drop table t1;
 create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) type=innodb;
 begin;
 insert into t1 values(1,'hamdouni');
@@ -1342,3 +1354,40 @@ id	label
 3524	Societe Test
 3525	Fournisseur Test
 drop table t1,t2;
+create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) type=innodb;
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1;
+c1	c2	stamp
+drop table t1;
+create table t1 (a int, b varchar(200), c text not null) checksum=1 type=myisam;
+create table t2 (a int, b varchar(200), c text not null) checksum=0 type=innodb;
+create table t3 (a int, b varchar(200), c text not null) checksum=1 type=innodb;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+insert t3 select * from t1;
+checksum table t1, t2, t3, t4 quick;
+Table	Checksum
+test.t1	968604391
+test.t2	NULL
+test.t3	NULL
+test.t4	NULL
+checksum table t1, t2, t3, t4;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	968604391
+test.t4	NULL
+checksum table t1, t2, t3, t4 extended;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	968604391
+test.t4	NULL
+drop table t1,t2,t3;

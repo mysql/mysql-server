@@ -88,10 +88,15 @@ void sql_print_error(const char *format,...);
 
 #ifdef MYSQL_SERVER
 #define USE_QUERY_CACHE
+/*
+  The following variables/functions should really not be declared
+  extern, but as it's hard to include mysql_priv.h here, we have to
+  live with this for a while.
+*/
 extern uint test_flags;
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #undef statistic_increment
@@ -240,10 +245,12 @@ my_bool net_flush(NET *net)
 *****************************************************************************/
 
 /*
-** Write a logical packet with packet header
-** Format: Packet length (3 bytes), packet number(1 byte)
-**         When compression is used a 3 byte compression length is added
-** NOTE: If compression is used the original package is modified!
+  Write a logical packet with packet header
+  Format: Packet length (3 bytes), packet number(1 byte)
+  When compression is used a 3 byte compression length is added
+
+  NOTE
+    If compression is used the original package is modified!
 */
 
 my_bool
@@ -364,8 +371,8 @@ net_write_command(NET *net,uchar command,
     The cached buffer can be sent as it is with 'net_flush()'.
 
     In this code we have to be careful to not send a packet longer than
-    MAX_PACKET_LENGTH to net_real_write() if we are using the compressed protocol
-    as we store the length of the compressed packet in 3 bytes.
+    MAX_PACKET_LENGTH to net_real_write() if we are using the compressed
+    protocol as we store the length of the compressed packet in 3 bytes.
 
   RETURN
   0	ok
@@ -458,7 +465,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #ifdef MYSQL_SERVER
       net->last_errno= ER_OUT_OF_RESOURCES;
       net->error= 2;
-      //TODO is it needed to set this variable if we have no socket
+      /* TODO is it needed to set this variable if we have no socket */
       net->report_error= 1;
 #endif
       net->reading_or_writing= 0;
@@ -483,6 +490,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
 #else
   alarmed=0;
+  vio_timeout(net->vio, net->write_timeout);
 #endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
@@ -674,6 +682,8 @@ my_real_read(NET *net, ulong *complen)
 #ifndef NO_ALARM
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
+#else
+  vio_timeout(net->vio, net->read_timeout);
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
@@ -877,20 +887,23 @@ my_net_read(NET *net)
   {
     /* We are using the compressed protocol */
 
-    ulong buf_length=       net->buf_length;
-    ulong start_of_packet=  net->buf_length - net->remain_in_buf;
-    ulong first_packet_offset=start_of_packet;
+    ulong buf_length;
+    ulong start_of_packet;
+    ulong first_packet_offset;
     uint read_length, multi_byte_packet=0;
 
     if (net->remain_in_buf)
     {
+      buf_length= net->buf_length;		/* Data left in old packet */
+      first_packet_offset= start_of_packet= (net->buf_length -
+					     net->remain_in_buf);
       /* Restore the character that was overwritten by the end 0 */
-      net->buff[start_of_packet]=net->save_char;
+      net->buff[start_of_packet]= net->save_char;
     }
     else
     {
       /* reuse buffer, as there is nothing in it that we need */
-      buf_length=start_of_packet=first_packet_offset=0;
+      buf_length= start_of_packet= first_packet_offset= 0;
     }
     for (;;)
     {

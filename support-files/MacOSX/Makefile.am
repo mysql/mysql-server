@@ -22,7 +22,11 @@ EXTRA_DIST =	Info.plist.sh \
 		StartupParameters.plist.sh \
 		postinstall.sh \
 		preinstall.sh \
-		ReadMe.txt
+		ReadMe.txt \
+		MySQL \
+		StartupItem.Description.plist \
+		StartupItem.Info.plist \
+		StartupItem.postinstall
 
 pkgdata_DATA =	Info.plist \
 		Description.plist \

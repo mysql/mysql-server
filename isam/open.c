@@ -415,6 +415,9 @@ static void setup_functions(register ISAM_SHARE *share)
     share->read_rnd=_nisam_read_rnd_dynamic_record;
     share->delete_record=_nisam_delete_dynamic_record;
     share->compare_record=_nisam_cmp_dynamic_record;
+
+    /* add bits used to pack data to pack_reclength for faster allocation */
+    share->base.pack_reclength+= share->base.pack_bits;
     if (share->base.blobs)
     {
       share->update_record=_nisam_update_blob_record;
@@ -453,3 +456,22 @@ static void setup_key_functions(register N_KEYDEF *keyinfo)
   }
   return;
 }
+
+/*
+  Calculate a long checksum for a memoryblock. Used to verify pack_isam
+
+  SYNOPSIS
+    checksum()
+      mem	Pointer to memory block
+      count	Count of bytes
+*/
+
+ulong _nisam_checksum(const byte *mem, uint count)
+{
+  ulong crc;
+  for (crc= 0; count-- ; mem++)
+    crc= ((crc << 1) + *((uchar*) mem)) +
+      test(crc & ((ulong) 1L << (8*sizeof(ulong)-1)));
+  return crc;
+}
+

@@ -410,7 +410,7 @@ collation(concat(_latin2'a',_latin2'b'))	coercibility(concat(_latin2'a',_latin2'
 latin2_general_ci	3
 select collation(lpad(_latin2'a',4,_latin2'b')), coercibility(lpad(_latin2'a',4,_latin2'b'));
 collation(lpad(_latin2'a',4,_latin2'b'))	coercibility(lpad(_latin2'a',4,_latin2'b'))
-binary	3
+latin2_general_ci	3
 select collation(rpad(_latin2'a',4,_latin2'b')), coercibility(rpad(_latin2'a',4,_latin2'b'));
 collation(rpad(_latin2'a',4,_latin2'b'))	coercibility(rpad(_latin2'a',4,_latin2'b'))
 latin2_general_ci	3

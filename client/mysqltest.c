@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.29"
+#define MTEST_VERSION "1.30"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -204,6 +204,7 @@ Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
+Q_EXEC,
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -226,6 +227,13 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
+  /* the difference between sleep and real_sleep is that sleep will use
+     the delay from command line (--sleep) if there is one.
+     real_sleep always uses delay from it's argument.
+     the logic is that sometimes delays are cpu-dependent (and --sleep
+     can be used to set this delay. real_sleep is used for cpu-independent
+     delays
+   */
   "sleep",
   "real_sleep",
   "inc",
@@ -267,6 +275,7 @@ const char *command_names[]=
   "disable_warnings",
   "enable_info",
   "disable_info",
+  "exec",
   0
 };
 
@@ -501,15 +510,6 @@ void init_parser()
   memset(&var_reg,0, sizeof(var_reg));
 }
 
-int hex_val(int c)
-{
-  if (my_isdigit(charset_info,c))
-    return c - '0';
-  else if ((c = my_tolower(charset_info,c)) >= 'a' && c <= 'f')
-    return c - 'a' + 10;
-  else
-    return -1;
-}
 
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 {
@@ -664,7 +664,7 @@ static VAR* var_obtain(char* name, int len)
   if ((v = (VAR*)hash_search(&var_hash, name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
-  hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (byte*)v);
   return v;
 }
 
@@ -840,6 +840,66 @@ int do_source(struct st_query* q)
   return open_file(name);
 }
 
+/*
+  Execute given command.
+
+  SYNOPSIS
+    do_exec()
+    q	called command
+
+  DESCRIPTION
+    If one uses --exec command [args] command in .test file
+    we will execute the command and record its output.
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
+int do_exec(struct st_query* q)
+{
+  int error= 0;
+  DYNAMIC_STRING *ds;
+  DYNAMIC_STRING ds_tmp;
+  char buf[1024];
+  FILE *res_file;
+  char *cmd= q->first_argument;
+
+  while (*cmd && my_isspace(charset_info, *cmd))
+    cmd++;
+  if (!*cmd)
+    die("Missing argument in exec\n");
+
+  if (q->record_file[0])
+  {
+    init_dynamic_string(&ds_tmp, "", 16384, 65536);
+    ds= &ds_tmp;
+  }
+  else
+    ds= &ds_res;
+
+  if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
+    die("popen() failed\n");
+  while (fgets(buf, sizeof(buf), res_file))
+    dynstr_append(ds, buf);
+  pclose(res_file);
+  if (record)
+  {
+    if (!q->record_file[0] && !result_file)
+      die("At line %u: Missing result file", start_lineno);
+    if (!result_file)
+      str_to_file(q->record_file, ds->str, ds->length);
+  }
+  else if (q->record_file[0])
+  {
+    error= check_result(ds, q->record_file, q->require_file);
+  }
+  if (ds == &ds_tmp)
+    dynstr_free(&ds_tmp);
+  
+  return error;
+}
+
 int var_query_set(VAR* v, const char* p, const char** p_end)
 {
   char* end = (char*)((p_end && *p_end) ? *p_end : p + strlen(p));
@@ -862,7 +922,28 @@ int var_query_set(VAR* v, const char* p, const char** p_end)
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
-    eval_expr(v, row[0], 0);
+  {
+    /*
+      Concatenate all row results with tab in between to allow us to work
+      with results from many columns (for example from SHOW VARIABLES)
+    */
+    DYNAMIC_STRING result;
+    uint i;
+    ulong *lengths;
+    char *end;
+
+    init_dynamic_string(&result, "", 16384, 65536);
+    lengths= mysql_fetch_lengths(res);
+    for (i=0; i < mysql_num_fields(res); i++)
+    {
+      if (row[0])
+	dynstr_append_mem(&result, row[i], lengths[i]);
+      dynstr_append_mem(&result, "\t", 1);
+    }
+    end= result.str + result.length-1;
+    eval_expr(v, result.str, (const char**) &end);
+    dynstr_free(&result);
+  }
   else
     eval_expr(v, "", 0);
 
@@ -919,8 +1000,6 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
       return 0;
     }
 
-  if (p_end)
-    *p_end = 0;
   die("Invalid expr: %s", p);
   return 1;
 }
@@ -1217,7 +1296,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
     VAR *var=var_get(start, &end, 0, 1);
     if (var && to == (char*) end+1)
     {
-      DBUG_PRINT("info",("var: %s -> %s", start, var->str_val));
+      DBUG_PRINT("info",("var: '%s' -> '%s'", start, var->str_val));
       DBUG_RETURN(var->str_val);	/* return found variable value */
     }
   }
@@ -1544,56 +1623,6 @@ int do_while(struct st_query* q)
     *++block_ok = 1;
   var_free(&v);
   return 0;
-}
-
-
-int safe_copy_unescape(char* dest, char* src, int size)
-{
-  register char* p_dest = dest, *p_src = src;
-  register int c, val;
-  enum { ST_NORMAL, ST_ESCAPED, ST_HEX2} state = ST_NORMAL ;
-
-  size--; /* just to make life easier */
-
-  for (; p_dest - size < dest && p_src - size < src &&
-       (c = *p_src) != '\n' && c; ++p_src)
-  {
-    switch(state) {
-    case ST_NORMAL:
-      if (c == '\\')
-	state = ST_ESCAPED;
-      else
-	*p_dest++ = c;
-      break;
-    case ST_ESCAPED:
-      if ((val = hex_val(c)) > 0)
-      {
-	*p_dest = val;
-	state = ST_HEX2;
-      }
-      else
-      {
-	state = ST_NORMAL;
-	*p_dest++ = c;
-      }
-      break;
-    case ST_HEX2:
-      if ((val = hex_val(c)) > 0)
-      {
-	*p_dest = (*p_dest << 4) + val;
-	p_dest++;
-      }
-      else
-	*p_dest++ = c;
-
-      state = ST_NORMAL;
-      break;
-
-    }
-  }
-
-  *p_dest = 0;
-  return (p_dest - dest);
 }
 
 
@@ -2149,7 +2178,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if (!(flags & QUERY_REAP))
     DBUG_RETURN(0);
 
-  if (mysql_read_query_result(mysql) ||
+  if ((*mysql->methods->read_query_result)(mysql) ||
       (!(last_result = res = mysql_store_result(mysql)) &&
        mysql_field_count(mysql)))
   {
@@ -2371,7 +2400,7 @@ static void var_from_env(const char *name, const char *def_val)
     tmp = def_val;
 
   v = var_init(0, name, 0, tmp, 0);
-  hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (byte*)v);
 }
 
 
@@ -2387,9 +2416,9 @@ static void init_var_hash(MYSQL *mysql)
   var_from_env("MYSQL_TEST_DIR", "/tmp");
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
-  hash_insert(&var_hash, (byte*) v);
+  my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
-  hash_insert(&var_hash, (byte*) v);
+  my_hash_insert(&var_hash, (byte*) v);
   
   DBUG_VOID_RETURN;
 }
@@ -2583,6 +2612,9 @@ int main(int argc, char **argv)
 	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
+	break;
+      case Q_EXEC: 
+	(void) do_exec(q);
 	break;
       default: processed = 0; break;
       }

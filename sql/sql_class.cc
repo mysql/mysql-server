@@ -107,7 +107,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   variables.pseudo_thread_id= 0;
   file_id = 0;
   warn_id= 0;
-  db_charset= global_system_variables.character_set_database;
+  db_charset= global_system_variables.collation_database;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -133,11 +133,13 @@ THD::THD():user_time(0), is_fatal_error(0),
   where="field list";
   server_id = ::server_id;
   slave_net = 0;
-  log_pos = 0;
   command=COM_CONNECT;
   set_query_id=1;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access=NO_ACCESS;
+#endif
   version=refresh_version;			// For boot
+  *scramble= '\0';
 
   init();
   /* Initialize sub structures */
@@ -316,7 +318,7 @@ THD::~THD()
 #endif
 
   DBUG_PRINT("info", ("freeing host"));
-  if (host != localhost)			// If not pointer to constant
+  if (host != my_localhost)			// If not pointer to constant
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);
@@ -583,7 +585,7 @@ sql_exchange::sql_exchange(char *name,bool flag)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
 {
   field_term= &default_field_term;
-  enclosed=   line_start= &empty_string;
+  enclosed=   line_start= &my_empty_string;
   line_term=  &default_line_term;
   escaped=    &default_escaped;
 }

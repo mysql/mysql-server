@@ -44,7 +44,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 
-extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -53,14 +52,18 @@ extern "C" int gethostname(char *name, int namelen);
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
+static bool single_table_command_access(THD *thd, ulong privilege,
+					TABLE_LIST *tables, int *res);
+#else
+#define check_merge_table_access(thd, db, tables) false
+#define single_table_command_access(thd, privilege, tables, res) false
+#endif
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
-
-static bool single_table_command_access(THD *thd, ulong privilege,
-					TABLE_LIST *tables, int *res);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -120,7 +123,6 @@ static bool end_active_trans(THD *thd)
 
 
 static HASH hash_user_connections;
-extern  pthread_mutex_t LOCK_user_conn;
 
 static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
@@ -161,7 +163,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     if (max_user_connections && mqh->connections > max_user_connections)
       uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
-    if (hash_insert(&hash_user_connections, (byte*) uc))
+    if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       send_error(thd, 0, NullS);		// Out of memory
@@ -176,153 +178,185 @@ end:
 
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
-  Check if user is ok
-
+    Check if user exist and password supplied is correct. 
   SYNOPSIS
     check_user()
-    thd			Thread handle
-    command		Command for connection (for log)
-    user		Name of user trying to connect
-    passwd		Scrambled password sent from client
-    db			Database to connect to
-    check_count		If set to 1, don't allow too many connection
-    simple_connect	If 1 then client is of old type and we should connect
-			using the old method (no challange)
-    do_send_error	Set to 1 if we should send error to user
-    prepared_scramble	Buffer to store hash password of new connection
-    had_password	Set to 1 if the user gave a password
-    cur_priv_version	Check flag to know if someone flushed the privileges
-			since last code
-    hint_user	        Pointer used by acl_getroot() to remmeber user for
-			next call
+    thd          thread handle, thd->{host,user,ip} are used
+    command      originator of the check: now check_user is called
+                 during connect and change user procedures; used for 
+                 logging.
+    passwd       scrambled password recieved from client
+    passwd_len   length of scrambled password
+    db           database name to connect to, may be NULL
+    check_count  dont know exactly
 
-  RETURN
-    0		ok
-		thd->user, thd->master_access, thd->priv_user, thd->db and
-		thd->db_access are updated
-    1		Access denied;  Error sent to client
-    -1		If do_send_error == 1:  Failed connect, error sent to client
-		If do_send_error == 0:	Prepare for stage of connect
+    Note, that host, user and passwd may point to communication buffer.
+    Current implementation does not depened on that, but future changes
+    should be done with this in mind; 'thd' is INOUT, all other params
+    are 'IN'.
+
+  RETURN VALUE
+    0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
+       thd->db_access are updated; OK is sent to client;
+   -1  access denied or handshake error; error is sent to client;
+   >0  error, not sent to client
 */
 
-static int check_user(THD *thd,enum_server_command command, const char *user,
-		       const char *passwd, const char *db, bool check_count,
-                       bool simple_connect, bool do_send_error, 
-                       char *prepared_scramble, bool had_password,
-                       uint *cur_priv_version, ACL_USER** hint_user)
+int check_user(THD *thd, enum enum_server_command command, 
+	       const char *passwd, uint passwd_len, const char *db,
+	       bool check_count)
 {
-  thd->db=0;
-  thd->db_length=0;
-  USER_RESOURCES ur;
-  char tmp_passwd[SCRAMBLE41_LENGTH+1];
   DBUG_ENTER("check_user");
   
+  my_bool opt_secure_auth_local;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  opt_secure_auth_local= opt_secure_auth;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  
   /*
-    Move password to temporary buffer as it may be stored in communication
-    buffer
+    If the server is running in secure auth mode, short scrambles are 
+    forbidden.
   */
-  strmake(tmp_passwd, passwd, sizeof(tmp_passwd));
-  passwd= tmp_passwd;				// Use local copy
-
-  /* We shall avoid dupplicate user allocations here */
-  if (!thd->user && !(thd->user = my_strdup(user, MYF(0))))
+  if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
   {
-    send_error(thd,ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(1);
+    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    DBUG_RETURN(-1);
   }
-  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
-				 passwd, thd->scramble,
-				 &thd->priv_user, thd->priv_host,
-				 (protocol_version == 9 ||
-				  !(thd->client_capabilities &
-				    CLIENT_LONG_PASSWORD)),
-				 &ur,prepared_scramble,
-				 cur_priv_version,hint_user);
-
-  DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  Login user: '%s'  Priv_user: '%s'  Using password: %s  Access: %u  db: '%s'",
-	      thd->client_capabilities, thd->max_client_packet_length,
-	      thd->host_or_ip, thd->user, thd->priv_user,
-	      had_password ? "yes": "no",
-	      thd->master_access, thd->db ? thd->db : "*none*"));
+  if (passwd_len != 0 &&
+      passwd_len != SCRAMBLE_LENGTH &&
+      passwd_len != SCRAMBLE_LENGTH_323)
+    DBUG_RETURN(ER_HANDSHAKE_ERROR);
 
   /*
-    In case we're going to retry we should not send error message at this
-    point
+    Clear thd->db as it points to something, that will be freed when 
+    connection is closed. We don't want to accidently free a wrong pointer
+    if connect failed. Also in case of 'CHANGE USER' failure, current
+    database will be switched to 'no database selected'.
   */
-  if (thd->master_access & NO_ACCESS)
+  thd->db= 0;
+  thd->db_length= 0;
+  
+  USER_RESOURCES ur;
+  int res= acl_getroot(thd, &ur, passwd, passwd_len);
+#ifndef EMBEDDED_LIBRARY
+  if (res == -1)
   {
-    if (do_send_error || !had_password || !*hint_user)
+    /*
+      This happens when client (new) sends password scrambled with
+      scramble(), but database holds old value (scrambled with
+      scramble_323()). Here we please client to send scrambled_password
+      in old format.
+    */
+    NET *net= &thd->net;
+    if (opt_secure_auth_local)
     {
-      DBUG_PRINT("info",("Access denied"));
-      /*
-	Old client should get nicer error message if password version is
-	not supported
-      */
-      if (simple_connect && *hint_user && (*hint_user)->pversion)
+      net_printf(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
+                 thd->user, thd->host_or_ip);
+      mysql_log.write(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                      thd->user, thd->host_or_ip);
+      DBUG_RETURN(-1);
+    }
+    if (send_old_password_request(thd) ||
+        my_net_read(net) != SCRAMBLE_LENGTH_323 + 1) // We have to read very
+    {                                                // specific packet size
+      inc_host_errors(&thd->remote.sin_addr);
+      DBUG_RETURN(ER_HANDSHAKE_ERROR);
+    }
+    /* Final attempt to check the user based on reply */
+    /* So as passwd is short, errcode is always >= 0 */
+    res= acl_getroot(thd, &ur, (char *) net->read_pos, SCRAMBLE_LENGTH_323);
+  }
+#endif /*EMBEDDED_LIBRARY*/
+  /* here res is always >= 0 */
+  if (res == 0)
+  {
+    if (!(thd->master_access & NO_ACCESS)) // authentification is OK 
+    {
+      DBUG_PRINT("info",
+                 ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
+                  "Login user: '%s' Priv_user: '%s'  Using password: %s "
+                  "Access: %u  db: '%s'",
+                  thd->client_capabilities, thd->max_client_packet_length,
+                  thd->host_or_ip, thd->user, thd->priv_user,
+                  passwd_len ? "yes": "no",
+                  thd->master_access, thd->db ? thd->db : "*none*"));
+
+      if (check_count)
       {
-        net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-        mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+        VOID(pthread_mutex_lock(&LOCK_thread_count));
+        bool count_ok= thread_count < max_connections + delayed_insert_threads
+                       || (thd->master_access & SUPER_ACL);
+        VOID(pthread_mutex_unlock(&LOCK_thread_count));
+        if (!count_ok)
+        {                                         // too many connections 
+          send_error(thd, ER_CON_COUNT_ERROR);
+          DBUG_RETURN(-1);
+        }
+      }
+
+      /* Why logging is performed before all checks've passed? */
+      mysql_log.write(thd,command,
+                      (thd->priv_user == thd->user ?
+                       (char*) "%s@%s on %s" :
+                       (char*) "%s@%s as anonymous on %s"),
+                      thd->user, thd->host_or_ip,
+                      db ? db : (char*) "");
+
+      /*
+        This is the default access rights for the current database.  It's
+        set to 0 here because we don't have an active database yet (and we
+        may not have an active database to set.
+      */
+      thd->db_access=0;
+
+      /* Don't allow user to connect if he has done too many queries */
+      if ((ur.questions || ur.updates ||
+           ur.connections || max_user_connections) &&
+          get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+        DBUG_RETURN(1);
+      if (thd->user_connect && thd->user_connect->user_resources.connections &&
+          check_for_max_user_connections(thd, thd->user_connect))
+        DBUG_RETURN(1);
+
+      /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+      if (db && db[0])
+      {
+        if (mysql_change_db(thd, db))
+        {
+          if (thd->user_connect)
+            decrease_user_connections(thd->user_connect);
+          DBUG_RETURN(-1);
+        }
       }
       else
-      {
-        net_printf(thd, ER_ACCESS_DENIED_ERROR,
-      	         thd->user,
-	         thd->host_or_ip,
-	         had_password ? ER(ER_YES) : ER(ER_NO));
-        mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
-	              thd->user,
-                      thd->host_or_ip,
-	              had_password ? ER(ER_YES) : ER(ER_NO));
-      }                
-      DBUG_RETURN(1);			// Error already given
-    }
-    DBUG_PRINT("info",("Prepare for second part of handshake"));
-    DBUG_RETURN(-1);			// no report error in special handshake
-  }
-
-  if (check_count)
-  {
-    VOID(pthread_mutex_lock(&LOCK_thread_count));
-    bool tmp=(thread_count - delayed_insert_threads >= max_connections &&
-	      !(thd->master_access & SUPER_ACL));
-    VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    if (tmp)
-    {						// Too many connections
-      send_error(thd, ER_CON_COUNT_ERROR);
-      DBUG_RETURN(1);
+        send_ok(thd);
+      thd->password= test(passwd_len);          // remember for error messages 
+      /* Ready to handle queries */
+      DBUG_RETURN(0);
     }
   }
-  mysql_log.write(thd,command,
-		  (thd->priv_user == thd->user ?
-		   (char*) "%s@%s on %s" :
-		   (char*) "%s@%s as anonymous on %s"),
-		  user,
-		  thd->host_or_ip,
-		  db ? db : (char*) "");
-  thd->db_access=0;
-  /* Don't allow user to connect if he has done too many queries */
-  if ((ur.questions || ur.updates || ur.connections || max_user_connections) &&
-      get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
-    DBUG_RETURN(1);
-  if (thd->user_connect && ((thd->user_connect->user_resources.connections) ||
-			    max_user_connections) && 
-      check_for_max_user_connections(thd, thd->user_connect))
-    DBUG_RETURN(1);
-
-  if (db && db[0])
+  else if (res == 2) // client gave short hash, server has long hash
   {
-    int error= test(mysql_change_db(thd,db));
-    if (error && thd->user_connect)
-      decrease_user_connections(thd->user_connect);
-    DBUG_RETURN(error);
+    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    DBUG_RETURN(-1);
   }
-  send_ok(thd);					// Ready to handle questions
-  thd->password= test(passwd[0]);		// Remember for error messages
-  DBUG_RETURN(0);				// ok
+  net_printf(thd, ER_ACCESS_DENIED_ERROR,
+             thd->user,
+             thd->host_or_ip,
+             passwd_len ? ER(ER_YES) : ER(ER_NO));
+  mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                  thd->user,
+                  thd->host_or_ip,
+                  passwd_len ? ER(ER_YES) : ER(ER_NO));
+  DBUG_RETURN(-1);
 }
+
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
 
 
 /*
@@ -433,6 +467,7 @@ bool is_update_query(enum enum_sql_command command)
   return uc_update_queries[command];
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check if maximum queries per hour limit has been reached
   returns 0 if OK.
@@ -523,54 +558,44 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
 }
-
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
 
 /*
-  Check connnectionn and get priviliges
-
+    Perform handshake, authorize client and update thd ACL variables.
   SYNOPSIS
-    check_connections
-    thd		Thread handle
+    check_connection()
+    thd  thread handle
 
   RETURN
-    0	ok
-    -1	Error, which is sent to user
-    > 0	 Error code (not sent to user)
+     0  success, OK is sent to user, thd is updated.
+    -1  error, which is sent to user
+   > 0  error code (not sent to user)
 */
 
-#ifndef EMBEDDED_LIBRARY  
-static int
-check_connections(THD *thd)
+#ifndef EMBEDDED_LIBRARY
+static int check_connection(THD *thd)
 {
-  int res;
-  uint connect_errors=0;
-  uint cur_priv_version;
-  bool using_password;
+  uint connect_errors= 0;
   NET *net= &thd->net;
-  char *end, *user, *passwd, *db;
-  char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
-  char db_buff[NAME_LEN+1];
-  ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
-  DBUG_PRINT("info",("New connection received on %s",
-		     vio_description(net->vio)));
 
-  /* Remove warning from valgrind.  TODO:  Fix it in password.c */
-  bzero((char*) &prepared_scramble[0], sizeof(prepared_scramble));
+  DBUG_PRINT("info",
+             ("New connection received on %s", vio_description(net->vio)));
+
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port))
       return (ER_BAD_HOST_ERROR);
-    if (!(thd->ip = my_strdup(ip,MYF(0))))
+    if (!(thd->ip= my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
-    thd->host_or_ip=thd->ip;
+    thd->host_or_ip= thd->ip;
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
     {
-      thd->host= (char*) localhost;
-      thd->host_or_ip= localhost;
+      thd->host= (char*) my_localhost;
+      thd->host_or_ip= my_localhost;
     }
     else
 #endif
@@ -600,15 +625,14 @@ check_connections(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
-    bzero((char*) &thd->remote,sizeof(struct sockaddr));
+    bzero((char*) &thd->remote, sizeof(struct sockaddr));
   }
-  /* Ensure that wrong hostnames doesn't cause buffer overflows */
   vio_keepalive(net->vio, TRUE);
-
-  ulong pkt_len=0;
+  ulong pkt_len= 0;
+  char *end;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+64];
+    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
     ulong client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
 			  CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
 
@@ -622,19 +646,34 @@ check_connections(THD *thd)
       client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
 #endif /* HAVE_OPENSSL */
 
-    end=strnmov(buff,server_version,SERVER_VERSION_LENGTH)+1;
-    int4store((uchar*) end,thd->thread_id);
-    end+=4;
-    memcpy(end,thd->scramble,SCRAMBLE_LENGTH+1);
-    end+=SCRAMBLE_LENGTH +1;
-    int2store(end,client_flags);
+    end= strnmov(buff, server_version, SERVER_VERSION_LENGTH) + 1;
+    int4store((uchar*) end, thd->thread_id);
+    end+= 4;
+    /*
+      So as check_connection is the only entry point to authorization
+      procedure, scramble is set here. This gives us new scramble for
+      each handshake.
+    */
+    create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
+    /*
+      Old clients does not understand long scrambles, but can ignore packet
+      tail: that's why first part of the scramble is placed here, and second
+      part at the end of packet.
+    */
+    end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
+   
+    int2store(end, client_flags);
+    /* write server characteristics: up to 16 bytes allowed */
     end[2]=(char) default_charset_info->number;
-    int2store(end+3,thd->server_status);
-    bzero(end+5,13);
-    end+=18;
+    int2store(end+3, thd->server_status);
+    bzero(end+5, 13);
+    end+= 18;
+    /* write scramble tail */
+    end= strmake(end, thd->scramble + SCRAMBLE_LENGTH_323, 
+                 SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323) + 1;
 
-    // At this point we write connection message and read reply
-    if (net_write_command(net,(uchar) protocol_version, "", 0, buff,
+    /* At this point we write connection message and read reply */
+    if (net_write_command(net, (uchar) protocol_version, "", 0, buff,
 			  (uint) (end-buff)) ||
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
@@ -723,7 +762,7 @@ check_connections(THD *thd)
       return(ER_HANDSHAKE_ERROR);
     }
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
-    if ((pkt_len=my_net_read(net)) == packet_error ||
+    if ((pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
@@ -740,25 +779,6 @@ check_connections(THD *thd)
     return(ER_HANDSHAKE_ERROR);
   }
 
-  user=   end;
-  passwd= strend(user)+1;
-  db=0;
-  using_password= test(passwd[0]);
-  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-  {
-    db= strend(passwd)+1;
-    uint32 length= copy_and_convert(db_buff, sizeof(db_buff)-1,
-				    system_charset_info,
-				    db, strlen(db),
-				    thd->charset());
-    db_buff[length]= 0;
-    db= db_buff;
-  }
-
-  /* We can get only old hash at this point */
-  if (using_password && strlen(passwd) != SCRAMBLE_LENGTH)
-    return ER_HANDSHAKE_ERROR;
-
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
@@ -766,62 +786,36 @@ check_connections(THD *thd)
     net->return_status= &thd->server_status;
   net->read_timeout=(uint) thd->variables.net_read_timeout;
 
-  /* Simple connect only for old clients. New clients always use secure auth */
-  bool simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
+  char *user= end;
+  char *passwd= strend(user)+1;
+  char *db= passwd;
+  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8 
+  /* 
+    Old clients send null-terminated string as password; new clients send
+    the size (1 byte) + string (not null-terminated). Hence in case of empty
+    password both send '\0'.
+  */
+  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+    *passwd++ : strlen(passwd);
+  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
+    db + passwd_len + 1 : 0;
 
-  /* Check user permissions. If password failure we'll get scramble back */
-  if ((res=check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
-		      simple_connect, prepared_scramble, using_password,
-		      &cur_priv_version,
-		      &cached_user)) < 0)
+  /* Since 4.1 all database names are stored in utf8 */
+  if (db)
   {
-    /* Store current used and database as they are erased with next packet */
-    char tmp_user[USERNAME_LENGTH+1];
-    char tmp_db[NAME_LEN+1];
-
-    /* If the client is old we just have to return error */
-    if (simple_connect)
-      return -1;
-
-    DBUG_PRINT("info",("password challenge"));
-
-    tmp_user[0]= tmp_db[0]= 0;
-    if (user)
-      strmake(tmp_user,user,USERNAME_LENGTH);
-    if (db)
-      strmake(tmp_db,db,NAME_LEN);
-
-    /* Write hash and encrypted scramble to client */
-    if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
-        net_flush(net))
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      return ER_HANDSHAKE_ERROR;
-    }
-    /* Reading packet back */
-    if ((pkt_len= my_net_read(net)) == packet_error)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      return ER_HANDSHAKE_ERROR;
-    }
-    /* We have to get very specific packet size  */
-    if (pkt_len != SCRAMBLE41_LENGTH)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      return ER_HANDSHAKE_ERROR;
-    }
-    /* Final attempt to check the user based on reply */
-    if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-		   tmp_db, 1, 0, 1, prepared_scramble, using_password,
-		   &cur_priv_version,
-		   &cached_user))
-      return -1;
+    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
+                             system_charset_info,
+                             db, strlen(db),
+                             thd->charset())]= 0;
+    db= db_buff;
   }
-  else if (res)
-    return -1;					// Error sent from check_user()
-  return 0;
-}
 
+  if (thd->user)
+    x_free(thd->user);
+  if (!(thd->user= my_strdup(user, MYF(0))))
+    return (ER_OUT_OF_RESOURCES);
+  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
+}
 
 pthread_handler_decl(handle_one_connection,arg)
 {
@@ -876,7 +870,7 @@ pthread_handler_decl(handle_one_connection,arg)
     NET *net= &thd->net;
     thd->thread_stack= (char*) &thd;
 
-    if ((error=check_connections(thd)))
+    if ((error=check_connection(thd)))
     {						// Wrong permissions
       if (error > 0)
 	net_printf(thd,error,thd->host_or_ip);
@@ -938,6 +932,8 @@ end_thread:
   return(0);					/* purecov: deadcode */
 }
 
+#endif /* EMBEDDED_LIBRARY */
+
 /*
   Execute commands from bootstrap_file.
   Used when creating the initial grant tables
@@ -952,12 +948,15 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   /* The following must be called before DBUG_ENTER */
   if (my_thread_init() || thd->store_globals())
   {
+#ifndef EMBEDDED_LIBRARY
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
     thd->fatal_error();
     goto end;
   }
   DBUG_ENTER("handle_bootstrap");
 
+#ifndef EMBEDDED_LIBRARY
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
@@ -965,6 +964,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+#endif /* EMBEDDED_LIBRARY */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
@@ -986,6 +986,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
     thd->query_id=query_id++;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (mqh_used && thd->user_connect && check_mqh(thd, SQLCOM_END))
     {
       thd->net.error = 0;
@@ -993,6 +994,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
       break;
     }
+#endif
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)
@@ -1003,16 +1005,16 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   /* thd->fatal_error should be set in case something went wrong */
 end:
+#ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   (void) pthread_cond_broadcast(&COND_thread_count);
   my_thread_end();
   pthread_exit(0);
+#endif
   DBUG_RETURN(0);				// Never reached
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
     /* This works because items are allocated with sql_alloc() */
 
@@ -1048,11 +1050,12 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
 
-  if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege,0,0))
     goto err;
   if (grant_option && check_grant(thd, SELECT_ACL, table_list))
     goto err;
-
+#endif
   thd->free_list = 0;
   thd->query_length=(uint) strlen(tbl_name);
   thd->query = tbl_name;
@@ -1161,7 +1164,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_log.write(thd,command,"%s",thd->db);
     break;
   }
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case COM_REGISTER_SLAVE:
   {
     if (!register_slave(thd, (uchar*)packet, packet_length))
@@ -1188,116 +1191,73 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     thd->change_user();
-    thd->clear_error();			// If errors from rollback
+    thd->clear_error();                         // if errors from rollback
 
-    statistic_increment(com_other,&LOCK_status);
-    char *user=   (char*) packet;
+    statistic_increment(com_other, &LOCK_status);
+    char *user= (char*) packet;
     char *passwd= strend(user)+1;
-    char *db=     strend(passwd)+1;
+    /* 
+      Old clients send null-terminated string ('\0' for empty string) for
+      password.  New clients send the size (1 byte) + string (not null
+      terminated, so also '\0' for empty string).
+    */
+    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8 
+    char *db= passwd;
+    uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+      *passwd++ : strlen(passwd);
+    db+= passwd_len + 1;
+    /* Small check for incomming packet */
+    if ((uint) ((uchar*) db - net->read_pos) > packet_length)
+    {
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      break;
+    }
+
+    /* Convert database name to utf8 */
+    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
+                             system_charset_info, db, strlen(db),
+                             thd->charset())]= 0;
+    db= db_buff;
 
     /* Save user and privileges */
-    uint save_master_access=thd->master_access;
-    uint save_db_access=    thd->db_access;
-    uint save_db_length=    thd->db_length;
-    char *save_user=	    thd->user;
-    thd->user=NULL; /* Needed for check_user to allocate new user */
-    char *save_priv_user=   thd->priv_user;
-    char *save_db=	    thd->db;
-    USER_CONN *save_uc=     thd->user_connect;
-    bool simple_connect;
-    bool using_password;
-    char prepared_scramble[SCRAMBLE41_LENGTH+4];/* Buffer for scramble,hash */
-    char tmp_user[USERNAME_LENGTH+1];
-    char tmp_db[NAME_LEN+1];
-    ACL_USER* cached_user     ;                 /* Cached user */
-    uint cur_priv_version;                      /* Cached grant version */
-    int res;
-    ulong pkt_len= 0;				/* Length of reply packet */
-
-    bzero((char*) prepared_scramble, sizeof(prepared_scramble));
-    /* Small check for incomming packet */
-
-    if ((uint) ((uchar*) db - net->read_pos) > packet_length)
-      goto restore_user_err;
-
-    /* Now we shall basically perform authentication again */
-
-     /* We can get only old hash at this point */
-    if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH)
-      goto restore_user_err;
-
-    cached_user= NULL;
-
-    /* Simple connect only for old clients. New clients always use sec. auth*/
-    simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
-
-    /* Store information if we used password. passwd will be dammaged */
-    using_password=test(passwd[0]);
-
-    if (simple_connect) /* Restore scramble for old clients */
-      memcpy(thd->scramble,thd->old_scramble,9);
-
-    /*
-      Check user permissions. If password failure we'll get scramble back
-      Do not retry if we already have sent error (result>0)
-    */
-    if ((res=check_user(thd,COM_CHANGE_USER, user, passwd, db, 0,
-			simple_connect, simple_connect, prepared_scramble,
-			using_password, &cur_priv_version, &cached_user)) < 0)
+    uint save_master_access= thd->master_access;
+    uint save_db_access= thd->db_access;
+    uint save_db_length= thd->db_length;
+    char *save_user= thd->user;
+    char *save_priv_user= thd->priv_user;
+    char *save_db= thd->db;
+    USER_CONN *save_uc= thd->user_connect;
+    thd->user= my_strdup(user, MYF(0));
+    if (!thd->user)
     {
-      /* If the client is old we just have to have auth failure */
-      if (simple_connect)
-        goto restore_user;			/* Error is already reported */
-
-      /* Store current used and database as they are erased with next packet */
-      tmp_user[0]= tmp_db[0]= 0;
-      if (user)
-        strmake(tmp_user,user,USERNAME_LENGTH);
-      if (db)
-        strmake(tmp_db,db,NAME_LEN);
-
-      /* Write hash and encrypted scramble to client */
-      if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
-          net_flush(net))
-        goto restore_user_err;
-
-      /* Reading packet back */
-      if ((pkt_len=my_net_read(net)) == packet_error)
-        goto restore_user_err;
-
-      /* We have to get very specific packet size  */
-      if (pkt_len != SCRAMBLE41_LENGTH)
-        goto restore_user;
-
-      /* Final attempt to check the user based on reply */
-      if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*) net->read_pos,
-		     tmp_db, 0, 0, 1, prepared_scramble, using_password,
-		     &cur_priv_version, &cached_user))
-        goto restore_user;
+      thd->user= save_user;
+      send_error(thd, ER_OUT_OF_RESOURCES);
+      break;
     }
-    else if (res)
-      goto restore_user;
 
-    /* Finally we've authenticated new user */
-    if (max_connections && save_uc)
-      decrease_user_connections(save_uc);
-    x_free((gptr) save_db);
-    x_free((gptr) save_user);
-    thd->password=using_password;
-    break;
+    int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
 
-    /* Bad luck  we shall restore old user */
-restore_user_err:
-    send_error(thd, ER_UNKNOWN_COM_ERROR);
-
-restore_user:
-    x_free(thd->user);
-    thd->master_access=save_master_access;
-    thd->db_access=save_db_access;
-    thd->db=save_db;
-    thd->db_length=save_db_length;
-    thd->user=save_user;
-    thd->priv_user=save_priv_user;
+    if (res)
+    {
+      /* authentification failure, we shall restore old user */
+      if (res > 0)
+        send_error(thd, ER_UNKNOWN_COM_ERROR);
+      x_free(thd->user);
+      thd->user= save_user;
+      thd->priv_user= save_priv_user;
+      thd->master_access= save_master_access;
+      thd->db_access= save_db_access;
+      thd->db= save_db;
+      thd->db_length= save_db_length;
+    }
+    else
+    {
+      /* we've authenticated new user */
+      if (max_connections && save_uc)
+        decrease_user_connections(save_uc);
+      x_free((gptr) save_db);
+      x_free((gptr) save_user);
+    }
     break;
   }
 #endif /* EMBEDDED_LIBRARY */
@@ -1395,11 +1355,13 @@ restore_user:
       my_casedn_str(files_charset_info, table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
-    if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access,0,0))
       break;
     table_list.grant.privilege=thd->col_access;
     if (grant_option && check_grant(thd,SELECT_ACL,&table_list,2))
       break;
+#endif /*DONT_ALLOW_SHOW_COMMANDS*/
     mysqld_list_fields(thd,&table_list,fields);
     free_items(thd->free_list);
     break;
@@ -1422,7 +1384,7 @@ restore_user:
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (check_access(thd,CREATE_ACL,db,0,1))
+      if (check_access(thd,CREATE_ACL,db,0,1,0))
 	break;
       mysql_log.write(thd,command,packet);
       mysql_create_db(thd,db,0,0);
@@ -1438,7 +1400,7 @@ restore_user:
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (check_access(thd,DROP_ACL,db,0,1))
+      if (check_access(thd,DROP_ACL,db,0,1,0))
 	break;
       if (thd->locked_tables || thd->active_transaction())
       {
@@ -1511,12 +1473,15 @@ restore_user:
     error=TRUE;
     break;
 #endif
-#ifndef EMBEDDED_LIBRARY
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
     statistic_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
+#ifndef EMBEDDED_LIBRARY
     char buff[200];
+#else
+    char *buff= thd->net.last_error;
+#endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
 	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
@@ -1529,23 +1494,32 @@ restore_user:
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
 	      (sf_malloc_cur_memory+1023L)/1024L,
 	      (sf_malloc_max_memory+1023L)/1024L);
- #endif
+#endif
+#ifndef EMBEDDED_LIBRARY
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
+#endif
     break;
   }
-#endif
   case COM_PING:
     statistic_increment(com_other,&LOCK_status);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
     statistic_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
+#endif
     mysql_log.write(thd,command,NullS);
-    mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
-			  thd->priv_user,0);
+    mysqld_list_processes(thd,
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+			  thd->master_access & PROCESS_ACL ? 
+			  NullS : thd->priv_user
+#else
+			  NullS
+#endif
+			  ,0);
     break;
   case COM_PROCESS_KILL:
   {
@@ -1644,8 +1618,8 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   /* We must allocate some extra memory for query cache */
   if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 					      packet_length,
-					      thd->db_length+2+
-					      sizeof(ha_rows))))
+					      thd->db_length+ 1 +
+					      QUERY_CACHE_FLAGS_SIZE)))
     return 1;
   thd->query[packet_length]=0;
   thd->query_length= packet_length;
@@ -1685,7 +1659,7 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /*
@@ -1711,7 +1685,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* !HAVE_REPLICATION */
   /*
     TODO: make derived tables processing 'inside' SELECT processing.
     TODO: solve problem with depended derived tables in subselects
@@ -1746,7 +1720,11 @@ mysql_execute_command(THD *thd)
     Except for the replication thread and the 'super' users.
   */
   if (opt_readonly &&
-      !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
+      !(thd->slave_thread
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+	|| (thd->master_access & SUPER_ACL)
+#endif
+	) &&
       (uc_update_queries[lex->sql_command] > 0))
   {
     send_error(thd, ER_CANT_UPDATE_WITH_READLOCK);
@@ -1758,29 +1736,34 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SELECT:
   {
     select_result *result=lex->result;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (tables)
     {
       res=check_table_access(thd,
 			     lex->exchange ? SELECT_ACL | FILE_ACL :
 			     SELECT_ACL,
-			     tables);
+			     tables,0);
     }
     else
       res=check_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL,
-		       any_db);
+		       any_db,0,0,0);
     if (res)
     {
       res=0;
       break;					// Error message is given
     }
-
+#endif
+    /* 
+       In case of single SELECT unit->global_parameters points on first SELECT
+       TODO: move counters to SELECT_LEX
+    */
     unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
     unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
       unit->global_parameters->offset_limit);
     if (unit->select_limit_cnt <
 	(ha_rows) unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (unit->select_limit_cnt == HA_POS_ERROR)
+    if (unit->select_limit_cnt == HA_POS_ERROR && !select_lex->next_select())
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (!(res=open_and_lock_tables(thd,tables)))
@@ -1821,8 +1804,9 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
+
   case SQLCOM_DO:
-    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
 	break;
 
@@ -1858,7 +1842,6 @@ mysql_execute_command(THD *thd)
     break;
   }
 #endif
-
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
@@ -1878,6 +1861,7 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
+    /* This query don't work now. See comment in repl_failsafe.cc */
 #ifndef WORKING_NEW_MASTER
     net_printf(thd, ER_NOT_SUPPORTED_YET, "SHOW NEW MASTER");
     res= 1;
@@ -1887,7 +1871,7 @@ mysql_execute_command(THD *thd)
     break;
   }
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -1907,7 +1891,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_BACKUP_TABLE:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables) ||
+	check_table_access(thd,SELECT_ACL, tables,0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     res = mysql_backup_table(thd, tables);
@@ -1917,7 +1901,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_RESTORE_TABLE:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd, INSERT_ACL, tables) ||
+	check_table_access(thd, INSERT_ACL, tables,0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     res = mysql_restore_table(thd, tables);
@@ -1926,14 +1910,12 @@ mysql_execute_command(THD *thd)
   case SQLCOM_PRELOAD_KEYS:
   {
     if (check_db_used(thd, tables) ||
-        check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege))
+	check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege,0,0))
       goto error; 
     res = mysql_preload_keys(thd, tables);
     break;
   }
-      
-
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -1970,8 +1952,7 @@ mysql_execute_command(THD *thd)
     else
       res = load_master_data(thd);
     break;
-#endif /* EMBEDDED_LIBRARY */
-
+#endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
     {
@@ -1981,13 +1962,13 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
-
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     if (!tables->db)
       tables->db=thd->db;
-    if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege,0,0))
       goto error;				/* purecov: inspected */
     if (grant_option)
     {
@@ -1999,6 +1980,7 @@ mysql_execute_command(THD *thd)
       if (error)
 	goto error;
     }
+#endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
       net_printf(thd,ER_WRONG_TABLE_NAME,tables->real_name);
@@ -2014,15 +1996,18 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_CREATE_TABLE:
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
 		      CREATE_TMP_ACL : CREATE_ACL);
+#endif
     if (!tables->db)
       tables->db=thd->db;
-    if (check_access(thd,want_priv,tables->db,&tables->grant.privilege) ||
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,want_priv,tables->db,&tables->grant.privilege,0,0) ||
 	check_merge_table_access(thd, tables->db,
 				 (TABLE_LIST *)
 				 lex->create_info.merge_list.first))
@@ -2037,6 +2022,7 @@ mysql_execute_command(THD *thd)
       if (error)
 	goto error;
     }
+#endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
       net_printf(thd, ER_WRONG_TABLE_NAME, tables->alias);
@@ -2066,11 +2052,13 @@ mysql_execute_command(THD *thd)
 	net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
       }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (tables->next)
       {
-	if (check_table_access(thd, SELECT_ACL, tables->next))
+	if (check_table_access(thd, SELECT_ACL, tables->next,0))
 	  goto error;				// Error message is given
       }
+#endif
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
@@ -2100,14 +2088,6 @@ mysql_execute_command(THD *thd)
                                      (Table_ident *)lex->name); 
       else
       {
-	List_iterator<create_field> fields(lex->create_list);
-	create_field *field;
-	while ((field= fields++))
-	{
-	  if (!field->charset)
-	    field->charset= lex->create_info.table_charset;
-	  field->create_length_to_internal_length();
-	}
         res= mysql_create_table(thd,tables->db ? tables->db : thd->db,
 			         tables->real_name, &lex->create_info,
 			         lex->create_list,
@@ -2121,17 +2101,19 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CREATE_INDEX:
     if (!tables->db)
       tables->db=thd->db;
-    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege,0,0))
       goto error; /* purecov: inspected */
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
+#endif
     if (end_active_trans(thd))
       res= -1;
     else
       res = mysql_create_index(thd, tables, lex->key_list);
     break;
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
     LOCK_ACTIVE_MI;
@@ -2164,7 +2146,7 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -2183,14 +2165,15 @@ mysql_execute_command(THD *thd)
 	tables->db=thd->db;
       if (!select_lex->db)
 	select_lex->db=tables->db;
-      if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege) ||
-	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv) ||
+      if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege,0,0) ||
+	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0)||
 	  check_merge_table_access(thd, tables->db,
 				   (TABLE_LIST *)
 				   lex->create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
       if (!tables->db)
 	tables->db=thd->db;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (grant_option)
       {
 	if (check_grant(thd,ALTER_ACL,tables))
@@ -2206,6 +2189,7 @@ mysql_execute_command(THD *thd)
 	    goto error;
 	}
       }
+#endif
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       lex->create_info.data_file_name=lex->create_info.index_file_name=0;
       /* ALTER TABLE ends previous transaction */
@@ -2224,18 +2208,19 @@ mysql_execute_command(THD *thd)
       }
       break;
     }
-#endif
+#endif /*DONT_ALLOW_SHOW_COMMANDS*/
   case SQLCOM_RENAME_TABLE:
   {
     TABLE_LIST *table;
     if (check_db_used(thd,tables))
       goto error;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     for (table=tables ; table ; table=table->next->next)
     {
       if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
-		       &table->grant.privilege) ||
+		       &table->grant.privilege,0,0) ||
 	  check_access(thd, INSERT_ACL | CREATE_ACL, table->next->db,
-		       &table->next->grant.privilege))
+		       &table->next->grant.privilege,0,0))
 	goto error;
       if (grant_option)
       {
@@ -2250,6 +2235,7 @@ mysql_execute_command(THD *thd)
 	  goto error;
       }
     }
+#endif
     query_cache_invalidate3(thd, tables, 0);
     if (end_active_trans(thd))
       res= -1;
@@ -2279,16 +2265,24 @@ mysql_execute_command(THD *thd)
     {
       if (check_db_used(thd, tables) ||
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, tables->db,
-		       &tables->grant.privilege))
+		       &tables->grant.privilege,0,0))
 	goto error;
       res = mysqld_show_create(thd, tables);
       break;
     }
 #endif
+  case SQLCOM_CHECKSUM:
+  {
+    if (check_db_used(thd,tables) ||
+	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables,0))
+      goto error; /* purecov: inspected */
+    res = mysql_checksum_table(thd, tables, &lex->check_opt);
+    break;
+  }
   case SQLCOM_REPAIR:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
+	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
@@ -2306,7 +2300,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CHECK:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
+ 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables,0))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
     break;
@@ -2314,7 +2308,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ANALYZE:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
+	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
     res = mysql_analyze_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
@@ -2334,7 +2328,7 @@ mysql_execute_command(THD *thd)
   {
     HA_CREATE_INFO create_info;
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
+	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
     if (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC))
     {
@@ -2374,7 +2368,6 @@ mysql_execute_command(THD *thd)
 
     if (single_table_command_access(thd, UPDATE_ACL, tables, &res))
 	goto error;
-
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
@@ -2392,10 +2385,12 @@ mysql_execute_command(THD *thd)
       res= -1;
     break;
   case SQLCOM_UPDATE_MULTI:
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege,0,0))
       goto error;
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
+#endif
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
@@ -2425,13 +2420,16 @@ mysql_execute_command(THD *thd)
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     my_bool update=(lex->value_list.elements ? UPDATE_ACL : 0);
     ulong privilege= (lex->duplicates == DUP_REPLACE ?
                       INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
 
     if (single_table_command_access(thd, privilege, tables, &res))
 	goto error;
-
+#else
+    my_bool update=(lex->value_list.elements ? 1 : 0);
+#endif
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
@@ -2452,19 +2450,22 @@ mysql_execute_command(THD *thd)
       Check that we have modify privileges for the first table and
       select privileges for the rest
     */
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     {
       ulong privilege= (lex->duplicates == DUP_REPLACE ?
                         INSERT_ACL | DELETE_ACL : INSERT_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
       if (check_access(thd, privilege,
-		       tables->db,&tables->grant.privilege) ||
+		       tables->db,&tables->grant.privilege,0,0) ||
 	  (grant_option && check_grant(thd, privilege, tables)))
 	goto error;
+
       tables->next=save_next;
-      if ((res=check_table_access(thd, SELECT_ACL, save_next)))
+      if ((res=check_table_access(thd, SELECT_ACL, save_next,0)))
 	goto error;
     }
+#endif
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
 
@@ -2498,10 +2499,12 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_TRUNCATE:
-    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege,0,0))
       goto error; /* purecov: inspected */
     if (grant_option && check_grant(thd,DELETE_ACL,tables))
       goto error;
+#endif
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
@@ -2515,11 +2518,12 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_DELETE:
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (single_table_command_access(thd, DELETE_ACL, tables, &res))
       goto error;
-
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+#endif
     res = mysql_delete(thd,tables, select_lex->where,
                        (ORDER*) select_lex->order_list.first,
                        select_lex->select_limit, select_lex->options);
@@ -2536,8 +2540,8 @@ mysql_execute_command(THD *thd)
 
     /* sql_yacc guarantees that tables and aux_tables are not zero */
     if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-	check_table_access(thd,SELECT_ACL, tables) ||
-	check_table_access(thd,DELETE_ACL, aux_tables))
+	check_table_access(thd,SELECT_ACL, tables,0) ||
+	check_table_access(thd,DELETE_ACL, aux_tables,0))
       goto error;
     if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
     {
@@ -2614,7 +2618,7 @@ mysql_execute_command(THD *thd)
   {
     if (!lex->drop_temporary)
     {
-      if (check_table_access(thd,DROP_ACL,tables))
+      if (check_table_access(thd,DROP_ACL,tables,0))
 	goto error;				/* purecov: inspected */
       if (end_active_trans(thd))
       {
@@ -2641,10 +2645,12 @@ mysql_execute_command(THD *thd)
   case SQLCOM_DROP_INDEX:
     if (!tables->db)
       tables->db=thd->db;
-    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege,0,0))
       goto error;				/* purecov: inspected */
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
+#endif
     if (end_active_trans(thd))
       res= -1;
     else
@@ -2662,10 +2668,18 @@ mysql_execute_command(THD *thd)
     break;
 #endif
   case SQLCOM_SHOW_PROCESSLIST:
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
-    mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
-			  thd->priv_user,lex->verbose);
+#endif
+    mysqld_list_processes(thd,
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+			  thd->master_access & PROCESS_ACL ? NullS :
+			  thd->priv_user
+#else
+			  NullS
+#endif
+			  ,lex->verbose);
     break;
   case SQLCOM_SHOW_TABLE_TYPES:
     res= mysqld_show_table_types(thd);
@@ -2678,11 +2692,12 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_SHOW_STATUS:
     res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
-		     OPT_GLOBAL);
+		     OPT_GLOBAL, &LOCK_status);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars, lex->option_type);
+		     init_vars, lex->option_type,
+		     &LOCK_global_system_variables);
     break;
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -2690,8 +2705,10 @@ mysql_execute_command(THD *thd)
     DBUG_VOID_RETURN;
 #else
     {
-      if (grant_option && check_access(thd, FILE_ACL, any_db))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (grant_option && check_access(thd, FILE_ACL, any_db,0,0,0))
 	goto error;
+#endif
       res= mysqld_show_logs(thd);
       break;
     }
@@ -2715,7 +2732,8 @@ mysql_execute_command(THD *thd)
         net_printf(thd,ER_WRONG_DB_NAME, db);
         goto error;
       }
-      if (check_access(thd,SELECT_ACL,db,&thd->col_access))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
 	goto error;				/* purecov: inspected */
       if (!thd->col_access && check_grant_db(thd,db))
       {
@@ -2725,6 +2743,7 @@ mysql_execute_command(THD *thd)
 		   db);
 	goto error;
       }
+#endif
       /* grant is checked in mysqld_show_tables */
       if (select_lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
@@ -2758,11 +2777,13 @@ mysql_execute_command(THD *thd)
       }
       remove_escape(db);			// Fix escaped '_'
       remove_escape(tables->real_name);
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access,0,0))
 	goto error;				/* purecov: inspected */
       tables->grant.privilege=thd->col_access;
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2))
 	goto error;
+#endif
       res= mysqld_show_fields(thd,tables,
 			      (lex->wild ? lex->wild->ptr() : NullS),
 			      lex->verbose);
@@ -2785,11 +2806,13 @@ mysql_execute_command(THD *thd)
       remove_escape(tables->real_name);
       if (!tables->db)
 	tables->db=thd->db;
-      if (check_access(thd,SELECT_ACL,db,&thd->col_access))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
 	goto error; /* purecov: inspected */
       tables->grant.privilege=thd->col_access;
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2))
 	goto error;
+#endif
       res= mysqld_show_keys(thd,tables);
       break;
     }
@@ -2797,15 +2820,16 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
-#ifndef EMBEDDED_LIBRARY
+
   case SQLCOM_LOAD:
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint privilege= (lex->duplicates == DUP_REPLACE ?
 		     INSERT_ACL | DELETE_ACL : INSERT_ACL);
 
     if (!lex->local_file)
     {
-      if (check_access(thd,privilege | FILE_ACL,tables->db))
+      if (check_access(thd,privilege | FILE_ACL,tables->db,0,0,0))
 	goto error;
     }
     else
@@ -2816,17 +2840,18 @@ mysql_execute_command(THD *thd)
 	send_error(thd,ER_NOT_ALLOWED_COMMAND);
 	goto error;
       }
-      if (check_access(thd,privilege,tables->db,&tables->grant.privilege) ||
+      if (check_access(thd,privilege,tables->db,&tables->grant.privilege,0,0) ||
 	  grant_option && check_grant(thd,privilege,tables))
 	goto error;
     }
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
     res=mysql_load(thd, lex->exchange, tables, lex->field_list,
 		   lex->duplicates, (bool) lex->local_file, lex->lock_option);
     break;
   }
-#endif /* EMBEDDED_LIBRARY */
+
   case SQLCOM_SET_OPTION:
-    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
       break;
     fix_tables_pointers(lex->all_selects_list);
@@ -2851,7 +2876,7 @@ mysql_execute_command(THD *thd)
     unlock_locked_tables(thd);
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, tables))
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, tables,0))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -2888,7 +2913,7 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
-    if (check_access(thd,CREATE_ACL,lex->name,0,1))
+    if (check_access(thd,CREATE_ACL,lex->name,0,1,0))
       break;
     res=mysql_create_db(thd,lex->name,&lex->create_info,0);
     break;
@@ -2916,7 +2941,7 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
-    if (check_access(thd,DROP_ACL,lex->name,0,1))
+    if (check_access(thd,DROP_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -2933,7 +2958,7 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (check_access(thd,ALTER_ACL,lex->name,0,1))
+    if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -2950,7 +2975,7 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (check_access(thd,DROP_ACL,lex->name,0,1))
+    if (check_access(thd,DROP_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -2961,7 +2986,7 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
-    if (check_access(thd,INSERT_ACL,"mysql",0,1))
+    if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
       break;
 #ifdef HAVE_DLOPEN
     if (!(res = mysql_create_function(thd,&lex->udf)))
@@ -2971,7 +2996,7 @@ mysql_execute_command(THD *thd)
 #endif
     break;
   case SQLCOM_DROP_FUNCTION:
-    if (check_access(thd,DELETE_ACL,"mysql",0,1))
+    if (check_access(thd,DELETE_ACL,"mysql",0,1,0))
       break;
 #ifdef HAVE_DLOPEN
     if (!(res = mysql_drop_function(thd,&lex->udf.name)))
@@ -2980,9 +3005,10 @@ mysql_execute_command(THD *thd)
     res= -1;
 #endif
     break;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_DROP_USER:
   {
-    if (check_access(thd, GRANT_ACL,"mysql",0,1))
+    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
       break;
     if (!(res= mysql_drop_user(thd, lex->users_list)))
     {
@@ -2998,7 +3024,7 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_REVOKE_ALL:
   {
-    if (check_access(thd, GRANT_ACL ,"mysql",0,1))
+    if (check_access(thd, GRANT_ACL ,"mysql",0,1,0))
       break;
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
     {
@@ -3018,7 +3044,7 @@ mysql_execute_command(THD *thd)
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
 		     tables && tables->db ? tables->db : select_lex->db,
 		     tables ? &tables->grant.privilege : 0,
-		     tables ? 0 : 1))
+		     tables ? 0 : 1,0))
       goto error;
 
     /*
@@ -3038,7 +3064,7 @@ mysql_execute_command(THD *thd)
 	     my_strcasecmp(&my_charset_latin1,
                            user->host.str, thd->host_or_ip)))
 	{
-	  if (check_access(thd, UPDATE_ACL, "mysql",0,1))
+	  if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
 	    goto error;
 	  break;			// We are allowed to do changes
 	}
@@ -3092,6 +3118,7 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_RESET:
     /* 
        RESET commands are never written to the binary log, so we have to
@@ -3131,18 +3158,20 @@ mysql_execute_command(THD *thd)
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
     break;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_GRANTS:
     res=0;
     if ((thd->priv_user &&
 	 !strcmp(thd->priv_user,lex->grant_user->user.str)) ||
-	!check_access(thd, SELECT_ACL, "mysql",0,1))
+	!check_access(thd, SELECT_ACL, "mysql",0,1,0))
     {
       res = mysql_show_grants(thd,lex->grant_user);
     }
     break;
+#endif
   case SQLCOM_HA_OPEN:
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+	check_table_access(thd,SELECT_ACL, tables,0))
       goto error;
     res = mysql_ha_open(thd, tables);
     break;
@@ -3204,7 +3233,16 @@ mysql_execute_command(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_rollback(thd))
     {
-      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+      /*
+        If a non-transactional table was updated, warn; don't warn if this is a
+        slave thread (because when a slave thread executes a ROLLBACK, it has
+        been read from the binary log, so it's 100% sure and normal to produce
+        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
+        slave SQL thread, it would not stop the thread but just be printed in
+        the error log; but we don't want users to wonder why they have this
+        message in the error log, so we don't send it.
+      */
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
 	send_warning(thd,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
       else
 	send_ok(thd);
@@ -3216,7 +3254,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
     if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
     {
-      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
 	send_warning(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK, 0);
       else
 	send_ok(thd);
@@ -3243,11 +3281,12 @@ error:
 }
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check grants for commands which work only with one table and all other
   tables belong to subselects.
 
-  SYNOPSYS
+  SYNOPSIS
     single_table_command_access()
     thd - Thread handler
     privilege - asked privelage
@@ -3263,7 +3302,7 @@ static bool single_table_command_access(THD *thd, ulong privilege,
 					TABLE_LIST *tables, int *res)
 					 
 {
-    if (check_access(thd, privilege, tables->db, &tables->grant.privilege))
+    if (check_access(thd, privilege, tables->db, &tables->grant.privilege,0,0))
       return 1;
 
     // Show only 1 table for check_grant
@@ -3276,7 +3315,7 @@ static bool single_table_command_access(THD *thd, ulong privilege,
     if (subselects_tables)
     {
       tables->next= subselects_tables;
-      if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+      if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables,0)))
 	return 1;
     }
     return 0;
@@ -3447,6 +3486,26 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   return FALSE;
 }
 
+static bool check_merge_table_access(THD *thd, char *db,
+				     TABLE_LIST *table_list)
+{
+  int error=0;
+  if (table_list)
+  {
+    /* Check that all tables use the current database */
+    TABLE_LIST *tmp;
+    for (tmp=table_list; tmp ; tmp=tmp->next)
+    {
+      if (!tmp->db || !tmp->db[0])
+	tmp->db=db;
+    }
+    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+			     table_list,0);
+  }
+  return error;
+}
+
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
 
 static bool check_db_used(THD *thd,TABLE_LIST *tables)
 {
@@ -3463,27 +3522,6 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
   }
   return FALSE;
 }
-
-
-static bool check_merge_table_access(THD *thd, char *db,
-				     TABLE_LIST *table_list)
-{
-  int error=0;
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tmp;
-    for (tmp=table_list; tmp ; tmp=tmp->next)
-    {
-      if (!tmp->db || !tmp->db[0])
-	tmp->db=db;
-    }
-    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-			     table_list);
-  }
-  return error;
-}
-
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -3709,12 +3747,14 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;
       }
       else
+#endif
       {
 	if (thd->net.report_error)
 	  send_error(thd, 0, NullS);
@@ -3751,7 +3791,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
-		       Item *default_value, Item *comment,
+		       Item *default_value, LEX_STRING *comment,
 		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
@@ -3825,8 +3865,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   else
   {
     /* In this case comment is always of type Item_string */
-    new_field->comment.str=   (char*) comment->str_value.ptr();
-    new_field->comment.length=comment->str_value.length();
+    new_field->comment.str=   (char*) comment->str;
+    new_field->comment.length=comment->length;
   }
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
@@ -4319,7 +4359,6 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
   b->natural_join=a;
 }
 
-
 /*
   Reload/resets privileges and the different caches.
 
@@ -4346,6 +4385,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   bool result=0;
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
     acl_reload(thd);
@@ -4353,6 +4393,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (mqh_used)
       reset_mqh(thd,(LEX_USER *) NULL,true);
   }
+#endif
   if (options & REFRESH_LOG)
   {
     /*
@@ -4418,7 +4459,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     refresh_status();
   if (options & REFRESH_THREADS)
     flush_thread_cache();
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
     tmp_write_to_binlog= 0;
@@ -4433,7 +4474,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
        result=load_des_key_file(des_key_file);
    }
 #endif
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
@@ -4443,13 +4484,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    UNLOCK_ACTIVE_MI;
  }
 #endif
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
+#endif
  if (write_to_binlog)
    *write_to_binlog= tmp_write_to_binlog;
  return result;
 }
-
 
 /*
   kill on thread
@@ -4480,14 +4522,18 @@ void kill_one_thread(THD *thd, ulong id)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (tmp)
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if ((thd->master_access & SUPER_ACL) ||
 	!strcmp(thd->user,tmp->user))
+#endif
     {
       tmp->awake(1 /*prepare to die*/);
       error=0;
     }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     else
       error=ER_KILL_DENIED_ERROR;
+#endif
     pthread_mutex_unlock(&tmp->LOCK_delete);
   }
 

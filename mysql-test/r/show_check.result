@@ -43,7 +43,7 @@ wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Charset	Create_options	Comment
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Database
 mysql
@@ -227,6 +227,12 @@ select * from t1;
 type_bool	type_tiny	type_short	type_mediumint	type_bigint	type_decimal	type_numeric	empty_char	type_char	type_varchar	type_timestamp	type_date	type_time	type_datetime	type_year	type_enum	type_set	type_tinyblob	type_blob	type_medium_blob	type_long_blob
 0	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2003-02-07 10:00:01	0000-00-00	00:00:00	0000-00-00 00:00:00	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop table t1;
+create table t1 (a int not null);
+create table t2 select max(a) from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+max(a)	bigint(20)	YES		NULL	
+drop table t1,t2;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;
 Field	Type	Null	Key	Default	Extra

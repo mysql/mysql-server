@@ -28,6 +28,9 @@
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
+#else
+bool Protocol_prep::net_store_data(const char *from, uint length)
+#endif
 {
   ulong packet_length=packet->length();
   /* 
@@ -43,7 +46,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
 }
-#endif
 
 
 	/* Send a error string to client */
@@ -349,10 +351,35 @@ send_eof(THD *thd, bool no_flush)
   }
   DBUG_VOID_RETURN;
 }
+
+/*
+    Please client to send scrambled_password in old format.
+  SYNOPSYS
+    send_old_password_request()
+    thd thread handle
+     
+  RETURN VALUE
+    0  ok
+   !0  error
+*/
+
+bool send_old_password_request(THD *thd)
+{
+  static char buff[1]= { (char) 254 };
+  NET *net= &thd->net;
+  return my_net_write(net, buff, 1) || net_flush(net);
+}
+
 #endif /* EMBEDDED_LIBRARY */
 
 /*
-  Faster net_store_length when we know length is a 32 bit integer
+  Faster net_store_length when we know that length is less than 65536.
+  We keep a separate version for that range because it's widely used in
+  libmysql.
+  uint is used as agrument type because of MySQL type conventions:
+  uint for 0..65536
+  ulong for 0..4294967296
+  ulonglong for bigger numbers.
 */
 
 char *net_store_length(char *pkg, uint length)
@@ -1105,3 +1132,12 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
+
+#ifdef EMBEDDED_LIBRARY
+/* Should be removed when we define the Protocol_cursor's future */
+bool Protocol_cursor::write()
+{
+  return Protocol_simple::write();
+}
+#endif
+

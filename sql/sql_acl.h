@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 #define SELECT_ACL	(1L << 0)
 #define INSERT_ACL	(1L << 1)
 #define UPDATE_ACL	(1L << 2)
@@ -58,6 +57,8 @@
 
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
   Defines to change the above bits to how things are stored in tables
@@ -111,9 +112,9 @@ public:
   acl_host_and_ip host;
   uint hostname_length;
   USER_RESOURCES user_resource;
-  char *user,*password;
-  ulong salt[6]; // New password has longer length
-  uint8 pversion; // password version
+  char *user;
+  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
+  uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 3.23, 20 - 4.1.1 
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
 };
@@ -135,11 +136,8 @@ void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
-ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
-		  const char *password,const char *scramble,
-                  char **priv_user, char *priv_host,
-		  bool old_ver, USER_RESOURCES *max,char* prepared_scramble,
-                  uint *cur_priv_version, ACL_USER **cached_user);
+int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
+                uint passwd_len);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
@@ -165,3 +163,6 @@ void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(const char *user, const char *host, USER_CONN *uc);
 int mysql_drop_user(THD *thd, List <LEX_USER> &list);
 int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
+
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
+

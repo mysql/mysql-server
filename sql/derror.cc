@@ -49,6 +49,7 @@ static void read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   const char *buff;
   uchar head[32],*pos;
+  CHARSET_INFO *cset;
   DBUG_ENTER("read_texts");
 
   *point=0;					// If something goes wrong
@@ -65,6 +66,21 @@ static void read_texts(const char *file_name,const char ***point,
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
   textcount=head[4];
+
+  if (!head[30])
+  {
+    sql_print_error("Character set information not found in '%s'. \
+Please install the latest version of this file.",name);
+    goto err1;
+  }
+  
+  if (!(cset= get_charset(head[30],MYF(MY_WME))))
+  {
+    sql_print_error("Character set #%d is not supported for messagefile '%s'",
+                    (int)head[30],name);
+    goto err1;
+  }
+  
   length=uint2korr(head+6); count=uint2korr(head+8);
 
   if (count < error_messages)
@@ -114,9 +130,10 @@ err:
     buff="Can't find messagefile '%s'";
     break;
   }
+  sql_print_error(buff,name);
+err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
-  sql_print_error(buff,name);
   unireg_abort(1);
 } /* read_texts */
 

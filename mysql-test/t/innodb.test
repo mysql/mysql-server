@@ -134,6 +134,21 @@ rollback;
 drop table t1;
 
 #
+# Test for commit and FLUSH TABLES WITH READ LOCK
+#
+
+create table t1 (n int not null primary key) type=innodb;
+start transaction;
+insert into t1 values (4);
+flush tables with read lock;
+--error 1223;
+commit;
+unlock tables;
+commit;
+select * from t1;
+drop table t1;
+
+#
 # Testing transactions
 #
 
@@ -925,3 +940,29 @@ SELECT t2.id, t1.label FROM t2 INNER JOIN
 (SELECT t1.id_object as id_object FROM t1 WHERE t1.label LIKE '%test%') AS lbl 
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 drop table t1,t2;
+
+#
+# Bug #1078
+#
+create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) type=innodb;
+select * from t1;
+--error 1031
+replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
+select * from t1;
+--error 1031
+replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
+select * from t1;
+drop table t1;
+
+create table t1 (a int, b varchar(200), c text not null) checksum=1 type=myisam;
+create table t2 (a int, b varchar(200), c text not null) checksum=0 type=innodb;
+create table t3 (a int, b varchar(200), c text not null) checksum=1 type=innodb;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+insert t3 select * from t1;
+checksum table t1, t2, t3, t4 quick;
+checksum table t1, t2, t3, t4;
+checksum table t1, t2, t3, t4 extended;
+#show table status;
+drop table t1,t2,t3;
+

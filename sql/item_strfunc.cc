@@ -33,8 +33,9 @@
 #include "md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+#include "../mysys/my_static.h"			// For soundex_map
 
-String empty_string("",default_charset_info);
+String my_empty_string("",default_charset_info);
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
@@ -359,7 +360,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if ((res_length=res->length()) == 0)
-    return &empty_string;
+    return &my_empty_string;
 
   if (arg_count == 1)
   {
@@ -520,7 +521,7 @@ String *Item_func_concat_ws::val_str(String *str)
     if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
-    return &empty_string;
+    return &my_empty_string;
 
   for (i++; i < arg_count ; i++)
   {
@@ -661,7 +662,7 @@ String *Item_func_reverse::val_str(String *str)
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
-    return &empty_string;
+    return &my_empty_string;
   res=copy_if_not_alloced(str,res,res->length());
   ptr = (char *) res->ptr();
   end=ptr+res->length();
@@ -914,7 +915,7 @@ String *Item_func_left::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (length <= 0)
-    return &empty_string;
+    return &my_empty_string;
   length= res->charpos(length);
   if (res->length() > (ulong) length)
   {						// Safe even if const arg
@@ -958,7 +959,7 @@ String *Item_func_right::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   if (length <= 0)
-    return &empty_string; /* purecov: inspected */
+    return &my_empty_string; /* purecov: inspected */
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 
@@ -991,7 +992,7 @@ String *Item_func_substr::val_str(String *str)
   start=res->charpos(start);
   length=res->charpos(length,start);
   if (start < 0 || (uint) start+1 > res->length() || length <= 0)
-    return &empty_string;
+    return &my_empty_string;
 
   tmp_length=(int32) res->length()-start;
   length=min(length,tmp_length);
@@ -1051,7 +1052,7 @@ String *Item_func_substr_index::val_str(String *str)
   null_value=0;
   uint delimeter_length=delimeter->length();
   if (!res->length() || !delimeter_length || !count)
-    return &empty_string;		// Wrong parameters
+    return &my_empty_string;		// Wrong parameters
 
   res->set_charset(collation.collation);
 
@@ -1327,95 +1328,49 @@ void Item_func_trim::fix_length_and_dec()
 }
 
 
-
-
-void Item_func_password::fix_length_and_dec()
-{
-  /*
-    If PASSWORD() was called with only one argument, it depends on a random
-    number so we need to save this random number into the binary log.
-    If called with two arguments, it is repeatable.
-  */
-  if (arg_count == 1)
-  {
-    THD *thd= current_thd;
-    thd->rand_used= 1;
-    thd->rand_saved_seed1= thd->rand.seed1;
-    thd->rand_saved_seed2= thd->rand.seed2;
-  } 
-  max_length= get_password_length(use_old_passwords);
-}
-
-/*
- Password() function has 2 arguments. Second argument can be used
- to make results repeatable
-*/ 
+/* Item_func_password */
 
 String *Item_func_password::val_str(String *str)
 {
-  struct rand_struct rand_st; // local structure for 2 param version
-  ulong  seed=0;              // seed to initialise random generator to
-  
-  String *res  =args[0]->val_str(str);          
-  if ((null_value=args[0]->null_value))
-    return 0;
-  
-  if (arg_count == 1)
-  {    
-    if (res->length() == 0)
-      return &empty_string;
-    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
-                            &current_thd->rand);
-    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
-    return str;
-  }
-  else
-  {
-   /* We'll need the buffer to get second parameter */
-    char key_buff[80];
-    String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
-    String *key  =args[1]->val_str(&tmp_key_value);          
-    
-    /* Check second argument for NULL value. First one is already checked */
-    if ((null_value=args[1]->null_value))
-      return 0;
-      
-    /* This shall be done after checking for null for proper results */       
-    if (res->length() == 0)
-      return &empty_string;  
-      
-    /* Generate the seed first this allows to avoid double allocation */  
-    char* seed_ptr=key->c_ptr();
-    while (*seed_ptr)
-    {
-      seed=(seed*211+*seed_ptr) & 0xffffffffL; /* Use simple hashing */
-      seed_ptr++;
-    }
-    
-    /* Use constants which allow nice random values even with small seed */
-    randominit(&rand_st,
-	       (ulong) ((ulonglong) seed*111111+33333333L) & (ulong) 0xffffffff,
-	       (ulong) ((ulonglong) seed*1111+55555555L) & (ulong) 0xffffffff);
-    
-    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
-                            &rand_st);
-    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
-    return str;
-  }       
-}
-
-String *Item_func_old_password::val_str(String *str)
-{
-  String *res  =args[0]->val_str(str);
+  String *res= args[0]->val_str(str); 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr(),1,&current_thd->rand);
-  str->set(tmp_value,16,res->charset());
+    return &my_empty_string;
+  make_scrambled_password(tmp_value, res->c_ptr());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
 }
 
+char *Item_func_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+  if (buff)
+    make_scrambled_password(buff, password);
+  return buff;
+}
+
+/* Item_func_old_password */
+
+String *Item_func_old_password::val_str(String *str)
+{
+  String *res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  if (res->length() == 0)
+    return &my_empty_string;
+  make_scrambled_password_323(tmp_value, res->c_ptr());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
+  return str;
+}
+
+char *Item_func_old_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+  if (buff)
+    make_scrambled_password_323(buff, password);
+  return buff;
+}
 
 
 #define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
@@ -1429,7 +1384,7 @@ String *Item_func_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &empty_string;
+    return &my_empty_string;
 
   if (arg_count == 1)
   {					// generate random salt
@@ -1500,8 +1455,8 @@ String *Item_func_database::val_str(String *str)
   THD *thd= current_thd;
   if (!thd->db)
   {
-    str->length(0);
-    str->set_charset(system_charset_info);
+    null_value= 1;
+    return 0;
   }
   else
     str->copy((const char*) thd->db,(uint) strlen(thd->db),system_charset_info);
@@ -1519,7 +1474,7 @@ String *Item_func_user::val_str(String *str)
 
   // For system threads (e.g. replication SQL thread) user may be empty
   if (!thd->user)
-    return &empty_string;
+    return &my_empty_string;
   res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
@@ -1542,15 +1497,11 @@ void Item_func_soundex::fix_length_and_dec()
 }
 
 
-  /*
-    If alpha, map input letter to soundex code.
-    If not alpha and remove_garbage is set then skip to next char
-    else return 0
-    */
-
-extern "C" {
-extern const char *soundex_map;		// In mysys/static.c
-}
+/*
+  If alpha, map input letter to soundex code.
+  If not alpha and remove_garbage is set then skip to next char
+  else return 0
+*/
 
 static char get_scode(CHARSET_INFO *cs,char *ptr)
 {
@@ -1582,7 +1533,7 @@ String *Item_func_soundex::val_str(String *str)
   while (from != end && my_isspace(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
-    return &empty_string;		// No alpha characters.
+    return &my_empty_string;		// No alpha characters.
   *to++ = my_toupper(cs,*from);		// Copy first letter
   last_ch = get_scode(cs,from);		// code of the first letter
 					// for the first 'double-letter check.
@@ -1764,7 +1715,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
-  String *result=&empty_string;
+  String *result=&my_empty_string;
 
   bits=item->val_int();
   if ((null_value=item->null_value))
@@ -1788,7 +1739,7 @@ String *Item_func_make_set::val_str(String *str)
 	  else
 	  {
 	    if (tmp_str.copy(*res))		// Don't use 'str'
-	      return &empty_string;
+	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
 	}
@@ -1798,11 +1749,11 @@ String *Item_func_make_set::val_str(String *str)
 	  {					// Copy data to tmp_str
 	    if (tmp_str.alloc(result->length()+res->length()+1) ||
 		tmp_str.copy(*result))
-	      return &empty_string;
+	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
 	  if (tmp_str.append(',') || tmp_str.append(*res))
-	    return &empty_string;
+	    return &my_empty_string;
 	}
       }
     }
@@ -1899,7 +1850,7 @@ String *Item_func_repeat::val_str(String *str)
     goto err;				// string and/or delim are null
   null_value=0;
   if (count <= 0)			// For nicer SQL code
-    return &empty_string;
+    return &my_empty_string;
   if (count == 1)			// To avoid reallocs
     return res;
   length=res->length();
@@ -1934,7 +1885,7 @@ void Item_func_rpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int();
+    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
     max_length=max(args[0]->max_length,length);
     if (max_length >= MAX_BLOB_WIDTH)
     {
@@ -1952,36 +1903,46 @@ void Item_func_rpad::fix_length_and_dec()
 
 String *Item_func_rpad::val_str(String *str)
 {
-  uint32 res_length,length_pad;
+  uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
   char *to;
   const char *ptr_pad;
   int32 count= (int32) args[1]->val_int();
+  int32 byte_count= count * collation.collation->mbmaxlen;
   String *res =args[0]->val_str(str);
   String *rpad = args[2]->val_str(str);
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
-  if (count <= (int32) (res_length=res->length()))
+  if (count <= (int32) (res_char_length=res->numchars()))
   {						// String to pad is big enough
-    res->length(count);				// Shorten result if longer
+    res->length(res->charpos(count));		// Shorten result if longer
     return (res);
   }
-  length_pad= rpad->length();
-  if ((ulong) count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !length_pad)
+  pad_char_length= rpad->numchars();
+  if ((ulong) byte_count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !pad_char_length)
     goto err;
-  if (!(res= alloc_buffer(res,str,&tmp_value,count)))
+  res_byte_length= res->length();	/* Must be done before alloc_buffer */
+  if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
     goto err;
 
-  to= (char*) res->ptr()+res_length;
+  to= (char*) res->ptr()+res_byte_length;
   ptr_pad=rpad->ptr();
-  for (count-= res_length; (uint32) count > length_pad; count-= length_pad)
+  pad_byte_length= rpad->length();
+  count-= res_char_length;
+  for ( ; (uint32) count > pad_char_length; count-= pad_char_length)
   {
-    memcpy(to,ptr_pad,length_pad);
-    to+= length_pad;
+    memcpy(to,ptr_pad,pad_byte_length);
+    to+= pad_byte_length;
   }
-  memcpy(to,ptr_pad,(size_t) count);
+  if (count)
+  {
+    pad_byte_length= rpad->charpos(count);
+    memcpy(to,ptr_pad,(size_t) pad_byte_length);
+    to+= pad_byte_length;
+  }
+  res->length(to- (char*) res->ptr());
   return (res);
 
  err:
@@ -2000,7 +1961,7 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int();
+    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
     max_length=max(args[0]->max_length,length);
     if (max_length >= MAX_BLOB_WIDTH)
     {
@@ -2018,57 +1979,52 @@ void Item_func_lpad::fix_length_and_dec()
 
 String *Item_func_lpad::val_str(String *str)
 {
-  uint32 res_length,length_pad;
-  char *to;
-  const char *ptr_pad;
-  ulong count= (long) args[1]->val_int();
-  String *res= args[0]->val_str(str);
-  String *lpad= args[2]->val_str(str);
+  uint32 res_byte_length,res_char_length,pad_byte_length,pad_char_length;
+  ulong count= (long) args[1]->val_int(), byte_count;
+  String a1,a3;
+  String *res= args[0]->val_str(&a1);
+  String *pad= args[2]->val_str(&a3);
 
-  if (!res || args[1]->null_value || !lpad)
+  if (!res || args[1]->null_value || !pad)
     goto err;
+
   null_value=0;
-  if (count <= (res_length=res->length()))
-  {						// String to pad is big enough
-    res->length(count);				// Shorten result if longer
-    return (res);
+  res_byte_length= res->length();
+  res_char_length= res->numchars();
+
+  if (count <= res_char_length)
+  {
+    res->length(res->charpos(count));
+    return res;
   }
-  length_pad= lpad->length();
-  if (count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !length_pad)
+  
+  pad_byte_length= pad->length();
+  pad_char_length= pad->numchars();
+  byte_count= count * collation.collation->mbmaxlen;
+  
+  if (byte_count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !pad_char_length || str->alloc(byte_count))
     goto err;
-
-  if (res->alloced_length() < count)
+  
+  str->length(0);
+  str->set_charset(collation.collation);
+  count-= res_char_length;
+  while (count >= pad_char_length)
   {
-    if (str->alloced_length() >= count)
-    {
-      memcpy((char*) str->ptr()+(count-res_length),res->ptr(),res_length);
-      res=str;
-    }
-    else
-    {
-      if (tmp_value.alloc(count))
-	goto err;
-      memcpy((char*) tmp_value.ptr()+(count-res_length),res->ptr(),res_length);
-      res=&tmp_value;
-    }
+    str->append(*pad);
+    count-= pad_char_length;
   }
-  else
-    bmove_upp((char*) res->ptr()+count,res->ptr()+res_length,res_length);
-  res->length(count);
-
-  to= (char*) res->ptr();
-  ptr_pad= lpad->ptr();
-  for (count-= res_length; count > length_pad; count-= length_pad)
+  if (count > 0)
   {
-    memcpy(to,ptr_pad,length_pad);
-    to+= length_pad;
+    pad->length(pad->charpos(count));
+    str->append(*pad);
   }
-  memcpy(to,ptr_pad,(size_t) count);
-  return (res);
+  str->append(*res);
+  null_value= 0;
+  return str;
 
- err:
-  null_value=1;
+err:
+  null_value= 1;
   return 0;
 }
 
@@ -2096,7 +2052,7 @@ String *Item_func_conv::val_str(String *str)
     dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), default_charset()))
-    return &empty_string;
+    return &my_empty_string;
   return str;
 }
 
@@ -2286,7 +2242,7 @@ String *Item_func_hex::val_str(String *str)
       return 0;
     ptr= longlong2str(dec,ans,16);
     if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
-      return &empty_string;			// End of memory
+      return &my_empty_string;			// End of memory
     return str;
   }
 
@@ -2323,7 +2279,9 @@ String *Item_load_file::val_str(String *str)
   DBUG_ENTER("load_file");
 
   if (!(file_name= args[0]->val_str(str)) ||
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       !(current_thd->master_access & FILE_ACL) ||
+#endif
       !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
     goto err;
   if (!(stat_info.st_mode & S_IROTH))
@@ -2554,12 +2512,42 @@ null:
   return 0;
 }
 
+longlong Item_func_uncompressed_length::val_int()
+{
+  String *res= args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  if (res->is_empty()) return 0;
+  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
+}
+
+longlong Item_func_crc32::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
+}
+
 #ifdef HAVE_COMPRESS
 #include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
+  if (!res)
+  {
+    null_value= 1;
+    return 0;
+  }
   if (res->is_empty()) return res;
 
   int err= Z_OK;
@@ -2581,7 +2569,7 @@ String *Item_func_compress::val_str(String *str)
 
   buffer.realloc((uint32)new_size + 4 + 1);
   Byte *body= ((Byte*)buffer.c_ptr()) + 4;
-  
+
   if ((err= compress(body, &new_size,
 		     (const Bytef*)res->c_ptr(), res->length())) != Z_OK)
   {
@@ -2603,19 +2591,24 @@ String *Item_func_compress::val_str(String *str)
   }
 
   buffer.length((uint32)new_size + 4);
-  
+
   return &buffer;
 }
 
 String *Item_func_uncompress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
+  if (!res)
+  {
+    null_value= 1;
+    return 0;
+  }
   if (res->is_empty()) return res;
 
   ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
   int err= Z_OK;
   uint code;
-  
+
   if (new_size > MAX_BLOB_WIDTH)
   {
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -2624,21 +2617,20 @@ String *Item_func_uncompress::val_str(String *str)
     null_value= 0;
     return 0;
   }
-  
+
   buffer.realloc((uint32)new_size);
-  
-  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size, 
+
+  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size,
 		       ((const Bytef*)res->c_ptr())+4,res->length())) == Z_OK)
   {
     buffer.length((uint32)new_size);
     return &buffer;
   }
-  
-  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR : 
+
+  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR :
     err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR;
   push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
   null_value= 1;
   return 0;
 }
-
 #endif

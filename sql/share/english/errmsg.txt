@@ -1,6 +1,8 @@
 /* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
    This file is public domain and comes with NO WARRANTY of any kind */
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NO",
@@ -242,7 +244,7 @@
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Cardinality error (more/less than %d columns)",
-"Subselect returns more than 1 record",
+"Subquery returns more than 1 row",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
 "Cyclic reference on subqueries",
@@ -254,8 +256,8 @@
 "Client does not support authentication protocol requested by server; consider upgrading MySQL client"
 "All parts of a SPATIAL KEY must be NOT NULL"
 "COLLATION '%s' is not valid for CHARACTER SET '%s'"
-"The slave was already running"
-"The slave was already stopped"
+"Slave is already running"
+"Slave has already been stopped"
 "Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)"
 "Z_BUF_ERROR: Not enough memory available for zlib"
 "Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)"
@@ -274,3 +276,9 @@
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
+"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
+"Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL"
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
+"SQL thread is not to be started so UNTIL options are ignored"

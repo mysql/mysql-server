@@ -1433,7 +1433,7 @@ CYR CAPIT EM	–ú	–ú	Ì	–ú
 CYR CAPIT EN	–ù	–ù	Ó	–ù		
 CYR CAPIT O	–û	–û	Ô	–û		
 CYR CAPIT PE	–ü	–ü		–ü		
-CYR CAPIT ER	–†	–†	Ú			
+CYR CAPIT ER	–†	–†	Ú	–†		
 CYR CAPIT ES	–°	–°	Û	–°		
 CYR CAPIT TE	–¢	–¢	Ù	–¢		
 CYR CAPIT U	–£	–£	ı	–£		
@@ -1574,7 +1574,7 @@ CYR CAPIT EM	Ì	–ú	Ì	
 CYR CAPIT EN	Ó	–ù	Ó			
 CYR CAPIT O	Ô	–û	Ô			
 CYR CAPIT PE		–ü				
-CYR CAPIT ER	Ú	–†	Ú			
+CYR CAPIT ER	Ú	–†	Ú	 		
 CYR CAPIT ES	Û	–°	Û	!		
 CYR CAPIT TE	Ù	–¢	Ù	"		
 CYR CAPIT U	ı	–£	ı	#		

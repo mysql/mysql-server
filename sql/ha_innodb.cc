@@ -28,7 +28,6 @@ InnoDB */
 
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_cache.h"
 
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
@@ -394,7 +393,7 @@ check_trx_exists(
 {
 	trx_t*	trx;
 
-	ut_a(thd == current_thd);
+	DBUG_ASSERT(thd == current_thd);
 
 	trx = (trx_t*) thd->transaction.all.innobase_tid;
 
@@ -1541,82 +1540,6 @@ ha_innobase::close(void)
   	DBUG_RETURN(0);
 }
 
-/* The following accessor functions should really be inside MySQL code! */
-
-/******************************************************************
-Gets field offset for a field in a table. */
-inline
-uint
-get_field_offset(
-/*=============*/
-			/* out: offset */
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field)	/* in: MySQL field object */
-{
-	return((uint) (field->ptr - (char*) table->record[0]));
-}
-
-/******************************************************************
-Checks if a field in a record is SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-inline
-uint
-field_in_record_is_null(
-/*====================*/
-			/* out: 1 if NULL, 0 otherwise */
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field,	/* in: MySQL field object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	int	null_offset;
-
-	if (!field->null_ptr) {
-
-		return(0);
-	}
-
-	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
-
-	if (record[null_offset] & field->null_bit) {
-
-		return(1);
-	}
-
-	return(0);
-}
-
-/******************************************************************
-Sets a field in a record to SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-inline
-void
-set_field_in_record_to_null(
-/*========================*/
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field,	/* in: MySQL field object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	int	null_offset;
-
-	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
-
-	record[null_offset] = record[null_offset] | field->null_bit;
-}
-
-/******************************************************************
-Resets SQL NULL bits in a record to zero. */
-inline
-void
-reset_null_bits(
-/*============*/
-	TABLE*	table,	/* in: MySQL table object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	bzero(record, table->null_bytes);
-}
-
 extern "C" {
 /*****************************************************************
 InnoDB uses this function is to compare two data fields for which the
@@ -1826,11 +1749,10 @@ ha_innobase::store_key_val_for_row(
 		    
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
-				+ (ulint)get_field_offset(table, field)),
+					 + (ulint) field->offset()),
 					(ulint) field->pack_length());
 
-			ut_a(get_field_offset(table, field)
-						     == key_part->offset);
+			ut_a(field->offset() == key_part->offset);
 			if (blob_len > key_part->length) {
 			        blob_len = key_part->length;
 			}
@@ -1885,7 +1807,7 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ulint		i;
 
-	ut_a(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
+	DBUG_ASSERT(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
@@ -2010,9 +1932,7 @@ build_template(
 			templ->mysql_null_bit_mask = 0;
 		}
 
-		templ->mysql_col_offset = (ulint)
-					get_field_offset(table, field);
-
+		templ->mysql_col_offset = (ulint) field->offset();
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
@@ -2058,8 +1978,8 @@ ha_innobase::write_row(
 
   	DBUG_ENTER("ha_innobase::write_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
@@ -2349,8 +2269,8 @@ calc_row_difference(
 		/*	goto skip_field;
 		}*/
 
-		o_ptr = (byte*) old_row + get_field_offset(table, field);
-		n_ptr = (byte*) new_row + get_field_offset(table, field);
+		o_ptr = (byte*) old_row + field->offset();
+		n_ptr = (byte*) new_row + field->offset();
 		o_len = field->pack_length();
 		n_len = field->pack_length();
 
@@ -2375,13 +2295,11 @@ calc_row_difference(
 		}
 
 		if (field->null_ptr) {
-			if (field_in_record_is_null(table, field,
-							(char*) old_row)) {
+			if (field->is_null_in_record((uchar*) old_row)) {
 				o_len = UNIV_SQL_NULL;
 			}
 
-			if (field_in_record_is_null(table, field,
-							(char*) new_row)) {
+			if (field->is_null_in_record((uchar*) new_row)) {
 				n_len = UNIV_SQL_NULL;
 			}
 		}
@@ -2433,8 +2351,8 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
         if (table->time_stamp) {
                 update_timestamp(new_row + table->time_stamp - 1);
@@ -2495,8 +2413,8 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2673,8 +2591,8 @@ ha_innobase::index_read(
 
   	DBUG_ENTER("index_read");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
@@ -2787,12 +2705,9 @@ ha_innobase::change_active_index(
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
 
+  DBUG_ASSERT(user_thd == current_thd);
   ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
-  ut_a(user_thd == current_thd);
-
-  ut_a(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+       (trx_t*) user_thd->transaction.all.innobase_tid);
 
   active_index = keynr;
 
@@ -2877,8 +2792,8 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_a(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -3111,8 +3026,8 @@ ha_innobase::rnd_pos(
 
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3160,8 +3075,8 @@ ha_innobase::position(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3443,7 +3358,7 @@ ha_innobase::create(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3556,10 +3471,10 @@ ha_innobase::create(
       		}
   	}
 
-	if (current_thd->query != NULL) {
+	if (thd->query != NULL) {
   	
 		error = row_table_add_foreign_constraints(trx,
-					current_thd->query, norm_name);
+					thd->query, norm_name);
 
 		error = convert_error_code_to_mysql(error, NULL);
 
@@ -3616,13 +3531,13 @@ ha_innobase::delete_table(
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	char	norm_name[1000];
-
+	THD	*thd= current_thd;
   	DBUG_ENTER("ha_innobase::delete_table");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3637,8 +3552,8 @@ ha_innobase::delete_table(
 
 	trx = trx_allocate_for_mysql();
 
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
 	name_len = strlen(name);
 
@@ -3691,11 +3606,12 @@ innobase_drop_database(
 	char*	ptr;
 	int	error;
 	char	namebuf[10000];
+	THD	*thd= current_thd;
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3718,8 +3634,8 @@ innobase_drop_database(
 	my_casedn_str(system_charset_info, namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
@@ -3759,13 +3675,14 @@ ha_innobase::rename_table(
 	trx_t*	trx;
 	char	norm_from[1000];
 	char	norm_to[1000];
+	THD	*thd= current_thd;
 
   	DBUG_ENTER("ha_innobase::rename_table");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3779,8 +3696,8 @@ ha_innobase::rename_table(
 	}
 
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
@@ -4666,7 +4583,7 @@ static INNOBASE_SHARE *get_share(const char *table_name)
       share->table_name_length=length;
       share->table_name=(char*) (share+1);
       strmov(share->table_name,table_name);
-      if (hash_insert(&innobase_open_tables, (mysql_byte*) share))
+      if (my_hash_insert(&innobase_open_tables, (mysql_byte*) share))
       {
 	pthread_mutex_unlock(&innobase_mutex);
 	my_free((gptr) share,0);

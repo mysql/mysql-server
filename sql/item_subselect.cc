@@ -72,7 +72,7 @@ Item_subselect::trans_res
 Item_subselect::select_transformer(JOIN *join) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 
@@ -227,14 +227,14 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 	cond= join->having;
       else
 	if (!(cond= new Item_cond_and(join->conds, join->having)))
-	  return ERROR;
+	  return RES_ERROR;
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
-	return ERROR;
+	return RES_ERROR;
     }
-    return REDUCE;
+    return RES_REDUCE;
   }
-  return OK;
+  return RES_OK;
 }
 
 void Item_singlerow_subselect::store(uint i, Item *item)
@@ -582,7 +582,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex.current_select= current;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
 
@@ -602,7 +602,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_CARDINALITY_COL, MYF(0), 1);
-    DBUG_RETURN(ERROR);
+    DBUG_RETURN(RES_ERROR);
   }
 
   item= (Item*) select_lex->item_list.head();
@@ -620,7 +620,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (join->having->fix_fields(thd, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -644,15 +644,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
 	  select_lex->having_fix_field= 0;
-	  DBUG_RETURN(ERROR);
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(isnull));
       }
+      item->name= (char *)in_additional_cond;
       join->conds= and_items(join->conds, item);
       if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
-	DBUG_RETURN(ERROR);
+	DBUG_RETURN(RES_ERROR);
     }
     else
     {
@@ -666,7 +667,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
 	  select_lex->having_fix_field= 0;
-	  DBUG_RETURN(ERROR);
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
       }
@@ -684,11 +685,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	DBUG_RETURN(REDUCE);
+	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 Item_subselect::trans_res
@@ -714,7 +715,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex.current_select= current;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
 
@@ -753,7 +754,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     if (join->having->fix_fields(thd, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -761,9 +762,9 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   {
     join->conds= and_items(join->conds, item);
     if (join->conds->fix_fields(thd, join->tables_list, &join->having))
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
   }
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 Item_subselect::trans_res
@@ -847,7 +848,7 @@ int subselect_union_engine::prepare()
   return unit->prepare(thd, result, 0);
 }
 
-int subselect_simplein_engine::prepare()
+int subselect_uniquesubquery_engine::prepare()
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -921,7 +922,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     SELECT_LEX *sl= unit->first_select();
     bool fake= 0;
     res_type= set_row(sl, item, row, &fake);
-    for (sl= sl->next_select(); sl; sl->next_select())
+    for (sl= sl->next_select(); sl; sl= sl->next_select())
     {
       List_iterator_fast<Item> li(sl->item_list);
       Item *sel_item;
@@ -934,7 +935,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   }
 }
 
-void subselect_simplein_engine::fix_length_and_dec(Item_cache **row)
+void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -993,9 +994,9 @@ int subselect_union_engine::exec()
   return res;
 }
 
-int subselect_simplein_engine::exec()
+int subselect_uniquesubquery_engine::exec()
 {
-  DBUG_ENTER("subselect_simplein_engine::exec");
+  DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
   if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
@@ -1023,9 +1024,9 @@ int subselect_simplein_engine::exec()
   DBUG_RETURN(end_exec(table) || (error != 0));
 }
 
-int subselect_simplein_engine::end_exec(TABLE *table)
+int subselect_uniquesubquery_engine::end_exec(TABLE *table)
 {
-  DBUG_ENTER("subselect_simplein_engine::end_exec");
+  DBUG_ENTER("subselect_uniquesubquery_engine::end_exec");
   int error=0, tmp;
   if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
   {
@@ -1042,10 +1043,11 @@ int subselect_simplein_engine::end_exec(TABLE *table)
   DBUG_RETURN(error != 0);
 }
 
-int subselect_indexin_engine::exec()
+int subselect_indexsubquery_engine::exec()
 {
-  DBUG_ENTER("subselect_indexin_engine::exec");
+  DBUG_ENTER("subselect_indexsubselect_engine::exec");
   int error;
+  bool null_finding= 0;
   TABLE *table= tab->table;
 
   ((Item_in_subselect *) item)->value= 0;
@@ -1077,28 +1079,29 @@ int subselect_indexin_engine::exec()
 	{
 	  if (!cond || cond->val_int())
 	  {
-	    if (check_null && *tab->null_ref_key)
+	    if (null_finding)
 	      ((Item_in_subselect *) item)->was_null= 1;
 	    else
 	      ((Item_in_subselect *) item)->value= 1;
 	    goto finish;
 	  }
+	  error= table->file->index_next_same(table->record[0],
+					      tab->ref.key_buff,
+					      tab->ref.key_length);
+	  if (error && error != HA_ERR_END_OF_FILE)
+	  {
+	    error= report_error(table, error);
+	    goto finish;
+	  }
 	}
 	else
 	{
-	  if (!check_null || *tab->null_ref_key)
+	  if (!check_null || null_finding)
 	    goto finish;
 	  *tab->null_ref_key= 1;
+	  null_finding= 1;
 	  if (safe_index_read(tab))
 	    goto finish;
-	}
-	error= table->file->index_next_same(table->record[0],
-					    tab->ref.key_buff,
-					    tab->ref.key_length);
-	if (error && error != HA_ERR_KEY_NOT_FOUND)
-	{
-	  error= report_error(table, error);
-	  goto finish;
 	}
       }
     }
@@ -1147,7 +1150,7 @@ void subselect_union_engine::exclude()
   unit->exclude_level();
 }
 
-void subselect_simplein_engine::exclude()
+void subselect_uniquesubquery_engine::exclude()
 {
   //this never should be called
   DBUG_ASSERT(0);

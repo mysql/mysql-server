@@ -76,8 +76,15 @@ Long data handling:
 
 #define STMT_QUERY_LOG_LENGTH 8192
 
-extern int yyparse(void *thd);
-static String null_string("NULL", 4, default_charset_info);
+#ifdef EMBEDDED_LIBRARY
+#define SETUP_PARAM_FUNCTION(fn_name) \
+static void fn_name(Item_param *param, uchar **pos, ulong data_len)
+#else
+#define SETUP_PARAM_FUNCTION(fn_name) \
+static void fn_name(Item_param *param, uchar **pos)
+#endif
+
+String my_null_string("NULL", 4, default_charset_info);
 
 /*
   Find prepared statement in thd
@@ -142,6 +149,7 @@ void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
   Send prepared stmt info to client after prepare
 */
 
+#ifndef EMBEDDED_LIBRARY
 static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
 {
   NET  *net=&stmt->thd->net;
@@ -150,14 +158,22 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   int4store(buff+1, stmt->stmt_id);
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
-#ifndef EMBEDDED_LIBRARY
   /* This should be fixed to work with prepared statements
    */
   return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
-#else
-  return true;
-#endif
 }
+#else
+static bool send_prep_stmt(PREP_STMT *stmt, uint columns __attribute__((unused)))
+{
+  THD *thd= stmt->thd;
+
+  thd->client_stmt_id= stmt->stmt_id;
+  thd->client_param_count= stmt->param_count;
+  thd->net.last_errno= 0;
+
+  return 0;
+}
+#endif /*!EMBEDDED_LIBRAYR*/
 
 /*
   Send information about all item parameters
@@ -182,6 +198,7 @@ static bool send_item_params(PREP_STMT *stmt)
   caller by positing the pointer to param data              
 */
 
+#ifndef EMBEDDED_LIBRARY
 static ulong get_param_length(uchar **packet)
 {
   reg1 uchar *pos= *packet;
@@ -203,6 +220,10 @@ static ulong get_param_length(uchar **packet)
   (*packet)+=9; // Must be 254 when here 
   return (ulong) uint4korr(pos+1);
 }
+#else
+#define get_param_length(A) data_len
+#endif /*!EMBEDDED_LIBRARY*/
+
  /*
   Setup param conversion routines
 
@@ -222,31 +243,31 @@ static ulong get_param_length(uchar **packet)
     
 */
 
-static void setup_param_tiny(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_tiny)
 {
   param->set_int((longlong)(**pos));
   *pos+= 1;
 }
 
-static void setup_param_short(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_short)
 {
   param->set_int((longlong)sint2korr(*pos));
   *pos+= 2;
 }
 
-static void setup_param_int32(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_int32)
 {
   param->set_int((longlong)sint4korr(*pos));
   *pos+= 4;
 }
 
-static void setup_param_int64(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_int64)
 {
   param->set_int((longlong)sint8korr(*pos));
   *pos+= 8;
 }
 
-static void setup_param_float(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_float)
 {
   float data;
   float4get(data,*pos);
@@ -254,7 +275,7 @@ static void setup_param_float(Item_param *param, uchar **pos)
   *pos+= 4;
 }
 
-static void setup_param_double(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_double)
 {
   double data;
   float8get(data,*pos);
@@ -262,7 +283,7 @@ static void setup_param_double(Item_param *param, uchar **pos)
   *pos+= 8;
 }
 
-static void setup_param_time(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_time)
 {
   ulong length;
 
@@ -286,7 +307,7 @@ static void setup_param_time(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_datetime(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_datetime)
 {
   uint length= get_param_length(pos);
  
@@ -316,7 +337,7 @@ static void setup_param_datetime(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_date(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_date)
 {
   ulong length;
  
@@ -338,14 +359,14 @@ static void setup_param_date(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_str(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_str)
 {
   ulong len= get_param_length(pos);
   param->set_value((const char *)*pos, len);
   *pos+= len;        
 }
 
-static void setup_param_functions(Item_param *param, uchar param_type)
+void setup_param_functions(Item_param *param, uchar param_type)
 {
   switch (param_type) {
   case FIELD_TYPE_TINY:
@@ -391,6 +412,7 @@ static void setup_param_functions(Item_param *param, uchar param_type)
   }
 }
 
+#ifndef EMBEDDED_LIBRARY
 /*
   Update the parameter markers by reading data from client packet 
   and if binary/update log is set, generate the valid query.
@@ -420,7 +442,7 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
       if (IS_PARAM_NULL(pos,param_no))
       {
         param->maybe_null= param->null_value= 1;
-        res= &null_string;
+        res= &my_null_string;
       }
       else
       {
@@ -476,11 +498,7 @@ static bool setup_params_data(PREP_STMT *stmt)
   Item_param *param;
   DBUG_ENTER("setup_params_data");
 
-#ifndef EMBEDDED_LIBRARY
   uchar *pos=(uchar*) thd->net.read_pos+1+MYSQL_STMT_HEADER; //skip header
-#else
-  uchar *pos= 0; //just to compile TODO code for embedded case
-#endif
   uchar *read_pos= pos+(stmt->param_count+7) / 8; //skip null bits   
 
   if (*read_pos++) //types supplied / first execute
@@ -500,6 +518,8 @@ static bool setup_params_data(PREP_STMT *stmt)
   DBUG_RETURN(0);
 }
 
+#endif /*!EMBEDDED_LIBRARY*/
+
 /*
   Validate the following information for INSERT statement:                         
     - field existance           
@@ -517,16 +537,18 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   my_bool update=(thd->lex.value_list.elements ? UPDATE_ACL : 0);
   ulong privilege= (thd->lex.duplicates == DUP_REPLACE ?
                     INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
 
   if (check_access(thd,privilege,table_list->db,
-                   &table_list->grant.privilege) || 
-      (grant_option && check_grant(thd,privilege,table_list)) || 
-      open_and_lock_tables(thd, table_list))
+                   &table_list->grant.privilege,0,0) || 
+      (grant_option && check_grant(thd,privilege,table_list)))
     DBUG_RETURN(1); 
-  
+#endif  
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(1); 
   table= table_list->table;
 
   if ((values= its++))
@@ -574,12 +596,14 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   THD *thd= stmt->thd;
   DBUG_ENTER("mysql_test_upd_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_access(thd,UPDATE_ACL,table_list->db,
-                   &table_list->grant.privilege) || 
-      (grant_option && check_grant(thd,UPDATE_ACL,table_list)) || 
-      open_and_lock_tables(thd, table_list))
+                   &table_list->grant.privilege,0,0) || 
+      (grant_option && check_grant(thd,UPDATE_ACL,table_list)))
     DBUG_RETURN(1);
-
+#endif
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(1);
   if (setup_tables(table_list) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
       setup_conds(thd, table_list, &conds) || thd->net.report_error)      
@@ -620,15 +644,16 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   select_result *result= thd->lex.result;
   DBUG_ENTER("mysql_test_select_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
   if (tables)
   {
-    if (check_table_access(thd, privilege, tables))
+    if (check_table_access(thd, privilege, tables,0))
       DBUG_RETURN(1);
   }
-  else if (check_access(thd, privilege, "*any*"))
+  else if (check_access(thd, privilege, "*any*",0,0,0))
     DBUG_RETURN(1);
-
+#endif
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables, 0)))
    DBUG_RETURN(1);
@@ -659,13 +684,13 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 		    wild_num, conds, og_num, order, group, having, proc, 
                     select_lex, unit, 0))
     DBUG_RETURN(1);
-#ifndef EMBEDDED_LIBRARY
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||
+#ifndef EMBEDDED_LIBRARY
         net_flush(&thd->net) ||
+#endif
         send_item_params(stmt))
       DBUG_RETURN(1);
-#endif
     join->cleanup();
   }
   DBUG_RETURN(0);  
@@ -784,10 +809,18 @@ static bool init_param_items(PREP_STMT *stmt)
   if (mysql_bin_log.is_open() || mysql_update_log.is_open())
   {
     stmt->log_full_query= 1;
+#ifndef EMBEDDED_LIBRARY
     stmt->setup_params= insert_params_withlog;
+#else
+    stmt->setup_params_data= setup_params_data_withlog;
+#endif
   }
   else
+#ifndef EMBEDDED_LIBRARY
     stmt->setup_params= insert_params; // not fully qualified query
+#else
+    stmt->setup_params_data= setup_params_data;
+#endif
    
   if (!stmt->param_count)
     stmt->param= (Item_param **)0;
@@ -873,11 +906,21 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
+
+  // save WHERE clause pointers to avoid damaging they by optimisation
+  for (SELECT_LEX *sl= thd->lex.all_selects_list;
+       sl;
+       sl= sl->next_select_in_list())
+  {
+    sl->prep_where= sl->where;
+  }
+
   
   if (init_param_items(&stmt))
     goto err;
+
   
-  stmt.mem_root= stmt.thd->mem_root;  
+  stmt.mem_root= stmt.thd->mem_root;
   tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
   DBUG_RETURN(0);
@@ -919,10 +962,25 @@ void mysql_stmt_execute(THD *thd, char *packet)
 
   LEX thd_lex= thd->lex;
   thd->lex= stmt->lex;
+  
+  for (SELECT_LEX *sl= stmt->lex.all_selects_list;
+       sl;
+       sl= sl->next_select_in_list())
+  {
+    // copy WHERE clause pointers to avoid damaging they by optimisation
+    if (sl->prep_where)
+      sl->where= sl->prep_where->copy_andor_structure(thd);
+    DBUG_ASSERT(sl->join == 0);
+  }
   init_stmt_execute(stmt);
 
+#ifndef EMBEDDED_LIBRARY
   if (stmt->param_count && setup_params_data(stmt))
     DBUG_VOID_RETURN;
+#else
+  if (stmt->param_count && (*stmt->setup_params_data)(stmt))
+    DBUG_VOID_RETURN;
+#endif
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);  
@@ -1030,16 +1088,17 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
   PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_get_longdata");
 
+#ifndef EMBEDDED_LIBRARY
   /* The following should never happen */
   if (packet_length < MYSQL_LONG_DATA_HEADER+1)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "get_longdata");
     DBUG_VOID_RETURN;
   }
+#endif
 
   ulong stmt_id=     uint4korr(pos);
   uint param_number= uint2korr(pos+4);
-  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata")))
   {
@@ -1051,6 +1110,7 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     DBUG_VOID_RETURN;
   }
 
+#ifndef EMBEDDED_LIBRARY
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
@@ -1059,8 +1119,15 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
     DBUG_VOID_RETURN;
   }
+  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
+#endif
+
   Item_param *param= *(stmt->param+param_number);
+#ifndef EMBEDDED_LIBRARY
   param->set_longdata(pos, packet_length-MYSQL_LONG_DATA_HEADER-1);
+#else
+  param->set_longdata(thd->extra_data, thd->extra_length);
+#endif
   stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }

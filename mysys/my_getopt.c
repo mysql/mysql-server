@@ -461,7 +461,7 @@ static char *check_struct_option(char *cur_arg, char *key_name)
 {
   char *ptr, *end;
 
-  ptr= strcend(cur_arg + 1, '.'); // Skip the first character
+  ptr= strcend(cur_arg + 1, '.'); /* Skip the first character */
   end= strcend(cur_arg, '=');
 
   /* 
@@ -525,8 +525,7 @@ static int setval(const struct my_option *opts, gptr *value, char *argument,
       break;
     case GET_STR_ALLOC:
       if ((*((char**) result_pos)))
-	my_free((*(char**) result_pos),
-		MYF(MY_WME | MY_FAE));
+	my_free((*(char**) result_pos), MYF(MY_WME | MY_FAE));
       if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
 	return EXIT_OUT_OF_MEMORY;
       break;

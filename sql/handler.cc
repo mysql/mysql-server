@@ -359,7 +359,10 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(thd, &thd->transaction.trans_log);
+      if (wait_if_global_read_lock(thd, 0))
+	DBUG_RETURN(1);
+      mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+      start_waiting_global_read_lock(thd);
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
@@ -442,9 +445,21 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
 #endif
     if (trans == &thd->transaction.all)
+    {
+      /* 
+         Update the binary log with a BEGIN/ROLLBACK block if we have cached some
+         queries and we updated some non-transactional table. Such cases should
+         be rare (updating a non-transactional table inside a transaction...).
+      */
+      if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
+                   mysql_bin_log.is_open() &&
+                   my_b_tell(&thd->transaction.trans_log)))
+        mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+      /* Flushed or not, empty the binlog cache */
       reinit_io_cache(&thd->transaction.trans_log,
-		      WRITE_CACHE, (my_off_t) 0, 0, 1);
-    thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+                      WRITE_CACHE, (my_off_t) 0, 0, 1);
+      thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+    }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
@@ -458,9 +473,27 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 
 
 /*
-Rolls the current transaction back to a savepoint.
-Return value: 0 if success, 1 if there was not a savepoint of the given
-name.
+  Rolls the current transaction back to a savepoint.
+  Return value: 0 if success, 1 if there was not a savepoint of the given
+  name.
+  NOTE: how do we handle this (unlikely but legal) case:
+  [transaction] + [update to non-trans table] + [rollback to savepoint] ?
+  The problem occurs when a savepoint is before the update to the
+  non-transactional table. Then when there's a rollback to the savepoint, if we
+  simply truncate the binlog cache, we lose the part of the binlog cache where
+  the update is. If we want to not lose it, we need to write the SAVEPOINT
+  command and the ROLLBACK TO SAVEPOINT command to the binlog cache. The latter
+  is easy: it's just write at the end of the binlog cache, but the former should
+  be *inserted* to the place where the user called SAVEPOINT. The solution is
+  that when the user calls SAVEPOINT, we write it to the binlog cache (so no
+  need to later insert it). As transactions are never intermixed in the binary log
+  (i.e. they are serialized), we won't have conflicts with savepoint names when
+  using mysqlbinlog or in the slave SQL thread.
+  Then when ROLLBACK TO SAVEPOINT is called, if we updated some
+  non-transactional table, we don't truncate the binlog cache but instead write
+  ROLLBACK TO SAVEPOINT to it; otherwise we truncate the binlog cache (which
+  will chop the SAVEPOINT command from the binlog cache, which is good as in
+  that case there is no need to have it in the binlog).
 */
 
 int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
@@ -485,8 +518,24 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       error=1;
     }
     else
-      reinit_io_cache(&thd->transaction.trans_log, WRITE_CACHE,
-						 binlog_cache_pos, 0, 0);
+    {
+      /* 
+         Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
+         non-transactional table. Otherwise, truncate the binlog cache starting
+         from the SAVEPOINT command.
+      */
+      if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
+                   mysql_bin_log.is_open() &&
+                   my_b_tell(&thd->transaction.trans_log)))
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+        if (mysql_bin_log.write(&qinfo))
+          error= 1;
+      }
+      else
+        reinit_io_cache(&thd->transaction.trans_log, WRITE_CACHE,
+                        binlog_cache_pos, 0, 0);
+    }
     operation_done=1;
 #endif
     if (operation_done)
@@ -515,6 +564,13 @@ int ha_savepoint(THD *thd, char *savepoint_name)
 #ifdef HAVE_INNOBASE_DB
     innobase_savepoint(thd,savepoint_name, binlog_cache_pos);
 #endif
+    /* Write it to the binary log (see comments of ha_rollback_to_savepoint). */
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+      if (mysql_bin_log.write(&qinfo))
+	error= 1;
+    }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -1051,14 +1107,25 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 
 void ha_key_cache(void)
 {
-  if (keybuff_size)
-    (void) init_key_cache((ulong) keybuff_size);
+  /*
+    The following mutex is not really needed as long as keybuff_size is
+    treated as a long value, but we use the mutex here to guard for future
+    changes.
+  */
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  long tmp= (long) keybuff_size;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  if (tmp)
+    (void) init_key_cache(tmp);
 }
 
 
 void ha_resize_key_cache(void)
 {
-  (void) resize_key_cache((ulong) keybuff_size);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  long tmp= (long) keybuff_size;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  (void) resize_key_cache(tmp);
 }
 
 

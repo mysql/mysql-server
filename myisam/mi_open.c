@@ -633,7 +633,7 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong) -1)
     {
-      length= max(info->s->base.pack_reclength+info->s->base.pack_bits,
+      length= max(info->s->base.pack_reclength,
                   info->s->base.max_key_length);
       /* Avoid unnecessary realloc */
       if (newptr && length == old_length)
@@ -688,6 +688,8 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
 
+    /* add bits used to pack data to pack_reclength for faster allocation */
+    share->base.pack_reclength+= share->base.pack_bits;
     if (share->base.blobs)
     {
       share->update_record=_mi_update_blob_record;
@@ -776,6 +778,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys,
 	key_blocks=state->header.max_block_size;
+  DBUG_ENTER("mi_state_info_write");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
   ptr+=sizeof(state->header);
@@ -826,10 +829,10 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   }
 
   if (pWrite & 1)
-     return my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
-		      MYF(MY_NABP | MY_THREADSAFE));
-  else
-    return my_write(file,  (char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+    DBUG_RETURN(my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
+			  MYF(MY_NABP | MY_THREADSAFE)));
+  DBUG_RETURN(my_write(file,  (char*) buff, (uint) (ptr-buff),
+		       MYF(MY_NABP)));
 }
 
 

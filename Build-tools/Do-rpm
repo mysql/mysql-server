@@ -1,259 +1,227 @@
-#!/bin/bash
+#!/usr/bin/perl -w
+#
+# Do-rpm - compile RPM packages out of a source tarball and move the
+# resulting RPM packages into the current directory.
+#
+# The script currently assumes the following environment (which should exist
+# like that, if the Do-compile script was used to build the binary
+# distribution)
+#
+# - there must be a source distribution (mysql-<version>.tar.gz)
+#   in the current directory
+# - there must be a spec file (mysql-<version>.spec) in the directory
+#   $HOME/<hostname>/mysql-<version>/support-files/
+#
+# Use the "--help" option for more info!
+#
+# written by Lenz Grimmer <lenz@mysql.com>
+#
 
-#helper functions
+use Cwd;
+use File::Basename;
+use File::Copy;
+use Getopt::Long;
+Getopt::Long::Configure ("bundling");
+use Sys::Hostname;
 
-function copy_to_bmachine
+$opt_cc= undef;
+$opt_cflags= undef;
+$opt_clean= undef;
+$opt_cxx= undef;
+$opt_cxxflags= undef;
+$opt_dry_run= undef;
+$opt_help= undef;
+$opt_log= undef;
+$opt_mail= "";
+$opt_verbose= undef;
+
+$MAJOR= $MINOR= $RELEASE= 0;
+
+GetOptions(
+	"cc=s",
+	"cflags=s",
+	"clean|c",
+	"cxx=s",
+	"cxxflags=s",
+	"dry-run|t",
+	"help|h",
+	"log|l:s",
+	"mail|m=s",
+	"verbose|v",
+) || &print_help;
+
+defined($VERSION=$ARGV[0]) || print_help("Please provide the MySQL version!");
+
+# Include helper functions
+$PWD= cwd();
+$LOGGER= "$PWD/logger.pm";
+if (-f "$LOGGER")
 {
- if [ x$local_build = x1 ]; then
-  rm -f $2
-  cp $1 $2
- else
-  scp $1 $owner@$bmachine:$2
- fi 
+	do "$LOGGER";
+}
+else
+{
+	die "ERROR: $LOGGER cannot be found!\n";
 }
 
-function copy_from_bmachine
+#
+# Override predefined Log file name
+#
+if (defined $opt_log)
 {
- if [ x$local_build = x1 ]; then
-  rm -f $2
-  cp $1 $2
- else
-  scp $owner@$bmachine:$1 $2
- fi 
+	if ($opt_log ne "")
+	{
+		if ($opt_log =~ /^\/.*/)
+		{
+			$LOGFILE= $opt_log;
+		}
+		else
+		{
+			$LOGFILE= $PWD . "/" . $opt_log;
+		}
+	}
 }
 
-function run_command
+($MAJOR, $MINOR, $RELEASE)= split(/\./, $VERSION);
+$HOST= hostname();
+$HOST=~ /^([^.-]*)/;
+$HOST= $1;
+$LOGFILE= "$PWD/Logs/Do-rpm-$HOST-$MAJOR.$MINOR.log";
+
+&print_help("") if ($opt_help);
+
+#
+# Newer RPM versions ship with a separate tool "rpmbuild" to build RPMs
+#
+if (-x "/usr/bin/rpmbuild")
 {
- if [ x$local_build = x1 ]; then
-  bash $1 
- else
-  cat $1 | ssh $owner@$bmachine bash
- fi 
+	$RPM= "/usr/bin/rpmbuild";
+}
+else
+{
+	$RPM= "/bin/rpm";
 }
 
-#Supply defaults
+if ($RPM)
+{
+	&logger("Found rpm binary: $RPM");
+}
+else
+{
+	&abort("Unable to find RPM binary!");
+}
 
-# We built on one of two machines
-bmachine=work
-smachine=work
-owner=my
+#
+# determine some RPM settings for this host
+#
+chomp($RPMARCH= `$RPM --eval "%{_arch}" 2> /dev/null`);
+chomp($RPMDIR= `$RPM --eval "%{_rpmdir}" 2> /dev/null`);
+chomp($SOURCEDIR= `$RPM --eval "%{_sourcedir}" 2> /dev/null`);
+chomp($SPECDIR= `$RPM --eval "%{_specdir}" 2> /dev/null`);
+chomp($SRCRPMDIR= `$RPM --eval "%{_srcrpmdir}" 2> /dev/null`);
 
-# Hard path!!
-bpath=`/bin/pwd`
+$SOURCEFILE= "mysql-$VERSION.tar.gz";
+$SPECFILE= "$PWD/$HOST/mysql-$VERSION/support-files/mysql-$VERSION.spec";
 
-for d in /usr/src/redhat /usr/src/packages ; do
-if test -d "$d"
-then
-  rpmdir=$d
-fi  
-done
+&logger("Starting RPM build of MySQL-$VERSION on $HOST");
 
-if test -z "$rpmdir"
-then
- echo "Could not find suitable rpmdir on this system"
- exit 1
-fi
- 
+foreach $file ($SOURCEFILE, $SPECFILE)
+{
+	&abort("Unable to find $file!") unless (-f "$file");
+}
 
-logdir="$bpath/Logs"
+#
+# Install source and spec file
+#
+&logger("Copying SOURCE and SPEC file to build directories.");
+copy($SOURCEFILE, $SOURCEDIR)
+or &abort("Unable to copy $SOURCEFILE to $SOURCEDIR!");
+copy($SPECFILE, $SPECDIR)
+or &abort("Unable to copy $SPECFILE to $SPECDIR!");
 
-###### Perl STUFF #####
+#
+# Set environment variables - these are being used in the
+# official MySQL RPM spec file
+#
+&logger("Setting special build environment variables")
+if ($opt_cc) or ($opt_cflags) or ($opt_cxxflags) or ($opt_cxx);
+$ENV{MYSQL_BUILD_CC}=$opt_cc if ($opt_cc);
+$ENV{MYSQL_BUILD_CFLAGS}=$opt_cflags if ($opt_cflags);
+$ENV{MYSQL_BUILD_CXXFLAGS}=$opt_cxxflags if ($opt_cxxflags);
+$ENV{MYSQL_BUILD_CXX}=$opt_cxx if ($opt_cxx);
 
-# Perl version numbers. Should be autodetected from the files in the
-# Perl-mysql-modules/ directory.
-DBI_VERSION="1.14"
-DATA_SHOWTABLE_VERSION="3.3"
-DBD_MYSQL_VERSION="1.2215"
-MAKERPM="$rpmdir/SOURCES/makerpm.pl"
+#
+# Build the RPMs
+#
+$command= "$RPM";
+$command.= " -v" if ($opt_verbose);
+$command.= " -ba";
+$command.= " --clean" if $opt_clean;
+$command.= " $SPECDIR/";
+$command.= basename($SPECFILE);
+&logger("Building RPM.");
+&run_command($command, "Error while building the RPMs!"); 
 
-#######################
-AM_MAKEFLAGS="-j 2"
+#
+# Move the resulting RPMs into the pwd
+#
+$command= "mv";
+$command.= " -v " if ($opt_verbose);
+$command.= "$SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
+&run_command($command, "Error moving source RPM!");
 
-VER=`grep "AM_INIT_AUTOMAKE(mysql, " $bpath/configure.in | \
- sed -e 's;AM_INIT_AUTOMAKE(mysql, ;;' -e 's;);;'`
-VER_NO_DASH=`echo $VER | sed -e "s|-.*$||"`
-tarball=$bpath/mysql-$VER.tar.gz
+$command= "mv";
+$command.= " -v " if ($opt_verbose);
+$command.= "$RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
+&run_command($command, "Error moving binary RPMs!");
 
-while test $# -gt 0; do
-  case "$1" in
-   --rpmdir=*)
-   rpmdir=`echo $1 | sed -e "s;--rpmdir=;;"`
-   ;;
-   --smachine=*)
-   smachine=`echo $1 | sed -e "s;--smachine=;;"`
-   ;;
-   --bmachine=*)
-   bmachine=`echo $1 | sed -e "s;--bmachine=;;"`
-   ;;
-  --owner=*)
-   owner=`echo $1 | sed -e "s;--owner=;;"`
-   ;;
-  --tarball=*) 
-   tarball=`echo $1 | sed -e "s;--tarball=;;"`
-   ;;
-  --logdir=*)
-   logdir=`echo $1 | sed -e "s;--logdir=;;"`
-   ;;
-  --local )
-  local_build=1
-  ;; 
-  --skip-perl )
-  skip_perl=1
-  ;; 
-  * ) break ;;
-  esac
-  shift
-done
+#
+# Clean up
+#
+if ($opt_clean)
+{
+	&logger("Removing spec file and source package");
+	unlink("$SPECDIR/" . basename($SPECFILE));
+	unlink("$SOURCEDIR/$SOURCEFILE");
+}
 
-echo "Removing old MySQL packages"
-rm -f $bpath/NEW-RPMS/MySQL-*rpm
+&logger("SUCCESS: RPM files successfully created.") if (!$opt_dry_run);
+exit 0;
 
-if [ ! -d "$logdir" ]; then
- echo "$logdir does not exist, creating"
- mkdir -p $logdir
-fi
+sub print_help
+{
+	my $message= $_[0];
+	if ($message ne "")
+	{
+		print "\n";
+		print "ERROR: $message\n\n}";
+	}
+	print <<EOF;
 
-if [ ! -f "$tarball" ]; then
- echo "Tarball file $tarball does not exist, please make one first"
- exit 1
-fi
+Usage: Do-rpm <options> <version>
 
-log=$logdir/Log-RPM-`date +%y%m%d-%H%M`
+Creates a binary RPM package out of a MySQL source distribution and moves the
+resulting RPMs into the current directory.  <version> is the MySQL version
+number (e.g. 4.0.11-gamma)
 
-echo "Building RPM for MySQL version $VER on $bmachine"
-echo "Details in $log"
+Options:
 
-(
-set -x
-# remove old stuff
-rm -rf $rpmdir/BUILD/mysql-*
-rm -f $rpmdir/SOURCES/mysql-*
-rm -f $rpmdir/SRPMS/MySQL-*
-rm -f $rpmdir/SPECS/mysql-*
-rm -rf /var/tmp/mysql
+    --cc=<compiler>           Use <compiler> to compile C code
+    --ccflags=<flags>         Use special C compiler flags
+    --cxx=<compiler>          Use <compiler> to compile C++ code
+    --cxxflags=<flags>        Use special C++ compiler flags
+-c, --clean                   Clean up after the build
+-t, --dry-run                 Dry run without executing
+-h, --help                    Print this help
+-l, --log[=<filename>]        Write a log file [to <filename>]
+                              (default is "$LOGFILE")
+-m, --mail=<address>          Mail a failure report to the given address
+                              (and include a log file snippet, if logging
+                              is enabled)
+                              Note that the \@-Sign needs to be quoted!
+                              Example: --mail=user\\\@domain.com
+-v, --verbose                 Verbose execution
 
-# Copy MySQL source and spec files
-
-#Sasha: I left the scp stuff commented out instead of deleted to make it
-#easy to revert in a hurry, if there is a need. Once everything is tested
-#and works perfectly, the scp stuff should be deleted to avoid confusion
-
-#scp $bpath/mysql-$VER.tar.gz $owner@$bmachine:$rpmdir/SOURCES
-copy_to_bmachine $tarball $rpmdir/SOURCES
-#scp $bpath/Docs/Images/mysql-logo.gif $owner@$bmachine:$rpmdir/SOURCES/mysql.gif
-copy_to_bmachine $bpath/Docs/Images/mysql-logo.gif $rpmdir/SOURCES/mysql.gif
-#scp $bpath/support-files/mysql-$VER.spec $owner@$bmachine:$rpmdir/SPECS
-copy_to_bmachine $bpath/support-files/mysql-$VER.spec $rpmdir/SPECS
-
-# Copy perl things. Has to be uncompressed since Compress.pm is not
-# installed yet. Set CEXT to .gz when we support compression.
-CEXT=
-#scp $bpath/Perl-mysql-modules/To-SOURCES/* $owner@$bmachine:$rpmdir/SOURCES
-
-# This had to be installed on the target machince!
-# http://www.perl.com/CPAN/modules/by-module/Archive/Archive-Tar-0.21.tar.gz
-# cd /usr/lib/perl5/site_perl/5.005; ln -s ../* .; rm -f 5.005
-
-TMP_SCRIPT_MYSQL=00-temp-for-do-rpm.$$
-cat > $logdir/$TMP_SCRIPT_MYSQL <<END
-set -x
-
-# Check environment
-#export MYSQL_BUILD_PATH="/usr/local/bin:/my/gnu/bin:/usr/bin:/bin"
-#export MYSQL_BUILD_CFLAGS="-O6 -fno-omit-frame-pointer -mcpu=pentiumpro"
-#export MYSQL_BUILD_CXXFLAGS="-O6 -fno-omit-frame-pointer \
-#	          -felide-constructors -fno-exceptions -fno-rtti -mcpu=pentiumpro"
-export MYSQL_BUILD_PATH="/usr/bin:/bin"
-export MYSQL_BUILD_CFLAGS="-O6 -fno-omit-frame-pointer -mpentium"
-export MYSQL_BUILD_CXXFLAGS="-O6 -fno-omit-frame-pointer \
-	          -felide-constructors -fno-exceptions -fno-rtti -mpentium"
-gcc -v
-
-# Make RPM
-rpm -ba $rpmdir/SPECS/mysql-$VER.spec
-rm -f /tmp/$TMP_SCRIPT_MYSQL
-END
-
-if [ ! x$skip_perl=x1 ]; then
-
-  TMP_SCRIPT_PERL=00-temp-for-perl-rpm.$$
-  cat > $logdir/$TMP_SCRIPT_PERL <<END
-  set -x
-
-  # First clean up so we do not get old versions when wildcard matching
-  rm -f $rpmdir/SOURCES/DBI-*.spec $rpmdir/SOURCES/mysql*
-  rm -f $rpmdir/RPMS/i386/Perl-*.rpm
-  rm -f $rpmdir/SRPMS/Perl-*.rpm
-  rm -f $rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm
-  rm -f $rpmdir/SRPMS/MySQL*-$VER_NO_DASH*.rpm
-
-  chmod a+x ${MAKERPM}
-  rm 
-
-  ${MAKERPM} --verbose --package-name=DBI --package-version ${DBI_VERSION} \
- --specs --source=DBI-${DBI_VERSION}.tar$CEXT
-
-  rpm -ba $rpmdir/SPECS/DBI-${DBI_VERSION}.spec
-
-  ${MAKERPM} --verbose --package-name=Data-ShowTable \
- --package-version ${DATA_SHOWTABLE_VERSION} \
- --specs --source=Data-ShowTable-${DATA_SHOWTABLE_VERSION}.tar$CEXT
-
-  rpm -ba $rpmdir/SPECS/Data-ShowTable-${DATA_SHOWTABLE_VERSION}.spec
-
-  for v in ${DBD_MYSQL_VERSION}; do
-    ${MAKERPM} 
-        --specs \
-        --source=Msql-Mysql-modules-$v.tar$CEXT \
-	--setup-dir=Msql-Mysql-modules-$v \
-        --package-name=DBD-mysql \
-        --package-version=$v \
-	--makemakeropts='--noprompt --mysql-install --mysql-install-nodbd \
-		         --nomsql-install --nomsql1-install' \
-	--require=perl-Data-ShowTable --require=perl-DBI
-    rpm -ba $rpmdir/SPECS/DBD-mysql-$v.spec
-  done
-
-  for srcrpm in $rpmdir/SRPMS/perl-*.src.rpm
-  do
-    rpm --rebuild $srcrpm
-  done
-
-  rm -f /tmp/$TMP_SCRIPT_PERL
-END
-fi
-
- # scp $bpath/Logs/$TMP_SCRIPT_MYSQL $owner@$bmachine:/tmp/$TMP_SCRIPT_MYSQL
-
-# ssh $bmachine -l $owner bash $bpath/Logs/$TMP_SCRIPT_MYSQL
-
-cmd=$logdir/$TMP_SCRIPT_MYSQL
-run_command $cmd
-
-if [ $? != 0 ]; then
- echo "$cmd failed, perhaps the following will help figure out why:"
- tail $log
-fi 
-
-if [ x$local_build != x1 ]; then
-
- # Build perl RPM (we currently need to be root to do this and that is
- # not possible)
-
- #scp $bpath/Logs/$TMP_SCRIPT_PERL $owner@$bmachine:/tmp/$TMP_SCRIPT_PERL
- #ssh $bmachine -l root bash /tmp/$TMP_SCRIPT_PERL
-
- # Copy RPMs back to the source dir. We must do this here since the
- # $bmachine may not have permission to access $smachine.
- scp $owner@$bmachine:$rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm $bpath/NEW-RPMS
- scp $owner@$bmachine:$rpmdir/SRPMS/MySQL*-$VER_NO_DASH*.rpm $bpath/NEW-RPMS
-
- # And the perl ones
- #scp $owner@$bmachine:$rpmdir/RPMS/i386/Perl*-*.rpm $bpath/NEW-RPMS
- #scp $owner@$bmachine:$rpmdir/SRPMS/Perl*-*.rpm $bpath/NEW-RPMS
-
- #Remove some of the files that can interfere with future builds
-
- rm -rf /var/tmp/mysql
-fi 
-)  > $log 2>&1
+EOF
+	exit 1;
+}

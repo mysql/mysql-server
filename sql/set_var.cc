@@ -116,6 +116,8 @@ sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
+sys_var_collation_database sys_collation_database("collation_database");
+sys_var_collation_server sys_collation_server("collation_server");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
@@ -216,6 +218,7 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -242,6 +245,7 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
 #endif /* HAVE_QUERY_CACHE */
+sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
@@ -379,6 +383,8 @@ sys_var *sys_variables[]=
   &sys_character_set_connection,
   &sys_character_set_results,
   &sys_collation_connection,
+  &sys_collation_database,
+  &sys_collation_server,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_default_week_format,
@@ -432,6 +438,7 @@ sys_var *sys_variables[]=
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_new_mode,
+  &sys_old_passwords,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
@@ -450,6 +457,7 @@ sys_var *sys_variables[]=
 #endif
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
+  &sys_secure_auth,
   &sys_select_limit,
   &sys_server_id,
 #ifdef HAVE_REPLICATION
@@ -505,6 +513,8 @@ struct show_var_st init_vars[]= {
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
+  {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
+  {sys_collation_server.name,(char*) &sys_collation_server,         SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -608,6 +618,7 @@ struct show_var_st init_vars[]= {
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
+  {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
@@ -615,6 +626,14 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
+#ifdef HAVE_QUERY_CACHE
+  {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
+  {sys_query_cache_min_res_unit.name, (char*) &sys_query_cache_min_res_unit,
+   SHOW_SYS},
+  {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
+  {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
+  {"secure_auth",             (char*) &sys_secure_auth,             SHOW_SYS},
+#endif /* HAVE_QUERY_CACHE */
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
@@ -622,13 +641,6 @@ struct show_var_st init_vars[]= {
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
 #endif
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
-#ifdef HAVE_QUERY_CACHE
-  {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
-  {sys_query_cache_min_res_unit.name, (char*) &sys_query_cache_min_res_unit,
-   SHOW_SYS},
-  {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
-  {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
-#endif /* HAVE_QUERY_CACHE */
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
   {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
@@ -845,10 +857,12 @@ void fix_max_relay_log_size(THD *thd, enum_var_type type)
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulong) tmp;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
@@ -862,17 +876,21 @@ void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
+  pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulonglong) tmp;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
 
 void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
 {
+  pthread_mutex_lock(&LOCK_global_system_variables);
   *value= (ulonglong) option_limits->def_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -1164,9 +1182,21 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   case SHOW_LONG:
     return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type, base));
   case SHOW_LONGLONG:
-    return new Item_int(*(longlong*) value_ptr(thd, var_type, base));
+  {
+    longlong value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(longlong*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_int(value);
+  }
   case SHOW_HA_ROWS:
-    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type, base));
+  {
+    ha_rows value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(ha_rows*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_int((longlong) value);
+  }
   case SHOW_MY_BOOL:
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type, base),1);
   case SHOW_CHAR:
@@ -1272,7 +1302,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
+    res= &my_empty_string;
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
@@ -1313,6 +1343,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
 bool sys_var_character_set::update(THD *thd, set_var *var)
 {
   ci_ptr(thd,var->type)[0]= var->save_result.charset;
+  thd->update_charset();
   return 0;
 }
 
@@ -1398,20 +1429,19 @@ CHARSET_INFO **
 sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    return &global_system_variables.character_set_server;
+    return &global_system_variables.collation_server;
   else
-    return &thd->variables.character_set_server;
+    return &thd->variables.collation_server;
 }
 
 
 void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-   global_system_variables.character_set_server= default_charset_info;
+   global_system_variables.collation_server= default_charset_info;
  else
  {
-   thd->variables.character_set_server= (global_system_variables.
-					 character_set_server);
+   thd->variables.collation_server= global_system_variables.collation_server;
    thd->update_charset();
  }
 }
@@ -1421,19 +1451,19 @@ CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    return &global_system_variables.character_set_database;
+    return &global_system_variables.collation_database;
   else
-    return &thd->variables.character_set_database;
+    return &thd->variables.collation_database;
 }
 
 
 void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-    global_system_variables.character_set_database= default_charset_info;
+    global_system_variables.collation_database= default_charset_info;
   else
   {
-    thd->variables.character_set_database= thd->db_charset;
+    thd->variables.collation_database= thd->db_charset;
     thd->update_charset();
   }
 }
@@ -1470,6 +1500,77 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
  {
    thd->variables.collation_connection= (global_system_variables.
 					 collation_connection);
+   thd->update_charset();
+ }
+}
+
+bool sys_var_collation_database::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.collation_database= var->save_result.charset;
+  else
+  {
+    thd->variables.collation_database= var->save_result.charset;
+    thd->update_charset();
+  }
+  return 0;
+}
+
+
+byte *sys_var_collation_database::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.collation_database :
+		  thd->variables.collation_database);
+  return cs ? (byte*) cs->name : (byte*) "NULL";
+}
+
+
+void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_database= default_charset_info;
+ else
+ {
+   thd->variables.collation_database= (global_system_variables.
+					 collation_database);
+   thd->update_charset();
+ }
+}
+
+
+bool sys_var_collation_server::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.collation_server= var->save_result.charset;
+  else
+  {
+    thd->variables.collation_server= var->save_result.charset;
+    thd->update_charset();
+  }
+  return 0;
+}
+
+
+byte *sys_var_collation_server::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.collation_server :
+		  thd->variables.collation_server);
+  return cs ? (byte*) cs->name : (byte*) "NULL";
+}
+
+
+void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_server= default_charset_info;
+ else
+ {
+   thd->variables.collation_server= (global_system_variables.
+					 collation_server);
    thd->update_charset();
  }
 }
@@ -1622,6 +1723,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->master_access & SUPER_ACL)
     return 0;
   else
@@ -1629,6 +1731,9 @@ bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
     return 1;
   }
+#else
+  return 0;
+#endif
 }
 
 
@@ -1812,8 +1917,6 @@ static byte *get_sys_var_length(const sys_var *var, uint *length,
 
 void set_var_init()
 {
-  extern struct my_option my_long_options[];	// From mysqld
-
   hash_init(&system_variable_hash, system_charset_info,
 	    array_elements(sys_variables),0,0,
 	    (hash_get_key) get_sys_var_length,0,0);
@@ -1824,7 +1927,7 @@ void set_var_init()
   {
     (*var)->name_length= strlen((*var)->name);
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
-    hash_insert(&system_variable_hash, (byte*) *var);
+    my_hash_insert(&system_variable_hash, (byte*) *var);
   }
   /*
     Special cases
@@ -1927,7 +2030,6 @@ int set_var::check(THD *thd)
   }
   if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     return 1;
-
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
   {
@@ -1990,17 +2092,25 @@ int set_var_user::update(THD *thd)
 
 int set_var_password::check(THD *thd)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
+#else 
+  return 0;
+#endif
 }
 
 int set_var_password::update(THD *thd)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Returns 1 as the function sends error to client */
   return (change_password(thd, user->host.str, user->user.str, password) ?
 	  1 : 0);
+#else
+  return 0;
+#endif
 }
 
 /****************************************************************************

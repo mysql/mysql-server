@@ -34,6 +34,7 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 class acl_entry :public hash_filo_element
 {
@@ -51,7 +52,7 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
   return (byte*) entry->key;
 }
 
-#define ACL_KEY_LENGTH (sizeof(long)+NAME_LEN+17)
+#define ACL_KEY_LENGTH (sizeof(long)+NAME_LEN+USERNAME_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
@@ -68,10 +69,52 @@ static ulong get_sort(uint count,...);
 static void init_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user);
 static bool update_user_table(THD *thd, const char *host, const char *user,
-			      const char *new_password);
+			      const char *new_password, uint new_password_len);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
+
+/*
+  Convert scrambled password to binary form, according to scramble type, 
+  Binary form is stored in user.salt.
+*/
+
+static
+void
+set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
+{
+  if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
+  {
+    get_salt_from_password(acl_user->salt, password);
+    acl_user->salt_len= SCRAMBLE_LENGTH;
+  }
+  else if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  {
+    get_salt_from_password_323((ulong *) acl_user->salt, password);
+    acl_user->salt_len= SCRAMBLE_LENGTH_323;
+  }
+  else
+    acl_user->salt_len= 0;
+}
+
+/*
+  This after_update function is used when user.password is less than
+  SCRAMBLE_LENGTH bytes.
+*/
+
+static void restrict_update_of_old_passwords_var(THD *thd,
+                                                 enum_var_type var_type)
+{
+  if (var_type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.old_passwords= 1;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.old_passwords= 1;
+}
+
 
 /*
   Read grant privileges from the privilege tables in the 'mysql' database.
@@ -114,8 +157,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
   thd->store_globals();
-  /* Use passwords according to command line option */
-  use_old_passwords= opt_old_passwords;
 
   acl_cache->clear(1);				// Clear locked hostname cache
   thd->db= my_strdup("mysql",MYF(0));
@@ -172,103 +213,126 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
-  if (table->field[2]->field_length == 8 &&
-      protocol_version == PROTOCOL_VERSION)
+  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
-    sql_print_error("Old 'user' table. (Check README or the Reference manual). Continuing --old-protocol"); /* purecov: tested */
-    protocol_version=9; /* purecov: tested */
+    sql_print_error("Fatal error: mysql.user table is damaged or in "
+                    "unsupported 3.20 format.");
+    goto end;
   }
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
 		     table->fields, table->field[2]->field_length));
-  if (table->field[2]->field_length < 45 && !use_old_passwords)
+  
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
-    sql_print_error("mysql.user table is not updated to new password format;  Disabling new password usage until mysql_fix_privilege_tables is run");
-    use_old_passwords= 1;
+    if (opt_secure_auth)
+    {
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      sql_print_error("Fatal error: mysql.user table is in old format, "
+                      "but server started with --secure-auth option.");
+      goto end;
+    }
+    sys_old_passwords.after_update= restrict_update_of_old_passwords_var;
+    if (global_system_variables.old_passwords)
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+    else
+    {
+      global_system_variables.old_passwords= 1;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      sql_print_error("mysql.user table is not updated to new password format; "
+                      "Disabling new password usage until "
+                      "mysql_fix_privilege_tables is run");
+    }
+    thd->variables.old_passwords= 1;
+  }
+  else
+  {
+    sys_old_passwords.after_update= 0;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
   }
 
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
-    uint length=0;
-    update_hostname(&user.host,get_field(&mem, table->field[0]));
-    user.user=get_field(&mem, table->field[1]);
-    user.password=get_field(&mem, table->field[2]);
-    if (user.password && (length=(uint) strlen(user.password)) == 8 &&
-	protocol_version == PROTOCOL_VERSION)
+    update_hostname(&user.host, get_field(&mem, table->field[0]));
+    user.user= get_field(&mem, table->field[1]);
+    const char *password= get_field(&mem, table->field[2]);
+    uint password_len= password ? strlen(password) : 0;
+    set_user_salt(&user, password, password_len);
+    if (user.salt_len == 0 && password_len != 0)
     {
-      sql_print_error(
-		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
-		      user.user ? user.user : ""); /* purecov: tested */
+      switch (password_len) {
+      case 45: /* 4.1: to be removed */
+        sql_print_error("Found 4.1 style password for user '%s@%s'. "
+                        "Ignoring user. "
+                        "You should change password for this user.",
+                        user.user ? user.user : "",
+                        user.host.hostname ? user.host.hostname : "");
+        break;
+      default:
+        sql_print_error("Found invalid password for user: '%s@%s'; "
+                        "Ignoring user", user.user ? user.user : "",
+                        user.host.hostname ? user.host.hostname : "");
+        break;
+      }
     }
-    else  /* non empty and not short passwords */
+    else                                        // password is correct
     {
-      user.pversion=get_password_version(user.password);
-      /* Only passwords of specific lengths depending on version are allowed */
-      if ((!user.pversion && (length % 8 || length > 16)) ||
-	  (user.pversion && length != 45))
+      user.access= get_access(table,3) & GLOBAL_ACLS;
+      user.sort= get_sort(2,user.host.hostname,user.user);
+      user.hostname_length= (user.host.hostname ?
+                             (uint) strlen(user.host.hostname) : 0);
+      if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
       {
-        sql_print_error(
-	                "Found invalid password for user: '%s'@'%s'; Ignoring user",
-		        user.user ? user.user : "",
-		        user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
-        continue;					/* purecov: tested */
+        char *ssl_type=get_field(&mem, table->field[24]);
+        if (!ssl_type)
+          user.ssl_type=SSL_TYPE_NONE;
+        else if (!strcmp(ssl_type, "ANY"))
+          user.ssl_type=SSL_TYPE_ANY;
+        else if (!strcmp(ssl_type, "X509"))
+          user.ssl_type=SSL_TYPE_X509;
+        else  /* !strcmp(ssl_type, "SPECIFIED") */
+          user.ssl_type=SSL_TYPE_SPECIFIED;
+
+        user.ssl_cipher=   get_field(&mem, table->field[25]);
+        user.x509_issuer=  get_field(&mem, table->field[26]);
+        user.x509_subject= get_field(&mem, table->field[27]);
+
+        char *ptr = get_field(&mem, table->field[28]);
+        user.user_resource.questions=atoi(ptr);
+        ptr = get_field(&mem, table->field[29]);
+        user.user_resource.updates=atoi(ptr);
+        ptr = get_field(&mem, table->field[30]);
+        user.user_resource.connections=atoi(ptr);
+        if (user.user_resource.questions || user.user_resource.updates ||
+            user.user_resource.connections)
+          mqh_used=1;
       }
-    }
-    get_salt_from_password(user.salt,user.password);
-    user.access=get_access(table,3) & GLOBAL_ACLS;
-    user.sort=get_sort(2,user.host.hostname,user.user);
-    user.hostname_length= (user.host.hostname ?
-			   (uint) strlen(user.host.hostname) : 0);
-    if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
-    {
-      char *ssl_type=get_field(&mem, table->field[24]);
-      if (!ssl_type)
-	user.ssl_type=SSL_TYPE_NONE;
-      else if (!strcmp(ssl_type, "ANY"))
-	user.ssl_type=SSL_TYPE_ANY;
-      else if (!strcmp(ssl_type, "X509"))
-	user.ssl_type=SSL_TYPE_X509;
-      else  /* !strcmp(ssl_type, "SPECIFIED") */
-	user.ssl_type=SSL_TYPE_SPECIFIED;
-
-      user.ssl_cipher=   get_field(&mem, table->field[25]);
-      user.x509_issuer=  get_field(&mem, table->field[26]);
-      user.x509_subject= get_field(&mem, table->field[27]);
-
-      char *ptr = get_field(&mem, table->field[28]);
-      user.user_resource.questions=atoi(ptr);
-      ptr = get_field(&mem, table->field[29]);
-      user.user_resource.updates=atoi(ptr);
-      ptr = get_field(&mem, table->field[30]);
-      user.user_resource.connections=atoi(ptr);
-      if (user.user_resource.questions || user.user_resource.updates ||
-	  user.user_resource.connections)
-	mqh_used=1;
-    }
-    else
-    {
-      user.ssl_type=SSL_TYPE_NONE;
-      bzero((char *)&(user.user_resource),sizeof(user.user_resource));
+      else
+      {
+        user.ssl_type=SSL_TYPE_NONE;
+        bzero((char *)&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
-      if (table->fields <= 13)
-      {						// Without grant
-	if (user.access & CREATE_ACL)
-	  user.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
-      }
-      /* Convert old privileges */
-      user.access|= LOCK_TABLES_ACL | CREATE_TMP_ACL | SHOW_DB_ACL;
-      if (user.access & FILE_ACL)
-	user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
-      if (user.access & PROCESS_ACL)
-	user.access|= SUPER_ACL | EXECUTE_ACL;
+        if (table->fields <= 13)
+        {						// Without grant
+          if (user.access & CREATE_ACL)
+            user.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
+        }
+        /* Convert old privileges */
+        user.access|= LOCK_TABLES_ACL | CREATE_TMP_ACL | SHOW_DB_ACL;
+        if (user.access & FILE_ACL)
+          user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
+        if (user.access & PROCESS_ACL)
+          user.access|= SUPER_ACL | EXECUTE_ACL;
 #endif
+      }
+      VOID(push_dynamic(&acl_users,(gptr) &user));
+      if (!user.host.hostname || user.host.hostname[0] == wild_many &&
+          !user.host.hostname[1])
+        allow_all_hosts=1;			// Anyone can connect
     }
-    VOID(push_dynamic(&acl_users,(gptr) &user));
-    if (!user.host.hostname || user.host.hostname[0] == wild_many &&
-	!user.host.hostname[1])
-      allow_all_hosts=1;			// Anyone can connect
   }
   qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
@@ -469,136 +533,109 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 
 /*
-  Prepare crypted scramble to be sent to the client
+  Seek ACL entry for a user, check password, SSL cypher, and if
+  everything is OK, update THD user data and USER_RESOURCES struct.
+
+  IMPLEMENTATION
+   This function does not check if the user has any sensible privileges:
+   only user's existence and  validity is checked.
+   Note, that entire operation is protected by acl_cache_lock.
+
+  SYNOPSIS
+    acl_getroot()
+    thd         thread handle. If all checks are OK,
+                thd->priv_user, thd->master_access are updated.
+                thd->host, thd->ip, thd->user are used for checks.
+    mqh         user resources; on success mqh is reset, else
+                unchanged
+    passwd      scrambled & crypted password, recieved from client
+                (to check): thd->scramble or thd->scramble_323 is
+                used to decrypt passwd, so they must contain
+                original random string,
+    passwd_len  length of passwd, must be one of 0, 8,
+                SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
+    'thd' and 'mqh' are updated on success; other params are IN.
+  
+  RETURN VALUE
+    0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
+       updated
+    1  user not found or authentification failure
+    2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
+   -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
 */
 
-void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
+int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
+                const char *passwd, uint passwd_len)
 {
-  /* Binary password format to be used for generation*/
-  char bin_password[SCRAMBLE41_LENGTH];
-  /* Generate new long scramble for the thread */
-  create_random_string(SCRAMBLE41_LENGTH,&thd->rand,thd->scramble);
-  thd->scramble[SCRAMBLE41_LENGTH]=0;
-  /* Get binary form, First 4 bytes of prepared scramble is salt */
-  get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,
-			(unsigned char*) bin_password);
-  /* Store "*" as identifier for old passwords */
-  if (!acl_user->pversion)
-    prepared_scramble[0]='*';
-  /* Finally encrypt password to get prepared scramble */
-  password_crypt(thd->scramble, prepared_scramble+4, bin_password,
-		 SCRAMBLE41_LENGTH);
-}
-
-
-/*
-  Get master privilges for user (priviliges for all tables).
-  Required before connecting to MySQL
-
-  As we have 2 stage handshake now we cache user not to lookup
-  it second time. At the second stage we do not lookup user in case
-  we already know it;
-
-*/
-
-ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
-		  const char *password,const char *message,char **priv_user,
-		  char *priv_host, bool old_ver, USER_RESOURCES  *mqh,
-		  char *prepared_scramble, uint *cur_priv_version,
-		  ACL_USER **cached_user)
-{
-  ulong user_access=NO_ACCESS;
-  *priv_user= (char*) user;
-  bool password_correct= 0;
-  int stage= (*cached_user != NULL); /* NULL passed as first stage */
-  ACL_USER *acl_user= NULL;
+  ulong user_access= NO_ACCESS;
+  int res= 1;
+  ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot");
 
-  bzero((char*) mqh, sizeof(USER_RESOURCES));
   if (!initialized)
   {
-    // If no data allow anything
-    DBUG_RETURN((ulong) ~NO_ACCESS);		/* purecov: tested */
+    /* 
+      here if mysqld's been started with --skip-grant-tables option.
+    */
+    thd->priv_user= (char *) "";                // privileges for
+    *thd->priv_host= '\0';                      // the user are unknown
+    thd->master_access= ~NO_ACCESS;             // everything is allowed
+    bzero((char*) mqh, sizeof(*mqh));
+    DBUG_RETURN(0);
   }
+
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /*
-    Get possible access from user_list. This is or'ed to others not
-    fully specified
-
-    If we have cached user use it, in other case look it up.
+    Find acl entry in user database. Note, that find_acl_user is not the same,
+    because it doesn't take into account the case when user is not empty,
+    but acl_user->user is empty
   */
 
-  if (stage && (*cur_priv_version == priv_version))
-    acl_user= *cached_user;
-  else
+  for (uint i=0 ; i < acl_users.elements ; i++)
   {
-    for (uint i=0 ; i < acl_users.elements ; i++)
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    if (!acl_user_tmp->user || !strcmp(thd->user, acl_user_tmp->user))
     {
-      ACL_USER *acl_user_search=dynamic_element(&acl_users,i,ACL_USER*);
-      if (!acl_user_search->user || !strcmp(user,acl_user_search->user))
+      if (compare_hostname(&acl_user_tmp->host, thd->host, thd->ip))
       {
-        if (compare_hostname(&acl_user_search->host,host,ip))
+        /* check password: it should be empty or valid */
+        if (passwd_len == acl_user_tmp->salt_len)
         {
-          /* Found mathing user */
-          acl_user= acl_user_search;
-          /* Store it as a cache */
-          *cached_user= acl_user;
-          *cur_priv_version= priv_version;
-          break;
+          if (acl_user_tmp->salt_len == 0 ||
+              acl_user_tmp->salt_len == SCRAMBLE_LENGTH &&
+              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) == 0 ||
+              check_scramble_323(passwd, thd->scramble,
+                                 (ulong *) acl_user_tmp->salt) == 0)
+          {
+            acl_user= acl_user_tmp;
+            res= 0;
+          }
         }
+        else if (passwd_len == SCRAMBLE_LENGTH &&
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH_323)
+          res= -1;
+        else if (passwd_len == SCRAMBLE_LENGTH_323 &&
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH)
+          res= 2;
+        /* linear search complete: */
+        break;
       }
     }
   }
-
-  /* Now we have acl_user found and may start our checks */
+  /*
+    This was moved to separate tree because of heavy HAVE_OPENSSL case.
+    If acl_user is not null, res is 0.
+  */
 
   if (acl_user)
   {
-    /* Password should present for both or absend for both */
-    if (!acl_user->password && !*password)
-      password_correct=1;
-    else if (!acl_user->password || !*password)
-    {
-      *cached_user= 0;				// Impossible to connect
-    }
-    else
-    {
-      /* New version password is checked differently */
-      if (acl_user->pversion)
-      {
-	if (stage) /* We check password only on the second stage */
-	{
-	  if (!validate_password(password,message,acl_user->salt))
-	    password_correct=1;
-	}
-	else  /* First stage - just prepare scramble */
-	  prepare_scramble(thd,acl_user,prepared_scramble);
-      }
-      /* Old way to check password */
-      else
-      {
-	/* Checking the scramble at any stage. First - old clients */
-	if (!check_scramble(password,message,acl_user->salt,
-			    (my_bool) old_ver))
-	  password_correct=1;
-	else if (!stage)		/* Here if password incorrect  */
-	{
-	  /* At the first stage - prepare scramble */
-	  prepare_scramble(thd,acl_user,prepared_scramble);
-	}
-      }
-    }
-  }
-
-  /* If user not found password_correct will also be zero */
-  if (!password_correct)
-    goto unlock_and_exit;
-
-  /* OK. User found and password checked continue validation */
-
-  {
+    /* OK. User found and password checked continue validation */
     Vio *vio=thd->net.vio;
+#ifdef HAVE_OPENSSL
+    SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
+
     /*
       At this point we know that user is allowed to connect
       from given host by given username/password pair. Now
@@ -607,26 +644,26 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
     */
     switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-    case SSL_TYPE_NONE: /* SSL is not required to connect */
-      user_access=acl_user->access;
+    case SSL_TYPE_NONE:				// SSL is not required
+      user_access= acl_user->access;
       break;
 #ifdef HAVE_OPENSSL
-    case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
+    case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
-	user_access=acl_user->access;
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_X509: /* Client should have any valid certificate. */
       /*
 	Connections with non-valid certificates are dropped already
 	in sslaccept() anyway, so we do not check validity here.
-	
+
 	We need to check for absence of SSL because without SSL
 	we should reject connection.
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
-	  SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
-	  SSL_get_peer_certificate(vio->ssl_))
-	user_access=acl_user->access;
+	  SSL_get_verify_result(ssl) == X509_V_OK &&
+	  SSL_get_peer_certificate(ssl))
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /*
@@ -636,89 +673,83 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	use.
       */
       if (vio_type(vio) != VIO_TYPE_SSL ||
-	  SSL_get_verify_result(vio->ssl_) != X509_V_OK)
+	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
       if (acl_user->ssl_cipher)
       {
 	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-			   acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-	  user_access=acl_user->access;
+			   acl_user->ssl_cipher,SSL_get_cipher(ssl)));
+	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
+	  user_access= acl_user->access;
 	else
 	{
 	  if (global_system_variables.log_warnings)
 	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
 			    acl_user->ssl_cipher,
-			    SSL_get_cipher(vio->ssl_));
-	  user_access=NO_ACCESS;
+			    SSL_get_cipher(ssl));
 	  break;
 	}
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+      X509* cert=SSL_get_peer_certificate(ssl);
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
       {
-	DBUG_PRINT("info",("checkpoint 3"));
+        DBUG_PRINT("info",("checkpoint 3"));
 	char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
 	DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
 			   acl_user->x509_issuer, ptr));
-	if (strcmp(acl_user->x509_issuer, ptr))
-	{
-	  if (global_system_variables.log_warnings)
-	    sql_print_error("X509 issuer mismatch: should be '%s' but is '%s'",
-			    acl_user->x509_issuer, ptr);
-	  user_access=NO_ACCESS;
-	  free(ptr);
-	  break;
-	}
-	user_access=acl_user->access;
-	free(ptr);
+        if (strcmp(acl_user->x509_issuer, ptr))
+        {
+          if (global_system_variables.log_warnings)
+            sql_print_error("X509 issuer mismatch: should be '%s' "
+			    "but is '%s'", acl_user->x509_issuer, ptr);
+          free(ptr);
+          break;
+        }
+        user_access= acl_user->access;
+        free(ptr);
       }
       DBUG_PRINT("info",("checkpoint 4"));
       /* X509 subject is specified, we check it .. */
       if (acl_user->x509_subject)
       {
-	char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-	DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
-			   acl_user->x509_subject, ptr));
-	if (strcmp(acl_user->x509_subject,ptr))
-	{
-	  if (global_system_variables.log_warnings)
-	    sql_print_error("X509 subject mismatch: '%s' vs '%s'",
-			    acl_user->x509_subject, ptr);
-	  user_access=NO_ACCESS;
-	}
-	else
-	  user_access=acl_user->access;
-	free(ptr);
+        char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+        DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+                           acl_user->x509_subject, ptr));
+        if (strcmp(acl_user->x509_subject,ptr))
+        {
+          if (global_system_variables.log_warnings)
+            sql_print_error("X509 subject mismatch: '%s' vs '%s'",
+                            acl_user->x509_subject, ptr);
+        }
+        else
+          user_access= acl_user->access;
+        free(ptr);
       }
       break;
-#else /* HAVE_OPENSSL */
+#else  /* HAVE_OPENSSL */
     default:
       /*
-         If we don't have SSL but SSL is required for this user the
-         authentication should fail.
-       */
+        If we don't have SSL but SSL is required for this user the 
+        authentication should fail.
+      */
       break;
 #endif /* HAVE_OPENSSL */
     }
+    thd->master_access= user_access;
+    thd->priv_user= acl_user->user ? thd->user : (char *) "";
+    *mqh= acl_user->user_resource;
+
+    if (acl_user->host.hostname)
+      strmake(thd->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+    else
+      *thd->priv_host= 0;
   }
-
-  *mqh=acl_user->user_resource;
-  if (!acl_user->user)
-    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
-
-  if (acl_user->host.hostname)
-    strmake(priv_host, acl_user->host.hostname, MAX_HOSTNAME);
-  else
-    *priv_host= 0;
-
-unlock_and_exit:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-  DBUG_RETURN(user_access);
+  DBUG_RETURN(res);
 }
 
 
@@ -729,8 +760,9 @@ static byte* check_get_key(ACL_USER *buff,uint *length,
   return (byte*) buff->host.hostname;
 }
 
+
 static void acl_update_user(const char *user, const char *host,
-			    const char *password,
+			    const char *password, uint password_len,
 			    enum SSL_type ssl_type,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
@@ -766,20 +798,9 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-	if (password)
-	{
-	  if (!password[0]) /* If password is empty set it to null */
-          {
-	    acl_user->password=0;
-            acl_user->pversion=0; // just initialize
-          }
-	  else
-	  {
-	    acl_user->password=(char*) "";	// Just point at something
-	    get_salt_from_password(acl_user->salt,password);
-	    acl_user->pversion=get_password_version(acl_user->password);
-	  }
-	}
+
+        set_user_salt(acl_user, password, password_len);
+        /* search complete: */
 	break;
       }
     }
@@ -788,7 +809,7 @@ static void acl_update_user(const char *user, const char *host,
 
 
 static void acl_insert_user(const char *user, const char *host,
-			    const char *password,
+			    const char *password, uint password_len,
 			    enum SSL_type ssl_type,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
@@ -799,7 +820,6 @@ static void acl_insert_user(const char *user, const char *host,
   ACL_USER acl_user;
   acl_user.user=*user ? strdup_root(&mem,user) : 0;
   update_hostname(&acl_user.host,strdup_root(&mem,host));
-  acl_user.password=0;
   acl_user.access=privileges;
   acl_user.user_resource = *mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
@@ -809,12 +829,8 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
   acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
   acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
-  if (password)
-  {
-    acl_user.password=(char*) "";		// Just point at something
-    get_salt_from_password(acl_user.salt,password);
-    acl_user.pversion=get_password_version(password);
-  }
+
+  set_user_salt(&acl_user, password, password_len);
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
   if (!acl_user.host.hostname || acl_user.host.hostname[0] == wild_many
@@ -970,51 +986,6 @@ exit:
   return (db_access & host_access);
 }
 
-
-int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
-{
-  reg3 int flag;
-  DBUG_ENTER("wild_case_compare");
-  DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
-  while (*wildstr)
-  {
-    while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
-    {
-      if (*wildstr == wild_prefix && wildstr[1])
-	wildstr++;
-      if (my_toupper(cs, *wildstr++) !=
-          my_toupper(cs, *str++)) DBUG_RETURN(1);
-    }
-    if (! *wildstr ) DBUG_RETURN (*str != 0);
-    if (*wildstr++ == wild_one)
-    {
-      if (! *str++) DBUG_RETURN (1);	/* One char; skip */
-    }
-    else
-    {						/* Found '*' */
-      if (!*wildstr) DBUG_RETURN(0);		/* '*' as last char: OK */
-      flag=(*wildstr != wild_many && *wildstr != wild_one);
-      do
-      {
-	if (flag)
-	{
-	  char cmp;
-	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
-	    cmp=wildstr[1];
-	  cmp=my_toupper(cs, cmp);
-	  while (*str && my_toupper(cs, *str) != cmp)
-	    str++;
-	  if (!*str) DBUG_RETURN (1);
-	}
-	if (wild_case_compare(cs, str,wildstr) == 0) DBUG_RETURN (0);
-      } while (*str++);
-      DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN (*str != '\0');
-}
-
-
 /*
   Check if there are any possible matching entries for this host
 
@@ -1054,7 +1025,7 @@ static void init_check_host(void)
       else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
 			    (uint) strlen(acl_user->host.hostname)))
       {
-	if (hash_insert(&acl_check_hosts,(byte*) acl_user))
+	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
 	{					// End of memory
 	  allow_all_hosts=1;			// Should never happen
 	  DBUG_VOID_RETURN;
@@ -1121,7 +1092,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
       (strcmp(thd->user,user) ||
        my_strcasecmp(&my_charset_latin1, host, thd->host_or_ip)))
   {
-    if (check_access(thd, UPDATE_ACL, "mysql",0,1))
+    if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
       return(1);
   }
   if (!thd->slave_thread && !thd->user[0])
@@ -1151,7 +1122,6 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
-  uint length=0;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
@@ -1160,37 +1130,27 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user))
     DBUG_RETURN(1);
 
-  /*
-    password should always be 0,16 or 45 chars;
-    Simple hack to avoid cracking
-  */
-  length=(uint) strlen(new_password);
-  if (length != 45)
-    new_password[length & 16]=0;
-
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
-  if (!(acl_user= find_acl_user(host,user)))
+  if (!(acl_user= find_acl_user(host, user)))
   {
-    send_error(thd, ER_PASSWORD_NO_MATCH);
     VOID(pthread_mutex_unlock(&acl_cache->lock));
+    send_error(thd, ER_PASSWORD_NO_MATCH);
     DBUG_RETURN(1);
   }
+  /* update loaded acl entry: */
+  uint new_password_len= new_password ? strlen(new_password) : 0;
+  set_user_salt(acl_user, new_password, new_password_len);
+
   if (update_user_table(thd,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
 			acl_user->user ? acl_user->user : "",
-			new_password))
+			new_password, new_password_len))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
     send_error(thd,0); /* purecov: deadcode */
     DBUG_RETURN(1); /* purecov: deadcode */
   }
-  get_salt_from_password(acl_user->salt,new_password);
-  acl_user->pversion=get_password_version(new_password);
-  if (!new_password[0])
-    acl_user->password=0;
-  else
-    acl_user->password=(char*) "";		// Point at something
 
   acl_cache->clear(1);				// Clear locked hostname cache
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -1230,7 +1190,7 @@ find_acl_user(const char *host, const char *user)
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
-      if (compare_hostname(&(acl_user->host),host,host))
+      if (compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
       }
@@ -1303,7 +1263,7 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 */
 
 static bool update_user_table(THD *thd, const char *host, const char *user,
-			      const char *new_password)
+			      const char *new_password, uint new_password_len)
 {
   TABLE_LIST tables;
   TABLE *table;
@@ -1345,7 +1305,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,record[1]);
-  table->field[2]->store(new_password,(uint) strlen(new_password), &my_charset_latin1);
+  table->field[2]->store(new_password, new_password_len, &my_charset_latin1);
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -1393,24 +1353,23 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 {
   int error = -1;
   bool old_row_exists=0;
-  char *password,empty_string[1];
+  const char *password= "";
+  uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_user_table");
   safe_mutex_assert_owner(&acl_cache->lock);
 
-  password=empty_string;
-  empty_string[0]=0;
-
   if (combo.password.str && combo.password.str[0])
   {
-    if ((combo.password.length != HASH_PASSWORD_LENGTH)
-         && combo.password.length != HASH_OLD_PASSWORD_LENGTH)
+    if (combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+        combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
     {
       my_printf_error(ER_PASSWORD_NO_MATCH,
-		      "Password hash should be a %d-digit hexadecimal number",
-		      MYF(0),HASH_PASSWORD_LENGTH);
+                      "Password hash should be a %d-digit hexadecimal number",
+                      MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);
     }
+    password_len= combo.password.length;
     password=combo.password.str;
   }
 
@@ -1435,17 +1394,20 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       goto end;
     }
     old_row_exists = 0;
-    restore_record(table,default_values);	// cp empty row from default_values
-    table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-    table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-    table->field[2]->store(password,(uint) strlen(password), &my_charset_latin1);
+    restore_record(table,default_values);       // cp empty row from default_values
+    table->field[0]->store(combo.host.str,combo.host.length,
+                           &my_charset_latin1);
+    table->field[1]->store(combo.user.str,combo.user.length,
+                           &my_charset_latin1);
+    table->field[2]->store(password, password_len,
+                           &my_charset_latin1);
   }
   else
   {
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
-      table->field[2]->store(password,(uint) strlen(password), &my_charset_latin1);
+      table->field[2]->store(password, password_len, &my_charset_latin1);
   }
 
   /* Update table columns with new privileges */
@@ -1542,10 +1504,8 @@ end:
   if (!error)
   {
     acl_cache->clear(1);			// Clear privilege cache
-    if (!combo.password.str)
-      password=0;				// No password given on command
     if (old_row_exists)
-      acl_update_user(combo.user.str,combo.host.str,password,
+      acl_update_user(combo.user.str, combo.host.str, password, password_len,
 		      thd->lex.ssl_type,
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
@@ -1553,7 +1513,7 @@ end:
 		      &thd->lex.mqh,
 		      rights);
     else
-      acl_insert_user(combo.user.str,combo.host.str,password,
+      acl_insert_user(combo.user.str, combo.host.str, password, password_len,
 		      thd->lex.ssl_type,
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
@@ -1686,6 +1646,7 @@ class GRANT_TABLE :public Sql_alloc
 public:
   char *host,*db,*user,*tname, *hash_key;
   ulong privs, cols;
+  ulong sort;
   uint key_length;
   HASH hash_columns;
   GRANT_TABLE (const char *h, const char *d,const char *u, const char *t,
@@ -1695,6 +1656,7 @@ public:
     host = strdup_root(&memex,h);
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
+    sort=  get_sort(3,host,db,user);
     tname= strdup_root(&memex,t);
     if (lower_case_table_names)
     {
@@ -1717,7 +1679,8 @@ public:
     user =  get_field(&memex,form->field[2]);
     if (!user)
       user=(char*) "";
-    tname = get_field(&memex,form->field[3]);
+    sort=  get_sort(3,host,db,user);
+    tname= get_field(&memex,form->field[3]);
     if (!host || !db || !tname)
     {
       /* Wrong table row; Ignore it */
@@ -1775,7 +1738,7 @@ public:
 	  privs = cols = 0;			/* purecov: deadcode */
 	  return;				/* purecov: deadcode */
 	}
-	hash_insert(&hash_columns, (byte *) mem_check);
+	my_hash_insert(&hash_columns, (byte *) mem_check);
       } while (!col_privs->file->index_next(col_privs->record[0]) &&
 	       !key_cmp(col_privs,key,0,key_len));
     }
@@ -1826,10 +1789,11 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     }
     else
     {
-      if ((host && !wild_case_compare(&my_charset_latin1,
-                                      host,grant_table->host)) ||
-	  (ip && !wild_case_compare(&my_charset_latin1,
-                                    ip,grant_table->host)))
+      if (((host && !wild_case_compare(&my_charset_latin1,
+				       host,grant_table->host)) ||
+	   (ip && !wild_case_compare(&my_charset_latin1,
+				     ip,grant_table->host))) &&
+          (!found || found->sort < grant_table->sort))
 	found=grant_table;					// Host ok
     }
   }
@@ -1936,7 +1900,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	goto end;				/* purecov: inspected */
       }
       GRANT_COLUMN *grant_column = new GRANT_COLUMN(xx->column,privileges);
-      hash_insert(&g_t->hash_columns,(byte*) grant_column);
+      my_hash_insert(&g_t->hash_columns,(byte*) grant_column);
     }
   }
   table->file->index_end();
@@ -2287,7 +2251,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 	result= -1;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      hash_insert(&column_priv_hash,(byte*) grant_table);
+      my_hash_insert(&column_priv_hash,(byte*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2530,7 +2494,7 @@ my_bool grant_init(THD *org_thd)
   {
     GRANT_TABLE *mem_check;
     if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
-	mem_check->ok() && hash_insert(&column_priv_hash,(byte*) mem_check))
+	mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
@@ -3024,12 +2988,15 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append ("'@'",3);
     global.append(lex_user->host.str,lex_user->host.length);
     global.append ('\'');
-    if (acl_user->password)
+    if (acl_user->salt_len)
     {
-      char passd_buff[HASH_PASSWORD_LENGTH+1];
-      make_password_from_salt(passd_buff,acl_user->salt,acl_user->pversion);
+      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
+      if (acl_user->salt_len == SCRAMBLE_LENGTH)
+        make_password_from_salt(passwd_buff, acl_user->salt);
+      else
+        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
       global.append(" IDENTIFIED BY PASSWORD '",25);
-      global.append(passd_buff);
+      global.append(passwd_buff);
       global.append('\'');
     }
     /* "show grants" SSL related stuff */
@@ -3083,7 +3050,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     protocol->store(global.ptr(),global.length(),global.charset());
     if (protocol->write())
     {
-      error=-1;
+      error= -1;
       goto end;
     }
   }
@@ -3141,7 +3108,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	protocol->store(db.ptr(),db.length(),db.charset());
 	if (protocol->write())
 	{
-	  error=-1;
+	  error= -1;
 	  goto end;
 	}
       }
@@ -3167,15 +3134,19 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if ((table_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff),&my_charset_latin1);
+	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+
 	global.length(0);
 	global.append("GRANT ",6);
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
+	else if (!test_access)
+ 	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;
-	  ulong j,test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+	  ulong j;
 
 	  for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
 	  {
@@ -3342,7 +3313,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 }
 
 ACL_USER *check_acl_user(LEX_USER *user_name,
-			 uint *acl_user_idx)
+			 uint *acl_acl_userdx)
 {
   ACL_USER *acl_user= 0;
   uint counter;
@@ -3362,14 +3333,14 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
   if (counter == acl_users.elements)
     return 0;
 
-  *acl_user_idx= counter;
+  *acl_acl_userdx= counter;
   return acl_user;
 }
 
 
 int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
-  uint counter, user_id;
+  uint counter, acl_userd;
   int result;
   ACL_USER *acl_user;
   ACL_DB *acl_db;
@@ -3389,7 +3360,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   {
     if (!(acl_user= check_acl_user(user_name, &counter)))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; No such user",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3397,13 +3368,13 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if ((acl_user->access & ~0))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Global privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
       continue;
     }
-    user_id= counter;
+    acl_userd= counter;
 
     for (counter= 0 ; counter < acl_dbs.elements ; counter++)
     {
@@ -3420,7 +3391,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != acl_dbs.elements)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Database privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3443,7 +3414,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != column_priv_hash.records)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s';  Table privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3469,7 +3440,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 	tables[0].table->file->index_end();
 	DBUG_RETURN(-1);
       }
-      delete_dynamic_element(&acl_users, user_id);
+      delete_dynamic_element(&acl_users, acl_userd);
     }
     tables[0].table->file->index_end();
   }
@@ -3590,3 +3561,50 @@ template class List_iterator<LEX_USER>;
 template class List<LEX_COLUMN>;
 template class List<LEX_USER>;
 #endif
+
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
+
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
+{
+  reg3 int flag;
+  DBUG_ENTER("wild_case_compare");
+  DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
+  while (*wildstr)
+  {
+    while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
+    {
+      if (*wildstr == wild_prefix && wildstr[1])
+	wildstr++;
+      if (my_toupper(cs, *wildstr++) !=
+          my_toupper(cs, *str++)) DBUG_RETURN(1);
+    }
+    if (! *wildstr ) DBUG_RETURN (*str != 0);
+    if (*wildstr++ == wild_one)
+    {
+      if (! *str++) DBUG_RETURN (1);	/* One char; skip */
+    }
+    else
+    {						/* Found '*' */
+      if (!*wildstr) DBUG_RETURN(0);		/* '*' as last char: OK */
+      flag=(*wildstr != wild_many && *wildstr != wild_one);
+      do
+      {
+	if (flag)
+	{
+	  char cmp;
+	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
+	    cmp=wildstr[1];
+	  cmp=my_toupper(cs, cmp);
+	  while (*str && my_toupper(cs, *str) != cmp)
+	    str++;
+	  if (!*str) DBUG_RETURN (1);
+	}
+	if (wild_case_compare(cs, str,wildstr) == 0) DBUG_RETURN (0);
+      } while (*str++);
+      DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN (*str != '\0');
+}
+

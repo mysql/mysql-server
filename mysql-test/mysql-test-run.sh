@@ -16,6 +16,9 @@ USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 
+# For query_cache test
+ulimit -n 1024
+
 #++
 # Program Definitions
 #--
@@ -210,7 +213,6 @@ CHARACTER_SET=latin1
 DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
-TEST_REPLICATION=0
 MYSQL_TEST_SSL_OPTS=""
 
 while test $# -gt 0; do
@@ -254,12 +256,6 @@ while test $# -gt 0; do
     --start-and-exit)
      START_AND_EXIT=1
      ;;
-    --skip-innodb)
-     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innodb"
-     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innodb" ;;
-    --skip-bdb)
-     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
-     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
@@ -287,9 +283,6 @@ while test $# -gt 0; do
       ;;
     --user-test=*)
       USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
-      ;;
-    --rpl)
-      TEST_REPLICATION=1
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -435,6 +428,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
+   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+ else
+   MYSQL_DUMP="$BASEDIR/client/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+ fi
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
@@ -456,6 +454,7 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
+ MYSQL_DUMP="$BASEDIR/bin/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
@@ -472,6 +471,8 @@ else
    CHARSETSDIR="$BASEDIR/share/charsets"
   fi
 fi
+
+export MYSQL_DUMP
 
 if [ -z "$MASTER_MYSQLD" ]
 then
@@ -839,7 +840,6 @@ start_master()
       /bin/sh $master_init_script
   fi
   cd $BASEDIR # for gcov
-  #start master
   if [ -z "$DO_BENCH" ]
   then
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
@@ -858,6 +858,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
+	  --open-files-limit=1024 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -1376,6 +1377,9 @@ fi
 
 $ECHO  "Starting Tests"
 
+#
+# This can probably be deleted
+#
 if [ "$DO_BENCH" = 1 ]
 then
   BENCHDIR=$BASEDIR/sql-bench/
@@ -1407,17 +1411,10 @@ then
   if [ x$RECORD = x1 ]; then
     $ECHO "Will not run in record mode without a specific test case."
   else
-    if [ x$TEST_REPLICATION = x1 ]; then
-      for tf in `ls -1 $TESTDIR/*.$TESTSUFFIX | $SORT`
-      do
-        run_testcase $tf
-      done
-    else
-      for tf in $TESTDIR/*.$TESTSUFFIX
-      do
-        run_testcase $tf
-      done
-    fi
+    for tf in $TESTDIR/*.$TESTSUFFIX
+    do
+      run_testcase $tf
+    done
     $RM -f $TIMEFILE	# Remove for full test
   fi
 else

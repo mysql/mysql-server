@@ -180,6 +180,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     NULL,
     my_numchars_8bit,
     my_charpos_8bit,
+    my_lengthsp_8bit,
     my_mb_wc_latin1,
     my_wc_mb_latin1,
     my_caseup_str_8bit,
@@ -389,6 +390,7 @@ static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
   my_like_range_simple,
   my_wildcmp_8bit,
   my_strcasecmp_8bit,
+  my_instr_simple,
   my_hash_sort_simple
 };
 
@@ -434,6 +436,6 @@ CHARSET_INFO my_charset_latin1_bin=
   1,					/* mbmaxlen  */
   0,
   &my_charset_handler,
-  &my_collation_bin_handler
+  &my_collation_8bit_bin_handler
 };
 

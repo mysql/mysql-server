@@ -29,13 +29,16 @@ insert into t1 values (@i1), (@i2), (@i3), (@i4);
 insert into t1 values (@r1), (@r2);
 insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5);
 insert into t1 values (@n1);
-insert into t1 values (@n2);
+insert into t1 values (@n2); # not explicitely set before
 insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1);
 insert into t1 values (@a+(@b:=@a+1));
 set @q:='abc';
 insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'));
 set @a:=5;
 insert into t1 values (@a),(@a);
+connection master1; # see if variable is reset in binlog when thread changes
+insert into t1 values (@a),(@a),(@a*5);
+select * from t1;
 save_master_pos;
 connection slave;
 sync_with_master;

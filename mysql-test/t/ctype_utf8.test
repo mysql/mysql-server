@@ -1,0 +1,35 @@
+#
+# Tests with the utf8 character set
+#
+
+set names utf8;
+
+select left(_utf8 0xD0B0D0B1D0B2,1);
+select right(_utf8 0xD0B0D0B2D0B2,1);
+
+select locate('he','hello');
+select locate('he','hello',2);
+select locate('lo','hello',2);
+select locate('HE','hello');
+select locate('HE','hello',2);
+select locate('LO','hello',2);
+select locate('HE','hello' collate utf8_bin);
+select locate('HE','hello' collate utf8_bin,2);
+select locate('LO','hello' collate utf8_bin,2);
+
+select locate(_utf8 0xD0B1, _utf8 0xD0B0D0B1D0B2);
+select locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2);
+select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2);
+select locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2 collate utf8_bin);
+select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2 collate utf8_bin);
+
+select 'a' like 'a';
+select 'A' like 'a';
+select 'A' like 'a' collate utf8_bin;
+select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
+
+#
+# Fix this, it should return 1:
+#
+#select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD091,_utf8 '%');
+#

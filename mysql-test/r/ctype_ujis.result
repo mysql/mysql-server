@@ -1,4 +1,5 @@
 drop table if exists t1;
+set names ujis;
 create table t1 (c text character set ujis);
 insert into t1 values (0xa4a2),(0xa4a3);
 select hex(left(c,1)) from t1 group by c;
@@ -6,3 +7,60 @@ hex(left(c,1))
 A4A2
 A4A3
 drop table t1;
+select locate(0xa2a1,0xa1a2a1a3);
+locate(0xa2a1,0xa1a2a1a3)
+2
+select locate(_ujis 0xa2a1,_ujis 0xa1a2a1a3);
+locate(_ujis 0xa2a1,_ujis 0xa1a2a1a3)
+0
+select locate(_ujis 0xa2a1,_ujis 0xa1a2a1a3 collate ujis_bin);
+locate(_ujis 0xa2a1,_ujis 0xa1a2a1a3 collate ujis_bin)
+0
+select locate('he','hello');
+locate('he','hello')
+1
+select locate('he','hello',2);
+locate('he','hello',2)
+0
+select locate('lo','hello',2);
+locate('lo','hello',2)
+4
+select locate('HE','hello');
+locate('HE','hello')
+1
+select locate('HE','hello',2);
+locate('HE','hello',2)
+0
+select locate('LO','hello',2);
+locate('LO','hello',2)
+4
+select locate('HE','hello' collate ujis_bin);
+locate('HE','hello' collate ujis_bin)
+0
+select locate('HE','hello' collate ujis_bin,2);
+locate('HE','hello' collate ujis_bin,2)
+0
+select locate('LO','hello' collate ujis_bin,2);
+locate('LO','hello' collate ujis_bin,2)
+0
+select locate(_ujis 0xa1a3,_ujis 0xa1a2a1a3);
+locate(_ujis 0xa1a3,_ujis 0xa1a2a1a3)
+2
+select 0xa1a2a1a3 like concat(_binary'%',0xa2a1,_binary'%');
+0xa1a2a1a3 like concat(_binary'%',0xa2a1,_binary'%')
+1
+select _ujis 0xa1a2a1a3 like concat(_ujis'%',_ujis 0xa2a1, _ujis'%');
+_ujis 0xa1a2a1a3 like concat(_ujis'%',_ujis 0xa2a1, _ujis'%')
+0
+select _ujis 0xa1a2a1a3 like concat(_ujis'%',_ujis 0xa2a1, _ujis'%') collate ujis_bin;
+_ujis 0xa1a2a1a3 like concat(_ujis'%',_ujis 0xa2a1, _ujis'%') collate ujis_bin
+0
+select 'a' like 'a';
+'a' like 'a'
+1
+select 'A' like 'a';
+'A' like 'a'
+1
+select 'A' like 'a' collate ujis_bin;
+'A' like 'a' collate ujis_bin
+0

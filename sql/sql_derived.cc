@@ -25,8 +25,6 @@
 #include "sql_select.h"
 #include "sql_acl.h"
 
-extern  const char *any_db;	// Special symbol for check_access
-
 /*
   Resolve derived tables in all queries
 
@@ -91,13 +89,15 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     We have to do access checks here as this code is executed before any
     sql command is started to execute.
   */
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (tables)
-    res= check_table_access(thd,SELECT_ACL, tables);
+    res= check_table_access(thd,SELECT_ACL, tables,0);
   else
-    res= check_access(thd, SELECT_ACL, any_db);
+    res= check_access(thd, SELECT_ACL, any_db,0,0,0);
   if (res)
-    DBUG_RETURN(-1);
-    
+    DBUG_RETURN(1);
+#endif
+
   if (!(res=open_and_lock_tables(thd,tables)))
   {
     if (is_union || is_subsel)
@@ -206,7 +206,9 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  org_table_list->table=table;
 	  table->derived_select_number= select_cursor->select_number;
 	  table->tmp_table= TMP_TABLE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	  org_table_list->grant.privilege= SELECT_ACL;
+#endif
 	  if (lex->describe)
 	  {
 	    // to fix a problem in EXPLAIN

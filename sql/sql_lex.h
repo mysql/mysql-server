@@ -60,7 +60,7 @@ enum enum_sql_command {
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
-  SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
+  SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
   SQLCOM_COMMIT, SQLCOM_SAVEPOINT,
   SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
@@ -73,7 +73,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL,
+  SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
 
   /* This should be the last !!! */
   SQLCOM_END
@@ -87,6 +87,13 @@ typedef struct st_lex_master_info
   uint port, connect_retry;
   ulonglong pos;
   ulong server_id;
+  /* 
+     Variable for MASTER_SSL option.
+     MASTER_SSL=0 in CHANGE MASTER TO corresponds to SSL_DISABLE
+     MASTER_SSL=1 corresponds to SSL_ENABLE
+  */
+  enum {SSL_UNCHANGED=0, SSL_DISABLE, SSL_ENABLE} ssl; 
+  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
 } LEX_MASTER_INFO;
@@ -272,8 +279,8 @@ protected:
 
   select_result *result;
   int res;
-  bool describe, found_rows_for_union,
-    prepared, // prepare phase already performed for UNION (unit)
+  ulong describe, found_rows_for_union;
+  bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     t_and_f;  // used for transferring tables_and_fields_initied UNIT:: methods 
@@ -332,6 +339,7 @@ class st_select_lex: public st_select_lex_node
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
+  Item *prep_where; /* saved WHERE clause for prepared statement processing */
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
@@ -472,15 +480,22 @@ typedef struct st_lex
   SELECT_LEX *all_selects_list;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
+  char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   time_t purge_time;                            /* For PURGE MASTER LOGS BEFORE */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   char* found_colon;                            /* For multi queries - next query */
-  enum SSL_type ssl_type;			/* defined in violite.h */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
+  Item *default_value;
+  LEX_STRING *comment;
+  LEX_USER *grant_user;
+  gptr yacc_yyss,yacc_yyvs;
+  THD *thd;
+  CHARSET_INFO *charset;
+  SQL_LIST *gorder_list;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -499,11 +514,6 @@ typedef struct st_lex
   TYPELIB	      *interval;
   create_field	      *last_field;
   char		      *savepoint_name;		// Transaction savepoint id
-  Item *default_value, *comment;
-  uint uint_geom_type;
-  LEX_USER *grant_user;
-  gptr yacc_yyss,yacc_yyvs;
-  THD *thd;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
@@ -512,6 +522,7 @@ typedef struct st_lex
   ulong thread_id,type;
   enum_sql_command sql_command;
   thr_lock_type lock_option;
+  enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
@@ -519,17 +530,15 @@ typedef struct st_lex
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
+  uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint param_count;
+  uint slave_thd_opt;
   bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
   bool derived_tables, describe;
   bool safe_to_cache_query;
-  uint slave_thd_opt;
-  CHARSET_INFO *charset;
-  char *help_arg;
-  SQL_LIST *gorder_list;
   st_lex() {}
   inline void uncacheable()
   {
