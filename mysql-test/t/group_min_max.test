@@ -598,8 +598,10 @@ drop table t3;
 # Bug #6142: a problem with the empty innodb table
 #
 
+--disable_warnings
 create table t1 (
   a varchar(30), b varchar(30), primary key(a), key(b)
 ) engine=innodb;
+--enable_warnings
 select distinct a from t1;
 drop table t1;

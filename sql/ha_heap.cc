@@ -131,7 +131,7 @@ int ha_heap::write_row(byte * buf)
 int ha_heap::update_row(const byte * old_data, byte * new_data)
 {
   int res;
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
