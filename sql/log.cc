@@ -875,14 +875,9 @@ void MYSQL_LOG::new_file(bool need_lock)
   save_log_type=log_type;
   name=0;				// Don't free name
   close();
-/*
-  if (save_log_type == LOG_BIN)
-  {
-    printf("after close, before open; I wait for 20 seconds\n");
-    sleep(20);
-    printf("sleep finished, opening\n");
-  }
-*/
+
+  // TODO: at this place is_open() will see the log closed, which is BUG#791.
+
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
        no_auto_events, max_size);
   my_free(old_name,MYF(0));
