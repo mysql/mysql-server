@@ -29,7 +29,6 @@ Created 10/21/1995 Heikki Tuuri
 #endif
 
 #ifndef S_IRUSR
-#define 
 #define S_IRUSR 00400
 #define S_IWUSR 00200
 #define S_IRGRP 00040
