@@ -299,6 +299,8 @@ my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_innodb_safe_binlog= 0;
+my_bool opt_large_pages= 0;
+uint   opt_large_page_size= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -2423,6 +2425,19 @@ static int init_common_variables(const char *conf_file_name, int argc,
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
+#ifdef HAVE_LARGE_PAGES
+  /* Initialize large page size */
+  if (opt_large_pages && (opt_large_page_size= my_get_large_page_size()))
+  {
+      my_use_large_pages= 1;
+      my_large_page_size= opt_large_page_size;
+#ifdef HAVE_INNOBASE_DB
+      innobase_use_large_pages= 1;
+      innobase_large_page_size= opt_large_page_size;
+#endif
+  }
+#endif /* HAVE_LARGE_PAGES */
+
   /* connections and databases needs lots of files */
   {
     uint files, wanted_files;
@@ -4086,6 +4101,8 @@ enum options_mysqld
   OPT_INNODB_LOG_ARCHIVE,
   OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
   OPT_INNODB_FLUSH_METHOD,
+  OPT_INNODB_DOUBLEWRITE,
+  OPT_INNODB_CHECKSUMS,
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
@@ -4184,7 +4201,8 @@ enum options_mysqld
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
-  OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET
+  OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
+  OPT_ENABLE_LARGE_PAGES
 };
 
 
@@ -4343,6 +4361,12 @@ Disable with --skip-bdb (will save memory).",
    "Set up signals usable for debugging",
    (gptr*) &opt_debugging, (gptr*) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_LARGE_PAGES
+  {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
+Disable with --skip-large-pages.",
+   (gptr*) &opt_large_pages, (gptr*) &opt_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+#endif
   {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
    (gptr*) &opt_init_connect, (gptr*) &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4366,6 +4390,12 @@ Disable with --skip-innodb (will save memory).",
    "The common part for InnoDB table spaces.", (gptr*) &innobase_data_home_dir,
    (gptr*) &innobase_data_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
+  {"innodb_doublewrite", OPT_INNODB_DOUBLEWRITE, "Enable InnoDB doublewrite buffer (enabled by default). \
+Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
+   (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
+Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
+   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process.", (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
@@ -5687,7 +5717,8 @@ static void mysql_init_variables(void)
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
-
+  opt_large_pages= 0;
+  
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
   files_charset_info= &my_charset_utf8_general_ci;
