@@ -46868,6 +46868,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.52::                Changes in release 3.23.52
 * News-3.23.51::                Changes in release 3.23.51
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
@@ -46923,7 +46924,18 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
+@node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.52
+@itemize @bullet
+@item
+Fixed possible problem in replication when doing @code{DROP DATABASE} on a
+database with InnoDB tables.
+@item
+Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
+@code{INSERT DELAYED IGNORE}.
+@end itemize
+
+@node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
 @item
