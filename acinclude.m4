@@ -711,7 +711,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
   done
 
  for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
-/usr/lib /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do
+/usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do
   if test -f $d/libssl.a ; then
     OPENSSL_LIB=$d
   fi
@@ -721,7 +721,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
    echo "Could not find an installation of OpenSSL"
    if test -n "$OPENSSL_LIB" ; then
     if test "$IS_LINUX" = "true"; then
-      echo "Looks like you've forgotted to install OpenSSL development RPM"
+      echo "Looks like you've forgotten to install OpenSSL development RPM"
     fi
    fi
   exit 1
