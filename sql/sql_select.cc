@@ -980,8 +980,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex != &thd->lex.select_lex &&
-	select_lex->linkage != DERIVED_TABLE_TYPE)
+    if (select_lex->master_unit()->dependent)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -994,10 +993,10 @@ JOIN::optimize()
   DBUG_RETURN(0);
 }
 
+
 /*
   Restore values in temporary join
 */
-
 void JOIN::restore_tmp()
 {
   memcpy(tmp_join, this, (size_t) sizeof(JOIN));
@@ -1039,11 +1038,28 @@ JOIN::reinit()
   if (items0)
     set_items_ref_array(items0);
 
+  if (join_tab_save)
+    memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+
   if (tmp_join)
     restore_tmp();
 
   DBUG_RETURN(0);
 }
+
+
+bool
+JOIN::save_join_tab()
+{
+  if (!join_tab_save && select_lex->master_unit()->dependent)
+  {
+    if (!(join_tab_save= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB) * tables)))
+      return 1;
+    memcpy(join_tab_save, join_tab, sizeof(JOIN_TAB) * tables);
+  }
+  return 0;
+}
+
 
 /*
   Exec select
@@ -1246,6 +1262,10 @@ JOIN::exec()
       if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
+	if (curr_join->join_tab == join_tab && save_join_tab())
+	{
+	  DBUG_VOID_RETURN;
+	}
 	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
 	    make_group_fields(this, curr_join))
@@ -1426,6 +1446,10 @@ JOIN::exec()
 	    break;
 	  }
 	}
+      }
+      if (curr_join->join_tab == join_tab && save_join_tab())
+      {
+	DBUG_VOID_RETURN;
       }
       if (create_sort_index(thd, curr_join,
 			    curr_join->group_list ? 

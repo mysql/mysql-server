@@ -965,3 +965,13 @@ insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 explain select * from t3 where a > all (select max(b) from t2 group by a);
 drop table if exists t2, t3;
+
+#
+# filesort in subquery (restoring join_tab)
+#
+CREATE TABLE t1 (number char(11) NOT NULL default '') TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
+CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES ('1'),('1226'),('1245'),('1862'),('18623'),('1874'),('1967'),('6');
+select c.number as phone,(select p.code from t2 p where c.number like concat(p.code, '%') order by length(p.code) desc limit 1) as code from t1 c;
+drop table t1, t2;
