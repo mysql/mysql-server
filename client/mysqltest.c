@@ -178,7 +178,7 @@ struct connection* cur_con, *next_con, *cons_end;
 
 enum enum_commands {
 Q_CONNECTION=1,     Q_QUERY,
-Q_CONNECT,	    Q_SLEEP,
+Q_CONNECT,	    Q_SLEEP, Q_REAL_SLEEP, 
 Q_INC,		    Q_DEC,
 Q_SOURCE,	    Q_DISCONNECT,
 Q_LET,		    Q_ECHO,
@@ -213,25 +213,45 @@ struct st_query
   enum enum_commands type;
 };
 
-const char *command_names[] = {
-  "connection",       "query",
-  "connect",	      "sleep",
-  "inc",	      "dec",
-  "source",	      "disconnect",
-  "let",	      "echo",
-  "while",	      "end",
-  "system",	      "result",
-  "require",	      "save_master_pos",
-  "sync_with_master", "error",
-  "send",	      "reap",
-  "dirty_close",      "replace_result",
-  "ping",	      "eval",
-  "rpl_probe",	      "enable_rpl_parse",
-  "disable_rpl_parse", "eval_result",
-  "enable_query_log", "disable_query_log",
-  "enable_result_log", "disable_result_log",
-  "server_start", "server_stop",
-  "require_manager", "wait_for_slave_to_stop",
+const char *command_names[]=
+{
+  "connection",
+  "query",
+  "connect",
+  "sleep",
+  "real_sleep",
+  "inc",
+  "dec",
+  "source",
+  "disconnect",
+  "let",
+  "echo",
+  "while",
+  "end",
+  "system",
+  "result",
+  "require",
+  "save_master_pos",
+  "sync_with_master",
+  "error",
+  "send",
+  "reap",
+  "dirty_close",
+  "replace_result",
+  "ping",
+  "eval",
+  "rpl_probe",
+  "enable_rpl_parse",
+  "disable_rpl_parse",
+  "eval_result",
+  "enable_query_log",
+  "disable_query_log",
+  "enable_result_log",
+  "disable_result_log",
+  "server_start",
+  "server_stop",
+  "require_manager",
+  "wait_for_slave_to_stop",
   "require_version",
   0
 };
@@ -973,7 +993,7 @@ int do_sync_with_master(struct st_query* q)
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(last_result = res = mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() retuned NULL", start_lineno);
+    die("line %u: mysql_store_result() returned NULL", start_lineno);
   if (!(row = mysql_fetch_row(res)))
     die("line %u: empty result in %s", start_lineno, query_buf);
   if (!row[0])
@@ -1052,7 +1072,7 @@ int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 }
 
 
-int do_sleep(struct st_query* q)
+int do_sleep(struct st_query* q, my_bool real_sleep)
 {
   char* p=q->first_argument;
   struct timeval t;
@@ -1064,7 +1084,7 @@ int do_sleep(struct st_query* q)
 
 #ifdef OS2
 
-  if (opt_sleep)
+  if (opt_sleep && !real_sleep)
     DosSleep( opt_sleep * 1000);
   else
     DosSleep( atof( p) * 1000);
@@ -1072,7 +1092,7 @@ int do_sleep(struct st_query* q)
   return 0;
 
 #else
-  if (opt_sleep)
+  if (opt_sleep && !real_sleep)
     t.tv_sec = opt_sleep;
   else
   {
@@ -2394,7 +2414,8 @@ int main(int argc, char** argv)
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_SOURCE: do_source(q); break;
-      case Q_SLEEP: do_sleep(q); break;
+      case Q_SLEEP: do_sleep(q, 0); break;
+      case Q_REAL_SLEEP: do_sleep(q, 1); break;
       case Q_REQUIRE_VERSION: do_require_version(q); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
