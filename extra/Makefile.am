@@ -19,16 +19,7 @@ INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include \
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
-			resolve_stack_dump mysql_waitpid mysql_tzinfo_to_sql
-
-mysql_tzinfo_to_sql_SOURCES = tztime.cc
-mysql_tzinfo_to_sql_CXXFLAGS =  -DTZINFO2SQL $(AM_CXXFLAGS)
-mysql_tzinfo_to_sql_LDADD =	$(LDADD) $(CXXLDFLAGS)
-
-tztime.cc:
-	  rm -f $(srcdir)/tztime.cc; \
-	  @LN_CP_F@ $(top_srcdir)/sql/tztime.cc $(srcdir)/tztime.cc
-
+			resolve_stack_dump mysql_waitpid
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
