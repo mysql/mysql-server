@@ -370,7 +370,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table=tables ; table ; table=table->next)
     {
-      if (remove_table_from_cache(thd, table->db, table->name, 1))
+      if (remove_table_from_cache(thd, table->db, table->real_name, 1))
 	found=1;
     }
     if (!found)
@@ -730,7 +730,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
     DBUG_RETURN(0);
 
   char* db = thd->db ? thd->db : table_list->db;
-  char* table_name = table_list->name;
+  char* table_name = table_list->real_name;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
@@ -1287,7 +1287,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 
     TABLE_LIST table_list;
     table_list.db=(char*) db;
-    table_list.name=(char*) name;
+    table_list.real_name=(char*) name;
     table_list.next=0;
     safe_mutex_assert_owner(&LOCK_open);
 
@@ -1359,7 +1359,7 @@ int open_tables(THD *thd,TABLE_LIST *start)
 	!(tables->table=open_table(thd,
 				   tables->db,
 				   tables->real_name,
-				   tables->name, &refresh)))
+				   tables->alias, &refresh)))
     {
       if (refresh)				// Refresh in progress
       {
@@ -1415,7 +1415,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
   thd->proc_info="Opening table";
   while (!(table=open_table(thd,table_list->db,
-			    table_list->real_name,table_list->name,
+			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
   if (table)
   {
@@ -1439,7 +1439,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
       {
 	my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
 			ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
-			MYF(0),table_list->name);
+			MYF(0),table_list->alias);
 	table=0;
       }
       else if ((error=table->file->start_stmt(thd)))
@@ -1635,7 +1635,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
     bool found_table=0;
     for (; tables ; tables=tables->next)
     {
-      if (!strcmp(tables->name,table_name) &&
+      if (!strcmp(tables->alias,table_name) &&
 	  (!db || !strcmp(db,tables->db)))
       {
 	found_table=1;
@@ -1900,7 +1900,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
     if (grant_option && !thd->master_access &&
 	check_grant_all_columns(thd,SELECT_ACL,table) )
       DBUG_RETURN(-1);
-    if (!table_name || (!strcmp(table_name,tables->name) &&
+    if (!table_name || (!strcmp(table_name,tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       Field **ptr=table->field,*field;

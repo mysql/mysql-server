@@ -1718,7 +1718,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
     tables.db = thd->db;
-    tables.name = tables.real_name = (char*)table_name;
+    tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))

@@ -2033,8 +2033,8 @@ join_table_list:
 	| join_table_list INNER_SYM JOIN_SYM join_table
 	  {
 	    SELECT_LEX *sel=Select;
-	    sel->db1=$1->db; sel->table1=$1->name;
-	    sel->db2=$4->db; sel->table2=$4->name;
+	    sel->db1=$1->db; sel->table1=$1->alias;
+	    sel->db2=$4->db; sel->table2=$4->alias;
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($4,$8); $$=$4; }
@@ -2043,8 +2043,8 @@ join_table_list:
 	| join_table_list LEFT opt_outer JOIN_SYM join_table
 	  {
 	    SELECT_LEX *sel=Select;
-	    sel->db1=$1->db; sel->table1=$1->name;
-	    sel->db2=$5->db; sel->table2=$5->name;
+	    sel->db1=$1->db; sel->table1=$1->alias;
+	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
@@ -2055,8 +2055,8 @@ join_table_list:
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table
 	  {
 	    SELECT_LEX *sel=Select;
-	    sel->db1=$1->db; sel->table1=$1->name;
-	    sel->db2=$5->db; sel->table2=$5->name;
+	    sel->db1=$1->db; sel->table1=$1->alias;
+	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }

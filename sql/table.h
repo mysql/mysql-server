@@ -138,20 +138,20 @@ struct st_table {
 typedef struct st_table_list
 {
   struct	st_table_list *next;
-  char		*db,*name,*real_name;
-  uint32        db_length, real_name_length;
-  Item		*on_expr;			/* Used with outer join */
-  struct st_table_list *natural_join;		/* natural join on this table*/
+  char		*db, *alias, *real_name;
+  Item		*on_expr;		/* Used with outer join */
+  struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index,*ignore_index; 
   TABLE		*table;
   GRANT_INFO	grant;
   thr_lock_type lock_type;
-  uint		outer_join;			/* Which join type */
-  bool		straight;			/* optimize with prev table */
-  bool          updating;                   /* for replicate-do/ignore table */
-  bool		shared;				/* Used twice in union */
-  bool		do_redirect;            	/* To get the struct in UNION's */
+  uint		outer_join;		/* Which join type */
+  uint32        db_length, real_name_length;
+  bool		straight;		/* optimize with prev table */
+  bool          updating;               /* for replicate-do/ignore table */
+  bool		shared;			/* Used twice in union */
+  bool		do_redirect;		/* To get the struct in UNION's */
 } TABLE_LIST;
 
 

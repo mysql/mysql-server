@@ -74,7 +74,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db=  table->table_cache_key;
-    table_list.name=table->table_name;
+    table_list.real_name= table_list.alias= table->table_name;
     table_list.table=table;
     table_list.grant=table->grant;
 
@@ -655,7 +655,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       }
       tmp->table_list= *table_list;			// Needed to open table
       tmp->table_list.db= tmp->thd.db;
-      tmp->table_list.name= tmp->table_list.real_name=tmp->thd.query;
+      tmp->table_list.alias= tmp->table_list.real_name=tmp->thd.query;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,

@@ -57,7 +57,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   // there can be only one table in *tables
   if (!(tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
   {
-    my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->name);
+    my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->alias);
     mysql_ha_close(thd, tables,1);
     return -1;
   }
@@ -68,7 +68,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 
 int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 {
-  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->name);
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias);
 
   if (*ptr)
   {
@@ -79,7 +79,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   else
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
-		    tables->name,"HANDLER");
+		    tables->alias, "HANDLER");
     return -1;
   }
   if (!dont_send_ok)
@@ -97,11 +97,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
-  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->name);
+  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
-		    tables->name,"HANDLER");
+		    tables->alias,"HANDLER");
     return -1;
   }
   tables->table=table;
@@ -114,7 +114,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
     {
       my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
-          keyname,tables->name);
+          keyname,tables->alias);
       return -1;
     }
     table->file->index_init(keyno);
@@ -126,7 +126,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   uint num_rows;
   it++;
 
-  insert_fields(thd,tables,tables->db,tables->name,&it);
+  insert_fields(thd,tables,tables->db,tables->alias,&it);
 
   table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
@@ -258,7 +258,7 @@ err0:
    here for alias, not real table name
  */
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *table_name)
+				      const char *alias)
 {
   int dblen;
   TABLE **ptr;
@@ -271,7 +271,7 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
-        !my_strcasecmp(table->table_name,table_name))
+        !my_strcasecmp(table->table_name,alias))
       break;
     ptr=&(table->next);
   }
