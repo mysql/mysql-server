@@ -463,11 +463,15 @@ void TransporterFacade::threadMainSend(void)
   SocketServer socket_server;
 
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_service(socket_server))
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_service");
+  if (!theTransporterRegistry->start_service(socket_server)){
+    ndbout_c("Unable to start theTransporterRegistry->start_service");
+    exit(0);
+  }
 
-  if (!theTransporterRegistry->start_clients())
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_clients");
+  if (!theTransporterRegistry->start_clients()){
+    ndbout_c("Unable to start theTransporterRegistry->start_clients");
+    exit(0);
+  }
 
   socket_server.startServer();
 
