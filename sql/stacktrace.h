@@ -30,9 +30,6 @@ extern char* heap_start;
 void print_stacktrace(gptr stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
 #endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
-
-#define HAVE_WRITE_CORE
-void write_core(int sig);
 #endif /* HAVE_LINUXTHREADS */
 
 /* Define empty prototypes for functions that are not implemented */
@@ -42,9 +39,7 @@ void write_core(int sig);
 #define safe_print_str(A,B,C) {}
 #endif /* HAVE_STACKTRACE */
 
-#ifndef HAVE_WRITE_CORE
-#define write_core(A) {}
-#endif
+void write_core(int sig);
 
 #ifdef	__cplusplus
 }
