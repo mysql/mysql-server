@@ -135,6 +135,7 @@ version see the relevant distribution.
 * MySQL internals::             @strong{MySQL} internals
 * Environment variables::       @strong{MySQL} environment variables
 * Users::                       Some @strong{MySQL} users
+* MySQL customer usage::        
 * Contrib::                     Contributed programs
 * Credits::                     Contributors to @strong{MySQL}
 * News::                        @strong{MySQL} change history
@@ -192,7 +193,7 @@ Example Licensing Situations
 * ISP::                         ISP @strong{MySQL} services
 * Web server::                  Running a web server using @strong{MySQL}.
 
-@strong{MySQL} Licensing and Support Costs
+MySQL Licensing and Support Costs
 
 * Payment information::         Payment information
 * Contact information::         Contact information
@@ -222,7 +223,7 @@ Installing MySQL
 * OS/2::                        OS/2 notes
 * MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
-* Upgrade::                     Upgrading/downgrading @strong{MySQL}
+* Upgrade::                     Upgrading/Downgrading MySQL
 
 Installing a MySQL Binary Distribution
 
@@ -828,6 +829,7 @@ Credits
 
 * Developers::                  
 * Contributors::                
+* Supporters::                  
 
 MySQL change history
 
@@ -876,7 +878,7 @@ Changes in release 3.23.x  (Recommended; Gamma)
 * News-3.23.1::                 Changes in release 3.23.1
 * News-3.23.0::                 Changes in release 3.23.0
 
-Changes in release 3.22.x
+Changes in release 3.22.x (Older; Still supported)
 
 * News-3.22.35::                Changes in release 3.22.35
 * News-3.22.34::                Changes in release 3.22.34
@@ -1814,7 +1816,8 @@ In-memory hash tables which are used as temporary tables.
 
 @item
 Handles large databases.  We are using @strong{MySQL} with some
-databases that contain 50,000,000 records.
+databases that contain 50,000,000 records and we know of users that
+uses @code{MySQL} with 60,000 tables and about 5,000,000,000 rows
 
 @item
 All columns have default values.  You can use @code{INSERT} to insert a
@@ -9465,15 +9468,12 @@ section in this manual. @xref{SHOW VARIABLES}.
 The tuning server parameters section includes information of how to optimize
 these. @xref{Server parameters}.
 
-@item -Sg, --skip-grant-tables
-This option causes the server not to use the privilege system at all. This
-gives everyone @emph{full access} to all databases!  (You can tell a running
-server to start using the grant tables again by executing @code{mysqladmin
-flush-privileges} or @code{mysqladmin reload}.)
-
 @item --safe-mode
 Skip some optimize stages.
 Implies @code{--skip-delay-key-write}.
+
+@item --safe-show-database
+Don't show databases for which the user doesn't have any privileges.
 
 @item --secure
 IP numbers returned by the @code{gethostbyname()} system call are
@@ -9493,6 +9493,12 @@ in this feature).
 @item --skip-delay-key-write
 Ignore the @code{delay_key_write} option for all tables.
 @xref{Server parameters}.
+
+@item -Sg, --skip-grant-tables
+This option causes the server not to use the privilege system at all. This
+gives everyone @emph{full access} to all databases!  (You can tell a running
+server to start using the grant tables again by executing @code{mysqladmin
+flush-privileges} or @code{mysqladmin reload}.)
 
 @item --skip-locking
 Don't use system locking. To use @code{isamchk} or @code{myisamchk} you must
@@ -20242,72 +20248,85 @@ The output resembles that shown below, though the format and numbers may
 differ somewhat:
 
 @example
-+-------------------------+---------------------------------+
-| Variable_name           | Value                           |
-+-------------------------+---------------------------------+
-| ansi_mode               | OFF                             |
-| back_log                | 50                              |
-| basedir                 | /usr/local/mysql/               |
-| bdb_cache_size          | 1048540                         |
-| bdb_home                | /usr/local/mysql/data/          |
-| bdb_logdir              |                                 |
-| bdb_tmpdir              | /tmp/                           |
-| binlog_cache_size       | 32768                           |
-| character_set           | latin1                          |
-| character_sets          | latin1                          |
-| connect_timeout         | 5                               |
-| concurrent_insert       | ON                              |
-| datadir                 | /usr/local/mysql/data/          |
-| delay_key_write         | ON                              |
-| delayed_insert_limit    | 100                             |
-| delayed_insert_timeout  | 300                             |
-| delayed_queue_size      | 1000                            |
-| join_buffer_size        | 131072                          |
-| flush                   | OFF                             |
-| flush_time              | 0                               |
-| init_file               |                                 |
-| interactive_timeout     | 28800                           |
-| key_buffer_size         | 16776192                        |
-| language                | /usr/local/mysql/share/english/ |
-| log                     | OFF                             |
-| log_update              | OFF                             |
-| log_bin                 | OFF                             |
-| log_slave_updates       | OFF                             |
-| long_query_time         | 10                              |
-| low_priority_updates    | OFF                             |
-| lower_case_table_names  | 0                               |
-| max_allowed_packet      | 1047552                         |
-| max_connections         | 100                             |
-| max_connect_errors      | 10                              |
-| max_delayed_threads     | 20                              |
-| max_heap_table_size     | 16777216                        |
-| max_join_size           | 4294967295                      |
-| max_sort_length         | 1024                            |
-| max_tmp_tables          | 32                              |
-| max_write_lock_count    | 4294967295                      |
-| myisam_sort_buffer_size | 8388608                         |
-| net_buffer_length       | 16384                           |
-| net_retry_count         | 10                              |
-| open_files_limit        | 0                               |
-| pid_file                | /usr/local/mysql/data/tik.pid   |
-| port                    | 3306                            |
-| protocol_version        | 10                              |
-| record_buffer           | 131072                          |
-| skip_locking            | ON                              |
-| skip_networking         | OFF                             |
-| skip_show_database      | OFF                             |
-| slow_launch_time        | 2                               |
-| socket                  | /tmp/mysql.sock                 |
-| sort_buffer             | 2097116                         |
-| table_cache             | 64                              |
-| table_type              | MYISAM                          |
-| thread_stack            | 131072                          |
-| thread_cache_size       | 3                               |
-| tmp_table_size          | 1048576                         |
-| tmpdir                  | /tmp/                           |
-| version                 | 3.23.21-beta-debug              |
-| wait_timeout            | 28800                           |
-+-------------------------+---------------------------------+
++-------------------------+---------------------------+
+| Variable_name           | Value                     |
++-------------------------+---------------------------+
+| ansi_mode               | OFF                       |
+| back_log                | 50                        |
+| basedir                 | /my/monty/                |
+| bdb_cache_size          | 16777216                  |
+| bdb_home                | /my/monty/data/           |
+| bdb_max_lock            | 10000                     |
+| bdb_logdir              |                           |
+| bdb_shared_data         | OFF                       |
+| bdb_tmpdir              | /tmp/                     |
+| binlog_cache_size       | 32768                     |
+| concurrent_insert       | ON                        |
+| connect_timeout         | 5                         |
+| datadir                 | /my/monty/data/           |
+| delay_key_write         | ON                        |
+| delayed_insert_limit    | 100                       |
+| delayed_insert_timeout  | 300                       |
+| delayed_queue_size      | 1000                      |
+| flush                   | OFF                       |
+| flush_time              | 0                         |
+| have_bdb                | YES                       |
+| have_gemeni             | NO                        |
+| have_innobase           | YES                       |
+| have_raid               | YES                       |
+| have_ssl                | NO                        |
+| init_file               |                           |
+| interactive_timeout     | 28800                     |
+| join_buffer_size        | 131072                    |
+| key_buffer_size         | 16776192                  |
+| language                | /my/monty/share/english/  |
+| large_files_support     | ON                        |
+| log                     | OFF                       |
+| log_update              | OFF                       |
+| log_bin                 | OFF                       |
+| log_slave_updates       | OFF                       |
+| long_query_time         | 10                        |
+| low_priority_updates    | OFF                       |
+| lower_case_table_names  | 0                         |
+| max_allowed_packet      | 1048576                   |
+| max_binlog_cache_size   | 4294967295                |
+| max_connections         | 100                       |
+| max_connect_errors      | 10                        |
+| max_delayed_threads     | 20                        |
+| max_heap_table_size     | 16777216                  |
+| max_join_size           | 4294967295                |
+| max_sort_length         | 1024                      |
+| max_tmp_tables          | 32                        |
+| max_write_lock_count    | 4294967295                |
+| myisam_recover_options  | DEFAULT                   |
+| myisam_sort_buffer_size | 8388608                   |
+| net_buffer_length       | 16384                     |
+| net_read_timeout        | 30                        |
+| net_retry_count         | 10                        |
+| net_write_timeout       | 60                        |
+| open_files_limit        | 0                         |
+| pid_file                | /my/monty/data/donna.pid  |
+| port                    | 3306                      |
+| protocol_version        | 10                        |
+| record_buffer           | 131072                    |
+| query_buffer_size       | 0                         |
+| safe_show_database      | OFF                       |
+| server_id               | 0                         |
+| skip_locking            | ON                        |
+| skip_networking         | OFF                       |
+| skip_show_database      | OFF                       |
+| slow_launch_time        | 2                         |
+| socket                  | /tmp/mysql.sock           |
+| sort_buffer             | 2097116                   |
+| table_cache             | 64                        |
+| table_type              | MYISAM                    |
+| thread_cache_size       | 4                         |
+| thread_stack            | 65536                     |
+| tmp_table_size          | 1048576                   |
+| tmpdir                  | /tmp/                     |
+| version                 | 3.23.29a-gamma-debug      |
+| wait_timeout            | 28800                     |
++-------------------------+---------------------------+
 @end example
 
 Each option is described below. Values for buffer sizes, lengths, and stack
@@ -20426,6 +20445,21 @@ If this is set to a non-zero value, then every @code{flush_time} seconds all
 tables will be closed (to free up resources and sync things to disk). We
 only recommend this option on Win95, Win98, or on systems where you have
 very little resources.
+
+@item @code{have_bdb}
+@code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
+if @code{--skip-bdb} is used.
+@item @code{have_gemeni}
+@code{YES} if @code{mysqld} supports Gemeni tables. @code{DISABLED}
+if @code{--skip-gemeni} is used.
+@item @code{have_innobase}
+@code{YES} if @code{mysqld} supports Innobase tables. @code{DISABLED}
+if @code{--skip-innobase} is used.
+@item @code{have_raid}
+@code{YES} if @code{mysqld} supports the @code{RAID} option.
+@item @code{have_ssl}
+@code{YES} if @code{mysqld} supports SSL (encryption) on the client/server
+protocol.
 
 @item @code{init_file}
 The name of the file specified with the @code{--init-file} option when
@@ -20606,6 +20640,12 @@ want to increase this value.
 The initial allocation of the query buffer. If most of your queries are
 long (like when inserting blobs), you should increase this!
 
+@item @code{safe_show_databases}
+Don't show databases for which the user doesn't have any database or
+table privileges. This can improve security if you're concerned about
+people being able to see what databases other users have. See also
+@code{skip_show_databases}.
+
 @item @code{server_id}
 The value of the @code{--server-id} option.
 
@@ -20616,10 +20656,10 @@ Is OFF if @code{mysqld} uses external locking.
 Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_databases}
-This prevents people from doing @code{SHOW DATABASES} if they don't
-have the @code{PROCESS_PRIV} privilege. This can improve security if
-you're concerned about people being able to see what databases and
-tables other users have.
+This prevents people from doing @code{SHOW DATABASES} if they don't have
+the @code{PROCESS_PRIV} privilege. This can improve security if you're
+concerned about people being able to see what databases other users
+have. See also @code{safe_show_databases}.
 
 @item @code{slow_launch_time}
 If creating the thread takes longer than this value (in seconds), the
@@ -38284,9 +38324,6 @@ you should ftp all the relevant files to
 @end itemize
 
 
-
-
-
 @page
 @cindex environment variables, list of
 @node Environment variables, Users, MySQL internals, Top
@@ -38371,7 +38408,7 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @page
 @cindex users, of MySQL
 @cindex news sites
-@node Users, Contrib, Environment variables, Top
+@node Users, MySQL customer usage, Environment variables, Top
 @appendix Some MySQL Users
 
 @appendixsec General News Sites
@@ -38518,6 +38555,8 @@ support @strong{MySQL}}
 
 @c @item @uref{http://dynodns.net, Free dynamic DNS implementation}
 @c EMAIL: A Moore <amoore@mooresystems.com>
+
+@item @uref{http://www.hn.org/, Hammernode; Public DNS Servers}
 
 @item @uref{http://www.fdns.net/, Free 3rd level domains}
 
@@ -38774,9 +38813,43 @@ Washington's Eastside residents and businesses}
 Send any additions to this list to @email{webmaster@@mysql.com}.
 
 @page
+@cindex MySQL usage
+@node MySQL customer usage, Contrib, Users, Top
+@appendix MySQL customer usage
+
+The section 'Some MySQL Users' contains a lot of different links to
+@strong{MySQL} users but doesn't provide that much information about how
+they are using @strong{MySQL}.  @xref{Users}. This manual section is to
+give you an idea of how other @strong{MySQL} users are using
+@strong{MySQL} to solve their problems.
+
+This manual section is very new and we plan to add more stories here
+shortly.  If you are interested in contributing of how you use
+@code{MySQL} in a unique environment or have success store about how you
+use @code{MySQL}, you can write to @code{docs@@lists.mysql.com} with
+subject @code{Success:}.  Note that as we are very busy it may take some
+time before you get some feedback for your story.
+
+@itemize @bullet
+@item 
+I think you might be interested in my database size.  The whole database
+is currently on 15 servers and I think it's about 60.000 of tables
+containing about 5.000.000.000 of rows.  My mostly loaded server
+currently holds about 10.000 of tables with 1.000.000.000 of rows in it.
+Hugest tables have about 50.000.000 of rows, and this value will raise
+as soon as I'll move to 2.4 kernel with large files. Currently I have to
+delete much of logs for large sites to hold table sizes in 2Gb.
+
+Peter Zaitsev, Spylog.ru.
+@item
+Texas Instrument is using MySQL for handling tables that contains up
+o 2,000 million rows in a validation regression database.
+@end itemize
+
+@page
 @cindex contributed programs
 @cindex programs, contributed
-@node Contrib, Credits, Users, Top
+@node Contrib, Credits, MySQL customer usage, Top
 @appendix Contributed Programs
 
 Many users of @strong{MySQL} have contributed @emph{very} useful support
@@ -39448,12 +39521,14 @@ interested in.
 @node Credits, News, Contrib, Top
 @appendix Credits
 
-The following persons have helped us make MySQL what it is today
+The following persons and companies have helped us make MySQL what it is
+today:
 
 @cindex developers, list of
 @menu
 * Developers::                  
 * Contributors::                
+* Supporters::                  
 @end menu
 
 @node Developers, Contributors, Credits, Credits
@@ -39635,7 +39710,7 @@ Allan Larsson (The BOSS for TCX DataKonsult AB).
 @end table
 
 @cindex contributors, list of
-@node Contributors,  , Developers, Credits
+@node Contributors, Supporters, Developers, Credits
 @appendixsubsec Contributors to MySQL
 
 Contributors to the @strong{MySQL} distribution are listed below, in
@@ -39705,6 +39780,12 @@ For porting PHP to @strong{MySQL}.
 For the first @strong{MySQL} manual. And a lot of spelling/language
 fixes for the FAQ (that turned into the @strong{MySQL} manual a long
 time ago).
+@item Yan Cailin
+First translator of the MySQL Reference Manual into simplified chinese
+in early 2000 on which the Big5 and HK coded
+(@uref{http://mysql.hitstar.com, mysql.hitstar.com}) versions were
+based. @uref{http://linuxdb.yeah.net, Personal home page at
+linuxdb.yeah.net}.
 @item Giovanni Maruzzelli @email{maruzz@@matrice.it}
 For porting iODBC (Unix ODBC).
 @item Chris Provenzano
@@ -39860,6 +39941,24 @@ ODBC and VisualC++ interface questions.
 @code{DBD}, Linux, some SQL syntax questions.
 @end table
 
+@cindex contributing companies, list of
+@node Supporters,  , Contributors, Credits
+@appendixsubsec Supporters to MySQL
+
+The following companies has helped us finance development of
+@strong{MySQL} by either paying us for developing a new feature,
+developed a @strong{MySQL} feature themself or by giving us hardware for
+@strong{MySQL} development.
+ 
+@multitable @columnfractions .3 .7
+@item Va Linux / Andover.net @tab Replication
+@item NuSphere @tab Editing of the @strong{MySQL} manual.
+@item Intel @tab Contributed to development on Windows and Linux platforms
+@item Compaq @tab Contributed to Development on Linux-alpha
+@item SWSoft @tab Development on the embedded @code{mysqld} version.
+@item FutureQuest @tab @code{--skip-show-variables}
+@end multitable
+
 @node News, Bugs, Credits, Top
 @appendix MySQL change history
 
@@ -39950,6 +40049,12 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Added option @code{--safe-show-databases}.
+@item
+Added @code{have_bdb}, @code{have_gemeni}, @code{have_innobase},
+@code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
+easy to test for supported extensions.
 @item
 Added option @code{open-files-limit} to @code{mysqld}.
 @item

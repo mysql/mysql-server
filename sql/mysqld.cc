@@ -146,6 +146,33 @@ static uint handler_count;
 static bool opt_console=0;
 #endif
 
+#ifdef HAVE_BERKELEY_DB
+SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_GEMENI_DB
+SHOW_COMP_OPTION have_gemeni=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_gemeni=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_INNOBASE_DB
+SHOW_COMP_OPTION have_innobase=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_innobase=SHOW_OPTION_NO;
+#endif
+#ifdef USE_RAID
+SHOW_COMP_OPTION have_raid=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_raid=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_OPENSSL
+SHOW_COMP_OPTION have_ssl=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
+#endif
+
+
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
@@ -155,9 +182,10 @@ static my_string opt_logname=0,opt_update_logname=0,
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
-            opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
+	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
+            opt_ansi_mode=0,opt_myisam_log=0,
+            opt_large_files=sizeof(my_off_t) > 4;
+bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -2322,7 +2350,7 @@ enum options {
 	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
-	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT
+	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB
 };
 
 static struct option long_options[] = {
@@ -2424,6 +2452,7 @@ static struct option long_options[] = {
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
+  {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
@@ -2593,6 +2622,11 @@ struct show_var_st init_vars[]= {
   {"delayed_queue_size",      (char*) &delayed_queue_size,          SHOW_LONG},
   {"flush",                   (char*) &myisam_flush,                SHOW_MY_BOOL},
   {"flush_time",              (char*) &flush_time,                  SHOW_LONG},
+  {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_gemeni",	      (char*) &have_gemeni,		    SHOW_HAVE},
+  {"have_innobase",	      (char*) &have_innobase,		    SHOW_HAVE},
+  {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
+  {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -2631,6 +2665,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
+  {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
@@ -3347,11 +3382,13 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_BDB_SKIP:
       berkeley_skip=1;
+      have_berkeley_db=SHOW_OPTION_DISABLED;
       break;
 #endif
 #ifdef HAVE_INNOBASE_DB
     case OPT_INNOBASE_SKIP:
       innobase_skip=1;
+      have_innobase_db=SHOW_HAVE_DISABLED;
       break;
     case OPT_INNOBASE_DATA_HOME_DIR:
       innobase_data_home_dir=optarg;
@@ -3409,6 +3446,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
+      break;
+    case (int) OPT_SAFE_SHOW_DB:
+      opt_safe_show_db=1;
       break;
 
     default:
