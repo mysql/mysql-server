@@ -19,7 +19,7 @@ create temporary table t1 (a int, b int);
 create view v1 (c) as select b+1 from t1;
 drop table t1;
 
-create table t1 (a int, b int) max_rows=1000000;
+create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 
 # view with variable
@@ -84,6 +84,7 @@ explain extended select c from v6;
 show tables;
 show full tables;
 --replace_column 12 # 13 #
+--replace_result 2147483647 38654705663
 show table status;
 
 drop view v1,v2,v3,v4,v5,v6;
@@ -1165,12 +1166,13 @@ drop table t1;
 # VIEW over dropped function
 #
 create function x1 () returns int return 5;
-create table t1 (s1 int) max_rows=1000000;
+create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
 -- error 1305
 select * from v1;
 --replace_column 12 # 13 #
+--replace_result "2147483647	" "21474836479	"
 show table status;
 drop view v1;
 drop table t1;
