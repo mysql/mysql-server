@@ -32,7 +32,7 @@ class sp_cache;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE, DUP_UPDATE };
+enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
@@ -225,7 +225,8 @@ typedef struct st_copy_info {
   ha_rows error_count;
   enum enum_duplicates handle_duplicates;
   int escape_char, last_errno;
-/* for INSERT ... UPDATE */
+  bool ignore;
+  /* for INSERT ... UPDATE */
   List<Item> *update_fields;
   List<Item> *update_values;
 /* for VIEW ... WITH CHECK OPTION */
@@ -1375,8 +1376,7 @@ class select_insert :public select_result_interceptor {
   select_insert(TABLE_LIST *table_list_par,
 		TABLE *table_par, List<Item> *fields_par,
 		List<Item> *update_fields, List<Item> *update_values,
-		enum_duplicates duplic,
-		bool ignore_check_option_errors);
+		enum_duplicates duplic, bool ignore);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -1401,8 +1401,8 @@ public:
 		 HA_CREATE_INFO *create_info_par,
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, 0), create_table(table),
+		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
     lock(0)
     {}
@@ -1673,12 +1673,12 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed;
+  bool do_update, trans_safe, transactional_tables, log_delayed, ignore;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates);
+	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
