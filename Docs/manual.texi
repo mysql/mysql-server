@@ -20482,6 +20482,10 @@ value for the type.
 @xref{Date and time types}.
 @end itemize
 
+Note that these are the same values that result if you assign an empty
+string explicitly to a string, numeric, or date or time type explicitly
+in an @code{INSERT} or @code{UPDATE} statement.
+
 @code{TIMESTAMP} columns are only set to the current date and time if there
 is a @code{NULL} value for the column, or (for the first @code{TIMESTAMP}
 column only) if the @code{TIMESTAMP} column is left out from the field list
@@ -42257,17 +42261,17 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.35
 @itemize @bullet
 @item
-Fixed newly introduce bug in @code{ORDER BY}.
+Fixed newly introduced bug in @code{ORDER BY}.
 @item
 Fixed wrong define @code{CLIENT_TRANSACTIONS}.
 @item
-Fixed bug in @code{SHOW VARIABLES} when using INNOBASE tables.
+Fixed bug in @code{SHOW VARIABLES} when using @code{INNOBASE} tables.
 @item
 Setting and using user variables in @code{SELECT DISTINCT} didn't work.
 @item
 Tuned @code{SHOW ANALYZE} for small tables.
 @item
-Fixed handling of arguments in the benchmark script @code{run-all-tests}.
+Fixed handling of arguments in the benchmark script @file{run-all-tests}.
 @end itemize
 
 @node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
