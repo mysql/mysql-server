@@ -149,6 +149,12 @@ int mi_write(MI_INFO *info, byte *record)
   info->lastpos=filepos;
   myisam_log_record(MI_LOG_WRITE,info,record,filepos,0);
   VOID(_mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
+  if (info->invalidator != 0)
+  {
+    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
+    (*info->invalidator)(info->filename);
+    info->invalidator=0;
+  }
   allow_break();				/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

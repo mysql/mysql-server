@@ -236,35 +236,35 @@ class delayed_insert;
 
 class THD :public ilink {
 public:
-  NET	  net;
-  LEX	  lex;
-  MEM_ROOT mem_root;
-  HASH     user_vars;
-  String  packet;				/* Room for 1 row */
-  struct  sockaddr_in remote;
-  struct  rand_struct rand;
-  char	  *query,*thread_stack;
-  char	  *host,*user,*priv_user,*db,*ip;
-  const   char *proc_info, *host_or_ip;
-  uint	  client_capabilities,sql_mode,max_packet_length;
-  uint	  master_access,db_access;
-  TABLE   *open_tables,*temporary_tables, *handler_tables;
+  NET	     net;
+  LEX	     lex;
+  MEM_ROOT   mem_root;
+  HASH       user_vars;
+  String     packet;				/* Room for 1 row */
+  struct     sockaddr_in remote;
+  struct     rand_struct rand;
+  char	     *query,*thread_stack;
+  char	     *host,*user,*priv_user,*db,*ip;
+  const      char *proc_info, *host_or_ip;
+  uint	     client_capabilities,sql_mode,max_packet_length;
+  uint	     master_access,db_access;
+  TABLE      *open_tables,*temporary_tables, *handler_tables;
   MYSQL_LOCK *lock,*locked_tables;
-  ULL	  *ull;
+  ULL	     *ull;
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
-  uint32 server_id;
-  uint32 log_seq;
-  uint32 file_id; // for LOAD DATA INFILE
+  uint32     server_id;
+  uint32     log_seq;
+  uint32     file_id;			// for LOAD DATA INFILE
   const char *where;
-  time_t  start_time,time_after_lock,user_time;
-  time_t  connect_time,thr_create_time; // track down slow pthread_create
+  time_t     start_time,time_after_lock,user_time;
+  time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
   struct st_transactions {
     IO_CACHE trans_log;
-    THD_TRANS all;			/* Trans since BEGIN WORK */
-    THD_TRANS stmt;			/* Trans for current statement */
+    THD_TRANS all;			// Trans since BEGIN WORK
+    THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
   } transaction;
   Item	     *free_list, *handler_items;
@@ -277,17 +277,20 @@ public:
   Vio* active_vio;
   pthread_mutex_t active_vio_lock;
 #endif  
-  ulonglong  next_insert_id,last_insert_id,current_insert_id, limit_found_rows;
-  ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
-          max_join_size, sent_row_count, examined_row_count;
-  table_map	used_tables;
-  ulong query_id,version, inactive_timeout,options,thread_id;
-  long  dbug_thread_id;
+  ulonglong  next_insert_id,last_insert_id,current_insert_id,
+             limit_found_rows;
+  ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
+             max_join_size, sent_row_count, examined_row_count;
+  table_map  used_tables;
+  ulong	     query_id,version, inactive_timeout,options,thread_id;
+  long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
-  uint  server_status,open_options;
+  uint	     current_tablenr,tmp_table,cond_count,col_access;
+  uint	     server_status,open_options;
+  uint32     query_length;
   enum_tx_isolation tx_isolation, session_tx_isolation;
   char	     scramble[9];
+  uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
@@ -296,18 +299,18 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  //type of query cache processing
-  byte query_cache_type;
+  /*
+    If we do a purge of binary logs, log index info of the threads
+    that are currently reading it needs to be adjusted. To do that
+    each thread that is using LOG_INFO needs to adjust the pointer to it
+  */
   LOG_INFO*  current_linfo;
-  // if we do a purge of binary logs, log index info of the threads
-  // that are currently reading it needs to be adjusted. To do that
-  // each thread that is using LOG_INFO needs to adjust the pointer to it
-
-  ulong slave_proxy_id; // in slave thread we need to know in behalf of which
-  // thread the query is being run to replicate temp tables properly
-
-  NET* slave_net; // network connection from slave to master
-
+  /*
+    In slave thread we need to know in behalf of which
+    thread the query is being run to replicate temp tables properly
+  */
+  ulong	     slave_proxy_id;
+  NET*       slave_net;			// network connection from slave -> m.
   THD();
   ~THD();
   void cleanup(void);

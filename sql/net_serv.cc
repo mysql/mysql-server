@@ -109,7 +109,7 @@ static int net_write_buff(NET *net,const char *packet,ulong len);
 
 int my_net_init(NET *net, Vio* vio)
 {
-  if (!(net->buff=(uchar*) my_malloc(net_buffer_length+ 
+  if (!(net->buff=(uchar*) my_malloc((uint32) net_buffer_length+ 
 				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				     MYF(MY_WME))))
     return 1;
@@ -162,7 +162,7 @@ static my_bool net_realloc(NET *net, ulong length)
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
   /* We must allocate some extra bytes for the end 0 and to be able to
      read big compressed blocks */
-  if (!(buff=(uchar*) my_realloc((char*) net->buff, pkt_length +
+  if (!(buff=(uchar*) my_realloc((char*) net->buff, (uint32) pkt_length +
 				 NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				 MYF(MY_WME))))
   {
@@ -189,7 +189,7 @@ void net_clear(NET *net)
   if (!vio_is_blocking(net->vio))		/* Safety if SSL */
   {
     while ( (count = vio_read(net->vio, (char*) (net->buff),
-			      net->max_packet)) > 0)
+			      (uint32) net->max_packet)) > 0)
       DBUG_PRINT("info",("skipped %d bytes from file: %s",
 			 count,vio_description(net->vio)));
     if (is_blocking)
@@ -243,7 +243,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   {
     const ulong z_size = MAX_THREE_BYTES;
     int3store(buff, z_size);
-    buff[3]= net->pkt_nr++;
+    buff[3]= (uchar) net->pkt_nr++;
     if (net_write_buff(net, (char*) buff, NET_HEADER_SIZE) ||
 	net_write_buff(net, packet, z_size))
       return 1;
@@ -252,7 +252,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   }
   /* Write last packet */
   int3store(buff,len);
-  buff[3]= net->pkt_nr++;
+  buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
   return net_write_buff(net,packet,len);
@@ -282,7 +282,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
     do
     {
       int3store(buff, MAX_THREE_BYTES);
-      buff[3]= net->pkt_nr++;
+      buff[3]= (uchar) net->pkt_nr++;
       if (net_write_buff(net,(char*) buff, header_size) ||
 	  net_write_buff(net,packet,len))
 	return 1;
@@ -294,7 +294,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
     len=length;					/* Data left to be written */
   }
   int3store(buff,length);
-  buff[3]= net->pkt_nr++;
+  buff[3]= (uchar) net->pkt_nr++;
   return test(net_write_buff(net,(char*) buff,header_size) ||
 	      net_write_buff(net,packet,len) || net_flush(net));
 }
@@ -357,8 +357,8 @@ net_real_write(NET *net,const char *packet,ulong len)
     ulong complen;
     uchar *b;
     uint header_length=NET_HEADER_SIZE+COMP_HEADER_SIZE;
-    if (!(b=(uchar*) my_malloc(len + NET_HEADER_SIZE + COMP_HEADER_SIZE,
-				    MYF(MY_WME))))
+    if (!(b=(uchar*) my_malloc((uint32) len + NET_HEADER_SIZE +
+			       COMP_HEADER_SIZE, MYF(MY_WME))))
     {
 #ifdef MYSQL_SERVER
       net->last_errno=ER_OUT_OF_RESOURCES;
@@ -395,7 +395,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   pos=(char*) packet; end=pos+len;
   while (pos != end)
   {
-    if ((long) (length=vio_write(net->vio,pos,(ulong) (end-pos))) <= 0)
+    if ((long) (length=vio_write(net->vio,pos,(uint32) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
 #if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
@@ -479,7 +479,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   big packet
 */
 
-static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
+static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
 {
   ALARM alarm_buff;
   uint retry_count=0;
@@ -502,7 +502,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
       }
       return;
     }
-    remain -= length;
+    remain -= (uint32) length;
     statistic_add(bytes_received,length,&LOCK_bytes_received);
   }
 }
@@ -527,8 +527,8 @@ my_real_read(NET *net, ulong *complen)
   ALARM alarm_buff;
 #endif
   my_bool net_blocking=vio_is_blocking(net->vio);
-  ulong remain= (net->compress ? NET_HEADER_SIZE+COMP_HEADER_SIZE :
-		 NET_HEADER_SIZE);
+  uint32 remain= (net->compress ? NET_HEADER_SIZE+COMP_HEADER_SIZE :
+		  NET_HEADER_SIZE);
   *complen = 0;
 
   net->reading_or_writing=1;
@@ -605,7 +605,7 @@ my_real_read(NET *net, ulong *complen)
 	    continue;
 	  }
 #endif
-	  DBUG_PRINT("error",("Couldn't read packet: remain: %d  errno: %d  length: %d  alarmed: %d", remain,vio_errno(net->vio),length,alarmed));
+	  DBUG_PRINT("error",("Couldn't read packet: remain: %lu  errno: %d  length: %ld  alarmed: %d", remain,vio_errno(net->vio),length,alarmed));
 	  len= packet_error;
 	  net->error=2;				/* Close socket */
 #ifdef MYSQL_SERVER
@@ -614,7 +614,7 @@ my_real_read(NET *net, ulong *complen)
 #endif
 	  goto end;
 	}
-	remain -= (ulong) length;
+	remain -= (uint32) length;
 	pos+= (ulong) length;
 	statistic_add(bytes_received,(ulong) length,&LOCK_bytes_received);
       }
@@ -661,14 +661,14 @@ my_real_read(NET *net, ulong *complen)
 	  {
 #ifdef MYSQL_SERVER
 	    if (i == 1)
-	      my_net_skip_rest(net, len, &alarmed);
+	      my_net_skip_rest(net, (uint32) len, &alarmed);
 #endif
 	    len= packet_error;		/* Return error */
 	    goto end;
 	  }
 	}
 	pos=net->buff + net->where_b;
-	remain = len;
+	remain = (uint32) len;
       }
     }
 

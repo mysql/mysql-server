@@ -3091,8 +3091,8 @@ struct show_var_st init_vars[]= {
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
-  {"query_cache_limit",       (char*) &query_cache_limit,           SHOW_LONG},
-  {"query_cache_size",        (char*) &query_cache_size,            SHOW_LONG},
+  {"query_cache_limit",       (char*) &query_cache.query_cache_limit, SHOW_LONG},
+  {"query_cache_size",        (char*) &query_cache.query_cache_size, SHOW_LONG},
   {"query_cache_startup_type",(char*) &query_cache_startup_type,    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -3157,11 +3157,11 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
-  {"Qcache_queries",           (char*) &query_cache.queries_in_cache, 
+  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache,
    SHOW_LONG},
   {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
-  {"Qcache_refused",           (char*) &query_cache.refused,    SHOW_LONG},
+  {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory,SHOW_LONG},
   {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
@@ -3726,12 +3726,11 @@ static void get_options(int argc,char **argv)
       opt_slow_log=1;
       opt_slow_logname=optarg;
       break;
-    case (int)OPT_SKIP_SLAVE_START:
+    case (int) OPT_SKIP_SLAVE_START:
       opt_skip_slave_start = 1;
       break;
     case (int) OPT_SKIP_NEW:
       opt_specialflag|= SPECIAL_NO_NEW_FUNC;
-      default_table_type=DB_TYPE_ISAM;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
@@ -3739,6 +3738,7 @@ static void get_options(int argc,char **argv)
       my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
+      query_cache_size=0;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;

@@ -190,7 +190,7 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
-bool setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields);
+bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item_result_field **func_ptr);
 bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
@@ -210,7 +210,7 @@ class store_key :public Sql_alloc
   char *null_ptr;
   char err;
  public:
-  store_key(Field *field_arg, char *ptr, char *null, uint length)
+  store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
     :null_ptr(null),err(0)
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
@@ -219,7 +219,7 @@ class store_key :public Sql_alloc
 				   field_arg->table, field_arg->binary());
     else
     {
-      to_field=field_arg->new_field(field_arg->table);
+      to_field=field_arg->new_field(&thd->mem_root,field_arg->table);
       if (to_field)
 	to_field->move_field(ptr, (uchar*) null, 1);
     }
@@ -235,9 +235,9 @@ class store_key_field: public store_key
   Copy_field copy_field;
   const char *field_name;
  public:
-  store_key_field(Field *to_field_arg, char *ptr, char *null_ptr_arg,
+  store_key_field(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
 		  uint length, Field *from_field, const char *name_arg)
-    :store_key(to_field_arg,ptr,
+    :store_key(thd, to_field_arg,ptr,
 	       null_ptr_arg ? null_ptr_arg : from_field->maybe_null() ? &err
 	       : NullS,length), field_name(name_arg)
   {
@@ -260,9 +260,9 @@ class store_key_item :public store_key
  protected:
   Item *item;
 public:
-  store_key_item(Field *to_field_arg, char *ptr, char *null_ptr_arg,
+  store_key_item(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
 		 uint length, Item *item_arg)
-    :store_key(to_field_arg,ptr,
+    :store_key(thd, to_field_arg,ptr,
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
 	       &err : NullS, length), item(item_arg)
   {}
@@ -279,10 +279,10 @@ class store_key_const_item :public store_key_item
 {
   bool inited;
 public:
-  store_key_const_item(Field *to_field_arg, char *ptr,
+  store_key_const_item(THD *thd, Field *to_field_arg, char *ptr,
 		       char *null_ptr_arg, uint length,
 		       Item *item_arg)
-    :store_key_item(to_field_arg,ptr,
+    :store_key_item(thd, to_field_arg,ptr,
 		    null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
 		    &err : NullS, length, item_arg), inited(0)
   {

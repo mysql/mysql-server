@@ -29,7 +29,25 @@
 #include <my_dir.h>
 #include <assert.h>
 
+#ifdef HAVE_OPENSSL
+/*
+  Without SSL the handshake consists of one packet. This packet
+  has both client capabilites and scrambled password.
+  With SSL the handshake might consist of two packets. If the first
+  packet (client capabilities) has CLIENT_SSL flag set, we have to
+  switch to SSL and read the second packet. The scrambled password
+  is in the second packet and client_capabilites field will be ignored.
+  Maybe it is better to accept flags other than CLIENT_SSL from the
+  second packet?
+*/
+#define  SSL_HANDSHAKE_SIZE      2
+#define  NORMAL_HANDSHAKE_SIZE   6
+#define  MIN_HANDSHAKE_SIZE      2
+#else
+#define  MIN_HANDSHAKE_SIZE      6
+#endif /* HAVE_OPENSSL */
 #define SCRAMBLE_LENGTH 8
+
 
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -37,17 +55,16 @@ extern "C" pthread_mutex_t THR_LOCK_keycache;
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-static int check_for_max_user_connections(const char *user, int u_length,
-					  const char *host);
+static int check_for_max_user_connections(const char *user, const char *host);
 static void decrease_user_connections(const char *user, const char *host);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
-static bool check_dup(THD *thd,const char *db,const char *name,
-		      TABLE_LIST *tables);
+static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
-static bool append_file_to_dir(char **filename_ptr, char *table_name);
+static bool append_file_to_dir(THD *thd, char **filename_ptr,
+			       char *table_name);
 static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -160,7 +177,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   if (max_user_connections &&
-      check_for_max_user_connections(user, strlen(user), thd->host))
+      check_for_max_user_connections(user, thd->host))
     return -1;
   if (db && db[0])
   {
@@ -210,8 +227,7 @@ void init_max_user_conn(void)
 }
 
 
-static int check_for_max_user_connections(const char *user, int u_length,
-					  const char *host) 
+static int check_for_max_user_connections(const char *user, const char *host) 
 {
   int error=1;
   uint temp_len;
@@ -363,51 +379,35 @@ check_connections(THD *thd)
   }
   vio_keepalive(net->vio, TRUE);
 
-  /* nasty, but any other way? */
-  uint pkt_len = 0;
+  ulong pkt_len=0;
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
     int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB;
+
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
 #ifdef HAVE_COMPRESS
     client_flags |= CLIENT_COMPRESS;
 #endif /* HAVE_COMPRESS */
+#ifdef HAVE_OPENSSL
+    if (ssl_acceptor_fd)
+      client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
+#endif /* HAVE_OPENSSL */
 
-    end=strmov(buff,server_version)+1;
+    end=strnmov(buff,server_version,SERVER_VERSION_LENGTH)+1;
     int4store((uchar*) end,thd->thread_id);
     end+=4;
     memcpy(end,thd->scramble,SCRAMBLE_LENGTH+1);
     end+=SCRAMBLE_LENGTH +1;
-#ifdef HAVE_OPENSSL
-    if (ssl_acceptor_fd)
-      client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
-    /*
-     * Without SSL the handshake consists of one packet. This packet
-     * has both client capabilites and scrambled password.
-     * With SSL the handshake might consist of two packets. If the first
-     * packet (client capabilities) has CLIENT_SSL flag set, we have to
-     * switch to SSL and read the second packet. The scrambled password
-     * is in the second packet and client_capabilites field will be ignored.
-     * Maybe it is better to accept flags other than CLIENT_SSL from the
-     * second packet?
-  */
-#define  SSL_HANDSHAKE_SIZE      2
-#define  NORMAL_HANDSHAKE_SIZE   6
-#define  MIN_HANDSHAKE_SIZE      2
-
-#else
-#define  MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL */
     int2store(end,client_flags);
-    end[2]=MY_CHARSET_CURRENT;
+    end[2]=(char) MY_CHARSET_CURRENT;
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
-    if (net_write_command(net,protocol_version, buff,
+    if (net_write_command(net,(uchar) protocol_version, buff,
 			  (uint) (end-buff)) ||
-       (pkt_len=my_net_read(net)) == packet_error ||
+       (pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
       inc_host_errors(&thd->remote.sin_addr);
@@ -426,12 +426,9 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
-  DBUG_PRINT("info",
-	     ("pkt_len:%d, client capabilities: %d",
-	      pkt_len, thd->client_capabilities) );
+  DBUG_PRINT("info", ("client capabilities: %d", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
-    DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     sslaccept(ssl_acceptor_fd, net->vio, thd->inactive_timeout);
@@ -439,8 +436,8 @@ check_connections(THD *thd)
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
     {
-      DBUG_PRINT("info", ("pkt_len:%d", pkt_len));
-      DBUG_PRINT("error", ("Failed to read user information"));
+      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
+			   pkt_len));
       inc_host_errors(&thd->remote.sin_addr);
       return(ER_HANDSHAKE_ERROR);
     }
@@ -469,7 +466,7 @@ check_connections(THD *thd)
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     thd->net.return_status= &thd->server_status;
-  net->timeout=net_read_timeout;
+  net->timeout=(uint) net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
     return (-1);
   thd->password=test(passwd[0]);
@@ -693,8 +690,8 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     goto err;
 
   thd->free_list = 0;
+  thd->query_length=(uint) strlen(tbl_name);
   thd->query = tbl_name;
-  thd->query_length=strlen(tbl_name);
   if ((error = mysqld_dump_create_info(thd, table, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0));
@@ -715,7 +712,8 @@ err:
 bool do_command(THD *thd)
 {
   char *packet;
-  uint old_timeout,packet_length;
+  uint old_timeout;
+  ulong packet_length;
   NET *net;
   enum enum_server_command command;
   DBUG_ENTER("do_command");
@@ -725,7 +723,7 @@ bool do_command(THD *thd)
 
   packet=0;
   old_timeout=net->timeout;
-  net->timeout=thd->inactive_timeout;		/* Wait max for 8 hours */
+  net->timeout=(uint) thd->inactive_timeout;	// Wait max for 8 hours
   net->last_error[0]=0;				// Clear error message
   net->last_errno=0;
 
@@ -745,7 +743,7 @@ bool do_command(THD *thd)
 		       command_name[command]));
   }
   net->timeout=old_timeout;			// Timeout for writing
-  DBUG_RETURN(dispatch_command(command,thd, packet+1, packet_length));
+  DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 
 
@@ -842,6 +840,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos--;
       packet_length--;
     }
+    thd->query_length= packet_length;
     if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length+1)))
       break;
     thd->query[packet_length]=0;
@@ -872,8 +871,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet);
-    thd->query=fields=thd->strdup(strend(packet)+1);
     thd->query_length=strlen(thd->query);
+    thd->query=fields=thd->strdup(strend(packet)+1);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
@@ -1302,8 +1301,10 @@ mysql_execute_command(void)
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
     /* Fix names if symlinked tables */
-    if (append_file_to_dir(&lex->create_info.data_file_name, tables->name) ||
-	append_file_to_dir(&lex->create_info.index_file_name, tables->name))
+    if (append_file_to_dir(thd, &lex->create_info.data_file_name,
+			   tables->name) ||
+	append_file_to_dir(thd,&lex->create_info.index_file_name,
+			   tables->name))
     {
       res=-1;
       break;
@@ -1314,7 +1315,7 @@ mysql_execute_command(void)
       select_result *result;
 
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  check_dup(thd,tables->db,tables->real_name,tables->next))
+	  check_dup(tables->db, tables->real_name, tables->next))
       {
 	net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
@@ -1618,7 +1619,7 @@ mysql_execute_command(void)
     if (thd->select_limit < select_lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
-    if (check_dup(thd,tables->db,tables->real_name,tables->next))
+    if (check_dup(tables->db, tables->real_name, tables->next))
     {
       net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
@@ -1906,7 +1907,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_SET_OPTION:
   {
-    uint org_options=thd->options;
+    ulong org_options=thd->options;
     thd->options=select_lex->options;
     thd->update_lock_default= ((thd->options & OPTION_LOW_PRIORITY_UPDATES) ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
@@ -2975,8 +2976,7 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 
 	/* Check if name is used in table list */
 
-static bool check_dup(THD *thd,const char *db,const char *name,
-		      TABLE_LIST *tables)
+static bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
 {
   for (; tables ; tables=tables->next)
     if (!strcmp(name,tables->real_name) && !strcmp(db,tables->db))
@@ -3083,7 +3083,7 @@ static void refresh_status(void)
 
 	/* If pointer is not a null pointer, append filename to it */
 
-static bool append_file_to_dir(char **filename_ptr, char *table_name)
+static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
@@ -3099,7 +3099,7 @@ static bool append_file_to_dir(char **filename_ptr, char *table_name)
   /* Fix is using unix filename format on dos */
   strmov(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
-  if (!(ptr=sql_alloc((uint) (end-buff)+strlen(table_name)+1)))
+  if (!(ptr=thd->alloc((uint) (end-buff)+(uint) strlen(table_name)+1)))
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);

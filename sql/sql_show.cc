@@ -1054,9 +1054,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         if (tmp->query)
         {
-          uint length=(uint) strlen(tmp->query);
-          if (length > max_query_length)
-            length=max_query_length;
+	  /* query_length is always set before tmp->query */
+          uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->memdup(tmp->query,length+1);
           thd_info->query[length]=0;
         }
