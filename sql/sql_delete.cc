@@ -27,7 +27,7 @@
 #include "ha_innodb.h"
 #include "sql_select.h"
 
-int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
+int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
                  ha_rows limit, ulong options)
 {
   int		error;
@@ -116,7 +116,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
-  if (order)
+  if (order && order->elements)
   {
     uint         length;
     SORT_FIELD  *sortorder;
@@ -130,10 +130,9 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-      if (thd->lex->select_lex.setup_ref_array(thd, 0) ||
-	  setup_order(thd, thd->lex->select_lex.ref_pointer_array, &tables, 
-		      fields, all_fields, order) ||
-	  !(sortorder=make_unireg_sortorder(order, &length)) ||
+      if (thd->lex->select_lex.setup_ref_array(thd, order->elements) ||
+		      fields, all_fields, (ORDER*) order->first) ||
+	  !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
 					   select, HA_POS_ERROR,
 					   &examined_rows))
@@ -613,7 +612,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       /* Probably InnoDB table */
       table_list->lock_type= TL_WRITE;
-      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (ORDER*) 0,
+      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
 			       HA_POS_ERROR, 0));
     }
     if (lock_and_wait_for_table_name(thd, table_list))
