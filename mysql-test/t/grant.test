@@ -162,16 +162,18 @@ grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
---error 1268
+# Drop user now implicitly revokes all privileges.
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
+--error 1269
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
+--error 1268
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
 grant usage on *.* to mysqltest_1@localhost identified by "password";
-grant select, update, insert on test.* to mysqltest@localhost;
+grant select, update, insert on test.* to mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
 
@@ -194,6 +196,9 @@ REVOKE SELECT ON бд.таб FROM юзер@localhost;
 GRANT SELECT (кол) ON бд.таб TO юзер@localhost;
 SHOW GRANTS FOR юзер@localhost;
 REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+
+# Revoke does not drop user. Leave a clean user table for the next tests.
+DROP USER юзер@localhost;
 
 DROP DATABASE бд;
 SET NAMES latin1;

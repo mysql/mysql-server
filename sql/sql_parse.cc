@@ -3384,6 +3384,21 @@ create_error:
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  case SQLCOM_CREATE_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+      break;
+    if (!(res= mysql_create_user(thd, lex->users_list)))
+    {
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
   case SQLCOM_DROP_USER:
   {
     if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
@@ -3392,8 +3407,23 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
-	mysql_bin_log.write(&qinfo);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
+  case SQLCOM_RENAME_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+      break;
+    if (!(res= mysql_rename_user(thd, lex->users_list)))
+    {
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
     }
