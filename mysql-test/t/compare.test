@@ -33,3 +33,5 @@ DROP TABLE t1;
 
 # Bug #8134: Comparison against CHAR(31) at end of string
 SELECT CHAR(31) = '', '' = CHAR(31);
+# Extra test
+SELECT CHAR(30) = '', '' = CHAR(30);
