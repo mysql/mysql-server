@@ -157,7 +157,7 @@ void ha_isammrg::info(uint flag)
   deleted = (ha_rows) info.deleted;
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use=0;				// No keys yet
+  table->keys_in_use.clear_all();               // No keys yet
   table->db_options_in_use    = info.options;
   mean_rec_length=info.reclength;
   block_size=0;

@@ -21,6 +21,7 @@ while ($1)
   INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
   dec $1;
 }
+set @@read_buffer_size=2*1024*1024;
 CREATE TABLE t2 SELECT * FROM t1;
 INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
 INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
@@ -53,3 +54,5 @@ SELECT COUNT(*) FROM t1;
 SELECT COUNT(DISTINCT id) FROM t1 GROUP BY grp;
 --enable_result_log
 DROP TABLE t1;
+
+set @@read_buffer_size=default;

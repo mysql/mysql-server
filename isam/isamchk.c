@@ -286,8 +286,8 @@ static struct my_option my_long_options[] =
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"block-search", 'b', "For debugging.", (gptr*) &search_after_block,
-   (gptr*) &search_after_block, 0, GET_ULONG, REQUIRED_ARG, NI_POS_ERROR, 0,
-   0, 0, 0, 0},
+   (gptr*) &search_after_block, 0, GET_ULONG, REQUIRED_ARG,
+   (longlong) NI_POS_ERROR, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make isamchk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -516,8 +516,8 @@ static int nisamchk(my_string filename)
       if (!rep_quick)
       {
 	if (testflag & T_EXTEND)
-	  VOID(init_key_cache(dflt_keycache,KEY_CACHE_BLOCK_SIZE,
-                              use_buffers,&dflt_key_cache_var));
+	  VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,
+                              use_buffers,0,0));
 	VOID(init_io_cache(&read_cache,datafile,(uint) read_buffer_length,
 			  READ_CACHE,share->pack.header_length,1,
 			  MYF(MY_WME)));
@@ -1460,8 +1460,7 @@ my_string name;
     printf("Data records: %lu\n",(ulong) share->state.records);
   }
 
-  VOID(init_key_cache(dflt_keycache,KEY_CACHE_BLOCK_SIZE,use_buffers,
-                      &dflt_key_cache_var));
+  VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,use_buffers,0,0));
   if (init_io_cache(&read_cache,info->dfile,(uint) read_buffer_length,
 		   READ_CACHE,share->pack.header_length,1,MYF(MY_WME)))
     goto err;
@@ -1889,12 +1888,12 @@ static void lock_memory(void)
 static int flush_blocks(file)
 File file;
 {
-  if (flush_key_blocks(dflt_keycache,file,FLUSH_RELEASE))
+  if (flush_key_blocks(dflt_key_cache,file,FLUSH_RELEASE))
   {
     print_error("%d when trying to write bufferts",my_errno);
     return(1);
   }
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   return 0;
 } /* flush_blocks */
 
@@ -1938,8 +1937,7 @@ int write_info;
   if (share->state.key_root[sort_key] == NI_POS_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_keycache,KEY_CACHE_BLOCK_SIZE,use_buffers,
-                 &dflt_key_cache_var);
+  init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,use_buffers, 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))

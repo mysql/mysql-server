@@ -1668,7 +1668,7 @@ bool udf_handler::get_arguments()
 
 String *udf_handler::val_str(String *str,String *save_str)
 {
-  uchar is_null=0;
+  uchar is_null_tmp=0;
   ulong res_length;
 
   if (get_arguments())
@@ -1685,9 +1685,9 @@ String *udf_handler::val_str(String *str,String *save_str)
       return 0;
     }
   }
-  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length, &is_null,
-		&error);
-  if (is_null || !res || error)			// The !res is for safety
+  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length,
+		 &is_null_tmp, &error);
+  if (is_null_tmp || !res || error)		// The !res is for safety
   {
     return 0;
   }
@@ -2365,9 +2365,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 bool
 Item_func_set_user_var::check()
 {
-  bool res;
   DBUG_ENTER("Item_func_set_user_var::check");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -2746,6 +2744,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
   Item *item;
+  LINT_INIT(item);				// Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;
@@ -2756,7 +2755,8 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd, tlist, ref) || !args[0]->const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) ||
+      !args[0]->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
@@ -2770,11 +2770,15 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
       key=NO_SUCH_KEY;
-    used_tables_cache|=item->used_tables();
   }
-  /* check that all columns come from the same table */
-  if (my_count_bits(used_tables_cache) != 1)
+  /*
+    Check that all columns come from the same table.
+    We've already checked that columns in MATCH are fields so 
+    PARAM_TABLE_BIT can only appear from AGAINST argument.
+  */
+  if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
+  
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
@@ -3056,7 +3060,6 @@ longlong Item_func_is_free_lock::val_int()
   String *res=args[0]->val_str(&value);
   THD *thd=current_thd;
   ULL *ull;
-  int error=0;
 
   null_value=0;
   if (!res || !res->length())

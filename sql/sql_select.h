@@ -166,11 +166,23 @@ class JOIN :public Sql_alloc
   JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
   ROLLUP rollup;				// Used with rollup
 
-  bool select_distinct, //Is select distinct?
-    no_order, simple_order, simple_group,
-    skip_sort_order, need_tmp,
-    hidden_group_fields,
-    buffer_result;
+  bool select_distinct;				// Set if SELECT DISTINCT
+
+  /*
+    simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
+    to other tables than the first non-constant table in the JOIN.
+    It's also set if ORDER/GROUP BY is empty.
+  */
+  bool simple_order, simple_group;
+  /*
+    Is set only in case if we have a GROUP BY clause
+    and no ORDER BY after constant elimination of 'order'.
+  */
+  bool no_order;
+  /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  bool          skip_sort_order;
+
+  bool need_tmp, hidden_group_fields, buffer_result;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value;
   List<Item> all_fields; // to store all fields that used in query
@@ -196,14 +208,14 @@ class JOIN :public Sql_alloc
   bool union_part; // this subselect is part of union 
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
-  JOIN(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+  JOIN(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
        select_result *result_arg)
-    :fields_list(fields)
+    :fields_list(fields_arg)
   {
-    init(thd_arg, fields, select_options_arg, result_arg);
+    init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
   
-  void init(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+  void init(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
        select_result *result_arg)
   {
     join_tab= join_tab_save= 0;
@@ -236,8 +248,8 @@ class JOIN :public Sql_alloc
     hidden_group_fields= 0; /*safety*/
     buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
       !test(select_options & OPTION_FOUND_ROWS);
-    all_fields= fields;
-    fields_list= fields;
+    all_fields= fields_arg;
+    fields_list= fields_arg;
     error= 0;
     select= 0;
     ref_pointer_array= items0= items1= items2= items3= 0;
@@ -246,7 +258,7 @@ class JOIN :public Sql_alloc
     optimized= 0;
     cond_equal= 0;
 
-    fields_list= fields;
+    fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
     tmp_table_param.end_write_records= HA_POS_ERROR;
@@ -256,7 +268,7 @@ class JOIN :public Sql_alloc
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+	      SELECT_LEX_UNIT *unit);
   int optimize();
   int reinit();
   void exec();

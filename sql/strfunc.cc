@@ -112,7 +112,7 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match)
       found_pos= pos;
     }
   }
-  return(found_count == 1 && part_match ? found_count : 0);
+  return(found_count == 1 && part_match ? found_pos : 0);
 }
 
 

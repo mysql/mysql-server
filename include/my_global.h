@@ -695,7 +695,8 @@ typedef long long	my_ptrdiff_t;
 #endif
 #endif
 #if defined(__IBMC__) || defined(__IBMCPP__)
-#define STDCALL _System _Export
+/* This was  _System _Export but caused a lot of warnings on _AIX43 */
+#define STDCALL
 #elif !defined( STDCALL)
 #define STDCALL
 #endif

@@ -18,9 +18,11 @@ select -(0-3),round(-(0-3)), round(9999999999999999999);
 -(0-3)	round(-(0-3))	round(9999999999999999999)
 3	3	10000000000000000000
 create table t1 (a bigint unsigned not null, primary key(a));
-insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE), (18446744073709551613), (18446744073709551612);
 select * from t1;
 a
+18446744073709551612
+18446744073709551613
 18446744073709551614
 18446744073709551615
 select * from t1 where a=18446744073709551615;
@@ -29,6 +31,8 @@ a
 delete from t1 where a=18446744073709551615;
 select * from t1;
 a
+18446744073709551612
+18446744073709551613
 18446744073709551614
 drop table t1;
 create table t1 ( a int not null default 1, big bigint );
@@ -69,4 +73,14 @@ id	a
 select * from t1 limit 9999999999;
 id	a
 9999999999	1
+drop table t1;
+CREATE TABLE t1 ( quantity decimal(60,0));
+insert into t1 values (10000000000000000000);
+insert into t1 values (10000000000000000000.0);
+insert into t1 values ('10000000000000000000');
+select * from t1;
+quantity
+-8446744073709551616
+10000000000000000000
+10000000000000000000
 drop table t1;

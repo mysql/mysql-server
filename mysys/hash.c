@@ -29,6 +29,11 @@
 #define HIGHFIND 4
 #define HIGHUSED 8
 
+typedef struct st_hash_info {
+  uint next;					/* index to next key */
+  byte *data;					/* data for current entry */
+} HASH_LINK;
+
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
@@ -36,7 +41,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 static uint calc_hash(HASH *hash,const byte *key,uint length)
 {
   ulong nr1=1, nr2=4;
-  hash->charset->coll->hash_sort(hash->charset,key,length,&nr1,&nr2);
+  hash->charset->coll->hash_sort(hash->charset,(uchar*) key,length,&nr1,&nr2);
   return nr1;
 }
 
@@ -211,7 +216,8 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
   uint rec_keylength;
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
   return (length && length != rec_keylength) ||
-     my_strnncoll(hash->charset, rec_key, rec_keylength, key, length);
+     my_strnncoll(hash->charset, (uchar*) rec_key, rec_keylength,
+		  (uchar*) key, length);
 }
 
 

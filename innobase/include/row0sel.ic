@@ -77,7 +77,7 @@ open_step(
 			
 	if (err != DB_SUCCESS) {
 		/* SQL error detected */
-		printf("SQL error %lu\n", err);
+		printf("SQL error %lu\n", (unsigned long) err);
 
 		ut_error;
 		que_thr_handle_error(thr, err, NULL, 0);

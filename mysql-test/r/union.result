@@ -53,7 +53,7 @@ select 0,'#' union select a,b from t1 union all select a,b from t2 union select 
 4	d
 5	f
 6	e
-7	g
+7	gg
 select a,b from t1 union select a,b from t1;
 a	b
 1	a
@@ -449,10 +449,10 @@ INSERT INTO t2 (id, id_master, text1, text2) VALUES("4", "1",
 SELECT 1 AS id_master, 1 AS id, NULL AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
 id_master	id	text1	text2
 1	1	NULL	ABCDE
-1	1		bar1
-1	2		bar2
+1	1	foo1	bar1
+1	2	foo2	bar2
 1	3	NULL	bar3
-1	4		bar4
+1	4	foo4	bar4
 SELECT 1 AS id_master, 1 AS id, 'ABCDE' AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
 id_master	id	text1	text2
 1	1	ABCDE	ABCDE
@@ -523,3 +523,303 @@ pla_id	matintnum
 105	c
 0	0
 drop table t1, t2;
+create table t1 SELECT "a" as a UNION select "aa" as a;
+select * from t1;
+a
+a
+aa
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(2) NOT NULL default ''
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT 12 as a UNION select "aa" as a;
+select * from t1;
+a
+12
+aa
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(2) NOT NULL default ''
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT 12 as a UNION select 12.2 as a;
+select * from t1;
+a
+12.0
+12.2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` double(4,1) NOT NULL default '0.0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
+insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
+create table t1 SELECT it2 from t2 UNION select it1 from t2;
+select * from t1;
+it2
+1
+NULL
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `it2` tinyint(4) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT it2 from t2 UNION select i from t2;
+select * from t1;
+it2
+1
+3
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `it2` int(11) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT i from t2 UNION select f from t2;
+select * from t1;
+i
+3
+1.5
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` double default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT f from t2 UNION select d from t2;
+select * from t1;
+f
+1.5
+2.5
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f` double default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT ib from t2 UNION select f from t2;
+select * from t1;
+ib
+4
+1.5
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ib` double default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT ib from t2 UNION select d from t2;
+select * from t1;
+ib
+4
+2.5
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ib` double default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT f from t2 UNION select y from t2;
+select * from t1;
+f
+1.5
+1972
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f` float default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT f from t2 UNION select da from t2;
+select * from t1;
+f
+1.5
+1972-10-22
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f` char(12) binary default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT y from t2 UNION select da from t2;
+select * from t1;
+y
+1972
+1972-10-22
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `y` char(10) binary default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT y from t2 UNION select dt from t2;
+select * from t1;
+y
+1972
+1972-10-22 11:50:00
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `y` char(19) binary default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT da from t2 UNION select dt from t2;
+select * from t1;
+da
+1972-10-22 00:00:00
+1972-10-22 11:50:00
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `da` datetime default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT dt from t2 UNION select sc from t2;
+select * from t1;
+dt
+1972-10-22 11:50:00
+testc
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dt` char(19) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT dt from t2 UNION select sv from t2;
+select * from t1;
+dt
+1972-10-22 11:50:00
+testv
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dt` char(19) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT sc from t2 UNION select sv from t2;
+select * from t1;
+sc
+testc
+testv
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sc` varchar(10) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT dt from t2 UNION select b from t2;
+select * from t1;
+dt
+1972-10-22 11:50:00
+tetetetetest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dt` longblob
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT sv from t2 UNION select b from t2;
+select * from t1;
+sv
+testv
+tetetetetest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sv` longblob
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
+select * from t1;
+i
+3
+2.5
+tetetetetest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` blob
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT sv from t2 UNION select tx from t2;
+select * from t1;
+sv
+testv
+teeeeeeeeeeeest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sv` text
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT b from t2 UNION select tx from t2;
+select * from t1;
+b
+tetetetetest
+teeeeeeeeeeeest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` longblob
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2;
+create table t1 (d decimal(10,1));
+create table t2 (d decimal(10,9));
+insert into t1 values ("100000000.0");
+insert into t2 values ("1.23456780");
+create table t3 select * from t2 union select * from t1;
+select * from t3;
+d
+1.234567800
+100000000.0
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `d` decimal(10,9) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2,t3;
+create table t1 select 1 union select -1;
+select * from t1;
+1
+1
+-1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `1` bigint(1) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select _latin1"test" union select _latin2"testt" ;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'UNION'
+create table t1 select _latin2"test" union select _latin2"testt" ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test` char(5) character set latin2 NOT NULL default ''
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (s char(200));
+insert into t1 values (repeat("1",200));
+create table t2 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+set local tmp_table_size=1024;
+select count(*) from (select * from t1 union all select * from t2 order by 1) b;
+count(*)
+21
+select count(*) from t1;
+count(*)
+8
+select count(*) from t2;
+count(*)
+13
+drop table t1,t2;
+set local tmp_table_size=default;

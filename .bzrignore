@@ -380,6 +380,7 @@ libmysqld/pack.c
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/protocol.cc
+libmysqld/protocol_cursor.cc
 libmysqld/records.cc
 libmysqld/repl_failsafe.cc
 libmysqld/set_var.cc
@@ -389,6 +390,7 @@ libmysqld/sp.cc
 libmysqld/sp_cache.cc
 libmysqld/sp_head.cc
 libmysqld/sp_pcontext.cc
+libmysqld/sp_rcontext.cc
 libmysqld/spatial.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc
@@ -644,5 +646,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-libmysqld/protocol_cursor.cc
-libmysqld/sp_rcontext.cc

@@ -727,7 +727,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize keycache preload flush
 	reset purge begin commit rollback savepoint
-	slave master_def master_defs master_file_def
+	slave master_def master_defs master_file_def slave_until_opts
 	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	keycache_list assign_to_keycache preload_list preload_keys
@@ -1777,7 +1777,7 @@ sp_case:
 	    { /* Simple case: <caseval> = <whenval> */
 	      LEX_STRING ivar;
 
-	      ivar.str= "_tmp_";
+	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
 	      Item *var= (Item*) new Item_splocal(ivar, 
 						  ctx->current_framesize()-1);
@@ -5435,7 +5435,7 @@ param_marker:
         '?'
         {
 	  LEX *lex=Lex;
-          if (YYTHD->prepare_command)
+          if (YYTHD->command == COM_PREPARE)
           {
             lex->param_list.push_back($$=new Item_param((uint)(lex->tok_start-(uchar *)YYTHD->query)));
             lex->param_count++;

@@ -83,7 +83,6 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   table_map where_tables= 0;
   Item *item;
-  COND *org_conds= conds;
   int error;
 
   if (conds)

@@ -874,8 +874,8 @@ btr_cur_optimistic_insert(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to insert to table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		index->table_name, index->name);
 		dtuple_print(entry);
 	}
@@ -978,7 +978,8 @@ calculate_sizes_again:
 			fprintf(stderr,
 	"InnoDB: Error: cannot insert tuple %s to index %s of table %s\n"
 	"InnoDB: max insert size %lu\n",
-			err_buf, index->name, index->table->name, max_size);
+			err_buf, index->name, index->table->name,
+			(unsigned long) max_size);
 
 			mem_free(err_buf);
 		}
@@ -1343,8 +1344,8 @@ btr_cur_update_sec_rec_in_place(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to update table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		index->table_name, index->name);
 		rec_print(rec);
 	}
@@ -1407,8 +1408,8 @@ btr_cur_update_in_place(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to update table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		index->table_name, index->name);
 		rec_print(rec);
 	}
@@ -1509,8 +1510,8 @@ btr_cur_optimistic_update(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to update table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		index->table_name, index->name);
 		rec_print(rec);
 	}
@@ -2059,8 +2060,8 @@ btr_cur_del_mark_set_clust_rec(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to del mark table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		index->table_name, index->name);
 		rec_print(rec);
 	}
@@ -2199,8 +2200,8 @@ btr_cur_del_mark_set_sec_rec(
 	if (btr_cur_print_record_ops && thr) {
 		printf(
 	"Trx with id %lu %lu going to del mark table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
+		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
 		cursor->index->table_name, cursor->index->name);
 		rec_print(rec);
 	}

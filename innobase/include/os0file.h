@@ -282,6 +282,15 @@ os_file_delete(
 /*===========*/
 			/* out: TRUE if success */
 	char*	name);	/* in: file path as a null-terminated string */
+
+/***************************************************************************
+Deletes a file if it exists. The file has to be closed before calling this. */
+
+ibool
+os_file_delete_if_exists(
+/*=====================*/
+			/* out: TRUE if success */
+	char*	name);	/* in: file path as a null-terminated string */
 /***************************************************************************
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function. */
@@ -378,6 +387,23 @@ os_file_read(
 	ulint		offset_high,/* in: most significant 32 bits of
 				offset */
 	ulint		n);	/* in: number of bytes to read */	
+/***********************************************************************
+Requests a synchronous positioned read operation. This function does not do
+any error handling. In case of error it returns FALSE. */
+
+ibool
+os_file_read_no_error_handling(
+/*===========================*/
+				/* out: TRUE if request was
+				successful, FALSE if fail */
+	os_file_t	file,	/* in: handle to a file */
+	void*		buf,	/* in: buffer where to read */
+	ulint		offset,	/* in: least significant 32 bits of file
+				offset where to read */
+	ulint		offset_high,/* in: most significant 32 bits of
+				offset */
+	ulint		n);	/* in: number of bytes to read */	
+
 /***********************************************************************
 Requests a synchronous write operation. */
 

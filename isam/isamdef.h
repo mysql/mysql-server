@@ -24,6 +24,7 @@
 #else
 #include <my_no_pthread.h>
 #endif
+#include <keycache.h>
 
 #ifdef my_write
 #undef my_write				/* We want test if disk full */

@@ -50,7 +50,7 @@ int nisam_lock_database(N_INFO *info, int lock_type)
     else
       count= --share->w_locks;
     if (info->lock_type == F_WRLCK && !share->w_locks &&
-	flush_key_blocks(*dflt_keycache,share->kfile,FLUSH_KEEP))
+	flush_key_blocks(dflt_key_cache,share->kfile,FLUSH_KEEP))
       error=my_errno;
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
       if (end_io_cache(&info->rec_cache))
@@ -329,7 +329,7 @@ int _nisam_test_if_changed(register N_INFO *info)
 	share->state.uniq    != info->last_uniq)
     {						/* Keyfile has changed */
       if (share->state.process != share->this_process)
-	VOID(flush_key_blocks(*dflt_keycache,share->kfile,FLUSH_RELEASE));
+	VOID(flush_key_blocks(dflt_key_cache,share->kfile,FLUSH_RELEASE));
       share->last_process=share->state.process;
       info->last_loop=	share->state.loop;
       info->last_uniq=	share->state.uniq;
