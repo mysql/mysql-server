@@ -171,7 +171,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     result->abort();
   if (res || thd->net.report_error)
   {
-    send_error(thd, 0, MYF(0));
+    send_error(thd, 0, NullS);
     res= 1;
   }
   delete result;
@@ -7177,7 +7177,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct,const char *message)
 {
   List<Item> field_list;
-  Item *item;
   List<Item> item_list;
   THD *thd=join->thd;
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
@@ -7191,7 +7190,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_int((int)thd->lex.select->select_number));
+    item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
     item_list.push_back(new Item_string(thd->lex.select->type,
 					strlen(thd->lex.select->type),
 					default_charset_info));
@@ -7218,7 +7217,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp2.length(0);
 
       item_list.empty();
-      item_list.push_back(new Item_int((int)thd->lex.select->select_number));
+      item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
       item_list.push_back(new Item_string(thd->lex.select->type,
 					  strlen(thd->lex.select->type),
 					  default_charset_info));
