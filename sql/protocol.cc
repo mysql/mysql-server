@@ -822,15 +822,9 @@ bool Protocol_simple::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  int buf_size= my_decimal_string_length(d);
-  char *buff= (char *)my_alloca(buf_size);
-  String str(buff, buf_size, &my_charset_bin);
-  if (my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str))
-  {
-    my_afree(buff);
-    return TRUE;
-  }
-  my_afree(buff);
+  char buff[DECIMAL_MAX_STR_LENGTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return net_store_data(str.ptr(), str.length());
 }
 
@@ -1056,15 +1050,9 @@ bool Protocol_prep::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  int buf_size= my_decimal_string_length(d);
-  char *buff= (char *)my_alloca(buf_size);
-  String str(buff, buf_size, &my_charset_bin);
-  if (my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str))
-  {
-    my_afree(buff);
-    return TRUE;
-  }
-  my_afree(buff);
+  char buff[DECIMAL_MAX_STR_LENGTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return store(str.ptr(), str.length(), str.charset());
 }
 
