@@ -196,7 +196,7 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
-	if (err != ERROR_DISK_FULL) {
+	if (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS) {
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %li in a file operation.\n"
@@ -234,7 +234,7 @@ os_file_get_last_error(void)
 #else
 	err = (ulint) errno;
 
-	if (err != ENOSPC ) {
+	if (err != ENOSPC && err != EEXIST) {
 		ut_print_timestamp(stderr);
 
 	     	fprintf(stderr,
