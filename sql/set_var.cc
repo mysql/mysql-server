@@ -21,6 +21,8 @@
 
   - If the variable is thread specific, add it to 'system_variables' struct.
     If not, add it to mysqld.cc and an declaration in 'mysql_priv.h'
+  - Don't forget to initialize new fields in global_system_variables and
+     max_system_variables!
   - Use one of the 'sys_var... classes from set_var.h or write a specific
     one for the variable type.
   - Define it in the 'variable definition list' in this file.
@@ -154,6 +156,8 @@ sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
+sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
+					     &SV::pseudo_thread_id);
 sys_var_thd_ulonglong	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
@@ -364,6 +368,7 @@ sys_var *sys_variables[]=
   &sys_net_retry_count,
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
+  &sys_pseudo_thread_id,
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
@@ -512,6 +517,7 @@ struct show_var_st init_vars[]= {
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
+  {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},

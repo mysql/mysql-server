@@ -212,8 +212,10 @@ struct sql_ex_info
 
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
-#define LOG_EVENT_TIME_F           0x1
-#define LOG_EVENT_FORCED_ROTATE_F  0x2
+#define LOG_EVENT_TIME_F            0x1
+#define LOG_EVENT_FORCED_ROTATE_F   0x2
+#define LOG_EVENT_THREAD_SPECIFIC_F 0x4 /* query depends on thread  
+                                           (for example: TEMPORARY TABLE) */
 
 enum Log_event_type
 {
