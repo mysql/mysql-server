@@ -572,6 +572,11 @@ int main (int argc, char **argv)
     FILE *infile;
     FILE *outfile = {stdout};
 
+#if defined(HAVE_PTHREAD_INIT) && defined(THREAD)
+  pthread_init();                       /* Must be called before DBUG_ENTER */
+#endif
+  my_thread_global_init();
+  {
     DBUG_ENTER ("main");
     DBUG_PROCESS (argv[0]);
     my_name = argv[0];
@@ -600,6 +605,7 @@ int main (int argc, char **argv)
     process (infile);
     output (outfile);
     DBUG_RETURN (EX_OK);
+}
 }
 
 #ifdef MSDOS

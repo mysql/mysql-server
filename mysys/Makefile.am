@@ -57,7 +57,6 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c \
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
-noinst_PROGRAMS =	charset2html @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
@@ -104,9 +103,6 @@ test_dir$(EXEEXT): test_dir.c $(LIBRARIES)
 
 test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
-
-charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
 
 testhash$(EXEEXT): testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
