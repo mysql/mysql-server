@@ -8456,8 +8456,8 @@ CHARSET_INFO my_charset_ujis =
     my_tosort_8bit,
     my_strcasecmp_mb,
     my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
     0
 };
 

@@ -386,6 +386,8 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
   cs->strncasecmp = my_strncasecmp_8bit;
   cs->mb_wc       = my_mb_wc_8bit;
   cs->wc_mb       = my_wc_mb_8bit;
+  cs->hash_caseup = my_hash_caseup_simple;
+  cs->hash_sort   = my_hash_sort_simple;
   
   set_max_sort_char(cs);
   create_fromuni(cs);
