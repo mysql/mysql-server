@@ -3260,8 +3260,8 @@ struct my_option my_long_options[] =
 #endif
   {"temp-pool", OPT_TEMP_POOL, 
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
-   (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files", (gptr*) &opt_mysql_tmpdir,
    (gptr*) &opt_mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-isolation", OPT_TX_ISOLATION,
