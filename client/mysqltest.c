@@ -661,7 +661,7 @@ int open_file(const char* name)
 }
 
 /* ugly long name, but we are following the convention */
-int do_wait_for_slave_to_stop(struct st_query* __attribute__((unused)) q)
+int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
 {
   MYSQL* mysql = &cur_con->mysql;
 #ifndef OS2 
@@ -699,7 +699,7 @@ int do_wait_for_slave_to_stop(struct st_query* __attribute__((unused)) q)
   return 0;
 }
 
-int do_require_manager(struct st_query* __attribute__((unused)) q)
+int do_require_manager(struct st_query* a __attribute__((unused)))
 {
   if (!manager)
     abort_not_supported_test();
@@ -1022,20 +1022,20 @@ int do_let(struct st_query* q)
   return var_set(var_name, var_name_end, var_val_start, q->end);
 }
 
-int do_rpl_probe(struct st_query* __attribute__((unused)) q)
+int do_rpl_probe(struct st_query* q __attribute__((unused)))
 {
   if(mysql_rpl_probe(&cur_con->mysql))
     die("Failed in mysql_rpl_probe(): %s", mysql_error(&cur_con->mysql));
   return 0;
 }
 
-int do_enable_rpl_parse(struct st_query* __attribute__((unused)) q)
+int do_enable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
   mysql_enable_rpl_parse(&cur_con->mysql);
   return 0;
 }
 
-int do_disable_rpl_parse(struct st_query* __attribute__((unused)) q)
+int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
   mysql_disable_rpl_parse(&cur_con->mysql);
   return 0;
