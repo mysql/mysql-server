@@ -317,10 +317,10 @@ static SYMBOL symbols[] = {
   { "REPAIR",		SYM(REPAIR),0,0},
   { "REPLACE",		SYM(REPLACE),0,0},
   { "REPLICATION",	SYM(REPLICATION),0,0},
+  { "SPREPEAT",		SYM(SPREPEAT_SYM),0,0}, /* QQ Temp. until conflict solved */
   { "REPEATABLE",	SYM(REPEATABLE_SYM),0,0},
   { "REQUIRE",	        SYM(REQUIRE_SYM),0,0},
   { "RESET",		SYM(RESET_SYM),0,0},
-  { "UNTIL",		SYM(UNTIL_SYM),0,0},
   { "USER_RESOURCES",	SYM(RESOURCES),0,0},
   { "RESTORE",		SYM(RESTORE_SYM),0,0},
   { "RESTRICT",		SYM(RESTRICT),0,0},
@@ -351,7 +351,7 @@ static SYMBOL symbols[] = {
   { "SONAME",		SYM(UDF_SONAME_SYM),0,0},
   { "SPATIAL",		SYM(SPATIAL_SYM),0,0},
   { "SPECIFIC",		SYM(SPECIFIC_SYM),0,0},
-  { "SPSET",		SYM(SPSET_SYM),0,0},
+  { "SPSET",		SYM(SPSET_SYM),0,0}, /* Temp. until SET parsing solved.  */
   { "SQL_BIG_RESULT",	SYM(SQL_BIG_RESULT),0,0},
   { "SQL_BUFFER_RESULT", SYM(SQL_BUFFER_RESULT),0,0},
   { "SQL_CACHE",        SYM(SQL_CACHE_SYM), 0, 0},
@@ -392,6 +392,7 @@ static SYMBOL symbols[] = {
   { "UNIQUE",		SYM(UNIQUE_SYM),0,0},
   { "UNLOCK",		SYM(UNLOCK_SYM),0,0},
   { "UNSIGNED",		SYM(UNSIGNED),0,0},
+  { "UNTIL",		SYM(UNTIL_SYM),0,0},
   { "USE",		SYM(USE_SYM),0,0},
   { "USE_FRM",		SYM(USE_FRM),0,0},
   { "USING",		SYM(USING),0,0},

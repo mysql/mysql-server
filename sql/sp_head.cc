@@ -20,6 +20,7 @@
 
 #include "mysql_priv.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 
@@ -31,9 +32,7 @@ eval_func_item(Item *it, enum enum_field_types type)
 {
   it= it->this_item();
 
-  /* QQ Which way do we do this? Or is there some even better way? */
-#if 1
-  /* QQ Obey the declared type of the variable */
+  /* QQ How do we do this? Is there some better way? */
   switch (type)
   {
   case MYSQL_TYPE_TINY:
@@ -77,30 +76,7 @@ eval_func_item(Item *it, enum enum_field_types type)
     /* QQ Don't know what to do with the rest. */
     break;
   }
-#else
-  /* QQ This looks simpler, but is wrong? It disregards the variable's type. */
-  switch (it->result_type())
-  {
-  case REAL_RESULT:
-    it= new Item_real(it->val());
-    break;
-  case INT_RESULT:
-    it= new Item_int(it->val_int());
-    break;
-  case STRING_RESULT:
-    {
-      char buffer[MAX_FIELD_WIDTH];
-      String tmp(buffer, sizeof(buffer), default_charset_info);
 
-      (void)it->val_str(&tmp);
-      it= new Item_string(buffer, sizeof(buffer), default_charset_info);
-      break;
-    }
-  default:
-    /* QQ Don't know what to do with the rest. */
-    break;
-  }
-#endif
   return it;
 }
 
@@ -113,6 +89,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
   m_defstr= new Item_string(dstr, lex->end_of_query - lex->buf,
 			    default_charset_info);
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
+  m_backpatch.empty();
 }
 
 int
@@ -144,7 +121,7 @@ sp_head::execute(THD *thd)
     Item *it = li++;		// Skip first one, it's the procedure name
 
     nctx = new sp_rcontext(csize);
-    // QQ: No error checking whatsoever right now
+    // QQ: No error checking whatsoever right now. Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar = pctx->find_pvar(i);
@@ -168,7 +145,7 @@ sp_head::execute(THD *thd)
     // The rest of the frame are local variables which are all IN.
     // QQ We haven't found any hint of what the value is when unassigned,
     //    so we set it to NULL for now. It's an error to refer to an
-    //    unassigned variable (which should be detected by the parser).
+    //    unassigned variable anyway (which should be detected by the parser).
     for (; i < csize ; i++)
       nctx->push_item(NULL);
     thd->spcont= nctx;
@@ -212,6 +189,7 @@ sp_head::execute(THD *thd)
 }
 
 
+// Reset lex during parsing, before we parse a sub statement.
 void
 sp_head::reset_lex(THD *thd)
 {
@@ -244,6 +222,7 @@ sp_head::reset_lex(THD *thd)
   thd->lex.auxilliary_table_list.empty();
 }
 
+// Restore lex during parsing, after we have parsed a sub statement.
 void
 sp_head::restore_lex(THD *thd)
 {
@@ -255,123 +234,25 @@ sp_head::restore_lex(THD *thd)
 }
 
 void
-sp_head::push_backpatch(uint ip)
+sp_head::push_backpatch(sp_instr *i)
 {
-  (void)m_backpatch.push_front(&ip);
+  (void)m_backpatch.push_front(i);
 }
 
 void
-sp_head::backpatch(uint dest)
+sp_head::backpatch()
 {
-  while (! m_backpatch.is_empty())
+  sp_instr *ip;
+  uint dest= instructions();
+  List_iterator_fast<sp_instr> li(m_backpatch);
+
+  while ((ip= li++))
   {
-    uint *ip= m_backpatch.pop();
-    sp_instr_jump *i= static_cast<sp_instr_jump *>(get_instr(*ip));
+    sp_instr_jump *i= static_cast<sp_instr_jump *>(ip);
 
     i->set_destination(dest);
   }
-}
-
-
-// ------------------------------------------------------------------
-
-// Finds the SP 'name'. Currently this always reads from the database
-// and prepares (parse) it, but in the future it will first look in
-// the in-memory cache for SPs. (And store newly prepared SPs there of
-// course.)
-sp_head *
-sp_find(THD *thd, Item_string *iname)
-{
-  extern int yyparse(void *thd);
-  LEX *tmplex;
-  TABLE *table;
-  TABLE_LIST tables;
-  const char *defstr;
-  String *name;
-  sp_head *sp = NULL;
-
-  name = iname->const_string();
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
-  if (! (table= open_ltable(thd, &tables, TL_READ)))
-    return NULL;
-
-  if (table->file->index_read_idx(table->record[0], 0,
-				  (byte*)name->c_ptr(), name->length(),
-				  HA_READ_KEY_EXACT))
-    goto done;
-
-  if ((defstr= get_field(&thd->mem_root, table, 1)) == NULL)
-    goto done;
-
-  // QQ Set up our own mem_root here???
-  tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
-  if (yyparse(thd) || thd->fatal_error || tmplex->sphead == NULL)
-    goto done;			// Error
-  else
-    sp = tmplex->sphead;
-
- done:
-  if (table)
-    close_thread_tables(thd);
-  return sp;
-}
-
-int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
-{
-  int ret= 0;
-  TABLE *table;
-  TABLE_LIST tables;
-
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
-  /* Allow creation of procedures even if we can't open proc table */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-  {
-    ret= -1;
-    goto done;
-  }
-
-  restore_record(table, 2);	// Get default values for fields
-
-  table->field[0]->store(name, namelen, default_charset_info);
-  table->field[1]->store(def, deflen, default_charset_info);
-
-  ret= table->file->write_row(table->record[0]);
-
- done:
-  close_thread_tables(thd);
-  return ret;
-}
-
-int
-sp_drop(THD *thd, char *name, uint namelen)
-{
-  TABLE *table;
-  TABLE_LIST tables;
-
-  tables.db= (char *)"mysql";
-  tables.real_name= tables.alias= (char *)"proc";
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    goto err;
-  if (! table->file->index_read_idx(table->record[0], 0,
-				    (byte *)name, namelen,
-				    HA_READ_KEY_EXACT))
-  {
-    int error;
-
-    if ((error= table->file->delete_row(table->record[0])))
-      table->file->print_error(error, MYF(0));
-  }
-  close_thread_tables(thd);
-  return 0;
-
- err:
-  close_thread_tables(thd);
-  return -1;
+  m_backpatch.empty();
 }
 
 
@@ -412,7 +293,6 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 //
 // sp_instr_jump_if
 //
-
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
@@ -428,7 +308,6 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
 //
 // sp_instr_jump_if_not
 //
-
 int
 sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
