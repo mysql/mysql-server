@@ -64,10 +64,6 @@ select "--- --position --" as "";
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
-# But now they are not. V. Vagin should fix this.
-# We test all the same options second time since code for remote case is
-# essentially different. If code for both cases will be unified we'll be 
-# able to throw out most of this.
 
 --disable_query_log
 select "--- Remote --" as "";

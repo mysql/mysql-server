@@ -386,7 +386,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 
   if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
 					 sizeof(char*))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   for (pos=table_names ; tables ; tables=tables->next)
   {
     char *table_name;
@@ -399,7 +399,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 			       mysql_real_data_home,
 			       tables->db, tables->real_name);
       if (!(table_name= thd->strmake(buff, length)))
-	DBUG_RETURN(1);
+	DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
       table_name=(*tbl)->path;

@@ -23,7 +23,7 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
---error 1249
+--error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
@@ -420,7 +420,7 @@ create table t1 select 1 union select -1;
 select * from t1;
 show create table t1;
 drop table t1;
--- error 1266
+-- error 1267
 create table t1 select _latin1"test" union select _latin2"testt" ;
 create table t1 select _latin2"test" union select _latin2"testt" ;
 show create table t1;
@@ -473,14 +473,13 @@ create table t1 (   RID int(11) not null default '0',   IID int(11) not null def
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
 select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
 drop  table t1;
-
 #
-# bug #2552
+# Bug #2809 (UNION fails on MyIsam tables when index on second column from
+# same table)
 #
---disable_warnings
-create table t1 (  id int,  name char(10) not null,  name2 char(10) not null ) engine=innodb;
---enable_warnings
-insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
-select name2 from t1  union all  select name from t1 union all select id from t1;
-drop table t1;
-
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+drop  table t1;

@@ -289,6 +289,20 @@ SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
 COUNT(*)
 6
 DROP TABLE t1;
+CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
+INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+SELECT * FROM t1
+WHERE
+(
+( b =1 AND a BETWEEN 14 AND 21 ) OR
+( b =2 AND a BETWEEN 16 AND 18 ) OR
+( b =3 AND a BETWEEN 15 AND 19 ) OR
+(a BETWEEN 19 AND 47)
+);
+a	b
+15	1
+47	1
+DROP TABLE t1;
 create  table t1 (id int(10) primary key);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select id from t1 where id in (2,5,9) ;

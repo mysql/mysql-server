@@ -227,8 +227,8 @@ int my_strnncollsp_sjis(CHARSET_INFO * cs,
 			const uchar *s, uint slen, 
 			const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_sjis(cs,s,slen,t,tlen);
 }
 
@@ -270,10 +270,10 @@ static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
 #define max_sort_char ((char) 255)
 
 static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
-                           const char *ptr,uint ptr_length,
-                           int escape, int w_one, int w_many,
-                           uint res_length, char *min_str,char *max_str,
-                           uint *min_length,uint *max_length)
+				  const char *ptr,uint ptr_length,
+				  pbool escape, pbool w_one, pbool w_many,
+				  uint res_length, char *min_str,char *max_str,
+				  uint *min_length,uint *max_length)
 {
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
@@ -4489,7 +4489,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_sjis,
   my_numchars_mb,
   my_charpos_mb,
-  my_wellformedlen_mb,
+  my_well_formed_len_mb,
   my_lengthsp_8bit,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */

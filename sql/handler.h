@@ -70,12 +70,14 @@
 #define HA_CAN_SQL_HANDLER     (1 << 22)
 #define HA_NO_AUTO_INCREMENT   (1 << 23)
 #define HA_HAS_CHECKSUM        (1 << 24)
-
 /*
   Next record gives next record according last record read (even
   if database is updated after read).  Not used at this point.
 */
-#define HA_LASTKEY_ORDER	(1 << 25)
+#define HA_LASTKEY_ORDER       (1 << 25)
+/* Table data are stored in separate files */
+#define HA_FILE_BASED	       (1 << 26)
+
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -167,8 +169,9 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
-  char *comment,*password;
-  char *data_file_name, *index_file_name;
+  const char *comment,*password;
+  const char *data_file_name, *index_file_name;
+  const char *alias;
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   ulong table_options;
@@ -230,6 +233,7 @@ public:
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
+  bool implicit_emptied;                /* Can be !=0 only if HEAP */
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -238,7 +242,7 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_REF_PARTS),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0)
+    raid_type(0), ft_handler(0), implicit_emptied(0)
     {}
   virtual ~handler(void) {}
   int ha_open(const char *name, int mode, int test_if_locked);
@@ -337,6 +341,8 @@ public:
   virtual void append_create_info(String *packet) {}
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
+  /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
+  virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */
   virtual void free_foreign_key_create_info(char* str) {}

@@ -157,7 +157,7 @@ int sleep_until_file_deleted(char *pid_file)
 /******************************************************************************
 
 	sleep_until_file_exists()
-	
+
 	Sleep until the given file exists.
 
 ******************************************************************************/
@@ -199,9 +199,13 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
   add_arg(&al, "--user=%s", user);
   add_arg(&al, "--password=%s", password);
   add_arg(&al, "--silent");
+
+  /** Not supported on NetWare
   add_arg(&al, "-O");
   add_arg(&al, "connect_timeout=10");
   add_arg(&al, "-w");
+  **/
+
   add_arg(&al, "--host=localhost");
   add_arg(&al, "ping");
 
@@ -210,7 +214,7 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
 	for(i = 0; (i < TRY_MAX)
        && (err = spawn(mysqladmin_file, &al, TRUE, NULL,
                        trash, NULL)); i++) sleep(1);
-	
+
   // free args
   free_args(&al);
 

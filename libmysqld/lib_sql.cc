@@ -189,8 +189,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     thd->data= 0;
   }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
-			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
-      || emb_mysql_read_query_result(stmt->mysql))
+			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
+			   1) ||
+      emb_mysql_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -251,8 +252,8 @@ int emb_next_result(MYSQL *mysql)
   DBUG_ENTER("emb_next_result");
 
   if (emb_advanced_command(mysql, COM_QUERY,0,0,
-			   thd->query_rest.ptr(),thd->query_rest.length(),1)
-      || emb_mysql_read_query_result(mysql))
+			   thd->query_rest.ptr(),thd->query_rest.length(),1) ||
+      emb_mysql_read_query_result(mysql))
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);				/* No more results */

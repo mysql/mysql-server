@@ -206,7 +206,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   if (first_select->next_select())
   {
     union_result->tmp_table_param.field_count= types.elements;
-    union_result->tmp_table_param.all_nulls= true;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
 				  (ORDER*) 0, !union_option, 1, 
@@ -310,30 +309,6 @@ int st_select_lex_unit::exec()
 	  sl->options|= found_rows_for_union;
 	}
 	sl->join->select_options=sl->options;
-	/*
-	  As far as union share table space we should reassign table map,
-	  which can be spoiled by 'prepare' of JOIN of other UNION parts
-	  if it use same tables
-	*/
-	uint tablenr=0;
-	ulong query_id= thd->query_id;
-	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
-	     table_list;
-	     table_list= table_list->next, tablenr++)
-	{
-	  if (table_list->shared)
-	  {
-	    /*
-	      review notes: Check it carefully. I still can't understand
-	      why I should not touch table->used_keys. For my point of
-	      view we should do here same procedura as it was done by
-	      setup_table
-	    */
-	    setup_table_map(table_list->table, table_list, tablenr);
-	  }
-	  for (unsigned int i=0; i < table_list->table->fields; i++)
-	    table_list->table->field[i]->query_id= query_id;
-	}
 	res= sl->join->optimize();
       }
       if (!res)

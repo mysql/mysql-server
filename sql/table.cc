@@ -581,7 +581,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  {
 	    if ((index_flags & HA_KEY_READ_ONLY) &&
 		(field->key_type() != HA_KEYTYPE_TEXT ||
-		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		 (!((ha_option & HA_KEY_READ_WRONG_STR) ||
+		    (field->flags & BINARY_FLAG)) &&
 		  !(keyinfo->flags & HA_FULLTEXT))))
 	      field->part_of_key.set_bit(key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||

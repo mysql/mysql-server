@@ -2997,7 +2997,7 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
       DBUG_RETURN(1);
     }
     
-    if((*mysql->methods->unbuffered_fetch)(mysql, ( char **)&row))
+    if ((*mysql->methods->unbuffered_fetch)(mysql, (char**) &row))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
 		      mysql->net.sqlstate);
