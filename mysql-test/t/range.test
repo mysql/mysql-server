@@ -263,3 +263,4 @@ WHERE
     ( b =3 AND a BETWEEN 15 AND 19 ) OR
     (a BETWEEN 19 AND 47)
 );
+DROP TABLE t1;

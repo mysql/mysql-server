@@ -293,40 +293,21 @@ void Load_log_event::pack_info(String* packet)
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     tmp.append(" IGNORE ");
   
-  tmp.append("INTO TABLE ");
+  tmp.append("INTO TABLE `");
   tmp.append(table_name);
-  if (sql_ex.field_term_len)
-  {
-    tmp.append(" FIELDS TERMINATED BY ");
-    pretty_print_str(&tmp, sql_ex.field_term, sql_ex.field_term_len);
-  }
-
-  if (sql_ex.enclosed_len)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
-      tmp.append(" OPTIONALLY ");
-    tmp.append( " ENCLOSED BY ");
-    pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
+  tmp.append("` FIELDS TERMINATED BY ");
+  pretty_print_str(&tmp, sql_ex.field_term, sql_ex.field_term_len);
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
+    tmp.append(" OPTIONALLY ");
+  tmp.append( " ENCLOSED BY ");
+  pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
+  tmp.append( " ESCAPED BY ");
+  pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
      
-  if (sql_ex.escaped_len)
-  {
-    tmp.append( " ESCAPED BY ");
-    pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
-  }
-     
-  bool line_lexem_added= false;
-  if (sql_ex.line_term_len)
-  {
-    tmp.append(" LINES TERMINATED BY ");
-    pretty_print_str(&tmp, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
-
+  tmp.append(" LINES TERMINATED BY ");
+  pretty_print_str(&tmp, sql_ex.line_term, sql_ex.line_term_len);
   if (sql_ex.line_start_len)
   {
-    if (!line_lexem_added)
-      tmp.append(" LINES");
     tmp.append(" STARTING BY ");
     pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
@@ -1323,7 +1304,8 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   print(file, short_form, last_db, 0);
 }
 
-void Load_log_event::print(FILE* file, bool short_form, char* last_db, bool commented)
+void Load_log_event::print(FILE* file, bool short_form, char* last_db,
+			   bool commented)
 {
   if (!short_form)
   {
@@ -1354,40 +1336,22 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db, bool comm
     fprintf(file," REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG )
     fprintf(file," IGNORE ");
-  
-  fprintf(file, "INTO TABLE %s ", table_name);
-  if (sql_ex.field_term)
-  {
-    fprintf(file, " FIELDS TERMINATED BY ");
-    pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
-  }
 
-  if (sql_ex.enclosed)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
-      fprintf(file," OPTIONALLY ");
-    fprintf(file, " ENCLOSED BY ");
-    pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
-     
-  if (sql_ex.escaped)
-  {
-    fprintf(file, " ESCAPED BY ");
-    pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
-  }
-     
-  bool line_lexem_added= false;
-  if (sql_ex.line_term)
-  {
-    fprintf(file," LINES TERMINATED BY ");
-    pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
+  fprintf(file, "INTO TABLE `%s`", table_name);
+  fprintf(file, " FIELDS TERMINATED BY ");
+  pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
+
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
+    fprintf(file," OPTIONALLY ");
+  fprintf(file, " ENCLOSED BY ");
+  pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
+  fprintf(file, " ESCAPED BY ");
+  pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
+  fprintf(file," LINES TERMINATED BY ");
+  pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
 
   if (sql_ex.line_start)
   {
-    if (!line_lexem_added)
-      fprintf(file," LINES");
     fprintf(file," STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
@@ -1546,7 +1510,7 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      char* block_arg, uint block_len_arg, bool using_trans)
   :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
 		  using_trans),
-   fake_base(0),block(block_arg),block_len(block_len_arg),
+   fake_base(0),block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
   sql_ex.force_new_format();
@@ -1586,8 +1550,16 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
   :Load_log_event(buf,0,old_format),fake_base(0),block(0),inited_from_old(0)
 {
   int block_offset;
-  if (copy_log_event(buf,len,old_format))
-    return;
+  DBUG_ENTER("Create_file_log_event");
+
+  /*
+    We must make copy of 'buf' as this event may have to live over a
+    rotate log entry when used in mysqlbinlog
+  */
+  if (!(event_buf= my_memdup(buf, len, MYF(MY_WME))) ||
+      (copy_log_event(event_buf, len, old_format)))
+    DBUG_VOID_RETURN;
+
   if (!old_format)
   {
     file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
@@ -1605,6 +1577,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
     sql_ex.force_new_format();
     inited_from_old = 1;
   }
+  DBUG_VOID_RETURN;
 }
 
 
