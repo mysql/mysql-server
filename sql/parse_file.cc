@@ -50,27 +50,27 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
     */
     switch(*ptr) {
     case '\\': // escape character
-      if (my_b_append(file, "\\\\", 2))
+      if (my_b_append(file, (const byte *)"\\\\", 2))
 	return TRUE;
       break;
     case '\n': // parameter value delimiter
-      if (my_b_append(file, "\\n", 2))
+      if (my_b_append(file, (const byte *)"\\n", 2))
 	return TRUE;
       break;
     case '\0': // problem for some string processing utilites
-      if (my_b_append(file, "\\0", 2))
+      if (my_b_append(file, (const byte *)"\\0", 2))
 	return TRUE;
       break;
     case 26: // problem for windows utilites (Ctrl-Z)
-      if (my_b_append(file, "\\z", 2))
+      if (my_b_append(file, (const byte *)"\\z", 2))
 	return TRUE;
       break;
     case '\'': // list of string delimiter
-      if (my_b_append(file, "\\\'", 2))
+      if (my_b_append(file, (const byte *)"\\\'", 2))
 	return TRUE;
       break;
     default:
-      if (my_b_append(file, ptr, 1))
+      if (my_b_append(file, (const byte *)ptr, 1))
 	return TRUE;
     }
   }
@@ -106,7 +106,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
   case FILE_OPTIONS_STRING:
   {
     LEX_STRING *val_s= (LEX_STRING *)(base + parameter->offset);
-    if (my_b_append(file, val_s->str, val_s->length))
+    if (my_b_append(file, (const byte *)val_s->str, val_s->length))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -119,7 +119,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
   case FILE_OPTIONS_ULONGLONG:
   {
     num.set(*((ulonglong *)(base + parameter->offset)), &my_charset_bin);
-    if (my_b_append(file, num.ptr(), num.length()))
+    if (my_b_append(file, (const byte *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -128,7 +128,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     ulonglong *val_i= (ulonglong *)(base + parameter->offset);
     *old_version= (*val_i)++;
     num.set(*val_i, &my_charset_bin);
-    if (my_b_append(file, num.ptr(), num.length()))
+    if (my_b_append(file, (const byte *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -141,7 +141,8 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     get_date(val_s->str, GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
 	     tm);
     val_s->length= PARSE_FILE_TIMESTAMPLENGTH;
-    if (my_b_append(file, val_s->str, PARSE_FILE_TIMESTAMPLENGTH))
+    if (my_b_append(file, (const byte *)val_s->str,
+                    PARSE_FILE_TIMESTAMPLENGTH))
       DBUG_RETURN(TRUE);
     break;
   }
@@ -155,10 +156,10 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     {
       num.set((ulonglong)str->length, &my_charset_bin);
       // ',' after string to detect list continuation
-      if ((!first && my_b_append(file, " ", 1)) ||
-	  my_b_append(file, "\'", 1) ||
-	  my_b_append(file, str->str, str->length) ||
-	  my_b_append(file, "\'", 1))
+      if ((!first && my_b_append(file, (const byte *)" ", 1)) ||
+	  my_b_append(file, (const byte *)"\'", 1) ||
+	  my_b_append(file, (const byte *)str->str, str->length) ||
+	  my_b_append(file, (const byte *)"\'", 1))
       {
 	DBUG_RETURN(TRUE);
       }
@@ -202,6 +203,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
   ulonglong old_version= ULONGLONG_MAX;
   int path_end;
+  File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
 		       dir->str, file_name->str, (ulong) base));
@@ -222,18 +224,19 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
     goto err_w_file;
 
   // write header (file signature)
-  if (my_b_append(&file, "TYPE=", 5) ||
-      my_b_append(&file, type->str, type->length) ||
-      my_b_append(&file, "\n", 1))
+  if (my_b_append(&file, (const byte *)"TYPE=", 5) ||
+      my_b_append(&file, (const byte *)type->str, type->length) ||
+      my_b_append(&file, (const byte *)"\n", 1))
     goto err_w_file;
 
   // write parameters to temporary file
-  for (File_option *param= parameters; param->name.str; param++)
+  for (param= parameters; param->name.str; param++)
   {
-    if (my_b_append(&file, param->name.str, param->name.length) ||
-	my_b_append(&file, "=", 1) ||
+    if (my_b_append(&file, (const byte *)param->name.str,
+                    param->name.length) ||
+	my_b_append(&file, (const byte *)"=", 1) ||
 	write_parameter(&file, base, param, &old_version) ||
-	my_b_append(&file, "\n", 1))
+	my_b_append(&file, (const byte *)"\n", 1))
       goto err_w_cache;
   }
 
@@ -367,7 +370,8 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
   
-  if ((len= my_read(file, parser->buff, stat_info.st_size, MYF(MY_WME))) ==
+  if ((len= my_read(file, (byte *)parser->buff,
+                    stat_info.st_size, MYF(MY_WME))) ==
       MY_FILE_ERROR)
   {
     my_close(file, MYF(MY_WME));
