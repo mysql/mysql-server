@@ -1205,10 +1205,10 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
-    notable that the last kilobytes of it (8 kB for example) may live in memory,
-    not on disk (depending on what the thread using it does). While this is
-    efficient, it has a side-effect one must know: 
-    the size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
+    notable that the last kilobytes of it (8 kB for example) may live in
+    memory, not on disk (depending on what the thread using it does). While
+    this is efficient, it has a side-effect one must know: 
+    The size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
     few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
     happens when only the IO thread is started (not the SQL thread). The
     "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
@@ -1221,30 +1221,31 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 
     See how 4 is less than 7811 and 8192 is less than 9744.
 
-    WARNING: this is risky because the slave can stay like this for a long time;
-    then if it has a power failure, master.info says the I/O thread has read
-    until 9744 while the relay-log contains only until 8192 (the in-memory part
-    from 8192 to 9744 has been lost), so the SQL slave thread will miss some
-    events, silently breaking replication.
+    WARNING: this is risky because the slave can stay like this for a long
+    time; then if it has a power failure, master.info says the I/O thread has
+    read until 9744 while the relay-log contains only until 8192 (the
+    in-memory part from 8192 to 9744 has been lost), so the SQL slave thread
+    will miss some events, silently breaking replication.
     Ideally we would like to flush master.info only when we know that the relay
     log has no in-memory tail.
     Note that the above problem may arise only when only the IO thread is
     started, which is unlikely.
   */
 
+  /*
+    For the maximum log size, we choose max_relay_log_size if it is
+    non-zero, max_binlog_size otherwise. If later the user does SET
+    GLOBAL on one of these variables, fix_max_binlog_size and
+    fix_max_relay_log_size will reconsider the choice (for example
+    if the user changes max_relay_log_size to zero, we have to
+    switch to using max_binlog_size for the relay log) and update
+    rli->relay_log.max_size (and mysql_bin_log.max_size).
+  */
+
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
 	       1 /* no auto events */,
-               /*
-                 For the maximum size, we choose max_relay_log_size if it is
-                 non-zero, max_binlog_size otherwise. If later the user does SET
-                 GLOBAL on one of these variables, fix_max_binlog_size and
-                 fix_max_relay_log_size will reconsider the choice (for example
-                 if the user changes max_relay_log_size to zero, we have to
-                 switch to using max_binlog_size for the relay log) and update
-                 rli->relay_log.max_size (and mysql_bin_log.max_size).
-               */
                max_relay_log_size ? max_relay_log_size : max_binlog_size))
   {
     sql_print_error("Failed in open_log() called from init_relay_log_info()");
@@ -3445,23 +3446,25 @@ void rotate_relay_log(MASTER_INFO* mi)
   /* If this server is not a slave (or RESET SLAVE has just been run) */
   if (!rli->inited)
   {
-    DBUG_PRINT("info", ("rli->inited=0"));
+    DBUG_PRINT("info", ("rli->inited == 0"));
     DBUG_VOID_RETURN;
   }
   lock_slave_threads(mi);
   pthread_mutex_lock(&rli->data_lock);
+
   /* If the relay log is closed, new_file() will do nothing. */
   rli->relay_log.new_file(1);
+
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
     be counted, so imagine a succession of FLUSH LOGS  and assume the slave
     threads are started:
-    relay_log_space decreases by the size of the deleted relay log, but does not
-    increase, so flush-after-flush we may become negative, which is wrong.
-    Even if this will be corrected as soon as a query is replicated on the slave
-    (because the I/O thread will then call harvest_bytes_written() which will
-    harvest all these BIN_LOG_HEADER_SIZE we forgot), it may give strange output
-    in SHOW SLAVE STATUS meanwhile. So we harvest now.
+    relay_log_space decreases by the size of the deleted relay log, but does
+    not increase, so flush-after-flush we may become negative, which is wrong.
+    Even if this will be corrected as soon as a query is replicated on the
+    slave (because the I/O thread will then call harvest_bytes_written() which
+    will harvest all these BIN_LOG_HEADER_SIZE we forgot), it may give strange
+    output in SHOW SLAVE STATUS meanwhile. So we harvest now.
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
   */
