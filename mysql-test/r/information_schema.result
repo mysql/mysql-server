@@ -676,3 +676,6 @@ variable_name
 character_set_database
 collation_database
 skip_show_database
+show global status like "Threads_running";
+Variable_name	Value
+Threads_running	1
