@@ -611,17 +611,8 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
     return 0;
   }
 #else
-  char t1[4], t2[4];
-  if (n1 == 3 && n2 == 3)
-  {
-    memcpy(t1, p1, 3);
-    memcpy(t2, p2, 3);
-    p1 = t1;
-    p2 = t2;
-    n1 = n2 = 4;
-  }
 #ifdef ndb_date_sol9x86_cc_xO3_madness
-  if (n2 >= 4) {        // may access 4-th byte
+  if (n2 >= 3) {
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     // from Field_newdate::val_int
@@ -636,7 +627,7 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
     return 0;
   }
 #else
-  if (n2 >= 4) {
+  if (n2 >= 3) {
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     uint j1 = uint3korr(v1);
@@ -690,7 +681,7 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 int
 NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  if (n2 >= 4) {        // may access 4-th byte
+  if (n2 >= 3) {
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     // from Field_time::val_int
