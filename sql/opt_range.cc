@@ -609,12 +609,19 @@ SQL_SELECT::~SQL_SELECT()
 
 #undef index					// Fix for Unixware 7
 
-QUICK_SELECT::QUICK_SELECT(THD *thd, TABLE *table, uint key_nr, bool no_alloc)
-  :dont_free(0),error(0),index(key_nr),max_used_key_length(0),
-   used_key_parts(0), head(table), it(ranges),range(0)
+QUICK_SELECT_I::QUICK_SELECT_I()
+  :max_used_key_length(0),
+   used_key_parts(0)
+{}
+
+QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr, 
+                                       bool no_alloc, MEM_ROOT *parent_alloc)
+  :dont_free(0),error(0),it(ranges),range(0)
 {
-  //!!psergey: split this again to QUICK_SELECT_I
-  if (!no_alloc)
+  index= key_nr;
+  head=  table;
+
+  if (!no_alloc && !parent_alloc)
   {
     // Allocates everything through the internal memroot
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -860,7 +867,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   uint idx;
   double scan_time;
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
-  THD *thd= current_thd;
   DBUG_ENTER("test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      (ulong) keys_to_use, (ulong) prev_tables,
@@ -909,7 +915,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-    //!!todo:remerge this.
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
 						   sizeof(KEY_PART)*
 						   head->key_parts)))
@@ -1106,7 +1111,6 @@ imerge_fail:;
                 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT leaves THR_MALLOC
                 pointing to its allocator, restore it back
               */
-              //my_pthread_setspecific_ptr(THR_MALLOC,old_root);
               quick_imerge->last_quick_select= new_quick;
 
               if (quick_imerge->push_quick_back(new_quick))
@@ -1141,12 +1145,14 @@ imerge_fail:;
             quick->reset();
           }
 
-	        needed_reg|= (key_map) 1 << keynr; /!!todo entire function is not merged properly
+          goto end;
+        }
       }
     }
 end_free:
     free_root(&alloc,MYF(0));			// Return memory & allocator
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+end:
     thd->no_errors=0;
   }
 
@@ -1225,7 +1231,7 @@ static int get_quick_select_params(SEL_TREE *tree, PARAM& param,
 						param.range_count,
 						found_records)+
 			  (double) found_records / TIME_FOR_COMPARE);
-      if (*read_time > found_read_time)
+      if (*read_time > found_read_time && found_records != HA_POS_ERROR)
       {
         *read_time=   found_read_time;
         *records=     found_records;
@@ -2822,9 +2828,9 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree,
 {
   QUICK_RANGE_SELECT *quick;
   DBUG_ENTER("get_quick_select");
-  if ((quick=new QUICK_RANGE_SELECT(param->table,param->real_keynr[idx],
-                                    test(parent_alloc),
-                                    parent_alloc))) //!!todo: add thd to param
+  if ((quick=new QUICK_RANGE_SELECT(param->thd, param->table,
+                                    param->real_keynr[idx],test(parent_alloc),
+                                    parent_alloc)))
   {
     if (quick->error ||
 	get_quick_keys(param,quick,param->key[idx],key_tree,param->min_key,0,
@@ -2996,7 +3002,8 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 ** Create a QUICK RANGE based on a key
 ****************************************************************************/
 
-QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref) //!!todo: make use of thd
+QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
+                                             TABLE_REF *ref)
 {
   table->file->index_end();			// Remove old cursor
   QUICK_RANGE_SELECT *quick=new QUICK_RANGE_SELECT(thd, table, ref->key, 1);  
@@ -3006,7 +3013,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *
 
   if (!quick)
     return 0;			/* no ranges found */
-  if (quick->init())            /* !!todo: psergey: check if init is called exactly one time.*/
+  if (quick->init())
   {
     delete quick;
     return 0;

@@ -117,7 +117,6 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor,*sl;
-  SELECT_LEX *sl;
   DBUG_ENTER("st_select_lex_unit::prepare");  
 
   if (prepared)
@@ -188,7 +187,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   union_result->not_describe=1;
   union_result->tmp_table_param=tmp_table_param;
 
-  for (;sl; sl= sl->next_select()) //!!todo: psergey: all my changes around this were to shut up the compiler. check they didn't make it here
+  for (;sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,

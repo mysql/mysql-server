@@ -33,7 +33,7 @@
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
-                              "index_merge" //!!todo: psergey: check if constant values are same
+                              "index_merge"
 };
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
