@@ -1544,21 +1544,6 @@ void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 }
 
 
-/*
-  Set the internal error message to mysql handler
-*/
-
-static void set_mysql_error(MYSQL * mysql, int errcode, const char *sqlstate)
-{
-  DBUG_ENTER("set_mysql_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
-  DBUG_ASSERT(mysql != 0);
-
-  mysql->net.last_errno= errcode;
-  strmov(mysql->net.last_error, ER(errcode));
-  strmov(mysql->net.sqlstate, sqlstate);
-}
-
 
 /*
   Reallocate the NET package to be at least of 'length' bytes
@@ -2872,7 +2857,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   {
     /*
       Set param->is_null to point to a dummy variable if it's not set.
-      This is to make the excute code easier
+      This is to make the execute code easier
     */
     if (!param->is_null)
       param->is_null= &param->internal_is_null;
@@ -3142,8 +3127,7 @@ MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
   {
-    set_stmt_errmsg(stmt, ER(CR_OUT_OF_MEMORY), CR_OUT_OF_MEMORY,
-		    unknown_sqlstate);
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
   init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
@@ -3159,8 +3143,7 @@ MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 	!(cur->data= ((MYSQL_ROW) alloc_root(&result->alloc, pkt_len))))
     {
       free_rows(result);
-      set_stmt_errmsg(stmt, ER(CR_OUT_OF_MEMORY), CR_OUT_OF_MEMORY,
-		      unknown_sqlstate);
+      set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
       DBUG_RETURN(0);
     }
     *prev_ptr= cur;
