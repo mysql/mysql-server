@@ -26,7 +26,17 @@
  *
  */
 
-// *opened=true means we opened ourselves
+#define MYSQL_PROC_FIELD_NAME       0
+#define MYSQL_PROC_FIELD_TYPE       1
+#define MYSQL_PROC_FIELD_DEFINITION 2
+#define MYSQL_PROC_FIELD_CREATOR    3
+#define MYSQL_PROC_FIELD_MODIFIED   4
+#define MYSQL_PROC_FIELD_CREATED    5
+#define MYSQL_PROC_FIELD_SUID       6
+#define MYSQL_PROC_FIELD_COMMENT    7
+#define MYSQL_PROC_FIELD_COUNT      8
+
+/* *opened=true means we opened ourselves */
 static int
 db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
 		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
@@ -102,23 +112,33 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
   if (ret != SP_OK)
     goto done;
-  if ((defstr= get_field(&thd->mem_root, table->field[2])) == NULL)
+
+  if (table->fields != MYSQL_PROC_FIELD_COUNT)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+
+  if ((defstr= get_field(&thd->mem_root,
+			 table->field[MYSQL_PROC_FIELD_DEFINITION])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
 
   // Get additional information
-  if ((creator= get_field(&thd->mem_root, table->field[3])) == NULL)
+  if ((creator= get_field(&thd->mem_root,
+			  table->field[MYSQL_PROC_FIELD_CREATOR])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
 
-  modified= table->field[4]->val_int();
-  created= table->field[5]->val_int();
+  modified= table->field[MYSQL_PROC_FIELD_MODIFIED]->val_int();
+  created= table->field[MYSQL_PROC_FIELD_CREATED]->val_int();
 
-  if ((ptr= get_field(&thd->mem_root, table->field[6])) == NULL)
+  if ((ptr= get_field(&thd->mem_root,
+		      table->field[MYSQL_PROC_FIELD_SUID])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -126,7 +146,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   if (ptr[0] == 'N')
     suid= 0;
 
-  table->field[7]->val_str(&str, &str);
+  table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
+
   ptr= 0;
   if ((length= str.length()))
     ptr= strmake_root(&thd->mem_root, str.ptr(), length);
@@ -195,15 +216,25 @@ db_create_routine(THD *thd, int type,
     restore_record(table, default_values); // Get default values for fields
     strxmov(creator, thd->user, "@", thd->host_or_ip, NullS);
 
-    table->field[0]->store(name, namelen, system_charset_info);
-    table->field[1]->store((longlong)type);
-    table->field[2]->store(def, deflen, system_charset_info);
-    table->field[3]->store(creator, (uint)strlen(creator), system_charset_info);
-    ((Field_timestamp *)table->field[5])->set_time();
+    if (table->fields != MYSQL_PROC_FIELD_COUNT)
+    {
+      ret= SP_GET_FIELD_FAILED;
+      goto done;
+    }
+    table->field[MYSQL_PROC_FIELD_NAME]->store(name, namelen,
+					       system_charset_info);
+    table->field[MYSQL_PROC_FIELD_TYPE]->store((longlong)type);
+    table->field[MYSQL_PROC_FIELD_DEFINITION]->store(def, deflen,
+						     system_charset_info);
+    table->field[MYSQL_PROC_FIELD_CREATOR]->store(creator,
+						  (uint)strlen(creator),
+						  system_charset_info);
+    ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     if (suid)
-      table->field[6]->store((longlong)suid);
+      table->field[MYSQL_PROC_FIELD_SUID]->store((longlong)suid);
     if (comment)
-      table->field[7]->store(comment, commentlen, system_charset_info);
+      table->field[MYSQL_PROC_FIELD_COMMENT]->store(comment, commentlen,
+						    system_charset_info);
 
     if (table->file->write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
@@ -211,6 +242,7 @@ db_create_routine(THD *thd, int type,
       ret= SP_OK;
   }
 
+done:
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
