@@ -323,3 +323,18 @@ set @str1 = 'select ?';
 set @str2 = convert(@str1 using ucs2);
 prepare stmt1 from @str2;
 execute stmt1 using @ivar;
+
+#
+# Check correct binlogging of UCS2 user variables (BUG#3875)
+#
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+reset master;
+insert into t2 values (@v);
+show binlog events from 79;
+# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
+# absolutely need variables names to be quoted and strings to be
+# escaped).
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+drop table t2;

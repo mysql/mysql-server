@@ -487,3 +487,17 @@ prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 ?
 1234
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+reset master;
+insert into t2 values (@v);
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	User var	1	79	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
+master-bin.000001	119	Query	1	119	use `test`; insert into t2 values (@v)
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
+use test;
+SET TIMESTAMP=1100684975;
+insert into t2 values (@v);
+drop table t2;
