@@ -32,7 +32,7 @@
 extern void yyerror(const char*);
 int yylex(void *yylval);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 inline Item *or_or_concat(Item* A, Item* B)
 {
@@ -71,7 +71,7 @@ inline Item *or_or_concat(Item* A, Item* B)
 }
 
 %{
-bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
+bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
 %pure_parser					/* We have threads */
