@@ -48421,6 +48421,8 @@ The CASE Expression.
 The MD5() and COALESCE() functions.
 @item
 @code{RAID} support for @code{MyISAM} tables.
+@item
+@code{OpenSSL} support for encrypted connections and X509 authentication
 @end itemize
 
 @item Sasha Pachev
