@@ -370,7 +370,7 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   do
   {
     pthread_cond_wait(cond,&data->lock->mutex);
-  } while (data->cond == cond && !thread_var->abort);
+  } while (data->cond == cond && (!thread_var->abort || in_wait_list));
 
   if (data->cond || data->type == TL_UNLOCK)
   {
