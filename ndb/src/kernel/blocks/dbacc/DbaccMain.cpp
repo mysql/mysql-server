@@ -6361,7 +6361,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     jam();
     allocOverflowPage(signal);
     if (tresult > ZLIMIT_OF_ERROR) {
-    if (cfreepage + 10 >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
       /* WE COULD NOT ALLOCATE ANY OVERFLOW PAGE. THUS WE HAVE TO STOP*/
@@ -6481,7 +6480,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   endofexpLab(signal);
   return;
 }//Dbacc::execEXPANDCHECK2()
-
+  
 void Dbacc::endofexpLab(Signal* signal) 
 {
   fragrecptr.p->p++;
@@ -6520,10 +6519,11 @@ void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
 
   ptrCheckGuard(tabptr, ctablesize, tabrec);
   ndbrequire(getrootfragmentrec(signal, rootfragrecptr, fragId));
-  
+#if 0
   ndbout_c("reenable expand check for table %d fragment: %d", 
 	   tabptr.i, fragId);
-  
+#endif
+
   for (Uint32 i = 0; i < 2; i++) {
     fragrecptr.i = rootfragrecptr.p->fragmentptr[i];
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -6949,9 +6949,9 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   jamEntry();
   fragrecptr.i = signal->theData[0];
   Uint32 oldFlag = signal->theData[3];
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandFlag = oldFlag;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
-  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
     jam();
     /* TIME FOR JOIN BUCKETS PROCESS */
@@ -6994,7 +6994,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     }//if
   }//if
   if (cfirstfreepage == RNIL) {
-    if (cfreepage >= cpagesize) {
     if (cfreepage >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
@@ -7230,6 +7229,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
         signal->theData[1] = fragrecptr.p->p;
         signal->theData[2] = fragrecptr.p->maxp;
         signal->theData[3] = fragrecptr.p->expandFlag;
+	ndbrequire(fragrecptr.p->expandFlag < 2);
         fragrecptr.p->expandFlag = 2;
         sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
       }//if
@@ -9255,7 +9255,6 @@ void Dbacc::initFragAdd(Signal* signal,
    * Is later restored to 0 by LQH at end of REDO log execution
    */
   regFragPtr.p->expandFlag = (getNodeState().getSystemRestartInProgress()?1:0);
-  
   regFragPtr.p->p = 0;
   regFragPtr.p->maxp = (1 << req->kValue) - 1;
   regFragPtr.p->minloadfactor = minLoadFactor;
