@@ -446,6 +446,11 @@ void close_thread_tables(THD *thd, bool locked)
 	table->flush_version=flush_version;
 	table->file->extra(HA_EXTRA_FLUSH);
       }
+      else
+      {
+	// Free memory and reset for next loop
+	table->file->extra(HA_EXTRA_RESET);
+      }
       table->in_use=0;
       if (unused_tables)
       {

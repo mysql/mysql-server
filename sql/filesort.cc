@@ -137,7 +137,8 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 #ifdef CAN_TRUST_RANGE
   else if (select && select->quick && select->quick->records > 0L)
   {
-    VOID(ha_info(&table[0]->form,0));	/* Get record-count */
+    /* Get record-count */
+    table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     records=min((ha_rows) (select->quick->records*2+EXTRA_RECORDS*2),
 		table[0]->file->records)+EXTRA_RECORDS;
     selected_records_file=0;

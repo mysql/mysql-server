@@ -4254,15 +4254,30 @@ uint find_enum(TYPELIB *lib,const char *x, uint length)
 void Field_enum::store(const char *from,uint length)
 {
   uint tmp=find_enum(typelib,from,length);
+  if (!tmp)
   {
-    if (!tmp)
+    if (length < 6)			// Can't be more than 99999 enums
     {
-      current_thd->cuted_fields++;
-      Field_enum::store_type((longlong) 0);
+      /* This is for reading numbers with LOAD DATA INFILE */
+      char buff[7], *end;
+      const char *conv=from;
+      if (from[length])
+      {
+	strmake(buff, from, length);
+	conv=buff;
+      }
+      my_errno=0;
+      tmp=strtoul(conv,&end,10);
+      if (my_errno || end != conv+length || tmp > typelib->count)
+      {
+	tmp=0;
+	current_thd->cuted_fields++;
+      }
     }
     else
-      store_type((ulonglong) tmp);
+      current_thd->cuted_fields++;
   }
+  store_type((ulonglong) tmp);
 }
 
 
@@ -4430,7 +4445,26 @@ ulonglong find_set(TYPELIB *lib,const char *x,uint length)
 
 void Field_set::store(const char *from,uint length)
 {
-  store_type(find_set(typelib,from,length));
+  ulonglong tmp=find_set(typelib,from,length);
+  if (!tmp && length && length < 22)
+  {
+    /* This is for reading numbers with LOAD DATA INFILE */
+    char buff[22], *end;
+    const char *conv=from;
+    if (from[length])
+    {
+      strmake(buff, from, length);
+      conv=buff;
+    }
+    my_errno=0;
+    tmp=strtoull(conv,&end,10);
+    if (my_errno || end != conv+length ||
+	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
+      tmp=0;
+    else
+      current_thd->cuted_fields--;		// Remove warning from find_set
+  }
+  store_type(tmp);
 }
 
 

@@ -487,7 +487,7 @@ MySQL Table Types
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
-* INNOBASE::                    Innobase tables
+* INNOBASE::                    
 
 MyISAM Tables
 
@@ -508,6 +508,11 @@ BDB or Berkeley_db Tables
 * BDB characteristic::          
 * BDB TODO::                    
 * BDB errors::                  
+
+INNOBASE Tables
+
+* INNOBASE overview::           
+* Innobase restrictions::       
 
 MySQL Tutorial
 
@@ -575,7 +580,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -11896,7 +11901,7 @@ The @code{processlist} command displays information about the threads
 executing within the server.  The @code{kill} command kills server threads.
 You can always display or kill your own threads, but you need the
 @strong{process} privilege to display or kill threads initiated by other
-users.
+users. @xref{KILL}.
 
 It is a good idea in general to grant privileges only to those users who need
 them, but you should exercise particular caution in granting certain
@@ -13545,8 +13550,8 @@ in ANSI mode. @xref{ANSI mode}.
 @item Alias @tab 255 @tab All characters.
 @end multitable
 
-Note that in addition to the above, you can't have ASCII(0) or ASCII(255) in
-an identifier.
+Note that in addition to the above, you can't have ASCII(0) or ASCII(255) or
+the quoting character in an identifier.
 
 Note that if the identifer is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
@@ -20421,6 +20426,39 @@ Otherwise, you can see and kill only your own threads.
 You can also use the @code{mysqladmin processlist} and @code{mysqladmin kill}
 commands to examine and kill threads.
 
+When you do a @code{KILL}, a thread specific @code{kill flag} is set for
+the thread.
+
+In most cases it may take some time for the thread to die as the kill
+flag is only checked at specific intervals.
+
+@itemize @bullet
+@item
+In @code{SELECT}, @code{ORDER BY} and @code{GROUP BY} loops, the flag is
+checked after reading a block of rows. If the kill flag is set the
+statement is aborted
+@item
+When doing an @code{ALTER TABLE} the kill flag is checked before each block of
+rows are read from the original table. If the kill flag was set the command
+is aborted and the temporary table is deleted.
+@item
+When doing an @code{UPDATE TABLE} and @code{DELETE TABLE}, the kill flag
+is checked after each block read and after each updated or delete
+row. If the kill flag is set the statement is aborted.  Note that if you
+are not using transactions, the changes will not be rolled back!
+@item
+@code{GET_LOCK()} will abort with @code{NULL}.
+@item
+An @code{INSERT DELAYED} thread will quickly flush all rows it has in
+memory and die.
+@item
+If the thread is in the table lock handler (state: @code{Locked}),
+the table lock will be quickly aborted.
+@item
+If the thread is waiting for free disk space in a @code{write} call, the
+write is aborted with an disk full error message.
+@end itemize
+
 @findex SHOW DATABASES
 @findex SHOW TABLES
 @findex SHOW COLUMNS
@@ -23412,6 +23450,14 @@ not trivial).
 @node INNOBASE,  , BDB, Table types
 @section INNOBASE Tables
 
+@menu
+* INNOBASE overview::           
+* Innobase restrictions::       
+@end menu
+
+@node INNOBASE overview, Innobase restrictions, INNOBASE, INNOBASE
+@subsection INNOBASE Tables overview
+
 Innobase is included in the @strong{MySQL} source distribution starting
 from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
 
@@ -23590,6 +23636,17 @@ P.O.Box 800
 00101 Helsinki
 Finland
 @end example
+
+@node Innobase restrictions,  , INNOBASE overview, INNOBASE
+@subsection Some restrictions on @code{Innobase} tables:
+
+@itemize @bullet
+@item
+You can't have a key on a @code{BLOB} or @code{TEXT} column.
+@item
+@code{DELETE FROM TABLE} doesn't generate the table but instead deletes all
+rows, one by one, which isn't that fast.
+@end itemize
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -26325,7 +26382,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -34106,7 +34163,15 @@ option.
 @node Communication errors, Full table, Packet too large, Common errors
 @subsection Communication Errors / Aborted Connection
 
-The server variable @code{Aborted_clients} is incremented when:
+If you find errors like the following in your error log.
+
+@example
+010301 14:38:23  Aborted connection 854 to db: 'users' user: 'josh'
+@end example
+
+@xref{Error log}.
+
+This means that something of the following has happened:
 
 @itemize @bullet
 @item
@@ -34119,8 +34184,8 @@ VARIABLES}.
 The client program ended abruptly in the middle of the transfer.
 @end itemize
 
-When the above happens, the mysqld will write a note about an
-@code{Aborted connection} in the @code{hostname.err} file. @xref{Error log}.
+When the above happens, the server variable @code{Aborted_clients} is
+incremented.
 
 The server variable @code{Aborted_connects} is incremented when:
 
@@ -41690,6 +41755,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Fixed that one can with @code{LOAD DATA INFILE} read number values to
+@code{ENUM} and @code{SET} columns.
+@item
 Improved error diagnostic for slave thread exit
 @item
 Fixed bug in @code{ALTER TABLE ... ORDER BY}.
@@ -41715,6 +41783,11 @@ to the @strong{MySQL} source distribution.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
+@item
+Fixed problem with 'garbage results' when using @code{BDB} tables and
+@code{BLOB} or @code{TEXT} fields when joining many tables.
+@item
+Fixed a problem with @code{BDB} tables and @code{TEXT} columns.
 @item
 Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
 This ensures that on gets same values for date functions like @code{NOW()}

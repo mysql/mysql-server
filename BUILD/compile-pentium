@@ -12,5 +12,6 @@ if test -d /usr/local/BerkeleyDB-opt/
 then
  extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-opt/"
 fi
+extra_configs="$extra_configs --with-innobase-db"
 
 . "$path/FINISH.sh"
