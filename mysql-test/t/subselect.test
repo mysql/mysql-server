@@ -1115,3 +1115,14 @@ create table t3(flag int);
 -- error 1064
 select (select * from t3 where id not null) from t1, t2;
 drop table t1,t2,t3;
+
+#
+# aggregate functions (Bug #3505)
+#
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+DROP TABLE t1,t2
