@@ -1,13 +1,9 @@
-gmake -k clean
-/bin/rm -f */.deps/*.P */*.o
-/bin/rm -f config.cache
-aclocal; autoheader; aclocal; automake; autoconf
+#! /bin/sh
 
-GLOBAL_WARNINGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wuninitialized -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings"
-C_WARNINGS="$GLOBAL_WARNINGS -Wunused"
-CC_WARNINGS="$GLOBAL_WARNINGS -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
+path=`dirname $0`
+. "$path/SETUP.sh"
 
-CFLAGS="-DHAVE_PURIFY -O2 $C_WARNINGS" CXX=gcc \
-CXXFLAGS="-DHAVE_PURIFY -O2 -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" \
-./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared  --with-debug=full
-gmake
+extra_flags="$sparc_cflags -DHAVE_PURIFY -O2"
+extra_configs="$sparc_configs --with-debug=full"
+
+. "$path/FINISH.sh"
