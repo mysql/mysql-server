@@ -355,7 +355,7 @@ int mysql_update(THD *thd,
   delete select;
   free_underlaid_joins(thd, &thd->lex.select_lex);
   if (error >= 0)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
+    send_error(thd,thd->killed); /* purecov: inspected */
   else
   {
     char buff[80];

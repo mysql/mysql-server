@@ -543,7 +543,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       if (thd->killed)
       {
 	pthread_mutex_unlock(cond_lock);
-	DBUG_RETURN(ER_SERVER_SHUTDOWN);
+	DBUG_RETURN(thd->killed);
       }
     }
   }

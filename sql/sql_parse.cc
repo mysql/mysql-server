@@ -848,7 +848,7 @@ pthread_handler_decl(handle_one_connection,arg)
     init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
     init_sql_alloc(&thd->transaction.mem_root,
 		   TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
-    while (!net->error && net->vio != 0 && !(thd->killed && !thd->only_kill_query))
+    while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
       if (do_command(thd))
 	break;
@@ -1054,11 +1054,8 @@ bool do_command(THD *thd)
   }
   else
   {
-    if (thd->only_kill_query)
-    {
-      thd->killed= FALSE;
-      thd->only_kill_query= FALSE;
-    }
+    if (thd->killed == THD::KILL_QUERY)
+      thd->killed= THD::NOT_KILLED;
 
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
@@ -1666,7 +1663,7 @@ mysql_execute_command(THD *thd)
 						  cursor)))
 	{
 	  if (res < 0 || thd->net.report_error)
-	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	    send_error(thd,thd->killed);
 	  DBUG_RETURN(res);
 	}
       }
@@ -3126,7 +3123,7 @@ mysql_execute_command(THD *thd)
   // We end up here if res == 0 and send_ok() has been done,
   // or res != 0 and no send_error() has yet been done.
   if (res < 0)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+    send_error(thd,thd->killed);
   DBUG_RETURN(res);
 
 error:
@@ -4221,13 +4218,7 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->master_access & SUPER_ACL) ||
 	!strcmp(thd->user,tmp->user))
     {
-      if (only_kill_query)
-      {
-	tmp->killed= 1;
-	tmp->only_kill_query= 1;
-      }
-      else
-	tmp->awake(1 /*prepare to die*/);
+      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
     }
     else

@@ -935,7 +935,7 @@ void kill_delayed_threads(void)
   {
     /* Ensure that the thread doesn't kill itself while we are looking at it */
     pthread_mutex_lock(&tmp->mutex);
-    tmp->thd.killed=1;
+    tmp->thd.killed= THD::KILL_CONNECTION;
     if (tmp->thd.mysys_var)
     {
       pthread_mutex_lock(&tmp->thd.mysys_var->mutex);
@@ -974,7 +974,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   thd->thread_id=thread_id++;
   thd->end_time();
   threads.append(thd);
-  thd->killed=abort_loop;
+  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   pthread_mutex_lock(&di->mutex);
@@ -1027,7 +1027,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
   for (;;)
   {
-    if (thd->killed)
+    if (thd->killed == THD::KILL_CONNECTION)
     {
       uint lock_count;
       /*
@@ -1075,7 +1075,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 	  break;
 	if (error == ETIME || error == ETIMEDOUT)
 	{
-	  thd->killed=1;
+	  thd->killed= THD::KILL_CONNECTION;
 	  break;
 	}
       }
@@ -1094,7 +1094,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       /* request for new delayed insert */
       if (!(thd->lock=mysql_lock_tables(thd,&di->table,1)))
       {
-	di->dead=thd->killed=1;			// Fatal error
+	di->dead=thd->killed= THD::KILL_CONNECTION;			// Fatal error
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -1102,7 +1102,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     {
       if (di->handle_inserts())
       {
-	di->dead=thd->killed=1;			// Some fatal error
+	di->dead=thd->killed=THD::KILL_CONNECTION;			// Some fatal error
       }
     }
     di->status=0;
@@ -1129,7 +1129,7 @@ end:
 
   close_thread_tables(thd);			// Free the table
   di->table=0;
-  di->dead=thd->killed=1;			// If error
+  di->dead=thd->killed= THD::KILL_CONNECTION;	// If error
   pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
 
@@ -1198,7 +1198,7 @@ bool delayed_insert::handle_inserts(void)
   max_rows=delayed_insert_limit;
   if (thd.killed || table->version != refresh_version)
   {
-    thd.killed=1;
+    thd.killed= THD::KILL_CONNECTION;
     max_rows= ~0;				// Do as much as possible
   }
 

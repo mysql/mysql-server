@@ -2379,7 +2379,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_error(thd->killed,MYF(0));
       error= 1;
       break;
     }
