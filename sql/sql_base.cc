@@ -2758,6 +2758,20 @@ bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   thd->allow_sum_func= allow_sum_func;
   thd->where="field list";
 
+  /*
+    To prevent fail on forward lookup we fill it with zerows,
+    then if we got pointer on zero after find_item_in_list we will know
+    that it is forward lookup.
+
+    There is other way to solve problem: fill array with pointers to list,
+    but it will be slower.
+
+    TODO: remove it when (if) we made one list for allfields and
+    ref_pointer_array
+  */
+  if (ref_pointer_array)
+    bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
+
   Item **ref= ref_pointer_array;
   while ((item= it++))
   {
