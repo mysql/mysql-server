@@ -1,4 +1,4 @@
-drop table if exists t0, t1, t2, t3,t4;
+drop table if exists t0, t1, t2, t3, t4;
 create table t0
 (
 key1 int not null, 
@@ -335,4 +335,55 @@ key1	key2	key3	key4	key5	key6	key7	key8
 select count(*) from t0;
 count(*)
 1021
+drop table t4;
+create table t4 (a int);
+insert into t4 values (1),(4),(3);
+set @save_join_buffer_size=@@join_buffer_size;
+set join_buffer_size= 4000;
+show variables like 'join_buffer_size';
+Variable_name	Value
+join_buffer_size	8228
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2) 
+where (A.key1 < 500000 or A.key2 < 3)
+and   (B.key1 < 500000 or B.key2 < 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1016	Using sort_union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1016	Using sort_union(i1,i2); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2) 
+where (A.key1 < 500000 or A.key2 < 3)
+and   (B.key1 < 500000 or B.key2 < 3);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+10240
+update t0 set key1=1;
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2) 
+where (A.key1 = 1 or A.key2 = 1)
+and   (B.key1 = 1 or B.key2 = 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2) 
+where (A.key1 = 1 or A.key2 = 1)
+and   (B.key1 = 1 or B.key2 = 1);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+8194
+alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
+update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A, t0 as B 
+where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
+and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7,i8	i2,i3,i4,i5,i6,i8	4,4,4,4,4,4	NULL	16	Using union(intersect(i2,i3,i4,i5,i6),i8); Using where
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7,i8	i2,i3,i4,i5,i6,i8	4,4,4,4,4,4	NULL	16	Using union(intersect(i2,i3,i4,i5,i6),i8); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
+from t0 as A, t0 as B 
+where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
+and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+8186
+set join_buffer_size= @save_join_buffer_size;
 drop table t0, t1, t2, t3, t4;
