@@ -2,7 +2,7 @@
 -- for MySQL 4.0.
 
 -- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
--- as this just means that your tables where already up to date.
+-- because these just mean that your tables are already up to date.
 -- This script is safe to run even if your tables are already up to date!
 
 -- On unix, you should use the mysql_fix_privilege_tables script to execute
