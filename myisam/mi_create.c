@@ -224,7 +224,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (uniques)
   {
     max_key_block_length= MI_KEY_BLOCK_LENGTH;
-    max_key_length= MI_UNIQUE_HASH_LENGTH;
+    max_key_length= MI_UNIQUE_HASH_LENGTH + pointer;
   }
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
