@@ -1246,7 +1246,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
     else
       fputc(*str, output);
   }
-  fprintf(output, "<%s>\n", fname);
+  fprintf(output, "</%s>\n", fname);
 }
 
 static char *getTableName(int reset)
