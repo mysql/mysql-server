@@ -128,4 +128,4 @@ update t1 set title='this is A test' where id=1;
 check table t1;
 update t1 set title='this test once revealed a bug' where id=1;
 select * from t1;
-
+update t1 set title=NULL where id=1;
