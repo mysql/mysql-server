@@ -538,7 +538,12 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
- TESTS_BINDIR="$BASEDIR/bin"
+ if test -d "$BASEDIR/tests"
+ then
+   TESTS_BINDIR="$BASEDIR/tests"
+ else
+   TESTS_BINDIR="$BASEDIR/bin"
+ fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
