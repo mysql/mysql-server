@@ -269,8 +269,7 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- if [ -e "$BASEDIR/client/.libs/mysqltest" ] ; then
-   [ -e "$BASEDIR/client/.libs/lt-mysqltest" ] || $BASEDIR/client/mysqltest -V
+ if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
    MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
@@ -502,7 +501,7 @@ start_master()
     #start master
     if [ -z "$DO_BENCH" ]
     then
-      master_args="--no-defaults --log-bin=master-bin \
+      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
     	    --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
@@ -519,7 +518,8 @@ start_master()
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     else
-      master_args="--no-defaults --log-bin=master-bin --server-id=1 \
+      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
+	    --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
             --datadir=$MASTER_MYDDIR \
@@ -576,7 +576,8 @@ start_slave()
     $RM -f $SLAVE_MYDDIR/log.*	
     slave_args="--no-defaults $master_info \
     	    --exit-info=256 \
-	    --log-bin=slave-bin --log-slave-updates \
+	    --log-bin=$MYSQL_TEST_DIR/var/log/slave-bin
+	    --log-slave-updates \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
