@@ -64,6 +64,7 @@ extern Time_zone * my_tz_find(const String *name, TABLE_LIST *tz_tables);
 extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
 extern void        my_tz_free();
 
+extern TABLE_LIST fake_time_zone_tables_list;
 
 /*
   Check if we have pointer to the beggining of list of implictly used

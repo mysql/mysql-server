@@ -2123,19 +2123,6 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
-  if (lex->time_zone_tables_used)
-  {
-    TABLE_LIST *tmp;
-    if ((tmp= my_tz_get_table_list(thd, &lex->query_tables_last)) ==
-        &fake_time_zone_tables_list)
-    {
-      DBUG_RETURN(-1);
-    }
-    lex->time_zone_tables_used= tmp;
-    if (!all_tables)
-      all_tables= tmp;
-  }
-
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
