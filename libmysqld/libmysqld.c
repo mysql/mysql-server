@@ -834,7 +834,7 @@ mysql_connect(MYSQL *mysql,const char *host,
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,uint client_flag)
+		   uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
   uint		pkt_length;
@@ -991,20 +991,20 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag&= ~CLIENT_COMPRESS;
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
-  int2store(buff,client_flag);
+  int4store(buff,client_flag);
   mysql->client_flag=client_flag;
 
   max_allowed_packet=net->max_packet_size;
-  int3store(buff+2,max_allowed_packet);
+  int4store(buff+4,max_allowed_packet);
   if (user && user[0])
-    strmake(buff+5,user,32);
+    strmake(buff+8,user,32);
   else
-    read_user_name((char*) buff+5);
+    read_user_name((char*) buff+8);
 #ifdef _CUSTOMCONFIG_
 #include "_cust_libmysql.h";
 #endif
-  DBUG_PRINT("info",("user: %s",buff+5));
-  end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
+  DBUG_PRINT("info",("user: %s",buff+8));
+  end=scramble(strend(buff+8)+1, mysql->scramble_buff, passwd,
 	       (my_bool) (mysql->protocol_version == 9));
 
   if (db)

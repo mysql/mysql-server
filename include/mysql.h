@@ -117,7 +117,8 @@ typedef struct st_mysql_data {
 } MYSQL_DATA;
 
 struct st_mysql_options {
-  unsigned int connect_timeout,client_flag;
+  unsigned int connect_timeout;
+  unsigned long client_flag;
   unsigned int port;
   char *host,*user,*password,*unix_socket,*db;
   struct st_dynamic_array *init_commands;
@@ -191,7 +192,8 @@ typedef struct st_mysql
   my_ulonglong extra_info;		/* Used by mysqlshow */
   unsigned long thread_id;		/* Id for connection in server */
   unsigned long packet_length;
-  unsigned int	port,client_flag,server_capabilities;
+  unsigned int	port;
+  unsigned long client_flag,server_capabilities;
   unsigned int	protocol_version;
   unsigned int	field_count;
   unsigned int 	server_status;
@@ -314,7 +316,7 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 					   const char *db,
 					   unsigned int port,
 					   const char *unix_socket,
-					   unsigned int clientflag);
+					   unsigned long clientflag);
 void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);

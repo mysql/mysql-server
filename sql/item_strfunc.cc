@@ -1274,8 +1274,13 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
+void Item_func_password::fix_length_and_dec()
+{
+  max_length= get_password_length(use_old_passwords);
+}
+
 /*
- Password() function can have 2 args now. Second argument can be used
+ Password() function has 2 arguments. Second argument can be used
  to make results repeatable
 */ 
 
@@ -1292,9 +1297,9 @@ String *Item_func_password::val_str(String *str)
   {    
     if (res->length() == 0)
       return &empty_string;
-    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
                             &current_thd->rand);
-    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
     return str;
   }
   else
@@ -1323,9 +1328,9 @@ String *Item_func_password::val_str(String *str)
     /* Use constants which allow nice random values even with small seed */
     randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
     
-    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
                             &rand_st);
-    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
     return str;
   }       
 }

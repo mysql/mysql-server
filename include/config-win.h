@@ -152,7 +152,9 @@ typedef uint rf_SetTimer;
 #define access(A,B) _access(A,B)
 #endif
 
-#if defined(__cplusplus)
+#if !defined(__cplusplus)
+#define inline __inline
+#endif /* __cplusplus */
 
 inline double rint(double nr)
 {
@@ -175,9 +177,6 @@ inline double ulonglong2double(ulonglong value)
 }
 #define my_off_t2double(A) ulonglong2double(A)
 #endif /* _WIN64 */
-#else
-#define inline __inline
-#endif /* __cplusplus */
 
 #if SIZEOF_OFF_T > 4
 #define lseek(A,B,C) _lseeki64((A),(longlong) (B),(C))

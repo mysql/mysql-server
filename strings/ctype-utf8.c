@@ -2460,9 +2460,9 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
   register unsigned int cutlim;
   register ulong cutoff;
   register ulong res;
-  register const char *s=nptr;
-  register const char *e=nptr+l;
-  const char *save;
+  register const uchar *s= (const uchar*) nptr;
+  register const uchar *e= (const uchar*) nptr+l;
+  const uchar *save;
   
   *err= 0;
   do
@@ -2490,7 +2490,7 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
   
 bs:
 
-#if 0  
+#ifdef NOT_USED  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -2575,9 +2575,9 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
   register unsigned int cutlim;
   register ulong cutoff;
   register ulong res;
-  register const char *s=nptr;
-  register const char *e=nptr+l;
-  const char *save;
+  register const uchar *s= (const uchar*) nptr;
+  register const uchar *e= (const uchar*) nptr+l;
+  const uchar *save;
   
   *err= 0;
   do
@@ -2605,7 +2605,7 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
   
 bs:
 
-#if 0
+#ifdef NOT_USED
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -2616,7 +2616,8 @@ bs:
   cutoff = ((ulong)~0L) / (unsigned long int) base;
   cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
   
-  do {
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
@@ -2684,9 +2685,9 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
   register ulonglong    cutoff;
   register unsigned int cutlim;
   register ulonglong    res;
-  register const char *s=nptr;
-  register const char *e=nptr+l;
-  const char *save;
+  register const uchar *s= (const uchar*) nptr;
+  register const uchar *e= (const uchar*) nptr+l;
+  const uchar *save;
   
   *err= 0;
   do
@@ -2714,7 +2715,7 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
   
 bs:
 
-#if 0  
+#ifdef NOT_USED  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -2801,9 +2802,9 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   register ulonglong    cutoff;
   register unsigned int cutlim;
   register ulonglong    res;
-  register const char *s=nptr;
-  register const char *e=nptr+l;
-  const char *save;
+  register const uchar *s= (const uchar*) nptr;
+  register const uchar *e= (const uchar*) nptr+l;
+  const uchar *save;
   
   *err= 0;
   do
@@ -2831,7 +2832,7 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   
 bs:
   
-#if 0
+#ifdef NOT_USED
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -2905,8 +2906,8 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   char     buf[256];
   double   res;
   register char *b=buf;
-  register const char *s=nptr;
-  register const char *end;
+  register const uchar *s= (const uchar*) nptr;
+  register const uchar *end;
   my_wc_t  wc;
   int      cnv;
 
@@ -2914,7 +2915,7 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   /* Cut too long strings */
   if (length >= sizeof(buf))
     length= sizeof(buf)-1;
-  end=nptr+length;
+  end= s+length;
  
   while ((cnv=cs->mb_wc(cs,&wc,s,end)) > 0)
   {
@@ -2976,7 +2977,7 @@ int my_l10tostr_ucs2(CHARSET_INFO *cs,
   
   for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
   {
-    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],dst,de);
+    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],(uchar*) dst, (uchar*) de);
     if (cnvres>0)
       dst+=cnvres;
     else
@@ -3035,7 +3036,7 @@ cnv:
   
   for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
   {
-    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],dst,de);
+    int cnvres=cs->wc_mb(cs, (my_wc_t) p[0], (uchar*) dst, (uchar*) de);
     if (cnvres>0)
       dst+=cnvres;
     else
