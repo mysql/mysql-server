@@ -39,6 +39,7 @@ typedef struct st_federated_share {
   // the primary select query to be used in rnd_init
   char *select_query;
   // remote host info, parse_url supplies
+  char *scheme;
   char *hostname;
   char *username;
   char *password;
