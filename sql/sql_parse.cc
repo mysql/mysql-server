@@ -929,7 +929,8 @@ bool do_command(THD *thd)
       pos = uint4korr(packet + 1);
       flags = uint2korr(packet + 5);
       pthread_mutex_lock(&LOCK_server_id);
-      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+7));
+      if ((slave_server_id = uint4korr(packet+7)))
+	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
       mysql_binlog_send(thd, thd->strdup(packet + 11), pos, flags);

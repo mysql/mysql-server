@@ -442,6 +442,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	  break;
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data on binary log"));
+	  if (thd->server_id==0)
+	  {
+	    pthread_mutex_unlock(log_lock);
+	    goto end;
+	  }
 	  if (!thd->killed)
 	    pthread_cond_wait(&COND_binlog_update, log_lock);
 	  break;
@@ -523,6 +528,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
     }
   }
 
+end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
   
@@ -532,7 +538,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
- err:
+err:
   thd->proc_info = "waiting to finalize termination";
   end_io_cache(&log);
   pthread_mutex_lock(&LOCK_thread_count);
