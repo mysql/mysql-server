@@ -33,6 +33,7 @@ ulong server_id = 0;
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
+ulong open_files_limit;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
@@ -68,7 +69,7 @@ static MYSQL* safe_connect();
 
 class Load_log_processor
 {
-  char target_dir_name[MY_NFILE];
+  char target_dir_name[FN_REFLEN];
   int target_dir_name_len;
   DYNAMIC_ARRAY file_names;
 
@@ -429,6 +430,10 @@ static struct my_option my_long_options[] =
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
    (gptr*) &remote_opt, (gptr*) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"open_files_limit", OPT_OPEN_FILES_LIMIT,
+   "Used to reserve file descriptors for usage by this program",
+   (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
+   REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -878,6 +883,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  my_set_max_open_files(open_files_limit);
   if (remote_opt)
     mysql = safe_connect();
 
@@ -915,6 +921,7 @@ int main(int argc, char** argv)
     mysql_close(mysql);
   cleanup();
   free_defaults(defaults_argv);
+  my_free_open_file_info();
   my_end(0);
   exit(exit_value);
   DBUG_RETURN(exit_value);			// Keep compilers happy

@@ -1824,29 +1824,32 @@ AC_TYPE_SIGNAL
 MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(alarm bmove \
- chsize ftruncate rint finite isnan fpsetmask fpresetsticky\
- cuserid fcntl fconvert poll \
- getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
- perror pread realpath readlink rename \
- socket strnlen madvise mallinfo mkstemp \
- strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
- gethostbyaddr_r gethostbyname_r getpwnam \
- bfill bzero bcmp strstr strpbrk strerror \
- tell isinf memcpy memmove \
- setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
- sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
- pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
- pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_attr_getstacksize pthread_key_delete \
- pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
+AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
+  fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
+  getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
+  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
+  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  mkstemp mlockall perror poll pread pthread_attr_create \
+  pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
+  pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
+  pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
+  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
+  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+
+# isinf() could be a function or a macro (HPUX)
+AC_MSG_CHECKING(for isinf with <math.h>)
+AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
+ AC_MSG_RESULT(yes) AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
+ AC_MSG_RESULT(no))
+ 
 CFLAGS="$ORG_CFLAGS"
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
-AC_CHECK_FUNCS(fseeko,
+AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$IS_LINUX" = "true";
 then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");

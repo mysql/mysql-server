@@ -8189,6 +8189,90 @@ static void test_bug2247()
   fprintf(stdout, "OK");
 }
 
+
+
+static void test_subqueries()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1, (select a x, b y from t2) tt WHERE x=a";
+
+  myheader("test_subquery");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int , b int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 select * from t1;");
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(5 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2");
+  myquery(rc);
+}
+
+
+static void test_bad_union()
+{
+  MYSQL_STMT *stmt;
+  const char *query= "SELECT 1, 2 union SELECT 1";
+
+  myheader("test_bad_union");
+  
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  assert(stmt == 0);
+  myerror(NULL); 
+}
+
+static void test_distinct()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= 
+    "SELECT 2+count(distinct b), group_concat(a) FROM t1 group by a";
+
+  myheader("test_subquery");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int , b int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5),\
+(1,10), (2, 20), (3,30), (4,40), (5,50)\;");
+  myquery(rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    stmt= mysql_prepare(mysql, query, strlen(query));
+    mystmt_init(stmt);
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(5 == my_process_stmt_result(stmt));
+    mysql_stmt_close(stmt);
+  }
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
 /*
   Test for bug#2248 "mysql_fetch without prior mysql_execute hangs"
 */
@@ -8385,6 +8469,9 @@ int main(int argc, char **argv)
     test_count= 1;
    
     start_time= time((time_t *)0);
+
+    test_subqueries();
+
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
@@ -8437,7 +8524,8 @@ int main(int argc, char **argv)
     client_use_result();    /* usage of mysql_use_result() */  
     test_tran_bdb();        /* transaction test on BDB table type */
     test_tran_innodb();     /* transaction test on InnoDB table type */ 
-    test_prepare_ext();     /* test prepare with all types conversion -- TODO */
+    test_prepare_ext();     /* test prepare with all types
+			       conversion -- TODO */
     test_prepare_syntax();  /* syntax check for prepares */
     test_field_names();     /* test for field names */
     test_field_flags();     /* test to help .NET provider team */
@@ -8450,7 +8538,7 @@ int main(int argc, char **argv)
     test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
-    test_multi_statements(); /* test multi statement execution */
+    test_multi_statements();/* test multi statement execution */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
@@ -8497,6 +8585,10 @@ int main(int argc, char **argv)
     test_bug2247();         /* test that mysql_stmt_affected_rows() returns
                                number of rows affected by last prepared 
                                statement execution */
+    test_subqueries();	    /* repeatable subqueries */
+    test_bad_union();       /* correct setup of UNION */
+    test_distinct();	    /* distinct aggregate functions */
+
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

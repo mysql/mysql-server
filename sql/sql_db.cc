@@ -58,9 +58,9 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
-    CHARSET_INFO *cs= (create && create->default_table_charset) ? 
-		     create->default_table_charset :
-		     thd->variables.collation_server;
+    CHARSET_INFO *cs= ((create && create->default_table_charset) ? 
+		       create->default_table_charset :
+		       thd->variables.collation_server);
     length= my_sprintf(buf,(buf,
 			    "default-character-set=%s\ndefault-collation=%s\n",
 			    cs->csname,cs->name));
@@ -116,9 +116,10 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
-	  if (!(create->default_table_charset= get_charset_by_csname(pos+1, 
-								    MY_CS_PRIMARY,
-								    MYF(0))))
+	  if (!(create->default_table_charset=
+		get_charset_by_csname(pos+1, 
+				      MY_CS_PRIMARY,
+				      MYF(0))))
 	  {
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
 	  }

@@ -350,6 +350,11 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 #include "item.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
+/* sql_parse.cc */
+void free_items(Item *item);
+void cleanup_items(Item *item);
+class THD;
+void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -411,7 +416,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
-void free_items(Item *item);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_init_query(THD *thd);
@@ -688,7 +692,6 @@ bool rm_temporary_table(enum db_type base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 void close_temporary_tables(THD *thd);
 TABLE_LIST * find_table_in_list(TABLE_LIST *table,
 				const char *db_name, const char *table_name);
@@ -766,9 +769,6 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 
 bool is_keyword(const char *name, uint len);
 
-/* sql_parse.cc */
-void free_items(Item *item);
-void cleanup_items(Item *item);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
@@ -779,7 +779,8 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 
 extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[];
+	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
+            opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];

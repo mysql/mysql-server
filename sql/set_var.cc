@@ -19,18 +19,18 @@
 
   To add a new variable, one has to do the following:
 
-  - If the variable is thread specific, add it to 'system_variables' struct.
-    If not, add it to mysqld.cc and an declaration in 'mysql_priv.h'
-  - Don't forget to initialize new fields in global_system_variables and
-     max_system_variables!
   - Use one of the 'sys_var... classes from set_var.h or write a specific
     one for the variable type.
   - Define it in the 'variable definition list' in this file.
   - If the variable should be changeable or one should be able to access it
     with @@variable_name, it should be added to the 'list of all variables'
-    list in this file.
+    list (sys_variables) in this file.
+  - If the variable is thread specific, add it to 'system_variables' struct.
+    If not, add it to mysqld.cc and an declaration in 'mysql_priv.h'
   - If the variable should be changed from the command line, add a definition
     of it in the my_option structure list in mysqld.dcc
+  - Don't forget to initialize new fields in global_system_variables and
+    max_system_variables!
   - If the variable should show up in 'show variables' add it to the
     init_vars[] struct in this file
 
@@ -73,9 +73,12 @@ TYPELIB delay_key_write_typelib=
   array_elements(delay_key_write_type_names)-1, "", delay_key_write_type_names
 };
 
-static bool sys_check_charset(THD *thd, set_var *var);
+static int sys_check_charset(THD *thd, set_var *var);
 static bool sys_update_charset(THD *thd, set_var *var);
 static void sys_set_default_charset(THD *thd, enum_var_type type);
+static int sys_check_ftb_syntax(THD *thd,  set_var *var);
+static bool sys_update_ftb_syntax(THD *thd, set_var * var);
+static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
 static bool sys_update_init_connect(THD*, set_var*);
 static void sys_default_init_connect(THD*, enum_var_type type);
 static bool sys_update_init_slave(THD*, set_var*);
@@ -119,12 +122,6 @@ sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
-sys_var_str                     sys_init_connect("init_connect", 0,
-                                                 sys_update_init_connect,
-                                                 sys_default_init_connect);
-sys_var_str                     sys_init_slave("init_slave", 0,
-                                               sys_update_init_slave,
-                                               sys_default_init_slave);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -150,6 +147,16 @@ sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
 sys_var_long_ptr	sys_flush_time("flush_time", &flush_time);
+sys_var_str             sys_ft_boolean_syntax("ft_boolean_syntax",
+                                         sys_check_ftb_syntax,
+                                         sys_update_ftb_syntax,
+                                         sys_default_ftb_syntax);
+sys_var_str             sys_init_connect("init_connect", 0,
+                                         sys_update_init_connect,
+                                         sys_default_init_connect);
+sys_var_str             sys_init_slave("init_slave", 0,
+                                       sys_update_init_slave,
+                                       sys_default_init_slave);
 sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
@@ -318,7 +325,7 @@ sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 #ifdef HAVE_INNOBASE_DB
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
-#endif 					     
+#endif
 
 /* Time/date/datetime formats */
 
@@ -450,6 +457,7 @@ sys_var *sys_variables[]=
   &sys_expire_logs_days,
   &sys_flush,
   &sys_flush_time,
+  &sys_ft_boolean_syntax,
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
   &sys_identity,
@@ -593,7 +601,7 @@ struct show_var_st init_vars[]= {
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
-  {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
+  {sys_ft_boolean_syntax.name,(char*) &ft_boolean_syntax,	    SHOW_CHAR},
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_query_expansion_limit",(char*) &ft_query_expansion_limit,    SHOW_LONG},
@@ -775,6 +783,18 @@ bool sys_var::check(THD *thd, set_var *var)
   return 0;
 }
 
+bool sys_var_str::check(THD *thd, set_var *var)
+{
+  int res;
+  if (!check_func)
+    return 0;
+
+  if ((res=(*check_func)(thd, var)) < 0)
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name,
+             var->value->str_value.ptr());
+  return res;
+}
+
 /*
   Functions to check and update variables
 */
@@ -837,13 +857,37 @@ static void sys_default_init_slave(THD* thd, enum_var_type type)
   update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, 0);
 }
 
+static int sys_check_ftb_syntax(THD *thd,  set_var *var)
+{
+  if (thd->master_access & SUPER_ACL)
+    return ft_boolean_check_syntax_string(var->value->str_value.c_ptr()) ?
+      -1 : 0;
+  else
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
+}
+
+static bool sys_update_ftb_syntax(THD *thd, set_var * var)
+{
+  strmake(ft_boolean_syntax, var->value->str_value.c_ptr(),
+	  sizeof(ft_boolean_syntax)-1);
+  return 0;
+}
+
+static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
+{
+  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+	  sizeof(ft_boolean_syntax)-1);
+}
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow
   one to change character sets
 */
 
-static bool sys_check_charset(THD *thd, set_var *var)
+static int sys_check_charset(THD *thd, set_var *var)
 {
   return 0;
 }
@@ -1898,7 +1942,7 @@ byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
     key_cache= &zero_key_cache;
   return (byte*) key_cache + offset ;
 }
-    
+
 
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
@@ -1993,14 +2037,14 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   KEY_CACHE *key_cache= get_key_cache(base_name);
-                            
+
   if (!key_cache && !(key_cache= create_key_cache(base_name->str,
 				                  base_name->length)))
   {
     error= 1;
     goto end;
   }
- 
+
   /*
     Abort if some other thread is changing the key cache
     TODO: This should be changed so that we wait until the previous
