@@ -383,9 +383,9 @@ class ha_ndbcluster: public handler
   void generate_scan_filter(Ndb_cond_stack* cond_stack, 
 			    NdbScanOperation* op);
 
-  friend int execute_commit(ha_ndbcluster*, NdbConnection*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbConnection*);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbConnection*);
+  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
