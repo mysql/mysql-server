@@ -11,7 +11,7 @@ select * from t1 where a like "test%";
 select * from t1 where a like "te_t"; 
 
 #
-# The following will test the boyer-more code
+# The following will test the Turbo Boyer-Moore code
 #
 select * from t1 where a like "%a%";
 select * from t1 where a like "%abcd%";

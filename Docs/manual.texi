@@ -26723,11 +26723,11 @@ In the first statement, the @code{LIKE} value begins with a wildcard
 character.  In the second statement, the @code{LIKE} value is not a
 constant.
 
-MySQL 4.0 does another optimization on @code{LIKE}.  If you are using
-@code{... LIKE "%string%"} and @code{string} is longer than 3 characters
-then MySQL will use the turbo-boyer-more algorithm to once initialize
-the pattern for the string and then use this pattern to quickly search
-after the given string.
+MySQL 4.0 does another optimization on @code{LIKE}.  If you use
+@code{... LIKE "%string%"} and @code{string} is longer than 3 characters,
+MySQL will use the @code{Turbo Boyer-Moore} algorithm to initialise the
+pattern for the string and then use this pattern to perform the search
+quicker.
 
 @findex IS NULL, and indexes
 @cindex indexes, and @code{IS NULL}
@@ -49311,7 +49311,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Use turbo-boyer-more to speed up @code{LIKE "%keyword%"} searches.
+Use @code{Turbo Boyer-Moore} algorithm to speed up @code{LIKE "%keyword%"}
+searches.
 @item
 Fixed bug in @code{DROP DATABASE} with symlink.
 @item
