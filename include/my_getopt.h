@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef _my_getopt_h
+#define _my_getopt_h
+
 C_MODE_START
 
 #define GET_NO_ARG     1
@@ -54,11 +57,12 @@ struct my_option
 extern char *disabled_my_option;
 extern my_bool my_getopt_print_errors;
 
+typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
+typedef void (* my_error_reporter) (enum loglevel level, const char *format, ... );
+
 extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, 
-			   my_bool (*get_one_option)(int,
-						     const struct my_option *,
-						     char *));
+			   const struct my_option *longopts, my_get_one_option, 
+                           my_error_reporter );
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 extern void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
@@ -66,4 +70,8 @@ extern void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
+
 C_MODE_END
+
+#endif /* _my_getopt_h */
+

@@ -161,7 +161,9 @@ private:
   /**
    * Block number handling
    */
+public:
   static const unsigned MAX_NO_THREADS = 4711;
+private:
 
   struct ThreadData {
     static const Uint32 ACTIVE = (1 << 16) | 1;

@@ -145,6 +145,7 @@ NdbBlob::init()
   theNdbOp = NULL;
   theTable = NULL;
   theAccessTable = NULL;
+  theBlobTable = NULL;
   theColumn = NULL;
   theFillChar = 0;
   theInlineSize = 0;
@@ -1028,9 +1029,9 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
   // sanity check
   assert((NDB_BLOB_HEAD_SIZE << 2) == sizeof(Head));
   assert(theColumn->m_attrSize * theColumn->m_arraySize == sizeof(Head) + theInlineSize);
-  const NdbDictionary::Table* bt;
-  const NdbDictionary::Column* bc;
   if (thePartSize > 0) {
+    const NdbDictionary::Table* bt = NULL;
+    const NdbDictionary::Column* bc = NULL;
     if (theStripeSize == 0 ||
         (bt = theColumn->getBlobTable()) == NULL ||
         (bc = bt->getColumn("DATA")) == NULL ||
@@ -1039,8 +1040,8 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
       setErrorCode(ErrTable);
       return -1;
     }
+    theBlobTable = &NdbTableImpl::getImpl(*bt);
   }
-  theBlobTable = & NdbTableImpl::getImpl(*bt);
   // buffers
   theKeyBuf.alloc(theTable->m_sizeOfKeysInWords << 2);
   theAccessKeyBuf.alloc(theAccessTable->m_sizeOfKeysInWords << 2);

@@ -412,7 +412,6 @@ aaa.
 aaa   .
 select concat(a,'.') from t1 where binary a='aaa';
 concat(a,'.')
-aaa   .
 aaa.
 update t1 set a='bbb' where a='aaa';
 select concat(a,'.') from t1;
