@@ -997,12 +997,24 @@ public:
   virtual ~Dbtup();
 
   /*
+   * TUX uses logical tuple address when talking to ACC and LQH.
+   */
+  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr);
+
+  /*
    * TUX index in TUP has single Uint32 array attribute which stores an
    * index node.  TUX uses following methods.
    */
   int tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
   void tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
   void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
+
+  /*
+   * TUX reads primary table attributes for 1) index key 2) primary key
+   * when returning keyinfo.  TUX uses following methods.
+   */
+  void tuxReadAttrs();  // under construction
+  void tuxReadKeys();   // under construction
 
 private:
   BLOCK_DEFINES(Dbtup);

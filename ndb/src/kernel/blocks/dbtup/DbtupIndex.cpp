@@ -31,6 +31,97 @@
 // methods used by ordered index
 
 void
+Dbtup::tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  Uint32 fragPageId = pagePtr.p->pageWord[ZPAGE_FRAG_PAGE_ID_POS];
+  Uint32 tupheadsize = tablePtr.p->tupheadsize;
+  ndbrequire(pageOffset >= ZPAGE_HEADER_SIZE);
+  Uint32 offset = pageOffset - ZPAGE_HEADER_SIZE;
+  ndbrequire(offset % tupheadsize == 0);
+  Uint32 pageIndex = (offset / tupheadsize) << 1;
+  tupAddr = (fragPageId << MAX_TUPLES_BITS) | pageIndex;
+}
+
+int
+Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  terrorCode = 0;
+  if (! allocTh(fragPtr.p, tablePtr.p, NORMAL_PAGE, signal, pageOffset, pagePtr)) {
+    jam();
+    ndbrequire(terrorCode != 0);
+    return terrorCode;
+  }
+  pageId = pagePtr.i;
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
+  return 0;
+}
+
+void
+Dbtup::tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  ndbrequire(node == &pagePtr.p->pageWord[pageOffset] + attrDataOffset);
+  freeTh(fragPtr.p, tablePtr.p, signal, pagePtr.p, pageOffset);
+}
+
+void
+Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
+}
+
+void    // under construction
+Dbtup::tuxReadAttrs()
+{
+}
+
+void    // under construction
+Dbtup::tuxReadKeys()
+{
+}
+
+// deprecated signal interfaces
+
+void
 Dbtup::execTUP_READ_ATTRS(Signal* signal)
 {
   ljamEntry();
@@ -177,64 +268,6 @@ Dbtup::execTUP_QUERY_TH(Signal* signal)
   }
   req->returnCode = ret_result;
   return;
-}
-
-int
-Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node)
-{
-  FragrecordPtr fragPtr;
-  fragPtr.i = fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i = fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  terrorCode = 0;
-  if (! allocTh(fragPtr.p, tablePtr.p, NORMAL_PAGE, signal, pageOffset, pagePtr)) {
-    jam();
-    ndbrequire(terrorCode != 0);
-    return terrorCode;
-  }
-  pageId = pagePtr.i;
-  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
-  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
-  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
-  return 0;
-}
-
-void
-Dbtup::tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node)
-{
-  FragrecordPtr fragPtr;
-  fragPtr.i = fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i = fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, page);
-  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
-  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
-  ndbrequire(node == &pagePtr.p->pageWord[pageOffset] + attrDataOffset);
-  freeTh(fragPtr.p, tablePtr.p, signal, pagePtr.p, pageOffset);
-}
-
-void
-Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node)
-{
-  FragrecordPtr fragPtr;
-  fragPtr.i = fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i = fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, page);
-  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
-  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
-  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
 }
 
 void
@@ -483,7 +516,8 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       buildPtr.p->m_tupleNo = 0;
       break;
     }
-    pagePtr.i = getRealpid(fragPtr.p, buildPtr.p->m_pageId);
+    Uint32 realPageId = getRealpid(fragPtr.p, buildPtr.p->m_pageId);
+    pagePtr.i = realPageId;
     ptrCheckGuard(pagePtr, cnoOfPage, page);
     const Uint32 pageState = pagePtr.p->pageWord[ZPAGE_STATE_POS];
     if (pageState != ZTH_MM_FREE &&
@@ -497,8 +531,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     }
     // get tuple
     const Uint32 tupheadsize = tablePtr.p->tupheadsize;
-    const Uint32 pageOffset = ZPAGE_HEADER_SIZE +
-                              buildPtr.p->m_tupleNo * tupheadsize;
+    Uint32 pageOffset = ZPAGE_HEADER_SIZE + buildPtr.p->m_tupleNo * tupheadsize;
     if (pageOffset + tupheadsize > ZWORDS_ON_PAGE) {
       ljam();
       buildPtr.p->m_pageId++;
@@ -530,15 +563,14 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       buildPtr.p->m_tupleNo++;
       break;
     }
+    Uint32 tupVersion = pagePtr.p->pageWord[pageOffset + 1];
     OperationrecPtr pageOperPtr;
     pageOperPtr.i = pagePtr.p->pageWord[pageOffset];
-    Uint32 pageId = buildPtr.p->m_pageId;
-    Uint32 pageIndex = buildPtr.p->m_tupleNo << 1;
     if (pageOperPtr.i != RNIL) {
       /*
       If there is an ongoing operation on the tuple then it is either a
       copy tuple or an original tuple with an ongoing transaction. In
-      both cases fragPageId and pageIndex refers to the original tuple.
+      both cases realPageId and pageOffset refer to the original tuple.
       The tuple address stored in TUX will always be the original tuple
       but with the tuple version of the tuple we found.
 
@@ -550,10 +582,9 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       */
       jam();
       ptrCheckGuard(pageOperPtr, cnoOfOprec, operationrec);
-      pageId = pageOperPtr.p->fragPageId;
-      pageIndex = pageOperPtr.p->pageIndex;
+      realPageId = pageOperPtr.p->realPageId;
+      pageOffset = pageOperPtr.p->pageOffset;
     }//if
-    Uint32 tup_version = pagePtr.p->pageWord[pageOffset + 1];
 #ifdef TIME_MEASUREMENT
     NdbTick_getMicroTimer(&start);
 #endif
@@ -563,8 +594,9 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     req->tableId = tablePtr.i;
     req->indexId = triggerPtr.p->indexId;
     req->fragId = tablePtr.p->fragid[buildPtr.p->m_fragNo];
-    req->tupAddr = (pageId << MAX_TUPLES_BITS) | pageIndex;
-    req->tupVersion = tup_version;
+    req->pageId = realPageId;
+    req->pageOffset = pageOffset;
+    req->tupVersion = tupVersion;
     req->opInfo = TuxMaintReq::OpAdd;
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);

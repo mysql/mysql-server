@@ -198,7 +198,7 @@ operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
   if (loc == Dbtux::NullTupLoc) {
     out << "null";
   } else {
-    out << hex << loc.m_pageId;
+    out << dec << loc.m_pageId;
     out << "." << dec << loc.m_pageOffset;
   }
   return out;
@@ -208,7 +208,7 @@ NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
 {
   out << dec << ent.m_fragBit;
-  out << "-" << hex << ent.m_tupAddr;
+  out << "-" << ent.m_tupLoc;
   out << "-" << dec << ent.m_tupVersion;
   return out;
 }
