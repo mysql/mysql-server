@@ -639,9 +639,11 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
     value=value*10L + (long) (*str - '0');
 
-  if (*str == ' ')
+  /* Move to last space */
+  if (str != end && *str == ' ')
   {
-    while (++str != end && str[0] == ' ') ;
+    while (++str != end && str[0] == ' ')
+    {}
     str--;
   }
 

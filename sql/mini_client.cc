@@ -830,13 +830,15 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     }
   }
   else
+  {
     /*
-     Real scramble is only sent to old servers. This can be blocked  
-     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+      Real scramble is only sent to old servers. This can be blocked  
+      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
     */
     end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
 
+  }
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {

@@ -87,6 +87,7 @@ select b from t1 where b like "%HELLO%";
 select d from t1 where d like "%HELLO%";
 select c from t1 having c like "%HELLO%";
 select d from t1 having d like "%HELLO%";
+select d from t1 having d like "%HE%LLO%";
 select t from t1 order by t;
 select c from t1 order by c;
 select b from t1 order by b;

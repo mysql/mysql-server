@@ -635,7 +635,7 @@ public:
   ulong val_len;
   Item_result type;
   uint charset_number;
-  byte is_null;
+  bool is_null;
 #ifndef MYSQL_CLIENT
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
