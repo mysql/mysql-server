@@ -1058,6 +1058,12 @@ create table t2 (b varchar(10) not null unique) type=innodb;
 select t1.a from t1,t2 where t1.a=t2.b;
 a
 drop table t1,t2;
+create table t1 (a int not null, b int, primary key (a)) type = innodb;
+create table t2 (a int not null, b int, primary key (a)) type = innodb;
+insert into t1 values (10, 20);
+insert into t2 values (10, 20);
+update t1, t2 set t1.b = 150, t2.b = t1.b where t2.a = t1.a and t1.a = 10;
+drop table t1,t2;
 CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE ) TYPE=INNODB;
 insert into t1 set id=1;

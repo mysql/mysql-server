@@ -400,7 +400,7 @@ int mysql_multi_update(THD *thd,
   res= mysql_select(thd,table_list,total_list,
 		    conds, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
-		    options | SELECT_NO_JOIN_CACHE,
+		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
 		    result);
   delete result;
   DBUG_RETURN(res);
