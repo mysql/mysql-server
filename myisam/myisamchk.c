@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.34 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.35 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -677,27 +677,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
 				   raid_chunks,
 				   MYF(0));
-#ifdef USE_RAID
-	  if (share->base.raid_type)
-	  {
-	    mi_check_print_info(&check_param,"Opening as RAID-ed table\n");
-	    info->dfile=my_raid_open(fn_format(param->temp_filename,
-					       fixed_name,"",
-					       MI_NAME_DEXT, 2+4),
-				     O_RDWR | O_SHARE,
-				     share->base.raid_type,
-				     raid_chunks,
-				     share->base.raid_chunksize,
-				     MYF(MY_WME | MY_RAID));
-	  }
-	  else
-#endif
-	    info->dfile=my_open(fn_format(param->temp_filename,
-					  fixed_name,"",
-					  MI_NAME_DEXT,2+4),
-				O_RDWR | O_SHARE,
-				MYF(MY_WME));
-	  if (info->dfile < 0)
+	  if (mi_open_datafile(info,info->s))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
@@ -1142,7 +1122,8 @@ static int mi_sort_records(MI_CHECK *param,
   SORT_INFO *sort_info= &param->sort_info;
   DBUG_ENTER("sort_records");
 
-  bzero((char*) sort_info,sizeof(sort_info));
+  bzero((char*) sort_info,sizeof(*sort_info));
+  sort_info->param=param;
   keyinfo= &share->keyinfo[sort_key];
   got_error=1;
   temp_buff=0;

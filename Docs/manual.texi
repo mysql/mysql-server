@@ -1807,6 +1807,13 @@ is as tested as the other table types.
 This only affects the new code that checks if the table was closed properly
 on open and executes an automatic check/repair of the table if it wasn't.
 
+@item MERGE tables -- Alpha / Beta
+The usage of keys on @code{MERGE} tables is still not that tested.  The
+other part of the @code{MERGE} code is quite well tested.
+
+@item FULLTEXT -- Alpha / Beta
+Text search seams to work, but is still not widely used.
+
 @end table
 
 MySQL AB provides e-mail support for paying customers, but the @strong{MySQL}
@@ -21903,6 +21910,9 @@ properly locked if one another thread issues a table lock.
 @item
 Internal locking in @code{BDB} tables are done on page level.
 @item
+@code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
+maintain a count of the number of rows in the table.
+@item
 Scanning is slower than with @code{MyISAM} tables as one has data in BDB
 tables is stored in B-trees and not in a separate data file.
 @item
@@ -37017,7 +37027,7 @@ This listing.
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
 older perl installations.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.13.tar.gz, DBI-1.13.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.14.tar.gz, DBI-1.14.tar.gz}
 Perl @code{DBI} module.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.0.tar.gz,KAMXbase1.0.tar.gz}
@@ -37026,7 +37036,7 @@ module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
 extened by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2214.tar.gz, Msql-Mysql-modules-1.2214.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
 Perl @code{DBD} module to access mSQL and @strong{MySQL} databases..
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
@@ -37982,6 +37992,12 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+Fixed problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
+(Patch by Alexander Igonitchev)
+@item
+@code{CREATE TEMPORARY TABLE IF NOT EXISTS} doesn't anymore give an error
+if the table existed.
 @item
 If one don't create a @code{PRIMARY KEY} in a BDB table, a hidden
 @code{PRIMARY KEY} will be created.
