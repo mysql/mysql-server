@@ -77,6 +77,11 @@ out of the LRU-list and keep a count of pending operations. When an operation
 completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
+/* When mysqld is run, the default directory "." is the mysqld datadir,
+but in the MySQL Embedded Server Library and ibbackup it is not the default
+directory, and we must set the base file path explicitly */
+const char*	fil_path_to_mysql_datadir	= ".";
+
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
 
