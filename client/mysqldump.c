@@ -1500,7 +1500,7 @@ int main(int argc, char **argv)
       else
       {
 	row = mysql_fetch_row(master);
-	if(row[0] && row[1]) {
+	if(row && row[0] && row[1]) {
 	  fprintf(md_result_file,
 		  "\n--\n-- Position to start replication from\n--\n\n");
 	  fprintf(md_result_file,
