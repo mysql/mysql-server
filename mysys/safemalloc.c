@@ -185,7 +185,9 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     pTmp -> sFileName = (my_string) sFile;
     pTmp -> uLineNum = uLine;
     pTmp -> uDataSize = uSize;
+#ifdef THREAD
     pTmp->thread_id = pthread_self();
+#endif
     pTmp -> pPrev = NULL;
 
     /* Add this remember structure to the linked list */
@@ -371,12 +373,19 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
   return 0;
 }
 
+#ifdef THREAD
 static int legal_leak(struct remember* pPtr)
 {
  return pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id
 	    || shutdown_th == pPtr->thread_id
    || signal_th == pPtr->thread_id;
 }
+#else
+static int legal_leak(struct remember* pPtr)
+{
+  return 1;
+}
+#endif
 
 /*
  * TERMINATE(FILE *file)
@@ -390,17 +399,20 @@ void TERMINATE (FILE *file)
   DBUG_ENTER("TERMINATE");
   pthread_mutex_lock(&THR_LOCK_malloc);
 
-  /* Report the difference between number of calls to  */
-  /* NEW and the number of calls to FREE.  >0 means more	 */
-  /* NEWs than FREEs.  <0, etc.				 */
+  /*
+    Report the difference between number of calls to
+    NEW and the number of calls to FREE.  >0 means more
+    NEWs than FREEs.  <0, etc.
+  */
 
-#ifndef PEDANTIC_SAFEMALLOC
-  /* Avoid false alarms for blocks that we cannot free before my_end()
-     This does miss some positives, but that is ok. This will only miss
-     failures to free things allocated in the main thread which 
-     performs only one-time allocations. If you really need to
-     debug memory allocations in the main thread,
-     #define PEDANTIC_SAFEMALLOC
+#if !defined(PEDANTIC_SAFEMALLOC) && defined(THREAD)
+  /*
+    Avoid false alarms for blocks that we cannot free before my_end()
+    This does miss some positives, but that is ok. This will only miss
+    failures to free things allocated in the main thread which 
+    performs only one-time allocations. If you really need to
+    debug memory allocations in the main thread,
+    #define PEDANTIC_SAFEMALLOC
   */
   if ((pPtr=pRememberRoot))
   {
