@@ -19,7 +19,7 @@ BK_STATUS=$BK_STATUS$BK_COMMIT
 if [ "$BK_STATUS" = OK ]
 then 
 
-CHANGESET=`bk changes -r+ | sed -n 's/^ChangeSet@\([^,][^,]*\),.*/\1/p'`
+CHANGESET=`bk -R prs -r+ -h -d':I:' ChangeSet`
 
 #++
 # dev-public@
