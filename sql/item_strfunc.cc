@@ -2624,20 +2624,21 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String *res= args[0]->val_str(str);
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
   
   if ((null_value= args[0]->null_value ||
-		   geom.create_from_wkb(res->ptr() + SRID_SIZE,
-					res->length() - SRID_SIZE)))
+		   geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					swkb->length() - SRID_SIZE)))
     return 0;
   
-  uint32 srid= uint4korr(res->ptr());
-  if (res->reserve(SRID_SIZE, 512))
+  uint32 srid= uint4korr(swkb->ptr());
+  str->length(0);
+  if (str->reserve(SRID_SIZE, 512))
     return 0;
-  res->length(0);
-  res->q_append(srid);
-  return (null_value= geom.envelope(res)) ? 0 : res;
+  str->q_append(srid);
+  return (null_value= geom.envelope(str)) ? 0 : str;
 }
 
 
