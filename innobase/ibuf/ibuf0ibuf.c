@@ -548,11 +548,9 @@ ibuf_data_init_for_space(
 	dict_mem_index_add_field(index, "PAGE_NO", 0, 0);
 	dict_mem_index_add_field(index, "TYPES", 0, 0);
 
-	index->page_no = FSP_IBUF_TREE_ROOT_PAGE_NO;
-	
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
-	dict_index_add_to_cache(table, index);
+	dict_index_add_to_cache(table, index, FSP_IBUF_TREE_ROOT_PAGE_NO);
 
 	data->index = dict_table_get_first_index(table);
 

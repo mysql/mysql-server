@@ -46,7 +46,7 @@ thread_stack = 64K
 server-id	= 1
 
 # Uncomment the following if you want to log updates
-#log-bin
+#log-bin=mysql-bin
 
 # Uncomment the following if you are NOT using BDB tables
 #skip-bdb

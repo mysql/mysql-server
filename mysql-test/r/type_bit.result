@@ -368,3 +368,14 @@ a+0
 44
 57
 drop table t1;
+create table t1 (a bit(3), b bit(12));
+insert into t1 values (7,(1<<12)-2), (0x01,0x01ff);
+select hex(a),hex(b) from t1;
+hex(a)	hex(b)
+7	FFE
+1	1FF
+select hex(concat(a)),hex(concat(b)) from t1;
+hex(concat(a))	hex(concat(b))
+07	0FFE
+01	01FF
+drop table t1;

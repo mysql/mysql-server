@@ -523,8 +523,10 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	data->prev=lock->write_wait.last;
 	lock->write_wait.last= &data->next;
 	data->cond=get_cond();
-	if (lock->get_status)
-	  (*lock->get_status)(data->status_param);
+        /*
+          We don't have to do get_status here as we will do it when we change
+          the delayed lock to a real write lock
+        */
 	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
