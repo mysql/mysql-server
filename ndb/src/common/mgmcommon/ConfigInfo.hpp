@@ -71,6 +71,21 @@ public:
     const char * m_ruleData;
   };
   
+  /**
+   * Entry for config rule
+   */
+  struct ConfigRuleSection {
+    BaseString m_sectionType;
+    Properties * m_sectionData;
+  };
+
+  struct ConfigRule {
+    bool (* m_configRule)(Vector<ConfigRuleSection>&, 
+			  struct InitConfigFileParser::Context &, 
+			  const char * m_ruleData);
+    const char * m_ruleData;
+  };
+  
   ConfigInfo();
 
   /**
@@ -113,6 +128,7 @@ private:
 
 public:
   static const SectionRule m_SectionRules[];
+  static const ConfigRule  m_ConfigRules[];
   static const int         m_NoOfRules;
 };
 

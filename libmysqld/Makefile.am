@@ -56,7 +56,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
-	spatial.cc gstream.cc sql_help.cc
+	spatial.cc gstream.cc sql_help.cc tztime.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=

@@ -1,5 +1,6 @@
 #
-# Test of timezone handling.  This script must be run with TZ=MET
+# Test of SYSTEM time zone handling ( for my_system_gmt_sec()).
+# This script must be run with TZ=MET
 
 -- require r/have_met_timezone.require
 disable_query_log;
@@ -13,7 +14,7 @@ DROP TABLE IF EXISTS t1;
 
 # The following is because of daylight saving time
 --replace_result MEST MET
-show variables like "timezone";
+show variables like "system_time_zone";
 
 #
 # Test unix timestamp
@@ -38,6 +39,16 @@ INSERT INTO t1 (ts) VALUES (Unix_timestamp('2003-03-30 03:59:59'));
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2003-03-30 04:00:01'));
 
 SELECT ts,from_unixtime(ts) FROM t1;
+DROP TABLE t1;
+
+
+#
+# Test of warning for spring time-gap values for system time zone
+#
+CREATE TABLE t1 (ts timestamp);
+INSERT INTO t1 (ts) VALUES ('2003-03-30 01:59:59'),
+                           ('2003-03-30 02:59:59'),
+                           ('2003-03-30 03:00:00');
 DROP TABLE t1;
 
 #

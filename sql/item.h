@@ -98,7 +98,8 @@ public:
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER};
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
+             PARAM_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -382,6 +383,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
+  inline uint32 max_disp_length() { return field->max_length(); }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1199,6 +1201,7 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  static uint32 real_length(Item *item);
   void cleanup()
   {
     DBUG_ENTER("Item_type_holder::cleanup");

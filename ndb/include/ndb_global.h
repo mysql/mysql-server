@@ -25,7 +25,13 @@
 #endif
 #include <sys/param.h>
 #ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
+  #if defined(__cplusplus) && defined(_APP32_64BIT_OFF_T) && defined(_INCLUDE_AES_SOURCE)
+    #undef _INCLUDE_AES_SOURCE
+    #include <sys/stat.h>
+    #define _INCLUDE_AES_SOURCE
+  #else
+    #include <sys/stat.h>
+  #endif
 #endif
 #include <sys/resource.h>
 #ifdef HAVE_SYS_WAIT_H

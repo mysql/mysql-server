@@ -33,11 +33,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     jam();
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
+      TupLoc tupLoc(sig->pageId, sig->pageOffset);
       debugOut << "opInfo=" << hex << sig->opInfo;
       debugOut << " tableId=" << dec << sig->tableId;
       debugOut << " indexId=" << dec << sig->indexId;
       debugOut << " fragId=" << dec << sig->fragId;
-      debugOut << " tupAddr=" << hex << sig->tupAddr;
+      debugOut << " tupLoc=" << tupLoc;
       debugOut << " tupVersion=" << dec << sig->tupVersion;
       debugOut << " -- ignored at ISP=" << dec << c_internalStartPhase;
       debugOut << " TOS=" << dec << c_typeOfStart;
@@ -72,30 +73,25 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-  // set up index entry
+  // set up index keys for this operation
+  setKeyAttrs(frag);
+  // set up search entry
   TreeEnt ent;
-  ent.m_tupAddr = req->tupAddr;
+  ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
   ent.m_tupVersion = req->tupVersion;
   ent.m_fragBit = fragBit;
   // read search key
-  ReadPar readPar;
-  readPar.m_ent = ent;
-  readPar.m_first = 0;
-  readPar.m_count = frag.m_numAttrs;
-  // output goes here
-  readPar.m_data = c_keyBuffer;
-  tupReadAttrs(signal, frag, readPar);
+  readKeyAttrs(frag, ent, 0, c_searchKey);
   // check if all keys are null
   {
+    const unsigned numAttrs = frag.m_numAttrs;
     bool allNull = true;
-    ConstData data = readPar.m_data;
-    for (unsigned i = 0; i < frag.m_numAttrs; i++) {
-      if (! data.ah().isNULL()) {
+    for (unsigned i = 0; i < numAttrs; i++) {
+      if (c_searchKey[i] != 0) {
         jam();
         allNull = false;
         break;
       }
-      data += AttributeHeaderSize + data.ah().getDataSize();
     }
     if (allNull) {
       jam();
@@ -104,11 +100,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       return;
     }
   }
-  // find position in tree
-  SearchPar searchPar;
-  searchPar.m_data = c_keyBuffer;
-  searchPar.m_ent = ent;
-  TreePos treePos;
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << "opCode=" << dec << opCode;
@@ -120,7 +111,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     debugOut << endl;
   }
 #endif
-  treeSearch(signal, frag, searchPar, treePos);
+  // find position in tree
+  TreePos treePos;
+  treeSearch(signal, frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << treePos << endl;
@@ -199,10 +192,10 @@ Dbtux::tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
   req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
-  req->tupAddr = ent.m_tupAddr;
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = ent.m_tupVersion;
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // add count and list of attribute ids
   Data data = (Uint32*)req + TupReadAttrs::SignalLength;
@@ -246,10 +239,10 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
   req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
-  req->tupAddr = ent.m_tupAddr;
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = RNIL; // not used
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // execute
   EXECUTE_DIRECT(DBTUP, GSN_TUP_READ_ATTRS, signal, TupReadAttrs::SignalLength);
