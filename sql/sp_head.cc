@@ -358,7 +358,7 @@ sp_head::restore_lex(THD *thd)
     char **it;
 
     while ((it= li++))
-      if (strcasecmp(proc, *it) == 0)
+      if (my_strcasecmp(system_charset_info, proc, *it) == 0)
 	break;
     if (! it)
       m_calls.push_back(&proc);
@@ -380,7 +380,7 @@ sp_head::restore_lex(THD *thd)
       char **tb;
 
       while ((tb= li++))
-	if (strcasecmp(tables->real_name, *tb) == 0)
+	if (my_strcasecmp(system_charset_info, tables->real_name, *tb) == 0)
 	  break;
       if (! tb)
 	m_tables.push_back(&tables->real_name);

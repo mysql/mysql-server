@@ -348,7 +348,7 @@ sp_cache_functions(THD *thd, LEX *lex)
 
     while ((sp= lisp++))
     {
-      if (strcasecmp(fn, sp->name()) == 0)
+      if (my_strcasecmp(system_charset_info, fn, sp->name()) == 0)
 	break;
     }
     if (sp)
