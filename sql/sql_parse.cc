@@ -141,12 +141,12 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
 	       my_malloc(sizeof(struct user_conn) + temp_len+1,
-			 MYF(MY_WME)))
-      {
+			 MYF(MY_WME)))))
+    {
       send_error(&current_thd->net, 0, NullS);	// Out of memory
       return_val=1;
       goto end;
-    }     
+    }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->len = temp_len;
@@ -382,7 +382,7 @@ static void reset_mqh(THD *thd, LEX_USER *lu, uint mq)
     {
       char user[USERNAME_LENGTH+1];
       char *where;
-      UC *uc=(struct user_conn *) hash_element(&hash_element, idx);
+      UC *uc=(struct user_conn *) hash_element(&hash_user_connections, idx);
       where=strchr(uc->user,'@');
       strmake(user,uc->user,where - uc->user);
       uc->max_questions=get_mqh(user,where+1);
