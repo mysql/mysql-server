@@ -1100,9 +1100,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	else
 	{
 	  enum enum_duplicates handle_dup = DUP_IGNORE;
-	  if(lev->sql_ex.opt_flags && REPLACE_FLAG)
+	  if(lev->sql_ex.opt_flags & REPLACE_FLAG)
 	    handle_dup = DUP_REPLACE;
-	  sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
+	  sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &
 			  DUMPFILE_FLAG );
 	  String field_term(&lev->sql_ex.field_term, 1),
 	    enclosed(&lev->sql_ex.enclosed, 1),
