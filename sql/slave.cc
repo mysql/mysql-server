@@ -849,7 +849,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	
       mi->inc_pos(event_len);
       flush_master_info(mi);
-      --slave_skip_counter;
+      if(slave_skip_counter)
+        --slave_skip_counter;
       delete ev;     
       return 0;					// avoid infinite update loops
     }
