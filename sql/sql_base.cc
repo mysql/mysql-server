@@ -1413,11 +1413,17 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     if (field->query_id != thd->query_id)
     {
       field->query_id=thd->query_id;
-      field->table->used_fields++;
+      table->used_fields++;
+      if (field->part_of_key)
+      {
+	if (!(field->part_of_key & table->ref_primary_key))
+	  table->used_keys&=field->part_of_key;
+      }
+      else
+	table->used_keys=0;
     }
     else
       thd->dupp_field=field;
-    field->table->used_keys&=field->part_of_key;
   }
   if (check_grants && !thd->master_access && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
@@ -1659,19 +1665,19 @@ static bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 	      List_iterator<Item> *it)
 {
-  TABLE_LIST *table;
   uint found;
   DBUG_ENTER("insert_fields");
 
   found=0;
-  for (table=tables ; table ; table=table->next)
+  for (; tables ; tables=tables->next)
   {
+    TABLE *table=tables->table;
     if (grant_option && !thd->master_access &&
-	check_grant_all_columns(thd,SELECT_ACL,table->table) )
+	check_grant_all_columns(thd,SELECT_ACL,table) )
       DBUG_RETURN(-1);
-    if (!table_name || !strcmp(table_name,table->name))
+    if (!table_name || !strcmp(table_name,tables->name))
     {
-      Field **ptr=table->table->field,*field;
+      Field **ptr=table->field,*field;
       while ((field = *ptr++))
       {
 	Item_field *item= new Item_field(field);
@@ -1682,10 +1688,17 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
-	field->table->used_keys&=field->part_of_key;
+
+	if (field->part_of_key)
+	{
+	  if (!(field->part_of_key & table->ref_primary_key))
+	    table->used_keys&=field->part_of_key;
+	}
+	else
+	  table->used_keys=0;
       }
       /* All fields are used */
-      table->table->used_fields=table->table->fields;
+      table->used_fields=table->fields;
     }
   }
   if (!found)
@@ -1750,6 +1763,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	// TODO: This could be optimized to use hashed names if t2 had a hash
 	for (j=0 ; j < t2->fields ; j++)
 	{
+	  key_map tmp_map;
 	  if (!my_strcasecmp(t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
@@ -1760,8 +1774,20 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	    tmp->fix_length_and_dec();	// Update cmp_type
 	    tmp->const_item_cache=0;
 	    cond_and->list.push_back(tmp);
-	    t1->used_keys&= t1->field[i]->part_of_key;
-	    t2->used_keys&= t2->field[j]->part_of_key;
+	    if ((tmp_map=t1->field[i]->part_of_key))
+	    {
+	      if (!(tmp_map & t1->ref_primary_key))
+		t1->used_keys&=tmp_map;
+	    }
+	    else
+	      t1->used_keys=0;
+	    if ((tmp_map=t2->field[j]->part_of_key))
+	    {
+	      if (!(tmp_map & t2->ref_primary_key))
+		t2->used_keys&=tmp_map;
+	    }
+	    else
+	      t2->used_keys=0;
 	    break;
 	  }
 	}

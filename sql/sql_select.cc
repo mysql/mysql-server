@@ -2352,6 +2352,11 @@ make_join_readinfo(JOIN *join,uint options)
       break;
     case JT_EQ_REF:
       table->status=STATUS_NO_RECORD;
+      if (tab->select)
+      {
+	delete tab->select->quick;
+	tab->select->quick=0;
+      }
       delete tab->quick;
       tab->quick=0;
       table->file->index_init(tab->ref.key);
@@ -2365,6 +2370,11 @@ make_join_readinfo(JOIN *join,uint options)
       break;
     case JT_REF:
       table->status=STATUS_NO_RECORD;
+      if (tab->select)
+      {
+	delete tab->select->quick;
+	tab->select->quick=0;
+      }
       delete tab->quick;
       tab->quick=0;
       table->file->index_init(tab->ref.key);

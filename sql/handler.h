@@ -202,6 +202,7 @@ public:
   virtual double read_time(ha_rows rows) { return rows; }
   virtual bool fast_key_read() { return 0;}
   virtual bool has_transactions(){ return 0;}
+  virtual uint extra_rec_buf_length() { return 0; }
 
   virtual int index_init(uint idx) { active_index=idx; return 0;}
   virtual int index_end() {return 0; }

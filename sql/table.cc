@@ -207,49 +207,29 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
 #endif
 
+  /* Allocate handler */
   if (!(outparam->file= get_new_handler(outparam,outparam->db_type)))
     goto err_not_open;
-  error=2;
-  if (db_stat)
-  {
-    int err;
-    if ((err=(outparam->file->
-	      ha_open(index_file,
-		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-		       ((db_stat & HA_WAIT_IF_LOCKED) ||
-			(specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
-		       HA_OPEN_WAIT_IF_LOCKED :
-		       (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
-		       HA_OPEN_ABORT_IF_LOCKED :
-		       HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
-    {
-      /* Set a flag if the table is crashed and it can be auto. repaired */
-      outparam->crashed=(err == HA_ERR_CRASHED &&
-			 outparam->file->auto_repair() &&
-			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
-      goto err_not_open; /* purecov: inspected */
-    }
-  }
-  outparam->db_low_byte_first=outparam->file->low_byte_first();
 
   error=4;
   outparam->reginfo.lock_type= TL_UNLOCK;
   outparam->current_lock=F_UNLCK;
-  if (db_stat & HA_OPEN_KEYFILE || (prgflag & DELAYED_OPEN)) records=2;
+  if ((db_stat & HA_OPEN_KEYFILE) || (prgflag & DELAYED_OPEN)) records=2;
   else records=1;
   if (prgflag & (READ_ALL+EXTRA_RECORD)) records++;
-  rec_buff_length=ALIGN_SIZE(outparam->reclength+1);
+  /* QQ: TODO, remove the +1 from below */
+  rec_buff_length=ALIGN_SIZE(outparam->reclength+1+
+			     outparam->file->extra_rec_buf_length());
   if (!(outparam->record[0]= (byte*)
 	(record = (char *) alloc_root(&outparam->mem_root,
 				      rec_buff_length * records))))
-    goto err;					/* purecov: inspected */
+    goto err_not_open;				/* purecov: inspected */
   record[outparam->reclength]=0;		// For purify and ->c_ptr()
   outparam->rec_buff_length=rec_buff_length;
   if (my_pread(file,(byte*) record,(uint) outparam->reclength,
 	       (ulong) (uint2korr(head+6)+uint2korr(head+14)),
 	       MYF(MY_NABP)))
-    goto err; /* purecov: inspected */
+    goto err_not_open; /* purecov: inspected */
   for (i=0 ; i < records ; i++, record+=rec_buff_length)
   {
     outparam->record[i]=(byte*) record;
@@ -265,12 +245,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
-  if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err;
+  if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
-      goto err;					// Wrong password
+      goto err_not_open;			// Wrong password
   }
 
   outparam->fields= uint2korr(head+258);
@@ -292,13 +272,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 			   (outparam->fields+interval_parts+
 			    keys+3)*sizeof(my_string)+
 			   (n_length+int_length)))))
-    goto err; /* purecov: inspected */
+    goto err_not_open; /* purecov: inspected */
 
   outparam->field=field_ptr;
   read_length=((uint) (outparam->fields*11)+pos+
 	       (uint) (n_length+int_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
-    goto err; /* purecov: inspected */
+    goto err_not_open; /* purecov: inspected */
   if (crypted)
   {
     crypted->decode((char*) disk_buff,read_length);
@@ -321,6 +301,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (keynames)
     fix_type_pointers(&int_array,&outparam->keynames,1,&keynames);
   VOID(my_close(file,MYF(MY_WME)));
+  file= -1;
 
   record=(char*) outparam->record[0]-1;		/* Fieldstart = 1 */
   if (null_field_first)
@@ -426,7 +407,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 						(uint) key_part->length);
 #ifdef EXTRA_DEBUG
 	if (key_part->fieldnr > outparam->fields)
-	  goto err; // sanity check
+	  goto err_not_open; // sanity check
 #endif
 	if (key_part->fieldnr)
 	{					// Should always be true !
@@ -494,6 +475,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	(outparam->keys_in_use & ((key_map) 1 << primary_key)))
     {
       outparam->primary_key=primary_key;
+      if (outparam->file->option_flag() & HA_PRIMARY_KEY_IN_READ_INDEX)
+	outparam->ref_primary_key= (key_map) 1 << primary_key;
+      /*
+	If we are using an integer as the primary key then allow the user to
+	refer to it as '_rowid'
+      */
       if (outparam->key_info[primary_key].key_parts == 1)
       {
 	Field *field= outparam->key_info[primary_key].key_part[0].field;
@@ -505,6 +492,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       outparam->primary_key = MAX_KEY; // we do not have a primary key
   }
   x_free((gptr) disk_buff);
+  disk_buff=0;
   if (new_field_pack_flag <= 1)
   {			/* Old file format with default null */
     uint null_length=(outparam->null_fields+7)/8;
@@ -523,7 +511,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  (Field_blob**) alloc_root(&outparam->mem_root,
 				    (uint) (outparam->blob_fields+1)*
 				    sizeof(Field_blob*))))
-      goto err;
+      goto err_not_open;
     for (ptr=outparam->field ; *ptr ; ptr++)
     {
       if ((*ptr)->flags & BLOB_FLAG)
@@ -535,22 +523,43 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->blob_field=
       (Field_blob**) (outparam->field+outparam->fields); // Point at null ptr
 
+  /* The table struct is now initialzed;  Open the table */
+  error=2;
+  if (db_stat)
+  {
+    int err;
+    if ((err=(outparam->file->
+	      ha_open(index_file,
+		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
+		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
+		       ((db_stat & HA_WAIT_IF_LOCKED) ||
+			(specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
+		       HA_OPEN_WAIT_IF_LOCKED :
+		       (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
+		       HA_OPEN_ABORT_IF_LOCKED :
+		       HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+    {
+      /* Set a flag if the table is crashed and it can be auto. repaired */
+      outparam->crashed=(err == HA_ERR_CRASHED &&
+			 outparam->file->auto_repair() &&
+			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
+      goto err_not_open; /* purecov: inspected */
+    }
+  }
+  outparam->db_low_byte_first=outparam->file->low_byte_first();
+
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
   opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
     (void) hash_check(&outparam->name_hash);
 #endif
-  if (db_stat)
-    outparam->file->initialize();
   DBUG_RETURN (0);
 
- err:
-  if (outparam->file && db_stat)
-    (void) outparam->file->close();
  err_not_open:
   x_free((gptr) disk_buff);
-  VOID(my_close(file,MYF(MY_WME)));
+  if (file > 0)
+    VOID(my_close(file,MYF(MY_WME)));
 
  err_end:					/* Here when no file */
   delete crypted;

@@ -23,14 +23,17 @@
 
 #include <db.h>
 
+#define BDB_HIDDEN_PRIMARY_KEY_LENGTH 5
+
 typedef struct st_berkeley_share {
   ulonglong auto_ident;
   THR_LOCK lock;
   pthread_mutex_t mutex;
   char *table_name;
   uint table_name_length,use_count;
-  my_bool inited;
+  bool primary_key_inited;
 } BDB_SHARE;
+
 
 class ha_berkeley: public handler
 {
@@ -46,13 +49,15 @@ class ha_berkeley: public handler
   BDB_SHARE *share;
   ulong int_option_flag;
   ulong alloced_rec_buff_length;
-  uint primary_key,last_dup_key;
-  bool fixed_length_row, fixed_length_primary_key, hidden_primary_key;
-
+  uint primary_key,last_dup_key, hidden_primary_key;
+  bool fixed_length_row, fixed_length_primary_key, key_read;
   bool  fix_rec_buff_for_blob(ulong length);
+  byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];
+
   ulong max_row_length(const byte *buf);
-  int pack_row(DBT *row,const  byte *record);
+  int pack_row(DBT *row,const  byte *record, bool new_row);
   void unpack_row(char *record, DBT *row);
+  void ha_berkeley::unpack_key(char *record, DBT *key, uint index);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *record);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key_ptr,
 		uint key_length);
@@ -64,7 +69,7 @@ class ha_berkeley: public handler
   int update_primary_key(DB_TXN *trans, bool primary_key_changed,
 			 const byte * old_row, const byte * new_row,
 			 DBT *prim_key);
-  int read_row(int error, char *buf, uint keynr, DBT *row, bool);
+  int read_row(int error, char *buf, uint keynr, DBT *row, DBT *key, bool);
   DBT *get_pos(DBT *to, byte *pos);
 
  public:
@@ -72,9 +77,8 @@ class ha_berkeley: public handler
     int_option_flag(HA_READ_NEXT | HA_READ_PREV |
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
-		    HA_LONGLONG_KEYS | HA_NULL_KEY |
-		    HA_BLOB_KEY | 
-		    HA_REQUIRE_PRIMARY_KEY | HA_NOT_EXACT_COUNT | 
+		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
+		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT | 
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE),
     last_dup_key((uint) -1)
   {
@@ -84,14 +88,14 @@ class ha_berkeley: public handler
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return MAX_KEY; }
+  uint max_keys()          const { return MAX_KEY-1; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
+  uint extra_rec_buf_length() { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   bool fast_key_read()	   { return 1;}
   bool has_transactions()  { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);
-  void initialize(void);
   int close(void);
   double scan_time();
   int write_row(byte * buf);
@@ -129,6 +133,16 @@ class ha_berkeley: public handler
   int delete_table(const char *name);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
+
+  void update_auto_primary_key();
+  inline void get_auto_primary_key(byte *to)
+  {
+    ulonglong tmp;
+    pthread_mutex_lock(&share->mutex);
+    share->auto_ident++;
+    int5store(to,share->auto_ident);
+    pthread_mutex_unlock(&share->mutex);
+  }
 };
 
 extern bool berkeley_skip;
