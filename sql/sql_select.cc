@@ -6077,8 +6077,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       table->embedding->nested_join->used_tables|= used_tables;
       table->embedding->nested_join->not_null_tables|= not_null_tables;
     }
-
-    if (!table->outer_join || (used_tables & not_null_tables))
+   
+    if (!table->outer_join || (used_tables & not_null_tables) ||
+        (table->outer_join &&
+         !(table->on_expr->used_tables() & ~used_tables)))
     {
       /* 
         For some of the inner tables there are conjunctive predicates

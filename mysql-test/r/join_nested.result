@@ -1208,3 +1208,22 @@ SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
 a	a	a
 1	NULL	NULL
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1(a int, key (a));
+CREATE TABLE t2(b int, key (b));
+CREATE TABLE t3(c int, key (c));
+INSERT INTO t1 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+INSERT INTO t2 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+INSERT INTO t3 VALUES (0), (1), (2), (3), (4), (5);
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON c < 3 and b = c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	index	c	c	5	NULL	6	Using where; Using index
+1	SIMPLE	t2	ref	b	b	5	test.t3.c	2	Using where; Using index
+1	SIMPLE	t1	index	NULL	a	5	NULL	21	Using index
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	3	Using where; Using index
+1	SIMPLE	t3	ref	c	c	5	test.t2.b	2	Using where; Using index
+1	SIMPLE	t1	index	NULL	a	5	NULL	21	Using index
+DROP TABLE t1,t2,t3;
