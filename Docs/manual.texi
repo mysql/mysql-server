@@ -39068,6 +39068,12 @@ Python module with caching. By @email{gandalf@@rosmail.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLmodule-1.4.tar.gz, MySQLmodule-1.4.tar.gz}
 Python interface for @strong{MySQL}. By Joseph Skinner @email{joe@@earthlight.co.nz}. Modified by Joerg Senekowitsch @email{senekow@@ibm.net}.
 
+@item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-python-0.3.0.tar.gz, MySQL-python-0.3.0.tar.gz}
+MySQLdb Python is an DB-API v2.0-compliant interface to MySQL. Transactions
+are supported if the server and tables support them.  It is
+thread-safe, and contains a compatibility module for older code
+written for the no-longer-maintained MySQLmodule interface.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_11.tar.gz, mysql_mex_1_11.tar.gz}
 An interface program for the Matlab program by MathWorks.  The interface
 is done by Kimmo Uutela and John Fisher (not by Mathworks).
