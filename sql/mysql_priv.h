@@ -828,7 +828,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern uchar *days_in_month;
+extern uchar days_in_month[];
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -994,12 +994,9 @@ void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
-long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-void init_time(void);
-my_time_t my_system_gmt_sec(const TIME *, long *current_timezone, bool *not_exist);
 my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
 bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
