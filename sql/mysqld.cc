@@ -2914,7 +2914,8 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
   }
   else if (lower_case_table_names == 2 &&
-           (test_if_case_insensitive(mysql_real_data_home) == 0))
+           !(lower_case_file_system=
+             (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
     if (global_system_variables.log_warnings)
       sql_print_warning("\
