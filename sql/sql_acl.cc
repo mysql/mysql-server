@@ -964,9 +964,8 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
-  ulong host_access,db_access;
+  ulong host_access= ~0,db_access= 0;
   uint i,key_length;
-  db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
