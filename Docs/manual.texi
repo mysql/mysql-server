@@ -4098,6 +4098,12 @@ Iceland [GM] @
 @c @uref{http://www.matrice.it/risorse/mysql/, WWW}
 
 @item
+@c EMAIL: gabriele@feelinglinux.com (Giansante Gabriele)
+@c @image{Flags/italy}
+Italy [feelinglinux.com] @
+@uref{http://mysql.feelinglinux.com/, WWW}
+
+@item
 @c EMAIL: irena@yacc.it
 @c @image{Flags/italy}
 Italy [Teta Srl] @
@@ -4457,11 +4463,11 @@ Chile [Tecnoera] @
 @strong{Asia:}
 
 @itemize @bullet
-@c @item
-@c Not ok 20000919; Non-existent (Matt)
-@c EMAIL: mirnshi@netchina.com.cn (Meng Lingbo)
-@c @image{Flags/china} China [Freecode] @
-@c @uref{http://mysql.freecode.com.cn, WWW}
+@item
+@c EMAIL: mirnshi@263.net (Meng Lingbo)
+@c @image{Flags/china}
+China [Freecode] @
+@uref{http://www.freecode.net.cn/mirror/mysql/, WWW}
 
 @item
 @c EMAIL: yusun@atwell.co.jp (yu sun)
