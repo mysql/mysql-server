@@ -255,32 +255,11 @@ void vio_ssl_in_addr(Vio *vio, struct in_addr *in)
 }
 
 
-/* Return 0 if there is data to be read */
-
-my_bool vio_ssl_poll_read(Vio *vio,uint timeout)
-{
-#ifndef HAVE_POLL
-  return 0;
-#else
-  struct pollfd fds;
-  int res;
-  DBUG_ENTER("vio_ssl_poll");
-  fds.fd=vio->sd;
-  fds.events=POLLIN;
-  fds.revents=0;
-  if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
-  {
-    DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
-  }
-  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
-#endif
-}
-
 void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
 {
-  X509* client_cert;
   char *str;
   char buf[1024];
+  X509* client_cert;
   DBUG_ENTER("sslaccept");
   DBUG_PRINT("enter", ("sd=%d ptr=%p", vio->sd,ptr));
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
@@ -339,7 +318,6 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   DBUG_ENTER("sslconnect");
   DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
-
   vio->ssl_=0;
   vio->open_=FALSE; 
   if (!(vio->ssl_ = SSL_new(ptr->ssl_context_)))
