@@ -1141,3 +1141,9 @@ INSERT INTO t1 VALUES(0xF4FD);
 INSERT INTO t1 VALUES(0xF4FE);
 SELECT HEX(c) FROM t1 ORDER BY BINARY c;
 DROP TABLE t1;
+
+
+SET collation_connection='ujis_japanese_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='ujis_bin';
+-- source include/ctype_filesort.inc

@@ -412,13 +412,14 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 
 static int my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-			    uchar * dest, uint len,
-			    const uchar *src, 
-			    uint srclen __attribute__((unused)))
+                              uchar * dest, uint dstlen,
+                              const uchar *src, uint srclen)
 {
   if (dest != src)
-    memcpy(dest,src,len= min(len,srclen));
-  return len;
+    memcpy(dest, src, min(dstlen, srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 

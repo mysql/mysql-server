@@ -452,3 +452,6 @@ create table t1 (a varchar(1)) character set utf8 collate utf8_estonian_ci;
 insert into t1 values ('A'),('B'),('C'),('a'),('b'),('c');
 select a, a regexp '[a]' from t1 order by binary a;
 drop table t1;
+
+SET collation_connection='utf8_unicode_ci';
+-- source include/ctype_filesort.inc
