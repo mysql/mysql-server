@@ -790,19 +790,12 @@ fsp_init_file_page_low(
 	byte*	ptr)	/* in: pointer to a page */
 {
 	page_t*	page;
-#ifdef UNIV_BASIC_LOG_DEBUG
-	ulint	i;
-#endif
 	page = buf_frame_align(ptr);
 
 	buf_block_align(page)->check_index_page_at_flush = FALSE;	
-	
-#ifdef UNIV_BASIC_LOG_DEBUG	
-/*	printf("In log debug version: Erase the contents of the file page\n");
-*/
-	for (i = 0; i < UNIV_PAGE_SIZE; i++) {
-		page[i] = (byte)0xFF;
-	}
+
+#ifdef UNIV_BASIC_LOG_DEBUG
+	memset(page, 0xff, UNIV_PAGE_SIZE);
 #endif
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 							ut_dulint_zero);
@@ -812,6 +805,7 @@ fsp_init_file_page_low(
 /***************************************************************
 Inits a file page whose prior contents should be ignored. */
 
+static
 void
 fsp_init_file_page(
 /*===============*/

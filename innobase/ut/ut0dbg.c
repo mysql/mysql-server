@@ -18,7 +18,6 @@ ibool	ut_dbg_stop_threads	= FALSE;
 /* Null pointer used to generate memory trap */
 
 ulint*	ut_dbg_null_ptr		= NULL;
-
 const char*	ut_dbg_msg_assert_fail =
 "InnoDB: Assertion failure in thread %lu in file %s line %lu\n";
 const char*	ut_dbg_msg_trap =

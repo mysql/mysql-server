@@ -38,7 +38,7 @@ extern "C" {
 /* The following defines can be increased if necessary */
 #define MI_MAX_KEY	32		/* Max allowed keys */
 #define MI_MAX_KEY_SEG	16		/* Max segments for key */
-#define MI_MAX_KEY_LENGTH 500
+#define MI_MAX_KEY_LENGTH 1000
 
 #define MI_MAX_KEY_BUFF  (MI_MAX_KEY_LENGTH+MI_MAX_KEY_SEG*6+8+8)
 #define MI_MAX_POSSIBLE_KEY_BUFF (1024+6+6)	/* For myisam_chk */

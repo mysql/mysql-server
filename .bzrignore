@@ -522,6 +522,7 @@ scripts/fill_help_tables
 scripts/fill_help_tables.sql
 scripts/make_binary_distribution
 scripts/make_sharedlib_distribution
+scripts/make_win_binary_distribution
 scripts/make_win_src_distribution
 scripts/msql2mysql
 scripts/mysql_config
@@ -645,3 +646,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+mysys/test_gethwaddr

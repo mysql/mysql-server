@@ -167,5 +167,5 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a char(160) character set utf8, primary key(a));
-ERROR 42000: Specified key was too long; max key length is 255 bytes
+create table t1 (a text character set utf8, primary key(a(360)));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes

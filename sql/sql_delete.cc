@@ -370,7 +370,7 @@ bool multi_delete::send_data(List<Item> &values)
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
 	deleted++;
-      else if (!table_being_deleted->next)
+      else if (!table_being_deleted->next || table_being_deleted->table->file->has_transactions())
       {
 	table->file->print_error(error,MYF(0));
 	DBUG_RETURN(1);
@@ -473,6 +473,10 @@ int multi_delete::do_deletes(bool from_send_error)
       if ((local_error=table->file->delete_row(table->record[0])))
       {
 	table->file->print_error(local_error,MYF(0));
+	if (transactional_tables)
+	{
+	  DBUG_RETURN(local_error);
+	}
 	break;
       }
       deleted++;

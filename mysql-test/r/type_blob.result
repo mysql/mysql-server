@@ -346,16 +346,16 @@ HELLO MY	1
 a	1
 hello	1
 drop table t1;
-create table t1 (a text, unique (a(300)));
-ERROR 42000: Specified key was too long; max key length is 255 bytes
-create table t1 (a text, key (a(300)));
+create table t1 (a text, unique (a(2100)));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+create table t1 (a text, key (a(2100)));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 255 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text,
-  KEY `a` (`a`(255))
+  KEY `a` (`a`(1000))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 (

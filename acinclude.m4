@@ -1252,7 +1252,6 @@ dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
       innodb_libs="\
  \$(top_builddir)/innobase/usr/libusr.a\
- \$(top_builddir)/innobase/odbc/libodbc.a\
  \$(top_builddir)/innobase/srv/libsrv.a\
  \$(top_builddir)/innobase/dict/libdict.a\
  \$(top_builddir)/innobase/que/libque.a\

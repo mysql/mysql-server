@@ -147,7 +147,7 @@ store the charset-collation number; one byte is left unused, though */
 /*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type. */
-UNIV_INLINE
+
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -157,7 +157,7 @@ dtype_is_string_type(
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE. */
-UNIV_INLINE
+
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -170,7 +170,6 @@ TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE. */
 
-UNIV_INLINE
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -220,6 +219,7 @@ dtype_get_charset_coll(
 /*************************************************************************
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code. */
+
 ulint
 dtype_form_prtype(
 /*==============*/

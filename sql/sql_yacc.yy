@@ -572,7 +572,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token  BEFORE_SYM
 %left   SET_VAR
-%left	OR_OR_CONCAT OR
+%left	OR_OR_CONCAT OR XOR
 %left	AND
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
@@ -581,7 +581,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	SHIFT_LEFT SHIFT_RIGHT
 %left	'-' '+'
 %left	'*' '/' '%' DIV_SYM MOD_SYM
-%left   XOR
 %left   '^'
 %left	NEG '~'
 %right	NOT
@@ -4802,6 +4801,7 @@ keyword:
 	| MASTER_LOG_POS_SYM	{}
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
+	| MASTER_SERVER_ID_SYM  {}
 	| MASTER_CONNECT_RETRY_SYM	{}
 	| MASTER_SSL_SYM	{}
 	| MASTER_SSL_CA_SYM	{}
