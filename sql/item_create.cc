@@ -424,12 +424,6 @@ Item *create_load_file(Item* a)
   return new Item_load_file(a);
 }
 
-Item *create_wait_for_master_pos(Item* a, Item* b)
-{
-  current_thd->safe_to_cache_query=0;
-  return new Item_master_pos_wait(a, b);
-}
-
 Item *create_func_cast(Item *a, Item_cast cast_type)
 {
   Item *res;

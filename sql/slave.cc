@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -586,40 +586,118 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
   return 0;
 }
 
+
+/*
+  Checks whether tables match some (wild_)do_table and (wild_)ignore_table
+  rules (for replication)
+
+  SYNOPSIS
+    tables_ok()
+    thd             thread (SQL slave thread normally)
+    tables          list of tables to check
+
+  NOTES
+    Note that changing the order of the tables in the list can lead to
+    different results. Note also the order of precedence of the do/ignore 
+    rules (see code below). For that reason, users should not set conflicting 
+    rules because they may get unpredicted results.
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated                  
+*/
+
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
+  DBUG_ENTER("tables_ok");
+
   for (; tables; tables = tables->next)
   {
+    char hash_key[2*NAME_LEN+2];
+    char *end;
+    uint len;
+
     if (!tables->updating) 
       continue;
-    char hash_key[2*NAME_LEN+2];
-    char* p;
-    p = strmov(hash_key, tables->db ? tables->db : thd->db);
-    *p++ = '.';
-    uint len = strmov(p, tables->real_name) - hash_key ;
+    end= strmov(hash_key, tables->db ? tables->db : thd->db);
+    *end++= '.';
+    len= (uint) (strmov(end, tables->real_name) - hash_key);
     if (do_table_inited) // if there are any do's
     {
       if (hash_search(&replicate_do_table, (byte*) hash_key, len))
-	return 1;
+	DBUG_RETURN(1);
     }
     if (ignore_table_inited) // if there are any ignores
     {
       if (hash_search(&replicate_ignore_table, (byte*) hash_key, len))
-	return 0; 
+	DBUG_RETURN(0); 
     }
     if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
 					  hash_key, len))
-      return 1;
+      DBUG_RETURN(1);
     if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
 					      hash_key, len))
-      return 0;
+      DBUG_RETURN(0);
   }
 
   /*
     If no explicit rule found and there was a do list, do not replicate.
     If there was no do list, go ahead
   */
-  return !do_table_inited && !wild_do_table_inited;
+  DBUG_RETURN(!do_table_inited && !wild_do_table_inited);
+}
+
+
+/*
+  Checks whether a db matches wild_do_table and wild_ignore_table
+  rules (for replication)
+
+  SYNOPSIS
+    db_ok_with_wild_table()
+    db		name of the db to check.
+		Is tested with check_db_name() before calling this function.
+
+  NOTES
+    Here is the reason for this function.
+    We advise users who want to exclude a database 'db1' safely to do it
+    with replicate_wild_ignore_table='db1.%' instead of binlog_ignore_db or
+    replicate_ignore_db because the two lasts only check for the selected db,
+    which won't work in that case:
+    USE db2;
+    UPDATE db1.t SET ... #this will be replicated and should not
+    whereas replicate_wild_ignore_table will work in all cases.
+    With replicate_wild_ignore_table, we only check tables. When
+    one does 'DROP DATABASE db1', tables are not involved and the
+    statement will be replicated, while users could expect it would not (as it
+    rougly means 'DROP db1.first_table, DROP db1.second_table...').
+    In other words, we want to interpret 'db1.%' as "everything touching db1".
+    That is why we want to match 'db1' against 'db1.%' wild table rules.
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated
+ */
+
+int db_ok_with_wild_table(const char *db)
+{
+  char hash_key[NAME_LEN+2];
+  char *end;
+  int len;
+  end= strmov(hash_key, db);
+  *end++= '.';
+  len= end - hash_key ;
+  if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
+                                        hash_key, len))
+    return 1;
+  if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
+                                            hash_key, len))
+    return 0;
+  
+  /*
+    If no explicit rule found and there was a do list, do not replicate.
+    If there was no do list, go ahead
+  */
+  return !wild_do_table_inited;
 }
 
 
@@ -749,6 +827,21 @@ char* rewrite_db(char* db)
   return db;
 }
 
+
+/*
+  Checks whether a db matches some do_db and ignore_db rules
+  (for logging or replication)
+
+  SYNOPSIS
+    db_ok()
+    db              name of the db to check
+    do_list         either binlog_do_db or replicate_do_db
+    ignore_list     either binlog_ignore_db or replicate_ignore_db
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated                  
+*/
 
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list )
@@ -1470,62 +1563,171 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_RETURN(0);
 }
 
+/*
+  Waits until the SQL thread reaches (has executed up to) the
+  log/position or timed out.
+
+  SYNOPSIS
+    wait_for_pos()
+    thd             client thread that sent SELECT MASTER_POS_WAIT
+    log_name        log name to wait for
+    log_pos         position to wait for 
+    timeout         timeout in seconds before giving up waiting
+
+  NOTES
+    timeout is longlong whereas it should be ulong ; but this is
+    to catch if the user submitted a negative timeout.
+
+  RETURN VALUES
+    -2          improper arguments (log_pos<0)
+                or slave not running, or master info changed
+                during the function's execution,
+                or client thread killed. -2 is translated to NULL by caller
+    -1          timed out
+    >=0         number of log events the function had to wait
+                before reaching the desired log/position
+ */
 
 int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
-				    ulonglong log_pos)
+                                    longlong log_pos,
+                                    longlong timeout)
 {
   if (!inited)
     return -1;
   int event_count = 0;
   ulong init_abort_pos_wait;
+  int error=0;
+  struct timespec abstime; // for timeout checking
+  set_timespec(abstime,timeout);
+
   DBUG_ENTER("wait_for_pos");
-  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %ld",
-		      master_log_name, (ulong) master_log_pos));
+  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %lu timeout: %ld",
+                      master_log_name, (ulong) master_log_pos, 
+                      (long) timeout));
 
   pthread_mutex_lock(&data_lock);
-  // abort only if master info changes during wait
+  /* 
+     This function will abort when it notices that
+     some CHANGE MASTER or RESET MASTER has changed
+     the master info. To catch this, these commands
+     modify abort_pos_wait ; we just monitor abort_pos_wait
+     and see if it has changed.
+  */
   init_abort_pos_wait= abort_pos_wait;
 
+  /*
+    We'll need to 
+    handle all possible log names comparisons (e.g. 999 vs 1000).
+    We use ulong for string->number conversion ; this is no 
+    stronger limitation than in find_uniq_filename in sql/log.cc
+  */
+  ulong log_name_extension;
+  char log_name_tmp[FN_REFLEN]; //make a char[] from String
+  char *end= strmake(log_name_tmp, log_name->ptr(), min(log_name->length(), FN_REFLEN-1));
+  char *p= fn_ext(log_name_tmp);
+  char *p_end;
+  if (!*p || log_pos<0)   
+  {
+    error= -2; //means improper arguments
+    goto err;
+  }
+  //p points to '.'
+  log_name_extension= strtoul(++p, &p_end, 10);
+  /*
+    p_end points to the first invalid character.
+    If it equals to p, no digits were found, error.
+    If it contains '\0' it means conversion went ok.
+  */
+  if (p_end==p || *p_end)
+  {
+    error= -2;
+    goto err;
+  }    
+
+  //"compare and wait" main loop
   while (!thd->killed &&
-	 init_abort_pos_wait == abort_pos_wait &&
-	 mi->slave_running)
+         init_abort_pos_wait == abort_pos_wait &&
+         mi->slave_running)
   {
     bool pos_reached;
     int cmp_result= 0;
     DBUG_ASSERT(*master_log_name || master_log_pos == 0);
     if (*master_log_name)
     {
-      /*
-	TODO:
-	Replace strncmp() with a comparison function that
-	can handle comparison of the following files:
-	mysqlbin.999
-	mysqlbin.1000
-      */
       char *basename= master_log_name + dirname_length(master_log_name);
-      cmp_result =  strncmp(basename, log_name->ptr(),
-			    log_name->length());
+      /*
+        First compare the parts before the extension.
+        Find the dot in the master's log basename,
+        and protect against user's input error :
+        if the names do not match up to '.' included, return error
+      */
+      char *q= (char*)(fn_ext(basename)+1);
+      if (strncmp(basename, log_name_tmp, (int)(q-basename)))
+      {
+        error= -2;
+        break;
+      }
+      // Now compare extensions.
+      char *q_end;
+      ulong master_log_name_extension= strtoul(q, &q_end, 10);
+      if (master_log_name_extension < log_name_extension)
+        cmp_result = -1 ;
+      else
+        cmp_result= (master_log_name_extension > log_name_extension) ? 1 : 0 ;
     }
-    pos_reached = ((!cmp_result && master_log_pos >= log_pos) ||
-		   cmp_result > 0);
+    pos_reached = ((!cmp_result && master_log_pos >= (ulonglong)log_pos) ||
+                   cmp_result > 0);
     if (pos_reached || thd->killed)
       break;
+
+    //wait for master update, with optional timeout.
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-				      "Waiting for master update");
-    pthread_cond_wait(&data_cond, &data_lock);
+                                      "Waiting for master update");
+    if (timeout > 0)
+    {
+      /*
+        Note that pthread_cond_timedwait checks for the timeout
+        before for the condition ; i.e. it returns ETIMEDOUT 
+        if the system time equals or exceeds the time specified by abstime
+        before the condition variable is signaled or broadcast, _or_ if
+        the absolute time specified by abstime has already passed at the time
+        of the call.
+        For that reason, pthread_cond_timedwait will do the "timeoutting" job
+        even if its condition is always immediately signaled (case of a loaded
+        master).
+      */
+      error=pthread_cond_timedwait(&data_cond, &data_lock, &abstime);
+    }
+    else
+      pthread_cond_wait(&data_cond, &data_lock);
     thd->exit_cond(msg);
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+      error= -1;
+      break;
+    }
+    else
+      error=0;
     event_count++;
   }
+
+err:
   pthread_mutex_unlock(&data_lock);
-  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d",
-		     (int) thd->killed,
-		     (int) (init_abort_pos_wait != abort_pos_wait),
-		     (int) mi->slave_running));
-  DBUG_RETURN((thd->killed || init_abort_pos_wait != abort_pos_wait ||
-	      !mi->slave_running) ?
-	      -1 : event_count);
+  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
+improper_arguments: %d timed_out: %d",
+                     (int) thd->killed,
+                     (int) (init_abort_pos_wait != abort_pos_wait),
+                     (int) mi->slave_running,
+                     (int) (error == -2),
+                     (int) (error == -1)));
+  if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
+      !mi->slave_running) 
+  {
+    error= -2;
+  }
+  DBUG_RETURN( error ? error : event_count );
 }
 
 
