@@ -289,3 +289,11 @@ execute stmt using @var;
 select * from t1;
 deallocate prepare stmt;
 drop table t1;
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+deallocate prepare stmt;

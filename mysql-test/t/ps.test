@@ -304,3 +304,13 @@ select * from t1;
 deallocate prepare stmt;
 drop table t1;
 
+# 
+# BUG#5688 "Upgraded 4.1.5 Server seg faults" # (prepared statements)
+# The test case speaks for itself.
+# Just another place where we used wrong memory root for Items created
+# during statement prepare.
+# 
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
