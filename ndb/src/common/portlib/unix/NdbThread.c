@@ -21,6 +21,7 @@
 
 #define MAX_THREAD_NAME 16
 
+//#define USE_PTHREAD_EXTRAS
 
 struct NdbThread 
 { 
@@ -52,11 +53,9 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   pthread_attr_init(&thread_attr);
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
-#if defined NDB_SOLARIS  
-#if !defined NDB_SOLARIS6
+#ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */
   pthread_attr_setguardsize(&thread_attr, 2048);
-#endif
 #endif
 
   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
@@ -104,7 +103,7 @@ void NdbThread_Exit(int status)
 
 int NdbThread_SetConcurrencyLevel(int level)
 {
-#ifndef NDB_SOLARIS6 
+#ifdef USE_PTHREAD_EXTRAS
   return pthread_setconcurrency(level);
 #else
   return 0;

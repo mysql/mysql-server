@@ -18,9 +18,9 @@
 #include "NdbDaemon.h"
 
 #define NdbDaemon_ErrorSize 500
-long NdbDaemon_DaemonPid;
-int NdbDaemon_ErrorCode;
-char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
+long NdbDaemon_DaemonPid = 0;
+int NdbDaemon_ErrorCode = 0;
+char NdbDaemon_ErrorText[NdbDaemon_ErrorSize] = "";
 
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)

@@ -825,7 +825,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       tOperation->interpretedUpdateTuple();
       tOperation->equal("SYSKEY_0", aTableId );
       {
-#ifdef NDB_SOLARIS
+#ifdef WORDS_BIGENDIAN
         Uint64 cacheSize64 = opValue;           // XXX interpreter bug on Uint32
         tOperation->incValue("NEXTID", cacheSize64);
 #else
@@ -991,7 +991,7 @@ Ndb::StartTransactionNodeSelectionData::release(){
 Uint32
 convertEndian(Uint32 Data)
 {
-#ifdef _BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
   Uint32 t1, t2, t3, t4;
   t4 = (Data >> 24) & 255;
   t3 = (Data >> 16) & 255;
