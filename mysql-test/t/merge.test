@@ -96,3 +96,17 @@ drop table t3,t2,t1;
 create table t1 (a int not null) type=merge;
 select * from t1;
 drop table t1;
+
+#
+# Bug found by Monty.
+#
+
+drop table if exists t3, t2, t1;
+create table t1 (a int not null, b int not null, key(a,b));
+create table t2 (a int not null, b int not null, key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2);
+insert into t1 values (1,2),(2,1),(0,0),(4,4),(5,5),(6,6);
+insert into t2 values (1,1),(2,2),(0,0),(4,4),(5,5),(6,6);
+flush tables;
+select * from t3 where a=1 order by b limit 2;
+drop table t1,t2,t3;

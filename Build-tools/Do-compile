@@ -3,22 +3,29 @@
 use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_suffix="";
-$opt_tmp="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=0;
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i") || usage();
+$opt_tmp=$version_suffix="";
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=0;
+$opt_innodb=$opt_bdb=0;
+
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
 
+if ($opt_innodb || $opt_bdb)
+{
+  $version_suffix="-max";
+}
+
 chomp($host=`hostname`);
 $full_host_name=$host;
-print "$host: Compiling MySQL at $host$suffix, stage: $opt_stage\n"  if ($opt_debug);
+print "$host: Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n"  if ($opt_debug);
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
 $pwd = `pwd`; chomp($pwd);
-$log="$pwd/Logs/$host.log";
+$log="$pwd/Logs/$host$version_suffix.log";
 $opt_distribution =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
@@ -72,13 +79,16 @@ if ($opt_stage == 0)
     log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
     log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
   }
-  system("mkdir $host") if (! -d $host);
+  if (!$opt_use_old_distribution)
+  {
+    system("mkdir $host") if (! -d $host);
+    system("touch $host/mysql-fix-for-glob");
+    rm_all(<$host/mysql-*>);
+    system("mkdir $host/bin") if (! -d "$host/bin");
+  }
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
-  system("touch $host/mysql-fix-for-glob");
-  rm_all(<$host/mysql-*>);
   rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
-  system("mkdir $host/bin") if (! -d "$host/bin");
   system("mkdir Logs") if (! -d "Logs");
   system("mv $log ${log}-old") if (-f $log);
   unlink($log);
@@ -91,15 +101,16 @@ select STDOUT;
 $|=1;
 
 safe_cd("$host");
-if ($opt_stage == 0)
+if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
   safe_system("gunzip < $opt_distribution | $tar xf -");
 }
 safe_cd($ver);
 if ($opt_stage <= 1)
-{ 
+{
   $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
   unlink("config.cache");
+  log_system("$make clean") if ($opt_use_old_distribution);
   if ($opt_static_server)
   {
     $opt_config_options.=" --with-mysqld-ldflags=-all-static";
@@ -109,7 +120,15 @@ if ($opt_stage <= 1)
     $opt_config_options.=" --with-client-ldflags=-all-static";
   }
   $opt_config_options.= " --disable-shared"; # Default for binary versions
-  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL binary\" --with-extra-charsets=complex $opt_config_options","Thank you for choosing MySQL");
+  if ($opt_bdb)
+  {
+    $opt_config_options.= " --with-berkeley-db"
+  }
+  if ($opt_innodb)
+  {
+    $opt_config_options.= " --with-innodb"
+  }
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$version_suffix\" $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -118,7 +137,7 @@ if ($opt_stage <= 1)
 
 if ($opt_stage <= 2)
 {
-  unlink($opt_distribution) if (!$opt_no_delete);
+  unlink($opt_distribution) if (!$opt_no_delete && !$opt_use_old_distribution);
   safe_system("$make");
 }
 
@@ -140,19 +159,21 @@ if ($opt_stage <= 3)
 # Unpack and test the binary distrubtion
 #
 
+$tar_file=<$pwd/$host/*.tar.gz>;
+if (!defined($tar_file))
+{
+  $tar_file=<$pwd/$host/*.tgz>;
+}
 if ($opt_stage <= 4 && !$opt_no_test)
 {
   rm_all(<$pwd/$host/test/*>);
   safe_cd("$pwd/$host/test");
-  $tar_file=<$pwd/$host/*.tar.gz>;
-  if (!defined($tar_file))
-  {
-    $tar_file=<$pwd/$host/*.tgz>;
-  }
   safe_system("gunzip < $tar_file | $tar xf -");
 }
 
-$test_dir=<$pwd/$host/test/$ver-*>;
+$tar_file =~ /(mysql-[^\/]*)\.tar/;
+$ver=$1;
+$test_dir="$pwd/$host/test/$ver";
 
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
@@ -164,12 +185,22 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 
 if ($opt_stage <= 6 && !$opt_no_test)
 {
+  my $extra;
   safe_cd($test_dir);
   log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
   sleep(2);
   log_system("rm -f  ./data/mysql/*");
   check_system("scripts/mysql_install_db --no-defaults --skip-locking","https://order");
-  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking >> $log 2>&1 &");
+  $extra="";
+  if ($opt_bdb)
+  {
+    $extra.=" -O bdb_cache_size=16M";
+  }
+  if ($opt_innodb)
+  {
+    $extra.=" --innodb_data_file_path=ibdata1:100M";
+  }
+  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking $extra >> $log 2>&1 &");
   sleep(2);
 }
 
@@ -219,6 +250,14 @@ if ($opt_stage <= 9 && !$opt_no_test)
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
   check_system("perl ./run-all-tests --log --die-on-errors $connect_option $tmp","RUN-mysql");
+  if ($opt_bdb)
+  {
+    check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-option=\"type=bdb\"","RUN-mysql");
+  }
+  if ($opt_innodb)
+  {
+    check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-option=\"type=innodb\"","RUN-mysql");
+  }
 }
 
 if ($opt_stage <= 10 && $opt_result)
@@ -240,16 +279,22 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.1
+$0  version 1.2
 
 $0 takes the following options:
 
 --help or --Information
 Show this help
 
+--innodb
+Compile with support for Innodb tables
+
+--bdb
+Compile with support for Berkeley DB tables
+
 --user 'user_name'
 Mail 'user_name'\@analytikerna.se if something went wrong.
-If user is empty then no mail is sent. 
+If user is empty then no mail is sent.
 
 --distribution 'distribution_file'
 Name of the MySQL distribution file.

@@ -870,7 +870,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   table_count=join->tables;
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*table_count);
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE**)*(table_count*2));
+  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
   select=0;
@@ -3600,9 +3600,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   param->recinfo=recinfo;
   store_record(table,2);			// Make empty default record
 
-  table->max_rows=(((table->db_type == DB_TYPE_HEAP) ?
-		    min(tmp_table_size, max_heap_table_size) : tmp_table_size)/
-		   table->reclength);
+  if (tmp_table_size == ~(ulong) 0)		// No limit
+    table->max_rows= ~(ha_rows) 0;
+  else
+    table->max_rows=(((table->db_type == DB_TYPE_HEAP) ?
+		      min(tmp_table_size, max_heap_table_size) :
+		      tmp_table_size)/ table->reclength);
   set_if_bigger(table->max_rows,1);		// For dummy start options
   keyinfo=param->keyinfo;
 
@@ -5444,7 +5447,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
 				   ulong offset, Item *having)
 {
   handler *file=table->file;
-  char *org_record,*new_record, *record;
+  char *org_record,*new_record;
+  byte *record;
   int error;
   ulong reclength=table->reclength-offset;
   DBUG_ENTER("remove_dup_with_compare");

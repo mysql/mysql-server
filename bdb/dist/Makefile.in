@@ -997,3 +997,6 @@ strerror@o@: $(srcdir)/clib/strerror.c
 	$(CC) $(CFLAGS) $?
 vsnprintf@o@: $(srcdir)/clib/vsnprintf.c
 	$(CC) $(CFLAGS) $?
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

@@ -158,7 +158,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   info->page_changed=0;
   info->buff_used= (info->buff != buff);        /* If we have to reread buff */
 
-  DBUG_PRINT("exit",("found key at %ld",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu",(ulong) info->lastpos));
   DBUG_RETURN(0);
 err:
   DBUG_PRINT("exit",("Error: %d",my_errno));
@@ -1478,7 +1478,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   }
   memcpy(info->lastkey,lastkey,info->lastkey_length);
   info->lastpos=_mi_dpos(info,0,info->lastkey+info->lastkey_length);
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu",(ulong) info->lastpos));
   DBUG_RETURN(0);
 } /* _mi_search_next */
 
@@ -1520,7 +1520,7 @@ int _mi_search_first(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   info->page_changed=info->buff_used=0;
   info->lastpos=_mi_dpos(info,0,info->lastkey+info->lastkey_length);
 
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %ld",(ulong) info->lastpos));
   DBUG_RETURN(0);
 } /* _mi_search_first */
 
@@ -1564,7 +1564,7 @@ int _mi_search_last(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   info->last_search_keypage=info->last_keypage;
   info->page_changed=info->buff_used=0;
 
-  DBUG_PRINT("exit",("found key at %d",info->lastpos));
+  DBUG_PRINT("exit",("found key at %lu",(ulong) info->lastpos));
   DBUG_RETURN(0);
 } /* _mi_search_last */
 
