@@ -35185,18 +35185,16 @@ that does not have a 50% threshold.
 
 @item Searches are now up to 2 times faster due to optimized search algorithm.
 
-@item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
-index operations (querying/dumping/statistics).
+@c @item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
+@c  index operations (querying/dumping/statistics).
 
 @end itemize
-
 
 @node Fulltext TODO,  , Fulltext Features to Appear in MySQL 4.0, Fulltext Search
 @subsection Full-text Search TODO
 
 @itemize @bullet
 @item Make all operations with @code{FULLTEXT} index @strong{faster}.
-@item Support for braces @code{()} in boolean full-text search.
 @item Phrase search, proximity operators
 @item Boolean search can work without @code{FULLTEXT} index
 (yes, @strong{very} slow).
@@ -47417,6 +47415,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @itemize @bullet
+@item
+Added boolean fulltext search code.
+It should be considered early alpha.
 @item
 Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
