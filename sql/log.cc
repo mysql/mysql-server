@@ -310,7 +310,10 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d)", log_name, errno);
+  sql_print_error("Could not use %s for logging (error %d). \
+Turning logging off for the whole duration of the MySQL server process. \
+To turn it on again: fix the cause, \
+shutdown the MySQL server and restart it.", log_name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
   if (index_file_nr >= 0)
