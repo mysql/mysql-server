@@ -22,7 +22,7 @@
 #include <ndb_global.h>
 
 class Ndb;
-class NdbConnection;
+class NdbTransaction;
 
 class NdbReceiver
 {
@@ -31,7 +31,7 @@ class NdbReceiver
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
-  friend class NdbConnection;
+  friend class NdbTransaction;
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
@@ -52,7 +52,7 @@ public:
     return m_type;
   }
   
-  inline NdbConnection * getTransaction();
+  inline NdbTransaction * getTransaction();
   void* getOwner(){
     return m_owner;
   }
@@ -145,5 +145,5 @@ NdbReceiver::execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows){
   return (tmp == len ? 1 : 0);
 }
 
-#endif
+#endif // DOXYGEN_SHOULD_SKIP_INTERNAL
 #endif

@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
@@ -128,7 +128,7 @@ NdbOperation::setErrorCodeAbort(int anErrorCode)
  *****************************************************************************/
 
 int
-NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
+NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;

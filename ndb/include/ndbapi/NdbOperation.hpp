@@ -27,7 +27,7 @@ class Ndb;
 class NdbApiSignal;
 class NdbRecAttr;
 class NdbOperation;
-class NdbConnection;
+class NdbTransaction;
 class NdbColumnImpl;
 class NdbBlob;
 
@@ -37,14 +37,17 @@ class NdbBlob;
  */
 class NdbOperation
 {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbScanReceiver;
   friend class NdbScanFilter;
   friend class NdbScanFilterImpl;
   friend class NdbReceiver;
   friend class NdbBlob;
+#endif
+
 public:
   /** 
    * @name Define Standard Operation Type
@@ -66,7 +69,7 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type insertTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * adds a new tuple to the table.
    *
    * @return 0 if successful otherwise -1.
@@ -75,7 +78,7 @@ public:
 		
   /**
    * Define the NdbOperation to be a standard operation of type updateTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * updates a tuple in the table.
    *
    * @return 0 if successful otherwise -1.
@@ -84,7 +87,7 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type writeTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * writes a tuple to the table.
    * If the tuple exists, it updates it, otherwise an insert takes place.
    *
@@ -94,7 +97,7 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type deleteTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * delete a tuple.
    *
    * @return 0 if successful otherwise -1.
@@ -103,16 +106,17 @@ public:
 		
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * reads a tuple.
    *
    * @return 0 if successful otherwise -1.
    */
   virtual int 			readTuple(LockMode);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * reads a tuple.
    *
    * @return 0 if successful otherwise -1.
@@ -122,7 +126,7 @@ public:
   /**
    * Define the NdbOperation to be a standard operation of type 
    * readTupleExclusive.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * read a tuple using an exclusive lock.
    *
    * @return 0 if successful otherwise -1.
@@ -132,7 +136,7 @@ public:
   /**
    * Define the NdbOperation to be a standard operation of type 
    * simpleRead.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * reads an existing tuple (using shared read lock), 
    * but releases lock immediately after read.
    *
@@ -149,10 +153,9 @@ public:
    */
   virtual int			simpleRead();
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * read latest committed value of the record.
    *
    * This means that if another transaction is updating the 
@@ -165,11 +168,10 @@ public:
    * @depricated
    */
   virtual int			dirtyRead();
-#endif
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * read latest committed value of the record.
    *
    * This means that if another transaction is updating the 
@@ -183,7 +185,7 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type dirtyUpdate.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * updates without two-phase commit.
    *
    * @return 0 if successful otherwise -1.
@@ -192,13 +194,15 @@ public:
 
   /**
    * Define the NdbOperation to be a standard operation of type dirtyWrite.
-   * When calling NdbConnection::execute, this operation 
+   * When calling NdbTransaction::execute, this operation 
    * writes without two-phase commit.
    *
    * @return 0 if successful otherwise -1.
    */
   virtual int			dirtyWrite();
+#endif
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /** 
    * @name Define Interpreted Program Operation Type
@@ -218,6 +222,7 @@ public:
    * @return 0 if successful otherwise -1.
    */
   virtual int			interpretedDeleteTuple();
+#endif
 
   /** @} *********************************************************************/
 
@@ -301,7 +306,7 @@ public:
    * @note This method does not fetch the attribute value from 
    *       the database!  The NdbRecAttr object returned by this method 
    *       is <em>not</em> readable/printable before the 
-   *       transaction has been executed with NdbConnection::execute.
+   *       transaction has been executed with NdbTransaction::execute.
    *
    * @param anAttrName  Attribute name 
    * @param aValue      If this is non-NULL, then the attribute value 
@@ -374,6 +379,7 @@ public:
   virtual NdbBlob* getBlobHandle(const char* anAttrName);
   virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /** 
    * @name Specify Interpreted Program Instructions
@@ -672,6 +678,7 @@ public:
    * @return -1 if unsuccessful. 
    */
   int   ret_sub();
+#endif
 
   /** @} *********************************************************************/
 
@@ -720,6 +727,7 @@ public:
   LockMode getLockMode() const { return theLockMode; }
   void setAbortOption(Int8 ao) { m_abortOption = ao; }
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Set/get distribution/partition key
    */
@@ -727,6 +735,7 @@ public:
   void setPartitionHash(Uint32 key);
   void setPartitionHash(const Uint64 *, Uint32 len);
   Uint32 getPartitionId() const;
+#endif
 protected:
   int handle_distribution_key(const Uint64 *, Uint32 len);
 protected:
@@ -743,7 +752,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbConnection* aCon);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon);
   void initInterpreter();
 
   void	next(NdbOperation*);		// Set next pointer		      
@@ -775,7 +784,7 @@ protected:
   
   void		    Status(OperationStatus);    // Set the status information
 
-  void		    NdbCon(NdbConnection*);	// Set reference to connection
+  void		    NdbCon(NdbTransaction*);	// Set reference to connection
   						// object.
 
   virtual void	    release();			// Release all operations 
@@ -812,7 +821,7 @@ protected:
   virtual int equal_impl(const NdbColumnImpl*,const char* aValue, Uint32 len);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
-  NdbBlob* getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* anAttrObject);
+  NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
   int subValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -861,7 +870,7 @@ protected:
   int 	   theErrorLine;		// Error line       
 
   Ndb*		   theNdb;	      	// Point back to the Ndb object.
-  NdbConnection*   theNdbCon;	       	// Point back to the connection object.
+  NdbTransaction*   theNdbCon;	       	// Point back to the connection object.
   NdbOperation*	   theNext;	       	// Next pointer to operation.
 
   union {
@@ -1043,14 +1052,14 @@ NdbOperation::Status( OperationStatus aStatus )
 }
 
 /******************************************************************************
-void NdbCon(NdbConnection* aNdbCon);
+void NdbCon(NdbTransaction* aNdbCon);
 
-Parameters:    aNdbCon: Pointers to NdbConnection object.
+Parameters:    aNdbCon: Pointers to NdbTransaction object.
 Remark:        Set the reference to the connection in the operation object.
 ******************************************************************************/
 inline
 void
-NdbOperation::NdbCon(NdbConnection* aNdbCon)
+NdbOperation::NdbCon(NdbTransaction* aNdbCon)
 {
   theNdbCon = aNdbCon;
 }

@@ -19,7 +19,7 @@
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbBlob.hpp>
 
 
@@ -55,7 +55,7 @@ NdbDictionaryImpl::getNdbError() const {
 
 const 
 NdbError & 
-NdbConnection::getNdbError() const {
+NdbTransaction::getNdbError() const {
   update(theError);
   return theError;
 }

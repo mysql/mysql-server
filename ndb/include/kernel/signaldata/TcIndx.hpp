@@ -26,7 +26,7 @@ class TcIndxConf {
    * Reciver(s)
    */
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
 
   /**
    * Sender(s)
