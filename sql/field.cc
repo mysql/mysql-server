@@ -4906,7 +4906,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
 		 (uint) strlen(typelib->type_names[tmp-1]),
-		 default_charset_info);
+		 field_charset);
   return val_ptr;
 }
 
@@ -4947,6 +4947,15 @@ void Field_enum::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
+  if (binary())
+  {
+    res.append(" binary");
+  }
+  else
+  {
+    res.append(" character set ");
+    res.append(field_charset->name);
+  }
 }
 
 
@@ -5050,7 +5059,7 @@ String *Field_set::val_str(String *val_buffer,
 	val_buffer->append(field_separator);
       String str(typelib->type_names[bitnr],
 		 (uint) strlen(typelib->type_names[bitnr]),
-		 default_charset_info);
+		 field_charset);
       val_buffer->append(str);
     }
     tmp>>=1;
@@ -5074,6 +5083,15 @@ void Field_set::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
+  if (binary())
+  {
+    res.append(" binary");
+  }
+  else
+  {
+    res.append(" character set ");
+    res.append(field_charset->name);
+  }
 }
 
 /* returns 1 if the fields are equally defined */
@@ -5207,11 +5225,11 @@ Field *make_field(char *ptr, uint32 field_length,
       if (f_is_enum(pack_flag))
 	return new Field_enum(ptr,field_length,null_pos,null_bit,
 				  unireg_check, field_name, table,
-				  pack_length, interval);
+				  pack_length, interval, field_charset);
       else
 	return new Field_set(ptr,field_length,null_pos,null_bit,
 			     unireg_check, field_name, table,
-			     pack_length, interval);
+			     pack_length, interval, field_charset);
     }
   }
 

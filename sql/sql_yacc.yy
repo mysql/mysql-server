@@ -1064,13 +1064,13 @@ type:
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| NUMERIC_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
-	| ENUM {Lex->interval_list.empty();} '(' string_list ')'
+	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_ENUM;
 	  }
-	| SET { Lex->interval_list.empty();} '(' string_list ')'
+	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
