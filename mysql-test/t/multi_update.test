@@ -275,3 +275,38 @@ insert into t2 values (1,1), (3,1);
 update t1 left join t2  on t1.a=t2.a set t1.b=2, t2.b=2 where t1.b=1 and t2.b=1 or t2.a is NULL;
 select t1.a, t1.b,t2.a, t2.b from t1 left join t2  on t1.a=t2.a where t1.b=1 and t2.b=1 or t2.a is NULL;
 drop table t1,t2;
+
+#
+# Test for bug #1820.
+#
+
+create table t1 ( a int not null, b int not null) ;
+--disable_query_log
+insert into t1 values (1,1),(2,2),(3,3),(4,4);
+let $1=19;
+set @d=4;
+while ($1)
+{
+  eval insert into t1 select a+@d,b+@d from t1;
+  eval set @d=@d*2;
+  dec $1;
+}
+
+--enable_query_log
+alter table t1 add index i1(a);
+delete from t1 where a > 2000000;
+create table t2 like t1;
+insert into t2 select * from t1;
+
+select 't2 rows before small delete', count(*) from t1;
+delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 2;
+select 't2 rows after small delete', count(*) from t2;
+select 't1 rows after small delete', count(*) from t1;
+
+## Try deleting many rows 
+
+delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 100*1000;
+select 't2 rows after big delete', count(*) from t2;
+select 't1 rows after big delete', count(*) from t1;
+
+#drop table t1,t2;
