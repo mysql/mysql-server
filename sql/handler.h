@@ -389,6 +389,11 @@ public:
      false otherwise
   */
   virtual bool primary_key_is_clustered() { return false; }
+
+  virtual int cmp_ref(const byte *ref1, const byte *ref2)
+  {
+    return memcmp(ref1, ref2, ref_length);
+  }
 };
 
 	/* Some extern variables used with handlers */

@@ -95,5 +95,10 @@ class ha_heap: public handler
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-
+  int cmp_ref(const byte *ref1, const byte *ref2)
+  {
+    HEAP_PTR ptr1=*(HEAP_PTR*)ref1;
+    HEAP_PTR ptr2=*(HEAP_PTR*)ref2;
+    return ptr1 < ptr2? -1 : (ptr1 > ptr2? 1 : 0);
+  }
 };
