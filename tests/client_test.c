@@ -9670,12 +9670,12 @@ static void test_union_param()
 
   /* bind parameters */
   bind[0].buffer_type=    FIELD_TYPE_STRING;
-  bind[0].buffer=         &my_val;
+  bind[0].buffer=         my_val;
   bind[0].buffer_length=  4;
   bind[0].length=         &my_length;
   bind[0].is_null=        (char*)&my_null;
   bind[1].buffer_type=    FIELD_TYPE_STRING;
-  bind[1].buffer=         &my_val;
+  bind[1].buffer=         my_val;
   bind[1].buffer_length=  4;
   bind[1].length=         &my_length;
   bind[1].is_null=        (char*)&my_null;
