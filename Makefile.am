@@ -71,7 +71,7 @@ linked_server_sources:
 	cd sql; rm -f mini_client_errors.c;\
 		@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c;\
 		rm -f pack.c;@LN_CP_F@ ../sql-common/pack.c pack.c;\
-		rm -f client.c;@LN_CP_F@ ../sql-common/client.c client.c\
+		rm -f client.c;@LN_CP_F@ ../sql-common/client.c client.c;\
 		rm -f my_time.c;@LN_CP_F@ ../sql-common/my_time.c my_time.c
 	echo timestamp > linked_server_sources
 
