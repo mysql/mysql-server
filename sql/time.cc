@@ -1255,9 +1255,15 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)
+    This functions don't check that given TIME structure members are
+    in valid range. If they are not, return value won't reflect any 
+    valid date either. Additionally, make_time doesn't take into
+    account time->day member: it's assumed that days have been converted
+    to hours already.
 ****************************************************************************/
 
-void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
+               const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1271,7 +1277,8 @@ void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
 }
 
 
-void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
+               const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1284,7 +1291,8 @@ void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
 }
 
 
-void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
+                   const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1329,4 +1337,112 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
 	  type_str, str.ptr());
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
+}
+
+
+/* Convert time value to integer in YYYYMMDDHHMMSS format */
+
+ulonglong TIME_to_ulonglong_datetime(const TIME *time)
+{
+  return ((ulonglong) (time->year * 10000UL +
+                       time->month * 100UL +
+                       time->day) * ULL(1000000) +
+          (ulonglong) (time->hour * 10000UL +
+                       time->minute * 100UL +
+                       time->second));
+}
+
+
+/* Convert TIME value to integer in YYYYMMDD format */
+
+ulonglong TIME_to_ulonglong_date(const TIME *time)
+{
+  return (ulonglong) (time->year * 10000UL + time->month * 100UL + time->day);
+}
+
+
+/*
+  Convert TIME value to integer in HHMMSS format.
+  This function doesn't take into account time->day member:
+  it's assumed that days have been converted to hours already.
+*/
+
+ulonglong TIME_to_ulonglong_time(const TIME *time)
+{
+  return (ulonglong) (time->hour * 10000UL +
+                      time->minute * 100UL +
+                      time->second);
+}
+
+
+/*
+  Convert struct TIME (date and time split into year/month/day/hour/...
+  to a number in format YYYYMMDDHHMMSS (DATETIME),
+  YYYYMMDD (DATE)  or HHMMSS (TIME).
+  
+  SYNOPSIS
+    TIME_to_ulonglong()
+
+  DESCRIPTION
+    The function is used when we need to convert value of time item
+    to a number if it's used in numeric context, i. e.:
+    SELECT NOW()+1, CURDATE()+0, CURTIMIE()+0;
+    SELECT ?+1;
+
+  NOTE
+    This function doesn't check that given TIME structure members are
+    in valid range. If they are not, return value won't reflect any 
+    valid date either.
+*/
+
+ulonglong TIME_to_ulonglong(const TIME *time)
+{
+  switch (time->time_type) {
+  case TIMESTAMP_DATETIME:
+    return TIME_to_ulonglong_datetime(time);
+  case TIMESTAMP_DATE:
+    return TIME_to_ulonglong_date(time);
+  case TIMESTAMP_TIME:
+    return TIME_to_ulonglong_time(time);
+  case TIMESTAMP_NONE:
+  case TIMESTAMP_DATETIME_ERROR:
+    return ULL(0);
+  default:
+    DBUG_ASSERT(0);
+  }
+  return 0;
+}
+
+
+/*
+  Convert struct DATE/TIME/DATETIME value to string using built-in
+  MySQL time conversion formats.
+
+  SYNOPSIS
+    TIME_to_string()
+
+  NOTE 
+    The string must have at least MAX_DATE_REP_LENGTH bytes reserved.
+*/
+
+void TIME_to_string(const TIME *time, String *str)
+{
+  switch (time->time_type) {
+  case TIMESTAMP_DATETIME:
+    make_datetime((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case TIMESTAMP_DATE:
+    make_date((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case TIMESTAMP_TIME:
+    make_time((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case TIMESTAMP_NONE:
+  case TIMESTAMP_DATETIME_ERROR:
+    str->length(0);
+    str->set_charset(&my_charset_bin);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
 }

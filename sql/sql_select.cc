@@ -3044,12 +3044,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  best_record_count=current_record_count;
 	  best_read_time=current_read_time;
 	}
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
 	find_best(join,rest_tables & ~real_table_bit,idx+1,
 		  current_record_count,current_read_time);
         if (thd->killed)
           return;
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations

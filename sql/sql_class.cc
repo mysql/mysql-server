@@ -105,13 +105,13 @@ bool foreign_key_prefix(Key *a, Key *b)
   if (a->generated)
   {
     if (b->generated && a->columns.elements > b->columns.elements)
-      swap(Key*, a, b);                          // Put shorter key in 'a'
+      swap_variables(Key*, a, b);               // Put shorter key in 'a'
   }
   else
   {
     if (!b->generated)
       return TRUE;                              // No foreign key
-    swap(Key*, a, b);                           // Put generated key in 'a'
+    swap_variables(Key*, a, b);                 // Put generated key in 'a'
   }
 
   /* Test if 'a' is a prefix of 'b' */
@@ -501,6 +501,35 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Convert string from source character set to target character set inplace.
+
+  SYNOPSIS
+    THD::convert_string
+
+  DESCRIPTION
+    Convert string using convert_buffer - buffer for character set 
+    conversion shared between all protocols.
+
+  RETURN
+    0   ok
+   !0   out of memory
+*/
+
+bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+    return TRUE;
+  /* If convert_buffer >> s copying is more efficient long term */
+  if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
+      !s->is_alloced())
+  {
+    return s->copy(convert_buffer);
+  }
+  s->swap(convert_buffer);
+  return FALSE;
+}
 
 /*
   Update some cache variables when character set changes
