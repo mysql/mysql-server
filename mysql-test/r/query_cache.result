@@ -846,4 +846,9 @@ SELECT * FROM test.t1;
 a
 USE test;
 DROP TABLE t1;
+set character_set_results=null;
+select @@character_set_results;
+@@character_set_results
+NULL
+set character_set_results=default;
 SET GLOBAL query_cache_size=0;

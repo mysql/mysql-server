@@ -780,7 +780,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
-      thd->variables.character_set_results->number;
+      (thd->variables.character_set_results ?
+       thd->variables.character_set_results->number :
+       UINT_MAX);
     flags.collation_connection_num=
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
@@ -795,6 +797,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     if (ask_handler_allowance(thd, tables_used))
     {
+      refused++;
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
     }
@@ -964,7 +967,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			   1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
-    thd->variables.character_set_results->number;
+    (thd->variables.character_set_results ?
+     thd->variables.character_set_results->number :
+     UINT_MAX);
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
