@@ -66,6 +66,7 @@ public:
   uint32	field_length;		// Length of field
   uint16	flags;
   uchar		null_bit;		// Bit used to test null bit
+  uint          abs_offset;             // use only in group_concat
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
 	utype unireg_check_arg, const char *field_name_arg,

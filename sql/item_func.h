@@ -610,17 +610,13 @@ public:
 class Item_func_locate :public Item_int_func
 {
   String value1,value2;
-  bool binary_cmp;
+  DTCollation cmp_collation;
 public:
   Item_func_locate(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_func_locate(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   const char *func_name() const { return "locate"; }
   longlong val_int();
-  void fix_length_and_dec()
-  {
-    maybe_null=0; max_length=11;
-    binary_cmp = args[0]->binary() || args[1]->binary();
-  }
+  void fix_length_and_dec();
 };
 
 
@@ -684,6 +680,7 @@ class Item_func_find_in_set :public Item_int_func
   String value,value2;
   uint enum_value;
   ulonglong enum_bit;
+  DTCollation cmp_collation;
 public:
   Item_func_find_in_set(Item *a,Item *b) :Item_int_func(a,b),enum_value(0) {}
   longlong val_int();
