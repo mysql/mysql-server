@@ -4416,8 +4416,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SAFE:
     opt_specialflag|= SPECIAL_SAFE_MODE;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
-    myisam_recover_options= HA_RECOVER_NONE;	// To be changed
-    ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
+    myisam_recover_options= HA_RECOVER_DEFAULT;
+    ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
