@@ -3042,7 +3042,7 @@ loop:
 	if (page) {
 		ibool success = buf_page_get_known_nowait(RW_X_LATCH, page,
 					BUF_KEEP_OLD,
-					IB__FILE__, __LINE__,
+					__FILE__, __LINE__,
 					&mtr);
 		ut_a(success);
 #ifdef UNIV_SYNC_DEBUG

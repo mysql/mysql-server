@@ -92,7 +92,7 @@ Called by yyparse on error. */
 void
 yyerror(
 /*====*/
-        char*	s);	/* in: error message string */
+	const char*	s);	/* in: error message string */
 /*************************************************************************
 Parses a variable declaration. */
 
