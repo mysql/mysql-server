@@ -166,6 +166,17 @@ dtype_is_non_binary_string_type(
 }
 
 /*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
+
+ulint
+dtype_get_charset_coll_noninline(
+/*=============================*/
+	ulint	prtype)	/* in: precise data type */
+{
+	return(dtype_get_charset_coll(prtype));
+}
+
+/*************************************************************************
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code. */
 
