@@ -381,8 +381,8 @@ or row lock! */
 #define SYNC_IBUF_HEADER	914
 #define SYNC_IBUF_PESS_INSERT_MUTEX 912
 #define SYNC_IBUF_MUTEX		910	/* ibuf mutex is really below
-					SYNC_FSP_PAGE: we assign value this
-					high only to get the program to pass
+					SYNC_FSP_PAGE: we assign a value this
+					high only to make the program to pass
 					the debug checks */
 /*-------------------------------*/
 #define	SYNC_INDEX_TREE		900
@@ -401,7 +401,7 @@ or row lock! */
 #define	SYNC_FSP_PAGE		395
 /*------------------------------------- Insert buffer headers */ 
 /*------------------------------------- ibuf_mutex */
-/*------------------------------------- Insert buffer trees */
+/*------------------------------------- Insert buffer tree */
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
 /*-------------------------------*/

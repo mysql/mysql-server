@@ -139,7 +139,8 @@ dict_tree_find_index_low(
 /*=====================*/
 				/* out: index */
 	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec);	/* in: record for which to find correct index */
+	rec_t*		rec);	/* in: record for which to find correct
+				index */
 /**************************************************************************
 Removes a foreign constraint struct from the dictionet cache. */
 static
@@ -717,7 +718,7 @@ dict_table_get_and_increment_handle_count(
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table != NULL) {
-	        if (!table->stat_initialized) {
+	        if (!table->stat_initialized && !table->ibd_file_missing) {
 			dict_update_statistics(table);
 		}
 	}
@@ -869,6 +870,7 @@ dict_table_rename_in_cache(
 	ulint		fold;
 	ulint		old_size;
 	char*		name_buf;
+	ibool		success;
 	ulint		i;
 	
 	ut_ad(table);
@@ -884,6 +886,21 @@ dict_table_rename_in_cache(
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold, table2,
 				(ut_strcmp(table2->name, new_name) == 0));
 		if (table2) {
+			fprintf(stderr,
+"InnoDB: Error: dictionary cache already contains a table of name %s\n",
+	 							     new_name);
+			return(FALSE);
+		}
+	}
+
+	/* If the table is stored in a single-table tablespace, rename the
+	.ibd file */
+
+	if (table->space != 0) {
+		success = fil_rename_tablespace(table->name, table->space,
+								new_name);
+		if (!success) {
+
 			return(FALSE);
 		}
 	}
@@ -909,7 +926,6 @@ dict_table_rename_in_cache(
 	/* Add table to hash table of tables */
 	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
 								   table);
-	
 	dict_sys->size += (mem_heap_get_size(table->heap) - old_size);
 
 	/* Update the table_name field in indexes */
@@ -997,6 +1013,31 @@ dict_table_rename_in_cache(
 	}
 
 	return(TRUE);
+}
+
+/**************************************************************************
+Change the id of a table object in the dictionary cache. This is used in
+DISCARD TABLESPACE. */
+
+void
+dict_table_change_id_in_cache(
+/*==========================*/
+	dict_table_t*	table,	/* in: table object already in cache */
+	dulint		new_id)	/* in: new id to set */
+{
+	ut_ad(table);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	/* Remove the table from the hash table of id's */
+
+	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
+					ut_fold_dulint(table->id), table);
+	table->id = new_id;
+
+	/* Add the table back to the hash table */
+	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+					ut_fold_dulint(table->id), table);
 }
 
 /**************************************************************************
@@ -3295,8 +3336,8 @@ dict_tree_free(
 /*===========*/
 	dict_tree_t*	tree)	/* in, own: index tree */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_a(tree);
+	ut_a(tree->magic_n == DICT_TREE_MAGIC_N);
 
 	rw_lock_free(&(tree->lock));
 	mem_free(tree);
@@ -3310,7 +3351,8 @@ dict_tree_find_index_low(
 /*=====================*/
 				/* out: index */
 	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec)	/* in: record for which to find correct index */
+	rec_t*		rec)	/* in: record for which to find correct
+				index */
 {
 	dict_index_t*	index;
 	dict_table_t*	table;
@@ -3348,7 +3390,8 @@ dict_tree_find_index(
 /*=================*/
 				/* out: index */
 	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec)	/* in: record for which to find correct index */
+	rec_t*		rec)	/* in: record for which to find correct
+				index */
 {
 	dict_index_t*	index;
 	
@@ -3438,7 +3481,8 @@ dict_tree_build_node_ptr(
 /*=====================*/
 				/* out, own: node pointer */
 	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec,	/* in: record for which to build node pointer */
+	rec_t*		rec,	/* in: record for which to build node
+				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
 	mem_heap_t*	heap,	/* in: memory heap where pointer created */
 	ulint           level)  /* in: level of rec in tree: 0 means leaf
@@ -3599,6 +3643,16 @@ dict_update_statistics_low(
 	dict_index_t*	index;
 	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
+
+	if (table->ibd_file_missing) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: cannot calculate statistics for table %s\n"
+"InnoDB: because the .ibd file is missing. See section 15.1 of\n"
+"InnoDB: http:/www.innodb.com/ibman.html for help\n", table->name);
+
+		return;
+	}
 
 	/* If we have set a high innodb_force_recovery level, do not calculate
 	statistics, as a badly corrupted index can cause a crash in it. */

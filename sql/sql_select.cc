@@ -837,7 +837,7 @@ JOIN::optimize()
     {
       TABLE* table_h = join_tab[i_h].table;
       if (table_h->db_type == DB_TYPE_INNODB)
-	table_h->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
+	table_h->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     }
   }
 #endif

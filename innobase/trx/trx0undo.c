@@ -387,6 +387,7 @@ trx_undo_seg_create(
 	page_t* 	undo_page;
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
+	ulint		n_reserved;
 	ibool		success;
 	
 	ut_ad(mtr && id && rseg_hdr);
@@ -411,8 +412,8 @@ trx_undo_seg_create(
 
 	space = buf_frame_get_space_id(rseg_hdr);
 
-	success = fsp_reserve_free_extents(space, 2, FSP_UNDO, mtr);
-	
+	success = fsp_reserve_free_extents(&n_reserved, space, 2, FSP_UNDO,
+									mtr);
 	if (!success) {
 
 		return(NULL);
@@ -422,7 +423,7 @@ trx_undo_seg_create(
 	undo_page = fseg_create_general(space, 0,
 			TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER, TRUE, mtr);
 
-	fil_space_release_free_extents(space, 2);
+	fil_space_release_free_extents(space, n_reserved);
 			
 	if (undo_page == NULL) {
 		/* No space left */
@@ -733,6 +734,7 @@ trx_undo_add_page(
 	page_t*		new_page;
 	trx_rseg_t*	rseg;
 	ulint		page_no;
+	ulint		n_reserved;
 	ibool		success;
 	
 	ut_ad(mutex_own(&(trx->undo_mutex)));
@@ -749,8 +751,8 @@ trx_undo_add_page(
 
 	header_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
-	success = fsp_reserve_free_extents(undo->space, 1, FSP_UNDO, mtr);
-
+	success = fsp_reserve_free_extents(&n_reserved, undo->space, 1,
+							FSP_UNDO, mtr);
 	if (!success) {
 
 		return(FIL_NULL);
@@ -761,7 +763,7 @@ trx_undo_add_page(
 					undo->top_page_no + 1, FSP_UP,
 					TRUE, mtr);
 
-	fil_space_release_free_extents(undo->space, 1);
+	fil_space_release_free_extents(undo->space, n_reserved);
 					
 	if (page_no == FIL_NULL) {
 

@@ -27,6 +27,7 @@ dtype_set(
 	type->prtype = prtype;
 	type->len = len;
 	type->prec = prec;
+	type->chrset = 0;
 
 	ut_ad(dtype_validate(type));
 }
@@ -127,18 +128,20 @@ dtype_get_pad_char(
 
 /**************************************************************************
 Stores for a type the information which determines its alphabetical ordering
-and the storage size of an SQL NULL value. */
+and the storage size of an SQL NULL value. This is the >= 4.1.x storage
+format. */
 UNIV_INLINE
 void
-dtype_store_for_order_and_null_size(
-/*================================*/
-	byte*		buf,	/* in: buffer for DATA_ORDER_NULL_TYPE_BUF_SIZE
+dtype_new_store_for_order_and_null_size(
+/*====================================*/
+	byte*		buf,	/* in: buffer for
+				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
 				bytes where we store the info */
 	dtype_t*	type)	/* in: type struct */
 {
-	ut_ad(4 == DATA_ORDER_NULL_TYPE_BUF_SIZE);
+	ut_ad(6 == DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 	
-	buf[0] = (byte)(type->mtype & 0xFF);
+	buf[0] = (byte)(type->mtype & 0xFFUL);
 
 	if (type->prtype & DATA_BINARY_TYPE) {
 		buf[0] = buf[0] | 128;
@@ -148,9 +151,11 @@ dtype_store_for_order_and_null_size(
 		buf[0] = buf[0] | 64;
 	}
 
-	buf[1] = (byte)(type->prtype & 0xFF);
+	buf[1] = (byte)(type->prtype & 0xFFUL);
 
-	mach_write_to_2(buf + 2, type->len & 0xFFFF);
+	mach_write_to_2(buf + 2, type->len & 0xFFFFUL);
+
+	mach_write_to_2(buf + 4, type->chrset & 0xFFFFUL);
 }
 
 /**************************************************************************
@@ -177,6 +182,35 @@ dtype_read_for_order_and_null_size(
 	}
 
 	type->len = mach_read_from_2(buf + 2);
+}	
+
+/**************************************************************************
+Reads to a type the stored information which determines its alphabetical
+ordering and the storage size of an SQL NULL value. This is the 4.1.x storage
+format. */
+UNIV_INLINE
+void
+dtype_new_read_for_order_and_null_size(
+/*===================================*/
+	dtype_t*	type,	/* in: type struct */
+	byte*		buf)	/* in: buffer for stored type order info */
+{
+	ut_ad(6 == DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+	
+	type->mtype = buf[0] & 63;
+	type->prtype = buf[1];
+
+	if (buf[0] & 128) {
+	        type->prtype = type->prtype | DATA_BINARY_TYPE;
+	}
+
+	if (buf[0] & 64) {
+	        type->prtype = type->prtype | DATA_NONLATIN1;
+	}
+
+	type->len = mach_read_from_2(buf + 2);
+
+	type->chrset = mach_read_from_2(buf + 4);
 }	
 
 /***************************************************************************

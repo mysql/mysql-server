@@ -264,6 +264,8 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dict_table_t*	cluster_table;
 	dtuple_t*	row;
+	ulint		error;
+	mtr_t		mtr;
 
 	UT_NOT_USED(thr);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -289,6 +291,29 @@ dict_build_table_def_step(
 		table->mix_len = cluster_table->mix_len;
 		
 		table->mix_id = dict_hdr_get_new_id(DICT_HDR_MIX_ID);
+	}
+
+	if (srv_file_per_table) {
+		/* We create a new single-table tablespace for the table.
+		We initially let it be 4 pages:
+		- page 0 is the fsp header and an extent descriptor page,
+		- page 1 is an ibuf bitmap page,
+		- page 2 is the first inode page,
+		- page 3 will contain the root of the clustered index of the
+		  table we create here. */
+
+		error = fil_create_new_single_table_tablespace(
+					&(table->space), table->name, 4);
+		if (error != DB_SUCCESS) {
+
+			return(error);
+		}
+
+		mtr_start(&mtr);
+
+		fsp_header_init(table->space, 4, &mtr);
+		
+		mtr_commit(&mtr);
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -317,7 +342,6 @@ dict_build_col_def_step(
 }
 
 #ifdef notdefined
-
 /*************************************************************************
 Creates the single index for a cluster: it contains all the columns of
 the cluster definition in the order they were defined. */
@@ -508,8 +532,8 @@ dict_create_sys_fields_tuple(
 }	
 
 /*********************************************************************
-Creates the tuple with which the index entry is searched for
-writing the index tree root page number, if such a tree is created. */
+Creates the tuple with which the index entry is searched for writing the index
+tree root page number, if such a tree is created. */
 static
 dtuple_t*
 dict_create_search_tuple(
@@ -577,10 +601,10 @@ dict_build_index_def_step(
 	
 	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
 
-	if (index->type & DICT_CLUSTERED) {
-		/* Inherit the space from the table */
-		index->space = table->space;
-	}
+	/* Inherit the space id from the table; we store all indexes of a
+	table in the same tablespace */
+
+	index->space = table->space;
 
 	index->page_no = FIL_NULL;
 	
@@ -664,6 +688,9 @@ dict_create_index_tree_step(
 
 	index->page_no = btr_create(index->type, index->space, index->id,
 									&mtr);
+	/* printf("Created a new index tree in space %lu root page %lu\n",
+					index->space, index->page_no); */
+
 	page_rec_write_index_page_no(btr_pcur_get_rec(&pcur),
 					DICT_SYS_INDEXES_PAGE_NO_FIELD,
 					index->page_no, &mtr);
@@ -712,7 +739,14 @@ dict_drop_index_tree(
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
-	
+
+	if (!fil_tablespace_exists_in_mem(space)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
@@ -722,6 +756,8 @@ dict_drop_index_tree(
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
 	record: this mini-transaction marks the B-tree totally freed */
 	
+	/* printf("Dropping index tree in space %lu root page %lu\n", space,
+							 root_page_no); */
 	btr_free_root(space, root_page_no, mtr);
 
 	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
@@ -746,7 +782,6 @@ dict_create_default_index(
 
 	dict_create_index(index, trx); 
 }
-
 #endif
 
 /*************************************************************************

@@ -36,37 +36,37 @@ mach_parse_compressed(
 
 	flag = mach_read_from_1(ptr);
 
-	if (flag < 0x80) {
+	if (flag < 0x80UL) {
 		*val = flag;
 		return(ptr + 1);
 		
-	} else if (flag < 0xC0) {
+	} else if (flag < 0xC0UL) {
 		if (end_ptr < ptr + 2) {
 			return(NULL);
 		}
 			
-		*val = mach_read_from_2(ptr) & 0x7FFF;
+		*val = mach_read_from_2(ptr) & 0x7FFFUL;
 
 		return(ptr + 2);
 		
-	} else if (flag < 0xE0) {
+	} else if (flag < 0xE0UL) {
 		if (end_ptr < ptr + 3) {
 			return(NULL);
 		}
 			
-		*val = mach_read_from_3(ptr) & 0x3FFFFF;
+		*val = mach_read_from_3(ptr) & 0x3FFFFFUL;
 
 		return(ptr + 3);
-	} else if (flag < 0xF0) {
+	} else if (flag < 0xF0UL) {
 		if (end_ptr < ptr + 4) {
 			return(NULL);
 		}
 			
-		*val = mach_read_from_4(ptr) & 0x1FFFFFFF;
+		*val = mach_read_from_4(ptr) & 0x1FFFFFFFUL;
 
 		return(ptr + 4);
 	} else {
-		ut_ad(flag == 0xF0);
+		ut_ad(flag == 0xF0UL);
 
 		if (end_ptr < ptr + 5) {
 			return(NULL);

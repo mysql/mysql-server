@@ -55,7 +55,7 @@ ulint
 fsp_header_get_free_limit(
 /*======================*/
 			/* out: free limit in megabytes */
-	ulint	space);	/* in: space id */
+	ulint	space);	/* in: space id, must be 0 */
 /**************************************************************************
 Gets the size of the tablespace from the tablespace header. If we do not
 have an auto-extending data file, this should be equal to the size of the
@@ -65,9 +65,27 @@ ulint
 fsp_header_get_tablespace_size(
 /*===========================*/
 			/* out: size in pages */
-	ulint	space);	/* in: space id */
+	ulint	space);	/* in: space id, must be 0 */
 /**************************************************************************
-Initializes the space header of a new created space. */
+Reads the space id from the first page of a tablespace. */
+
+ulint
+fsp_header_get_space_id(
+/*====================*/
+                        /* out: space id, ULINT UNDEFINED if error */
+        page_t* page);   /* in: first page of a tablespace */
+/**************************************************************************
+Writes the space id to a tablespace header. This function is used past the
+buffer pool when we in fil0fil.c create a new single-table tablespace. */
+
+void
+fsp_header_write_space_id(
+/*======================*/
+	page_t*	page,		/* in: first page in the space */
+	ulint	space_id);	/* in: space id */
+/**************************************************************************
+Initializes the space header of a new created space and creates also the
+insert buffer tree root if space == 0. */
 
 void
 fsp_header_init(
@@ -117,12 +135,12 @@ fseg_create_general(
 			will belong to the created segment */
 	ulint	byte_offset, /* in: byte offset of the created segment header
 			on the page */
-	ibool	has_done_reservation, /* in: TRUE if the caller has
-			already done the reservation for the pages
-			with fsp_reserve_free_extents (at least 2 extents:
-			one for the inode and, then there other for the
-			segment) is no need to do the check for this
-			individual operation */
+	ibool	has_done_reservation, /* in: TRUE if the caller has already
+			done the reservation for the pages with
+			fsp_reserve_free_extents (at least 2 extents: one for
+			the inode and the other for the segment) then there is
+			no need to do the check for this individual
+			operation */
 	mtr_t*	mtr);	/* in: mtr */
 /**************************************************************************
 Calculates the number of pages reserved by a segment, and how many pages are
@@ -194,12 +212,21 @@ two types of allocation: when space is scarce, FSP_NORMAL allocations
 will not succeed, but the latter two allocations will succeed, if possible.
 The purpose is to avoid dead end where the database is full but the
 user cannot free any space because these freeing operations temporarily
-reserve some space. */ 
+reserve some space.
+
+Single-table tablespaces whose size is < 32 pages are a special case. In this
+function we would liberally reserve several 64 page extents for every page
+split or merge in a B-tree. But we do not want to waste disk space if the table
+only occupies < 32 pages. That is why we apply different rules in that special
+case, just ensuring that there are 3 free pages available. */
 
 ibool
 fsp_reserve_free_extents(
 /*=====================*/
 			/* out: TRUE if we were able to make the reservation */
+        ulint*  n_reserved,/* out: number of extents actually reserved; if we
+                        return TRUE and the tablespace size is < 64 pages,
+                        then this can be 0, otherwise it is n_ext */
 	ulint	space,	/* in: space id */
 	ulint	n_ext,	/* in: number of extents to reserve */
 	ulint	alloc_type,/* in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
@@ -337,8 +364,8 @@ pages: */
 #define FSP_FIRST_INODE_PAGE_NO		2
 #define FSP_IBUF_HEADER_PAGE_NO		3
 #define FSP_IBUF_TREE_ROOT_PAGE_NO	4
-				/* The ibuf tree root page number in each
-				tablespace; its fseg inode is on the page
+				/* The ibuf tree root page number in
+				tablespace 0; its fseg inode is on the page
 				number FSP_FIRST_INODE_PAGE_NO */
 #define FSP_TRX_SYS_PAGE_NO		5
 #define	FSP_FIRST_RSEG_PAGE_NO		6

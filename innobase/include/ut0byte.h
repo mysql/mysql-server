@@ -152,7 +152,7 @@ ut_dulint_align_up(
 Increments a dulint variable by 1. */
 #define UT_DULINT_INC(D)\
 {\
-	if ((D).low == 0xFFFFFFFF) {\
+	if ((D).low == 0xFFFFFFFFUL) {\
 		(D).high = (D).high + 1;\
 		(D).low = 0;\
 	} else {\

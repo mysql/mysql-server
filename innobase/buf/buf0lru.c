@@ -62,6 +62,87 @@ buf_LRU_block_free_hashed_page(
 				be in a state where it can be freed */
 
 /**********************************************************************
+Invalidates all pages belonging to a given tablespace when we are deleting
+the data file(s) of that tablespace. */
+
+void
+buf_LRU_invalidate_tablespace(
+/*==========================*/
+	ulint	id)	/* in: space id */
+{
+	buf_block_t*	block;
+	ulint		page_no;
+	ibool		all_freed;
+
+scan_again:
+	mutex_enter(&(buf_pool->mutex));
+	
+	all_freed = TRUE;
+	
+	block = UT_LIST_GET_LAST(buf_pool->LRU);
+
+	while (block != NULL) {
+		if (block->space == id
+		    && (block->buf_fix_count > 0 || block->io_fix != 0)) {
+
+			/* We cannot remove this page during this scan yet;
+			maybe the system is currently reading it in, or
+			flushing the modifications to the file */
+			
+			all_freed = FALSE;
+
+			goto next_page;
+		}
+
+		if (block->space == id) {
+			if (buf_debug_prints) {
+				printf(
+				"Dropping space %lu page %lu\n",
+					block->space, block->offset);
+			}
+
+			if (block->is_hashed) {
+				page_no = block->offset;
+			
+				mutex_exit(&(buf_pool->mutex));
+
+				/* Note that the following call will acquire
+				an S-latch on the page */
+
+				btr_search_drop_page_hash_when_freed(id,
+								page_no);
+				goto scan_again;
+			}
+
+			if (0 != ut_dulint_cmp(block->oldest_modification,
+							ut_dulint_zero)) {
+
+				/* Remove from the flush list of modified
+				blocks */
+				block->oldest_modification = ut_dulint_zero;
+
+				UT_LIST_REMOVE(flush_list, 
+						buf_pool->flush_list, block);
+			}
+
+			/* Remove from the LRU list */
+			buf_LRU_block_remove_hashed_page(block);
+			buf_LRU_block_free_hashed_page(block);
+		}
+next_page:
+		block = UT_LIST_GET_PREV(LRU, block);
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+	
+	if (!all_freed) {
+		os_thread_sleep(20000);
+
+	        goto scan_again;
+	}
+}
+
+/**********************************************************************
 Gets the minimum LRU_position field for the blocks in an initial segment
 (determined by BUF_LRU_INITIAL_RATIO) of the LRU list. The limit is not
 guaranteed to be precise, because the ulint_clock may wrap around. */

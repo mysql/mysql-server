@@ -37,6 +37,16 @@ These are low-level functions
 #define BUF_LRU_FREE_SEARCH_LEN		(5 + 2 * BUF_READ_AHEAD_AREA)
 
 /**********************************************************************
+Invalidates all pages belonging to a given tablespace when we are deleting
+the data file(s) of that tablespace. A PROBLEM: if readahead is being started,
+what guarantees that it will not try to read in pages after this operation has
+completed? */
+
+void
+buf_LRU_invalidate_tablespace(
+/*==========================*/
+	ulint	id);	/* in: space id */
+/**********************************************************************
 Gets the minimum LRU_position field for the blocks in an initial segment
 (determined by BUF_LRU_INITIAL_RATIO) of the LRU list. The limit is not
 guaranteed to be precise, because the ulint_clock may wrap around. */

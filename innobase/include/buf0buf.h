@@ -626,19 +626,27 @@ buf_pool_get_nth_block(
 	ulint		i);	/* in: index of the block */
 /************************************************************************
 Function which inits a page for read to the buffer buf_pool. If the page is
-already in buf_pool, does nothing. Sets the io_fix flag to BUF_IO_READ and
-sets a non-recursive exclusive lock on the buffer frame. The io-handler must
-take care that the flag is cleared and the lock released later. This is one
-of the functions which perform the state transition NOT_USED => FILE_PAGE to
-a block (the other is buf_page_create). */ 
+(1) already in buf_pool, or
+(2) if we specify to read only ibuf pages and the page is not an ibuf page, or
+(3) if the space is deleted or being deleted,
+then this function does nothing.
+Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
+on the buffer frame. The io-handler must take care that the flag is cleared
+and the lock released later. This is one of the functions which perform the
+state transition NOT_USED => FILE_PAGE to a block (the other is
+buf_page_create). */ 
 
 buf_block_t*
 buf_page_init_for_read(
 /*===================*/
-			/* out: pointer to the block */
-	ulint	mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
-	ulint	space,	/* in: space id */
-	ulint	offset);/* in: page number */
+				/* out: pointer to the block or NULL */
+	ulint*		err,	/* out: DB_SUCCESS or DB_TABLESPACE_DELETED */
+	ulint		mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
+	ulint		space,	/* in: space id */
+	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
+				version of the tablespace in case we have done
+				DISCARD + IMPORT */
+	ulint		offset);/* in: page number */
 /************************************************************************
 Completes an asynchronous read or write request of a file page to or from
 the buffer pool. */
