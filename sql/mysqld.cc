@@ -377,11 +377,10 @@ char mysql_real_data_home[FN_REFLEN],
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
 char *language_ptr= language;
+char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 #ifndef EMBEDDED_LIBRARY
-char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
 bool mysql_embedded=0;
 #else
-char *mysql_data_home=mysql_real_data_home;
 bool mysql_embedded=1;
 #endif
 
@@ -1959,6 +1958,7 @@ int main(int argc, char **argv)
   {
     unireg_abort(1);				/* purecov: inspected */
   }
+  mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
   server_init();

@@ -620,8 +620,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	(join.const_tables == join.tables ||
 	 (simple_order &&
 	  test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				  (join.const_tables != join.tables - 1 ||
-				   (join.select_options & OPTION_FOUND_ROWS)) ?
+				  (join.select_options & OPTION_FOUND_ROWS) ?
 				  HA_POS_ERROR : thd->select_limit,0))))
       order=0;
     select_describe(&join,need_tmp,
@@ -876,7 +875,6 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
 			  (having || group ||
-			   join.const_tables != join.tables - 1 ||
 			   (join.select_options & OPTION_FOUND_ROWS)) ?
 			  HA_POS_ERROR : thd->select_limit))
       goto err; /* purecov: inspected */
@@ -2018,7 +2016,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       join->positions[idx].key=best_key;
       join->positions[idx].table= s;
       if (!best_key && idx == join->const_tables &&
-	  s->table == join->sort_by_table)
+	  s->table == join->sort_by_table &&
+	  join->thd->select_limit >= records)
 	join->sort_by_table= (TABLE*) 1;	// Must use temporary table
 
      /*

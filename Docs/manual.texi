@@ -50364,6 +50364,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug with the @code{--slow-log} when logging an administrator command
+(like @code{FLUSH TABLES}).
+@item
 Fixed a bug that @code{OPTIMIZE} of locked and modified table,
 reported table corruption.
 @item
@@ -50372,6 +50375,12 @@ Fixed a bug in my_getopt in handling of special prefixes (--skip-, --enable-).
 similar options.
 @item
 Fixed bug in checking for output file name of the @code{tee} option.
+@item
+Added some more optimisation to use index for
+@code{SELECT ... FROM many_tables .. ORDER BY key limit #}
+@item
+Fixed problem in @code{SHOW OPEN TABLES} when a user didn't have access right
+to one of the opened tables.
 @end itemize
 
 @node News-4.0.3, News-4.0.2, News-4.0.4, News-4.0.x
