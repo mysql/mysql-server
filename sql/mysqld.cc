@@ -380,7 +380,7 @@ uint report_port = MYSQL_PORT;
 my_bool master_ssl = 0;
 
 ulong master_retry_count=0;
-ulong bytes_sent = 0L, bytes_received = 0L;
+ulong bytes_sent= 0L, bytes_received= 0L, net_big_packet_count= 0L;
 
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;

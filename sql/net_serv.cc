@@ -65,11 +65,13 @@ void sql_print_error(const char *format,...);
 #define USE_QUERY_CACHE
 extern uint test_flags;
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
-extern ulong bytes_sent, bytes_received;
+extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #else
 #undef statistic_add
+#undef statistic_increment
 #define statistic_add(A,B,C)
+#define statistic_increment(A,B)
 #endif
 
 #define TEST_BLOCKING		8
@@ -556,6 +558,9 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
   uint32 old=remain;
   DBUG_ENTER("my_net_skip_rest");
   DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
+
+  /* The following is good for debugging */
+  statistic_increment(net_big_packet_count,&LOCK_bytes_received);
 
   if (!thr_alarm_in_use(alarmed))
   {

@@ -127,7 +127,7 @@ void init_thr_alarm(uint max_alarms)
   Returns 0 if no more alarms are allowed (aborted by process)
 */
 
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
+my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 {
   ulong now;
   sigset_t old_mask;
@@ -209,7 +209,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   ALARM *alarm_data;
   sigset_t old_mask;
   uint i;
-  bool found=0;
+  my_bool found=0;
   DBUG_ENTER("thr_end_alarm");
 
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
@@ -230,10 +230,9 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   DBUG_ASSERT(!*alarmed || found);
   if (!found)
   {
-#ifdef MAIN
-    printf("Warning: Didn't find alarm %lx in queue of %d alarms\n",
-	   (long) *alarmed, alarm_queue.elements);
-#endif
+    if (*alarmed)
+      fprintf(stderr,"Warning: Didn't find alarm %lx in queue of %d alarms\n",
+	      (long) *alarmed, alarm_queue.elements);
     DBUG_PRINT("warning",("Didn't find alarm %lx in queue\n",
 			  (long) *alarmed));
   }
