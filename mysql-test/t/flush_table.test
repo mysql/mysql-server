@@ -16,7 +16,8 @@ drop table t1;
 
 #
 # In the following test FLUSH TABLES produces a deadlock
-# (hang forever) if the fix for bug#3565 is missing.
+# (hang forever) if the fix for BUG #3565 is missing.
+# And it shows that handler tables are re-opened after flush (BUG #4286).
 #
 create table t1(table_id char(20) primary key);
 create table t2(table_id char(20) primary key);
@@ -31,28 +32,43 @@ handler a1 read first limit 9;
 handler a2 read first limit 9;
 handler t2 read first limit 9;
 flush tables;
---error 1109;
 handler a1 read first limit 9;
---error 1109;
 handler a2 read first limit 9;
---error 1109;
 handler t2 read first limit 9;
 #
+--error 1066
 handler t1 open as a1;
+--error 1066
 handler t1 open as a2;
+--error 1066
 handler t2 open;
 handler a1 read first limit 9;
 handler a2 read first limit 9;
 handler t2 read first limit 9;
 flush table t1;
---error 1109;
 handler a1 read first limit 9;
---error 1109;
 handler a2 read first limit 9;
 handler t2 read first limit 9;
 flush table t2;
---error 1109;
 handler t2 close;
 drop table t1;
 drop table t2;
 
+#
+# The fix for BUG #4286 cannot restore the position after a flush.
+#
+create table t1(table_id char(20) primary key);
+insert into t1 values ('Record-01');
+insert into t1 values ('Record-02');
+insert into t1 values ('Record-03');
+insert into t1 values ('Record-04');
+insert into t1 values ('Record-05');
+handler t1 open;
+handler t1 read first limit 1;
+handler t1 read next limit 1;
+handler t1 read next limit 1;
+flush table t1;
+handler t1 read next limit 1;
+handler t1 read next limit 1;
+handler t1 close;
+drop table t1;

@@ -2736,6 +2736,8 @@ void Item_func_get_user_var::fix_length_and_dec()
     case STRING_RESULT:
       max_length= MAX_BLOB_WIDTH;
       break;
+    case ROW_RESULT:                            // Keep compiler happy
+      break;
     }
   }
   else

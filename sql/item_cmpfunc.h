@@ -444,6 +444,7 @@ public:
   const char *func_name() const { return "nullif"; }
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
+  bool is_null();
 };
 
 
