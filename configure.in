@@ -399,6 +399,7 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
+      CFLAGS="$CFLAGS -DDEFINE_CXA_PURE_VIRTUAL"
       CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
     fi
   fi
@@ -3114,7 +3115,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/kernel/blocks/qmgr/Makefile dnl
    ndb/src/kernel/blocks/trix/Makefile dnl
    ndb/src/kernel/blocks/backup/Makefile dnl
-   ndb/src/kernel/blocks/backup/restore/Makefile dnl
    ndb/src/kernel/blocks/dbutil/Makefile dnl
    ndb/src/kernel/blocks/suma/Makefile dnl
    ndb/src/kernel/blocks/grep/Makefile dnl

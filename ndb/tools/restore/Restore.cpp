@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "Restore.hpp"
-#include "BackupFormat.hpp"
 #include <NdbTCP.h>
 #include <OutputStream.hpp>
 #include <Bitmask.hpp>
@@ -24,9 +23,6 @@
 #include <trigger_definitions.h>
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
-
-// from src/ndbapi
-#include <NdbDictionaryImpl.hpp>
 
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data

@@ -467,8 +467,9 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
   Transporter *t = theTransporters[nodeId];
   if(t != NULL && 
      (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      (signalHeader->theReceiversBlockNumber == 252))) {
-
+      ((signalHeader->theReceiversBlockNumber == 252) ||
+       (signalHeader->theReceiversBlockNumber == 4002)))) {
+	 
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
       if(lenBytes <= MAX_MESSAGE_SIZE){
@@ -538,8 +539,9 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
   Transporter *t = theTransporters[nodeId];
   if(t != NULL && 
      (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      (signalHeader->theReceiversBlockNumber == 252))) {
-
+      ((signalHeader->theReceiversBlockNumber == 252)|| 
+       (signalHeader->theReceiversBlockNumber == 4002)))) {
+    
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
       if(lenBytes <= MAX_MESSAGE_SIZE){
@@ -550,7 +552,7 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
 	  return SEND_OK;
 	}
 	
-
+	
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
