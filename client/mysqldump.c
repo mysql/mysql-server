@@ -613,6 +613,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
       if (end!=compatible_mode_normal_str)
 	end[-1]= 0;
+      /* 
+        Set charset to the default compiled value if it hasn't
+        been reset yet by --default-character-set=xxx.
+      */
+      if (default_charset == (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET)
+        default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
       break;
     }
   case (int) OPT_MYSQL_PROTOCOL:

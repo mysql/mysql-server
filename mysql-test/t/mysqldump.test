@@ -137,3 +137,19 @@ drop table t1;
 create database mysqldump_test_db character set latin2 collate latin2_bin;
 --exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
 drop database mysqldump_test_db;
+
+#
+# Bug #7020
+# Check that we don't dump in UTF8 in compatible mode by default,
+# but use the default compiled values, or the values given in
+# --default-character-set=xxx. However, we should dump in UTF8
+# if it is explicitely set.
+
+CREATE TABLE t1 (a  CHAR(10));
+INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
+--exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
+--exec $MYSQL_DUMP --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
+DROP TABLE t1;
