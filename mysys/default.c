@@ -66,13 +66,13 @@ NullS,
 #define windows_ext	".ini"
 #endif
 
-static my_bool search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
-				   const char *dir, const char *config_file,
-				   const char *ext, TYPELIB *group);
+static int search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
+			       const char *dir, const char *config_file,
+			       const char *ext, TYPELIB *group);
 
 static char *remove_end_comment(char *ptr);
 
-void load_defaults(const char *conf_file, const char **groups,
+int load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv)
 {
   DYNAMIC_ARRAY args;
@@ -80,6 +80,7 @@ void load_defaults(const char *conf_file, const char **groups,
   TYPELIB group;
   my_bool found_print_defaults=0;
   uint args_used=0;
+  int error= 0;
   MEM_ROOT alloc;
   char *ptr,**res;
   DBUG_ENTER("load_defaults");
@@ -100,7 +101,7 @@ void load_defaults(const char *conf_file, const char **groups,
     (*argc)--;
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
-    DBUG_VOID_RETURN;
+    return 0;
   }
 
   /* Check if we want to force the use a specific default file */
@@ -129,14 +130,14 @@ void load_defaults(const char *conf_file, const char **groups,
     goto err;
   if (forced_default_file)
   {
-    if (search_default_file(&args, &alloc, "", forced_default_file, "",
-			    &group))
+    if ((error= search_default_file(&args, &alloc, "",
+				    forced_default_file, "", &group)) == 1)
       goto err;
   }
   else if (dirname_length(conf_file))
   {
-    if (search_default_file(&args, &alloc, NullS, conf_file, default_ext,
-			    &group))
+    if ((error= search_default_file(&args, &alloc, NullS, conf_file,
+				    default_ext, &group)) == 1)
       goto err;
   }
   else
@@ -144,26 +145,25 @@ void load_defaults(const char *conf_file, const char **groups,
 #ifdef __WIN__
     char system_dir[FN_REFLEN];
     GetWindowsDirectory(system_dir,sizeof(system_dir));
-    if (search_default_file(&args, &alloc, system_dir, conf_file, windows_ext,
-			    &group))
+    if ((error= search_default_file(&args, &alloc, system_dir, conf_file,
+				    windows_ext, &group)) == 1)
       goto err;
 #endif
 #if defined(__EMX__) || defined(OS2)
     if (getenv("ETC") &&
-        search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
-                            default_ext, &group))
+        (error= search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
+				    default_ext, &group)) == 1)
       goto err;
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      int error=0;
       if (**dirs)
-	error=search_default_file(&args, &alloc, *dirs, conf_file,
-				  default_ext, &group);
+	error= search_default_file(&args, &alloc, *dirs, conf_file,
+				   default_ext, &group);
       else if (defaults_extra_file)
-	error=search_default_file(&args, &alloc, NullS, defaults_extra_file,
-				  default_ext, &group);
-      if (error)
+	error= search_default_file(&args, &alloc, NullS, defaults_extra_file,
+				   default_ext, &group);
+      if (error == 1)
 	goto err;
     }
   }
@@ -204,11 +204,11 @@ void load_defaults(const char *conf_file, const char **groups,
     puts("");
     exit(1);
   }
-  DBUG_VOID_RETURN;
+  return error;
 
  err:
   fprintf(stderr,"Program aborted\n");
-  exit(1);
+  return(error);
 }
 
 
@@ -220,9 +220,16 @@ void free_defaults(char **argv)
 }
 
 
-static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
-				   const char *dir, const char *config_file,
-				   const char *ext, TYPELIB *group)
+/*
+  Return values: 0 Success
+                 1 Fatal error, abort
+                 2 File not found, continue
+                 3 File is not a regular file, continue
+*/
+
+static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
+			       const char *dir, const char *config_file,
+			       const char *ext, TYPELIB *group)
 {
   char name[FN_REFLEN+10],buff[4096],*ptr,*end,*value,*tmp;
   FILE *fp;
@@ -247,7 +254,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
-      return 0;
+      return 2;
     /*
       Ignore world-writable regular files.
       This is mainly done to protect us to not read a file created by
@@ -260,6 +267,8 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
               name);
       return 0;
     }
+    else if ((stat_info.st_mode & S_IFMT) != S_IFREG)
+      return 3;
   }
 #endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))

@@ -26,6 +26,7 @@
 #include <my_getopt.h>
 
 const char *config_file="my";			/* Default config file */
+uint verbose= 0, opt_defaults_file_used= 0;
 
 static struct my_option my_long_options[] =
 {
@@ -47,6 +48,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Increase the output level",
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -55,7 +58,7 @@ static struct my_option my_long_options[] =
 
 static void usage(my_bool version)
 {
-  printf("%s  Ver 1.5 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.6 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
   if (version)
     return;
@@ -73,12 +76,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument __attribute__((unused)))
 {
   switch (optid) {
+    case 'c':
+      opt_defaults_file_used= 1;
+      break;
     case 'n':
     exit(0);
     case 'I':
     case '?':
     usage(0);
     exit(0);
+    case 'v':
+      verbose++;
+      break;
     case 'V':
     usage(1);
     exit(0);
@@ -104,7 +113,7 @@ static int get_options(int *argc,char ***argv)
 
 int main(int argc, char **argv)
 {
-  int count;
+  int count, error;
   char **load_default_groups, *tmp_arguments[2],
        **argument, **arguments;
   MY_INIT(argv[0]);
@@ -126,8 +135,20 @@ int main(int argc, char **argv)
   arguments=tmp_arguments;
   arguments[0]=my_progname;
   arguments[1]=0;
-  load_defaults(config_file, (const char **) load_default_groups,
-		&count, &arguments);
+  if ((error= load_defaults(config_file, (const char **) load_default_groups,
+			   &count, &arguments)) > 1)
+  {
+    if (verbose && opt_defaults_file_used)
+    {
+      if (error == 2)
+	fprintf(stderr, "WARNING: Defaults file (%s) not found!\n",
+		config_file);
+      if (error == 3)
+	fprintf(stderr, "WARNING: Defaults file (%s) is not a regular file!\n",
+		config_file);
+    }
+    exit(2); // Non-fatal error
+  }
 
   for (argument= arguments+1 ; *argument ; argument++)
     puts(*argument);
