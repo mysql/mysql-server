@@ -4154,6 +4154,15 @@ USA [LinuxWired/Scottsdale, AZ] @
 @strong{South America:}
 
 @itemize @bullet
+
+@item
+@c Added 20001102
+@c nico@bannerlandia.com (Nicolas Moldavsky)
+@c @image{Flags/argentina}
+Argentina [bannerlandia.com] @
+@uref{http://mysql.bannerlandia.com.ar/, WWW}
+@uref{ftp://mysql.bannerlandia.com.ar/mirrors/mysql/, FTP}
+
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
 @c EMAIL: gaiser@matrix.com.br (Roberto Gaiser)
