@@ -155,10 +155,9 @@ class ha_ndbcluster: public handler
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
-  int initialize_autoincrement(const void* table);
-  int build_index_list0();
-  int build_index_list1();
-  int build_index_list();
+  int initialize_autoincrement(const void *table);
+  enum IBLP {ILBP_CREATE = 0, ILBP_OPEN = 1}; // index_list_build_phase
+  int build_index_list(TABLE *tab, enum IBLP phase);
   int get_metadata(const char* path);
   void release_metadata();
   const char* get_index_name(uint idx_no) const;
