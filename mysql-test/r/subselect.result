@@ -1012,3 +1012,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	UNCACHEABLE SUBSELECT	t1	ALL	NULL	NULL	NULL	NULL	3	
 3	UNCACHEABLE SUBSELECT	t1	ALL	NULL	NULL	NULL	NULL	3	
 drop table t1;
+select t1.Continent, t2.Name, t2.Population from t1 LEFT JOIN t2 ON t1.Code = t2.Country  where t2.Population IN (select max(t2.Population) AS Population from t2, t1 where t2.Country = t1.Code group by Continent);
+Table 'test.t1' doesn't exist

@@ -487,6 +487,8 @@ void Item_in_subselect::single_value_transformer(THD *thd,
       setup_ref_array(thd, &sl->ref_pointer_array,
 		      1 + sl->with_sum_func +
 		      sl->order_list.elements + sl->group_list.elements);
+      // To prevent crash on Item_ref_null_helper destruction in case of error
+      sl->ref_pointer_array[0]= 0;
       item= (*func)(expr, new Item_ref_null_helper(this,
 						   sl->ref_pointer_array,
 						   (char *)"<ref>",
