@@ -41116,8 +41116,8 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
 @item
-Fixed core-dump bug when using @code{GROUP BY} on an @code{ALIAS}, where
-the @code{ALIAS} was the same as an existing column name.
+Fixed core-dump bug when using @code{GROUP BY} on an alias, where
+the alias was the same as an existing column name.
 @item
 Added @code{SEQUENCE()} as an example UDF function.
 @item
@@ -41135,10 +41135,10 @@ Fixed bug where @code{CASE} didn't work with @code{GROUP BY}.
 @item
 Added option @code{--sort-recover} to @code{myisamchk}.
 @item
-@code{myisamchk -S} and @code{OPTIMIZE TABLE} now works on Windows.
+@code{myisamchk -S} and @code{OPTIMIZE TABLE} now work on Windows.
 @item
-Fixed bug when using @code{DISTINCT} on results from functions that refered to
-a group function, like
+Fixed bug when using @code{DISTINCT} on results from functions that referred
+to a group function, like
 @code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
 @item
 Fixed buffer overrun in @code{libmysqlclient} library.
