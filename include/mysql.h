@@ -575,6 +575,7 @@ typedef struct st_mysql_methods
   int (*unbuffered_fetch)(MYSQL *mysql, char **row);
   void (*free_embedded_thd)(MYSQL *mysql);
   const char *(*read_statistic)(MYSQL *mysql);
+  int (*next_result)(MYSQL *mysql);
 #endif
 } MYSQL_METHODS;
 
