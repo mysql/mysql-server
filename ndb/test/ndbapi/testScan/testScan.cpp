@@ -379,6 +379,31 @@ int runScanReadUntilStoppedNoCount(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runScanReadUntilStoppedPrintTime(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  int i = 0;
+  int parallelism = ctx->getProperty("Parallelism", 240);
+  NdbTimer timer;
+  Ndb* ndb = GETNDB(step);
+
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    timer.doReset();
+    timer.doStart();
+    g_info << i << ": ";
+    if (ndb->waitUntilReady() != 0)
+      return NDBT_FAILED;      
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, 0, parallelism) != 0)
+      return NDBT_FAILED;
+    timer.doStop();
+    if ((timer.elapsedTime()/1000) > 1)
+      timer.printTotalTime();
+    i++;
+  }
+  return NDBT_OK;
+}
+
 
 int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
@@ -492,6 +517,64 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }    
+    i++;
+  }
+  if(restarter.waitClusterStarted(timeout) != 0){
+    g_err << "Cluster failed to start 2" << endl;
+    result = NDBT_FAILED;
+  }
+
+  ctx->stopTest();
+  
+  return result;
+}
+
+
+int runStopAndStartNode(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter restarter;
+  int i = 0;
+  int lastId = 0;
+  int timeout = 240;
+
+  if (restarter.getNumDbNodes() < 2){
+      ctx->stopTest();
+      return NDBT_OK;
+  }
+  while(i<loops && result != NDBT_FAILED){
+    if(restarter.waitClusterStarted(timeout) != 0){
+      g_err << "Cluster failed to start 1" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    NdbSleep_SecSleep(1);
+    int nodeId = restarter.getDbNodeId(lastId);
+    lastId = (lastId + 1) % restarter.getNumDbNodes();
+    g_err << "Stopping node " << nodeId << endl;
+
+    if(restarter.restartOneDbNode(nodeId, false, true) != 0){
+      g_err << "Failed to restartOneDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+ 
+    if(restarter.waitNodesNoStart(&nodeId, 1, timeout) != 0){
+      g_err << "Node failed to reach NoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }   
+
+    g_info << "Sleeping for 10 secs" << endl;
+    NdbSleep_SecSleep(10);
+    
+    g_err << "Starting node " << nodeId << endl;
+    if(restarter.startNodes(&nodeId, 1) != 0){
+      g_err << "Failed to start the node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }    
+
     i++;
   }
   if(restarter.waitClusterStarted(timeout) != 0){
@@ -1300,6 +1383,14 @@ TESTCASE("CheckAfterTerror",
 	 "Check that we can still scan read after this terror of NdbApi"){
   INITIALIZER(runLoadTable);
   STEPS(runScanRead, 5);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanReadWhileNodeIsDown", 
+	 "Scan requirement:A scan should be able to run as fast when  "\
+	 "one or more nodes in the cluster is down."){
+  INITIALIZER(runLoadTable);
+  STEP(runScanReadUntilStoppedPrintTime);
+  STEP(runStopAndStartNode);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
