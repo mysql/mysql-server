@@ -1664,3 +1664,21 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
+show status like "Innodb_buffer_pool_pages_total";
+Variable_name	Value
+Innodb_buffer_pool_pages_total	512
+show status like "Innodb_page_size";
+Variable_name	Value
+Innodb_page_size	16384
+show status like "Innodb_rows_deleted";
+Variable_name	Value
+Innodb_rows_deleted	2078
+show status like "Innodb_rows_inserted";
+Variable_name	Value
+Innodb_rows_inserted	31706
+show status like "Innodb_rows_read";
+Variable_name	Value
+Innodb_rows_read	80161
+show status like "Innodb_rows_updated";
+Variable_name	Value
+Innodb_rows_updated	29530

@@ -282,6 +282,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
+#define MODE_BROKEN_NOT			(MODE_NO_AUTO_CREATE_USER*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -700,7 +701,7 @@ void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
-int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
+int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd = -1);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
@@ -990,7 +991,7 @@ extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
-extern my_bool relay_log_purge, opt_innodb_safe_binlog;
+extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;

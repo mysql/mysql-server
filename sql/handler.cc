@@ -468,6 +468,21 @@ int ha_release_temporary_latches(THD *thd)
   return 0;
 }
 
+
+/* 
+  Export statistics for different engines. Currently we use it only for
+  InnoDB.
+*/
+
+int ha_update_statistics()
+{
+#ifdef HAVE_INNOBASE_DB
+  if (opt_innodb)
+    innodb_export_status();
+#endif
+  return 0;
+}
+
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;

@@ -88,6 +88,9 @@ but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
 const char*	fil_path_to_mysql_datadir	= ".";
 
+/* The number of fsyncs done to the log */
+ulint	fil_n_log_flushes                       = 0;
+
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
 
@@ -3671,6 +3674,12 @@ fil_io(
 		mode = OS_AIO_NORMAL;
 	}
 
+        if (type == OS_FILE_READ) {
+                srv_data_read+= len;
+        } else if (type == OS_FILE_WRITE) {
+                srv_data_written+= len;
+        }
+
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
@@ -3956,6 +3965,7 @@ fil_flush(
 				fil_n_pending_tablespace_flushes++;
 			} else {
 				fil_n_pending_log_flushes++;
+				fil_n_log_flushes++;
 			}
 #ifdef __WIN__
 			if (node->is_raw_disk) {

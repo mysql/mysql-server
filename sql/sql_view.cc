@@ -55,7 +55,10 @@ bool mysql_create_view(THD *thd,
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex, *sl;
+  SELECT_LEX *select_lex= &lex->select_lex;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  SELECT_LEX *sl;
+#endif
   SELECT_LEX_UNIT *unit= &lex->unit;
   bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
@@ -745,7 +748,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
-      table->effective_with_check= table->with_check;
+      table->effective_with_check= (uint8)table->with_check;
 
       table->ancestor= view_tables;
       /*

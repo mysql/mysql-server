@@ -190,6 +190,8 @@ loop:
 
 		log_buffer_flush_to_disk();
 
+                srv_log_waits++;
+
 		ut_ad(++count < 50);
 
 		goto loop;
@@ -292,6 +294,8 @@ part_loop:
 	if (str_len > 0) {
 		goto part_loop;
 	}
+        
+        srv_log_write_requests++;
 }
 
 /****************************************************************
@@ -1112,11 +1116,15 @@ log_group_file_header_flush(
 	if (log_do_write) {
 		log_sys->n_log_ios++;	
 		
+                srv_os_log_pending_writes++;
+                
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
 				OS_FILE_LOG_BLOCK_SIZE,
 				buf, group);
+
+                srv_os_log_pending_writes--;
 	}
 }
 
@@ -1181,6 +1189,8 @@ loop:
 
 		log_group_file_header_flush(group,
 				next_offset / group->file_size, start_lsn);
+                srv_os_log_written+= OS_FILE_LOG_BLOCK_SIZE;
+                srv_log_writes++;
 	}
 
 	if ((next_offset % group->file_size) + len > group->file_size) {
@@ -1225,9 +1235,16 @@ loop:
 	if (log_do_write) {
 		log_sys->n_log_ios++;	
 
+                srv_os_log_pending_writes++;                
+                
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 			next_offset / UNIV_PAGE_SIZE,
 			next_offset % UNIV_PAGE_SIZE, write_len, buf, group);
+
+                srv_os_log_pending_writes--;
+
+                srv_os_log_written+= write_len; 
+                srv_log_writes++;
 	}
 
 	if (write_len < len) {

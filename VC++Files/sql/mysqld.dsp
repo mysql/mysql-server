@@ -1779,6 +1779,10 @@ SOURCE=.\sql_test.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_trigger.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_udf.cpp
 # End Source File
 # Begin Source File

@@ -232,7 +232,6 @@ typedef struct st_field_info
   enum enum_field_types field_type;
   int value;
   bool maybe_null;
-  bool utf8;
   const char* old_name;
 } ST_FIELD_INFO;
 
@@ -274,7 +273,7 @@ typedef struct st_schema_table
 #define VIEW_CHECK_SKIP       2
 
 struct st_lex;
-struct select_union;
+class select_union;
 
 typedef struct st_table_list
 {
