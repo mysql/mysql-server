@@ -398,7 +398,7 @@ SOURCE=.\mysys_priv.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\libmysql\net.c
+SOURCE=..\sql\net_serv.cpp
 # End Source File
 # Begin Source File
 
