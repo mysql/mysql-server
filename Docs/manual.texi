@@ -36346,8 +36346,7 @@ converted to @code{ENUM}.
 A column may use a combination of the above compressions.
 @end itemize
 @item
-Can handle fixed- or dynamic-length records, but not @code{BLOB} or @code{TEXT}
-columns.
+Can handle fixed- or dynamic-length records.
 @item
 Can be uncompressed with @code{myisamchk}.
 @end itemize
