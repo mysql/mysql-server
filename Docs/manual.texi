@@ -1385,14 +1385,14 @@ and PHP's @strong{MySQL}-related functions
 @item Price	@tab		$34.95
 @end multitable
 
-This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular and
-robust database products that support key subsets of SQL on both Linux
-and UNIX systems. Anyone who knows basic C, Java, Perl, or Python can
-write a program to interact with a database, either as a stand-alone
-application or through a Web page. This book takes you through the
-whole process, from installation and configuration to programming
-interfaces and basic administration.  Includes ample tutorial
-material.
+This book teaches you how to use @strong{MySQL} and @code{mSQL}, two
+popular and robust database products that support key subsets of SQL on
+both Linux and UNIX systems. Anyone who knows basic C, Java, Perl, or
+Python can write a program to interact with a database, either as a
+stand-alone application or through a Web page. This book takes you
+through the whole process, from installation and configuration to
+programming interfaces and basic administration.  Includes ample
+tutorial material.
 
 @multitable @columnfractions .3 .7
 @item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144,Sams Teach Yourself MySQL in 21 Days}

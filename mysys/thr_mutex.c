@@ -218,9 +218,8 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
   pthread_mutex_destroy(&mp->global);
   pthread_mutex_destroy(&mp->mutex);
 #else
-  if (pthread_mutex_destroy(&mp->global) || 
-      pthread_mutex_destroy(&mp->mutex))
-    error=1;
+  error= (int) (pthread_mutex_destroy(&mp->global) || 
+		pthread_mutex_destroy(&mp->mutex));
 #endif
   return error;
 }
