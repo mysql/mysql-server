@@ -597,7 +597,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       select_lex->item_list.empty();
       select_lex->item_list.push_back(item);
     
-      if (item->fix_fields(thd_tmp, join->tables_list, &item))
+      if (item->fix_fields(thd_tmp, join->tables_list,
+			   select_lex->item_list.head_ref()))
       {
 	DBUG_RETURN(RES_ERROR);
       }
@@ -819,7 +820,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   else
   {
     join->conds= and_items(join->conds, item);
-    if (join->conds->fix_fields(thd_tmp, join->tables_list, &join->having))
+    if (join->conds->fix_fields(thd_tmp, join->tables_list, &join->conds))
       DBUG_RETURN(RES_ERROR);
   }
   DBUG_RETURN(RES_OK);
