@@ -55,6 +55,12 @@ extern void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
+
+/* Fast, not thread safe, bitmap functions */
+#define bitmap_fast_set_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] |= (1 << ((BIT) & 7))
+#define bitmap_fast_clear_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] &= ~ (1 << ((BIT) & 7))
+#define bitmap_fast_is_set(MAP, BIT) (MAP)->bitmap[(BIT) / 8] & (1 << ((BIT) & 7))
+
 #ifdef	__cplusplus
 }
 #endif
