@@ -531,9 +531,22 @@ class Item_func_from_unixtime :public Item_date_func
 */
 class Time_zone;
 
+/*
+  This class represents CONVERT_TZ() function.
+  The important fact about this function that it is handled in special way.
+  When such function is met in expression time_zone system tables are added
+  to global list of tables to open, so later those already opened and locked
+  tables can be used during this function calculation for loading time zone
+  descriptions.
+*/
 class Item_func_convert_tz :public Item_date_func
 {
-  THD *thd;
+  /* Cached pointer to list of pre-opened time zone tables. */
+  TABLE_LIST *tz_tables;
+  /*
+    If time zone parameters are constants we are caching objects that
+    represent them.
+  */
   Time_zone *from_tz, *to_tz;
  public:
   Item_func_convert_tz(Item *a, Item *b, Item *c):
@@ -542,6 +555,7 @@ class Item_func_convert_tz :public Item_date_func
   double val() { return (double) val_int(); }
   String *val_str(String *str);
   const char *func_name() const { return "convert_tz"; }
+  bool fix_fields(THD *, struct st_table_list *, Item **);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
 };

@@ -1648,19 +1648,29 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
 
 
 void Item_func_convert_tz::fix_length_and_dec()
-{ 
-  String str;
-  
-  thd= current_thd;
+{
   collation.set(&my_charset_bin);
   decimals= 0;
   max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+}
+
+
+bool
+Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **ref)
+{
+  String str;
+  if (Item_date_func::fix_fields(thd_arg, tables_arg, ref))
+    return 1;
+
+  tz_tables= thd_arg->lex->time_zone_tables_used;
 
   if (args[1]->const_item())
-    from_tz= my_tz_find(thd, args[1]->val_str(&str));
-  
+    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
+
   if (args[2]->const_item())
-    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
+
+  return 0;
 }
 
 
@@ -1701,10 +1711,10 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   String str;
   
   if (!args[1]->const_item())
-    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
   
   if (!args[2]->const_item())
-    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
   
   if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
   {

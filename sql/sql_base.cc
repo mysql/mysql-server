@@ -1670,7 +1670,22 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
-  fix_tables_pointers(thd->lex->all_selects_list);
+  /*
+    Let us propagate pointers to open tables from global table list
+    to table lists in particular selects if needed.
+  */
+  if (thd->lex->all_selects_list->next_select_in_list() ||
+      thd->lex->time_zone_tables_used)
+  {
+    for (SELECT_LEX *sl= thd->lex->all_selects_list;
+	 sl;
+	 sl= sl->next_select_in_list())
+      for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
+           cursor;
+           cursor=cursor->next)
+        if (cursor->table_list)
+          cursor->table= cursor->table_list->table;
+  }
   DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
