@@ -4203,8 +4203,7 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      thd->register_item_tree_change(args + 1, args[1], &thd->mem_root);
-      args[1]= tmp;
+      thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !left_item->const_item())
@@ -4225,15 +4224,14 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      thd->register_item_tree_change(args, args[0], &thd->mem_root);
-      args[0]= value= tmp;
+      thd->change_item_tree(args, tmp);
+      value= tmp;
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !right_item->const_item())
       {
         args[0]= args[1];                       // For easy check
-        thd->register_item_tree_change(args + 1, args[1], &thd->mem_root);
-        args[1]= value;
+        thd->change_item_tree(args + 1, value);
 	cond->marker=1;
 	COND_CMP *tmp2;
 	if ((tmp2=new COND_CMP(and_father,func)))
@@ -4959,8 +4957,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-          thd->register_item_tree_change(argp, arg, &thd->mem_root);
-	  *argp= new Item_field(new_field);
+          thd->change_item_tree(argp, new Item_field(new_field));
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;

@@ -1332,13 +1332,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return -1;
 	}
 
-	Item_ref *rf;
-	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
-			       (char *)table_name,
-			       (char *)field_name);
-        thd->register_item_tree_change(ref, this, &thd->mem_root);
+	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
+                                   (char *)table_name, (char *)field_name);
 	if (!rf)
 	  return 1;
+        thd->change_item_tree(ref, rf);
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -1355,11 +1353,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-          thd->register_item_tree_change(ref, *ref, &thd->mem_root);
-          *ref= rf= new Item_ref((where->db[0] ? where->db : 0),
-                                 (char*) where->alias, (char*) field_name);
+          rf= new Item_ref((where->db[0] ? where->db : 0),
+                           (char*) where->alias, (char*) field_name);
 	  if (!rf)
 	    return 1;
+          thd->change_item_tree(ref, rf);
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -1992,10 +1990,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (tmp != not_found_field)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
-	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp)))
+	Item_field* fld= new Item_field(tmp);
+	if (!fld)
 	  return 1;
-	thd->register_item_tree_change(reference, this, &thd->mem_root);
+	thd->change_item_tree(reference, fld);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
@@ -2250,10 +2248,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                new Item_real(name, result, decimals, length));
   }
   if (new_item)
-  {
-    thd->register_item_tree_change(ref, item, &thd->mem_root);
-    *ref= new_item;
-  }
+    thd->change_item_tree(ref, new_item);
 }
 
 /*

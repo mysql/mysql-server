@@ -153,10 +153,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
       if (tmp)
-      {
-        thd->register_item_tree_change(item, *item, &thd->mem_root);
-	*item=tmp;
-      }
+        thd->change_item_tree(item, tmp);
       return 1;					// Item was replaced
     }
   }
@@ -2033,10 +2030,10 @@ void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
     {
       Item **ref= li.ref();
       uint el= fields.elements;
+      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      thd->register_item_tree_change(ref, *ref, &thd->mem_root);
-      li.replace(new Item_ref(ref_pointer_array + el, 0, item->name));
+      thd->change_item_tree(ref, new_item);
     }
     item->update_used_tables();
     used_tables_cache|=item->used_tables();
