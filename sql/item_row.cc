@@ -140,6 +140,18 @@ bool Item_row::walk(Item_processor processor, byte *arg)
   return (this->*processor)(arg);
 }
 
+Item *Item_row::traverse(Item_calculator calculator, byte *arg)
+{
+  for (uint i= 0; i < arg_count; i++)
+  {
+    Item *new_item= items[i]->traverse(calculator, arg);
+    if (!new_item)
+      return 0;
+    items[i]= new_item;
+  }
+  return (this->*calculator)(arg);
+}
+
 void Item_row::bring_value()
 {
   for (uint i= 0; i < arg_count; i++)

@@ -83,6 +83,7 @@ public:
 };
 
 typedef bool (Item::*Item_processor)(byte *arg);
+typedef Item* (Item::*Item_calculator) (byte *arg);
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -201,8 +202,15 @@ public:
     return (this->*processor)(arg);
   }
 
+   virtual Item* traverse(Item_calculator calculator, byte *arg)
+  {
+    return (this->*calculator)(arg);
+  }
+ 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
+  virtual Item *equal_fields_propagator(byte * arg) { return this; }
+  virtual bool replace_equal_field_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
@@ -334,17 +342,21 @@ public:
   bool remove_dependence_processor(byte * arg);
 };
 
+class Item_equal;
+class COND_EQUAL;
 
 class Item_field :public Item_ident
 {
   void set_field(Field *field);
 public:
   Field *field,*result_field;
+  Item_equal *item_equal;
   // Item_field() {}
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
+    :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0),
+     item_equal(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field &item);
@@ -378,6 +390,9 @@ public:
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
+  Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  Item *equal_fields_propagator(byte *arg);
+  bool replace_equal_field_processor(byte *arg);
   friend class Item_default_value;
   friend class Item_insert_value;
 };
@@ -919,6 +934,15 @@ public:
   {
     return arg->walk(processor, args) ||
       (this->*processor)(args);
+  }
+
+  Item *traverse(Item_calculator calculator, byte *args)
+  {
+    Item *new_item= arg->traverse(calculator, args);
+    if (!new_item)
+      return 0;
+    arg= new_item;
+    return (this->*calculator)(args);
   }
 };
 

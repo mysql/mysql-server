@@ -121,10 +121,12 @@ public:
   void remove(list_node **prev)
   {
     list_node *node=(*prev)->next;
-    delete *prev;
-    *prev=node;
     if (!--elements)
       last= &first;
+    else if (last == &(*prev)->next)
+      last= prev;
+    delete *prev;
+    *prev=node;
   }
   inline void *pop(void)
   {
@@ -137,9 +139,27 @@ public:
   }
   inline void concat(base_list *list)
   {
-    *last= list->first;
-    last= list->last;
-    elements+= list->elements;
+    if (!list->is_empty())
+    {
+      *last= list->first;
+      last= list->last;
+      elements+= list->elements;
+    }
+  }
+  inline void disjoin(base_list *list)
+  {
+    list_node **prev= &first;
+    list_node *node= first;
+    list_node *list_first= list->first;
+    elements=0;
+    while (node && node != list_first)
+    {
+      prev= &node->next;
+      node= node->next;
+      elements++;
+    }
+    *prev= *last;
+    last= prev;
   }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
@@ -251,6 +271,8 @@ public:
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* pop()  {return (T*) base_list::pop(); }
+  inline void concat(List<T> *list) { return base_list::concat(list); }
+  inline void disjoin(List<T> *list) { return base_list::disjoin(list); }
   void delete_elements(void)
   {
     list_node *element,*next;
@@ -261,7 +283,6 @@ public:
     }
     empty();
   }
-  inline void concat(List<T> *list) { base_list::concat(list); }
 };
 
 
@@ -272,6 +293,8 @@ public:
   inline T* operator++(int) { return (T*) base_list_iterator::next(); }
   inline T *replace(T *a)   { return (T*) base_list_iterator::replace(a); }
   inline T *replace(List<T> &a) { return (T*) base_list_iterator::replace(a); }
+  inline void rewind(void)  { base_list_iterator::rewind(); }
+  inline void remove()      { base_list_iterator::remove(); }
   inline void after(T *a)   { base_list_iterator::after(a); }
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };

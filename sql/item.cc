@@ -299,7 +299,8 @@ bool DTCollation::aggregate(DTCollation &dt)
   return 0;
 }
 
-Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
+Item_field::Item_field(Field *f)
+  :Item_ident(NullS,f->table_name,f->field_name), item_equal(0)
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
@@ -313,6 +314,7 @@ Item_field::Item_field(THD *thd, Item_field &item)
    result_field(item.result_field)
 {
   collation.set(DERIVATION_IMPLICIT);
+  item_equal= item.item_equal;
 }
 
 void Item_field::set_field(Field *field_par)
@@ -969,6 +971,49 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
+{
+  Item_equal *item= 0;
+  while (cond_equal)
+  {
+    List_iterator_fast<Item_equal> li(cond_equal->current_level);
+    while ((item= li++))
+    {
+      if (item->contains(field))
+        return item;
+    }
+    cond_equal= cond_equal->parent_level;
+  }
+  return item;
+}
+
+Item *Item_field::equal_fields_propagator(byte *arg)
+{
+  COND_EQUAL *cond_equal= (COND_EQUAL *) arg;
+  item_equal= find_item_equal(cond_equal);
+  Item *item= 0;
+  if (item_equal)
+    item= item_equal->get_const();
+  if (item)
+    item->fixed= 0;
+  else
+    item= this;
+  return item;
+}
+
+bool Item_field::replace_equal_field_processor(byte *arg)
+{
+  if (item_equal)
+  {
+    Item_field *subst= item_equal->get_first();
+    if (subst && !field->eq(subst->field))
+    {
+      field= subst->field;
+      return 0;
+    }
+  }
+  return 0;
+}
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
