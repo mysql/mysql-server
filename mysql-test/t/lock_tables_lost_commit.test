@@ -6,7 +6,7 @@ connect (con2,localhost,root,,);
 connection con1;
 --disable_warnings
 drop table if exists t1;
-create table t1(a int) type=innodb;
+create table t1(a int) engine=innodb;
 --enable_warnings
 lock tables t1 write;
 insert into t1 values(10);

@@ -159,7 +159,7 @@ CREATE TABLE `t1` (
 `maxnumrep` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`numeropost`),
 KEY `maxnumrep` (`maxnumrep`)
-) TYPE=MyISAM ROW_FORMAT=FIXED;
+) ENGINE=MyISAM ROW_FORMAT=FIXED;
 INSERT INTO t1 (titre,maxnumrep) VALUES
 ('test1','1'),('test2','2'),('test3','3');
 SELECT SQL_CALC_FOUND_ROWS titre,numeropost,maxnumrep FROM t1 WHERE numeropost IN (1,2) ORDER BY maxnumrep DESC LIMIT 0, 1;

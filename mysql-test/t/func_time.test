@@ -151,7 +151,7 @@ drop table t1,t2;
 #
 # Test bug with month() and year() on text fields with wrong information
 
-CREATE TABLE t1 (updated text) TYPE=MyISAM;
+CREATE TABLE t1 (updated text) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 SELECT year(updated) from t1;

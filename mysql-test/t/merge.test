@@ -11,7 +11,7 @@ create table t1 (a int not null primary key auto_increment, message char(20));
 create table t2 (a int not null primary key auto_increment, message char(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(t1,t2);
+create table t3 (a int not null, b char(20), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t3;
 select * from t3 order by a desc;
 drop table t3;
@@ -26,7 +26,7 @@ insert into t2 select NULL,message from t1;
 insert into t1 select NULL,message from t2;
 insert into t2 select NULL,message from t1;
 insert into t1 select NULL,message from t2;
-create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
+create table t3 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,test.t2);
 explain select * from t3 where a < 10;
 explain select * from t3 where a > 10 and a < 20;
 select * from t3 where a = 10;
@@ -46,7 +46,7 @@ select * from t3 where a < 10;
 show create table t3;
 
 # The following should give errors
-create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
+create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
 --error 1016
 select * from t4;
 --error 1016
@@ -57,18 +57,18 @@ alter table t4 add column c int;
 #
 create database mysqltest;
 create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
-create table t5 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,mysqltest.t6);
+create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,mysqltest.t6);
 show create table t5;
-alter table t5 type=myisam;
+alter table t5 engine=myisam;
 drop table t5, mysqltest.t6;
 drop database mysqltest;
 
 # Because of windows, it's important that we drop the merge tables first!
 drop table t4,t3,t1,t2;
   
-create table t1 (c char(10)) type=myisam;
-create table t2 (c char(10)) type=myisam;
-create table t3 (c char(10)) union=(t1,t2) type=merge;
+create table t1 (c char(10)) engine=myisam;
+create table t2 (c char(10)) engine=myisam;
+create table t3 (c char(10)) union=(t1,t2) engine=merge;
 insert into t1 (c) values ('test1');
 insert into t1 (c) values ('test1');
 insert into t1 (c) values ('test1');
@@ -89,7 +89,7 @@ drop table t3,t2,t1;
 CREATE TABLE t1 (incr int not null, othr int not null, primary key(incr));
 CREATE TABLE t2 (incr int not null, othr int not null, primary key(incr));
 CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
-TYPE=MERGE UNION=(t1,t2);
+ENGINE=MERGE UNION=(t1,t2);
 
 SELECT * from t3;
 
@@ -103,14 +103,14 @@ alter table t3 UNION=(t1);
 select count(*) from t3;
 alter table t3 UNION=(t1,t2);
 select count(*) from t3;
-alter table t3 TYPE=MYISAM;
+alter table t3 ENGINE=MYISAM;
 select count(*) from t3;
 
 # Test that ALTER TABLE rembers the old UNION
 
 drop table t3;
 CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
-TYPE=MERGE UNION=(t1,t2);
+ENGINE=MERGE UNION=(t1,t2);
 show create table t3;
 alter table t3 drop primary key;
 show create table t3;
@@ -120,7 +120,7 @@ drop table t3,t2,t1;
 #
 # Test table without unions
 #
-create table t1 (a int not null, key(a)) type=merge;
+create table t1 (a int not null, key(a)) engine=merge;
 select * from t1;
 drop table t1;
 
@@ -130,7 +130,7 @@ drop table t1;
 
 create table t1 (a int not null, b int not null, key(a,b));
 create table t2 (a int not null, b int not null, key(a,b));
-create table t3 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2);
+create table t3 (a int not null, b int not null, key(a,b)) ENGINE=MERGE UNION=(t1,t2);
 insert into t1 values (1,2),(2,1),(0,0),(4,4),(5,5),(6,6);
 insert into t2 values (1,1),(2,2),(0,0),(4,4),(5,5),(6,6);
 flush tables;
@@ -145,9 +145,9 @@ drop table t3,t1,t2;
 create table t1 (a int not null, b int not null auto_increment, primary key(a,b));
 create table t2 (a int not null, b int not null auto_increment, primary key(a,b));
 create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
-create table t4 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
-create table t5 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
-create table t6 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+create table t4 (a int not null, b int not null, key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
+create table t5 (a int not null, b int not null auto_increment, primary key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null auto_increment, primary key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 show create table t3;
 show create table t4;
 show create table t5;
@@ -192,11 +192,11 @@ insert into t1 values (99,NULL);
 select * from t4 where a+0 > 90;
 drop table t6, t5, t4, t3, t2, t1;
 
-CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
+CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,1);
-CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
+CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,2), (2,2);
-CREATE TABLE t3 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) TYPE=MRG_MyISAM UNION=(t1,t2);
+CREATE TABLE t3 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) ENGINE=MRG_MyISAM UNION=(t1,t2);
 select max(b) from t3 where a = 2;
 select max(b) from t1 where a = 2;
 drop table t3,t1,t2;
@@ -208,13 +208,13 @@ create table t1 (a int not null);
 create table t2 (a int not null);
 insert into t1 values (1);
 insert into t2 values (2);
-create temporary table t3 (a int not null) TYPE=MERGE UNION=(t1,t2);
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
 select * from t3;
 create temporary table t4 (a int not null);
 create temporary table t5 (a int not null);
 insert into t4 values (1);
 insert into t5 values (2);
-create temporary table t6 (a int not null) TYPE=MERGE UNION=(t4,t5);
+create temporary table t6 (a int not null) ENGINE=MERGE UNION=(t4,t5);
 select * from t6;
 drop table t6, t3, t1, t2, t4, t5;
 
@@ -228,7 +228,7 @@ CREATE TABLE t1 (
   fileset_root_id tinyint(3) unsigned NOT NULL default '0',
   PRIMARY KEY  (fileset_id,file_code),
   KEY files (fileset_id,fileset_root_id)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (2, '0000000111', 1), (2, '0000000112', 1), (2, '0000000113', 1),
 (2, '0000000114', 1), (2, '0000000115', 1), (2, '0000000116', 1), (2, '0000000117', 1),
 (2, '0000000118', 1), (2, '0000000119', 1), (2, '0000000120', 1);
@@ -238,7 +238,7 @@ CREATE TABLE t2 (
   fileset_root_id tinyint(3) unsigned NOT NULL default '0',
   PRIMARY KEY  (fileset_id,file_code),
   KEY files (fileset_id,fileset_root_id)
-) TYPE=MRG_MyISAM UNION=(t1);
+) ENGINE=MRG_MyISAM UNION=(t1);
 
 EXPLAIN SELECT * FROM t2 IGNORE INDEX (files) WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
@@ -256,7 +256,7 @@ DROP TABLE t2, t1;
 
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
-create table t3 (x int, y int, index xy(x, y)) type=merge union=(t1,t2);
+create table t3 (x int, y int, index xy(x, y)) engine=merge union=(t1,t2);
 insert into t1 values(1, 2);
 insert into t2 values(1, 3);
 select * from t3 where x = 1 and y < 5 order by y;

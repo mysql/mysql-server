@@ -24,7 +24,6 @@ sleep 5;
 show slave status;
 stop slave;
 change master to master_log_pos=173;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 start slave;
 sleep 2;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT

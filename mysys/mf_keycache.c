@@ -391,7 +391,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   }
 
   keycache->blocks= keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
-  DBUG_RETURN((int) blocks);
+  DBUG_RETURN((int) keycache->disk_blocks);
 
 err:
   error= my_errno;

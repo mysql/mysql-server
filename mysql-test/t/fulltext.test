@@ -176,7 +176,7 @@ CREATE TABLE t1 (
   title varchar(100)  default '',
   PRIMARY KEY  (id),
   KEY ind5 (title)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 CREATE FULLTEXT INDEX ft1 ON t1(title);
 insert into t1 (title) values ('this is a test');
@@ -191,7 +191,7 @@ drop table t1;
 
 # one more bug - const_table related
 
-CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
+CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) ENGINE=MyISAM;
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 
@@ -199,7 +199,7 @@ insert into t1 values (2,"fullaaa fullzzz");
 select * from t1 where match b against ('full*' in boolean mode);
 
 drop table t1;
-CREATE TABLE t1 ( id int(11) NOT NULL auto_increment primary key, mytext text NOT NULL, FULLTEXT KEY mytext (mytext)) TYPE=MyISAM;
+CREATE TABLE t1 ( id int(11) NOT NULL auto_increment primary key, mytext text NOT NULL, FULLTEXT KEY mytext (mytext)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,'my small mouse'),(2,'la-la-la'),(3,'It is so funny'),(4,'MySQL Tutorial');
 select 8 from t1;
 drop table t1;

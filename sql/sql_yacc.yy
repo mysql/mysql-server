@@ -46,6 +46,11 @@ int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
+#define WARN_DEPRECATED(A,B) \
+  push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
+		      ER_WARN_DEPRECATED_SYNTAX, \
+		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B)); 
+
 inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 {
   return (thd->variables.sql_mode & MODE_PIPES_AS_CONCAT ?
@@ -500,6 +505,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ELSE
 %token	ELT_FUNC
 %token	ENCODE_SYM
+%token	ENGINE_SYM
 %token	ENCRYPT
 %token	EXPORT_SET
 %token	EXTRACT_SYM
@@ -669,6 +675,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_wild no_in_expr expr_expr simple_expr no_and_expr udf_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
+	signed_literal NUM_literal
 	exists_subselect exists_subselect_init sp_opt_default
 
 %type <item_list>
@@ -2096,7 +2103,8 @@ create_table_options:
 	| create_table_option ',' create_table_options;
 
 create_table_option:
-	TYPE_SYM opt_equal table_types          { Lex->create_info.db_type= $3; }
+	ENGINE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; }
+	| TYPE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=database_engine","ENGINE=database_engine"); }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -2458,7 +2466,7 @@ opt_attribute_list:
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
 	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT literal { Lex->default_value=$2; }
+	| DEFAULT signed_literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
 	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
@@ -2800,7 +2808,7 @@ alter_list_item:
 	  }
 	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
 	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
-	| ALTER opt_column field_ident SET DEFAULT literal
+	| ALTER opt_column field_ident SET DEFAULT signed_literal
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_list.push_back(new Alter_column($3.str,$6));
@@ -5104,6 +5112,9 @@ show_param:
 	    lex->select_lex.db= $3;
 	    lex->select_lex.options= 0;
 	  }
+	| ENGINE_SYM table_types 
+	  { Lex->create_info.db_type= $2; }
+	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -5169,7 +5180,7 @@ show_param:
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
         | INNOBASE_SYM STATUS_SYM
-          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;}
+          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| opt_var_type VARIABLES wild
@@ -5183,9 +5194,9 @@ show_param:
 	| COLLATION_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
 	| BERKELEY_DB_SYM LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
 	| LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
 	| GRANTS FOR_SYM user
 	  {
 	    LEX *lex=Lex;
@@ -5232,6 +5243,29 @@ show_param:
 	    Lex->sql_command = SQLCOM_SHOW_STATUS_FUNC;
 	  };
 
+show_engine_param:
+	STATUS_SYM
+	  {
+	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_INNODB:
+	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
+	      break;
+	    default:
+	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "STATUS");
+	      YYABORT;
+	    }
+	  }
+	| LOGS_SYM
+	  {
+	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_BERKELEY_DB:
+	      Lex->sql_command = SQLCOM_SHOW_LOGS;
+	      break;
+	    default:
+	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "LOGS");
+	      YYABORT;
+	    }
+	  };
 
 master_or_binary:
 	MASTER_SYM
@@ -5538,13 +5572,16 @@ param_marker:
         }
 	;
 
+signed_literal:
+	literal		{ $$ = $1; }
+	| '+' NUM_literal { $$ = $2; }
+	| '-' NUM_literal { $$ = new Item_func_neg($2); }
+	;
+
+
 literal:
 	text_literal	{ $$ =	$1; }
-	| NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
-	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
-	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
-	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	| NUM_literal	{ $$ = $1; }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
@@ -5560,6 +5597,14 @@ literal:
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
 
+NUM_literal:
+	NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
+	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
+	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
+	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
+	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	;
+	
 /**********************************************************************
 ** Createing different items.
 **********************************************************************/
@@ -5800,6 +5845,7 @@ keyword:
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}
+	| ENGINE_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}

@@ -7,7 +7,7 @@ start slave;
 create table t1 (a int);
 insert into t1 values (10);
 create table t2 (a int);
-create table t3 (a int) type=merge union(t1);
+create table t3 (a int) engine=merge union(t1);
 create table t4 (a int);
 insert into t4 select * from t3;
 rename table t1 to t5, t2 to t1;
@@ -18,10 +18,10 @@ master-bin.000001	4	Start	1	4	Server ver: SERVER_VERSION, Binlog ver: 3
 master-bin.000001	79	Query	1	79	use `test`; create table t1 (a int)
 master-bin.000001	137	Query	1	137	use `test`; insert into t1 values (10)
 master-bin.000001	198	Query	1	198	use `test`; create table t2 (a int)
-master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) type=merge union(t1)
-master-bin.000001	335	Query	1	335	use `test`; create table t4 (a int)
-master-bin.000001	393	Query	1	393	use `test`; insert into t4 select * from t3
-master-bin.000001	459	Query	1	459	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) engine=merge union(t1)
+master-bin.000001	337	Query	1	337	use `test`; create table t4 (a int)
+master-bin.000001	395	Query	1	395	use `test`; insert into t4 select * from t3
+master-bin.000001	461	Query	1	461	use `test`; rename table t1 to t5, t2 to t1
 select * from t3;
 a
 flush tables;
@@ -31,10 +31,10 @@ master-bin.000001	4	Start	1	4	Server ver: SERVER_VERSION, Binlog ver: 3
 master-bin.000001	79	Query	1	79	use `test`; create table t1 (a int)
 master-bin.000001	137	Query	1	137	use `test`; insert into t1 values (10)
 master-bin.000001	198	Query	1	198	use `test`; create table t2 (a int)
-master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) type=merge union(t1)
-master-bin.000001	335	Query	1	335	use `test`; create table t4 (a int)
-master-bin.000001	393	Query	1	393	use `test`; insert into t4 select * from t3
-master-bin.000001	459	Query	1	459	use `test`; rename table t1 to t5, t2 to t1
-master-bin.000001	525	Query	1	525	use `test`; flush tables
+master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) engine=merge union(t1)
+master-bin.000001	337	Query	1	337	use `test`; create table t4 (a int)
+master-bin.000001	395	Query	1	395	use `test`; insert into t4 select * from t3
+master-bin.000001	461	Query	1	461	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	527	Query	1	527	use `test`; flush tables
 select * from t3;
 a

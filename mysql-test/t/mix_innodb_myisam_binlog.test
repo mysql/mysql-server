@@ -15,8 +15,8 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 connection con1;
-create table t1 (a int) type=innodb;
-create table t2 (a int) type=myisam;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
 
 reset master;
 
@@ -118,7 +118,7 @@ show binlog events from 79;
 # Check that things work like before this BEGIN/ROLLBACK code was added,
 # when t2 is INNODB 
 
-alter table t2 type=INNODB;
+alter table t2 engine=INNODB;
 
 delete from t1;
 delete from t2;
