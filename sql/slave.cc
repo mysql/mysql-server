@@ -21,6 +21,7 @@
 #include "mini_client.h"
 #include "slave.h"
 #include "sql_repl.h"
+#include "repl_failsafe.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 
@@ -1220,6 +1221,7 @@ position %s",
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
+  change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   abort_slave = 0;
   save_temporary_tables = thd->temporary_tables;
   thd->temporary_tables = 0; // remove tempation from destructor to close them
@@ -1257,6 +1259,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   
   if(!slave_was_killed)
     {
+      change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
       mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
 		  mi->user, mi->host, mi->port);
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -1298,9 +1301,15 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 		      mi->connect_retry);
       safe_sleep(thd, mi->connect_retry);
     }
-    if (err_count++ == master_retry_count)
+    /* by default we try forever. The reason is that failure will trigger
+       master election, so if the user did not set master_retry_count we
+       do not want to have electioin triggered on the first failure to
+       connect
+    */
+    if (master_retry_count && err_count++ == master_retry_count)
     {
       slave_was_killed=1;
+      change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
       break;
     }
   }

@@ -12,6 +12,7 @@
 DB=test
 DBPASSWD=
 VERBOSE=""
+NO_MANAGER=""
 TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
 #++
@@ -162,6 +163,9 @@ while test $# -gt 0; do
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
      --ssl-cert=$BASEDIR/SSL/server-cert.pem \
      --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
+    --no-manager)
+     NO_MANAGER=1
+     ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -476,6 +480,7 @@ mysql_install_db () {
     
     for slave_num in 1 2 ;
     do
+     rm -rf var/slave$slave_num-data/
      mkdir -p var/slave$slave_num-data/mysql
      mkdir -p var/slave$slave_num-data/test
      cp var/slave-data/mysql/* var/slave$slave_num-data/mysql
@@ -533,6 +538,11 @@ abort_if_failed()
 
 start_manager()
 {
+ if [ -n "$NO_MANAGER" ] ; then
+  echo "Manager disabled, skipping manager start. Tests requiring manager will\
+ be skipped"
+  return
+ fi
  MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
  -o $MYSQL_MANAGER_PW_FILE`
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
@@ -550,6 +560,9 @@ start_manager()
 
 stop_manager()
 {
+ if [ -n "$NO_MANAGER" ] ; then
+  return
+ fi
  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT -u$MYSQL_MANAGER_USER \
   -p$MYSQL_MANAGER_PW -P $MYSQL_MANAGER_PORT <<EOF
 shutdown
@@ -560,6 +573,11 @@ manager_launch()
 {
   ident=$1
   shift
+  if [ -n "$NO_MANAGER" ] ; then
+   $@  >$CUR_MYERR 2>&1  &
+   sleep 2 #hack 
+   return
+  fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
 def_exec $ident $@
@@ -575,6 +593,11 @@ manager_term()
 {
   ident=$1
   shift
+  if [ -n "$NO_MANAGER" ] ; then
+   $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
+   connect_timeout=5 shutdown >/dev/null 2>&1
+   return
+  fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
 stop_exec $ident $STOP_WAIT_TIMEOUT
@@ -841,7 +864,10 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
+ if [ -z "$NO_MANAGER" ] ; then
+  many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
+ fi 
+ 
  if [ -n "$SKIP_TEST" ] ; then 
    SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
    if [ x$SKIP_THIS_TEST = x1 ] ;
@@ -952,7 +978,12 @@ run_testcase ()
     timestr="$USERT $SYST $REALT"
     pname=`$ECHO "$tname                        "|$CUT -c 1-24`
     RES="$pname  $timestr"
-
+    
+    if [ x$many_slaves = x1 ] ; then
+     stop_slave 1
+     stop_slave 2
+    fi
+    
     if [ $res = 0 ]; then
       total_inc
       pass_inc
