@@ -74,6 +74,7 @@ Group: Applications/Databases
 Summary(pt_BR): MySQL - Cliente
 Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-client
+Provides: mysql-client
 
 %description client
 This package contains the standard MySQL clients. 
@@ -90,6 +91,7 @@ Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
+Provides: mysql-bench
 Obsoletes: mysql-bench
 
 %description bench
@@ -107,6 +109,7 @@ Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
+Provides: mysql-devel
 Obsoletes: mysql-devel
 
 %description devel
@@ -132,6 +135,7 @@ languages and applications need to dynamically load and use MySQL.
 Release: %{release}
 Summary: MySQL - server with Berkeley DB and Innodb support
 Group: Applications/Databases
+Provides: mysql-Max
 Obsoletes: mysql-Max
 
 %description Max 
@@ -410,7 +414,7 @@ fi
 %files devel
 %attr(755, root, root) /usr/bin/comp_err
 %attr(755, root, root) /usr/include/mysql/
-%attr(755, root, root) /usr/lib/mysql/
+%attr(755, root, root) /usr/lib/mysql/*.a
 %attr(755, root, root) /usr/bin/mysql_config
 
 %files shared
