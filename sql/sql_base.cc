@@ -2255,9 +2255,15 @@ static void mysql_rm_tmp_tables(void)
   ** Remove all SQLxxx tables from directory
   */
 
-  for (idx=2 ; idx < (uint) dirp->number_off_files ; idx++)
+  for (idx=0 ; idx < (uint) dirp->number_off_files ; idx++)
   {
     file=dirp->dir_entry+idx;
+
+    /* skiping . and .. */
+    if (file->name[0] == '.' && (!file->name[1] ||
+       (file->name[1] == '.' &&  !file->name[2])))
+      continue;
+
     if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
     {
       sprintf(filePath,"%s%s",mysql_tmpdir,file->name); /* purecov: inspected */
