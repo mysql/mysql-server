@@ -696,7 +696,7 @@ run_again:
 
 	trx_start_if_not_started(trx);
 
-	err = lock_table(0, prebuilt->table, prebuilt->select_lock_type, thr);
+	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
 	trx->error_state = err;
 
