@@ -1005,8 +1005,6 @@ int openfrm(const char *name,const char *alias,uint filestat,uint prgflag,
 	    uint ha_open_flags, TABLE *outparam);
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
-int create_table_from_handler(const char *db, const char *name,
-			      bool create_if_found);
 int closefrm(TABLE *table);
 db_type get_table_type(const char *name);
 int read_string(File file, gptr *to, uint length);
