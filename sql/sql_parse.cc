@@ -1147,7 +1147,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
       thd->server_id=0; /* avoid suicide */
-      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
+      if ((slave_server_id= uint4korr(packet+6)))
+	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
