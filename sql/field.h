@@ -28,6 +28,7 @@
 
 class Send_field;
 struct st_cache_field;
+void field_conv(Field *to,Field *from);
 
 class Field {
   Field(const Item &);				/* Prevent use of theese */

@@ -26,8 +26,7 @@
 
 extern const char* any_db;
 extern pthread_handler_decl(handle_slave,arg);
-static int fake_rotate_event(NET* net, String* packet,
-			     const char* log_file_name);
+
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 			     const char**errmsg)

@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.32)
+AM_INIT_AUTOMAKE(mysql, 3.23.33)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -129,6 +129,7 @@ fi
 # Still need ranlib for readline; local static use only so no libtool.
 AC_PROG_RANLIB
 # We use libtool
+#AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
 
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
