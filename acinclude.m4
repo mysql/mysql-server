@@ -1348,6 +1348,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-sci        Include the NDB Cluster sci transporter],
               [ndb_sci="$withval"],
               [ndb_sci=no])
+  AC_ARG_WITH([ndb-test],
+              [
+  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [ndb_test="$withval"],
+              [ndb_test=no])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1373,6 +1378,17 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including sci transporter])
+      ;;
+  esac
+
+  have_ndb_test=no
+  case "$ndb_test" in
+    yes )
+      AC_MSG_RESULT([-- including ndbapi test programs])
+      have_ndb_test="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndbapi test programs])
       ;;
   esac
 
