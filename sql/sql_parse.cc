@@ -2183,7 +2183,7 @@ static bool check_merge_table_access(THD *thd, char *db,
     {
       if (!tmp->db || !tmp->db[0])
 	tmp->db=db;
-      else if (!strcmp(tmp->db,db))
+      else if (strcmp(tmp->db,db))
       {
 	send_error(&thd->net,ER_UNION_TABLES_IN_DIFFERENT_DIR);
 	return 1;
