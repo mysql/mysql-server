@@ -24,6 +24,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "thr0loc.h"
 #include "btr0sea.h"
 #include "os0proc.h"
+#include "xa.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
 copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
@@ -155,6 +156,10 @@ trx_create(
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
+
+	/* Set X/Open XA transaction identification to NULL */
+	memset(&trx->xid,0,sizeof(trx->xid));
+	trx->xid.formatID = -1;
 
 	return(trx);
 }
@@ -408,13 +413,22 @@ trx_lists_init_at_db_start(void)
 			trx = trx_create(NULL); 
 
 			trx->id = undo->trx_id;
-
+			trx->xid = undo->xid;
 			trx->insert_undo = undo;
 			trx->rseg = rseg;
 
 			if (undo->state != TRX_UNDO_ACTIVE) {
 
-				trx->conc_state = TRX_COMMITTED_IN_MEMORY;
+				/* Prepared transactions are left in
+				the prepared state waiting for a
+				commit or abort decision from MySQL */
+
+				if (undo->state == TRX_UNDO_PREPARED) {
+					trx->conc_state = TRX_PREPARED;
+				} else {
+					trx->conc_state = 
+						TRX_COMMITTED_IN_MEMORY;
+				}
 
 				/* We give a dummy value for the trx no;
 				this should have no relevance since purge
@@ -457,10 +471,22 @@ trx_lists_init_at_db_start(void)
 				trx = trx_create(NULL); 
 
 				trx->id = undo->trx_id;
+				trx->xid = undo->xid;
 
 				if (undo->state != TRX_UNDO_ACTIVE) {
-					trx->conc_state =
-						TRX_COMMITTED_IN_MEMORY;
+
+					/* Prepared transactions are left in
+					the prepared state waiting for a
+					commit or abort decision from MySQL */
+
+					if (undo->state == TRX_UNDO_PREPARED) {
+						trx->conc_state =
+							TRX_PREPARED;
+					} else {
+						trx->conc_state =
+							TRX_COMMITTED_IN_MEMORY;
+					}
+
 					/* We give a dummy value for the trx
 					number */
 
@@ -726,7 +752,8 @@ trx_commit_off_kernel(
 		mutex_enter(&kernel_mutex);
 	}
 
-	ut_ad(trx->conc_state == TRX_ACTIVE);
+	ut_ad(trx->conc_state == TRX_ACTIVE || trx->conc_state == TRX_PREPARED);
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1667,3 +1694,238 @@ trx_print(
 		innobase_mysql_print_thd(f, trx->mysql_thd);
   	}  
 }
+
+/********************************************************************
+Prepares a transaction. */
+
+void
+trx_prepare_off_kernel(
+/*==================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	page_t*		update_hdr_page;
+	dulint		lsn;
+	trx_rseg_t*	rseg;
+	trx_undo_t*	undo;
+	ibool		must_flush_log	= FALSE;
+	mtr_t		mtr;
+	
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	rseg = trx->rseg;
+	
+	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
+
+		mutex_exit(&kernel_mutex);
+
+		mtr_start(&mtr);
+		
+		must_flush_log = TRUE;
+
+		/* Change the undo log segment states from TRX_UNDO_ACTIVE
+		to some other state: these modifications to the file data
+		structure define the transaction as prepared in the file
+		based world, at the serialization point of the log sequence
+		number lsn obtained below. */
+
+		mutex_enter(&(rseg->mutex));
+			
+		if (trx->insert_undo != NULL) {
+			trx_undo_set_state_at_prepare(trx, trx->insert_undo,
+							   &mtr);
+		}
+
+		undo = trx->update_undo;
+
+		if (undo) {
+			mutex_enter(&kernel_mutex);
+			trx->no = trx_sys_get_new_trx_no();
+			
+			mutex_exit(&kernel_mutex);
+
+			/* It is not necessary to obtain trx->undo_mutex here
+			because only a single OS thread is allowed to do the
+			transaction prepare for this transaction. */
+					
+			update_hdr_page = trx_undo_set_state_at_prepare(trx,								undo, &mtr);
+		}
+
+		mutex_exit(&(rseg->mutex));
+
+		/*--------------*/
+		mtr_commit(&mtr);
+		/*--------------*/
+		lsn = mtr.end_lsn;
+
+		mutex_enter(&kernel_mutex);
+	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/*--------------------------------------*/
+	trx->conc_state = TRX_PREPARED;
+	/*--------------------------------------*/
+
+	if (trx->read_view) {
+		read_view_close(trx->read_view);
+
+		mem_heap_empty(trx->read_view_heap);
+		trx->read_view = NULL;
+	}
+
+	if (must_flush_log) {
+
+		mutex_exit(&kernel_mutex);
+	
+		if (trx->insert_undo != NULL) {
+
+			trx_undo_insert_cleanup(trx);
+		}
+
+		/* Write the log to the log files AND flush them to disk */
+
+		/*-------------------------------------*/
+
+		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+
+		/*-------------------------------------*/
+	
+		mutex_enter(&kernel_mutex);
+	}
+}
+
+/**************************************************************************
+Does the transaction prepare for MySQL. */
+
+ulint
+trx_prepare_for_mysql(
+/*=================*/
+			/* out: 0 or error number */
+	trx_t*	trx)	/* in: trx handle */
+{
+	/* Because we do not do the prepare by sending an Innobase
+	sig to the transaction, we must here make sure that trx has been
+	started. */
+
+	ut_a(trx);
+
+	trx->op_info = "preparing";
+	
+	trx_start_if_not_started(trx);
+
+	mutex_enter(&kernel_mutex);
+
+	trx_prepare_off_kernel(trx);
+
+	mutex_exit(&kernel_mutex);
+
+	trx->op_info = "";
+	
+	return(0);
+}
+
+/**************************************************************************
+This function is used to find number of prepared transactions and
+their transaction objects for a recovery. */
+
+int
+trx_recover_for_mysql(
+/*==================*/
+				/* out: number of prepared transactions 
+				stored in xid_list */
+	XID*    xid_list, 	/* in/out: prepared transactions */
+	uint	len)		/* in: number of slots in xid_list */
+{
+	trx_t*	trx;
+	int	num_of_transactions = 0;
+
+	ut_ad(xid_list);
+	ut_ad(len);
+
+	fprintf(stderr,
+		"InnoDB: Starting recovery for XA transactions...\n");
+
+
+	/* We should set those transactions which are in
+	the prepared state to the xid_list */
+
+	mutex_enter(&kernel_mutex);
+
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	while (trx) {
+		if (trx->conc_state == TRX_PREPARED) {
+			xid_list[num_of_transactions] = trx->xid;
+			num_of_transactions++;
+		
+			if ( (uint)num_of_transactions == len ) {
+				break;
+			}
+		}
+
+		trx = UT_LIST_GET_NEXT(trx_list, trx);
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	fprintf(stderr,
+		"InnoDB: %d transactions in prepare state after recovery\n",
+		num_of_transactions);
+
+	return (num_of_transactions);			
+}
+
+/***********************************************************************
+This function is used to find one X/Open XA distributed transaction
+which is in the prepared state */
+
+trx_t * 
+trx_get_trx_by_xid(
+/*===============*/
+			/* out: trx or NULL */
+	XID*	xid)	/*  in: X/Open XA Transaction Idenfication */
+{
+	trx_t*	trx;
+
+	if (xid == NULL) {
+		return (NULL);
+	}
+ 
+	mutex_enter(&kernel_mutex);
+
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	while (trx) {
+		/* Compare two X/Open XA transaction id's: their
+		length should be the same and binary comparison
+		of gtrid_lenght+bqual_length bytes should be
+		the same */
+
+		if (xid->gtrid_length == trx->xid.gtrid_length &&
+		    xid->bqual_length == trx->xid.bqual_length &&
+		    memcmp(xid, &trx->xid, 
+				xid->gtrid_length + 
+				xid->bqual_length) == 0) {
+			break;
+		}
+
+		trx = UT_LIST_GET_NEXT(trx_list, trx);
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	if (trx) {
+		if (trx->conc_state != TRX_PREPARED) {
+			return(NULL);
+		}
+
+		return(trx);
+	} else {
+		return(NULL);
+	}
+}
+

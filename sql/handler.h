@@ -193,6 +193,41 @@ typedef struct st_thd_trans {
   void *ndb_tid;
 } THD_TRANS;
 
+#ifndef XIDDATASIZE  /* no xa.h included */
+
+/* XXX - may be we should disable xa completely in this case ? */
+#define XIDDATASIZE 128
+#define MAXGTRIDSIZE 64
+#define MAXBQUALSIZE 64
+
+struct xid_t {
+  long formatID;
+  long gtrid_length;
+  long bqual_length;
+  char data[XIDDATASIZE];
+};
+
+typedef struct xid_t XID;
+
+
+#endif
+
+typedef struct
+{
+   byte slot;
+   uint savepoint_offset;
+   int  (*close_connection)(THD *thd);
+   int  (*savepoint_set)(THD *thd, void *sv);
+   int  (*savepoint_rollback)(THD *thd, void *sv);
+   int  (*savepoint_release)(THD *thd, void *sv);
+   int  (*commit)(THD *thd, bool all);
+   int  (*rollback)(THD *thd, bool all);
+   int  (*prepare)(THD *thd, bool all);
+   int  (*recover)(XID *xid_list, uint len);
+   int  (*commit_by_xid)(XID *xid);
+   int  (*rollback_by_xid)(XID *xid);
+} handlerton;
+
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
