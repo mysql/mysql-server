@@ -470,8 +470,7 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
-          // BAR TODO: need checking that it is really Field_str based class
-          CHARSET_INFO *cs=((Field_str*)(sort_field->field))->charset();
+          CHARSET_INFO *cs=item->str_value.charset();
           
 	  if (item->maybe_null)
 	    *to++=1;
@@ -947,9 +946,8 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
 	if (!sortorder->item->binary)
-	{
-	  // BAR TODO: need checking that it is really Field_str based class
-          CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	{ 
+	  CHARSET_INFO *cs=sortorder->item->str_value.charset();
 	  if (use_strcoll(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
