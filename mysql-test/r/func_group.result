@@ -256,3 +256,8 @@ bit_and(col)	bit_or(col)
 18446744073709551614	18446744073709551614
 18446744073709551615	18446744073709551615
 drop table t1;
+create table t1 (a int);
+select avg(2) from t1;
+avg(2)
+NULL
+drop table t1;
