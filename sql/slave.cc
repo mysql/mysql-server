@@ -1002,7 +1002,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	  thd->net.vio = net->vio;
 	  // mysql_load will use thd->net to read the file
 	  thd->net.pkt_nr = net->pkt_nr;
-	  // make sure the client does get confused
+	  // make sure the client does not get confused
 	  // about the packet sequence
 	  if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
 			TL_WRITE))

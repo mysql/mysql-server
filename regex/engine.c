@@ -828,7 +828,7 @@ register states aft;		/* states already known reachable after */
 	register sopno pc;
 	register onestate here;		/* note, macros know this name */
 	register sopno look;
-	register int i;
+	register onestate i;		/* Changed from int by Monty */
 
 	for (pc = start, INIT(here, pc); pc != stop; pc++, INC(here)) {
 		s = g->strip[pc];
