@@ -84,7 +84,6 @@ typedef Parser<ParserDummy> Parser_t;
 #define NDB_MGM_MAX_ERR_DESC_SIZE 256
 
 struct ndb_mgm_handle {
-  char * connectstring;
   int cfg_i;
   
   int connected;
@@ -575,7 +574,9 @@ cmp_state(const void *_a, const void *_b)
   a = (struct ndb_mgm_node_state *)_a;
   b = (struct ndb_mgm_node_state *)_b;
 
-  return a->node_id > b->node_id;
+  if (a->node_id > b->node_id)
+    return 1;
+  return -1;
 }
 
 extern "C"
@@ -1678,6 +1679,12 @@ const char *ndb_mgm_get_connected_host(NdbMgmHandle handle)
 }
 
 extern "C"
+const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz)
+{
+  return handle->cfg.makeConnectString(buf,buf_sz);
+}
+
+extern "C"
 int
 ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
 {
@@ -1932,6 +1939,40 @@ ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **purged){
   } while(0);
   delete prop;
   return res;
+}
+
+extern "C"
+int
+ndb_mgm_check_connection(NdbMgmHandle handle){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  SocketOutputStream out(handle->socket);
+  SocketInputStream in(handle->socket, handle->read_timeout);
+  char buf[32];
+
+  if (out.println("check connection"))
+    goto ndb_mgm_check_connection_error;
+
+  if (out.println(""))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("check connection reply\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("result: Ok\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  return 0;
+
+ndb_mgm_check_connection_error:
+  ndb_mgm_disconnect(handle);
+  return -1;
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;

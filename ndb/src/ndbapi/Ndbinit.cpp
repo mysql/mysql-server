@@ -58,7 +58,7 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
   theNoOfNdbObjects++;
   if (global_ndb_cluster_connection == 0) {
     global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
-    global_ndb_cluster_connection->connect();
+    global_ndb_cluster_connection->connect(12,5,1);
   }
   setup(global_ndb_cluster_connection, aDataBase, aSchema);
   DBUG_VOID_RETURN;
