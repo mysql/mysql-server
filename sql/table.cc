@@ -166,9 +166,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->keys=      keys=      disk_buff[0];
     outparam->key_parts= key_parts= disk_buff[1];
   }
-  outparam->keys_for_keyread.init().set_prefix(keys);
-  outparam->keys_in_use.init().set_prefix(keys);
-  outparam->read_only_keys.init().clear_all();
+  outparam->keys_for_keyread.init(keys);
+  outparam->keys_in_use.init(keys);
+  outparam->read_only_keys.init(0);
   outparam->quick_keys.init();
   outparam->used_keys.init();
   outparam->keys_in_use_for_query.init();

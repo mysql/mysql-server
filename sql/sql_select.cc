@@ -117,7 +117,7 @@ static int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
-static uint find_shortest_key(TABLE *table, const key_map& usable_keys);
+static uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
 static int create_sort_index(THD *thd, JOIN *join, ORDER *order,
@@ -529,7 +529,7 @@ JOIN::optimize()
   conds= optimize_cond(conds,&cond_value);
   if (thd->net.report_error)
   {
-    error= 1; 
+    error= 1;
     DBUG_PRINT("error",("Error from optimize_cond"));
     DBUG_RETURN(1);
   }
@@ -559,7 +559,7 @@ JOIN::optimize()
       if (res < 0)
       {
 	zero_result_cause= "No matching min/max row";
-	error=0; 
+	error=0;
 	DBUG_RETURN(0);
       }
       zero_result_cause= "Select tables optimized away";
@@ -706,7 +706,7 @@ JOIN::optimize()
 	    /*
 	      Force MySQL to read the table in sorted order to get result in
 	      ORDER BY order.
-	    */	    
+	    */
 	    tmp_table_param.quick_group=0;
 	  }
 	  order=0;
@@ -768,7 +768,7 @@ JOIN::optimize()
   make_join_readinfo(this,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-		     (select_lex->ftfunc_list->elements ? 
+		     (select_lex->ftfunc_list->elements ?
 		      SELECT_NO_JOIN_CACHE : 0));
 
   /*
@@ -1497,7 +1497,7 @@ JOIN::cleanup()
 
 int
 mysql_select(THD *thd, Item ***rref_pointer_array,
-	     TABLE_LIST *tables, uint wild_num, List<Item> &fields, 
+	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
@@ -3257,13 +3257,13 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->row_limit=join->unit->select_limit_cnt;
   join->do_send_rows = (join->row_limit) ? 1 : 0;
 
-  join_tab->cache.buff=0;			/* No cacheing */
+  join_tab->cache.buff=0;			/* No caching */
   join_tab->table=tmp_table;
   join_tab->select=0;
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init().set_all();			/* test everything in quick */
+  join_tab->keys.init(~0);                      /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr=0;
   join_tab->ref.key = -1;
@@ -3591,7 +3591,7 @@ make_join_readinfo(JOIN *join, uint options)
 	  }
 	  else if (!table->used_keys.is_clear_all() && ! (tab->select && tab->select->quick))
 	  {					// Only read index tree
-	    tab->index=find_shortest_key(table, table->used_keys);
+	    tab->index=find_shortest_key(table, & table->used_keys);
 	    tab->table->file->index_init(tab->index);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
@@ -6605,15 +6605,15 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   return reverse;
 }
 
-static uint find_shortest_key(TABLE *table, const key_map& usable_keys)
+static uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
-  if (!usable_keys.is_clear_all())
+  if (!usable_keys->is_clear_all())
   {
-    for (uint nr=0; nr < usable_keys.length() ; nr++)
+    for (uint nr=0; nr < table->keys ; nr++)
     {
-      if (usable_keys.is_set(nr))
+      if (usable_keys->is_set(nr))
       {
         if (table->key_info[nr].key_length < min_length)
         {
@@ -6674,7 +6674,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
 
-  for (nr= 0; nr < usable_keys.length(); nr++)
+  for (nr= 0 ; nr < table->keys ; nr++)
   {
     if (usable_keys.is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
@@ -6840,7 +6840,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if (select_limit >= table->file->records)
     {
-      keys=table->file->keys_to_use_for_scanning();
+      keys=*table->file->keys_to_use_for_scanning();
       keys.merge(table->used_keys);
     }
     else
@@ -6848,7 +6848,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     keys.intersect(usable_keys);
 
-    for (nr=0; nr < keys.length() ; nr++)
+    for (nr=0; nr < table->keys ; nr++)
     {
       uint not_used;
       if (keys.is_set(nr))
@@ -8845,7 +8845,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  if (tab->use_quick == 2)
 	  {
             char buf[MAX_KEY/8+1];
-	    sprintf(buff_ptr,"; Range checked for each record (index map: %s)",
+	    sprintf(buff_ptr,"; Range checked for each record (index map: 0x%s)",
                 tab->keys.print(buf));
 	    buff_ptr=strend(buff_ptr);
 	  }

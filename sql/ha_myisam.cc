@@ -1023,7 +1023,8 @@ void ha_myisam::info(uint flag)
     ref_length=info.reflength;
     table->db_options_in_use    = info.options;
     block_size=myisam_block_size;
-    table->keys_in_use.set_prefix(table->keys).intersect(info.key_map);
+    table->keys_in_use.set_prefix(table->keys);
+    table->keys_in_use.intersect(info.key_map);
     table->keys_for_keyread= table->keys_in_use;
     table->keys_for_keyread.subtract(table->read_only_keys);
     table->db_record_offset=info.record_offset;

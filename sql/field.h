@@ -151,9 +151,9 @@ public:
       if (tmp->table->maybe_null)
 	tmp->flags&= ~NOT_NULL_FLAG;
       tmp->table= new_table;
-      tmp->key_start.init().clear_all();
-      tmp->part_of_key.init().clear_all();
-      tmp->part_of_sortkey.init().clear_all();
+      tmp->key_start.init(0);
+      tmp->part_of_key.init(0);
+      tmp->part_of_sortkey.init(0);
       tmp->unireg_check=Field::NONE;
       tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
 		    ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
