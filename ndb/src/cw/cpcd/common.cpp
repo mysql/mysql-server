@@ -152,7 +152,10 @@ parse_config_file(struct getargs args[], int num_arg, const Properties& p){
 	break;
       }
     }
-    if(!found)
+    if(!found) {
       printf("Unknown parameter: %s\n", name);
+      return 1;
+    }
   }
+  return 0;
 }

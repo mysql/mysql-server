@@ -136,7 +136,7 @@ void list(){
     ABORT();
   }
 
-  for(int i = 0; i<procs.size(); i++){
+  for(Uint32 i = 0; i<procs.size(); i++){
     SimpleCpcClient::Process * p = find(procs[i].m_id);
     if(p != 0){
       p->m_status = procs[i].m_status;
@@ -144,7 +144,7 @@ void list(){
   }
 }
 SimpleCpcClient::Process* find(int id){
-  for(int i = 0; i<g_procs.size(); i++){
+  for(Uint32 i = 0; i<g_procs.size(); i++){
     if(g_procs[i].m_id == id)
       return &g_procs[i];
   }

@@ -41,6 +41,7 @@
 #include "CommandInterpreter.hpp"
 #endif
 
+#undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
 
 const char progname[] = "mgmtsrvr";

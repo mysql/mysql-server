@@ -407,12 +407,12 @@ arg_match_long(struct getargs *args, size_t num_args,
     }
     case arg_string:
     {
-	*(char**)current->value = optarg + 1;
+	*(char**)current->value = (char*)optarg + 1;
 	return 0;
     }
     case arg_strings:
     {
-	add_string((getarg_strings*)current->value, optarg + 1);
+	add_string((getarg_strings*)current->value, (char*)optarg + 1);
 	return 0;
     }
     case arg_flag:

@@ -62,7 +62,6 @@ int NdbMem_MemLockAll(){
 #if defined NDB_MACOSX
   return 0;
 #else
-  //return mlockall(MCL_CURRENT | MCL_FUTURE);
   return mlockall(MCL_CURRENT);
 #endif
 }
