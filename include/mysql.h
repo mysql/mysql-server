@@ -250,7 +250,6 @@ typedef struct st_mysql
 
   LIST  *stmts;                     /* list of all statements */
   const struct st_mysql_methods *methods;
-  struct st_mysql_res *result;
   void *thd;
 } MYSQL;
 
@@ -359,6 +358,8 @@ int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 					 unsigned long length);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
+MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
+
 /* perform query on master */
 my_bool		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
 					   unsigned long length);
@@ -427,6 +428,8 @@ MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
 MYSQL_ROW	STDCALL mysql_fetch_row(MYSQL_RES *result);
 unsigned long * STDCALL mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD *	STDCALL mysql_fetch_field(MYSQL_RES *result);
+MYSQL_RES *     STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
+					  const char *wild);
 unsigned long	STDCALL mysql_escape_string(char *to,const char *from,
 					    unsigned long from_length);
 unsigned long STDCALL mysql_real_escape_string(MYSQL *mysql,
@@ -538,9 +541,7 @@ typedef struct st_mysql_stmt
 
 
 #define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
-#define mysql_store_result(mysql) (*(mysql)->methods->store_result)(mysql)
 #define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
-#define mysql_list_fields(mysql, table, wild) (*(mysql)->methods->list_fields)(mysql, table, wild)
 
 typedef struct st_mysql_methods
 {
@@ -552,12 +553,14 @@ typedef struct st_mysql_methods
 				      const char *arg,
 				      unsigned long arg_length,
 				      my_bool skip_check);
-  MYSQL_RES * (STDCALL *store_result)(MYSQL *mysql);
+  MYSQL_DATA *(STDCALL *read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+				   uint fields);
   MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
   void (STDCALL *fetch_lengths)(unsigned long *to, 
 				MYSQL_ROW column, uint field_count);
-  MYSQL_RES * (STDCALL *list_fields)(MYSQL *mysql, const char *table,
-				       const char *wild);
+  MYSQL_FIELD * (STDCALL *list_fields)(MYSQL *mysql);
+  my_bool (STDCALL *read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
+  int (STDCALL *stmt_execute)(MYSQL_STMT *stmt);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
