@@ -1987,6 +1987,18 @@ call bug5258_aux()|
 drop procedure bug5258|
 drop procedure bug5258_aux|
 
+#
+# BUG#4487: Stored procedure connection aborted if uninitialized char
+#
+create function bug4487() returns char
+begin
+  declare v char;
+  return v;
+end|
+
+select bug4487()|
+drop function bug4487|
+
 
 #
 # Some "real" examples
