@@ -172,7 +172,7 @@ struct DepricationTransform {
 
 static
 const DepricationTransform f_deprication[] = {
-  ,{ "DB", "Discless", "Diskless", 0, 1 }
+  { "DB", "Discless", "Diskless", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
