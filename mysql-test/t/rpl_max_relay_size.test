@@ -28,7 +28,7 @@ set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 stop slave;
 reset slave;
@@ -36,7 +36,7 @@ set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 18 #
 show slave status;
 stop slave;
@@ -45,7 +45,7 @@ set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 
 # Tests below are mainly to ensure that we have not coded with wrong assumptions
@@ -55,7 +55,7 @@ reset slave;
 # test of relay log rotation when the slave is stopped
 # (to make sure it does not crash).
 flush logs;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 
 reset slave;
@@ -70,7 +70,7 @@ create table t1 (a int);
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 # one more rotation, to be sure Relay_log_space is correctly updated
 flush logs;
@@ -79,7 +79,7 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 
 connection master;
