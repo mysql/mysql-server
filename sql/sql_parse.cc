@@ -1475,9 +1475,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         packet++;
         length--;
       }
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= packet;
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
@@ -1768,6 +1768,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->proc_info=0;
   thd->command=COM_SLEEP;
   thd->query=0;
+  thd->query_length=0;
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -1807,6 +1808,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     packet_length--;
   }
   /* We must allocate some extra memory for query cache */
+  thd->query_length= 0;                        // Extra safety: Avoid races
   if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 					      packet_length,
 					      thd->db_length+ 1 +

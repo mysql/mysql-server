@@ -2410,8 +2410,7 @@ row_sel_get_clust_rec_for_mysql(
 			trx_print(stderr, thr_get_trx(thr));
 
 			fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 		}
 
 		clust_rec = NULL;
@@ -3586,11 +3585,11 @@ consistent read result, or store it to the query cache. */
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
-				/* out: TRUE if storing or retrieving from
-				the query cache is permitted */
-	trx_t*	trx,		/* in: transaction object */
-	char*	norm_name)	/* in: concatenation of database name, '/'
-				char, table name */
+					/* out: TRUE if storing or retrieving
+					from the query cache is permitted */
+	trx_t*		trx,		/* in: transaction object */
+	const char*	norm_name)	/* in: concatenation of database name,
+					'/' char, table name */
 {
 	dict_table_t*	table;
 	ibool		ret 	= FALSE;

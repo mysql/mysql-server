@@ -2096,7 +2096,16 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       Item_field *item_field= (Item_field*) item;
-      if (!my_strcasecmp(system_charset_info, item_field->name, field_name))
+      /*
+	In case of group_concat() with ORDER BY condition in the QUERY
+	item_field can be field of temporary table without item name 
+	(if this field created from expression argument of group_concat()),
+	=> we have to check presence of name before compare
+      */ 
+      if (item_field->name &&
+	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
+           !my_strcasecmp(system_charset_info,
+                          item_field->field_name, field_name)))
       {
 	if (!table_name)
 	{
