@@ -361,7 +361,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
     }
     tm.day= tm.year= tm.month= 0;
 
-    param->set_time(&tm, TIMESTAMP_TIME,
+    param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                     MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
@@ -396,7 +396,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 
     tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
 
-    param->set_time(&tm, TIMESTAMP_DATETIME, 
+    param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME, 
                     MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
@@ -423,7 +423,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.second_part= 0;
     tm.neg= 0;
 
-    param->set_time(&tm, TIMESTAMP_DATE,
+    param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
                     MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
@@ -432,58 +432,25 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
 #else/*!EMBEDDED_LIBRARY*/
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
-  TIME  tm;
   MYSQL_TIME *to= (MYSQL_TIME*)*pos;
-    
-  tm.second_part= to->second_part;
-
-  tm.day=    to->day;
-  tm.hour=   to->hour;
-  tm.minute= to->minute;
-  tm.second= to->second;
-
-  tm.year= tm.month= 0;
-  tm.neg= to->neg;
-  param->set_time(&tm, TIMESTAMP_TIME,
+  param->set_time(to, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
 
 void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
-  TIME  tm;
   MYSQL_TIME *to= (MYSQL_TIME*)*pos;
 
-  tm.second_part= to->second_part;
-
-  tm.day=    to->day;
-  tm.hour=   to->hour;
-  tm.minute= to->minute;
-  tm.second= to->second;
-  tm.year=   to->year;
-  tm.month=  to->month;
-  tm.neg=    0;
-
-  param->set_time(&tm, TIMESTAMP_DATETIME, 
+  param->set_time(to, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
 void set_param_date(Item_param *param, uchar **pos, ulong len)
 {
-  TIME  tm;
   MYSQL_TIME *to= (MYSQL_TIME*)*pos;
-    
-  tm.second_part= to->second_part;
 
-  tm.day=    to->day;
-  tm.year=   to->year;
-  tm.month=  to->month;
-  tm.neg=    0;
-  tm.hour= tm.minute= tm.second= 0;
-  tm.second_part= 0;
-  tm.neg= 0;
-
-  param->set_time(&tm, TIMESTAMP_DATE, 
+  param->set_time(to, MYSQL_TIMESTAMP_DATE,
                   MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 #endif /*!EMBEDDED_LIBRARY*/
@@ -1115,22 +1082,22 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto err;
   }
 
+  thd->used_tables= 0;                        // Updated by setup_fields
+
+  // JOIN::prepare calls
+  if (unit->prepare(thd, 0, 0))
+  {
+    send_error(thd);
+    goto err_prep;
+  }
   if (lex->describe)
   {
     if (!text_protocol && send_prep_stmt(stmt, 0))
-      goto err;
+      goto err_prep;
+    unit->cleanup();
   }
   else
   {
-    thd->used_tables= 0;                        // Updated by setup_fields
-
-    // JOIN::prepare calls
-    if (unit->prepare(thd, 0, 0))
-    {
-      send_error(thd);
-      goto err_prep;
-    }
-
     if (!text_protocol)
     {
       if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
@@ -1610,7 +1577,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (byte*)name->str,
+    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (char*)name->str,
                                       name->length)))
     {
       delete stmt;
@@ -1698,6 +1665,8 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 
   for (; sl; sl= sl->next_select_in_list())
   {
+    /* remove option which was put by mysql_explain_union() */
+    sl->options&= ~SELECT_DESCRIBE;
     /*
       Copy WHERE clause pointers to avoid damaging they by optimisation
     */

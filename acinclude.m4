@@ -777,14 +777,15 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
     ---)
       for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
-/usr/local/ssl/include /usr/local/include ; do
+/usr/local/ssl/include /usr/local/include /usr/freeware/include ; do
        if test -f $d/openssl/ssl.h  ; then
          OPENSSL_INCLUDE=-I$d
        fi
       done
 
       for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
-/usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do
+/usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib \
+/usr/freeware/lib32 /usr/local/lib/ ; do
       if test -f $d/libssl.a || test -f $d/libssl.so || test -f $d/libssl.dylib ; then
         OPENSSL_LIB=$d
       fi

@@ -669,7 +669,7 @@ public:
 class sys_var_thd_date_time_format :public sys_var_thd
 {
   DATE_TIME_FORMAT *SV::*offset;
-  enum timestamp_type date_time_type;
+  timestamp_type date_time_type;
 public:
   sys_var_thd_date_time_format(const char *name_arg,
 			       DATE_TIME_FORMAT *SV::*offset_arg,

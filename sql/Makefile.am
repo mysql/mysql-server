@@ -27,6 +27,7 @@ WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
+bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -88,9 +89,14 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
-			tztime.cc examples/ha_example.cc examples/ha_archive.cc
+			tztime.cc my_time.c \
+			examples/ha_example.cc examples/ha_archive.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
+
+mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql_tztime.cc
+mysql_tzinfo_to_sql_CXXFLAGS =  -DTZINFO2SQL $(AM_CXXFLAGS)
+mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
@@ -109,9 +115,15 @@ link_sources:
 	@LN_CP_F@ ../sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ ../sql-common/client.c client.c
+	rm -f my_time.c
+	@LN_CP_F@ ../sql-common/my_time.c my_time.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
+
+mysql_tzinfo_to_sql_tztime.cc:	tztime.cc
+	rm -f $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
+	@LN_CP_F@ $(srcdir)/tztime.cc $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
 
 # Try to get better dependencies for the grammar. Othervise really bad
 # things like different grammars for different pars of MySQL can

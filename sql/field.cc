@@ -398,8 +398,8 @@ bool Field::get_date(TIME *ltime,uint fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME_with_warn(res->ptr(), res->length(), ltime, fuzzydate) <=
-      TIMESTAMP_DATETIME_ERROR)
+      str_to_datetime_with_warn(res->ptr(), res->length(),
+                                ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
     return 1;
   return 0;
 }
@@ -433,7 +433,7 @@ void Field::store_time(TIME *ltime,timestamp_type type)
 
 bool Field::optimize_range(uint idx)
 {
-  return !test(table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER);
+  return test(table->file->index_flags(idx) & HA_READ_RANGE);
 }
 
 /****************************************************************************
@@ -2918,12 +2918,12 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   bool in_dst_time_gap;
   THD *thd= table->in_use;
 
-  have_smth_to_conv= (str_to_TIME(from, len, &l_time, 0, &error) > 
-                      TIMESTAMP_DATETIME_ERROR);
+  have_smth_to_conv= (str_to_datetime(from, len, &l_time, 0, &error) >
+                      MYSQL_TIMESTAMP_ERROR);
   
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED,
-                         from, len, TIMESTAMP_DATETIME, 1);
+                         from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
   if (have_smth_to_conv)
   {
@@ -2931,7 +2931,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE,
-                           from, len, TIMESTAMP_DATETIME, !error);
+                           from, len, MYSQL_TIMESTAMP_DATETIME, !error);
       
       error= 1;
     }
@@ -2939,7 +2939,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_WARN_INVALID_TIMESTAMP, 
-                           from, len, TIMESTAMP_DATETIME, !error);
+                           from, len, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
     }
   }
@@ -2962,7 +2962,7 @@ int Field_timestamp::store(double nr)
   {
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, 
-                         nr, TIMESTAMP_DATETIME);
+                         nr, MYSQL_TIMESTAMP_DATETIME);
     nr= 0;					// Avoid overflow on buff
     error= 1;
   }
@@ -2985,7 +2985,7 @@ int Field_timestamp::store(longlong nr)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                           ER_WARN_DATA_OUT_OF_RANGE,
-                          nr, TIMESTAMP_DATETIME, 1);
+                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
       error= 1;
     }
   
@@ -2993,14 +2993,14 @@ int Field_timestamp::store(longlong nr)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_WARN_INVALID_TIMESTAMP, 
-                           nr, TIMESTAMP_DATETIME, !error);
+                           nr, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
     }
   }
   else if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_TRUNCATED,
-                         nr, TIMESTAMP_DATETIME, 1);
+                         nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -3232,14 +3232,14 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp=0L;
     error= 1;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED,
-                         from, len, TIMESTAMP_TIME, 1);
+                         from, len, MYSQL_TIMESTAMP_TIME, 1);
   }
   else
   {
     if (error)
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_TRUNCATED,
-                           from, len, TIMESTAMP_TIME, 1);
+                           from, len, MYSQL_TIMESTAMP_TIME, 1);
 
     if (ltime.month)
       ltime.day=0;
@@ -3249,7 +3249,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
       tmp=8385959;
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE,
-                           from, len, TIMESTAMP_TIME, !error);
+                           from, len, MYSQL_TIMESTAMP_TIME, !error);
       error= 1;
     }
   }
@@ -3269,14 +3269,14 @@ int Field_time::store(double nr)
   {
     tmp=8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME);
+                         ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
   else if (nr < -8385959.0)
   {
     tmp= -8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME);
+                         ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
   else
@@ -3288,7 +3288,8 @@ int Field_time::store(double nr)
     {
       tmp=0;
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                           ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME);
+                           ER_WARN_DATA_OUT_OF_RANGE, nr,
+                           MYSQL_TIMESTAMP_TIME);
       error= 1;
     }
   }
@@ -3305,14 +3306,16 @@ int Field_time::store(longlong nr)
   {
     tmp=8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME, 1);
+                         ER_WARN_DATA_OUT_OF_RANGE, nr,
+                         MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
   else if (nr < (longlong) -8385959L)
   {
     tmp= -8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME, 1);
+                         ER_WARN_DATA_OUT_OF_RANGE, nr,
+                         MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
   else
@@ -3322,7 +3325,8 @@ int Field_time::store(longlong nr)
     {
       tmp=0;
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                           ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_TIME, 1);
+                           ER_WARN_DATA_OUT_OF_RANGE, nr,
+                           MYSQL_TIMESTAMP_TIME, 1);
       error= 1;
     }
   }
@@ -3417,7 +3421,7 @@ bool Field_time::get_time(TIME *ltime)
   ltime->minute= (int) tmp/100;
   ltime->second= (int) tmp % 100;
   ltime->second_part=0;
-  ltime->time_type= TIMESTAMP_TIME;
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return 0;
 }
 
@@ -3566,8 +3570,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   uint32 tmp;
   int error;
   
-  if (str_to_TIME(from, len, &l_time, 1, &error) <= 
-      TIMESTAMP_DATETIME_ERROR)
+  if (str_to_datetime(from, len, &l_time, 1, &error) <= MYSQL_TIMESTAMP_ERROR)
   {
     tmp=0;
     error= 1;
@@ -3577,7 +3580,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED,
-                         from, len, TIMESTAMP_DATE, 1);
+                         from, len, MYSQL_TIMESTAMP_DATE, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -3602,7 +3605,7 @@ int Field_date::store(double nr)
     tmp=0L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, 
-                         nr, TIMESTAMP_DATE);
+                         nr, MYSQL_TIMESTAMP_DATE);
     error= 1;
   }
   else
@@ -3630,7 +3633,7 @@ int Field_date::store(longlong nr)
     tmp=0L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
-                         nr, TIMESTAMP_DATE, 0);
+                         nr, MYSQL_TIMESTAMP_DATE, 0);
     error= 1;
   }
   else
@@ -3758,8 +3761,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   TIME l_time;
   long tmp;
   int error;
-  if (str_to_TIME(from, len, &l_time, 1, &error) <= 
-      TIMESTAMP_DATETIME_ERROR)
+  if (str_to_datetime(from, len, &l_time, 1, &error) <= MYSQL_TIMESTAMP_ERROR)
   {
     tmp=0L;
     error= 1;
@@ -3769,7 +3771,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED,
-                         from, len, TIMESTAMP_DATE, 1);
+                         from, len, MYSQL_TIMESTAMP_DATE, 1);
     
   int3store(ptr,tmp);
   return error;
@@ -3781,7 +3783,7 @@ int Field_newdate::store(double nr)
   {
     (void) Field_newdate::store((longlong) -1);
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_TRUNCATED, nr, TIMESTAMP_DATE);
+                         ER_WARN_DATA_TRUNCATED, nr, MYSQL_TIMESTAMP_DATE);
     return 1;
   }
   else
@@ -3799,7 +3801,8 @@ int Field_newdate::store(longlong nr)
   {
     tmp=0;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_DATE, 1);
+                         ER_WARN_DATA_OUT_OF_RANGE, nr,
+                         MYSQL_TIMESTAMP_DATE, 1);
     error= 1;
   }
   else
@@ -3818,7 +3821,8 @@ int Field_newdate::store(longlong nr)
     {
       tmp=0L;					// Don't allow date to change
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                           ER_WARN_DATA_OUT_OF_RANGE, nr, TIMESTAMP_DATE, 1);
+                           ER_WARN_DATA_OUT_OF_RANGE, nr,
+                           MYSQL_TIMESTAMP_DATE, 1);
       error= 1;
     }
     else
@@ -3831,7 +3835,7 @@ int Field_newdate::store(longlong nr)
 void Field_newdate::store_time(TIME *ltime,timestamp_type type)
 {
   long tmp;
-  if (type == TIMESTAMP_DATE || type == TIMESTAMP_DATETIME)
+  if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=ltime->year*16*32+ltime->month*32+ltime->day;
   else
   {
@@ -3895,7 +3899,7 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
-  ltime->time_type=TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= ltime->neg= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
@@ -3939,14 +3943,13 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   ulonglong tmp= 0;
   
-  if (str_to_TIME(from, len, &time_tmp, 1, &error) > 
-      TIMESTAMP_DATETIME_ERROR)
+  if (str_to_datetime(from, len, &time_tmp, 1, &error) > MYSQL_TIMESTAMP_ERROR)
     tmp= TIME_to_ulonglong_datetime(&time_tmp);
   
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
-                         from, len, TIMESTAMP_DATETIME, 1);
+                         from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -3967,7 +3970,7 @@ int Field_datetime::store(double nr)
   {
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
-                         nr, TIMESTAMP_DATETIME);
+                         nr, MYSQL_TIMESTAMP_DATETIME);
     nr=0.0;
     error= 1;
   }
@@ -3987,7 +3990,7 @@ int Field_datetime::store(longlong nr)
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_TRUNCATED, initial_nr, 
-                         TIMESTAMP_DATETIME, 1);
+                         MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -4004,7 +4007,7 @@ int Field_datetime::store(longlong nr)
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
   longlong tmp;
-  if (type == TIMESTAMP_DATE || type == TIMESTAMP_DATETIME)
+  if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));
   else
@@ -4103,7 +4106,7 @@ bool Field_datetime::get_date(TIME *ltime, uint fuzzydate)
   part1=(uint32) (tmp/LL(1000000));
   part2=(uint32) (tmp - (ulonglong) part1*LL(1000000));
 
-  ltime->time_type=	TIMESTAMP_DATETIME;
+  ltime->time_type=	MYSQL_TIMESTAMP_DATETIME;
   ltime->neg=		0;
   ltime->second_part=	0;
   ltime->second=	(int) (part2%100);
@@ -4681,6 +4684,42 @@ uint32 Field_blob::get_length(const char *pos)
 }
 
 
+/*
+  Put a blob length field into a record buffer.
+
+  SYNOPSIS
+    Field_blob::put_length()
+    pos                         Pointer into the record buffer.
+    length                      The length value to put.
+
+  DESCRIPTION
+    Depending on the maximum length of a blob, its length field is
+    put into 1 to 4 bytes. This is a property of the blob object,
+    described by 'packlength'.
+
+  RETURN
+    nothing
+*/
+
+void Field_blob::put_length(char *pos, uint32 length)
+{
+  switch (packlength) {
+  case 1:
+    *pos= (char) length;
+    break;
+  case 2:
+    int2store(pos, length);
+    break;
+  case 3:
+    int3store(pos, length);
+    break;
+  case 4:
+    int4store(pos, length);
+    break;
+  }
+}
+
+
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   if (!length)
@@ -5053,6 +5092,50 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
   }
   ptr=save;					// Restore org row pointer
   return to+length;
+}
+
+
+/*
+  Unpack a blob key into a record buffer.
+
+  SYNOPSIS
+    Field_blob::unpack_key()
+    to                          Pointer into the record buffer.
+    from                        Pointer to the packed key.
+    max_length                  Key length limit from key description.
+
+  DESCRIPTION
+    A blob key has a maximum size of 64K-1.
+    In its packed form, the length field is one or two bytes long,
+    depending on 'max_length'.
+    Depending on the maximum length of a blob, its length field is
+    put into 1 to 4 bytes. This is a property of the blob object,
+    described by 'packlength'.
+    Blobs are internally stored apart from the record buffer, which
+    contains a pointer to the blob buffer.
+
+  RETURN
+    Pointer into 'from' past the last byte copied from packed key.
+*/
+
+const char *Field_blob::unpack_key(char *to, const char *from, uint max_length)
+{
+  /* get length of the blob key */
+  uint32 length= *((uchar*) from++);
+  if (max_length > 255)
+    length+= (*((uchar*) from++)) << 8;
+
+  /* put the length into the record buffer */
+  put_length(to, length);
+
+  /* put the address of the blob buffer or NULL */
+  if (length)
+    memcpy_fixed(to + packlength, &from, sizeof(from));
+  else
+    bzero(to + packlength, sizeof(from));
+
+  /* point to first byte of next field in 'from' */
+  return from + length;
 }
 
 /* Create a packed key that will be used for storage from a MySQL key */

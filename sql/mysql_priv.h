@@ -18,6 +18,7 @@
 #include <mysql_version.h>
 #include <mysql_embed.h>
 #include <my_sys.h>
+#include <my_time.h>
 #include <m_string.h>
 #include <hash.h>
 #include <signal.h>
@@ -38,14 +39,6 @@ typedef ulong key_part_map;           /* Used for finding key parts */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
 extern const char *primary_key_name;
-
-/* 
-  Portable time_t replacement. 
-  Should be signed and hold seconds for 1902-2038 range.
-*/
-typedef long my_time_t;
-#define MY_TIME_T_MAX LONG_MAX
-#define MY_TIME_T_MIN LONG_MIN
 
 #include "mysql_com.h"
 #include <violite.h>
@@ -670,8 +663,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
+int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 
@@ -869,7 +863,7 @@ extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
-extern my_bool relay_log_purge;
+extern my_bool relay_log_purge, opt_innodb_safe_binlog;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
@@ -886,6 +880,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
+extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 extern char *default_tz_name;
@@ -1001,12 +996,9 @@ void get_date_from_daynr(long daynr,uint *year, uint *month,
 void init_time(void);
 my_time_t my_system_gmt_sec(const TIME *, long *current_timezone, bool *not_exist);
 my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
-bool str_to_time(const char *str,uint length,TIME *l_time, int *was_cut);
 bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
-timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   uint flags, int *was_cut);
-timestamp_type str_to_TIME_with_warn(const char *str, uint length, 
-                                     TIME *l_time, uint flags);
+timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+                                         TIME *l_time, uint flags);
 longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date,
                         int *was_cut);
 void localtime_to_TIME(TIME *to, struct tm *from);
