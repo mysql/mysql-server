@@ -997,6 +997,7 @@ merge_insert_types:
 
 opt_select_from:
 	opt_limit_clause {}
+	| FROM DUAL_SYM {}
 	| select_from select_lock_type;
 
 udf_func_type:
