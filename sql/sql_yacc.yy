@@ -70,6 +70,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   enum Item_udftype udf_type;
   CHARSET_INFO *charset;
   interval_type interval;
+  st_select_lex *select_lex;
 }
 
 %{
@@ -528,7 +529,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text  UNDERSCORE_CHARSET
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text 
+        UNDERSCORE_CHARSET
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -609,6 +611,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_db_default_character_set
 
 %type <variable> internal_variable_name
+
+%type <select_lex> in_subselect in_subselect_init
 
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
@@ -1706,10 +1710,16 @@ expr:	expr_expr	{ $$= $1; }
 
 /* expressions that begin with 'expr' */
 expr_expr:
-	expr IN_SYM '(' expr_list ')'
+	  expr IN_SYM '(' expr_list ')'
 	  { $$= new Item_func_in($1,*$4); }
 	| expr NOT IN_SYM '(' expr_list ')'
 	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+        | expr IN_SYM in_subselect
+          { $$= new Item_in_subselect(current_thd, $1, $3); }
+	| expr NOT IN_SYM in_subselect
+          { 
+            $$= new Item_func_not(new Item_in_subselect(current_thd, $1, $4));
+          }
 	| expr BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_between($1,$3,$5); }
 	| expr NOT BETWEEN_SYM no_and_expr AND expr
@@ -1789,10 +1799,16 @@ no_in_expr:
 
 /* expressions that begin with 'expr' that does NOT follow AND */
 no_and_expr:
-	no_and_expr IN_SYM '(' expr_list ')'
-	{ $$= new Item_func_in($1,*$4); }
+	  no_and_expr IN_SYM '(' expr_list ')'
+	  { $$= new Item_func_in($1,*$4); }
 	| no_and_expr NOT IN_SYM '(' expr_list ')'
 	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+        | no_and_expr IN_SYM in_subselect
+          { $$= new Item_in_subselect(current_thd, $1, $3); }
+	| no_and_expr NOT IN_SYM in_subselect
+          { 
+            $$= new Item_func_not(new Item_in_subselect(current_thd, $1, $4));
+          }
 	| no_and_expr BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_between($1,$3,$5); }
 	| no_and_expr NOT BETWEEN_SYM no_and_expr AND expr
@@ -4179,6 +4195,19 @@ exists_subselect_init:
 	  $$= new Item_exists_subselect(current_thd,
 					Lex->select->master_unit()->first_select());
 	};
+
+in_subselect:
+  subselect_start in_subselect_init
+  subselect_end
+  {
+    $$= $2;
+  };
+
+in_subselect_init:
+  select_init
+  {
+    $$= Lex->select->master_unit()->first_select();
+  };
 
 subselect_start:
 	'('
