@@ -410,3 +410,5 @@ libmysqld/examples/mysqltest.c
 libmysqld/examples/readline.cc
 libmysqld/examples/sql_string.cc
 libmysqld/examples/sql_string.h
+libmysqld/examples/mysql
+libmysqld/examples/mysqltest

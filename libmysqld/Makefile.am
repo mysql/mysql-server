@@ -32,7 +32,7 @@ INCLUDES = @MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include -I../include \
 ## XXX: should we use client or server LDFLAGS for libmysqld?
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmysqld.la
 pkglib_LTLIBRARIES =	libmysqld.la
-SUBDIRS =		examples
+SUBDIRS =		. examples
 libmysqld_la_SOURCES=	libmysqld.c lib_sql.cc lib_load.cc
 
 libmysqlsources =	errmsg.c get_password.c password.c
