@@ -433,10 +433,6 @@ class ha_ndbcluster: public handler
   NdbIndexScanOperation *m_multi_cursor;
   byte *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
-  
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 };
 
 bool ndbcluster_init(void);

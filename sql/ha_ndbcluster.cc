@@ -5815,8 +5815,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       String *str= value->getStringValue();
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", field->getFieldNo(), str->ptr(), str->length()));
-      filter->like(field->getFieldNo(),
-		   str->ptr(), str->length(), TRUE);
+      //filter->like(field->getFieldNo(),
+      //		   str->ptr(), str->length(), TRUE);
       DBUG_RETURN(cond->next->next->next);
     }
     case(Item_func::NOTLIKE_FUNC): {
@@ -5835,8 +5835,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       String *str= value->getStringValue();
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", field->getFieldNo(), str->ptr(), str->length()));
-      filter->notlike(field->getFieldNo(),
-		      str->ptr(), str->length());
+      //filter->notlike(field->getFieldNo(),
+      //		      str->ptr(), str->length());
       DBUG_RETURN(cond->next->next->next);
     }
     case(Item_func::ISNULL_FUNC):
