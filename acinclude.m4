@@ -6,7 +6,6 @@ AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -27,7 +26,6 @@ AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -49,7 +47,6 @@ AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -667,6 +664,41 @@ AC_DEFINE(STRUCT_DIRENT_HAS_D_INO, [1],
           [d_ino member present in struct dirent])
 fi
 ])
+
+AC_DEFUN(MYSQL_STRUCT_DIRENT_D_NAMLEN,
+[AC_REQUIRE([AC_HEADER_DIRENT])
+AC_MSG_CHECKING(if struct dirent has a d_namlen member)
+AC_CACHE_VAL(mysql_cv_dirent_has_dnamlen,
+[AC_TRY_COMPILE([
+#include <stdio.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#if defined(HAVE_DIRENT_H)
+# include <dirent.h>
+#else
+# define dirent direct
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif /* SYSNDIR */
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif /* SYSDIR */
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
+#endif /* HAVE_DIRENT_H */
+],[
+struct dirent d; int z; z = (int)d.d_namlen;
+], mysql_cv_dirent_has_dnamlen=yes, mysql_cv_dirent_has_dnamlen=no)])
+AC_MSG_RESULT($mysql_cv_dirent_has_dnamlen)
+if test "$mysql_cv_dirent_has_dnamlen" = "yes"; then
+AC_DEFINE(STRUCT_DIRENT_HAS_D_NAMLEN, [1],
+          [d_namlen member present in struct dirent])
+fi
+])
+
 
 AC_DEFUN(MYSQL_TYPE_SIGHANDLER,
 [AC_MSG_CHECKING([whether signal handlers are of type void])

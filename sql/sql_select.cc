@@ -199,16 +199,10 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     res= 1;
   if (res)
   {
-    if (result)
-    {
-      result->send_error(0, NullS);
-      result->abort();
-    }
-    else
-      send_error(thd, 0, NullS);
+    result->send_error(0, NullS);
+    result->abort();
     res= 1;					// Error sent to client
   }
-  delete result;
   DBUG_RETURN(res);
 }
 
@@ -839,7 +833,8 @@ JOIN::optimize()
       ((group_list && const_tables != tables &&
 	(!simple_group ||
 	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  unit->select_limit_cnt, 0))) || select_distinct) &&
+				  unit->select_limit_cnt, 0))) ||
+       select_distinct) &&
       tmp_table_param.quick_group && !procedure)
   {
     need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
@@ -2169,22 +2164,32 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	number. cmp_type() is checked to allow compare of dates to numbers.
         eq_func is NEVER true when num_values > 1
        */
-      if (!eq_func ||
-	  field->result_type() == STRING_RESULT &&
-	  (*value)->result_type() != STRING_RESULT &&
-	  field->cmp_type() != (*value)->result_type())
-	return;
+      if (!eq_func)
+        return;
+      if (field->result_type() == STRING_RESULT)
+      {
+        if ((*value)->result_type() != STRING_RESULT)
+        {
+          if (field->cmp_type() != (*value)->result_type())
+            return;
+        }
+        else
+        {
+          /*
+            We can't use indexes if the effective collation
+            of the operation differ from the field collation.
 
-      /*
-        We can't use indexes if the effective collation
-        of the operation differ from the field collation.
-      */
-      if (field->result_type() == STRING_RESULT &&
-	  (*value)->result_type() == STRING_RESULT &&
-	  field->cmp_type() == STRING_RESULT &&
-	  ((Field_str*)field)->charset() != cond->compare_collation())
-	return;
-
+            We can also not used index on a text column, as the column may
+            contain 'x' 'x\t' 'x ' and 'read_next_same' will stop after
+            'x' when searching for WHERE col='x '
+          */
+          if (field->cmp_type() == STRING_RESULT &&
+              (((Field_str*)field)->charset() != cond->compare_collation() ||
+               ((*value)->type() != Item::NULL_ITEM &&
+                (field->flags & BLOB_FLAG) && !field->binary())))
+            return;
+        }
+      }
     }
   }
   DBUG_ASSERT(num_values == 1);
@@ -4334,60 +4339,6 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 }
 
 
-/*
-  Eliminate NOT functions from the condition tree.
-
-  SYNPOSIS
-    eliminate_not_funcs()
-    thd		thread handler
-    cond	condition tree
-
-  DESCRIPTION
-    Eliminate NOT functions from the condition tree where it's possible.
-    Recursively traverse condition tree to find all NOT functions.
-    Call neg_transformer() method for negated arguments.
-
-  NOTE
-    If neg_transformer() returned a new condition we call fix_fields().
-    We don't delete any items as it's not needed. They will be deleted 
-    later at once.
-
-  RETURN
-    New condition tree
-*/
-
-COND *eliminate_not_funcs(THD *thd, COND *cond)
-{
-  if (!cond)
-    return cond;
-  if (cond->type() == Item::COND_ITEM)		/* OR or AND */
-  {
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-    Item *item;
-    while ((item= li++))
-    {
-      Item *new_item= eliminate_not_funcs(thd, item);
-      if (item != new_item)
-	VOID(li.replace(new_item));	/* replace item with a new condition */
-    }
-  }
-  else if (cond->type() == Item::FUNC_ITEM &&	/* 'NOT' operation? */
-	   ((Item_func*) cond)->functype() == Item_func::NOT_FUNC)
-  {
-    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer(thd);
-    if (new_cond)
-    {
-      /*
-        Here we can delete the NOT function. Something like: delete cond;
-        But we don't need to do it. All items will be deleted later at once.
-      */
-      cond= new_cond;
-    }
-  }
-  return cond;
-}
-
-
 static COND *
 optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
 {
@@ -4396,19 +4347,6 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
   if (conds)
   {
     DBUG_EXECUTE("where", print_where(conds, "original"););
-    /* Eliminate NOT operators; in case of PS/SP do it once */
-    if (thd->current_arena->is_first_stmt_execute())
-    {
-      Item_arena *arena= thd->current_arena, backup;
-      thd->set_n_backup_item_arena(arena, &backup);
-      conds= eliminate_not_funcs(thd, conds);
-      select->prep_where= conds->copy_andor_structure(thd);
-      thd->restore_backup_item_arena(arena, &backup);
-    }
-    else
-      conds= eliminate_not_funcs(thd, conds);
-    DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
-
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants((I_List<COND_CMP> *) 0, conds, conds);
     /*
@@ -5570,9 +5508,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   table->file->info(HA_STATUS_VARIABLE); /* update table->file->records */
   new_table.file->start_bulk_insert(table->file->records);
 #else
-  /*
-    HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it explicitly.
-  */
+  /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
   new_table.file->extra(HA_EXTRA_WRITE_CACHE);
 #endif
 
@@ -7240,9 +7176,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       keys.merge(table->used_keys);
 
       /*
-	We are adding here also the index speified in FORCE INDEX clause, 
+	We are adding here also the index specified in FORCE INDEX clause, 
 	if any.
-      This is to allow users to use index in ORDER BY.
+        This is to allow users to use index in ORDER BY.
       */
       if (table->force_index) 
 	keys.merge(table->keys_in_use_for_query);

@@ -54,4 +54,12 @@ t1	CREATE TABLE `t1` (
   `a` char(10) collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 DROP TABLE t1;
+create table t1 (a char) character set latin1 character set latin2;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET latin2'
+create table t1 (a char) character set latin1 collate latin2_bin;
+ERROR 42000: COLLATION 'latin2_bin' is not valid for CHARACTER SET 'latin1'
+create database d1 default character set latin1 character set latin2;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET latin2'
+create database d1 default character set latin1 collate latin2_bin;
+ERROR 42000: COLLATION 'latin2_bin' is not valid for CHARACTER SET 'latin1'
 DROP DATABASE mysqltest1;

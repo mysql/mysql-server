@@ -297,7 +297,8 @@ enum enum_parsing_place
 {
   NO_MATTER,
   IN_HAVING,
-  SELECT_LIST
+  SELECT_LIST,
+  IN_WHERE
 };
 
 struct st_table;
@@ -376,6 +377,7 @@ int delete_precheck(THD *thd, TABLE_LIST *tables);
 int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
+Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -576,7 +578,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
-int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
+int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
@@ -782,8 +784,14 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 
 bool init_errmessage(void);
 void sql_perror(const char *message);
-void sql_print_error(const char *format,...)
-	        __attribute__ ((format (printf, 1, 2)));
+
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+void sql_print_error(const char *format, ...);
+void sql_print_warning(const char *format, ...);
+void sql_print_information(const char *format, ...);
+
+
+
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
 bool open_log(MYSQL_LOG *log, const char *hostname,

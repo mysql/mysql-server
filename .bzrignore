@@ -14,6 +14,7 @@
 */.pure
 *~
 .*.swp
+./config.h
 .defs.mk
 .depend
 .depend.mk
@@ -258,7 +259,7 @@ cmd-line-utils/libedit/common.h
 cmd-line-utils/libedit/makelist
 comon.h
 config.cache
-./config.h
+config.h
 config.h.in
 config.log
 config.status
@@ -830,6 +831,7 @@ support-files/MacOSX/postinstall
 support-files/MacOSX/preinstall
 support-files/binary-configure
 support-files/my-huge.cnf
+support-files/my-innodb-heavy-4G.cnf
 support-files/my-large.cnf
 support-files/my-medium.cnf
 support-files/my-small.cnf
