@@ -69,7 +69,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
     my_close()
       fd	File sescriptor
       myf	Special Flags
-      
+
 */
 
 int my_close(File fd, myf MyFlags)
@@ -79,7 +79,12 @@ int my_close(File fd, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
 
   pthread_mutex_lock(&THR_LOCK_open);
-  if ((err = close(fd)))
+  do
+  {
+    err= close(fd);
+  } while (err == -1 && errno == EINTR);
+
+  if (err)
   {
     DBUG_PRINT("error",("Got error %d on close",err));
     my_errno=errno;
