@@ -13,7 +13,7 @@
 use Getopt::Long;
 Getopt::Long::Configure ("bundling");
 
-# Include logging function
+# Include helper functions
 $LOGGER= "$ENV{HOME}/bin/logger.pm";
 if (-f $LOGGER)
 {
@@ -26,8 +26,8 @@ else
 
 # Some predefined settings
 $build_command= "BUILD/compile-pentium-max";
-chomp ($logfile= `pwd`);
-$logfile.= "/Bootstrap.log";
+chomp ($LOGFILE= `pwd`);
+$LOGFILE.= "/Bootstrap.log";
 chomp ($opt_directory= `pwd`);
 $opt_docdir= $opt_directory . "/mysqldoc";
 $opt_changelog= undef;
@@ -71,12 +71,12 @@ if (defined $opt_log)
 	{
 		if ($opt_log =~ /^\/.*/)
 		{
-			$logfile= $opt_log;
+			$LOGFILE= $opt_log;
 		}
 		else
 		{
-			chomp ($logfile= `pwd`);
-			$logfile.= "/" . $opt_log;
+			chomp ($LOGFILE= `pwd`);
+			$LOGFILE.= "/" . $opt_log;
 		}
 	}
 }
@@ -95,7 +95,7 @@ if (($opt_directory ne ".") && (!-d $opt_directory && !$opt_dry_run))
 	&abort("Could not find target directory \"$opt_directory\"!");
 }
 
-&logger("Logging to $logfile") if (defined $opt_log);
+&logger("Logging to $LOGFILE") if (defined $opt_log);
 
 #
 # Use a temporary name until we know the version number
@@ -306,61 +306,6 @@ if (!$opt_skip_check)
 &logger("SUCCESS: Build finished successfully.") if (!$opt_dry_run);
 exit 0;
 
-# Helper functions
-
-#
-# run_command(<command>,<error message>)
-# Execute the given command or die with the respective error message
-# Just print out the command when doing a dry run
-#
-sub run_command
-{
-	my $command= $_[0];
-	my $errormsg= $_[1];
-	if ($opt_dry_run)
-	{
-		print "$command\n";
-	}
-	else
-	{
-		&logger($command);
-		$command.= " >> $logfile 2>&1" if defined $opt_log;
-		$command.= " > /dev/null" if (!$opt_verbose && !$opt_log);
-		system($command) == 0 or &abort("$errormsg\n");
-	}
-}
-
-#
-# abort(<message>)
-# Exit with giving out the given error message or by sending
-# it via email to the given mail address (including a log file snippet,
-# if available)
-#
-sub abort
-{
-	my $message= $_[0];
-	my $messagefile;
-	$message= "ERROR: " . $message;
-	&logger($message);
-
-	if ($opt_mail && !$opt_dry_run)
-	{
-		$messagefile= "/tmp/message.$$";
-		$subject= "Bootstrap of $REPO failed";
-		open(TMP,">$messagefile");
-		print TMP "$message\n\n";
-		close TMP;
-		if (defined $opt_log)
-		{
-			system("tail -n 40 $logfile >> $messagefile");
-		}
-		system("mail -s \"$subject\" $opt_mail < $messagefile");
-		unlink($messagefile);
-	}
-
-	exit 1;
-}
-
 #
 # Print the help text message (with an optional message on top)
 #
@@ -400,7 +345,7 @@ Options:
                          do not build or test the source distribution
 -h, --help               Print this help message
 -l, --log[=<filename>]   Write a log file [to <filename>]
-                         (default is "$logfile")
+                         (default is "$LOGFILE")
 -m, --mail=<address>     Mail a failure report to the given address (and
                          include a log file snippet, if logging is enabled)
                          Note that the \@-Sign needs to be quoted!

@@ -1,3 +1,5 @@
+# Helper functions
+
 #
 # Create a log entry
 #
@@ -7,10 +9,63 @@ sub logger
 	print timestamp() . " " . $message . "\n" if $opt_verbose;
 	if (defined $opt_log && !$opt_dry_run)
 	{
-		open LOG, ">>$logfile" or die "Can't open logfile $logfile!";
+		open LOG, ">>$LOGFILE" or die "Can't open logfile $LOGFILE!";
 		print LOG timestamp() . " " . $message . "\n";
 		close LOG;
 	}
+}
+
+#
+# run_command(<command>,<error message>)
+# Execute the given command or die with the respective error message
+# Just print out the command when doing a dry run
+#
+sub run_command
+{
+	my $command= $_[0];
+	my $errormsg= $_[1];
+	if ($opt_dry_run)
+	{
+		print "$command\n";
+	}
+	else
+	{
+		&logger($command);
+		$command.= " >> $LOGFILE 2>&1" if defined $opt_log;
+		$command.= " > /dev/null" if (!$opt_verbose && !$opt_log);
+		system($command) == 0 or &abort("$errormsg\n");
+	}
+}
+
+#
+# abort(<message>)
+# Exit with giving out the given error message or by sending
+# it via email to the given mail address (including a log file snippet,
+# if available)
+#
+sub abort
+{
+	my $message= $_[0];
+	my $messagefile;
+	$message= "ERROR: " . $message;
+	&logger($message);
+
+	if ($opt_mail && !$opt_dry_run)
+	{
+		$messagefile= "/tmp/message.$$";
+		$subject= "Bootstrap of $REPO failed";
+		open(TMP,">$messagefile");
+		print TMP "$message\n\n";
+		close TMP;
+		if (defined $opt_log)
+		{
+			system("tail -n 40 $LOGFILE >> $messagefile");
+		}
+		system("mail -s \"$subject\" $opt_mail < $messagefile");
+		unlink($messagefile);
+	}
+
+	exit 1;
 }
 
 # Create a time stamp for logging purposes
