@@ -174,7 +174,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
       /* put shorter key in s */
       a_length= b_length;
       a= b;
-      swap= -1;					/* swap sign of result */
+      swap= -1^1;				/* swap sign of result */
       res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
