@@ -905,7 +905,7 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 
   String* packet = &thd->packet;
   packet->length(0);
-  net_store_data(packet, table->name);
+  net_store_data(packet, table->alias);
   net_store_data(packet, (char*)operator_name);
   net_store_data(packet, "error");
   net_store_data(packet, errmsg);
@@ -993,7 +993,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
     char from[FN_REFLEN],tmp[FN_REFLEN];
     char* db = thd->db ? thd->db : table->db;
 
-    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->name);
+    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->real_name);
     fn_format(from, from, "", MI_NAME_DEXT, 4);
     sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
 
@@ -1077,7 +1077,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     char table_name[NAME_LEN*2+2];
     char* db = (table->db) ? table->db : thd->db;
     bool fatal_error=0;
-    strxmov(table_name,db ? db : "",".",table->name,NullS);
+    strxmov(table_name,db ? db : "",".",table->real_name,NullS);
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
@@ -1985,7 +1985,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                                          MYF(MY_FAE | MY_ZEROFILL));
     bzero((char*) &tables,sizeof(tables));
     tables.table = from;
-    tables.name  = tables.real_name= from->real_name;
+    tables.alias = tables.real_name= from->real_name;
     tables.db	 = from->table_cache_key;
     error=1;
 
