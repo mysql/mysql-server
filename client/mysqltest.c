@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.10"
+#define MTEST_VERSION "1.11"
 
 #include <global.h>
 #include <my_sys.h>
@@ -573,7 +573,7 @@ int open_file(const char* name)
 {
   if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*(cur_file+1) = my_fopen(name, O_RDONLY, MYF(MY_WME))))
+  if (!(*(cur_file+1) = my_fopen(name, O_RDONLY | O_BINARY, MYF(MY_WME))))
     die(NullS);
   cur_file++;
   *++lineno=1;
@@ -1589,7 +1589,7 @@ int parse_args(int argc, char **argv)
 	result_file = optarg;
 	break;
       case 'x':
-      if (!(*cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
+      if (!(*cur_file = my_fopen(optarg, O_RDONLY | O_BINARY, MYF(MY_WME))))
 	  die("Could not open %s: errno = %d", optarg, errno);
 	break;
       case 'p':
