@@ -2,7 +2,7 @@
 # Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 # This file is public domain and comes with NO WARRANTY of any kind
 
-# Mysql daemon start/stop script.
+# MySQL daemon start/stop script.
 
 # Usually this is put in /etc/init.d (at least on machines SYSV R4 based
 # systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/K01mysql.
@@ -20,21 +20,31 @@
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  3 5
 # Default-Stop: 3 5
-# Short-Description: start and stop MySLQ
+# Short-Description: start and stop MySQL
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
  
+# If you install MySQL on some other places than @prefix@, then you
+# have to do one of the following things for this script to work:
+#
+# - Run this script from within the MySQL installation directory
+# - Create a /etc/my.cnf file with the following information:
+#   [mysqld]
+#   basedir=<path-to-mysql-installation-directory>
+# - Add the above to any other configuration file (for example ~/.my.ini)
+#   and copy my_print_defaults to /usr/bin
+# - Add the path to the mysql-installation-directory to the basedir variable
+#   below.
+#
+# If you want to affect other MySQL variables, you should make your changes
+# in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
+
+basedir=
 
 # The following variables are only set for letting mysql.server find things.
-# If you want to affect other MySQL variables, you should make your changes
-# in the /etc/my.cnf or other configuration files.
-
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
-export PATH
 
 # Set some defaults
 datadir=@localstatedir@
-basedir=
 pid_file=
 if test -z "$basedir"
 then
@@ -43,6 +53,10 @@ then
 else
   bindir="$basedir/bin"
 fi
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
+export PATH
+
 if test -z "$pid_file"
 then
   pid_file=$datadir/`@HOSTNAME@`.pid
@@ -65,7 +79,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
+# Get arguments from the my.cnf file, groups [mysqld] and [mysql.server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -103,7 +117,7 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-parse_arguments `$print_defaults $defaults mysqld mysql_server`
+parse_arguments `$print_defaults $defaults mysqld mysql.server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -123,14 +137,14 @@ case "$mode" in
         touch /var/lock/subsys/mysql
       fi
     else
-      echo "Can't execute $bindir/safe_mysqld"
+      echo "Can't execute $bindir/safe_mysqld from dir $basedir"
     fi
     ;;
 
   'stop')
     # Stop daemon. We use a signal here to avoid having to know the
     # root password.
-    if test -f "$pid_file"
+    if test -s "$pid_file"
     then
       mysqld_pid=`cat $pid_file`
       echo "Killing mysqld with pid $mysqld_pid"
@@ -140,7 +154,7 @@ case "$mode" in
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
       do
-        [ -z "$flags" ] && echo "Wait for mysqld to exit\c" || echo ".\c"
+        [ -z "$flags" ] && echo -n "Wait for mysqld to exit" || echo -n "."
         flags=a$flags
         sleep 1
       done
