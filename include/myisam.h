@@ -353,6 +353,7 @@ typedef struct st_mi_sortinfo {
 
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);
+int chk_status(MI_CHECK *param, MI_INFO *info);
 int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag);
 int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);

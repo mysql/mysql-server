@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.37 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.38 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -739,12 +739,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	printf("Data records: %7s   Deleted blocks: %7s\n",
 	       llstr(info->state->records,llbuff),
 	       llstr(info->state->del,llbuff2));
-      if (share->state.open_count)
-      {
-	mi_check_print_warning(param,
-			       "%d clients is using or hasn't closed the table properly",
-			       share->state.open_count);
-      }
+      error =chk_status(param,info);
       share->state.key_map &=param->keys_in_use;
       error =chk_size(param,info);
       if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))

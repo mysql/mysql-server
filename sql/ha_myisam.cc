@@ -259,6 +259,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 				      (uint) (share->global_changed ? 1 : 0)))))
     return HA_ADMIN_ALREADY_DONE;
 
+  error = chk_status(&param, file);		// Not fatal
   error = chk_size(&param, file);
   if (!error)
     error |= chk_del(&param, file, param.testflag);
@@ -266,8 +267,10 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     error = chk_key(&param, file);
   if (!error)
   {
-    if (!check_opt->quick &&
-	(share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
+    if ((!check_opt->quick &&
+	(share->options &
+	 (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))) ||
+	mi_is_crashed(file))
     {
       init_io_cache(&param.read_cache, file->dfile,
 		    my_default_record_cache_size, READ_CACHE,
@@ -281,7 +284,8 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     if ((share->state.changed & (STATE_CHANGED |
 				 STATE_CRASHED_ON_REPAIR |
 				 STATE_CRASHED | STATE_NOT_ANALYZED)) ||
-	(param.testflag & T_STATISTICS))
+	(param.testflag & T_STATISTICS) ||
+	mi_is_crashed(file))
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);

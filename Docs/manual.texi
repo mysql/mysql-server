@@ -8262,6 +8262,12 @@ following information:
 @example
 127.0.0.1       localhost
 @end example
+
+@item @code{ALTER TABLE}
+While you are doing an @code{ALTER TABLE} the table is locked from usage
+by other threads. This has to do with the fact that you on Windows can't
+delete a file that is in use by another threads. (We may in the future
+find some way to go around this problem).
 @end table
 
 Here are some open issues for anyone who might want to help us with the Windows

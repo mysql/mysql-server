@@ -145,13 +145,17 @@ void tee_putc(int c, FILE *file);
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
 	   com_go(String *str,char*), com_ego(String *str,char*),
-	   com_edit(String *str,char*), com_print(String *str,char*),
+	   com_print(String *str,char*),
 	   com_help(String *str,char*), com_clear(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
-	   com_rehash(String *str, char*), com_pager(String *str, char*),
-           com_nopager(String *str, char*), com_tee(String *str, char*),
+	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*);
+
+#ifndef __WIN__
+static int com_nopager(String *str, char*), com_pager(String *str, char*),
+	   com_edit(String *str,char*);
+#endif
 
 static int read_lines(bool execute_commands);
 static int sql_connect(char *host,char *database,char *user,char *password,
@@ -180,7 +184,9 @@ static COMMANDS commands[] = {
   { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
+#ifndef __WIN__
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
+#endif
   { "ego",    'G', com_ego,    0,
     "Send command to mysql server, display result vertically."},
   { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
@@ -764,6 +770,16 @@ static int read_lines(bool execute_commands)
     }
     else
     {
+#ifdef __WIN__
+      if (opt_outfile && glob_buffer.is_empty())
+	fflush(OUTFILE);
+      tee_fputs(glob_buffer.is_empty() ? "mysql> " :
+		!in_string ? "    -> " :
+		in_string == '\'' ?
+		"    '> " : "    \"> ",stdout);
+      linebuffer[0]=(char) sizeof(linebuffer);
+      line=_cgets(linebuffer);
+#else
       if (opt_outfile)
       {
 	if (glob_buffer.is_empty())
@@ -773,14 +789,6 @@ static int read_lines(bool execute_commands)
 	      in_string == '\'' ?
 	      "    '> " : "    \"> ", OUTFILE);
       }
-#ifdef __WIN__
-      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
-		  !in_string ? "    -> " :
-		  in_string == '\'' ?
-		  "    '> " : "    \"> ");
-      linebuffer[0]=(char) sizeof(linebuffer);
-      line=_cgets(linebuffer);
-#else
       line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
@@ -1476,7 +1484,7 @@ static void end_pager()
 
 static void init_tee()
 {
-  if (!(OUTFILE= my_fopen(outfile,O_APPEND | O_WRONLY | O_BINARY,MYF(MY_WME))))
+  if (!(OUTFILE= my_fopen(outfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
   {
     opt_outfile=0;
     init_pager();
@@ -1727,7 +1735,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     init_tee();
     opt_outfile=1;
   }
-  tee_fprintf(stdout, "Outfile '%s' is in use now.\n", outfile);
+  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
   return 0;
 }
 
@@ -1742,6 +1750,11 @@ com_notee(String *buffer __attribute__((unused)),
   return 0;
 }
 
+/*
+** Sorry, this command is not available in Windows.
+*/
+
+#ifndef __WIN__
 static int
 com_pager(String *buffer, char *line __attribute__((unused)))
 {
@@ -1749,10 +1762,6 @@ com_pager(String *buffer, char *line __attribute__((unused)))
 
   if (status.batch)
     return 0;
-#ifdef __WIN__
-  tee_fprintf(stdout, "Sorry, this command is not available in Windows.\n");
-  return 0;
-#endif
   /* Skip space from file name */
   while (isspace(*line))
     line++;
@@ -1783,28 +1792,27 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   return 0;
 }
 
+
 static int
 com_nopager(String *buffer __attribute__((unused)),
 	    char *line __attribute__((unused)))
 {
-#ifdef __WIN__
-  tee_fprintf(stdout, "This command has no function in Windows.\n");
-  return 0;
-#endif
   strmov(pager, "stdout");
   opt_nopager=1;
   tee_fprintf(stdout, "PAGER set to stdout\n");
   return 0;
 }
+#endif
 
 
+/*
+** Sorry, you can't send the result to an editor in Win32
+*/
+
+#ifndef __WIN__
 static int
 com_edit(String *buffer,char *line __attribute__((unused)))
 {
-#ifdef __WIN__
-  put_info("Sorry, you can't send the result to an editor in Win32",
-	   INFO_ERROR);
-#else
   char	filename[FN_REFLEN],buff[160];
   int	fd,tmp;
   const char *editor;
@@ -1838,9 +1846,10 @@ com_edit(String *buffer,char *line __attribute__((unused)))
   (void) my_close(fd,MYF(0));
   (void) my_delete(filename,MYF(MY_WME));
 err:
-#endif
   return 0;
 }
+#endif
+
 
 /* If arg is given, exit without errors. This happens on command 'quit' */
 
