@@ -31,7 +31,7 @@ public:
 
   enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
-	     COPY_STR_ITEM,FIELD_AVG_ITEM,
+	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -284,6 +284,28 @@ public:
   void print(String *str);
   unsigned int size_of() { return sizeof(*this);}  
 };
+
+
+/* For INSERT ... VALUES (DEFAULT) */
+
+class Item_default :public Item
+{
+public:
+  Item_default() { name= (char*) "DEFAULT"; }
+  enum Type type() const { return DEFAULT_ITEM; }
+  void make_field(Send_field *field) {}
+  bool save_in_field(Field *field)
+  {
+    field->set_default();
+    return 0;
+  }
+  virtual double val() { return 0.0; }
+  virtual longlong val_int() { return 0; }
+  virtual String *val_str(String *str) { return 0; }
+  bool basic_const_item() const { return 1; }
+  unsigned int size_of() { return sizeof(*this);}
+};
+
 
 /* for show tables */
 

@@ -519,7 +519,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list expr_or_default
+	using_list expr_or_default set_expr_or_default
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -2486,7 +2486,7 @@ ident_eq_list:
 	ident_eq_value;
 
 ident_eq_value:
-	simple_ident equal expr
+	simple_ident equal expr_or_default
 	 {
 	  LEX *lex=Lex;
 	  if (lex->field_list.push_back($1) ||
@@ -2521,16 +2521,22 @@ opt_values:
 	| values;
 
 values:
-	values ','  expr
+	values ','  expr_or_default
 	{
 	  if (Lex->insert_list->push_back($3))
 	    YYABORT;
 	}
-	| expr
-	{
-	  if (Lex->insert_list->push_back($1))
-	    YYABORT;
-	};
+	| expr_or_default
+	  {
+	    if (Lex->insert_list->push_back($1))
+	      YYABORT;
+	  }
+	;
+
+expr_or_default:
+	expr 	  { $$= $1;}
+	| DEFAULT {$$= new Item_default(); }
+	;
 
 /* Update rows in a table */
 
@@ -3257,12 +3263,12 @@ option_value:
 	{
 	  Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	}
-	| internal_variable_name equal expr_or_default
+	| internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
 	    lex->var_list.push_back(new set_var(lex->option_type, $1, $3));
 	  }
-	| '@' '@' opt_var_ident_type internal_variable_name equal expr_or_default
+	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
 	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4, $6));
@@ -3274,7 +3280,7 @@ option_value:
 						find_sys_var("transaction_isolation_num"),
 						new Item_int((int) $4)));
 	  }
-	| CHAR_SYM SET opt_equal expr_or_default
+	| CHAR_SYM SET opt_equal set_expr_or_default
 	{
 	  LEX *lex=Lex;
 	  lex->var_list.push_back(new set_var(lex->option_type,
@@ -3327,7 +3333,7 @@ text_or_password:
 	  };
 
 
-expr_or_default:
+set_expr_or_default:
 	expr      { $$=$1; }
 	| DEFAULT { $$=0; }
 	| ON	  { $$=new Item_string("ON",2); }
