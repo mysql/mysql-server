@@ -772,6 +772,32 @@ void my_free_open_file_info(void);
 ulonglong my_getsystime(void);
 my_bool my_gethwaddr(uchar *to);
 
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+
+#ifndef MAP_NOSYNC
+#define MAP_NOSYNC      0
+#endif
+
+#define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
+#define my_getpagesize()        getpagesize()
+#define my_munmap(a,b)          munmap(a,b)
+
+#else
+/* not a complete set of mmap() flags, but only those that nesessary */
+#define PROT_READ        1
+#define PROT_WRITE       2
+#define MAP_NOSYNC       0x800
+#define MAP_FAILED       ((void *)-1)
+#define MS_SYNC          0x0000
+
+int my_getpagesize(void);
+void *my_mmap(void *, size_t, int, int, int, my_off_t);
+int my_munmap(void *, size_t);
+#endif
+
+int my_msync(int, void *, size_t, int);
+
 /* character sets */
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);

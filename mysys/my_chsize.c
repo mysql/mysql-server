@@ -48,9 +48,9 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
   DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
 
   if (oldsize > newlength)
+  {
 #if defined(HAVE_SETFILEPOINTER)
   /* This is for the moment only true on windows */
-  {
     long is_success;
     HANDLE win_file= (HANDLE) _get_osfhandle(fd);
     long length_low, length_high;
@@ -63,35 +63,29 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
       DBUG_RETURN(0);
     my_errno= GetLastError();
     goto err;
-  }
 #elif defined(HAVE_FTRUNCATE)
-  {
     if (ftruncate(fd, (off_t) newlength))
     {
       my_errno= errno;
       goto err;
     }
     DBUG_RETURN(0);
-  }
 #elif defined(HAVE_CHSIZE)
-  {
     if (chsize(fd, (off_t) newlength))
     {
       my_errno=errno;
       goto err;
     }
     DBUG_RETURN(0);
-  }
 #else
-  {
     /*
       Fill space between requested length and true length with 'filler'
       We should never come here on any modern machine
     */
     VOID(my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE)));
     swap_variables(my_off_t, newlength, oldsize);
-  }
 #endif
+  }
 
   /* Full file with 'filler' until it's as big as requested */
   bfill(buff, IO_SIZE, filler);
