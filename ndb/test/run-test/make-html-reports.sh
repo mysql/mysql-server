@@ -154,9 +154,13 @@ do
 	ts=`time_spec $time`
 	res_txt=""
 	case $res in
-	0) pass; res_txt="PASSED"; res_dir="&nbsp;";;
+	0) pass; res_txt="PASSED";;
 	*) fail; res_txt="FAILED";;
 	esac
+
+	if [ ! -d "result.$no" ]; then res_dir="&nbsp;"; fi
+	    
+
 	total=`expr $total + $time`
 
 	(

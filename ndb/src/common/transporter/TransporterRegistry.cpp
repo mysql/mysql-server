@@ -1211,7 +1211,7 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
-	  if(t->get_r_port() <= 0) {		// Port is dynamic
+	  if(t->get_s_port() <= 0) {		// Port is dynamic
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 	    int res;
@@ -1222,27 +1222,24 @@ TransporterRegistry::start_clients_thread()
 						     CFG_CONNECTION_SERVER_PORT,
 						     &server_port,
 						     &mgm_reply);
-	    DBUG_PRINT("info",("Got %s port %u for %d -> %d (ret: %d)",
-			       (server_port<=0)?"dynamic":"static",
+	    DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 			       server_port,t->getRemoteNodeId(),
 			       t->getLocalNodeId(),res));
-	    if(server_port<0)
-	      server_port = -server_port; // was a dynamic port
 
-	    if(res>=0)
-	      t->set_r_port(server_port);
+	    if(res>=0 && server_port)
+	      t->set_s_port(server_port);
 	    else
 	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
 	  }
 	  if (theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
-             || t->get_r_port() > 0) {
+             || t->get_s_port() > 0) {
 	    int result = t->connect_client();
 	    if (result<0)
 	      ndbout_c("Error while trying to make connection (Node %u to"
 		       " %u via port %u) error: %d. Retrying...",
 		       t->getRemoteNodeId(),
 		       t->getLocalNodeId(),
-		       t->get_r_port());
+		       t->get_s_port());
 	  } else
 	    NdbSleep_MilliSleep(400); // wait before retrying
 	}
@@ -1486,44 +1483,56 @@ TransporterRegistry::get_transporter(NodeId nodeId) {
 
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
-  NdbMgmHandle h;
+  NdbMgmHandle h= ndb_mgm_create_handle();
   struct ndb_mgm_reply mgm_reply;
-  char *cs, c[100];
-  bool d=false;
 
-  h= ndb_mgm_create_handle();
-
-  if(strlen(sc->get_server_name())>80)
+  if ( h == NULL )
   {
-    /*
-     * server name is long. malloc enough for it and the port number
-     */
-    cs= (char*)malloc((strlen(sc->get_server_name())+20)*sizeof(char));
-    if(!cs)
-      return NDB_INVALID_SOCKET;
-    d= true;
+    return NDB_INVALID_SOCKET;
   }
-  else
-    cs = &c[0];
-    
-  snprintf(cs,(d)?strlen(sc->get_server_name()+20):sizeof(c),
-	   "%s:%u",sc->get_server_name(),sc->get_port());
 
-  ndb_mgm_set_connectstring(h, cs);
+  /**
+   * Set connectstring
+   */
+  {
+    char c[100];
+    char *cs= &c[0];
+    int len= strlen(sc->get_server_name())+20;
+    if( len > sizeof(c) )
+    {
+      /*
+       * server name is long. malloc enough for it and the port number
+       */
+      cs= (char*)malloc(len*sizeof(char));
+      if(!cs)
+      {
+	ndb_mgm_destroy_handle(&h);
+	return NDB_INVALID_SOCKET;
+      }
+    }
+    snprintf(cs,len,"%s:%u",sc->get_server_name(),sc->get_port());
+    ndb_mgm_set_connectstring(h, cs);
+    if(cs != &c[0])
+      free(cs);
+  }
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
+  {
+    ndb_mgm_destroy_handle(&h);
     return NDB_INVALID_SOCKET;
-  
+  }
+
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
-    ndb_mgm_set_connection_int_parameter(h,
+    if (ndb_mgm_set_connection_int_parameter(h,
 				   get_localNodeId(),
 				   m_transporter_interface[i].m_remote_nodeId,
 				   CFG_CONNECTION_SERVER_PORT,
 				   m_transporter_interface[i].m_s_service_port,
-				   &mgm_reply);  
-  if(d)
-    free(cs);
-
+				   &mgm_reply) < 0)
+    {
+      ndb_mgm_destroy_handle(&h);
+      return NDB_INVALID_SOCKET;
+    }
   return ndb_mgm_convert_to_transporter(h);
 }
 
