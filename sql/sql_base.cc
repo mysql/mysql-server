@@ -1782,7 +1782,14 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 			((Item_field*) item)->table_name,&it))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (sum_func_list)
-	sum_func_list->elements += fields.elements - elem;
+      {
+	/*
+	  sum_func_list is a list that has the fields list as a tail.
+	  Because of this we have to update the element count also for this
+	  list after expanding the '*' entry.
+	*/
+	sum_func_list->elements+= fields.elements - elem;
+      }
     }
     else
     {

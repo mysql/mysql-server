@@ -193,7 +193,14 @@ Vio* new_VioSSL(struct st_VioSSLAcceptorFd* fd, Vio* sd,int state);
 #endif /* HAVE_OPENSSL */
 
 /* This enumerator is used in parser - should be always visible */
-enum SSL_type {SSL_TYPE_NONE, SSL_TYPE_ANY, SSL_TYPE_X509, SSL_TYPE_SPECIFIED};
+enum SSL_type
+{
+  SSL_TYPE_NOT_SPECIFIED= -1,
+  SSL_TYPE_NONE,
+  SSL_TYPE_ANY,
+  SSL_TYPE_X509,
+  SSL_TYPE_SPECIFIED
+};
 
 #ifndef EMBEDDED_LIBRARY
 /* This structure is for every connection on both sides */

@@ -75,8 +75,6 @@ static int init_failsafe_rpl_thread(THD* thd)
     DBUG_RETURN(-1);
   }
 
-  thd->mysys_var=my_thread_var;
-  thd->dbug_thread_id=my_thread_id();
 #if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use

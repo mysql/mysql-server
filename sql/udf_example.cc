@@ -61,7 +61,7 @@
 ** On the end is a couple of functions that converts hostnames to ip and
 ** vice versa.
 **
-** A dynamicly loadable file should be compiled sharable
+** A dynamicly loadable file should be compiled shared.
 ** (something like: gcc -shared -o my_func.so myfunc.cc).
 ** You can easily get all switches right by doing:
 ** cd sql ; make udf_example.o
@@ -69,6 +69,8 @@
 ** the line and add -shared -o udf_example.so to the end of the compile line.
 ** The resulting library (udf_example.so) should be copied to some dir
 ** searched by ld. (/usr/lib ?)
+** If you are using gcc, then you should be able to create the udf_example.so
+** by simply doing 'make udf_example.so'.
 **
 ** After the library is made one must notify mysqld about the new
 ** functions with the commands:

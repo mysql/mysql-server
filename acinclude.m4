@@ -701,13 +701,13 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
 ])
 
 AC_DEFUN(MYSQL_FIND_OPENSSL, [
- for d in /usr/ssl/include /usr/local/ssl/include /usr/include/openssl \
+  for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
-/usr/local/ssl/include/openssl /usr/local/include/openssl ; do
-  if test -f $d/ssl.h  ; then
-    OPENSSL_INCLUDE=$d
-  fi
- done
+/usr/local/ssl/include /usr/local/include ; do
+   if test -f $d/openssl/ssl.h  ; then
+     OPENSSL_INCLUDE=$d
+   fi
+  done
 
  for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
 /usr/lib /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do

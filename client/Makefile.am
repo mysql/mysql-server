@@ -16,9 +16,9 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-INCLUDES =			-I$(srcdir)/../include $(openssl_includes) \
+INCLUDES =			-I$(srcdir)/../include \
 				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
-				-I..
+				-I.. $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \

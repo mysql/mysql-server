@@ -621,9 +621,6 @@ pthread_handler_decl(handle_one_connection,arg)
   {
     int error;
     NET *net= &thd->net;
-
-    thd->mysys_var=my_thread_var;
-    thd->dbug_thread_id=my_thread_id();
     thd->thread_stack= (char*) &thd;
 
     if ((error=check_connections(thd)))
@@ -706,8 +703,6 @@ pthread_handler_decl(handle_bootstrap,arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-  thd->mysys_var=my_thread_var;
-  thd->dbug_thread_id=my_thread_id();
 #if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
@@ -3324,7 +3319,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   select_errors=0;				/* Write if more errors */
   if (options & REFRESH_GRANT)
   {
-    acl_reload();
+    acl_reload(thd);
     grant_reload();
     if (mqh_used)
       reset_mqh(thd,(LEX_USER *) NULL,true);

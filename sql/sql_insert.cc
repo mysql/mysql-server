@@ -941,8 +941,6 @@ static pthread_handler_decl(handle_delayed_insert,arg)
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto end;
   }
-  thd->mysys_var=my_thread_var;
-  thd->dbug_thread_id=my_thread_id();
 #if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
