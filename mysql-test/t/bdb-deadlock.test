@@ -35,9 +35,11 @@ select x from t2 where id = 0;
 
 connection con2;
 --error 1213
+reap;
 commit;
 
 connection con1;
+reap;
 commit;
 
 connection con2;
