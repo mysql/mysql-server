@@ -307,14 +307,17 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   ParserDummy session(handle->socket);
   Parser_t parser(command_reply, in, true, true, true);
 
-#if 1
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     /**
      * Print some info about why the parser returns NULL
      */
-    //ndbout << " status=" << ctx.m_status << ", curr="
-    //<< ctx.m_currentToken << endl;
+    ndbout << "Error in mgm protocol parser. "
+	   << "cmd: '" << cmd
+	   << "' status=" << ctx.m_status
+	   << ", curr=" << ctx.m_currentToken
+	   << endl;
+    DBUG_PRINT("info",("parser.parse returned NULL"));
   } 
 #ifdef MGMAPI_LOG
   else {
@@ -325,9 +328,6 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   }
 #endif
   return p;
-#else
-   return parser.parse(ctx, session);
-#endif
 }
 
 /**
@@ -1998,7 +1998,8 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set connection parameter reply", NULL, ""),
-    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_ARG("message", String, Mandatory, "Error Message"),
+    MGM_ARG("result", String, Mandatory, "Status Result"),
     MGM_END()
   };
   
@@ -2026,7 +2027,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     unsigned *value,
+				     Uint32 *value,
 				     struct ndb_mgm_reply* mgmreply){
   DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
@@ -2036,17 +2037,17 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   args.put("node1", node1);
   args.put("node2", node2);
   args.put("param", param);
-  
+
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get connection parameter reply", NULL, ""),
-    MGM_ARG("result", String, Mandatory, "Error message"),
     MGM_ARG("value", Int, Mandatory, "Current Value"),
+    MGM_ARG("result", String, Mandatory, "Result"),
     MGM_END()
   };
   
   const Properties *prop;
-  prop= ndb_mgm_call(handle, reply, "get connection parameter", &args);
-  CHECK_REPLY(prop, -1);
+  prop = ndb_mgm_call(handle, reply, "get connection parameter", &args);
+  CHECK_REPLY(prop, -2);
 
   int res= -1;
   do {
@@ -2058,10 +2059,13 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
     res= 0;
   } while(0);
 
-  prop->get("value",value);
+  if(!prop->get("value",value)){
+    ndbout_c("Unable to get value");
+    res = -3;
+  }
 
   delete prop;
-  return res;
+  DBUG_RETURN(res);
 }
 
 

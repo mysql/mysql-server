@@ -33,6 +33,8 @@
 
 #include <NdbTCP.h>
 
+#include <mgmapi/mgmapi.h>
+
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
 // sending or receiving.
@@ -94,10 +96,13 @@ public:
  /**
   * Constructor
   */
-  TransporterRegistry(void * callback = 0 , 
+  TransporterRegistry(NdbMgmHandle mgm_handle=NULL,
+		      void * callback = 0 , 
 		      unsigned maxTransporters = MAX_NTRANSPORTERS, 
 		      unsigned sizeOfLongSignalMemory = 100);
-  
+
+  void set_mgm_handle(NdbMgmHandle h) { m_mgm_handle = h; };
+
   bool init(NodeId localNodeId);
   
   /**
@@ -235,6 +240,8 @@ protected:
   
 private:
   void * callbackObj;
+
+  NdbMgmHandle m_mgm_handle;
 
   struct NdbThread   *m_start_clients_thread;
   bool                m_run_start_clients_thread;
