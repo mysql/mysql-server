@@ -3716,7 +3716,7 @@ static void store_double_in_string_field(Field_str *field, uint32 field_length,
 {
   bool use_scientific_notation=TRUE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-  int length;
+  uint length;
   if (field_length < 32 && nr > 1)
   {
     if (field->ceiling == 0)
@@ -3732,11 +3732,17 @@ static void store_double_in_string_field(Field_str *field, uint32 field_length,
     }
     use_scientific_notation= (field->ceiling < nr);
   }
-  length= sprintf(buff, "%-.*g",
-                  use_scientific_notation ? max(0,field_length-5) : field_length,
-                  nr);
-  DBUG_ASSERT(length <= field_length);
-  field->store(buff, (uint) length);
+  length= (uint)sprintf(buff, "%-.*g",
+                        use_scientific_notation ? max(0,field_length-5) : field_length,
+                        nr);
+  /*
+    +1 below is because "precision" in %g above means the
+    max. number of significant digits, not the output width.
+    Thus the width can be larger than number of significant digits by 1
+    (for decimal point)
+  */
+  DBUG_ASSERT(length <= field_length+1);
+  field->store(buff, min(length, field_length));
 }
 
 void Field_string::store(double nr)
