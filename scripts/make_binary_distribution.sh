@@ -66,7 +66,7 @@ esac
 mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
- $BASE/mysql-test/include $BASE/mysql-test/std_data
+ $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib
 
 if [ $BASE_SYSTEM != "netware" ] ; then
  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
@@ -207,7 +207,7 @@ $CP -r sql/share/* $MYSQL_SHARE
 rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 
 for i in mysql-test/mysql-test-run mysql-test/install_test_db \
-         mysql-test/README \
+         mysql-test/mysql-test-run.pl mysql-test/README \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 do
   if [ -f $i ]
@@ -216,6 +216,8 @@ do
    fi
 done
 
+$CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
+$CP mysql-test/lib/*.sql $BASE/mysql-test/lib
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 $BASE/mysql-test/std_data
 $CP mysql-test/std_data/des_key_file $BASE/mysql-test/std_data
@@ -242,7 +244,7 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 # Copy system dependent files
 #
 if [ $BASE_SYSTEM = "netware" ] ; then
-echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
+  echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
   echo "CREATE DATABASE test;" >> $BASE/bin/init_db.sql
   sh ./scripts/mysql_create_system_tables.sh real "" "%" 0 >> $BASE/bin/init_db.sql
   sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 > $BASE/bin/test_db.sql

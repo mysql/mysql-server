@@ -3,7 +3,7 @@
 #
 # Build Windows/32 .dsp files.
 
-. RELEASE
+. ./RELEASE
 
 BUILDDIR=../build_win32
 SRCFILES=srcfiles.in
@@ -35,7 +35,9 @@ create_dsp()
             -e "s/@srcfile@/$srcfile/g" \
             < $srctemplate >> $dspoutput.insert
     done
-    sed -e "/@SOURCE_FILES@/r$dspoutput.insert" \
+    # We need exactly one space after the 'r' modifier
+    # See 5.9 in http://www.student.northpark.edu/pemente/sed/sedfaq.txt
+    sed -e "/@SOURCE_FILES@/r $dspoutput.insert" \
         -e "/@SOURCE_FILES@/d" \
         -e "s/@project_name@/$projname/g" \
         -e "s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/g" \
