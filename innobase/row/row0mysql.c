@@ -1934,7 +1934,7 @@ row_discard_tablespace_for_mysql(
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 

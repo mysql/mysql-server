@@ -2560,7 +2560,7 @@ loop:
 	start_lsn = log_sys->archived_lsn;
 	
 	if (calc_new_limit) {
-		ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE
+	        ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 
@@ -2614,6 +2614,7 @@ loop:
 
 	log_sys->next_archived_lsn = limit_lsn;
 
+#ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
 		printf("Archiving from lsn %lu %lu to lsn %lu %lu\n",
 			(ulong) ut_dulint_get_high(log_sys->archived_lsn),
@@ -2621,6 +2622,7 @@ loop:
 			(ulong) ut_dulint_get_high(limit_lsn),
 			(ulong) ut_dulint_get_low(limit_lsn));
 	}
+#endif /* UNIV_LOG_DEBUG */
 
 	/* Read the log segment to the archive buffer */
 	

@@ -3004,8 +3004,8 @@ fseg_free_page_low(
 
 	/* If we get here, the page is in some extent of the segment */	
 
-	descr_id = mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr);
-	seg_id = mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr);
+	descr_id = mtr_read_dulint(descr + XDES_ID, mtr);
+	seg_id = mtr_read_dulint(seg_inode + FSEG_ID, mtr);
 /*
 	fprintf(stderr,
 "InnoDB: InnoDB is freeing space %lu page %lu,\n"

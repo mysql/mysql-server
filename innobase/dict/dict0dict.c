@@ -3636,7 +3636,7 @@ dict_tree_free(
 	dict_tree_t*	tree)	/* in, own: index tree */
 {
 	ut_a(tree);
-	ut_a(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
 
 	rw_lock_free(&(tree->lock));
 	mem_free(tree);

@@ -179,7 +179,10 @@ public:
     return 1;
   }
   SHOW_TYPE type() { return SHOW_CHAR; }
-  byte *value_ptr(THD *thd, enum_var_type type) { return (byte*) value; }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  {
+    return (byte*) value;
+  }
   bool check_update_type(Item_result type)
   {
     return 1;
