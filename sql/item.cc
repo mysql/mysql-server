@@ -1775,12 +1775,13 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     if (select_ref != not_found_item && !ambiguous_fields)
     {
       DBUG_ASSERT(*select_ref);
-      if (! (*select_ref)->fixed)
+      if (!select->ref_pointer_array[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0),
                  ref->name, "forward reference in item list");
         return NULL;
       }
+      DBUG_ASSERT((*select_ref)->fixed);
       return (select->ref_pointer_array + counter);
     }
     if (group_by_ref)

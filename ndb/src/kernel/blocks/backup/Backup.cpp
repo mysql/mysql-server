@@ -3201,7 +3201,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
 	return;
       }//if
 
-      tabPtr.p->triggerAllocated[i] = true;
+      tabPtr.p->triggerAllocated[j] = true;
       trigPtr.p->backupPtr = ptr.i;
       trigPtr.p->tableId = tabPtr.p->tableId;
       trigPtr.p->tab_ptr_i = tabPtr.i;
