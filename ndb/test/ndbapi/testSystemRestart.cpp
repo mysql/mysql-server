@@ -805,6 +805,207 @@ int runSystemRestart5(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runSystemRestart6(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int timeout = 300;
+  Uint32 loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Uint32 i = 1;
+
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_info << "SR6 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  Vector<int> nodeIds;
+  for(Uint32 i = 0; i<nodeCount; i++)
+    nodeIds.push_back(restarter.getDbNodeId(i));
+  
+  Uint32 currentRestartNodeIndex = 0;
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  while(i<=loops && result != NDBT_FAILED){
+    
+    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+    /**
+     * 1. Load data
+     * 2. Restart all node -nostart
+     * 3. Restart some nodes -i -nostart
+     * 4. Start all nodes verify records
+     */
+    g_info << "Loading records..." << endl;
+    hugoTrans.loadTable(pNdb, records);
+
+    CHECK(restarter.restartAll(false, true, false) == 0);
+
+    Uint32 nodeId = nodeIds[currentRestartNodeIndex];
+    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+    
+    CHECK(restarter.restartOneDbNode(nodeId, true, true,false) == 0);
+    CHECK(restarter.waitClusterNoStart(timeout) == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    int count = records - 1;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(utilTrans.clearTable(pNdb) == 0);    
+    i++;
+  }
+
+  g_info << "runSystemRestart6 finished" << endl;  
+
+  return result;
+}
+
+int runSystemRestart7(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Uint32 i = 1;
+
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_info << "SR8 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  Vector<int> nodeIds;
+  for(Uint32 i = 0; i<nodeCount; i++)
+    nodeIds.push_back(restarter.getDbNodeId(i));
+
+  int a_nodeIds[64];
+  if(nodeCount > 64)
+    abort();
+
+  Uint32 currentRestartNodeIndex = 1;
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  while(i<=loops && result != NDBT_FAILED){
+    
+    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+    /**
+     * 1. Load data
+     * 2. Restart all node -nostart
+     * 3. Start all but one node
+     * 4. Wait for startphase >= 2
+     * 5. Start last node
+     * 6. Verify records
+     */
+    g_info << "Loading records..." << endl;
+    hugoTrans.loadTable(pNdb, records);
+    
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    
+    int nodeId = nodeIds[currentRestartNodeIndex];
+    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+
+    Uint32 j = 0;
+    for(Uint32 k = 0; k<nodeCount; k++){
+      if(nodeIds[k] != nodeId){
+	a_nodeIds[j++] = nodeIds[k];
+      }
+    }
+
+    CHECK(restarter.startNodes(a_nodeIds, nodeCount - 1) == 0);
+    CHECK(restarter.waitNodesStarted(a_nodeIds, nodeCount - 1, 120) == 0);
+    CHECK(pNdb->waitUntilReady(5) == 0);
+    int count = records - 1;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    
+    CHECK(restarter.startNodes(&nodeId, 1) == 0);
+    CHECK(restarter.waitNodesStarted(&nodeId, 1, 120) == 0);
+    
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(utilTrans.clearTable(pNdb) == 0);    
+
+    i++;
+  }
+  
+  g_info << "runSystemRestart7 finished" << endl;  
+
+  return result;
+}
+
+int runSystemRestart8(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int timeout = 300;
+  Uint32 loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Uint32 i = 1;
+
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_info << "SR8 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  Vector<int> nodeIds;
+  for(Uint32 i = 0; i<nodeCount; i++)
+    nodeIds.push_back(restarter.getDbNodeId(i));
+
+  int a_nodeIds[64];
+  if(nodeCount > 64)
+    abort();
+
+  Uint32 currentRestartNodeIndex = 1;
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  while(i<=loops && result != NDBT_FAILED){
+    
+    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+    /**
+     * 1. Load data
+     * 2. Restart all node -nostart
+     * 3. Start all but one node
+     * 4. Verify records
+     * 5. Start last node
+     * 6. Verify records
+     */
+    g_info << "Loading records..." << endl;
+    hugoTrans.loadTable(pNdb, records);
+    
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    
+    int nodeId = nodeIds[currentRestartNodeIndex];
+    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+
+    Uint32 j = 0;
+    for(Uint32 k = 0; k<nodeCount; k++){
+      if(nodeIds[k] != nodeId){
+	a_nodeIds[j++] = nodeIds[k];
+      }
+    }
+    
+    CHECK(restarter.startNodes(a_nodeIds, nodeCount-1) == 0);
+    CHECK(restarter.waitNodesStartPhase(a_nodeIds, nodeCount-1, 3, 120) == 0);
+    CHECK(restarter.startNodes(&nodeId, 1) == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    
+    int count = records - 1;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(utilTrans.clearTable(pNdb) == 0);    
+    i++;
+  }
+  
+  g_info << "runSystemRestart7 finished" << endl;  
+
+  return result;
+}
+
 int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
@@ -817,8 +1018,13 @@ int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   
-  UtilTransactions utilTrans(*ctx->getTab());
-  if (utilTrans.clearTable2(GETNDB(step),  records) != 0){
+  Ndb* pNdb = GETNDB(step);
+  if(pNdb->waitUntilReady(5) != 0){
+    return NDBT_FAILED;
+  }
+
+  UtilTransactions utilTrans(*ctx->getTab());  
+  if (utilTrans.clearTable2(pNdb,  records) != 0){
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -931,6 +1137,43 @@ TESTCASE("SR5",
 	 "* 10. Restart cluster and verify records\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart5);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR6", 
+	 "Perform system restart with some nodes having FS others wo/\n"
+	 "* 1. Load data\n"
+	 "* 2. Restart all node -nostart\n"
+	 "* 3. Restart some nodes -i -nostart\n"
+	 "* 4. Start all nodes verify records\n"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runSystemRestart6);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR7", 
+	 "Perform partition win system restart\n"
+	 "* 1. Load data\n"
+	 "* 2. Restart all node -nostart\n"
+	 "* 3. Start all but one node\n"
+	 "* 4. Verify records\n"
+	 "* 5. Start last node\n"
+	 "* 6. Verify records\n"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runSystemRestart7);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR8", 
+	 "Perform partition win system restart with other nodes delayed\n"
+	 "* 1. Load data\n"
+	 "* 2. Restart all node -nostart\n"
+	 "* 3. Start all but one node\n"
+	 "* 4. Wait for startphase >= 2\n"
+	 "* 5. Start last node\n"
+	 "* 6. Verify records\n"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runSystemRestart8);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);

@@ -28,6 +28,8 @@
 
 #include "API.hpp"
 #include <ConfigRetriever.hpp>
+#include <mgmapi_config_parameters.h>
+#include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>
 #include <ndb_version.h>
 #include <SignalLoggerManager.hpp>
@@ -331,39 +333,40 @@ atexit_stop_instance(){
  * Which is protected by a mutex
  */
 TransporterFacade* 
-TransporterFacade::start_instance(Properties* props, const char *connectString)
-{
-  bool ownProps = false;
-  if (props == NULL) {
-    // TransporterFacade used from API get config from mgmt srvr
-    ConfigRetriever configRetriever;
-    configRetriever.setConnectString(connectString);
-    props = configRetriever.getConfig("API", NDB_VERSION);
-    if (props == 0) {
-      ndbout << "Configuration error: ";
-      const char* erString = configRetriever.getErrorString();
-      if (erString == 0) {
-	erString = "No error specified!";
-      }
-      ndbout << erString << endl;
-      return NULL;
-    }
-    props->put("LocalNodeId", configRetriever.getOwnNodeId());
-    props->put("LocalNodeType", "API");
+TransporterFacade::start_instance(const char * connectString){
 
-    ownProps = true;
+  // TransporterFacade used from API get config from mgmt srvr
+  ConfigRetriever configRetriever;
+  configRetriever.setConnectString(connectString);
+  ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
+							    NODE_TYPE_API);
+  if (props == 0) {
+    ndbout << "Configuration error: ";
+    const char* erString = configRetriever.getErrorString();
+    if (erString == 0) {
+      erString = "No error specified!";
+    }
+    ndbout << erString << endl;
+    return 0;
   }
-  TransporterFacade* tf = new TransporterFacade(); 
+  const int nodeId = configRetriever.getOwnNodeId();
   
-  if (! tf->init(props)) {
+  TransporterFacade * tf = start_instance(nodeId, props);
+  
+  free(props);
+  return tf;
+}
+
+TransporterFacade* 
+TransporterFacade::start_instance(int nodeId, 
+				  const ndb_mgm_configuration* props)
+{
+  TransporterFacade* tf = new TransporterFacade(); 
+  if (! tf->init(nodeId, props)) {
     delete tf;
     return NULL;
   }
   
-  if (ownProps) {
-    delete props;
-  }
-
   /**
    * Install atexit handler
    */
@@ -498,24 +501,50 @@ TransporterFacade::TransporterFacade() :
 }
 
 bool
-TransporterFacade::init(Properties* props)
+TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 {
-  IPCConfig config(props);
-
-  if (config.init() != 0) {
-    TRP_DEBUG( "IPCConfig object config failed to init()" );
-    return false;
-  }
-  theOwnId = config.ownId();
-  
+  theOwnId = nodeId;
   theTransporterRegistry = new TransporterRegistry(this);
-  if(config.configureTransporters(theTransporterRegistry) <= 0) {
+
+  const int res = IPCConfig::configureTransporters(nodeId, 
+						   * props, 
+						   * theTransporterRegistry);
+  if(res <= 0){
     TRP_DEBUG( "configureTransporters returned 0 or less" );
     return false;
   }
   
+  ndb_mgm_configuration_iterator iter(* props, CFG_SECTION_NODE);
+  iter.first();
   theClusterMgr = new ClusterMgr(* this);
-  theClusterMgr->init(config);
+  theClusterMgr->init(iter);
+  
+  /**
+   * Unless there is a "Name", the initiated transporter is within 
+   * an NDB Cluster.  (If "Name" is defined, then the transporter
+   * is used to connect to a different system, i.e. NDB Cluster.)
+   */
+#if 0  
+  if (!props->contains("Name")) {
+#endif
+    iter.first();
+    if(iter.find(CFG_NODE_ID, nodeId)){
+      TRP_DEBUG( "Node info missing from config." );
+      return false;
+    }
+    
+    Uint32 rank = 0;
+    if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
+      theArbitMgr = new ArbitMgr(* this);
+      theArbitMgr->setRank(rank);
+      Uint32 delay = 0;
+      iter.get(CFG_NODE_ARBIT_DELAY, &delay);
+      theArbitMgr->setDelay(delay);
+    }
+    
+#if 0
+  }
+#endif
   
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
@@ -531,28 +560,6 @@ TransporterFacade::init(Properties* props)
 
   theClusterMgr->startThread();
   
-  /**
-   * Unless there is a "Name", the initiated transporter is within 
-   * an NDB Cluster.  (If "Name" is defined, then the transporter
-   * is used to connect to a different system, i.e. NDB Cluster.)
-   */
-  if (!props->contains("Name")) {
-    const Properties* p = 0;
-    if(!props->get("Node", ownId(), &p)) {
-      TRP_DEBUG( "Node info missing from config." );
-      return false;
-    }
-    
-    Uint32 rank = 0;
-    if (p->get("ArbitrationRank", &rank) && rank > 0) {
-      theArbitMgr = new ArbitMgr(* this);
-      theArbitMgr->setRank(rank);
-      Uint32 delay = 0;
-      p->get("ArbitrationDelay", &delay);
-      theArbitMgr->setDelay(delay);
-    }
-  }
-
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif

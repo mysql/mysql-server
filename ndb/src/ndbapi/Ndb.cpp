@@ -474,6 +474,19 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 //-----------------------------------------------------
 // closeTransaction called on non-existing transaction
 //-----------------------------------------------------
+
+  if(aConnection->theError.code == 4008){
+    /**
+     * When a SCAN timed-out, returning the NdbConnection leads
+     * to reuse. And TC crashes when the API tries to reuse it to
+     * something else...
+     */
+#ifdef VM_TRACE
+    printf("Scan timeout:ed NdbConnection-> not returning it-> memory leak\n");
+#endif
+    return;
+  }
+
 #ifdef VM_TRACE
         printf("Non-existing transaction into closeTransaction\n");
 	abort();

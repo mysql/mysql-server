@@ -22,9 +22,10 @@
 #include <UtilBuffer.hpp>
 
 enum PropertiesType {
-  PropertiesType_Uint32,
-  PropertiesType_char,
-  PropertiesType_Properties
+  PropertiesType_Uint32 = 0,
+  PropertiesType_char = 1,
+  PropertiesType_Properties = 2,
+  PropertiesType_Uint64 = 3
 };
 
 /**
@@ -36,6 +37,7 @@ enum PropertiesType {
  */
 struct Property {
   Property(const char* name, Uint32 val);
+  Property(const char* name, Uint64 val);
   Property(const char* name, const char * value);
   Property(const char* name, const class Properties * value);
   ~Property();
@@ -75,6 +77,7 @@ public:
   void put(const Property *, int len);
 
   bool put(const char * name, Uint32 value, bool replace = false);
+  bool put64(const char * name, Uint64 value, bool replace = false);
   bool put(const char * name, const char * value, bool replace = false);
   bool put(const char * name, const Properties * value, bool replace = false);
 
@@ -84,6 +87,7 @@ public:
    * Compare get(name, no)
    */
   bool put(const char *, Uint32 no, Uint32, bool replace = false);
+  bool put64(const char *, Uint32 no, Uint64, bool replace = false);
   bool put(const char *, Uint32 no, const char *, bool replace = false);
   bool put(const char *, Uint32 no, const Properties *, bool replace = false);
 
@@ -94,6 +98,7 @@ public:
   bool contains(const char * name) const;
 
   bool get(const char * name, Uint32 * value) const;
+  bool get(const char * name, Uint64 * value) const;
   bool get(const char * name, const char ** value) const;
   bool get(const char * name, BaseString & value) const;
   bool get(const char * name, const Properties ** value) const;
@@ -109,6 +114,7 @@ public:
   bool contains(const char * name, Uint32 no) const;
 
   bool get(const char * name, Uint32 no, Uint32 * value) const;
+  bool get(const char * name, Uint32 no, Uint64 * value) const;
   bool get(const char * name, Uint32 no, const char ** value) const;
   bool get(const char * name, Uint32 no, const Properties ** value) const;
   
@@ -230,11 +236,12 @@ Properties::unpack(UtilBuffer &buf) {
 inline bool
 Properties::pack(UtilBuffer &buf) const {
   Uint32 size = getPackedSize();
-  char *tmp_buf = new char[size];
+  void *tmp_buf = buf.append(size);
+  if(tmp_buf == 0)
+    return false;
   bool ret = pack((Uint32 *)tmp_buf);
   if(ret == false)
     return false;
-  buf.append(tmp_buf, size);
   return true;
 }
 
