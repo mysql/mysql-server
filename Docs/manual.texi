@@ -56117,7 +56117,8 @@ Added partly-translated Dutch error messages.
 @item
 Fixed bug in @code{ORDER BY} and @code{GROUP BY} with @code{NULL} columns.
 @item
-Added function @code{last_insert_id()} to retrieve last @code{AUTO_INCREMENT}
+Added function @code{LAST_INSERT_ID()} SQL function to retrieve last
+@code{AUTO_INCREMENT}
 value.  This is intended for clients to ODBC that can't use the
 @code{mysql_insert_id()} API function, but can be used by any client.
 @item
