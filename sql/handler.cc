@@ -208,23 +208,45 @@ void ha_close_connection(THD* thd)
 }
 
 /*
-  This is used to commit or rollback a single statement depending
-  on the value of error
+  This is used to commit or rollback a single statement depending on the value
+  of error. If the autocommit is on, then we will commit or rollback the whole
+  transaction (= the statement). The autocommit mechanism built into handlers
+  is based on counting locks, but if the user has used LOCK TABLES then that
+  mechanism does not know to do the commit.
 */
 
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
+  bool do_autocommit=FALSE;
+
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
+
+  if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+    do_autocommit=TRUE;  /* We can commit or rollback the whole transaction */
+
   if (opt_using_transactions)
   {
     if (!error)
     {
-      if (ha_commit_stmt(thd))
-	error=1;
+      if (do_autocommit)
+      {
+	if (ha_commit(thd))
+	  error=1;
+      }
+      else
+      {
+        if (ha_commit_stmt(thd))
+	  error=1;
+      }
     }
     else
-      (void) ha_rollback_stmt(thd);
+    {
+      if (do_autocommit)
+	(void) ha_rollback(thd);
+      else
+        (void) ha_rollback_stmt(thd);
+    }
 
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
