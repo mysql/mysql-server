@@ -1568,7 +1568,7 @@ void item_user_lock_release(ULL *ull)
     char buf[256];
     const char *command="DO RELEASE_LOCK(\"";
     String tmp(buf,sizeof(buf), system_charset_info);
-    tmp.copy(command, strlen(command));
+    tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
     Query_log_event qev(current_thd,tmp.ptr(), tmp.length());
@@ -2040,12 +2040,11 @@ Item_func_get_user_var::val_str(String *str)
     str->set(*(longlong*) entry->value,thd_charset());
     break;
   case STRING_RESULT:
-    if (str->copy(entry->value, entry->length-1))
+    if (str->copy(entry->value, entry->length-1, entry->var_charset))
     {
       null_value=1;
       return NULL;
     }
-    str->set_charset(entry->var_charset);
     break;
   }
   return str;

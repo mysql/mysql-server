@@ -396,7 +396,7 @@ String *Item_date::val_str(String *str)
     return (String*) 0;
   if (!value)					// zero daynr
   {
-    str->copy("0000-00-00",10);
+    str->copy("0000-00-00",10,my_charset_latin1);
     return str;
   }
   if (str->alloc(11))
@@ -547,7 +547,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   uint sec= (uint) ((ulonglong) seconds % 3600);
   length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 			   sec/60, sec % 60));
-  str->copy(buff, length);
+  str->copy(buff, length, my_charset_latin1);
   return str;
 }
 

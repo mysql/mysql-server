@@ -178,7 +178,7 @@ public:
 
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
-  bool copy(const char *s,uint32 arg_length);	// Allocate new string
+  bool copy(const char *s,uint32 arg_length, CHARSET_INFO *cs);	// Allocate new string
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
   bool append(IO_CACHE* file, uint32 arg_length);
