@@ -17,7 +17,6 @@
 
 #include <ndb_global.h>
 #include <ndberror.h>
-#include <basestring_vsnprintf.h>
 
 typedef struct ErrorBundle {
   int code;
@@ -595,10 +594,10 @@ int ndb_error_string(int err_no, char *str, unsigned int size)
   ndberror_update(&error);
 
   len =
-    basestring_snprintf(str, size-1, "%s: %s: %s", error.message,
-	     ndberror_status_message(error.status),
-	     ndberror_classification_message(error.classification));
+    my_snprintf(str, size-1, "%s: %s: %s", error.message,
+		ndberror_status_message(error.status),
+		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
-
+  
   return len;
 }
