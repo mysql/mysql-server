@@ -1084,12 +1084,6 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
        This is 4.x, so a Start_log_event is only at master startup,
        so we are sure the master has restarted and cleared his temp tables.
     */
-
-    /*
-      If the master died before writing the COMMIT to the binlog, rollback;
-      otherwise it does not hurt to rollback.
-    */
-    ha_rollback(thd);
     close_temporary_tables(thd);
     cleanup_load_tmpdir();
     break;

@@ -1751,7 +1751,8 @@ opt_to:
 	| AS		{};
 
 /*
-  The first two deprecate the last two--delete the last two for 4.1 release
+  SLAVE START and SLAVE STOP are deprecated. We keep them for compatibility.
+  To use UNTIL, one must use START SLAVE, not SLAVE START.
 */
 
 slave:
@@ -1771,7 +1772,20 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_STOP;
 	    lex->type = 0;
           }
-	;
+	| SLAVE START_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+	| SLAVE STOP_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         }
+        ;
+
 
 start:
 	START_SYM TRANSACTION_SYM { Lex->sql_command = SQLCOM_BEGIN;}
