@@ -213,7 +213,9 @@ public:
       IL_CREATED_TC = 1 << 0    // created in TC
     };
     Uint32 indexLocal;
-
+    
+    Uint32 noOfNullBits;
+    
     inline bool equal(TableRecord & rec) const {
       return strcmp(tableName, rec.tableName) == 0;
     }

@@ -50,7 +50,6 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-/*#define MAX_NO_OF_TUPLEKEY 16 Not currently used */
 #define MAX_TABLES 1600
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE 32
@@ -58,7 +57,6 @@
 #define MAX_ATTRIBUTES_IN_TABLE 128
 #define MAX_ATTRIBUTES_IN_INDEX 32
 #define MAX_TUPLE_SIZE_IN_WORDS 2013
-#define MAX_FIXED_KEY_LENGTH_IN_WORDS 8
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
 #define MAX_NULL_BITS 4096
