@@ -204,6 +204,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DES_KEY_FILE
 %token	DISABLE_SYM
 %token	DISTINCT
+%token  DUPLICATE
 %token	DYNAMIC_SYM
 %token	ENABLE_SYM
 %token	ENCLOSED
@@ -642,7 +643,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	repair restore backup analyze check 
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
-	limit_clause delete_limit_clause fields opt_values values
+	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
 	when_list2 expr_list2  handler
 	opt_precision opt_ignore opt_column opt_restrict
@@ -660,7 +661,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
-	union union_list union_option
+	union_clause union_list union_option
 	precision opt_on_delete_item subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
@@ -883,7 +884,7 @@ create3:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from union {}
+          select_options select_item_list opt_select_from union_clause {}
           ;
 
 opt_as:
@@ -918,27 +919,23 @@ create_table_options:
 	| create_table_option     create_table_options;
 	| create_table_option ',' create_table_options;
 
-o_eq:
-	/* empty */
-	| EQ		{};
-
 create_table_option:
-	TYPE_SYM o_eq table_types	{ Lex->create_info.db_type= $3; }
-	| MAX_ROWS o_eq ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
-	| MIN_ROWS o_eq ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
-	| AVG_ROW_LENGTH o_eq ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD o_eq TEXT_STRING	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM o_eq TEXT_STRING	{ Lex->create_info.comment=$3.str; }
-	| AUTO_INC o_eq ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| PACK_KEYS_SYM o_eq DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| CHECKSUM_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
-	| DELAY_KEY_WRITE_SYM o_eq ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM o_eq row_types	{ Lex->create_info.row_type= $3; }
-	| RAID_TYPE o_eq raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKS o_eq ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKSIZE o_eq ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| UNION_SYM o_eq '(' table_list ')'
+	TYPE_SYM opt_equal table_types          { Lex->create_info.db_type= $3; }
+	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
+	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
+	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
+	| PASSWORD opt_equal TEXT_STRING	{ Lex->create_info.password=$3.str; }
+	| COMMENT_SYM opt_equal TEXT_STRING	{ Lex->create_info.comment=$3.str; }
+	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
+	| PACK_KEYS_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| CHECKSUM_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
+	| DELAY_KEY_WRITE_SYM opt_equal ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
+	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3; }
+	| RAID_TYPE opt_equal raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKS opt_equal ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKSIZE opt_equal ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
@@ -951,19 +948,19 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default CHARSET o_eq charset_name_or_default
+	| opt_default CHARSET opt_equal charset_name_or_default
 	  { 
 	    Lex->create_info.table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
-	| opt_default CHAR_SYM SET o_eq charset_name_or_default
+	| opt_default CHAR_SYM SET opt_equal charset_name_or_default
 	  { 
 	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
-	| INSERT_METHOD o_eq merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM o_eq TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM o_eq TEXT_STRING	  { Lex->create_info.index_file_name= $4.str; };
+	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
+	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING    { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -990,7 +987,7 @@ merge_insert_types:
        | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; };
 
 opt_select_from:
-	/* empty */
+	opt_limit_clause {}
 	| select_from select_lock_type;
 
 udf_func_type:
@@ -1663,7 +1660,7 @@ select_init2:
 	    YYABORT;
 	  }
 	}
-	union
+	union_clause
 	;
 
 select_part2:
@@ -1676,16 +1673,18 @@ select_part2:
 	select_options select_item_list select_into select_lock_type;
 
 select_into:
-	limit_clause {}
+	opt_limit_clause {}
+	| FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
+                           clause, and DUAL is system table without fields.
+                           Is "SELECT 1 FROM DUAL" any better than
+                           "SELECT 1" ? Hmmm :) */
+        | into
 	| select_from
-	| FROM DUAL_SYM
-        | opt_into
-	| opt_into select_from
-	| select_from opt_into;
+	| into select_from
+	| select_from into;
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause opt_order_clause limit_clause procedure_clause;
-
+	FROM join_table_list where_clause group_clause having_clause opt_order_clause opt_limit_clause procedure_clause;
 
 select_options:
 	/* empty*/
@@ -2460,7 +2459,7 @@ join_table:
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
-        | '(' SELECT_SYM select_part3 ')' opt_table_alias 
+        | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
@@ -2471,7 +2470,7 @@ join_table:
 	    YYABORT;
 	};
 
-select_part3:
+select_derived:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= true;
@@ -2481,11 +2480,8 @@ select_part3:
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
 	}
-        select_options select_item_list select_intoto;
-
-select_intoto:
-	limit_clause {}
-	| select_from;
+        select_options select_item_list opt_select_from
+        ;
 
 opt_outer:
 	/* empty */	{}
@@ -2675,7 +2671,7 @@ order_dir:
 	| DESC { $$ =0; };
 
 
-limit_clause:
+opt_limit_clause:
 	/* empty */ {}
 	| LIMIT 
 	  {
@@ -2792,7 +2788,7 @@ select_var_ident:  '@' ident_or_text
 	   }
            ;
 
-opt_into:
+into:
         INTO OUTFILE TEXT_STRING
 	{
 	  LEX *lex=Lex;
@@ -2904,7 +2900,7 @@ insert:
 	{
 	  Select->set_lock_for_tables($3);
 	}
-	insert_field_spec
+	insert_field_spec opt_insert_update
 	;
 
 replace:
@@ -2977,7 +2973,7 @@ insert_values:
 	    mysql_init_select(lex);
 	  }
 	  select_options select_item_list select_from select_lock_type
-          union {}
+          union_clause {}
 	;
 
 values_list:
@@ -3041,6 +3037,11 @@ expr_or_default:
 	expr 	  { $$= $1;}
 	| DEFAULT {$$= new Item_default(); }
 	;
+
+opt_insert_update:
+        /* empty */
+        | ON DUPLICATE KEY_SYM UPDATE_SYM SET update_list
+        ;
 
 /* Update rows in a table */
 
@@ -3215,7 +3216,7 @@ show_param:
 	    lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
 	    lex->select_lex.select_limit= lex->thd->variables.select_limit;
 	    lex->select_lex.offset_limit= 0L;
-          } limit_clause
+          } opt_limit_clause
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -3243,9 +3244,9 @@ show_param:
           { (void) create_select_for_variable("warning_count"); }
         | COUNT_SYM '(' '*' ')' ERRORS 
 	  { (void) create_select_for_variable("error_count"); }
-        | WARNINGS {Select->offset_limit=0L;} limit_clause
+        | WARNINGS {Select->offset_limit=0L;} opt_limit_clause
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
-        | ERRORS {Select->offset_limit=0L;} limit_clause
+        | ERRORS {Select->offset_limit=0L;} opt_limit_clause
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}  
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
@@ -3997,7 +3998,7 @@ handler:
 	  if (!lex->current_select->add_table_to_list($2, 0, 0))
 	    YYABORT;
         }
-        handler_read_or_scan where_clause limit_clause { }
+        handler_read_or_scan where_clause opt_limit_clause { }
         ;
 
 handler_read_or_scan:
@@ -4326,7 +4327,7 @@ rollback:
 */
 
 
-union:
+union_clause:
 	/* empty */ {}
 	| union_list
 	;
@@ -4378,7 +4379,7 @@ optional_order_or_limit:
 	    lex->current_select->select_limit=
 	      lex->thd->variables.select_limit;
 	  }
-	opt_order_clause limit_clause
+	opt_order_clause opt_limit_clause
 	;
 
 union_option:
