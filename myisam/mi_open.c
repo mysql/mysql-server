@@ -366,7 +366,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       lock_error=1;			/* Database unlocked */
     }
 
-    if (mi_open_datafile(&info, share))
+    if (mi_open_datafile(&info, share, -1))
       goto err;
     errpos=5;
 
@@ -439,7 +439,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno=EACCES;				/* Can't open in write mode */
       goto err;
     }
-    if (mi_open_datafile(&info, share))
+    if (mi_open_datafile(&info, share, old_info->dfile))
       goto err;
     errpos=5;
   }
@@ -1012,25 +1012,26 @@ char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
  ** Help functions for recover
  *************************************************************************/
 
-int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share)
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup)
 {
 #ifdef USE_RAID
   if (share->base.raid_type)
   {
-    if ((info->dfile=my_raid_open(share->data_file_name,
-				  share->mode | O_SHARE,
-				  share->base.raid_type,
-				  share->base.raid_chunks,
-				  share->base.raid_chunksize,
-				  MYF(MY_WME | MY_RAID))) < 0)
-      return 1;
+    info->dfile=my_raid_open(share->data_file_name,
+			     share->mode | O_SHARE,
+			     share->base.raid_type,
+			     share->base.raid_chunks,
+			     share->base.raid_chunksize,
+			     MYF(MY_WME | MY_RAID));
   }
   else
 #endif
-    if ((info->dfile=my_open(share->data_file_name, share->mode | O_SHARE,
-			     MYF(MY_WME))) < 0)
-      return 1;
-  return 0;
+    if (file_to_dup >= 0)
+      info->dfile=my_dup(file_to_dup,MYF(MY_WME));
+    else
+      info->dfile=my_open(share->data_file_name, share->mode | O_SHARE,
+			  MYF(MY_WME));
+  return info->dfile >= 0 ? 0 : 1;
 }
 
 

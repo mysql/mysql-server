@@ -40,6 +40,7 @@ void pack_dirname(my_string to, const char *from)
   char buff[FN_REFLEN];
   DBUG_ENTER("pack_dirname");
 
+  LINT_INIT(buff_length);
   (void) intern_filename(to,from);		/* Change to intern name */
 
 #ifdef FN_DEVCHAR
@@ -49,7 +50,6 @@ void pack_dirname(my_string to, const char *from)
 #endif
     start=to;
 
-  LINT_INIT(buff_length);
   if (!(cwd_err= my_getwd(buff,FN_REFLEN,MYF(0))))
   {
     buff_length= (uint) strlen(buff);

@@ -47,7 +47,7 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
-static int create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
+static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1075,11 +1075,10 @@ mysql_execute_command(void)
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
-    TODO: UPDATE this for UNION. Updated by Sinisa !!!!!!!!!!!!!!!!!!!!!!
   */
-  if (lex->select_lex.next && tables && (res = create_total_list(thd,lex,&tables)))
-    DBUG_VOID_RETURN;
-  if (table_rules_on && thd->slave_thread && tables && !tables_ok(thd,tables))
+  if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
+      (table_rules_on && tables && thd->slave_thread &&
+       !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
 
   switch (lex->sql_command) {
@@ -1088,7 +1087,6 @@ mysql_execute_command(void)
     select_result *result;
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
-    /* Save a call, as it's very uncomon that we use unions */
     if (tables)
     {
       res=check_table_access(thd,
@@ -2364,6 +2362,7 @@ mysql_init_query(THD *thd)
   thd->lex.select = &thd->lex.select_lex;
   thd->lex.select_lex.table_list.first=0;
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
+  thd->lex.select_lex.next=0;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
@@ -2836,7 +2835,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 ** to the entries in this list.
 */
 
-static int create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
+static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 {
   /* Handle the case when we are not using union */
   if (!lex->select_lex.next)
@@ -2853,8 +2852,8 @@ static int create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
   {
     if (sl->order_list.first && sl->next)
     {
-      my_error(ER_WRONG_USAGE,MYF(0),"UNION","ORDER BY");
-      return -1;
+      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
+      return 1;
     }
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {
@@ -2874,7 +2873,10 @@ static int create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	  aux->lock_type= lex->lock_option;
 	  if (!(cursor = (TABLE_LIST *) thd->memdup((byte*) aux,
 						    sizeof(*aux))))
-	    return -1;
+	  {
+	    send_error(&thd->net,0);
+	    return 1;
+	  }
 	  *new_table_list= cursor;
 	  new_table_list= &cursor->next;
 	  *new_table_list=0;				// end result list

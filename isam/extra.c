@@ -204,6 +204,7 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
     info->s->changed=1;				/* Update on close */
     break;
   case HA_EXTRA_FORCE_REOPEN:
+  case HA_EXTRA_PREPARE_FOR_DELETE:
     pthread_mutex_lock(&THR_LOCK_isam);
     info->s->last_version= 0L;			/* Impossible version */
 #ifdef __WIN__

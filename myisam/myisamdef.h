@@ -169,8 +169,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   ulong last_version;			/* Version on start */
   ulong options;			/* Options used */
   uint	rec_reflength;			/* rec_reflength in use now */
-  int	kfile;				/* Shared keyfile */
-  int	data_file;			/* Shared data file */
+  File	kfile;				/* Shared keyfile */
+  File	data_file;			/* Shared data file */
   int	mode;				/* mode of file on open */
   uint	reopen;				/* How many times reopened */
   uint	w_locks,r_locks;		/* Number of read/write locks */
@@ -642,7 +642,7 @@ my_bool mi_check_status(void* param);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 
 my_bool check_table_is_closed(const char *name, const char *where);
-int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 
 int _mi_init_bulk_insert(MI_INFO *info);

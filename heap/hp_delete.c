@@ -50,7 +50,8 @@ int heap_delete(HP_INFO *info, const byte *record)
   info->current_hash_ptr=0;
   DBUG_RETURN(0);
  err:
-  if( ++(share->records) == share->blength) share->blength+= share->blength;
+  if (++(share->records) == share->blength)
+    share->blength+= share->blength;
   DBUG_RETURN(my_errno);
 }
 
@@ -66,7 +67,8 @@ int _hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   DBUG_ENTER("_hp_delete_key");
 
   blength=share->blength;
-  if (share->records+1 == blength) blength+= blength;
+  if (share->records+1 == blength)
+    blength+= blength;
   lastpos=hp_find_hash(&keyinfo->block,share->records);
   last_ptr=0;
 

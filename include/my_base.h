@@ -93,7 +93,8 @@ enum ha_extra_function {
   HA_EXTRA_NO_IGNORE_DUP_KEY,
   HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE,	/* Cursor will not be used for update */
   HA_EXTRA_BULK_INSERT_BEGIN,
-  HA_EXTRA_BULK_INSERT_END
+  HA_EXTRA_BULK_INSERT_END,
+  HA_EXTRA_PREPARE_FOR_DELETE
 };
 
 	/* The following is parameter to ha_panic() */

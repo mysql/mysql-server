@@ -147,7 +147,8 @@ uint my_fwrite(FILE *stream, const byte *Buffer, uint Count, myf MyFlags)
 	/* Seek to position in file */
 	/* ARGSUSED */
 
-my_off_t my_fseek(FILE *stream, my_off_t pos, int whence, myf MyFlags)
+my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
+		  myf MyFlags __attribute__((unused)))
 {
   DBUG_ENTER("my_fseek");
   DBUG_PRINT("my",("stream: %lx  pos: %lu  whence: %d  MyFlags: %d",
@@ -160,7 +161,7 @@ my_off_t my_fseek(FILE *stream, my_off_t pos, int whence, myf MyFlags)
 	/* Tell current position of file */
 	/* ARGSUSED */
 
-my_off_t my_ftell(FILE *stream, myf MyFlags)
+my_off_t my_ftell(FILE *stream, myf MyFlags __attribute__((unused)))
 {
   off_t pos;
   DBUG_ENTER("my_ftell");

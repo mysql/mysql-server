@@ -1406,7 +1406,10 @@ static void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      reload_acl_and_cache((THD*) 0,REFRESH_LOG,
+      reload_acl_and_cache((THD*) 0,
+			   (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+			    REFRESH_STATUS | REFRESH_GRANT | REFRESH_THREADS |
+			    REFRESH_HOSTS),
 			   (TABLE_LIST*) 0); // Flush logs
       mysql_print_status((THD*) 0);		// Send debug some info
       break;
@@ -2613,7 +2616,9 @@ static struct option long_options[] = {
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
+#ifdef NOT_YET
   {"no-mix-table-types",       no_argument,       0, (int)OPT_NO_MIX_TYPE},
+#endif
   {"old-protocol",          no_argument,       0, 'o'},
   {"old-rpl-compat",          no_argument,       0, (int)OPT_OLD_RPL_COMPAT},
 #ifdef ONE_THREAD

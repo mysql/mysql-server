@@ -55,6 +55,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     return((gptr) 0);				/* purecov: inspected */
   }
   next->next=mem_root->used;
+  next->size= Size;
   mem_root->used=next;
   return (gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM)));
 #else
@@ -165,6 +166,31 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   }
   DBUG_VOID_RETURN;
 }
+
+/*
+  Find block that contains an object and set the pre_alloc to it
+*/
+
+void set_prealloc_root(MEM_ROOT *root, char *ptr)
+{
+  USED_MEM *next;
+  for (next=root->used; next ; next=next->next)
+  {
+    if ((char*) next <= ptr && (char*) next + next->size > ptr)
+    {
+      root->pre_alloc=next;
+      return;
+    }
+  }
+  for (next=root->free ; next ; next=next->next)
+  {
+    if ((char*) next <= ptr && (char*) next + next->size > ptr)
+    {
+      root->pre_alloc=next;
+      return;
+    }
+  }
+}  
 
 
 char *strdup_root(MEM_ROOT *root,const char *str)
