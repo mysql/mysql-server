@@ -3594,9 +3594,10 @@ create_error:
         message in the error log, so we don't send it.
       */
       if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-	send_warning(thd,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
-      else
-	send_ok(thd);
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
     }
     else
       res= TRUE;
@@ -3606,9 +3607,10 @@ create_error:
     if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
     {
       if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-	send_warning(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK, 0);
-      else
-	send_ok(thd);
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
     }
     else
       goto error;
