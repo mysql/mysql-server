@@ -804,6 +804,8 @@ private:
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
+
+  friend class HugoOperations;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
