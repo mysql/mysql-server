@@ -56,28 +56,6 @@ czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
 romanian russian serbian slovak spanish swedish ukrainian"
 
-
-# Generate make rules for all error messages
-AVAILABLE_LANGUAGES_ERRORS=
-AVAILABLE_LANGUAGES_ERRORS_RULES=$srcdir/ac_available_languages_fragment
-rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
-for i in $AVAILABLE_LANGUAGES
-do
-  AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
-  case $host_os in
-    netware*)
-      echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err.linux -C\$(srcdir)/charsets/ $i/errmsg.txt $i/errmsg.sys" \
-      >> $AVAILABLE_LANGUAGES_ERRORS_RULES
-      ;;
-    *)
-  echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err -C\$(srcdir)/charsets/ $i/errmsg.txt $i/errmsg.sys" \
-    >> $AVAILABLE_LANGUAGES_ERRORS_RULES
-      ;;
-  esac
-done
-
 #####
 #####
 
@@ -93,7 +71,6 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
-AC_SUBST_FILE(AVAILABLE_LANGUAGES_ERRORS_RULES)
 
 AC_SUBST([NDB_VERSION_MAJOR])
 AC_SUBST([NDB_VERSION_MINOR])

@@ -123,6 +123,17 @@ sub spawn_impl ($$$$$$$) {
 
       $SIG{INT}= 'DEFAULT';         # Parent do some stuff, we don't
 
+      if ( $::glob_cygwin_shell and $mode eq 'test' )
+      {
+        # Programs started from mysqltest under Cygwin, are to
+        # execute them within Cygwin. Else simple things in test
+        # files like
+        # --system "echo 1 > file"
+        # will fail.
+        # FIXME not working :-(
+#       $ENV{'COMSPEC'}= "$::glob_cygwin_shell -c";
+      }
+
       if ( $output )
       {
         if ( ! open(STDOUT,">",$output) )
@@ -130,6 +141,7 @@ sub spawn_impl ($$$$$$$) {
           mtr_error("can't redirect STDOUT to \"$output\": $!");
         }
       }
+
       if ( $error )
       {
         if ( $output eq $error )
@@ -147,6 +159,7 @@ sub spawn_impl ($$$$$$$) {
           }
         }
       }
+
       if ( $input )
       {
         if ( ! open(STDIN,"<",$input) )
@@ -154,7 +167,11 @@ sub spawn_impl ($$$$$$$) {
           mtr_error("can't redirect STDIN to \"$input\": $!");
         }
       }
-      exec($path,@$arg_list_t);
+
+      if ( ! exec($path,@$arg_list_t) )
+      {
+        mtr_error("failed to execute \"$path\": $!");
+      }
     }
   }
 }
@@ -569,7 +586,7 @@ sub mtr_stop_mysqld_servers ($) {
 sub mtr_mysqladmin_shutdown () {
   my $spec= shift;
 
-  my @mysql_admin_pids;
+  my %mysql_admin_pids;
   my @to_kill_specs;
 
   foreach my $srv ( @$spec )
@@ -611,13 +628,19 @@ sub mtr_mysqladmin_shutdown () {
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
                        "", $::path_manager_log, $::path_manager_log, "");
-    push(@mysql_admin_pids, $pid);
+    $mysql_admin_pids{$pid}= 1;
   }
 
   # We wait blocking, we wait for the last one anyway
-  foreach my $pid (@mysql_admin_pids)
+  while (keys %mysql_admin_pids)
   {
-    waitpid($pid,0);                    # FIXME no need to check -1 or 0?
+    foreach my $pid (keys %mysql_admin_pids)
+    {
+      if ( waitpid($pid,0) > 0 )
+      {
+        delete $mysql_admin_pids{$pid};
+      }
+    }
   }
 
   # If we trusted "mysqladmin --shutdown_timeout= ..." we could just
