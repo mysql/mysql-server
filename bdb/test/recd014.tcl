@@ -1,16 +1,14 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd014.tcl,v 1.9 2001/01/11 17:16:04 sue Exp $
+# $Id: recd014.tcl,v 1.19 2002/08/15 19:21:24 sandstro Exp $
 #
-# Recovery Test 14.
-# This is a recovery test for create/delete of queue extents. We have
-# hooks in the database so that we can abort the process at various
-# points and make sure that the extent file does or does not exist.  We
-# then need to recover and make sure the file is correctly existing
-# or not, as the case may be.
+# TEST	recd014
+# TEST	This is a recovery test for create/delete of queue extents.  We
+# TEST	then need to recover and make sure the file is correctly existing
+# TEST	or not, as the case may be.
 proc recd014 { method args} {
 	global fixed_len
 	source ./include.tcl
@@ -51,7 +49,7 @@ proc recd014 { method args} {
 	set flags "-create -txn -home $testdir"
 
 	puts "\tRecd014.a: creating environment"
-	set env_cmd "berkdb env $flags"
+	set env_cmd "berkdb_env $flags"
 
 	puts "\tRecd014.b: Create test commit"
 	ext_recover_create $testdir $env_cmd $omethod \
@@ -61,21 +59,14 @@ proc recd014 { method args} {
 	    $opts $testfile abort
 
 	puts "\tRecd014.c: Consume test commit"
-	ext_recover_delete $testdir $env_cmd $omethod \
-	    $opts $testfile consume commit
+	ext_recover_consume $testdir $env_cmd $omethod \
+	    $opts $testfile commit
 	puts "\tRecd014.c: Consume test abort"
-	ext_recover_delete $testdir $env_cmd $omethod \
-	    $opts $testfile consume abort
-
-	puts "\tRecd014.d: Delete test commit"
-	ext_recover_delete $testdir $env_cmd $omethod \
-	    $opts $testfile delete commit
-	puts "\tRecd014.d: Delete test abort"
-	ext_recover_delete $testdir $env_cmd $omethod \
-	    $opts $testfile delete abort
+	ext_recover_consume $testdir $env_cmd $omethod \
+	    $opts $testfile abort
 
 	set fixed_len $orig_fixed_len
-	puts "\tRecd014.e: Verify db_printlog can read logfile"
+	puts "\tRecd014.d: Verify db_printlog can read logfile"
 	set tmpfile $testdir/printlog.out
 	set stat [catch {exec $util_path/db_printlog -h $testdir \
 	    > $tmpfile} ret]
@@ -105,7 +96,11 @@ proc ext_recover_create { dir env_cmd method opts dbfile txncmd } {
 	set t [$env txn]
 	error_check_good txn_begin [is_valid_txn $t $env] TRUE
 
-	set ret [catch {eval {berkdb_open} $oflags} db]
+	set ret [catch {eval {berkdb_open} -txn $t $oflags} db]
+	error_check_good txn_commit [$t commit] 0
+
+	set t [$env txn]
+	error_check_good txn_begin [is_valid_txn $t $env] TRUE
 
 	#
 	# The command to execute to create an extent is a put.
@@ -123,7 +118,7 @@ proc ext_recover_create { dir env_cmd method opts dbfile txncmd } {
 	puts "\t\tSyncing"
 	error_check_good db_sync [$db sync] 0
 
-        catch { file copy -force $dir/$dbfile $dir/$dbfile.afterop } res
+	catch { file copy -force $dir/$dbfile $dir/$dbfile.afterop } res
 	copy_extent_file $dir $dbfile afterop
 
 	error_check_good txn_$txncmd:$t [$t $txncmd] 0
@@ -149,7 +144,10 @@ proc ext_recover_create { dir env_cmd method opts dbfile txncmd } {
 		catch { file copy -force $dir/$dbfile $init_file } res
 		copy_extent_file $dir $dbfile init
 	}
+	set t [$env txn]
+	error_check_good txn_begin [is_valid_txn $t $env] TRUE
 	error_check_good db_close [$db close] 0
+	error_check_good txn_commit [$t commit] 0
 	error_check_good env_close [$env close] 0
 
 	#
@@ -241,7 +239,7 @@ proc ext_create_check { dir txncmd init_file dbfile oflags putrecno } {
 		#
 		error_check_good \
 		    diff(initial,post-recover2):diff($init_file,$dir/$dbfile) \
-		    [dbdump_diff $init_file $dir/$dbfile] 0
+		    [dbdump_diff "-dar" $init_file $dir $dbfile] 0
 	} else {
 		#
 		# Operation aborted.  The file is there, but make
@@ -255,8 +253,7 @@ proc ext_create_check { dir txncmd init_file dbfile oflags putrecno } {
 	}
 }
 
-
-proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
+proc ext_recover_consume { dir env_cmd method opts dbfile txncmd} {
 	global log_log_record_types
 	global alphabet
 	source ./include.tcl
@@ -269,55 +266,52 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 	env_cleanup $dir
 	# Open the environment and set the copy/abort locations
 	set env [eval $env_cmd]
-	
-	set oflags "-create $method -mode 0644 -pagesize 512 \
+
+	set oflags "-create -auto_commit $method -mode 0644 -pagesize 512 \
 	   -env $env $opts $dbfile"
-	
+
 	#
 	# Open our db, add some data, close and copy as our
 	# init file.
 	#
 	set db [eval {berkdb_open} $oflags]
 	error_check_good db_open [is_valid_db $db] TRUE
-	
+
 	set extnum 0
 	set data [chop_data $method [replicate $alphabet 512]]
 
 	set txn [$env txn]
 	error_check_good txn_begin [is_valid_txn $txn $env] TRUE
-	set putrecno [$db put -append $data]
+	set putrecno [$db put -txn $txn -append $data]
 	error_check_good db_put $putrecno 1
 	error_check_good commit [$txn commit] 0
 	error_check_good db_close [$db close] 0
-	
+
 	puts "\t\tExecuting command"
-	
+
 	set init_file $dir/$dbfile.init
 	catch { file copy -force $dir/$dbfile $init_file } res
 	copy_extent_file $dir $dbfile init
-	
+
 	#
 	# If we don't abort, then we expect success.
 	# If we abort, we expect no file removed until recovery is run.
 	#
 	set db [eval {berkdb_open} $oflags]
 	error_check_good db_open [is_valid_db $db] TRUE
-	
+
 	set t [$env txn]
 	error_check_good txn_begin [is_valid_txn $t $env] TRUE
 
-	if { [string compare $op "delete"] == 0 } {
-		set dbcmd "$db del -txn $t $putrecno"
-	} else {
-		set dbcmd "$db get -txn $t -consume"
-	}
+	set dbcmd "$db get -txn $t -consume"
 	set ret [eval $dbcmd]
 	error_check_good db_sync [$db sync] 0
 
-        catch { file copy -force $dir/$dbfile $dir/$dbfile.afterop } res
+	catch { file copy -force $dir/$dbfile $dir/$dbfile.afterop } res
 	copy_extent_file $dir $dbfile afterop
 
 	error_check_good txn_$txncmd:$t [$t $txncmd] 0
+	error_check_good db_sync [$db sync] 0
 	set dbq [make_ext_filename $dir $dbfile $extnum]
 	if {$txncmd == "abort"} {
 		#
@@ -330,20 +324,10 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 		# Since we aborted the txn, we should be able
 		# to get to our original entry.
 		#
-		error_check_good post$op.1 [file exists $dbq] 1
-
-		set xdb [eval {berkdb_open} $oflags]
-		error_check_good db_open [is_valid_db $xdb] TRUE
-		set kd [$xdb get $putrecno]
-		set key [lindex [lindex $kd 0] 0]
-		error_check_good dbget_key $key $putrecno
-		set retdata [lindex [lindex $kd 0] 1]
-		error_check_good dbget_data $data $retdata
-		error_check_good db_close [$xdb close] 0
-
+		error_check_good postconsume.1 [file exists $dbq] 1
 		error_check_good \
-		    diff(init,post$op.2):diff($init_file,$dir/$dbfile)\
-		    [dbdump_diff $init_file $dir/$dbfile] 0
+		    diff(init,postconsume.2):diff($init_file,$dir/$dbfile)\
+		    [dbdump_diff "-dar" $init_file $dir $dbfile] 0
 	} else {
 		#
 		# Operation was committed, verify it does
@@ -353,14 +337,8 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 		#
 		# Check file existence.  Consume operations remove
 		# the extent when we move off, which we should have
-		# done.  Delete operations won't remove the extent
-		# until we run recovery.
-		#
-		if { [string compare $op "delete"] == 0 } {
-			error_check_good ${op}_exists [file exists $dbq] 1
-		} else {
-			error_check_good ${op}_exists [file exists $dbq] 0
-		}
+		# done.
+		error_check_good consume_exists [file exists $dbq] 0
 	}
 	error_check_good db_close [$db close] 0
 	error_check_good env_close [$env close] 0
@@ -384,7 +362,7 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 		#
 		error_check_good \
 		    diff(initial,post-recover1):diff($init_file,$dir/$dbfile) \
-		    [dbdump_diff $init_file $dir/$dbfile] 0
+		    [dbdump_diff "-dar" $init_file $dir $dbfile] 0
 	} else {
 		#
 		# Operation was committed, verify it does
@@ -396,7 +374,7 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 
 	#
 	# Run recovery here. Re-do the operation.
-	# Verify that the file doesn't exist 
+	# Verify that the file doesn't exist
 	# (if we committed)  or change (if we aborted)
 	# when we are done.
 	#
@@ -418,14 +396,14 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 		#
 		error_check_good \
 		    diff(initial,post-recover1):diff($init_file,$dir/$dbfile) \
-		    [dbdump_diff $init_file $dir/$dbfile] 0
+		    [dbdump_diff "-dar" $init_file $dir $dbfile] 0
 	} else {
 		#
 		# Operation was committed, verify it does
 		# not exist.  Both operations should result
 		# in no file existing now that we've run recovery.
 		#
-		error_check_good after_recover1 [file exists $dbq] 0
+		error_check_good after_recover2 [file exists $dbq] 0
 	}
 
 	#
@@ -456,12 +434,12 @@ proc ext_recover_delete { dir env_cmd method opts dbfile op txncmd} {
 		#
 		error_check_good \
 		    diff(initial,post-recover2):diff($init_file,$dir/$dbfile) \
-		    [dbdump_diff $init_file $dir/$dbfile] 0
+		    [dbdump_diff "-dar" $init_file $dir $dbfile] 0
 	} else {
 		#
 		# Operation was committed, verify it still does
 		# not exist.
 		#
-		error_check_good after_recover2 [file exists $dbq] 0
+		error_check_good after_recover3 [file exists $dbq] 0
 	}
 }

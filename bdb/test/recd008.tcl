@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd008.tcl,v 1.22 2000/12/07 19:13:46 sue Exp $
+# $Id: recd008.tcl,v 1.26 2002/02/25 16:44:26 sandstro Exp $
 #
-# Recovery Test 8.
-# Test deeply nested transactions and many-child transactions.
+# TEST	recd008
+# TEST	Test deeply nested transactions and many-child transactions.
 proc recd008 { method {breadth 4} {depth 4} args} {
 	global kvals
 	source ./include.tcl
@@ -59,7 +59,7 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 
 	set eflags "-mode 0644 -create -txn_max $txn_max \
 	    -txn -home $testdir"
-	set env_cmd "berkdb env $eflags"
+	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
 	error_check_good env_open [is_valid_env $dbenv] TRUE
 

@@ -194,12 +194,12 @@ bool berkeley_flush_logs()
   int error;
   bool result=0;
   DBUG_ENTER("berkeley_flush_logs");
-  if ((error=log_flush(db_env,0)))
+  if ((error=db_env->log_flush(db_env,0)))
   {
     my_error(ER_ERROR_DURING_FLUSH_LOGS,MYF(0),error); /* purecov: inspected */
     result=1; /* purecov: inspected */
   }
-  if ((error=txn_checkpoint(db_env,0,0,0)))
+  if ((error=db_env->txn_checkpoint(db_env,0,0,0)))
   {
     my_error(ER_ERROR_DURING_CHECKPOINT,MYF(0),error); /* purecov: inspected */
     result=1; /* purecov: inspected */
@@ -243,10 +243,8 @@ int berkeley_show_logs(THD *thd)
   init_alloc_root(&show_logs_root, 1024, 1024);
   my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
 
-  if ((error= log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG,
-			  (void* (*)(size_t)) sql_alloc)) ||
-      (error= log_archive(db_env, &free_logs, DB_ARCH_ABS, 
-			  (void* (*)(size_t)) sql_alloc)))
+  if ((error= db_env->log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG))
+      || (error= db_env->log_archive(db_env, &free_logs, DB_ARCH_ABS)))
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error));
     db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
@@ -309,10 +307,10 @@ void berkeley_cleanup_log_files(void)
 
   /* XXX: Probably this should be done somewhere else, and
    * should be tunable by the user. */
-  if ((error = txn_checkpoint(db_env, 0, 0, 0)))
+  if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
     my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error); /* purecov: inspected */
 
-  if ((error = log_archive(db_env, &names, DB_ARCH_ABS, NULL)) != 0)
+  if ((error = db_env->log_archive(db_env, &names, DB_ARCH_ABS)) != 0)
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error)); /* purecov: inspected */
     db_env->err(db_env, error, "log_archive: DB_ARCH_ABS"); /* purecov: inspected */
@@ -512,9 +510,11 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 			  berkeley_cmp_packed_key));
     if (!hidden_primary_key)
       file->app_private= (void*) (table->key_info+table->primary_key);
-    if ((error=(file->open(file, fn_format(name_buff,name,"", ha_berkeley_ext,
-					   2 | 4),
-			   "main", DB_BTREE, open_mode,0))))
+    if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
+	(error= (file->open(file, transaction,
+			    fn_format(name_buff, name, "", ha_berkeley_ext, 2 | 4),
+			    "main", DB_BTREE, open_mode, 0))) ||
+	(error= transaction->commit(transaction, 0)))
     {
       free_share(share,table, hidden_primary_key,1); /* purecov: inspected */
       my_free((char*) rec_buff,MYF(0)); /* purecov: inspected */
@@ -545,8 +545,10 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	(*ptr)->app_private= (void*) (table->key_info+i);
 	if (!(table->key_info[i].flags & HA_NOSAME))
 	  (*ptr)->set_flags(*ptr, DB_DUP);
-	if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
-				 open_mode, 0))))
+	if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
+	    (error=((*ptr)->open(*ptr, transaction, name_buff, part, DB_BTREE,
+				 open_mode, 0))) ||
+	    (error= transaction->commit(transaction, 0)))
 	{
 	  close();				/* purecov: inspected */
 	  my_errno=error;			/* purecov: inspected */
@@ -1836,7 +1838,7 @@ static int create_sub_table(const char *table_name, const char *sub_name,
   if (!(error=db_create(&file, db_env, 0)))
   {
     file->set_flags(file, flags);
-    error=(file->open(file, table_name, sub_name, type,
+    error=(file->open(file, NULL, table_name, sub_name, type,
 		      DB_THREAD | DB_CREATE, my_umask));
     if (error)
     {
@@ -1892,7 +1894,7 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   DB *status_block;
   if (!db_create(&status_block, db_env, 0))
   {
-    if (!status_block->open(status_block, name_buff,
+    if (!status_block->open(status_block, NULL, name_buff,
 			    "status", DB_BTREE, DB_CREATE, 0))
     {
       char rec_buff[4+MAX_KEY*4];
@@ -2080,7 +2082,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (key_file[i]->stat(key_file[i], (void*) &stat, 0, 0))
+    if (key_file[i]->stat(key_file[i], (void*) &stat, 0))
       goto err; /* purecov: inspected */
     share->rec_per_key[i]= (stat->bt_ndata /
 			    (stat->bt_nkeys ? stat->bt_nkeys : 1));
@@ -2093,7 +2095,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (file->stat(file, (void*) &stat, 0, 0))
+    if (file->stat(file, (void*) &stat, 0))
       goto err; /* purecov: inspected */
   }
   pthread_mutex_lock(&share->mutex);
@@ -2296,7 +2298,7 @@ void ha_berkeley::get_status()
       fn_format(name_buff, share->table_name,"", ha_berkeley_ext, 2 | 4);
       if (!db_create(&share->status_block, db_env, 0))
       {
-	if (share->status_block->open(share->status_block, name_buff,
+	if (share->status_block->open(share->status_block, NULL, name_buff,
 				      "status", DB_BTREE, open_mode, 0))
 	{
 	  share->status_block->close(share->status_block, 0); /* purecov: inspected */
@@ -2372,7 +2374,7 @@ static void update_status(BDB_SHARE *share, TABLE *table)
       if (db_create(&share->status_block, db_env, 0)) /* purecov: inspected */
 	goto end; /* purecov: inspected */
       share->status_block->set_flags(share->status_block,0); /* purecov: inspected */
-      if (share->status_block->open(share->status_block,
+      if (share->status_block->open(share->status_block, NULL,
 				    fn_format(name_buff,share->table_name,"",
 					      ha_berkeley_ext,2 | 4),
 				    "status", DB_BTREE,

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 1999, 2000
+ * Copyright (c) 1998-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_tmpdir.c,v 11.16 2001/01/08 20:42:06 bostic Exp $";
+static const char revid[] = "$Id: os_tmpdir.c,v 11.19 2002/01/11 15:53:02 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -37,6 +37,8 @@ __os_tmpdir(dbenv, flags)
 	DB_ENV *dbenv;
 	u_int32_t flags;
 {
+	int isdir;
+
 	/*
 	 * !!!
 	 * Don't change this to:
@@ -96,7 +98,7 @@ __os_tmpdir(dbenv, flags)
 #endif
 #ifdef DB_WIN32
 	/* Get the path to the temporary directory. */
-	{int isdir, len;
+	{int len;
 	char *eos, temp[MAXPATHLEN + 1];
 
 		if ((len = GetTempPath(sizeof(temp) - 1, temp)) > 2) {
@@ -113,7 +115,7 @@ __os_tmpdir(dbenv, flags)
 
 	/* Step through the static list looking for a possibility. */
 	for (lp = list; *lp != NULL; ++lp)
-		if (__os_exists(*lp, NULL) == 0)
+		if (__os_exists(*lp, &isdir) == 0 && isdir != 0)
 			return (__os_strdup(dbenv, *lp, &dbenv->db_tmp_dir));
 	return (0);
 }

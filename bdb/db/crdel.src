@@ -1,13 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id: crdel.src,v 11.12 2000/12/12 17:41:48 bostic Exp $
+ * $Id: crdel.src,v 11.24 2002/04/17 19:02:57 krinsky Exp $
  */
 
-PREFIX	crdel
+PREFIX	__crdel
+DBPRIVATE
 
 INCLUDE	#include "db_config.h"
 INCLUDE
@@ -15,28 +16,18 @@ INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
 INCLUDE #include <ctype.h>
-INCLUDE #include <errno.h>
 INCLUDE #include <string.h>
 INCLUDE #endif
 INCLUDE
 INCLUDE #include "db_int.h"
-INCLUDE #include "db_page.h"
-INCLUDE #include "db_dispatch.h"
-INCLUDE #include "db_am.h"
-INCLUDE #include "txn.h"
+INCLUDE #include "dbinc/crypto.h"
+INCLUDE #include "dbinc/db_page.h"
+INCLUDE #include "dbinc/db_dispatch.h"
+INCLUDE #include "dbinc/db_am.h"
+INCLUDE #include "dbinc/log.h"
+INCLUDE #include "dbinc/rep.h"
+INCLUDE #include "dbinc/txn.h"
 INCLUDE
-
-/*
- * Fileopen -- log a potential file create operation
- *
- * name: filename
- * subname: sub database name
- * mode: file system mode
- */
-BEGIN fileopen		141
-DBT	name		DBT		s
-ARG	mode		u_int32_t	o
-END
 
 /*
  * Metasub: log the creation of a subdatabase meta data page.
@@ -47,57 +38,9 @@ END
  * lsn: lsn of the page.
  */
 BEGIN metasub		142
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	d
-DBT	page		DBT		s
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
+PGDBT	page		DBT		s
 POINTER	lsn		DB_LSN *	lu
 END
 
-/*
- * Metapage: log the creation of a meta data page for a new file.
- *
- * fileid: identifies the file being acted upon.
- * name: file containing the page.
- * pgno: page number on which to write this meta-data page
- * page: the actual meta-data page
- */
-BEGIN metapage		143
-ARG	fileid		int32_t		ld
-DBT	name		DBT		s
-ARG	pgno		db_pgno_t	d
-DBT	page		DBT		s
-END
-
-/*
- * Delete: remove a file.
- * Note that we don't need a special log record for subdatabase
- * removes, because we use normal btree operations to remove them.
- *
- * name: name of the file being removed (relative to DBHOME).
- */
-DEPRECATED old_delete		144
-DBT	name		DBT	s
-END
-
-/*
- * Rename: rename a file
- *   We do not need this for subdatabases
- *
- * name: name of the file being removed (relative to DBHOME).
- */
-BEGIN rename		145
-ARG	fileid		int32_t	ld
-DBT	name		DBT		s
-DBT	newname		DBT		s
-END
-/*
- * Delete: remove a file.
- * Note that we don't need a special log record for subdatabase
- * removes, because we use normal btree operations to remove them.
- *
- * name: name of the file being removed (relative to DBHOME).
- */
-BEGIN delete		146
-ARG	fileid		int32_t	ld
-DBT	name		DBT		s
-END

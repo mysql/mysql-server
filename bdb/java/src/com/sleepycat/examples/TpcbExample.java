@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TpcbExample.java,v 11.9 2000/04/01 15:52:15 dda Exp $
+ * $Id: TpcbExample.java,v 11.16 2002/02/13 06:08:35 mjc Exp $
  */
 
 package com.sleepycat.examples;
@@ -82,6 +82,10 @@ class TpcbExample extends DbEnv
         set_errpfx(progname);
         set_cachesize(0, cachesize == 0 ? 4 * 1024 * 1024 : cachesize, 0);
 
+	if ((flags & (Db.DB_TXN_NOSYNC)) != 0)
+		set_flags(Db.DB_TXN_NOSYNC, true);
+	flags &= ~(Db.DB_TXN_NOSYNC);
+
 	int local_flags = flags | Db.DB_CREATE;
         if (initializing)
             local_flags |= Db.DB_INIT_MPOOL;
@@ -117,8 +121,8 @@ class TpcbExample extends DbEnv
         try {
             dbp = new Db(this, 0);
             dbp.set_h_nelem(h_nelem);
-            dbp.open("account", null,
-                     Db.DB_HASH, Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
+            dbp.open(null, "account", null, Db.DB_HASH,
+                     Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
         }
         // can be DbException or FileNotFoundException
         catch (Exception e1) {
@@ -154,8 +158,8 @@ class TpcbExample extends DbEnv
             dbp.set_h_ffactor(1);
             dbp.set_pagesize(512);
 
-            dbp.open("branch", null,
-                     Db.DB_HASH, Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
+            dbp.open(null, "branch", null, Db.DB_HASH,
+	             Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
         }
         // can be DbException or FileNotFoundException
         catch (Exception e3) {
@@ -191,8 +195,8 @@ class TpcbExample extends DbEnv
             dbp.set_h_ffactor(0);
             dbp.set_pagesize(512);
 
-            dbp.open("teller", null,
-                     Db.DB_HASH, Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
+            dbp.open(null, "teller", null, Db.DB_HASH,
+	             Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
         }
         // can be DbException or FileNotFoundException
         catch (Exception e5) {
@@ -218,8 +222,8 @@ class TpcbExample extends DbEnv
         try {
             dbp = new Db(this, 0);
             dbp.set_re_len(HISTORY_LEN);
-            dbp.open("history", null,
-                     Db.DB_RECNO, Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
+            dbp.open(null, "history", null, Db.DB_RECNO,
+	             Db.DB_CREATE | Db.DB_TRUNCATE, 0644);
         }
         // can be DbException or FileNotFoundException
         catch (Exception e7) {
@@ -349,13 +353,17 @@ class TpcbExample extends DbEnv
         int err;
         try {
             adb = new Db(this, 0);
-            adb.open("account", null, Db.DB_UNKNOWN, 0, 0);
+            adb.open(null, "account", null, Db.DB_UNKNOWN,
+                     Db.DB_AUTO_COMMIT, 0);
             bdb = new Db(this, 0);
-            bdb.open("branch", null, Db.DB_UNKNOWN, 0, 0);
+            bdb.open(null, "branch", null, Db.DB_UNKNOWN,
+                     Db.DB_AUTO_COMMIT, 0);
             tdb = new Db(this, 0);
-            tdb.open("teller", null, Db.DB_UNKNOWN, 0, 0);
+            tdb.open(null, "teller", null, Db.DB_UNKNOWN,
+                     Db.DB_AUTO_COMMIT, 0);
             hdb = new Db(this, 0);
-            hdb.open("history", null, Db.DB_UNKNOWN, 0, 0);
+            hdb.open(null, "history", null, Db.DB_UNKNOWN,
+                     Db.DB_AUTO_COMMIT, 0);
         }
         catch (DbException dbe) {
             errExit(dbe, "Open of db files failed");
@@ -494,7 +502,11 @@ class TpcbExample extends DbEnv
             tcurs.close();
             hcurs.close();
 
-            t.commit(0);
+            // null out t in advance; if the commit fails,
+            // we don't want to abort it in the catch clause.
+            DbTxn tmptxn = t;
+            t = null;
+            tmptxn.commit(0);
 
             // END TIMING
             return (0);
@@ -634,9 +646,9 @@ class TpcbExample extends DbEnv
         history = history == 0 ? HISTORY : history;
 
         if (verbose)
-            System.out.println((long)accounts + " Accounts "
-                 + String.valueOf(branches) + " Branches "
-                 + String.valueOf(tellers) + " Tellers "
+            System.out.println((long)accounts + " Accounts, "
+                 + String.valueOf(branches) + " Branches, "
+                 + String.valueOf(tellers) + " Tellers, "
                  + String.valueOf(history) + " History");
 
         if (iflag) {

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -40,7 +40,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_conv.c,v 11.11 2000/11/30 00:58:31 ubell Exp $";
+static const char revid[] = "$Id: db_conv.c,v 11.38 2002/08/15 03:00:13 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -50,12 +50,14 @@ static const char revid[] = "$Id: db_conv.c,v 11.11 2000/11/30 00:58:31 ubell Ex
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "db_am.h"
-#include "btree.h"
-#include "hash.h"
-#include "qam.h"
+#include "dbinc/crypto.h"
+#include "dbinc/hmac.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_swap.h"
+#include "dbinc/btree.h"
+#include "dbinc/hash.h"
+#include "dbinc/log.h"
+#include "dbinc/qam.h"
 
 /*
  * __db_pgin --
@@ -70,15 +72,135 @@ __db_pgin(dbenv, pg, pp, cookie)
 	void *pp;
 	DBT *cookie;
 {
+	DB dummydb, *dbp;
 	DB_PGINFO *pginfo;
+	DB_CIPHER *db_cipher;
+	DB_LSN not_used;
+	PAGE *pagep;
+	size_t pg_off, pg_len, sum_len;
+	int is_hmac, ret;
+	u_int8_t *chksum, *iv;
 
 	pginfo = (DB_PGINFO *)cookie->data;
+	pagep = (PAGE *)pp;
 
-	switch (((PAGE *)pp)->type) {
+	ret = is_hmac = 0;
+	chksum = iv = NULL;
+	memset(&dummydb, 0, sizeof(DB));
+	dbp = &dummydb;
+	dummydb.flags = pginfo->flags;
+	db_cipher = (DB_CIPHER *)dbenv->crypto_handle;
+	switch (pagep->type) {
+	case P_HASHMETA:
+	case P_BTREEMETA:
+	case P_QAMMETA:
+		/*
+		 * If checksumming is set on the meta-page, we must set
+		 * it in the dbp.
+		 */
+		if (FLD_ISSET(((DBMETA *)pp)->metaflags, DBMETA_CHKSUM))
+			F_SET(dbp, DB_AM_CHKSUM);
+		if (((DBMETA *)pp)->encrypt_alg != 0 ||
+		    F_ISSET(dbp, DB_AM_ENCRYPT))
+			is_hmac = 1;
+		/*
+		 * !!!
+		 * For all meta pages it is required that the chksum
+		 * be at the same location.  Use BTMETA to get to it
+		 * for any meta type.
+		 */
+		chksum = ((BTMETA *)pp)->chksum;
+		sum_len = DBMETASIZE;
+		break;
+	case P_INVALID:
+		/*
+		 * We assume that we've read a file hole if we have
+		 * a zero LSN, zero page number and P_INVALID.  Otherwise
+		 * we have an invalid page that might contain real data.
+		 */
+		if (IS_ZERO_LSN(LSN(pagep)) && pagep->pgno == PGNO_INVALID) {
+			sum_len = 0;
+			break;
+		}
+		/* FALLTHROUGH */
+	default:
+		chksum = P_CHKSUM(dbp, pagep);
+		sum_len = pginfo->db_pagesize;
+		/*
+		 * If we are reading in a non-meta page, then if we have
+		 * a db_cipher then we are using hmac.
+		 */
+		is_hmac = CRYPTO_ON(dbenv) ? 1 : 0;
+		break;
+	}
+
+	/*
+	 * We expect a checksum error if there was a configuration problem.
+	 * If there is no configuration problem and we don't get a match,
+	 * it's fatal: panic the system.
+	 */
+	if (F_ISSET(dbp, DB_AM_CHKSUM) && sum_len != 0)
+		switch (ret = __db_check_chksum(
+		    dbenv, db_cipher, chksum, pp, sum_len, is_hmac)) {
+		case 0:
+			break;
+		case -1:
+			if (DBENV_LOGGING(dbenv))
+				__db_cksum_log(
+				    dbenv, NULL, &not_used, DB_FLUSH);
+			__db_err(dbenv,
+		    "checksum error: catastrophic recovery required");
+			return (__db_panic(dbenv, DB_RUNRECOVERY));
+		default:
+			return (ret);
+		}
+
+	if (F_ISSET(dbp, DB_AM_ENCRYPT)) {
+		DB_ASSERT(db_cipher != NULL);
+		DB_ASSERT(F_ISSET(dbp, DB_AM_CHKSUM));
+
+		pg_off = P_OVERHEAD(dbp);
+		DB_ASSERT(db_cipher->adj_size(pg_off) == 0);
+
+		switch (pagep->type) {
+		case P_HASHMETA:
+		case P_BTREEMETA:
+		case P_QAMMETA:
+			/*
+			 * !!!
+			 * For all meta pages it is required that the iv
+			 * be at the same location.  Use BTMETA to get to it
+			 * for any meta type.
+			 */
+			iv = ((BTMETA *)pp)->iv;
+			pg_len = DBMETASIZE;
+			break;
+		case P_INVALID:
+			if (IS_ZERO_LSN(LSN(pagep)) &&
+			    pagep->pgno == PGNO_INVALID) {
+				pg_len = 0;
+				break;
+			}
+			/* FALLTHROUGH */
+		default:
+			iv = P_IV(dbp, pagep);
+			pg_len = pginfo->db_pagesize;
+			break;
+		}
+		if (pg_len != 0 && (ret = db_cipher->decrypt(dbenv,
+		    db_cipher->data, iv, ((u_int8_t *)pagep) + pg_off,
+		    pg_len - pg_off)) != 0)
+			return (ret);
+	}
+	switch (pagep->type) {
+	case P_INVALID:
+		if (pginfo->type == DB_QUEUE)
+			return (__qam_pgin_out(dbenv, pg, pp, cookie));
+		else
+			return (__ham_pgin(dbenv, dbp, pg, pp, cookie));
 	case P_HASH:
 	case P_HASHMETA:
-	case P_INVALID:
-		return (__ham_pgin(dbenv, pg, pp, cookie));
+		return (__ham_pgin(dbenv, dbp, pg, pp, cookie));
 	case P_BTREEMETA:
 	case P_IBTREE:
 	case P_IRECNO:
@@ -86,14 +208,14 @@ __db_pgin(dbenv, pg, pp, cookie)
 	case P_LDUP:
 	case P_LRECNO:
 	case P_OVERFLOW:
-		return (__bam_pgin(dbenv, pg, pp, cookie));
+		return (__bam_pgin(dbenv, dbp, pg, pp, cookie));
 	case P_QAMMETA:
 	case P_QAMDATA:
 		return (__qam_pgin_out(dbenv, pg, pp, cookie));
 	default:
 		break;
 	}
-	return (__db_unknown_type(dbenv, "__db_pgin", ((PAGE *)pp)->type));
+	return (__db_pgfmt(dbenv, pg));
 }
 
 /*
@@ -109,15 +231,33 @@ __db_pgout(dbenv, pg, pp, cookie)
 	void *pp;
 	DBT *cookie;
 {
+	DB dummydb, *dbp;
+	DB_CIPHER *db_cipher;
 	DB_PGINFO *pginfo;
+	PAGE *pagep;
+	size_t pg_off, pg_len, sum_len;
+	int ret;
+	u_int8_t *chksum, *iv, *key;
 
 	pginfo = (DB_PGINFO *)cookie->data;
+	pagep = (PAGE *)pp;
 
-	switch (((PAGE *)pp)->type) {
+	chksum = iv = key = NULL;
+	memset(&dummydb, 0, sizeof(DB));
+	dbp = &dummydb;
+	dummydb.flags = pginfo->flags;
+	ret = 0;
+	switch (pagep->type) {
+	case P_INVALID:
+		if (pginfo->type == DB_QUEUE)
+			ret = __qam_pgin_out(dbenv, pg, pp, cookie);
+		else
+			ret = __ham_pgout(dbenv, dbp, pg, pp, cookie);
+		break;
 	case P_HASH:
 	case P_HASHMETA:
-	case P_INVALID:
-		return (__ham_pgout(dbenv, pg, pp, cookie));
+		ret = __ham_pgout(dbenv, dbp, pg, pp, cookie);
+		break;
 	case P_BTREEMETA:
 	case P_IBTREE:
 	case P_IRECNO:
@@ -125,14 +265,73 @@ __db_pgout(dbenv, pg, pp, cookie)
 	case P_LDUP:
 	case P_LRECNO:
 	case P_OVERFLOW:
-		return (__bam_pgout(dbenv, pg, pp, cookie));
+		ret = __bam_pgout(dbenv, dbp, pg, pp, cookie);
+		break;
 	case P_QAMMETA:
 	case P_QAMDATA:
-		return (__qam_pgin_out(dbenv, pg, pp, cookie));
-	default:
+		ret = __qam_pgin_out(dbenv, pg, pp, cookie);
 		break;
+	default:
+		return (__db_pgfmt(dbenv, pg));
 	}
-	return (__db_unknown_type(dbenv, "__db_pgout", ((PAGE *)pp)->type));
+	if (ret)
+		return (ret);
+
+	db_cipher = (DB_CIPHER *)dbenv->crypto_handle;
+	if (F_ISSET(dbp, DB_AM_ENCRYPT)) {
+
+		DB_ASSERT(db_cipher != NULL);
+		DB_ASSERT(F_ISSET(dbp, DB_AM_CHKSUM));
+
+		pg_off = P_OVERHEAD(dbp);
+		DB_ASSERT(db_cipher->adj_size(pg_off) == 0);
+
+		key = db_cipher->mac_key;
+
+		switch (pagep->type) {
+		case P_HASHMETA:
+		case P_BTREEMETA:
+		case P_QAMMETA:
+			/*
+			 * !!!
+			 * For all meta pages it is required that the iv
+			 * be at the same location.  Use BTMETA to get to it
+			 * for any meta type.
+			 */
+			iv = ((BTMETA *)pp)->iv;
+			pg_len = DBMETASIZE;
+			break;
+		default:
+			iv = P_IV(dbp, pagep);
+			pg_len = pginfo->db_pagesize;
+			break;
+		}
+		if ((ret = db_cipher->encrypt(dbenv, db_cipher->data,
+		    iv, ((u_int8_t *)pagep) + pg_off, pg_len - pg_off)) != 0)
+			return (ret);
+	}
+	if (F_ISSET(dbp, DB_AM_CHKSUM)) {
+		switch (pagep->type) {
+		case P_HASHMETA:
+		case P_BTREEMETA:
+		case P_QAMMETA:
+			/*
+			 * !!!
+			 * For all meta pages it is required that the chksum
+			 * be at the same location.  Use BTMETA to get to it
+			 * for any meta type.
+			 */
+			chksum = ((BTMETA *)pp)->chksum;
+			sum_len = DBMETASIZE;
+			break;
+		default:
+			chksum = P_CHKSUM(dbp, pagep);
+			sum_len = pginfo->db_pagesize;
+			break;
+		}
+		__db_chksum(pp, sum_len, key, chksum);
+	}
+	return (0);
 }
 
 /*
@@ -169,11 +368,13 @@ __db_metaswap(pg)
  * __db_byteswap --
  *	Byteswap a page.
  *
- * PUBLIC: int __db_byteswap __P((DB_ENV *, db_pgno_t, PAGE *, size_t, int));
+ * PUBLIC: int __db_byteswap
+ * PUBLIC:         __P((DB_ENV *, DB *, db_pgno_t, PAGE *, size_t, int));
  */
 int
-__db_byteswap(dbenv, pg, h, pagesize, pgin)
+__db_byteswap(dbenv, dbp, pg, h, pagesize, pgin)
 	DB_ENV *dbenv;
+	DB *dbp;
 	db_pgno_t pg;
 	PAGE *h;
 	size_t pagesize;
@@ -183,11 +384,12 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 	BKEYDATA *bk;
 	BOVERFLOW *bo;
 	RINTERNAL *ri;
-	db_indx_t i, len, tmp;
+	db_indx_t i, *inp, len, tmp;
 	u_int8_t *p, *end;
 
 	COMPQUIET(pg, 0);
 
+	inp = P_INP(dbp, h);
 	if (pgin) {
 		M_32_SWAP(h->lsn.file);
 		M_32_SWAP(h->lsn.offset);
@@ -202,14 +404,14 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 	case P_HASH:
 		for (i = 0; i < NUM_ENT(h); i++) {
 			if (pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 
-			switch (HPAGE_TYPE(h, i)) {
+			switch (HPAGE_TYPE(dbp, h, i)) {
 			case H_KEYDATA:
 				break;
 			case H_DUPLICATE:
-				len = LEN_HKEYDATA(h, pagesize, i);
-				p = HKEYDATA_DATA(P_ENTRY(h, i));
+				len = LEN_HKEYDATA(dbp, h, pagesize, i);
+				p = HKEYDATA_DATA(P_ENTRY(dbp, h, i));
 				for (end = p + len; p < end;) {
 					if (pgin) {
 						P_16_SWAP(p);
@@ -226,11 +428,11 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 				}
 				break;
 			case H_OFFDUP:
-				p = HOFFPAGE_PGNO(P_ENTRY(h, i));
+				p = HOFFPAGE_PGNO(P_ENTRY(dbp, h, i));
 				SWAP32(p);			/* pgno */
 				break;
 			case H_OFFPAGE:
-				p = HOFFPAGE_PGNO(P_ENTRY(h, i));
+				p = HOFFPAGE_PGNO(P_ENTRY(dbp, h, i));
 				SWAP32(p);			/* pgno */
 				SWAP32(p);			/* tlen */
 				break;
@@ -246,14 +448,14 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 		 */
 		if (!pgin)
 			for (i = 0; i < NUM_ENT(h); i++)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 		break;
 	case P_LBTREE:
 	case P_LDUP:
 	case P_LRECNO:
 		for (i = 0; i < NUM_ENT(h); i++) {
 			if (pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 
 			/*
 			 * In the case of on-page duplicates, key information
@@ -261,17 +463,17 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 			 */
 			if (h->type == P_LBTREE && i > 1) {
 				if (pgin) {
-					if (h->inp[i] == h->inp[i - 2])
+					if (inp[i] == inp[i - 2])
 						continue;
 				} else {
-					M_16_SWAP(h->inp[i]);
-					if (h->inp[i] == h->inp[i - 2])
+					M_16_SWAP(inp[i]);
+					if (inp[i] == inp[i - 2])
 						continue;
-					M_16_SWAP(h->inp[i]);
+					M_16_SWAP(inp[i]);
 				}
 			}
 
-			bk = GET_BKEYDATA(h, i);
+			bk = GET_BKEYDATA(dbp, h, i);
 			switch (B_TYPE(bk->type)) {
 			case B_KEYDATA:
 				M_16_SWAP(bk->len);
@@ -285,15 +487,15 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 			}
 
 			if (!pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 		}
 		break;
 	case P_IBTREE:
 		for (i = 0; i < NUM_ENT(h); i++) {
 			if (pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 
-			bi = GET_BINTERNAL(h, i);
+			bi = GET_BINTERNAL(dbp, h, i);
 			M_16_SWAP(bi->len);
 			M_32_SWAP(bi->pgno);
 			M_32_SWAP(bi->nrecs);
@@ -310,20 +512,20 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 			}
 
 			if (!pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 		}
 		break;
 	case P_IRECNO:
 		for (i = 0; i < NUM_ENT(h); i++) {
 			if (pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 
-			ri = GET_RINTERNAL(h, i);
+			ri = GET_RINTERNAL(dbp, h, i);
 			M_32_SWAP(ri->pgno);
 			M_32_SWAP(ri->nrecs);
 
 			if (!pgin)
-				M_16_SWAP(h->inp[i]);
+				M_16_SWAP(inp[i]);
 		}
 		break;
 	case P_OVERFLOW:
@@ -331,7 +533,7 @@ __db_byteswap(dbenv, pg, h, pagesize, pgin)
 		/* Nothing to do. */
 		break;
 	default:
-		return (__db_unknown_type(dbenv, "__db_byteswap", h->type));
+		return (__db_pgfmt(dbenv, pg));
 	}
 
 	if (!pgin) {

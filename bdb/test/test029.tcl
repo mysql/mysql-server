@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test029.tcl,v 11.13 2000/08/25 14:21:55 sue Exp $
+# $Id: test029.tcl,v 11.20 2002/06/29 13:44:44 bostic Exp $
 #
-# DB Test 29 {method nentries}
-# Test the Btree and Record number renumbering.
+# TEST	test029
+# TEST	Test the Btree and Record number renumbering.
 proc test029 { method {nentries 10000} args} {
 	source ./include.tcl
 
@@ -26,6 +26,7 @@ proc test029 { method {nentries 10000} args} {
 	}
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -37,6 +38,20 @@ proc test029 { method {nentries 10000} args} {
 		set testfile test029.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				# Do not set nentries down to 100 until we
+				# fix SR #5958.
+				set nentries 1000
+			}
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
 
@@ -64,11 +79,11 @@ proc test029 { method {nentries 10000} args} {
 
 	# Create the database
 	if { [string compare $omethod "-btree"] == 0 } {
-		set db [eval {berkdb_open -create -truncate \
+		set db [eval {berkdb_open -create \
 			-mode 0644 -recnum} $args {$omethod $testfile}]
 	   error_check_good dbopen [is_valid_db $db] TRUE
 	} else {
-		set db [eval {berkdb_open -create -truncate \
+		set db [eval {berkdb_open -create \
 			-mode 0644} $args {$omethod $testfile}]
 	   error_check_good dbopen [is_valid_db $db] TRUE
 	}
@@ -89,14 +104,19 @@ proc test029 { method {nentries 10000} args} {
 		} else {
 			set key $k
 		}
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $k]}]
 		error_check_good dbput $ret 0
 
 		set ret [eval {$db get} $txn $gflags {$key}]
-		if { [string compare [lindex [lindex $ret 0] 1] $k] != 0 } {
-			puts "Test029: put key-data $key $k got $ret"
-			return
+		error_check_good dbget [lindex [lindex $ret 0] 1] $k
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
 		}
 	}
 
@@ -110,8 +130,16 @@ proc test029 { method {nentries 10000} args} {
 		set key $first_key
 	}
 
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set ret [eval {$db del} $txn {$key}]
 	error_check_good db_del $ret 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
 	# Now we are ready to retrieve records based on
 	# record number
@@ -120,28 +148,50 @@ proc test029 { method {nentries 10000} args} {
 	}
 
 	# First try to get the old last key (shouldn't exist)
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set ret [eval {$db get} $txn $gflags {$last_keynum}]
 	error_check_good get_after_del $ret [list]
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
 	# Now try to get what we think should be the last key
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set ret [eval {$db get} $txn $gflags {[expr $last_keynum - 1]}]
 	error_check_good \
 	    getn_last_after_del [lindex [lindex $ret 0] 1] $last_key
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
 	# Create a cursor; we need it for the next test and we
 	# need it for recno here.
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set dbc [eval {$db cursor} $txn]
-	error_check_good db_cursor [is_substr $dbc $db] 1
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	# OK, now re-put the first key and make sure that we
 	# renumber the last key appropriately.
 	if { [string compare $omethod "-btree"] == 0 } {
-	set ret [eval {$db put} $txn {$key [chop_data $method $first_key]}]
+		set ret [eval {$db put} $txn \
+		    {$key [chop_data $method $first_key]}]
 		error_check_good db_put $ret 0
 	} else {
 		# Recno
-		set ret [eval {$dbc get} $txn {-first}]
-		set ret [eval {$dbc put} $txn $pflags {-before $first_key}]
+		set ret [$dbc get -first]
+		set ret [eval {$dbc put} $pflags {-before $first_key}]
 		error_check_bad dbc_put:DB_BEFORE $ret 0
 	}
 
@@ -153,7 +203,7 @@ proc test029 { method {nentries 10000} args} {
 	# Now delete the first key in the database using a cursor
 	puts "\tTest029.d: delete with cursor and verify renumber"
 
-	set ret [eval {$dbc get} $txn {-first}]
+	set ret [$dbc get -first]
 	error_check_good dbc_first $ret [list [list $key $first_key]]
 
 	# Now delete at the cursor
@@ -175,10 +225,10 @@ proc test029 { method {nentries 10000} args} {
 	puts "\tTest029.e: put with cursor and verify renumber"
 	if { [string compare $omethod "-btree"] == 0 } {
 		set ret [eval {$dbc put} \
-		    $txn $pflags {-current $first_key}]
+		    $pflags {-current $first_key}]
 		error_check_good dbc_put:DB_CURRENT $ret 0
 	} else {
-		set ret [eval {$dbc put} $txn $pflags {-before $first_key}]
+		set ret [eval {$dbc put} $pflags {-before $first_key}]
 		error_check_bad dbc_put:DB_BEFORE $ret 0
 	}
 
@@ -188,5 +238,8 @@ proc test029 { method {nentries 10000} args} {
 	    get_after_cursor_reput [lindex [lindex $ret 0] 1] $last_key
 
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 }

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: upgrade.tcl,v 11.16 2000/10/27 13:23:56 sue Exp $
+# $Id: upgrade.tcl,v 11.22 2002/07/28 03:22:41 krinsky Exp $
 
 source ./include.tcl
 
@@ -17,6 +17,7 @@ set gen_upgrade 0
 global upgrade_dir
 global upgrade_be
 global upgrade_method
+global upgrade_name
 
 proc upgrade { { archived_test_loc "DEFAULT" } } {
 	source ./include.tcl
@@ -40,7 +41,7 @@ proc upgrade { { archived_test_loc "DEFAULT" } } {
 			foreach file [glob $upgrade_dir/$version/$method/*] {
 				regexp (\[^\/\]*)\.tar\.gz$ $file dummy name
 
-				cleanup $testdir NULL
+				cleanup $testdir NULL 1
 				#puts  "$upgrade_dir/$version/$method/$name.tar.gz"
 				set curdir [pwd]
 				cd $testdir
@@ -109,6 +110,8 @@ proc _upgrade_test { temp_dir version method file endianness } {
 	set ret [berkdb upgrade "$temp_dir/$file-$endianness.db"]
 	error_check_good dbupgrade $ret 0
 
+	error_check_good dbupgrade_verify [verify_dir $temp_dir "" 0 0 1] 0
+
 	upgrade_dump "$temp_dir/$file-$endianness.db" "$temp_dir/temp.dump"
 
 	error_check_good "Upgrade diff.$endianness: $version $method $file" \
@@ -138,31 +141,41 @@ proc gen_upgrade { dir } {
 	global upgrade_dir
 	global upgrade_be
 	global upgrade_method
-	global runtests
+	global upgrade_name
+	global num_test
+	global parms
 	source ./include.tcl
 
 	set gen_upgrade 1
 	set upgrade_dir $dir
 
-	foreach upgrade_be { 0 1 } {
-		foreach i "btree rbtree hash recno rrecno queue frecno" {
-			puts "Running $i tests"
-			set upgrade_method $i
-			set start 1
-			for { set j $start } { $j <= $runtests } {incr j} {
+	foreach i "btree rbtree hash recno rrecno frecno queue queueext" {
+		puts "Running $i tests"
+		set upgrade_method $i
+		set start 1
+		for { set j $start } { $j <= $num_test(test) } { incr j } {
+			set upgrade_name [format "test%03d" $j]
+			if { [info exists parms($upgrade_name)] != 1 } {
+				continue
+			}
+
+			foreach upgrade_be { 0 1 } {
 				if [catch {exec $tclsh_path \
 				    << "source $test_path/test.tcl;\
-				    global upgrade_be;\
+				    global gen_upgrade upgrade_be;\
+				    global upgrade_method upgrade_name;\
+				    set gen_upgrade 1;\
 				    set upgrade_be $upgrade_be;\
+				    set upgrade_method $upgrade_method;\
+				    set upgrade_name $upgrade_name;\
 				    run_method -$i $j $j"} res] {
-					puts "FAIL: [format "test%03d" $j] $i"
+					puts "FAIL: $upgrade_name $i"
 				}
 				puts $res
-				cleanup $testdir NULL
+				cleanup $testdir NULL 1
 			}
 		}
 	}
-
 	set gen_upgrade 0
 }
 
@@ -241,6 +254,8 @@ proc upgrade_dump { database file {stripnulls 0} } {
 	}
 
 	close $f
+	error_check_good upgrade_dump_c_close [$dbc close] 0
+	error_check_good upgrade_dump_db_close [$db close] 0
 }
 
 proc _comp { a b } {

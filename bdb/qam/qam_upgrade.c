@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: qam_upgrade.c,v 11.7 2000/11/30 00:58:44 ubell Exp $";
+static const char revid[] = "$Id: qam_upgrade.c,v 11.12 2002/03/29 20:46:48 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,10 +18,7 @@ static const char revid[] = "$Id: qam_upgrade.c,v 11.7 2000/11/30 00:58:44 ubell
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "db_am.h"
-#include "db_upgrade.h"
+#include "dbinc/db_upgrade.h"
 
 /*
  * __qam_31_qammeta --

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_open.c,v 11.9 2000/11/30 00:58:43 ubell Exp $";
+static const char revid[] = "$Id: os_open.c,v 11.21 2002/07/12 18:56:55 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -21,9 +21,6 @@ static const char revid[] = "$Id: os_open.c,v 11.9 2000/11/30 00:58:43 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "os_jump.h"
-
-int __os_win32_errno __P((void));
 
 /*
  * __os_open --
@@ -38,17 +35,26 @@ __os_open(dbenv, name, flags, mode, fhp)
 	DB_FH *fhp;
 {
 	DWORD bytesWritten;
-	HANDLE wh;
-	u_int32_t log_size;
+	u_int32_t log_size, pagesize, sectorsize;
 	int access, attr, oflags, share, createflag;
 	int ret, nrepeat;
+	char *drive, dbuf[4]; /* <letter><colon><slosh><nul> */
+
+#ifdef DIAGNOSTIC
+#define	OKFLAGS								\
+	(DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_EXCL | DB_OSO_LOG |	\
+	 DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ | DB_OSO_TEMP |	\
+	 DB_OSO_TRUNC)
+	if ((ret = __db_fchk(dbenv, "__os_open", flags, OKFLAGS)) != 0)
+		return (ret);
+#endif
 
 	/*
 	 * The "public" interface to the __os_open routine passes around POSIX
 	 * 1003.1 flags, not DB flags.  If the user has defined their own open
 	 * interface, use the POSIX flags.
 	 */
-	if (__db_jump.j_open != NULL) {
+	if (DB_GLOBAL(j_open) != NULL) {
 		oflags = O_BINARY | O_NOINHERIT;
 
 		if (LF_ISSET(DB_OSO_CREATE))
@@ -76,10 +82,15 @@ __os_open(dbenv, name, flags, mode, fhp)
 		return (__os_openhandle(dbenv, name, oflags, mode, fhp));
 	}
 
+	ret = 0;
+
 	if (LF_ISSET(DB_OSO_LOG))
 		log_size = fhp->log_size;			/* XXX: Gag. */
 
+	pagesize = fhp->pagesize;
+
 	memset(fhp, 0, sizeof(*fhp));
+	fhp->fd = -1;
 
 	/*
 	 * Otherwise, use the Windows/32 CreateFile interface so that we can
@@ -97,8 +108,6 @@ __os_open(dbenv, name, flags, mode, fhp)
 	 * largely meaningless on FAT, the most common file system, which
 	 * only has a "readable" and "writeable" flag, applying to all users.
 	 */
-	wh = INVALID_HANDLE_VALUE;
-
 	access = GENERIC_READ;
 	if (!LF_ISSET(DB_OSO_RDONLY))
 		access |= GENERIC_WRITE;
@@ -134,11 +143,28 @@ __os_open(dbenv, name, flags, mode, fhp)
 	if (LF_ISSET(DB_OSO_TEMP))
 		attr |= FILE_FLAG_DELETE_ON_CLOSE;
 
-	for (nrepeat = 1; nrepeat < 4; ++nrepeat) {
-		ret = 0;
-		__os_set_errno(0);
-		wh = CreateFile(name, access, share, NULL, createflag, attr, 0);
-		if (wh == INVALID_HANDLE_VALUE) {
+	/*
+	 * We can turn filesystem buffering off if the page size is a
+	 * multiple of the disk's sector size. To find the sector size,
+	 * we call GetDiskFreeSpace, which expects a drive name like "d:\\"
+	 * or NULL for the current disk (i.e., a relative path)
+	 */
+	if (LF_ISSET(DB_OSO_DIRECT) && pagesize != 0 && name[0] != '\0') {
+		if (name[1] == ':') {
+			drive = dbuf;
+			snprintf(dbuf, sizeof(dbuf), "%c:\\", name[0]);
+		} else
+			drive = NULL;
+
+		if (GetDiskFreeSpace(drive, NULL, &sectorsize, NULL, NULL) &&
+		    pagesize % sectorsize == 0)
+			attr |= FILE_FLAG_NO_BUFFERING;
+	}
+
+	for (nrepeat = 1;; ++nrepeat) {
+		fhp->handle =
+		    CreateFile(name, access, share, NULL, createflag, attr, 0);
+		if (fhp->handle == INVALID_HANDLE_VALUE) {
 			/*
 			 * If it's a "temporary" error, we retry up to 3 times,
 			 * waiting up to 12 seconds.  While it's not a problem
@@ -146,13 +172,13 @@ __os_open(dbenv, name, flags, mode, fhp)
 			 * log file is cause for serious dismay.
 			 */
 			ret = __os_win32_errno();
-			if (ret == ENFILE || ret == EMFILE || ret == ENOSPC) {
-				(void)__os_sleep(dbenv, nrepeat * 2, 0);
-				continue;
-			}
-			goto err;
-		}
-		break;
+			if ((ret != ENFILE && ret != EMFILE && ret != ENOSPC) ||
+			    nrepeat > 3)
+				goto err;
+
+			(void)__os_sleep(dbenv, nrepeat * 2, 0);
+		} else
+			break;
 	}
 
 	/*
@@ -163,39 +189,29 @@ __os_open(dbenv, name, flags, mode, fhp)
 	 * This strategy only works for Win/NT; Win/9X does not
 	 * guarantee that the logs will be zero filled.
 	 */
-	if (LF_ISSET(DB_OSO_LOG) && log_size != 0 &&
-	    __os_is_winnt()) {
-		if (SetFilePointer(wh,
+	if (LF_ISSET(DB_OSO_LOG) && log_size != 0 && __os_is_winnt()) {
+		if (SetFilePointer(fhp->handle,
 		    log_size - 1, NULL, FILE_BEGIN) == (DWORD)-1)
 			goto err;
-		if (WriteFile(wh, "\x00", 1, &bytesWritten, NULL) == 0)
+		if (WriteFile(fhp->handle, "\x00", 1, &bytesWritten, NULL) == 0)
 			goto err;
 		if (bytesWritten != 1)
 			goto err;
-		if (SetEndOfFile(wh) == 0)
+		if (SetEndOfFile(fhp->handle) == 0)
 			goto err;
-		if (SetFilePointer(wh, 0, NULL, FILE_BEGIN) == (DWORD)-1)
+		if (SetFilePointer(
+		    fhp->handle, 0, NULL, FILE_BEGIN) == (DWORD)-1)
 			goto err;
-		if (FlushFileBuffers(wh) == 0)
+		if (FlushFileBuffers(fhp->handle) == 0)
 			goto err;
 	}
 
-	/*
-	 * We acquire a POSIX file descriptor as this allows us to use the
-	 * general UNIX I/O routines instead of writing Windows specific
-	 * ones.  Closing that file descriptor is sufficient to close the
-	 * Windows HANDLE.
-	 */
-	fhp->fd =
-	    _open_osfhandle((long)wh, LF_ISSET(DB_OSO_RDONLY) ? O_RDONLY : 0);
-	fhp->handle = wh;
 	F_SET(fhp, DB_FH_VALID);
-
 	return (0);
 
 err:	if (ret == 0)
 		ret = __os_win32_errno();
-	if (wh != INVALID_HANDLE_VALUE)
-		(void)CloseHandle(wh);
+	if (fhp->handle != INVALID_HANDLE_VALUE)
+		(void)CloseHandle(fhp->handle);
 	return (ret);
 }

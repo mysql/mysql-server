@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000
+# Copyright (c) 2000-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test083.tcl,v 11.6 2000/12/11 17:24:55 sue Exp $
+# $Id: test083.tcl,v 11.13 2002/06/24 14:06:38 sue Exp $
 #
-# Test 83.
-# Test of DB->key_range
+# TEST	test083
+# TEST	Test of DB->key_range.
 proc test083 { method {pgsz 512} {maxitems 5000} {step 2} args} {
 	source ./include.tcl
 	set omethod [convert_method $method]
@@ -25,6 +25,7 @@ proc test083 { method {pgsz 512} {maxitems 5000} {step 2} args} {
 
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	if { $eindex == -1 } {
 		set testfile $testdir/test083.db
@@ -33,6 +34,11 @@ proc test083 { method {pgsz 512} {maxitems 5000} {step 2} args} {
 		set testfile test083.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 
 	# We assume that numbers will be at most six digits wide
@@ -45,19 +51,22 @@ proc test083 { method {pgsz 512} {maxitems 5000} {step 2} args} {
 	    { set nitems [expr $nitems * $step] } {
 
 		puts "\tTest083.a: Opening new database"
+		if { $env != "NULL"} {
+			set testdir [get_home $env]
+		}
 		cleanup $testdir $env
-		set db [eval {berkdb_open -create -truncate -mode 0644} \
+		set db [eval {berkdb_open -create -mode 0644} \
 		    -pagesize $pgsz $omethod $args $testfile]
 		error_check_good dbopen [is_valid_db $db] TRUE
 
-		t83_build $db $nitems
-		t83_test $db $nitems
+		t83_build $db $nitems $env $txnenv
+		t83_test $db $nitems $env $txnenv
 
 		error_check_good db_close [$db close] 0
 	}
 }
 
-proc t83_build { db nitems } {
+proc t83_build { db nitems env txnenv } {
 	source ./include.tcl
 
 	puts "\tTest083.b: Populating database with $nitems keys"
@@ -73,24 +82,38 @@ proc t83_build { db nitems } {
 	# just skip the randomization step.
 	#puts "\t\tTest083.b.2: Randomizing key list"
 	#set keylist [randomize_list $keylist]
-
 	#puts "\t\tTest083.b.3: Populating database with randomized keys"
 
 	puts "\t\tTest083.b.2: Populating database"
 	set data [repeat . 50]
-
+	set txn ""
 	foreach keynum $keylist {
-		error_check_good db_put [$db put key[format %6d $keynum] \
-		    $data] 0
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {key[format %6d $keynum] $data}]
+		error_check_good db_put $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 }
 
-proc t83_test { db nitems } {
+proc t83_test { db nitems env txnenv } {
 	# Look at the first key, then at keys about 1/4, 1/2, 3/4, and
 	# all the way through the database.  Make sure the key_ranges
 	# aren't off by more than 10%.
 
-	set dbc [$db cursor]
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	} else {
+		set txn ""
+	}
+	set dbc [eval {$db cursor} $txn]
 	error_check_good dbc [is_valid_cursor $dbc $db] TRUE
 
 	puts "\tTest083.c: Verifying ranges..."
@@ -129,6 +152,9 @@ proc t83_test { db nitems } {
 	}
 
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 }
 
 proc roughly_equal { a b tol } {

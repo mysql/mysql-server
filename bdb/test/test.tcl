@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test.tcl,v 11.114 2001/01/09 21:28:52 sue Exp $
+# $Id: test.tcl,v 11.225 2002/09/10 18:51:38 sue Exp $
 
 source ./include.tcl
 
@@ -16,6 +16,7 @@ if { [file exists $testdir] != 1 } {
 
 global __debug_print
 global __debug_on
+global __debug_test
 global util_path
 
 #
@@ -30,41 +31,28 @@ if { [string first "exec format error" $ret] != -1 } {
 	set util_path .
 }
 set __debug_print 0
-set __debug_on 0
+set encrypt 0
+set old_encrypt 0
+set passwd test_passwd
 
 # This is where the test numbering and parameters now live.
 source $test_path/testparams.tcl
 
-for { set i 1 } { $i <= $deadtests } {incr i} {
-	set name [format "dead%03d.tcl" $i]
-	source $test_path/$name
-}
-for { set i 1 } { $i <= $envtests } {incr i} {
-	set name [format "env%03d.tcl" $i]
-	source $test_path/$name
-}
-for { set i 1 } { $i <= $recdtests } {incr i} {
-	set name [format "recd%03d.tcl" $i]
-	source $test_path/$name
-}
-for { set i 1 } { $i <= $rpctests } {incr i} {
-	set name [format "rpc%03d.tcl" $i]
-	source $test_path/$name
-}
-for { set i 1 } { $i <= $rsrctests } {incr i} {
-	set name [format "rsrc%03d.tcl" $i]
-	source $test_path/$name
-}
-for { set i 1 } { $i <= $runtests } {incr i} {
-	set name [format "test%03d.tcl" $i]
-	# Test numbering may be sparse.
-	if { [file exists $test_path/$name] == 1 } {
+# Error stream that (should!) always go to the console, even if we're
+# redirecting to ALL.OUT.
+set consoleerr stderr
+
+foreach sub $subs {
+	if { [info exists num_test($sub)] != 1 } {
+		puts stderr "Subsystem $sub has no number of tests specified in\
+		    testparams.tcl; skipping."
+		continue
+	}
+	set end $num_test($sub)
+	for { set i 1 } { $i <= $end } {incr i} {
+		set name [format "%s%03d.tcl" $sub $i]
 		source $test_path/$name
 	}
-}
-for { set i 1 } { $i <= $subdbtests } {incr i} {
-	set name [format "sdb%03d.tcl" $i]
-	source $test_path/$name
 }
 
 source $test_path/archive.tcl
@@ -72,27 +60,23 @@ source $test_path/byteorder.tcl
 source $test_path/dbm.tcl
 source $test_path/hsearch.tcl
 source $test_path/join.tcl
-source $test_path/lock001.tcl
-source $test_path/lock002.tcl
-source $test_path/lock003.tcl
-source $test_path/log.tcl
 source $test_path/logtrack.tcl
-source $test_path/mpool.tcl
-source $test_path/mutex.tcl
 source $test_path/ndbm.tcl
-source $test_path/sdbtest001.tcl
-source $test_path/sdbtest002.tcl
+source $test_path/parallel.tcl
+source $test_path/reputils.tcl
 source $test_path/sdbutils.tcl
+source $test_path/shelltest.tcl
+source $test_path/sindex.tcl
 source $test_path/testutils.tcl
-source $test_path/txn.tcl
 source $test_path/upgrade.tcl
 
 set dict $test_path/wordlist
 set alphabet "abcdefghijklmnopqrstuvwxyz"
+set datastr "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
 
 # Random number seed.
 global rand_init
-set rand_init 1013
+set rand_init 101301
 
 # Default record length and padding character for
 # fixed record length access method(s)
@@ -103,6 +87,21 @@ set recd_debug	0
 set log_log_record_types 0
 set ohandles {}
 
+# Normally, we're not running an all-tests-in-one-env run.  This matters
+# for error stream/error prefix settings in berkdb_open.
+global is_envmethod
+set is_envmethod 0
+
+# For testing locker id wrap around.
+global lock_curid
+global lock_maxid
+set lock_curid 0
+set lock_maxid 2147483647
+global txn_curid
+global txn_maxid
+set txn_curid 2147483648
+set txn_maxid 4294967295
+
 # Set up any OS-specific values
 global tcl_platform
 set is_windows_test [is_substr $tcl_platform(os) "Win"]
@@ -112,41 +111,8 @@ set is_qnx_test [is_substr $tcl_platform(os) "QNX"]
 # From here on out, test.tcl contains the procs that are used to
 # run all or part of the test suite.
 
-proc run_am { } {
-	global runtests
-	source ./include.tcl
-
-	fileremove -f ALL.OUT
-
-	# Access method tests.
-	#
-	# XXX
-	# Broken up into separate tclsh instantiations so we don't require
-	# so much memory.
-	foreach i "btree rbtree hash queue queueext recno frecno rrecno" {
-		puts "Running $i tests"
-		for { set j 1 } { $j <= $runtests } {incr j} {
-			if [catch {exec $tclsh_path \
-			    << "source $test_path/test.tcl; \
-			    run_method -$i $j $j" >>& ALL.OUT } res] {
-				set o [open ALL.OUT a]
-				puts $o "FAIL: [format "test%03d" $j] $i"
-				close $o
-			}
-		}
-		if [catch {exec $tclsh_path \
-		    << "source $test_path/test.tcl; \
-		    subdb -$i 0 1" >>& ALL.OUT } res] {
-			set o [open ALL.OUT a]
-			puts $o "FAIL: subdb -$i test"
-			close $o
-		}
-	}
-}
-
 proc run_std { args } {
-	global runtests
-	global subdbtests
+	global num_test
 	source ./include.tcl
 
 	set exflgs [eval extractflags $args]
@@ -156,12 +122,17 @@ proc run_std { args } {
 	set display 1
 	set run 1
 	set am_only 0
+	set no_am 0
 	set std_only 1
 	set rflags {--}
 	foreach f $flags {
 		switch $f {
 			A {
 				set std_only 0
+			}
+			M {
+				set no_am 1
+				puts "run_std: all but access method tests."
 			}
 			m {
 				set am_only 1
@@ -183,7 +154,7 @@ proc run_std { args } {
 			puts -nonewline "Test suite run started at: "
 			puts [clock format [clock seconds] -format "%H:%M %D"]
 			puts [berkdb version -string]
-	
+
 			puts -nonewline $o "Test suite run started at: "
 			puts $o [clock format [clock seconds] -format "%H:%M %D"]
 			puts $o [berkdb version -string]
@@ -196,16 +167,17 @@ proc run_std { args } {
 	{"archive"		"archive"}
 	{"locking"		"lock"}
 	{"logging"		"log"}
-	{"memory pool"		"mpool"}
+	{"memory pool"		"memp"}
 	{"mutex"		"mutex"}
 	{"transaction"		"txn"}
 	{"deadlock detection"	"dead"}
-	{"subdatabase"		"subdb_gen"}
+	{"subdatabase"		"sdb"}
 	{"byte-order"		"byte"}
 	{"recno backing file"	"rsrc"}
 	{"DBM interface"	"dbm"}
 	{"NDBM interface"	"ndbm"}
 	{"Hsearch interface"	"hsearch"}
+	{"secondary index"	"sindex"}
 	}
 
 	if { $am_only == 0 } {
@@ -229,12 +201,22 @@ proc run_std { args } {
 		# so we don't require so much memory, but I think it's cleaner
 		# and more useful to do it down inside proc r than here,
 		# since "r recd" gets done a lot and needs to work.
+		#
+		# Note that we still wrap the test in an exec so that
+		# its output goes to ALL.OUT.  run_recd will wrap each test
+		# so that both error streams go to stdout (which here goes
+		# to ALL.OUT);  information that run_recd wishes to print
+		# to the "real" stderr, but outside the wrapping for each test,
+		# such as which tests are being skipped, it can still send to
+		# stderr.
 		puts "Running recovery tests"
-		if [catch {exec $tclsh_path \
-		    << "source $test_path/test.tcl; \
-			r $rflags recd" >>& ALL.OUT } res] {
+		if [catch {
+		    exec $tclsh_path \
+			<< "source $test_path/test.tcl; r $rflags recd" \
+			2>@ stderr >> ALL.OUT
+		    } res] {
 			set o [open ALL.OUT a]
-			puts $o "FAIL: recd test"
+			puts $o "FAIL: recd tests"
 			close $o
 		}
 
@@ -255,37 +237,33 @@ proc run_std { args } {
 		}
 	}
 
-	# Access method tests.
-	#
-	# XXX
-	# Broken up into separate tclsh instantiations so we don't require
-	# so much memory.
-	foreach i "btree rbtree hash queue queueext recno frecno rrecno" {
-		puts "Running $i tests"
-		for { set j 1 } { $j <= $runtests } {incr j} {
-			if { $run == 0 } {
-				set o [open ALL.OUT a]
-				run_method -$i $j $j $display $run $o
-				close $o
-			}
-			if { $run } {
-				if [catch {exec $tclsh_path \
-				    << "source $test_path/test.tcl; \
-				    run_method -$i $j $j $display $run" \
-				    >>& ALL.OUT } res] {
+	if { $no_am == 0 } {
+		# Access method tests.
+		#
+		# XXX
+		# Broken up into separate tclsh instantiations so we don't
+		# require so much memory.
+		foreach i \
+		    "btree hash queue queueext recno rbtree frecno rrecno" {
+			puts "Running $i tests"
+			for { set j 1 } { $j <= $num_test(test) } {incr j} {
+				if { $run == 0 } {
 					set o [open ALL.OUT a]
-					puts $o \
-					    "FAIL: [format "test%03d" $j] $i"
+					run_method -$i $j $j $display $run $o
 					close $o
 				}
+				if { $run } {
+					if [catch {exec $tclsh_path \
+					    << "source $test_path/test.tcl; \
+					    run_method -$i $j $j $display $run"\
+					    >>& ALL.OUT } res] {
+						set o [open ALL.OUT a]
+						puts $o "FAIL:\
+						    [format "test%03d" $j] $i"
+						close $o
+					}
+				}
 			}
-		}
-		if [catch {exec $tclsh_path \
-		    << "source $test_path/test.tcl; \
-		    subdb -$i $display $run" >>& ALL.OUT } res] {
-			set o [open ALL.OUT a]
-			puts $o "FAIL: subdb -$i test"
-			close $o
 		}
 	}
 
@@ -296,14 +274,8 @@ proc run_std { args } {
 		return
 	}
 
-	set failed 0
-	set o [open ALL.OUT r]
-	while { [gets $o line] >= 0 } {
-		if { [regexp {^FAIL} $line] != 0 } {
-			set failed 1
-		}
-	}
-	close $o
+	set failed [check_failed_run ALL.OUT]
+
 	set o [open ALL.OUT a]
 	if { $failed == 0 } {
 		puts "Regression Tests Succeeded"
@@ -320,11 +292,22 @@ proc run_std { args } {
 	close $o
 }
 
+proc check_failed_run { file {text "^FAIL"}} {
+	set failed 0
+	set o [open $file r]
+	while { [gets $o line] >= 0 } {
+		set ret [regexp $text $line]
+		if { $ret != 0 } {
+			set failed 1
+		}
+	}
+	close $o
+
+	return $failed
+}
+
 proc r { args } {
-	global envtests
-	global recdtests
-	global subdbtests
-	global deadtests
+	global num_test
 	source ./include.tcl
 
 	set exflgs [eval extractflags $args]
@@ -345,68 +328,42 @@ proc r { args } {
 	}
 
 	if {[catch {
-		set l [ lindex $args 0 ]
-		switch $l {
-			archive {
-				if { $display } {
-					puts "eval archive [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval archive [lrange $args 1 end]
-				}
-			}
+		set sub [ lindex $args 0 ]
+		switch $sub {
 			byte {
-				foreach method \
-			"-hash -btree -recno -queue -queueext -frecno" {
-					if { $display } {
-						puts "byteorder $method"
-					}
-					if { $run } {
-						check_handles
-						byteorder $method
-					}
-				}
-			}
-			dbm {
 				if { $display } {
-					puts "dbm"
+					puts "run_test byteorder"
 				}
 				if { $run } {
 					check_handles
-					dbm
+					run_test byteorder
 				}
 			}
-			dead {
-				for { set i 1 } { $i <= $deadtests } \
-				    { incr i } {
-					if { $display } {
-						puts "eval dead00$i\
-						    [lrange $args 1 end]"
-					}
-					if { $run } {
-						check_handles
-						eval dead00$i\
-						    [lrange $args 1 end]
-					}
-				}
-			}
-			env {
-				for { set i 1 } { $i <= $envtests } {incr i} {
-					if { $display } {
-						puts "eval env00$i"
-					}
-					if { $run } {
-						check_handles
-						eval env00$i
-					}
-				}
-			}
-			hsearch {
-				if { $display } { puts "hsearch" }
+			archive -
+			dbm -
+			hsearch -
+			ndbm -
+			shelltest -
+			sindex {
+				if { $display } { puts "r $sub" }
 				if { $run } {
 					check_handles
-					hsearch
+					$sub
+				}
+			}
+			bigfile -
+			dead -
+			env -
+			lock -
+			log -
+			memp -
+			mutex -
+			rsrc -
+			sdbtest -
+			txn {
+				if { $display } { run_subsystem $sub 1 0 }
+				if { $run } {
+					run_subsystem $sub
 				}
 			}
 			join {
@@ -419,7 +376,7 @@ proc r { args } {
 			}
 			join1 {
 				if { $display } { puts jointest }
-				if { $run } { 
+				if { $run } {
 					check_handles
 					jointest
 				}
@@ -467,147 +424,99 @@ proc r { args } {
 					jointest 512 3
 				}
 			}
-			lock {
-				if { $display } {
-					puts \
-					    "eval locktest [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval locktest [lrange $args 1 end]
-				}
-			}
-			log {
-				if { $display } {
-					puts "eval logtest [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval logtest [lrange $args 1 end]
-				}
-			}
-			mpool {
-				eval r $saveflags mpool1
-				eval r $saveflags mpool2
-				eval r $saveflags mpool3
-			}
-			mpool1 {
-				if { $display } {
-					puts "eval mpool [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval mpool [lrange $args 1 end]
-				}
-			}
-			mpool2 {
-				if { $display } {
-					puts "eval mpool\
-					    -mem system [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval mpool\
-					    -mem system [lrange $args 1 end]
-				}
-			}
-			mpool3 {
-				if { $display } {
-					puts "eval mpool\
-					    -mem private [lrange $args 1 end]"
-				}
-				if { $run } {
-					eval mpool\
-					    -mem private [lrange $args 1 end]
-				}
-			}
-			mutex {
-				if { $display } {
-					puts "eval mutex [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval mutex [lrange $args 1 end]
-				}
-			}
-			ndbm {
-				if { $display } { puts ndbm }
-				if { $run } {
-					check_handles
-					ndbm
-				}
-			}
 			recd {
-				if { $display } { puts run_recds }
-				if { $run } {
-					check_handles
-					run_recds
+				check_handles
+				run_recds $run $display [lrange $args 1 end]
+			}
+			rep {
+				for { set j 1 } { $j <= $num_test(test) } \
+				    { incr j } {
+					if { $display } {
+						puts "eval run_test \
+						    run_repmethod 0 $j $j"
+					}
+					if { $run } {
+						eval run_test \
+						    run_repmethod 0 $j $j
+					}
+				}
+				for { set i 1 } \
+				    { $i <= $num_test(rep) } {incr i} {
+					set test [format "%s%03d" $sub $i]
+					if { $i == 2 } {
+						if { $run } {
+							puts "Skipping rep002 \
+							    (waiting on SR #6195)"
+						}
+						continue
+					}
+					if { $display } {
+						puts "run_test $test"
+					}
+					if { $run } {
+						run_test $test
+					}
 				}
 			}
 			rpc {
-				# RPC must be run as one unit due to server,
-				# so just print "r rpc" in the display case.
-				if { $display } { puts "r rpc" }
-				if { $run } {
-					check_handles
-					eval rpc001
-					check_handles
-					eval rpc002
-					if { [catch {run_rpcmethod -txn} ret]\
-					    != 0 } {
+				if { $display } { puts "r $sub" }
+				global rpc_svc svc_list
+				set old_rpc_src $rpc_svc
+				foreach rpc_svc $svc_list {
+					if { !$run || \
+					  ![file exist $util_path/$rpc_svc] } {
+						continue
+					}
+					run_subsystem rpc
+					if { [catch {run_rpcmethod -txn} ret] != 0 } {
 						puts $ret
 					}
-					foreach method \
-			"hash queue queueext recno frecno rrecno rbtree btree" {
-						if { [catch {run_rpcmethod \
-						    -$method} ret] != 0 } {
-							puts $ret
-						}
+					run_test run_rpcmethod
+				}
+				set rpc_svc $old_rpc_src
+			}
+			sec {
+				if { $display } {
+					run_subsystem $sub 1 0
+				}
+				if { $run } {
+					run_subsystem $sub 0 1
+				}
+				for { set j 1 } { $j <= $num_test(test) } \
+				    { incr j } {
+					if { $display } {
+						puts "eval run_test \
+						    run_secmethod $j $j"
+						puts "eval run_test \
+						    run_secenv $j $j"
+					}
+					if { $run } {
+						eval run_test \
+						    run_secmethod $j $j
+						eval run_test \
+						    run_secenv $j $j
 					}
 				}
 			}
-			rsrc {
-				if { $display } { puts "rsrc001\nrsrc002" }
-				if { $run } {
-					check_handles
-					rsrc001
-					check_handles
-					rsrc002
-				}
-			}
-			subdb {
-				eval r $saveflags subdb_gen
-
-				foreach method \
-			"btree rbtree hash queue queueext recno frecno rrecno" {
-					check_handles
-					eval subdb -$method $display $run
-				}
-			}
-			subdb_gen {
+			sdb {
 				if { $display } {
-					puts "subdbtest001 ; verify_dir"
-					puts "subdbtest002 ; verify_dir"
+					puts "eval r $saveflags sdbtest"
+					for { set j 1 } \
+					    { $j <= $num_test(sdb) } \
+					    { incr j } {
+						puts "eval run_test \
+						    subdb $j $j"
+					}
 				}
 				if { $run } {
-					check_handles
-					eval subdbtest001
-					verify_dir
-					check_handles
-					eval subdbtest002
-					verify_dir
+					eval r $saveflags sdbtest
+					for { set j 1 } \
+					    { $j <= $num_test(sdb) } \
+					    { incr j } {
+						eval run_test subdb $j $j
+					}
 				}
 			}
-			txn {
-				if { $display } {
-					puts "txntest [lrange $args 1 end]"
-				}
-				if { $run } {
-					check_handles
-					eval txntest [lrange $args 1 end]
-				}
-			}
-
 			btree -
 			rbtree -
 			hash -
@@ -640,16 +549,44 @@ proc r { args } {
 	}
 }
 
+proc run_subsystem { prefix { display 0 } { run 1} } {
+	global num_test
+	if { [info exists num_test($prefix)] != 1 } {
+		puts stderr "Subsystem $sub has no number of tests specified in\
+		    testparams.tcl; skipping."
+		return
+	}
+	for { set i 1 } { $i <= $num_test($prefix) } {incr i} {
+		set name [format "%s%03d" $prefix $i]
+		if { $display } {
+			puts "eval $name"
+		}
+		if { $run } {
+			check_handles
+			catch {eval $name}
+		}
+	}
+}
+
+proc run_test { testname args } {
+	source ./include.tcl
+	foreach method "hash queue queueext recno rbtree frecno rrecno btree" {
+	 	check_handles
+		eval $testname -$method $args
+		verify_dir $testdir "" 1
+	}
+}
+
 proc run_method { method {start 1} {stop 0} {display 0} {run 1} \
     { outfile stdout } args } {
 	global __debug_on
 	global __debug_print
+	global num_test
 	global parms
-	global runtests
 	source ./include.tcl
 
 	if { $stop == 0 } {
-		set stop $runtests
+		set stop $num_test(test)
 	}
 	if { $run == 1 } {
 		puts $outfile "run_method: $method $start $stop $args"
@@ -659,7 +596,7 @@ proc run_method { method {start 1} {stop 0} {display 0} {run 1} \
 		for { set i $start } { $i <= $stop } {incr i} {
 			set name [format "test%03d" $i]
 			if { [info exists parms($name)] != 1 } {
-				puts "[format Test%03d $i] disabled in\
+				puts stderr "[format Test%03d $i] disabled in\
 				    testparams.tcl; skipping."
 				continue
 			}
@@ -698,34 +635,36 @@ proc run_method { method {start 1} {stop 0} {display 0} {run 1} \
 	}
 }
 
-proc run_rpcmethod { type {start 1} {stop 0} {largs ""} } {
+proc run_rpcmethod { method {start 1} {stop 0} {largs ""} } {
 	global __debug_on
 	global __debug_print
+	global num_test
 	global parms
-	global runtests
+	global is_envmethod
+	global rpc_svc
 	source ./include.tcl
 
 	if { $stop == 0 } {
-		set stop $runtests
+		set stop $num_test(test)
 	}
-	puts "run_rpcmethod: $type $start $stop $largs"
+	puts "run_rpcmethod: $method $start $stop $largs"
 
 	set save_largs $largs
 	if { [string compare $rpc_server "localhost"] == 0 } {
-	       set dpid [exec $util_path/berkeley_db_svc -h $rpc_testdir &]
+	       set dpid [exec $util_path/$rpc_svc -h $rpc_testdir &]
 	} else {
-	       set dpid [exec rsh $rpc_server $rpc_path/berkeley_db_svc \
+	       set dpid [exec rsh $rpc_server $rpc_path/$rpc_svc \
 		   -h $rpc_testdir &]
 	}
 	puts "\tRun_rpcmethod.a: starting server, pid $dpid"
-	tclsleep 2
+	tclsleep 10
 	remote_cleanup $rpc_server $rpc_testdir $testdir
 
 	set home [file tail $rpc_testdir]
 
-	set txn ""
+	set is_envmethod 1
 	set use_txn 0
-	if { [string first "txn" $type] != -1 } {
+	if { [string first "txn" $method] != -1 } {
 		set use_txn 1
 	}
 	if { $use_txn == 1 } {
@@ -737,7 +676,7 @@ proc run_rpcmethod { type {start 1} {stop 0} {largs ""} } {
 		set i 1
 		check_handles
 		remote_cleanup $rpc_server $rpc_testdir $testdir
-		set env [eval {berkdb env -create -mode 0644 -home $home \
+		set env [eval {berkdb_env -create -mode 0644 -home $home \
 		    -server $rpc_server -client_timeout 10000} -txn]
 		error_check_good env_open [is_valid_env $env] TRUE
 
@@ -746,14 +685,16 @@ proc run_rpcmethod { type {start 1} {stop 0} {largs ""} } {
 			set stat [catch {eval txn001_subb $ntxns $env} res]
 		}
 		error_check_good envclose [$env close] 0
+		set stat [catch {eval txn003} res]
 	} else {
 		set stat [catch {
 			for { set i $start } { $i <= $stop } {incr i} {
 				check_handles
 				set name [format "test%03d" $i]
 				if { [info exists parms($name)] != 1 } {
-					puts "[format Test%03d $i] disabled in\
-					    testparams.tcl; skipping."
+					puts stderr "[format Test%03d $i]\
+					    disabled in testparams.tcl;\
+					    skipping."
 					continue
 				}
 				remote_cleanup $rpc_server $rpc_testdir $testdir
@@ -761,16 +702,16 @@ proc run_rpcmethod { type {start 1} {stop 0} {largs ""} } {
 				# Set server cachesize to 1Mb.  Otherwise some
 				# tests won't fit (like test084 -btree).
 				#
-				set env [eval {berkdb env -create -mode 0644 \
+				set env [eval {berkdb_env -create -mode 0644 \
 				    -home $home -server $rpc_server \
 				    -client_timeout 10000 \
-				    -cachesize {0 1048576 1} }]
+				    -cachesize {0 1048576 1}}]
 				error_check_good env_open \
 				    [is_valid_env $env] TRUE
 				append largs " -env $env "
 
 				puts "[timestamp]"
-				eval $name $type $parms($name) $largs
+				eval $name $method $parms($name) $largs
 				if { $__debug_print != 0 } {
 					puts ""
 				}
@@ -789,37 +730,38 @@ proc run_rpcmethod { type {start 1} {stop 0} {largs ""} } {
 
 		set fnl [string first "\n" $errorInfo]
 		set theError [string range $errorInfo 0 [expr $fnl - 1]]
-		exec $KILL $dpid
+		tclkill $dpid
 		if {[string first FAIL $errorInfo] == -1} {
 			error "FAIL:[timestamp]\
-			    run_rpcmethod: $type $i: $theError"
+			    run_rpcmethod: $method $i: $theError"
 		} else {
 			error $theError;
 		}
 	}
-	exec $KILL $dpid
-
+	set is_envmethod 0
+	tclkill $dpid
 }
 
-proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
+proc run_rpcnoserver { method {start 1} {stop 0} {largs ""} } {
 	global __debug_on
 	global __debug_print
+	global num_test
 	global parms
-	global runtests
+	global is_envmethod
 	source ./include.tcl
 
 	if { $stop == 0 } {
-		set stop $runtests
+		set stop $num_test(test)
 	}
-	puts "run_rpcnoserver: $type $start $stop $largs"
+	puts "run_rpcnoserver: $method $start $stop $largs"
 
 	set save_largs $largs
 	remote_cleanup $rpc_server $rpc_testdir $testdir
 	set home [file tail $rpc_testdir]
 
-	set txn ""
+	set is_envmethod 1
 	set use_txn 0
-	if { [string first "txn" $type] != -1 } {
+	if { [string first "txn" $method] != -1 } {
 		set use_txn 1
 	}
 	if { $use_txn == 1 } {
@@ -831,7 +773,7 @@ proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
 		set i 1
 		check_handles
 		remote_cleanup $rpc_server $rpc_testdir $testdir
-		set env [eval {berkdb env -create -mode 0644 -home $home \
+		set env [eval {berkdb_env -create -mode 0644 -home $home \
 		    -server $rpc_server -client_timeout 10000} -txn]
 		error_check_good env_open [is_valid_env $env] TRUE
 
@@ -846,8 +788,9 @@ proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
 				check_handles
 				set name [format "test%03d" $i]
 				if { [info exists parms($name)] != 1 } {
-					puts "[format Test%03d $i] disabled in\
-					    testparams.tcl; skipping."
+					puts stderr "[format Test%03d $i]\
+					    disabled in testparams.tcl;\
+					    skipping."
 					continue
 				}
 				remote_cleanup $rpc_server $rpc_testdir $testdir
@@ -855,7 +798,7 @@ proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
 				# Set server cachesize to 1Mb.  Otherwise some
 				# tests won't fit (like test084 -btree).
 				#
-				set env [eval {berkdb env -create -mode 0644 \
+				set env [eval {berkdb_env -create -mode 0644 \
 				    -home $home -server $rpc_server \
 				    -client_timeout 10000 \
 				    -cachesize {0 1048576 1} }]
@@ -864,7 +807,7 @@ proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
 				append largs " -env $env "
 
 				puts "[timestamp]"
-				eval $name $type $parms($name) $largs
+				eval $name $method $parms($name) $largs
 				if { $__debug_print != 0 } {
 					puts ""
 				}
@@ -885,49 +828,72 @@ proc run_rpcnoserver { type {start 1} {stop 0} {largs ""} } {
 		set theError [string range $errorInfo 0 [expr $fnl - 1]]
 		if {[string first FAIL $errorInfo] == -1} {
 			error "FAIL:[timestamp]\
-			    run_rpcnoserver: $type $i: $theError"
+			    run_rpcnoserver: $method $i: $theError"
 		} else {
 			error $theError;
 		}
+	set is_envmethod 0
 	}
 
 }
 
 #
-# Run method tests in one environment.  (As opposed to run_envmethod1
-# which runs each test in its own, new environment.)
+# Run method tests in secure mode.
 #
-proc run_envmethod { type {start 1} {stop 0} {largs ""} } {
+proc run_secmethod { method {start 1} {stop 0} {display 0} {run 1} \
+    { outfile stdout } args } {
+	global passwd
+
+	append largs " -encryptaes $passwd "
+	eval run_method $method $start $stop $display $run $outfile $largs
+}
+
+#
+# Run method tests in its own, new secure environment.
+#
+proc run_secenv { method {start 1} {stop 0} {largs ""} } {
 	global __debug_on
 	global __debug_print
+	global is_envmethod
+	global num_test
 	global parms
-	global runtests
+	global passwd
 	source ./include.tcl
 
 	if { $stop == 0 } {
-		set stop $runtests
+		set stop $num_test(test)
 	}
-	puts "run_envmethod: $type $start $stop $largs"
+	puts "run_secenv: $method $start $stop $largs"
 
 	set save_largs $largs
 	env_cleanup $testdir
-	set txn ""
+	set is_envmethod 1
 	set stat [catch {
 		for { set i $start } { $i <= $stop } {incr i} {
 			check_handles
-			set env [eval {berkdb env -create -mode 0644 \
-			    -home $testdir}]
+			set env [eval {berkdb_env -create -mode 0644 \
+			    -home $testdir -encryptaes $passwd \
+			    -cachesize {0 1048576 1}}]
 			error_check_good env_open [is_valid_env $env] TRUE
 			append largs " -env $env "
 
 			puts "[timestamp]"
 			set name [format "test%03d" $i]
 			if { [info exists parms($name)] != 1 } {
-				puts "[format Test%03d $i] disabled in\
+				puts stderr "[format Test%03d $i] disabled in\
 				    testparams.tcl; skipping."
 				continue
 			}
-			eval $name $type $parms($name) $largs
+
+			#
+			# Run each test multiple times in the secure env.
+			# Once with a secure env + clear database
+			# Once with a secure env + secure database
+			#
+			eval $name $method $parms($name) $largs
+			append largs " -encrypt "
+			eval $name $method $parms($name) $largs
+
 			if { $__debug_print != 0 } {
 				puts ""
 			}
@@ -939,7 +905,7 @@ proc run_envmethod { type {start 1} {stop 0} {largs ""} } {
 			set largs $save_largs
 			error_check_good envclose [$env close] 0
 			error_check_good envremove [berkdb envremove \
-			    -home $testdir] 0
+			    -home $testdir -encryptaes $passwd] 0
 		}
 	} res]
 	if { $stat != 0} {
@@ -949,22 +915,476 @@ proc run_envmethod { type {start 1} {stop 0} {largs ""} } {
 		set theError [string range $errorInfo 0 [expr $fnl - 1]]
 		if {[string first FAIL $errorInfo] == -1} {
 			error "FAIL:[timestamp]\
-			    run_envmethod: $type $i: $theError"
+			    run_secenv: $method $i: $theError"
 		} else {
 			error $theError;
 		}
+	set is_envmethod 0
 	}
 
 }
 
-proc subdb { method display run {outfile stdout} args} {
-	global subdbtests testdir
+#
+# Run replication method tests in master and client env.
+#
+proc run_reptest { method test {droppct 0} {nclients 1} {do_del 0} \
+    {do_sec 0} {do_oob 0} {largs "" } } {
+	source ./include.tcl
+	global __debug_on
+	global __debug_print
+	global __debug_test
+	global is_envmethod
+	global num_test
+	global parms
+	global passwd
+	global rand_init
+
+	berkdb srand $rand_init
+	set c [string index $test 0]
+	if { $c == "s" } {
+		set i [string range $test 1 end]
+		set name [format "subdb%03d" $i]
+	} else {
+		set i $test
+		set name [format "test%03d" $i]
+	}
+	puts "run_reptest: $method $name"
+
+	env_cleanup $testdir
+	set is_envmethod 1
+	set stat [catch {
+		if { $do_sec } {
+			set envargs "-encryptaes $passwd"
+			append largs " -encrypt "
+		} else {
+			set envargs ""
+		}
+		check_handles
+		#
+		# This will set up the master and client envs
+		# and will return us the args to pass to the
+		# test.
+		set largs [repl_envsetup \
+		    $envargs $largs $test $nclients $droppct $do_oob]
+
+		puts "[timestamp]"
+		if { [info exists parms($name)] != 1 } {
+			puts stderr "[format Test%03d $i] \
+			    disabled in\
+			    testparams.tcl; skipping."
+			continue
+		}
+		puts -nonewline \
+		    "Repl: $name: dropping $droppct%, $nclients clients "
+		if { $do_del } {
+			puts -nonewline " with delete verification;"
+		} else {
+			puts -nonewline " no delete verification;"
+		}
+		if { $do_sec } {
+			puts -nonewline " with security;"
+		} else {
+			puts -nonewline " no security;"
+		}
+		if { $do_oob } {
+			puts -nonewline " with out-of-order msgs;"
+		} else {
+			puts -nonewline " no out-of-order msgs;"
+		}
+		puts ""
+
+		eval $name $method $parms($name) $largs
+
+		if { $__debug_print != 0 } {
+			puts ""
+		}
+		if { $__debug_on != 0 } {
+			debug $__debug_test
+		}
+		flush stdout
+		flush stderr
+		repl_envprocq $i $nclients $do_oob
+		repl_envver0 $i $method $nclients
+		if { $do_del } {
+			repl_verdel $i $method $nclients
+		}
+		repl_envclose $i $envargs
+	} res]
+	if { $stat != 0} {
+		global errorInfo;
+
+		set fnl [string first "\n" $errorInfo]
+		set theError [string range $errorInfo 0 [expr $fnl - 1]]
+		if {[string first FAIL $errorInfo] == -1} {
+			error "FAIL:[timestamp]\
+			    run_reptest: $method $i: $theError"
+		} else {
+			error $theError;
+		}
+	}
+	set is_envmethod 0
+}
+
+#
+# Run replication method tests in master and client env.
+#
+proc run_repmethod { method {numcl 0} {start 1} {stop 0} {display 0}
+    {run 1} {outfile stdout} {largs ""} } {
+	source ./include.tcl
+	global __debug_on
+	global __debug_print
+	global __debug_test
+	global is_envmethod
+	global num_test
+	global parms
+	global passwd
+	global rand_init
+
+	set stopsdb $num_test(sdb)
+	if { $stop == 0 } {
+		set stop $num_test(test)
+	} else {
+		if { $stopsdb > $stop } {
+			set stopsdb $stop
+		}
+	}
+	berkdb srand $rand_init
+
+	#
+	# We want to run replication both normally and with crypto.
+	# So run it once and then run again with crypto.
+	#
+	set save_largs $largs
+	env_cleanup $testdir
+
+	if { $display == 1 } {
+		for { set i $start } { $i <= $stop } { incr i } {
+			puts $outfile "eval run_repmethod $method \
+			    0 $i $i 0 1 stdout $largs"
+		}
+	}
+	if { $run == 1 } {
+		set is_envmethod 1
+		#
+		# Use an array for number of clients because we really don't
+		# want to evenly-weight all numbers of clients.  Favor smaller
+		# numbers but test more clients occasionally.
+		set drop_list { 0 0 0 0 0 1 1 5 5 10 20 }
+		set drop_len [expr [llength $drop_list] - 1]
+		set client_list { 1 1 2 1 1 1 2 2 3 1 }
+		set cl_len [expr [llength $client_list] - 1]
+		set stat [catch {
+			for { set i $start } { $i <= $stopsdb } {incr i} {
+				if { $numcl == 0 } {
+					set clindex [berkdb random_int 0 $cl_len]
+					set nclients [lindex $client_list $clindex]
+				} else {
+					set nclients $numcl
+				}
+				set drindex [berkdb random_int 0 $drop_len]
+				set droppct [lindex $drop_list $drindex]
+	 			set do_sec [berkdb random_int 0 1]
+				set do_oob [berkdb random_int 0 1]
+	 			set do_del [berkdb random_int 0 1]
+
+				if { $do_sec } {
+					set envargs "-encryptaes $passwd"
+					append largs " -encrypt "
+				} else {
+					set envargs ""
+				}
+				check_handles
+				#
+				# This will set up the master and client envs
+				# and will return us the args to pass to the
+				# test.
+				set largs [repl_envsetup $envargs $largs \
+				    $i $nclients $droppct $do_oob]
+
+				puts "[timestamp]"
+				set name [format "subdb%03d" $i]
+				if { [info exists parms($name)] != 1 } {
+					puts stderr "[format Subdb%03d $i] \
+					    disabled in\
+					    testparams.tcl; skipping."
+					continue
+				}
+				puts -nonewline "Repl: $name: dropping $droppct%, \
+				    $nclients clients "
+				if { $do_del } {
+					puts -nonewline " with delete verification;"
+				} else {
+					puts -nonewline " no delete verification;"
+				}
+				if { $do_sec } {
+					puts -nonewline " with security;"
+				} else {
+					puts -nonewline " no security;"
+				}
+				if { $do_oob } {
+					puts -nonewline " with out-of-order msgs;"
+				} else {
+					puts -nonewline " no out-of-order msgs;"
+				}
+				puts ""
+
+				eval $name $method $parms($name) $largs
+
+				if { $__debug_print != 0 } {
+					puts ""
+				}
+				if { $__debug_on != 0 } {
+					debug $__debug_test
+				}
+				flush stdout
+				flush stderr
+				repl_envprocq $i $nclients $do_oob
+				repl_envver0 $i $method $nclients
+				if { $do_del } {
+					repl_verdel $i $method $nclients
+				}
+				repl_envclose $i $envargs
+				set largs $save_largs
+			}
+		} res]
+		if { $stat != 0} {
+			global errorInfo;
+
+			set fnl [string first "\n" $errorInfo]
+			set theError [string range $errorInfo 0 [expr $fnl - 1]]
+			if {[string first FAIL $errorInfo] == -1} {
+				error "FAIL:[timestamp]\
+				    run_repmethod: $method $i: $theError"
+			} else {
+				error $theError;
+			}
+		}
+		set stat [catch {
+			for { set i $start } { $i <= $stop } {incr i} {
+				if { $numcl == 0 } {
+					set clindex [berkdb random_int 0 $cl_len]
+					set nclients [lindex $client_list $clindex]
+				} else {
+					set nclients $numcl
+				}
+				set drindex [berkdb random_int 0 $drop_len]
+				set droppct [lindex $drop_list $drindex]
+				set do_sec [berkdb random_int 0 1]
+				set do_oob [berkdb random_int 0 1]
+				set do_del [berkdb random_int 0 1]
+
+				if { $do_sec } {
+					set envargs "-encryptaes $passwd"
+					append largs " -encrypt "
+				} else {
+					set envargs ""
+				}
+				check_handles
+				#
+				# This will set up the master and client envs
+				# and will return us the args to pass to the
+				# test.
+				set largs [repl_envsetup $envargs $largs \
+				    $i $nclients $droppct $do_oob]
+
+				puts "[timestamp]"
+				set name [format "test%03d" $i]
+				if { [info exists parms($name)] != 1 } {
+					puts stderr "[format Test%03d $i] \
+					    disabled in\
+					    testparams.tcl; skipping."
+					continue
+				}
+				puts -nonewline "Repl: $name: dropping $droppct%, \
+				    $nclients clients "
+				if { $do_del } {
+					puts -nonewline " with delete verification;"
+				} else {
+					puts -nonewline " no delete verification;"
+				}
+				if { $do_sec } {
+					puts -nonewline " with security;"
+				} else {
+					puts -nonewline " no security;"
+				}
+				if { $do_oob } {
+					puts -nonewline " with out-of-order msgs;"
+				} else {
+					puts -nonewline " no out-of-order msgs;"
+				}
+				puts ""
+
+				eval $name $method $parms($name) $largs
+
+				if { $__debug_print != 0 } {
+					puts ""
+				}
+				if { $__debug_on != 0 } {
+					debug $__debug_test
+				}
+				flush stdout
+				flush stderr
+				repl_envprocq $i $nclients $do_oob
+				repl_envver0 $i $method $nclients
+				if { $do_del } {
+					repl_verdel $i $method $nclients
+				}
+				repl_envclose $i $envargs
+				set largs $save_largs
+			}
+		} res]
+		if { $stat != 0} {
+			global errorInfo;
+
+			set fnl [string first "\n" $errorInfo]
+			set theError [string range $errorInfo 0 [expr $fnl - 1]]
+			if {[string first FAIL $errorInfo] == -1} {
+				error "FAIL:[timestamp]\
+				    run_repmethod: $method $i: $theError"
+			} else {
+				error $theError;
+			}
+		}
+		set is_envmethod 0
+	}
+}
+
+#
+# Run method tests, each in its own, new environment.  (As opposed to
+# run_envmethod1 which runs all the tests in a single environment.)
+#
+proc run_envmethod { method {start 1} {stop 0} {display 0} {run 1} \
+    {outfile stdout }  { largs "" } } {
+	global __debug_on
+	global __debug_print
+	global __debug_test
+	global is_envmethod
+	global num_test
+	global parms
+	source ./include.tcl
+
+	set stopsdb $num_test(sdb)
+	if { $stop == 0 } {
+		set stop $num_test(test)
+	} else {
+		if { $stopsdb > $stop } {
+			set stopsdb $stop
+		}
+	}
+
+	set save_largs $largs
+	env_cleanup $testdir
+
+	if { $display == 1 } {
+		for { set i $start } { $i <= $stop } { incr i } {
+			puts $outfile "eval run_envmethod $method \
+			    $i $i 0 1 stdout $largs"
+		}
+	}
+
+	if { $run == 1 } {
+		set is_envmethod 1
+		#
+		# Run both subdb and normal tests for as long as there are
+		# some of each type.  Start with the subdbs:
+		set stat [catch {
+			for { set i $start } { $i <= $stopsdb } {incr i} {
+				check_handles
+				set env [eval {berkdb_env -create -txn \
+				    -mode 0644 -home $testdir}]
+				error_check_good env_open \
+				    [is_valid_env $env] TRUE
+				append largs " -env $env "
+
+				puts "[timestamp]"
+				set name [format "subdb%03d" $i]
+				if { [info exists parms($name)] != 1 } {
+					puts stderr \
+					    "[format Subdb%03d $i] disabled in\
+				    	    testparams.tcl; skipping."
+					continue
+				}
+				eval $name $method $parms($name) $largs
+
+				error_check_good envclose [$env close] 0
+				error_check_good envremove [berkdb envremove \
+				    -home $testdir] 0
+				flush stdout
+				flush stderr
+				set largs $save_largs
+			}
+		} res]
+		if { $stat != 0} {
+			global errorInfo;
+
+			set fnl [string first "\n" $errorInfo]
+			set theError [string range $errorInfo 0 [expr $fnl - 1]]
+			if {[string first FAIL $errorInfo] == -1} {
+				error "FAIL:[timestamp]\
+				    run_envmethod: $method $i: $theError"
+			} else {
+			error $theError;
+			}
+		}
+		# Subdb tests are done, now run through the regular tests:
+		set stat [catch {
+			for { set i $start } { $i <= $stop } {incr i} {
+				check_handles
+				set env [eval {berkdb_env -create -txn \
+				    -mode 0644 -home $testdir}]
+				error_check_good env_open \
+				    [is_valid_env $env] TRUE
+				append largs " -env $env "
+
+				puts "[timestamp]"
+				set name [format "test%03d" $i]
+				if { [info exists parms($name)] != 1 } {
+					puts stderr \
+					    "[format Test%03d $i] disabled in\
+					    testparams.tcl; skipping."
+					continue
+				}
+				eval $name $method $parms($name) $largs
+
+				if { $__debug_print != 0 } {
+					puts ""
+				}
+				if { $__debug_on != 0 } {
+					debug $__debug_test
+				}
+				flush stdout
+				flush stderr
+				set largs $save_largs
+				error_check_good envclose [$env close] 0
+				error_check_good envremove [berkdb envremove \
+				    -home $testdir] 0
+			}
+		} res]
+		if { $stat != 0} {
+			global errorInfo;
+
+			set fnl [string first "\n" $errorInfo]
+			set theError [string range $errorInfo 0 [expr $fnl - 1]]
+			if {[string first FAIL $errorInfo] == -1} {
+				error "FAIL:[timestamp]\
+				    run_envmethod: $method $i: $theError"
+			} else {
+				error $theError;
+			}
+		}
+		set is_envmethod 0
+	}
+}
+
+proc subdb { method {start 1} {stop 0} {display 0} {run 1} \
+    {outfile stdout} args} {
+	global num_test testdir
 	global parms
 
-	for { set i 1 } {$i <= $subdbtests} {incr i} {
+	for { set i $start } { $i <= $stop } {incr i} {
 		set name [format "subdb%03d" $i]
 		if { [info exists parms($name)] != 1 } {
-			puts "[format Subdb%03d $i] disabled in\
+			puts stderr "[format Subdb%03d $i] disabled in\
 			    testparams.tcl; skipping."
 			continue
 		}
@@ -983,37 +1403,63 @@ proc subdb { method display run {outfile stdout} args} {
 	}
 }
 
-proc run_recd { method {start 1} {stop 0} args } {
+proc run_recd { method {start 1} {stop 0} {run 1} {display 0} args } {
 	global __debug_on
 	global __debug_print
+	global __debug_test
 	global parms
-	global recdtests
+	global num_test
 	global log_log_record_types
 	source ./include.tcl
 
 	if { $stop == 0 } {
-		set stop $recdtests
+		set stop $num_test(recd)
 	}
-	puts "run_recd: $method $start $stop $args"
+	if { $run == 1 } {
+		puts "run_recd: $method $start $stop $args"
+	}
 
 	if {[catch {
 		for { set i $start } { $i <= $stop } {incr i} {
-			check_handles
-			puts "[timestamp]"
 			set name [format "recd%03d" $i]
-			# By redirecting stdout to stdout, we make exec
-			# print output rather than simply returning it.
-			exec $tclsh_path << "source $test_path/test.tcl; \
-			    set log_log_record_types $log_log_record_types; \
-			    eval $name $method" >@ stdout
-			if { $__debug_print != 0 } {
-				puts ""
+			if { [info exists parms($name)] != 1 } {
+				puts stderr "[format Recd%03d $i] disabled in\
+				    testparams.tcl; skipping."
+				continue
 			}
-			if { $__debug_on != 0 } {
-				debug
+			if { $display } {
+				puts "eval $name $method $parms($name) $args"
 			}
-			flush stdout
-			flush stderr
+			if { $run } {
+				check_handles
+				puts "[timestamp]"
+				# By redirecting stdout to stdout, we make exec
+				# print output rather than simply returning it.
+				# By redirecting stderr to stdout too, we make
+				# sure everything winds up in the ALL.OUT file.
+				set ret [catch { exec $tclsh_path << \
+				    "source $test_path/test.tcl; \
+				    set log_log_record_types \
+				    $log_log_record_types; eval $name \
+				    $method $parms($name) $args" \
+				    >&@ stdout
+				} res]
+
+				# Don't die if the test failed;  we want
+				# to just proceed.
+				if { $ret != 0 } {
+					puts "FAIL:[timestamp] $res"
+				}
+
+				if { $__debug_print != 0 } {
+					puts ""
+				}
+				if { $__debug_on != 0 } {
+					debug $__debug_test
+				}
+				flush stdout
+				flush stderr
+			}
 		}
 	} res] != 0} {
 		global errorInfo;
@@ -1029,7 +1475,7 @@ proc run_recd { method {start 1} {stop 0} args } {
 	}
 }
 
-proc run_recds { } {
+proc run_recds { {run 1} {display 0} args } {
 	global log_log_record_types
 
 	set log_log_record_types 1
@@ -1037,18 +1483,19 @@ proc run_recds { } {
 	foreach method \
 	    "btree rbtree hash queue queueext recno frecno rrecno" {
 		check_handles
-		if { [catch \
-		    {run_recd -$method} ret ] != 0 } {
+		if { [catch {eval \
+		    run_recd -$method 1 0 $run $display $args} ret ] != 0 } {
 			puts $ret
 		}
 	}
-	logtrack_summary
+	if { $run } {
+		logtrack_summary
+	}
 	set log_log_record_types 0
 }
 
 proc run_all { args } {
-	global runtests
-	global subdbtests
+	global num_test
 	source ./include.tcl
 
 	fileremove -f ALL.OUT
@@ -1058,6 +1505,8 @@ proc run_all { args } {
 	set display 1
 	set run 1
 	set am_only 0
+	set parallel 0
+	set nparalleltests 0
 	set rflags {--}
 	foreach f $flags {
 		switch $f {
@@ -1091,51 +1540,60 @@ proc run_all { args } {
 	lappend args -A
 	eval {run_std} $args
 
-	set test_pagesizes { 512 8192 65536 }
+	set test_pagesizes [get_test_pagesizes]
 	set args [lindex $exflgs 0]
 	set save_args $args
 
 	foreach pgsz $test_pagesizes {
 		set args $save_args
-		append args " -pagesize $pgsz"
+		append args " -pagesize $pgsz -chksum"
 		if { $am_only == 0 } {
 			# Run recovery tests.
 			#
+			# XXX These don't actually work at multiple pagesizes;
+			# disable them for now.
+			#
 			# XXX These too are broken into separate tclsh
-			# instantiations so we don't require so much 
+			# instantiations so we don't require so much
 			# memory, but I think it's cleaner
 			# and more useful to do it down inside proc r than here,
 			# since "r recd" gets done a lot and needs to work.
-			puts "Running recovery tests with pagesize $pgsz"
-			if [catch {exec $tclsh_path \
-			    << "source $test_path/test.tcl; \
-				r $rflags recd $args" >>& ALL.OUT } res] {
-				set o [open ALL.OUT a]
-				puts $o "FAIL: recd test"
-				close $o
-			}
+			#
+			# XXX See comment in run_std for why this only directs
+			# stdout and not stderr.  Don't worry--the right stuff
+			# happens.
+			#puts "Running recovery tests with pagesize $pgsz"
+			#if [catch {exec $tclsh_path \
+			#    << "source $test_path/test.tcl; \
+			#    r $rflags recd $args" \
+			#    2>@ stderr >> ALL.OUT } res] {
+			#	set o [open ALL.OUT a]
+			#	puts $o "FAIL: recd test:"
+			#	puts $o $res
+			#	close $o
+			#}
 		}
-	
+
 		# Access method tests.
 		#
 		# XXX
-		# Broken up into separate tclsh instantiations so 
+		# Broken up into separate tclsh instantiations so
 		# we don't require so much memory.
 		foreach i \
 		   "btree rbtree hash queue queueext recno frecno rrecno" {
 			puts "Running $i tests with pagesize $pgsz"
-			for { set j 1 } { $j <= $runtests } {incr j} {
+			for { set j 1 } { $j <= $num_test(test) } {incr j} {
 				if { $run == 0 } {
 					set o [open ALL.OUT a]
-					run_method -$i $j $j $display \
-					    $run $o $args
+					eval {run_method -$i $j $j $display \
+					    $run $o} $args
 					close $o
 				}
 				if { $run } {
 					if [catch {exec $tclsh_path \
 					    << "source $test_path/test.tcl; \
-					    run_method -$i $j $j $display \
-					    $run stdout $args" \
+					    eval {run_method -$i $j $j \
+					    $display $run stdout} $args" \
 					    >>& ALL.OUT } res] {
 						set o [open ALL.OUT a]
 						puts $o \
@@ -1149,19 +1607,23 @@ proc run_all { args } {
 			#
 			# Run subdb tests with varying pagesizes too.
 			#
-			if { $run == 0 } {
-				set o [open ALL.OUT a]
-				subdb -$i $display $run $o $args
-				close $o
-			}
-			if { $run == 1 } {
-				if [catch {exec $tclsh_path \
-				    << "source $test_path/test.tcl; \
-				    subdb -$i $display $run stdout $args" \
-				    >>& ALL.OUT } res] {
+			for { set j 1 } { $j <= $num_test(sdb) } {incr j} {
+				if { $run == 0 } {
 					set o [open ALL.OUT a]
-					puts $o "FAIL: subdb -$i test"
+					eval {subdb -$i $j $j $display \
+					    $run $o} $args
 					close $o
+				}
+				if { $run == 1 } {
+					if [catch {exec $tclsh_path \
+					    << "source $test_path/test.tcl; \
+					    eval {subdb -$i $j $j $display \
+					    $run stdout} $args" \
+					    >>& ALL.OUT } res] {
+						set o [open ALL.OUT a]
+						puts $o "FAIL: subdb -$i $j $j"
+						close $o
+					}
 				}
 			}
 		}
@@ -1171,24 +1633,55 @@ proc run_all { args } {
 	# Run access method tests at default page size in one env.
 	#
 	foreach i "btree rbtree hash queue queueext recno frecno rrecno" {
-		puts "Running $i tests in an env"
-		if { $run == 0 } {
-			set o [open ALL.OUT a]
-			run_envmethod1 -$i 1 $runtests $display \
-			    $run $o $args
-			close $o
-		}
-		if { $run } {
-			if [catch {exec $tclsh_path \
-			    << "source $test_path/test.tcl; \
-			    run_envmethod1 -$i 1 $runtests $display \
-			    $run stdout $args" \
-			    >>& ALL.OUT } res] {
+		puts "Running $i tests in a txn env"
+		for { set j 1 } { $j <= $num_test(test) } { incr j } {
+			if { $run == 0 } {
 				set o [open ALL.OUT a]
-				puts $o \
-				    "FAIL: run_envmethod1 $i"
+				run_envmethod -$i $j $j $display \
+				    $run $o $args
 				close $o
 			}
+			if { $run } {
+				if [catch {exec $tclsh_path \
+				    << "source $test_path/test.tcl; \
+				    run_envmethod -$i $j $j \
+			  	    $display $run stdout $args" \
+				    >>& ALL.OUT } res] {
+					set o [open ALL.OUT a]
+					puts $o \
+					    "FAIL: run_envmethod $i $j $j"
+					close $o
+				}
+			}
+		}
+	}
+	#
+	# Run tests using proc r.  The replication tests have been
+	# moved from run_std to run_all.
+	#
+	set test_list {
+	{"replication"	"rep"}
+	{"security"	"sec"}
+	}
+	#
+	# If configured for RPC, then run rpc tests too.
+	#
+	if { [file exists ./berkeley_db_svc] ||
+	     [file exists ./berkeley_db_cxxsvc] ||
+	     [file exists ./berkeley_db_javasvc] } {
+		append test_list {{"RPC"	"rpc"}}
+	}
+
+	foreach pair $test_list {
+		set msg [lindex $pair 0]
+		set cmd [lindex $pair 1]
+		puts "Running $msg tests"
+		if [catch {exec $tclsh_path \
+		    << "source $test_path/test.tcl; \
+		    r $rflags $cmd $args" >>& ALL.OUT } res] {
+			set o [open ALL.OUT a]
+			puts $o "FAIL: $cmd test"
+			close $o
 		}
 	}
 
@@ -1229,58 +1722,97 @@ proc run_envmethod1 { method {start 1} {stop 0} {display 0} {run 1} \
     { outfile stdout } args } {
 	global __debug_on
 	global __debug_print
+	global __debug_test
+	global is_envmethod
+	global num_test
 	global parms
-	global runtests
 	source ./include.tcl
 
+	set stopsdb $num_test(sdb)
 	if { $stop == 0 } {
-		set stop $runtests
+		set stop $num_test(test)
+	} else {
+		if { $stopsdb > $stop } {
+			set stopsdb $stop
+		}
 	}
 	if { $run == 1 } {
 		puts "run_envmethod1: $method $start $stop $args"
 	}
 
-	set txn ""
+	set is_envmethod 1
 	if { $run == 1 } {
 		check_handles
 		env_cleanup $testdir
 		error_check_good envremove [berkdb envremove -home $testdir] 0
-		set env [eval {berkdb env -create -mode 0644 -home $testdir}]
+		set env [eval {berkdb_env -create -cachesize {0 10000000 0}} \
+		    {-mode 0644 -home $testdir}]
 		error_check_good env_open [is_valid_env $env] TRUE
 		append largs " -env $env "
 	}
 
+	if { $display } {
+		# The envmethod1 tests can't be split up, since they share
+		# an env.
+		puts $outfile "eval run_envmethod1 $method $args"
+	}
+
 	set stat [catch {
-		for { set i $start } { $i <= $stop } {incr i} {
-			set name [format "test%03d" $i]
+		for { set i $start } { $i <= $stopsdb } {incr i} {
+			set name [format "subdb%03d" $i]
 			if { [info exists parms($name)] != 1 } {
-				puts "[format Test%03d $i] disabled in\
-                                    testparams.tcl; skipping."  
+				puts stderr "[format Subdb%03d $i] disabled in\
+				    testparams.tcl; skipping."
 				continue
 			}
-			if { $display } {
-				puts -nonewline $outfile "eval $name $method"
-				puts -nonewline $outfile " $parms($name) $args"
-				puts $outfile " ; verify_dir $testdir \"\" 1"
-			}
 			if { $run } {
-				check_handles $outfile
 				puts $outfile "[timestamp]"
 				eval $name $method $parms($name) $largs
 				if { $__debug_print != 0 } {
 					puts $outfile ""
 				}
 				if { $__debug_on != 0 } {
-					debug
+					debug $__debug_test
 				}
 			}
 			flush stdout
 			flush stderr
 		}
 	} res]
-	if { $run == 1 } {
-		error_check_good envclose [$env close] 0
+	if { $stat != 0} {
+		global errorInfo;
+
+		set fnl [string first "\n" $errorInfo]
+		set theError [string range $errorInfo 0 [expr $fnl - 1]]
+		if {[string first FAIL $errorInfo] == -1} {
+			error "FAIL:[timestamp]\
+			    run_envmethod: $method $i: $theError"
+		} else {
+			error $theError;
+		}
 	}
+	set stat [catch {
+		for { set i $start } { $i <= $stop } {incr i} {
+			set name [format "test%03d" $i]
+			if { [info exists parms($name)] != 1 } {
+				puts stderr "[format Test%03d $i] disabled in\
+				    testparams.tcl; skipping."
+				continue
+			}
+			if { $run } {
+				puts $outfile "[timestamp]"
+				eval $name $method $parms($name) $largs
+				if { $__debug_print != 0 } {
+					puts $outfile ""
+				}
+				if { $__debug_on != 0 } {
+					debug $__debug_test
+				}
+			}
+			flush stdout
+			flush stderr
+		}
+	} res]
 	if { $stat != 0} {
 		global errorInfo;
 
@@ -1293,5 +1825,39 @@ proc run_envmethod1 { method {start 1} {stop 0} {display 0} {run 1} \
 			error $theError;
 		}
 	}
+	if { $run == 1 } {
+		error_check_good envclose [$env close] 0
+		check_handles $outfile
+	}
+	set is_envmethod 0
 
+}
+
+# We want to test all of 512b, 8Kb, and 64Kb pages, but chances are one
+# of these is the default pagesize.  We don't want to run all the AM tests
+# twice, so figure out what the default page size is, then return the
+# other two.
+proc get_test_pagesizes { } {
+	# Create an in-memory database.
+	set db [berkdb_open -create -btree]
+	error_check_good gtp_create [is_valid_db $db] TRUE
+	set statret [$db stat]
+	set pgsz 0
+	foreach pair $statret {
+		set fld [lindex $pair 0]
+		if { [string compare $fld {Page size}] == 0 } {
+			set pgsz [lindex $pair 1]
+		}
+	}
+
+	error_check_good gtp_close [$db close] 0
+
+	error_check_bad gtp_pgsz $pgsz 0
+	switch $pgsz {
+		512 { return {8192 32768} }
+		8192 { return {512 32768} }
+		32768 { return {512 8192} }
+		default { return {512 8192 32768} }
+	}
+	error_check_good NOTREACHED 0 1
 }

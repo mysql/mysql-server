@@ -1,20 +1,47 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb002.tcl,v 11.20 2000/09/20 13:22:04 sue Exp $
+# $Id: sdb002.tcl,v 11.35 2002/08/23 18:01:53 sandstro Exp $
 #
-# Sub DB Test 2 {access method}
-# Use the first 10,000 entries from the dictionary.
-# Insert each with self as key and data; retrieve each.
-# After all are entered, retrieve all; compare output to original.
-# Close file, reopen, do retrieve and re-verify.
-# Then repeat using an environment.
+# TEST	subdb002
+# TEST	Tests basic subdb functionality
+# TEST		Small keys, small data
+# TEST		Put/get per key
+# TEST		Dump file
+# TEST		Close, reopen
+# TEST		Dump file
+# TEST
+# TEST	Use the first 10,000 entries from the dictionary.
+# TEST	Insert each with self as key and data; retrieve each.
+# TEST	After all are entered, retrieve all; compare output to original.
+# TEST	Close file, reopen, do retrieve and re-verify.
+# TEST	Then repeat using an environment.
 proc subdb002 { method {nentries 10000} args } {
-	source ./include.tcl
+	global passwd
 
-	set largs [convert_args $method $args]
+	set eindex [lsearch -exact $args "-env"]
+	if { $eindex != -1 } {
+		set env NULL
+		incr eindex
+		set env [lindex $args $eindex]
+		puts "Subdb002 skipping for env $env"
+		return
+	}
+	set largs $args
+	subdb002_main $method $nentries $largs
+	append largs " -chksum "
+	subdb002_main $method $nentries $largs
+	append largs "-encryptaes $passwd "
+	subdb002_main $method $nentries $largs
+}
+
+proc subdb002_main { method nentries largs } {
+	source ./include.tcl
+	global encrypt
+
+	set largs [convert_args $method $largs]
 	set omethod [convert_method $method]
 
 	env_cleanup $testdir
@@ -23,8 +50,20 @@ proc subdb002 { method {nentries 10000} args } {
 	set testfile $testdir/subdb002.db
 	subdb002_body $method $omethod $nentries $largs $testfile NULL
 
+	# Run convert_encrypt so that old_encrypt will be reset to 
+	# the proper value and cleanup will work.
+	convert_encrypt $largs
+	set encargs ""
+	set largs [split_encargs $largs encargs]
+
 	cleanup $testdir NULL
-	set env [berkdb env -create -mode 0644 -txn -home $testdir]
+	if { [is_queue $omethod] == 1 } {
+		set sdb002_env berkdb_env_noerr
+	} else {
+		set sdb002_env berkdb_env
+	}
+	set env [eval {$sdb002_env -create -cachesize {0 10000000 0} \
+	    -mode 0644 -txn} -home $testdir $encargs]
 	error_check_good env_open [is_valid_env $env] TRUE
 	puts "Subdb002: $method ($largs) basic subdb tests in an environment"
 
@@ -36,6 +75,8 @@ proc subdb002 { method {nentries 10000} args } {
 }
 
 proc subdb002_body { method omethod nentries largs testfile env } {
+	global encrypt
+	global passwd
 	source ./include.tcl
 
 	# Create the database and open the dictionary
@@ -130,7 +171,7 @@ proc subdb002_body { method omethod nentries largs testfile env } {
 
 	puts "\tSubdb002.c: close, open, and dump file"
 	# Now, reopen the file and run the last test again.
-	open_and_dump_subfile $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_subfile $testfile $env $t1 $checkfunc \
 	    dump_file_direction "-first" "-next" $subdb
 	if { [is_record_based $method] != 1 } {
 		filesort $t1 $t3
@@ -142,7 +183,7 @@ proc subdb002_body { method omethod nentries largs testfile env } {
 	# Now, reopen the file and run the last test again in the
 	# reverse direction.
 	puts "\tSubdb002.d: close, open, and dump file in reverse direction"
-	open_and_dump_subfile $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_subfile $testfile $env $t1 $checkfunc \
 	    dump_file_direction "-last" "-prev" $subdb
 
 	if { [is_record_based $method] != 1 } {
@@ -151,6 +192,19 @@ proc subdb002_body { method omethod nentries largs testfile env } {
 
 	error_check_good Subdb002:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
+
+	puts "\tSubdb002.e: db_dump with subdatabase"
+	set outfile $testdir/subdb002.dump
+	set dumpargs " -f $outfile -s $subdb "
+	if { $encrypt > 0 } {
+		append dumpargs " -P $passwd "
+	}
+	if { $env != "NULL" } {
+		append dumpargs " -h $testdir "
+	}
+	append dumpargs " $testfile"
+	set stat [catch {eval {exec $util_path/db_dump} $dumpargs} ret]
+	error_check_good dbdump.subdb $stat 0
 }
 
 # Check function for Subdb002; keys and data are identical
