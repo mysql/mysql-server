@@ -520,20 +520,9 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 	/**
 	 * No completed & no sent -> EndOfData
 	 */
-	if(send_next_scan(0, true) == 0){ // Close scan
-	  theNdb->theWaiter.m_node = nodeId;
-	  theNdb->theWaiter.m_state = WAIT_SCAN;
-	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
-	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
-	    theError.code = -1; // make sure user gets error if he tries again
-	    if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
-	    return 1;
-	  }
-	  retVal = -1; //return_code;
-	} else {
-	  retVal = -3;
-	}
-	idx = last;
+	theError.code = -1; // make sure user gets error if he tries again
+	if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
+	return 1;
       }
 	
       if(retVal == 0)
@@ -685,6 +674,7 @@ void NdbScanOperation::closeScan()
     
     if(m_api_receivers_count+m_conf_receivers_count){
       // Send close scan
+      ndbout_c("sending close %d %d", m_api_receivers_count, m_conf_receivers_count);
       send_next_scan(0, true); // Close scan
     }
     
@@ -1344,19 +1334,9 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
     return 0;
   }
 
-  TransporterFacade* tp = TransporterFacade::instance();
-  Guard guard(tp->theMutexPtr);
-  Uint32 seq = theNdbCon->theNodeSequence;
-  Uint32 nodeId = theNdbCon->theDBnode;
-  if(seq == tp->getNodeSequence(nodeId) && 
-     send_next_scan(0, true) == 0 &&
-     theError.code == 0){
-    if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
-    return 1;
-  }
-  setErrorCode(theError.code);
-  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
-  return -1;
+  theError.code = -1;
+  if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
+  return 1;
 }
 
 int

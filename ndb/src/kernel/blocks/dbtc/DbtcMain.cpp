@@ -6586,10 +6586,8 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
        */
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
-      run.remove(ptr);
-      comp.add(ptr);
+      run.release(ptr);
       ptr.p->stopFragTimer();
     }
     
@@ -6865,7 +6863,6 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
       jam();
       ScanFragRecPtr ptr;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
       for(run.first(ptr); !ptr.isNull(); ){
 	jam();
@@ -6875,8 +6872,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	    refToNode(curr.p->lqhBlockref) == failedNodeId){
 	  jam();
 	  
-	  run.remove(curr);
-	  comp.add(curr);
+	  run.release(curr);
 	  curr.p->scanFragState = ScanFragRec::COMPLETED;
 	  curr.p->stopFragTimer();
 	  found = true;
@@ -8809,13 +8805,9 @@ void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   releaseTcCon();
 
-  ScanFragList x(c_scan_frag_pool, 
-		 scanPtr.p->m_completed_scan_frags);
-  x.release();
   ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_queued_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
-  
 
   ndbassert(scanPtr.p->scanApiRec == apiConnectptr.i);
   ndbassert(apiConnectptr.p->apiScanRec == scanPtr.i);
@@ -8868,10 +8860,8 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     if(tabPtr.p->checkTable(schemaVersion) == false){
       jam();
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
-      run.remove(scanFragptr);
-      comp.add(scanFragptr);
+      run.release(scanFragptr);
       scanError(signal, scanptr, tabPtr.p->getErrorCode(schemaVersion));
       return;
     }
@@ -8889,10 +8879,8 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     updateBuddyTimer(apiConnectptr);
     {
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
-      run.remove(scanFragptr);
-      comp.add(scanFragptr);
+      run.release(scanFragptr);
     }
     close_scan_req_send_conf(signal, scanptr);
     return;
@@ -8945,10 +8933,8 @@ void Dbtc::execDIGETPRIMREF(Signal* signal)
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
   ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-  ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
   
-  run.remove(scanFragptr);
-  comp.add(scanFragptr);
+  run.release(scanFragptr);
 
   scanError(signal, scanptr, errCode);
 }//Dbtc::execDIGETPRIMREF()
@@ -8993,10 +8979,8 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   {
     scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
     
-    run.remove(scanFragptr);
-    comp.add(scanFragptr);
+    run.release(scanFragptr);
     scanFragptr.p->stopFragTimer();
   }    
   scanError(signal, scanptr, errCode);
@@ -9095,10 +9079,8 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     } else {
       jam();
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
-      run.remove(scanFragptr);
-      comp.add(scanFragptr);
+      run.release(scanFragptr);
       scanFragptr.p->stopFragTimer();
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     }
@@ -9147,7 +9129,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   
   if(scanptr.p->m_queued_count > /** Min */ 0){
     jam();
-    sendScanTabConf(signal, scanptr.p);
+    sendScanTabConf(signal, scanptr);
   }
 }//Dbtc::execSCAN_FRAGCONF()
 
@@ -9308,7 +9290,6 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
   {
     ScanFragRecPtr ptr;
     ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
-    ScanFragList completed(c_scan_frag_pool, scanP->m_completed_scan_frags);
     ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
     ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
     
@@ -9350,7 +9331,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	
       } else {
 	jam();
-	completed.add(curr);
+	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
       }
@@ -9378,7 +9359,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 		   ScanFragNextReq::SignalLength, JBB);
       } else {
 	jam();
-	completed.add(curr);
+	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
       }
@@ -9492,10 +9473,10 @@ void Dbtc::sendScanFragReq(Signal* signal,
 }//Dbtc::sendScanFragReq()
 
 
-void Dbtc::sendScanTabConf(Signal* signal, ScanRecord * scanP) {
+void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   jam();
   Uint32* ops = signal->getDataPtrSend()+4;
-  Uint32 op_count = scanP->m_queued_count;
+  Uint32 op_count = scanPtr.p->m_queued_count;
   if(4 + 3 * op_count > 25){
     jam();
     ops += 21;
@@ -9507,29 +9488,36 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecord * scanP) {
   conf->transId1 = apiConnectptr.p->transid[0];
   conf->transId2 = apiConnectptr.p->transid[1];
   ScanFragRecPtr ptr;
-  ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
-  ScanFragList completed(c_scan_frag_pool, scanP->m_completed_scan_frags);
-  ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
-  for(queued.first(ptr); !ptr.isNull(); ){
-    ndbrequire(ptr.p->scanFragState == ScanFragRec::QUEUED_FOR_DELIVERY);
-    ScanFragRecPtr curr = ptr; // Remove while iterating...
-    queued.next(ptr);
-
-    * ops++ = curr.p->m_apiPtr;
-    * ops++ = curr.i;
-    * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
-    
-    queued.remove(curr); 
-    if(curr.p->m_ops > 0){
-      delivered.add(curr);
-      curr.p->scanFragState = ScanFragRec::DELIVERED;
-      curr.p->stopFragTimer();
-    } else {
-      (* --ops) = ScanTabConf::EndOfData; ops++;
-      completed.add(curr);
-      curr.p->scanFragState = ScanFragRec::COMPLETED;
-      curr.p->stopFragTimer();
+  {
+    ScanFragList queued(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
+    ScanFragList delivered(c_scan_frag_pool,scanPtr.p->m_delivered_scan_frags);
+    for(queued.first(ptr); !ptr.isNull(); ){
+      ndbrequire(ptr.p->scanFragState == ScanFragRec::QUEUED_FOR_DELIVERY);
+      ScanFragRecPtr curr = ptr; // Remove while iterating...
+      queued.next(ptr);
+      
+      * ops++ = curr.p->m_apiPtr;
+      * ops++ = curr.i;
+      * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
+      
+      queued.remove(curr); 
+      if(curr.p->m_ops > 0){
+	delivered.add(curr);
+	curr.p->scanFragState = ScanFragRec::DELIVERED;
+	curr.p->stopFragTimer();
+      } else {
+	(* --ops) = ScanTabConf::EndOfData; ops++;
+	c_scan_frag_pool.release(curr);
+	curr.p->scanFragState = ScanFragRec::COMPLETED;
+	curr.p->stopFragTimer();
+      }
     }
+  }
+
+  if(scanPtr.p->m_delivered_scan_frags.isEmpty() && 
+     scanPtr.p->m_running_scan_frags.isEmpty()){
+    conf->requestInfo = op_count | ScanTabConf::EndOfData;    
+    releaseScanResources(scanPtr);
   }
   
   if(4 + 3 * op_count > 25){
@@ -9544,7 +9532,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecord * scanP) {
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
 	       ScanTabConf::SignalLength + 3 * op_count, JBB);
   }
-  scanP->m_queued_count = 0;
+  scanPtr.p->m_queued_count = 0;
 }//Dbtc::sendScanTabConf()
 
 
@@ -10446,7 +10434,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       DUMP_SFR(sp.p->m_running_scan_frags);
       DUMP_SFR(sp.p->m_queued_scan_frags);
       DUMP_SFR(sp.p->m_delivered_scan_frags);
-      DUMP_SFR(sp.p->m_completed_scan_frags);
 
       // Request dump of ApiConnectRecord
       dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
