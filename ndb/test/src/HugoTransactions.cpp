@@ -40,7 +40,6 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbConnection	       *pTrans;
   NdbScanOperation	       *pOp;
 
   while (true){
@@ -196,7 +195,6 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbConnection	       *pTrans;
   NdbIndexScanOperation	       *pOp;
 
   while (true){
@@ -369,7 +367,6 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int check, a;
-  NdbConnection		*pTrans;
   NdbOperation		*pOp;
 
 
@@ -536,7 +533,6 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int check, a;
-  NdbConnection		*pTrans;
   NdbOperation		*pOp;
 
 
@@ -619,7 +615,6 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 
     int eof;
     int rows = 0;
-    NdbConnection* pUpTrans;
 
     while((eof = pTrans->nextScanResult(true)) == 0){
       pUpTrans = pNdb->startTransaction();
@@ -702,7 +697,6 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int check, a;
-  NdbConnection	*pTrans;
   NdbScanOperation *pOp;
 
 
@@ -846,7 +840,6 @@ HugoTransactions::loadTable(Ndb* pNdb,
   int             check, a;
   int             retryAttempt = 0;
   int             retryMax = 5;
-  NdbConnection   *pTrans;
   NdbOperation	  *pOp;
   bool            first_batch = true;
 
@@ -992,7 +985,6 @@ HugoTransactions::fillTable(Ndb* pNdb,
   int             check, a, b;
   int             retryAttempt = 0;
   int             retryMax = 5;
-  NdbConnection   *pTrans;
   NdbOperation	  *pOp;
   
   g_info << "|- Inserting records..." << endl;
@@ -1384,7 +1376,6 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
   if (batchsize == 0) {
@@ -1521,7 +1512,6 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a, b;
-  NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
   allocRows(batch);
@@ -1689,7 +1679,6 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
   int retryAttempt = 0;
   const int retryMax = 100;
   int check, a;
-  NdbConnection	*pTrans;
 
   while (r < records){
     
@@ -1868,7 +1857,6 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
   g_info << "|- Deleting records..." << endl;
@@ -1983,7 +1971,6 @@ HugoTransactions::lockRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a, b;
-  NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
   // Calculate how many records to lock in each batch
@@ -2130,7 +2117,6 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbConnection	       *pTrans;
   NdbOperation *pOp;
   NdbIndexScanOperation *sOp;
   NdbResultSet * rs;
@@ -2281,7 +2267,6 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a, b;
-  NdbConnection	       *pTrans;
   NdbOperation *pOp;
   NdbScanOperation * sOp;
   NdbResultSet * rs;
