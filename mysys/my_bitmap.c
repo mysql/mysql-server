@@ -34,7 +34,7 @@ my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size)
     return 1;
   dbug_assert(bitmap_size != ~(uint) 0);
 #ifdef THREAD
-  pthread_mutex_init(&map->mutex, NULL);
+  pthread_mutex_init(&map->mutex, MY_MUTEX_INIT_FAST);
 #endif
   map->bitmap_size=bitmap_size;
   return 0;
