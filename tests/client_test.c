@@ -177,7 +177,8 @@ static void client_connect()
   int  rc;
   myheader_r("client_connect");
 
-  fprintf(stdout, "\n Establishing a connection to '%s' ...", opt_host);
+  fprintf(stdout, "\n Establishing a connection to '%s' ...",
+          opt_host ? opt_host : "");
 
   if (!(mysql= mysql_init(NULL)))
   {
@@ -3226,8 +3227,11 @@ static void bind_fetch(int row_count)
 {
   MYSQL_STMT   *stmt;
   int          rc, i, count= row_count;
-  ulong        bit;
   long         data[10];
+  int8         i8_data;
+  int16        i16_data;
+  int32        i32_data;
+  longlong     i64_data;
   float        f_data;
   double       d_data;
   char         s_data[10];
@@ -3283,9 +3287,16 @@ static void bind_fetch(int row_count)
   }
 
   bind[0].buffer_type= MYSQL_TYPE_TINY;
+  bind[0].buffer= (char *)&i8_data;
+
   bind[1].buffer_type= MYSQL_TYPE_SHORT;
+  bind[1].buffer= (char *)&i16_data;
+
   bind[2].buffer_type= MYSQL_TYPE_LONG;
+  bind[2].buffer= (char *)&i32_data;
+
   bind[3].buffer_type= MYSQL_TYPE_LONGLONG;
+  bind[3].buffer= (char *)&i64_data;
 
   bind[4].buffer_type= MYSQL_TYPE_FLOAT;
   bind[4].buffer= (char *)&f_data;
@@ -3312,36 +3323,47 @@ static void bind_fetch(int row_count)
     check_execute(stmt, rc);
 
     fprintf(stdout, "\n");
-    fprintf(stdout, "\n tiny     : %ld(%lu)", data[0], length[0]);
-    fprintf(stdout, "\n short    : %ld(%lu)", data[1], length[1]);
-    fprintf(stdout, "\n int      : %ld(%lu)", data[2], length[2]);
-    fprintf(stdout, "\n longlong : %ld(%lu)", data[3], length[3]);
+    fprintf(stdout, "\n tiny     : %ld(%lu)", (ulong) i8_data, length[0]);
+    fprintf(stdout, "\n short    : %ld(%lu)", (ulong) i16_data, length[1]);
+    fprintf(stdout, "\n int      : %ld(%lu)", (ulong) i32_data, length[2]);
+    fprintf(stdout, "\n longlong : %ld(%lu)", (ulong) i64_data, length[3]);
     fprintf(stdout, "\n float    : %f(%lu)",  f_data,  length[4]);
     fprintf(stdout, "\n double   : %g(%lu)",  d_data,  length[5]);
     fprintf(stdout, "\n char     : %s(%lu)",  s_data,  length[6]);
 
-    bit= 1;
     rc= 10+row_count;
-    for (i= 0; i < 4; i++)
-    {
-      assert(data[i] == rc+i);
-      assert(length[i] == bit);
-      bit<<= 1;
-      rc+= 12;
-    }
+
+    /* TINY */
+    assert((int) i8_data == rc);
+    assert(length[0] == 1);
+    rc+= 13;
+
+    /* SHORT */
+    assert((int) i16_data == rc);
+    assert(length[1] == 2);
+    rc+= 13;
+
+    /* LONG */
+    assert((int) i32_data == rc);
+    assert(length[2] == 4);
+    rc+= 13;
+
+    /* LONGLONG */
+    assert((int) i64_data == rc);
+    assert(length[3] == 8);
+    rc+= 13;
 
     /* FLOAT */
-    rc+= i;
     assert((int)f_data == rc);
     assert(length[4] == 4);
+    rc+= 13;
 
     /* DOUBLE */
-    rc+= 13;
     assert((int)d_data == rc);
     assert(length[5] == 8);
+    rc+= 13;
 
     /* CHAR */
-    rc+= 13;
     {
       char buff[20];
       long len= my_sprintf(buff, (buff, "%d", rc));
@@ -4523,7 +4545,8 @@ static void test_multi_stmt()
 {
 
   MYSQL_STMT  *stmt, *stmt1, *stmt2;
-  int         rc, id;
+  int         rc;
+  ulong       id;
   char        name[50];
   MYSQL_BIND  bind[2];
   ulong       length[2];
@@ -4555,7 +4578,7 @@ static void test_multi_stmt()
   */
   bzero((char*) bind, sizeof(bind));
 
-  bind[0].buffer_type= MYSQL_TYPE_SHORT;
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
   bind[0].buffer= (char *)&id;
   bind[0].is_null= &is_null[0];
   bind[0].length= &length[0];
@@ -4582,7 +4605,7 @@ static void test_multi_stmt()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
+  fprintf(stdout, "\n int_data: %lu(%lu)", id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
   assert(id == 10);
   assert(strcmp(name, "mysql") == 0);
@@ -4611,7 +4634,7 @@ static void test_multi_stmt()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
+  fprintf(stdout, "\n int_data: %lu(%lu)", id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
   assert(id == 10);
   assert(strcmp(name, "updated") == 0);
@@ -9912,6 +9935,35 @@ static void test_bug4079()
   mysql_stmt_close(stmt);
 }
 
+
+static void test_bug4236()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+  MYSQL_STMT backup;
+
+  myheader("test_bug4296");
+
+  stmt= mysql_stmt_init(mysql);
+
+  /* mysql_stmt_execute() of statement with statement id= 0 crashed server */
+  stmt_text= "SELECT 1";
+  /* We need to prepare statement to pass by possible check in libmysql */
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  /* Hack to check that server works OK if statement wasn't found */
+  backup.stmt_id= stmt->stmt_id;
+  stmt->stmt_id= 0;
+  rc= mysql_stmt_execute(stmt);
+  assert(rc);
+  /* Restore original statement id to be able to reprepare it */
+  stmt->stmt_id= backup.stmt_id;
+
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10206,6 +10258,7 @@ int main(int argc, char **argv)
     test_bug3796();         /* test for select concat(?, <string>) */
     test_bug4026();         /* test microseconds precision of time types */
     test_bug4079();         /* erroneous subquery in prepared statement */
+    test_bug4236();         /* init -> execute */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.

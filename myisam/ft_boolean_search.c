@@ -53,10 +53,11 @@ static double _nwghts[11]=
  -3.796875000000000};
 static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
-#define FTB_FLAG_TRUNC 1                  /*                            */
-#define FTB_FLAG_YES   2                  /*  no two from these three   */
-#define FTB_FLAG_NO    4                  /*   YES, NO, WONLY           */
-#define FTB_FLAG_WONLY 8                  /*  should be _ever_ set both */
+#define FTB_FLAG_TRUNC 1
+/* At most one of the following flags can be set */
+#define FTB_FLAG_YES   2
+#define FTB_FLAG_NO    4
+#define FTB_FLAG_WONLY 8
 
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr

@@ -325,19 +325,18 @@ dict_table_get_index_noninline(
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: index name */
 /**************************************************************************
-Prints a table data. */
-
-void
-dict_table_print_low(
-/*=================*/
-	dict_table_t*	table);	/* in: table */
-#ifdef UNIV_DEBUG
-/**************************************************************************
 Prints a table definition. */
 
 void
 dict_table_print(
 /*=============*/
+	dict_table_t*	table);	/* in: table */
+/**************************************************************************
+Prints a table data. */
+
+void
+dict_table_print_low(
+/*=================*/
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Prints a table data when we know the table name. */
@@ -346,7 +345,6 @@ void
 dict_table_print_by_name(
 /*=====================*/
 	const char*	name);
-#endif /* UNIV_DEBUG */
 /**************************************************************************
 Outputs info on foreign keys of a table. */
 

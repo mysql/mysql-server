@@ -1831,3 +1831,63 @@ Warnings:
 Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.up.a AS `a`,test.up.b AS `b` from test.t1 up where exists(select 1 AS `Not_used` from test.t1 where (test.t1.a = test.up.a))
 drop table t1;
+CREATE TABLE t1 (t1_a int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (t2_a int, t2_b int, PRIMARY KEY (t2_a, t2_b));
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+SELECT * FROM t1, t2 table2 WHERE t1_a = 1 AND table2.t2_a = 1
+HAVING table2.t2_b = (SELECT MAX(t2_b) FROM t2 WHERE t2_a = table2.t2_a);
+t1_a	t2_a	t2_b
+1	1	2
+DROP TABLE t1, t2;
+CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
+INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
+CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
+INSERT INTO t2 VALUES (1,'Fido'),(2,'Spot'),(3,'Felix');
+SELECT a.*, b.* FROM (SELECT * FROM t1) AS a JOIN t2 as b on a.id=b.id;
+id	name	id	pet
+1	Tim	1	Fido
+2	Rebecca	2	Spot
+3	NULL	3	Felix
+drop table t1,t2;
+CREATE TABLE t1 ( a int, b int );
+CREATE TABLE t2 ( c int, d int );
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+abc	b
+1	2
+2	3
+3	4
+INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t2;
+c	d
+1	2
+2	3
+3	4
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t3;
+abc	b
+1	2
+2	3
+3	4
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+deallocate prepare stmt1;
+select * from t2;
+c	d
+1	2
+2	3
+3	4
+1	2
+2	3
+3	4
+drop table t3;
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+select * from t3;
+abc	b
+1	2
+2	3
+3	4
+deallocate prepare stmt1;
+DROP TABLE t1, t2, t3;
