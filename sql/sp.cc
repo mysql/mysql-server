@@ -551,6 +551,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     Item *item;
     List<Item> field_list;
     struct st_used_field *used_field;
+    TABLE_LIST *leaves= 0;
     st_used_field used_fields[array_elements(init_fields)];
 
     memcpy((char*) used_fields, (char*) init_fields, sizeof(used_fields));
@@ -583,7 +584,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
       tables is not VIEW for sure => we can pass 0 as condition
     */
-    setup_tables(thd, &tables, 0);
+    setup_tables(thd, &tables, 0, &leaves, 0);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)

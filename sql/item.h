@@ -115,6 +115,8 @@ public:
   */
   String str_value;
   my_string name;			/* Name from select */
+  /* Original item name (if it was renamed)*/
+  my_string orig_name;
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -142,6 +144,7 @@ public:
     name=0;
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
+  void rename(char *new_name);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
@@ -928,15 +931,33 @@ public:
   Item_ref(Item **hook, Item *original,const char *db_par,
 	   const char *table_name_par, const char *field_name_par)
     :Item_ident(db_par, table_name_par, field_name_par), result_field(0),
-     ref(0), hook_ptr(hook), orig_item(original) {}
+     ref(0), hook_ptr(hook), orig_item(original)
+  {
+    DBUG_ENTER("Item_ref::Item_ref (Item **, Item * ...) ");
+    DBUG_PRINT("info", ("hook 0x%lx, original item: 0x%lx",
+			hook_ptr, orig_item));
+    DBUG_VOID_RETURN;
+  }
   Item_ref(Item **item, Item **hook,
 	   const char *table_name_par, const char *field_name_par)
     :Item_ident(NullS, table_name_par, field_name_par), result_field(0),
-    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
+    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0)
+  {
+    DBUG_ENTER("Item_ref::Item_ref (Item **, Item ** ...) ");
+    DBUG_PRINT("info", ("hook 0x%lx, original item: 0x%lx",
+			hook_ptr, orig_item));
+    DBUG_VOID_RETURN;
+  }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_ref(THD *thd, Item_ref *item, Item **hook)
     :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
-    hook_ptr(hook), orig_item(hook ? *hook : 0) {}
+    hook_ptr(hook), orig_item(hook ? *hook : 0)
+  {
+    DBUG_ENTER("Item_ref::Item_ref (THD*, Item_ref, ...)");
+    DBUG_PRINT("info", ("hook 0x%lx, original item: 0x%lx",
+			hook_ptr, orig_item));
+    DBUG_VOID_RETURN;
+  }
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }

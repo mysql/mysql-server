@@ -497,8 +497,8 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, table_list, conds) ||
-      setup_conds(thd, table_list, conds) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, 0) ||
+      setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
 		  table_list, all_fields, all_fields, order) ||
@@ -542,25 +542,31 @@ int mysql_multi_update_prepare(THD *thd)
   TABLE_LIST *table_list= lex->query_tables;
   List<Item> *fields= &lex->select_lex.item_list;
   TABLE_LIST *tl;
+  TABLE_LIST *leaves;
   table_map tables_for_update= 0, readonly_tables= 0;
   int res;
   bool update_view= 0;
   DBUG_ENTER("mysql_multi_update_prepare");
+
+  if (setup_tables(thd, table_list, &lex->select_lex.where,
+                   &lex->select_lex.leaf_tables, 0))
+    DBUG_RETURN(-1);
   /*
     Ensure that we have update privilege for all tables and columns in the
     SET part
   */
-  for (tl= table_list; tl; tl= tl->next_local)
+  for (tl= (leaves= lex->select_lex.leaf_tables); tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
     /*
       Update of derived tables is checked later
       We don't check privileges here, becasue then we would get error
       "UPDATE command denided .. for column N" instead of
       "Target table ... is not updatable"
     */
-    if (!tl->derived)
-      tl->grant.want_privilege= table->grant.want_privilege=
+    TABLE *table= tl->table;
+    TABLE_LIST *tlist;
+    if (!(tlist= tl->belong_to_view?tl->belong_to_view:tl)->derived)
+      tlist->grant.want_privilege= table->grant.want_privilege=
         (UPDATE_ACL & ~table->grant.privilege);
   }
 
@@ -568,14 +574,13 @@ int mysql_multi_update_prepare(THD *thd)
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
     time.
   */
-  if (setup_tables(thd, table_list, &lex->select_lex.where) ||
-      (thd->lex->select_lex.no_wrap_view_item= 1,
+  if ((thd->lex->select_lex.no_wrap_view_item= 1,
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
        thd->lex->select_lex.no_wrap_view_item= 0,
        res))
     DBUG_RETURN(-1);
 
-  for (tl= table_list; tl ; tl= tl->next_local)
+  for (tl= table_list; tl; tl= tl->next_local)
   {
     if (tl->view)
     {
@@ -602,25 +607,26 @@ int mysql_multi_update_prepare(THD *thd)
   /*
     Count tables and setup timestamp handling
   */
-  for (tl= table_list; tl ; tl= tl->next_local)
+  for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
+    TABLE_LIST *tlist= tl->belong_to_view?tl->belong_to_view:tl;
 
     /* We only need SELECT privilege for columns in the values list */
-    tl->grant.want_privilege= table->grant.want_privilege=
+    tlist->grant.want_privilege= table->grant.want_privilege=
       (SELECT_ACL & ~table->grant.privilege);
     // Only set timestamp column if this is not modified
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
       table->timestamp_on_update_now= 0;
 
-    if (!tl->updatable || check_key_in_view(thd, tl))
+    if (!tlist->updatable || check_key_in_view(thd, tl))
       readonly_tables|= table->map;
   }
   if (tables_for_update & readonly_tables)
   {
     // find readonly table/view which cause error
-    for (tl= table_list; tl ; tl= tl->next_local)
+    for (tl= leaves; tl; tl= tl->next_local)
     {
       if ((readonly_tables & tl->table->map) &&
           (tables_for_update & tl->table->map))
@@ -726,6 +732,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   update.empty();
   for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
   {
+    /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
     if (tables_to_update & table->map)
     {
@@ -796,7 +803,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) && 
+    if (!(tables_to_update & table->map) &&
 	find_table_in_local_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache

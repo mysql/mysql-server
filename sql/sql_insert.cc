@@ -476,8 +476,9 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 {
   uint num= view->view->select_lex.item_list.elements;
   TABLE *table= view->table;
-  Item **trans_start= view->field_translation, **trans_end=trans_start+num;
-  Item **trans;
+  Field_translator *trans_start= view->field_translation,
+		   *trans_end= trans_start + num;
+  Field_translator *trans;
   Field **field_ptr= table->field;
   ulong other_query_id= query_id - 1;
   DBUG_ENTER("check_key_in_view");
@@ -490,9 +491,9 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   {
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
-    if ((*trans)->type() != Item::FIELD_ITEM)
+    if (trans->item->type() != Item::FIELD_ITEM)
       DBUG_RETURN(TRUE);
-    field= (Item_field *)(*trans);
+    field= (Item_field *)trans->item;
     if (field->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= 1;
     /* prepare unique test */
@@ -502,7 +503,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   for (trans= trans_start; trans != trans_end; trans++)
   {
     /* Thanks to test above, we know that all columns are of type Item_field */
-    Item_field *field= (Item_field *)(*trans);
+    Item_field *field= (Item_field *)trans->item;
     if (field->field->query_id == query_id)
       DBUG_RETURN(TRUE);
     field->field->query_id= query_id;
@@ -521,7 +522,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
       {
         if (trans == trans_end)
           DBUG_RETURN(TRUE);                    // Field was not part of view
-        if (((Item_field *)(*trans))->field == *field_ptr)
+        if (((Item_field *)trans->item)->field == *field_ptr)
           break;                                // ok
       }
     }
@@ -551,7 +552,8 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
-  if (setup_tables(thd, table_list, where))
+  if (setup_tables(thd, table_list, where, &thd->lex->select_lex.leaf_tables,
+		   0))
     DBUG_RETURN(1);
 
   if (insert_into_view && !fields.elements)
@@ -1616,6 +1618,10 @@ int mysql_insert_select_prepare(THD *thd)
                                        lex->field_list,
                                        &lex->select_lex.where))
     DBUG_RETURN(-1);
+  /* exclude first table from leaf tables list, because it belong to INSERT */
+  DBUG_ASSERT(lex->select_lex.leaf_tables);
+  lex->leaf_tables_insert= lex->select_lex.leaf_tables;
+  lex->select_lex.leaf_tables= lex->select_lex.leaf_tables->next_leaf;
   DBUG_RETURN(0);
 }
 
