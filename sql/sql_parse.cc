@@ -4760,7 +4760,7 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
     1            error
 */
 
-bool check_some_routine_access(THD *thd, char *db, char *name)
+bool check_some_routine_access(THD *thd, const char *db, const char *name)
 {
   ulong save_priv;
   if (thd->master_access & SHOW_PROC_ACLS)
@@ -4768,12 +4768,7 @@ bool check_some_routine_access(THD *thd, char *db, char *name)
   if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, 0, 1) ||
       (save_priv & SHOW_PROC_ACLS))
     return FALSE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (grant_option)
-    return check_routine_level_acl(thd, db, name);
-#endif
-
-  return FALSE;
+  return check_routine_level_acl(thd, db, name);
 }
 
 
