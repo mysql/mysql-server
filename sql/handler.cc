@@ -52,7 +52,7 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 
 const char *ha_table_type[] = {
   "", "DIAB_ISAM","HASH","MISAM","PISAM","RMS_ISAM","HEAP", "ISAM",
-  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNOBASE", "GEMINI", "?", "?",NullS
+  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNODB", "GEMINI", "?", "?",NullS
 };
 
 TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
