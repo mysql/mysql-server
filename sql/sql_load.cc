@@ -179,17 +179,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
     ex->file_name+=dirname_length(ex->file_name);
 #endif
-    if (!dirname_length(ex->file_name) &&
-	strlen(ex->file_name)+strlen(mysql_real_data_home)+strlen(tdb)+3 <
-	FN_REFLEN)
+    if (!dirname_length(ex->file_name))
     {
-      (void) sprintf(name,"%s%s/%s",mysql_real_data_home,tdb,ex->file_name);
-      unpack_filename(name,name);		/* Convert to system format */
+      strxnmov(name, FN_REFLEN, mysql_real_data_home, tdb, NullS);
+      (void) fn_format(name, ex->file_name, name, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
     }
     else
     {
-      my_load_path(name, ex->file_name, mysql_real_data_home);
-      unpack_filename(name, name);
+      (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
