@@ -31,9 +31,9 @@
 class User_map
 {
 public:
-  User_map();
   ~User_map();
 
+  int init();
   int load(const char *password_file_name);
   int authenticate(const char *user_name, uint length,
                    const char *scrambled_password,
