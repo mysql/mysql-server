@@ -38,9 +38,21 @@ String empty_string("",default_charset_info);
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
 	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
+static void my_coll_agg3_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
 	   fname);
 }
 
@@ -733,6 +745,8 @@ String *Item_func_replace::val_str(String *str)
   if (args[1]->null_value)
     goto null;
 
+  res->set_charset(collation.collation);
+
 #ifdef USE_MB
   binary_cmp = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
 #endif
@@ -813,7 +827,6 @@ null:
 
 void Item_func_replace::fix_length_and_dec()
 {
-  uint i;
   max_length=args[0]->max_length;
   int diff=(int) (args[2]->max_length - args[1]->max_length);
   if (diff > 0 && args[1]->max_length)
@@ -828,14 +841,12 @@ void Item_func_replace::fix_length_and_dec()
   }
   
   collation.set(args[0]->collation);
-  for (i=1; i<3; i++)
-  {
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+  if (!collation.aggregate(args[1]->collation))
+    collation.aggregate(args[2]->collation);
+  
+  if (collation.derivation == DERIVATION_NONE)
+    my_coll_agg3_error(args[0]->collation, args[1]->collation, 
+		       args[2]->collation, func_name());
 }
 
 
@@ -931,7 +942,6 @@ String *Item_func_left::val_str(String *str)
     if (!res->alloced_length())
     {						// Don't change const str
       str_value= *res;				// Not malloced string
-      set_charset(res->charset());
       res= &str_value;
     }
     res->length((uint) length);

@@ -26,7 +26,7 @@
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
 	   c2.collation->name,c2.derivation_name(),
 	   fname);
@@ -1968,7 +1968,12 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
-  binary_cmp= (args[0]->binary() || args[1]->binary());
+
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+  {
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+    return 1;
+  }
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();
@@ -1984,9 +1989,10 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
-		       binary_cmp ? REG_EXTENDED | REG_NOSUB :
+		       (cmp_collation.collation->state & MY_CS_BINSORT) ?
+		       REG_EXTENDED | REG_NOSUB :
 		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		       res->charset())))
+		       cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -2033,10 +2039,10 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  binary_cmp ? REG_EXTENDED | REG_NOSUB :
+		  (cmp_collation.collation->state & MY_CS_BINSORT) ?
+		  REG_EXTENDED | REG_NOSUB :
 		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		  res->charset()))
-
+		  cmp_collation.collation))
       {
 	null_value=1;
 	return 0;

@@ -747,7 +747,7 @@ class Item_func_regex :public Item_bool_func
   bool regex_compiled;
   bool regex_is_const;
   String prev_regexp;
-  bool binary_cmp;
+  DTCollation cmp_collation;
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}
