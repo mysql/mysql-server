@@ -134,6 +134,7 @@ int main(int argc, char **argv)
 	   llstr(check_param.total_deleted,buff2));
   }
   free_defaults(default_argv);
+  free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
