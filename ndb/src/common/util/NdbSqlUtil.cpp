@@ -449,6 +449,7 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   return 0;
 }
 
+int
 NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
   const uchar* v1 = (const uchar*)p1;
@@ -505,7 +506,7 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
     return 0;
   }
   assert(! full);
-  return cmpUnknown;
+  return CmpUnknown;
 #else
   if (n2 >= 4) {        // may access 4-th byte
     const uchar* v1 = (const uchar*)p1;
@@ -522,7 +523,7 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
     return 0;
   }
   assert(! full);
-  return cmpUnknown;
+  return CmpUnknown;
 #endif
 }
 
@@ -543,14 +544,14 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 }
 
 int
-NdbSqlUtil::cmpTime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
   if (n2 >= 4) {        // may access 4-th byte
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     // from Field_time::val_int
-    Int32 j1 = sint3korr(u1.v);
-    Int32 j2 = sint3korr(u2.v);
+    Int32 j1 = sint3korr(v1);
+    Int32 j2 = sint3korr(v2);
     if (j1 < j2)
       return -1;
     if (j1 > j2)
