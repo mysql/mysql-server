@@ -73,9 +73,9 @@ dict_mem_table_create(
 
 	table->does_not_fit_in_memory = FALSE;
 
-	table->stat_last_estimate_counter = (ulint)(-1);
+	table->stat_initialized = FALSE;
 
-	table->stat_modif_counter = 0;
+	table->stat_modified_counter = 0;
 	
 	mutex_create(&(table->autoinc_mutex));
 	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
