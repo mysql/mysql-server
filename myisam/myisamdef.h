@@ -648,6 +648,7 @@ void mi_setup_functions(register MYISAM_SHARE *share);
 int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size);
 
     /* Functions needed by mi_check */
+volatile bool *killed_ptr(MI_CHECK *param);
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));

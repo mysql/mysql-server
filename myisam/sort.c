@@ -284,7 +284,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
-  
+
   error=1;
 
   if (my_thread_init())
@@ -701,6 +701,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
+  volatile bool *killed= killed_ptr(info->sort_info->param);
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
@@ -732,6 +733,10 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   {
     for (;;)
     {
+      if (*killed)
+      {
+        error=1; goto err;
+      }
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (to_file)
       {

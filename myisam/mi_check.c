@@ -2508,7 +2508,7 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
     DBUG_RETURN(1);
   }
   sort_param->real_key_length=
-    (info->s->rec_reflength+ 
+    (info->s->rec_reflength+
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
 #ifdef HAVE_purify
@@ -2586,6 +2586,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
+
+  if (*killed_ptr(param))
+    DBUG_RETURN(1);
 
   switch (share->data_file_type) {
   case STATIC_RECORD:
