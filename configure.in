@@ -95,7 +95,6 @@ AC_SUBST(CXXLDFLAGS)
 
 AC_PREREQ(2.12)dnl		Minimum Autoconf version required.
 
-AM_MAINTAINER_MODE
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 AM_SANITY_CHECK
 # This is needed is SUBDIRS is set
