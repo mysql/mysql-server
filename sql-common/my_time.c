@@ -680,12 +680,12 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
     /* Get difference in days */
     int days= t->day - l_time->tm_mday;
     if (days < -1)
-      days= 1;					// Month has wrapped
+      days= 1;					/* Month has wrapped */
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
 	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
-    current_timezone+= diff+3600;		// Compensate for -3600 above
+    current_timezone+= diff+3600;		/* Compensate for -3600 above */
     tmp+= (time_t) diff;
     localtime_r(&tmp,&tm_tmp);
     l_time=&tm_tmp;
@@ -698,15 +698,15 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
   {
     int days= t->day - l_time->tm_mday;
     if (days < -1)
-      days=1;					// Month has wrapped
+      days=1;					/* Month has wrapped */
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour))+
 	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
     if (diff == 3600)
-      tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
+      tmp+=3600 - t->minute*60 - t->second;	/* Move to next hour */
     else if (diff == -3600)
-      tmp-=t->minute*60 + t->second;		// Move to previous hour
+      tmp-=t->minute*60 + t->second;		/* Move to previous hour */
 
     *in_dst_time_gap= 1;
   }
