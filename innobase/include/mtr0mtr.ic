@@ -217,7 +217,7 @@ void
 mtr_s_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -236,7 +236,7 @@ void
 mtr_x_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr)	/* in: mtr */
 {

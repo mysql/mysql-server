@@ -1515,19 +1515,15 @@ longlong ha_myisam::get_auto_increment()
   SYNOPSIS
     records_in_range()
     inx			Index to use
-    start_key		Start of range.  Null pointer if from first key
-    start_key_len	Length of start key
-    start_search_flag	Flag if start key should be included or not
-    end_key		End of range. Null pointer if to last key
-    end_key_len		Length of end key
-    end_search_flag	Flag if start key should be included or not
+    min_key		Start of range.  Null pointer if from first key
+    max_key		End of range. Null pointer if to last key
 
   NOTES
-    start_search_flag can have one of the following values:
+    min_key.flag can have one of the following values:
       HA_READ_KEY_EXACT		Include the key in the range
       HA_READ_AFTER_KEY		Don't include key in range
 
-    end_search_flag can have one of the following values:  
+    max_key.flag can have one of the following values:  
       HA_READ_BEFORE_KEY	Don't include key in range
       HA_READ_AFTER_KEY		Include all 'end_key' values in the range
 
@@ -1538,18 +1534,10 @@ longlong ha_myisam::get_auto_increment()
 			the range.
 */
 
-ha_rows ha_myisam::records_in_range(int inx,
-				    const byte *start_key,uint start_key_len,
-				    enum ha_rkey_function start_search_flag,
-				    const byte *end_key,uint end_key_len,
-				    enum ha_rkey_function end_search_flag)
+ha_rows ha_myisam::records_in_range(uint inx, key_range *min_key,
+                                    key_range *max_key)
 {
-  return (ha_rows) mi_records_in_range(file,
-				       inx,
-				       start_key,start_key_len,
-				       start_search_flag,
-				       end_key,end_key_len,
-				       end_search_flag);
+  return (ha_rows) mi_records_in_range(file, (int) inx, min_key, max_key);
 }
 
 

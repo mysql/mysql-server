@@ -665,7 +665,6 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
-  order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
@@ -6161,8 +6160,8 @@ join_read_prev_same(READ_RECORD *info)
 
   if ((error=table->file->index_prev(table->record[0])))
     return report_error(table, error);
-  if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
-	      tab->ref.key_length))
+  if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
+                      tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
     error= -1;
@@ -9455,7 +9454,7 @@ void st_select_lex::print(THD *thd, String *str)
   if (!thd->lex->safe_to_cache_query)
     str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;

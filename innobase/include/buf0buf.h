@@ -132,7 +132,7 @@ to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET, IB__FILE__, __LINE__, MTR)
+				BUF_GET, __FILE__, __LINE__, MTR)
 /******************************************************************
 Use these macros to bufferfix a page with no latching. Remember not to
 read the contents of the page unless you know it is safe. Do not modify
@@ -141,19 +141,19 @@ error-prone programming not to set a latch, and it should be used
 with care. */
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET_NOWAIT, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
 #define buf_page_optimistic_get(LA, BL, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, BL, G, MC, IB__FILE__, __LINE__, MTR)
+				LA, BL, G, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */
@@ -168,7 +168,7 @@ buf_page_optimistic_get_func(
 				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -201,7 +201,7 @@ buf_page_get_known_nowait(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_frame_t*	guess,	/* in: the known page frame */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -217,7 +217,7 @@ buf_page_get_gen(
 	buf_frame_t*	guess,	/* in: guessed frame or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************

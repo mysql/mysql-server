@@ -18,7 +18,7 @@ rw_lock_s_lock_spin(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
@@ -130,7 +130,7 @@ rw_lock_s_lock_low(
 	ulint		pass __attribute__((unused)),
                                 /* in: pass value; != 0, if the lock will be
 				passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 #ifdef UNIV_SYNC_DEBUG
@@ -163,9 +163,9 @@ UNIV_INLINE
 void
 rw_lock_s_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name,/* in: file name where lock requested */
-	ulint		line)	/* in: line where requested */
+	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	const char*	file_name,	/* in: file name where requested */
+	ulint		line)		/* in: line where lock requested */
 {
 	ut_ad(lock->writer == RW_LOCK_NOT_LOCKED);
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
@@ -189,9 +189,9 @@ UNIV_INLINE
 void
 rw_lock_x_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name, /* in: file name where lock requested */
-	ulint		line)	/* in: line where requested */
+	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	const char*	file_name,	/* in: file name where requested */
+	ulint		line)		/* in: line where lock requested */
 {
         ut_ad(rw_lock_validate(lock));
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
@@ -223,7 +223,7 @@ rw_lock_s_lock_func(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	/* NOTE: As we do not know the thread ids for threads which have
@@ -267,7 +267,7 @@ rw_lock_s_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;
@@ -304,7 +304,7 @@ rw_lock_x_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;

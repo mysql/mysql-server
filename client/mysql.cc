@@ -1239,7 +1239,6 @@ static void fix_history(String *final_command)
 static int not_in_history(const char *line) 
 {
   HIST_ENTRY *oldhist = history_get(history_length);
-  int num;
   
   if (oldhist == 0)
     return 1;
@@ -1589,7 +1588,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
   MYSQL_RES *result;
-  MYSQL_FIELD *fields;
   int error;
   
   if (help_arg[0] != '\'')
@@ -1615,7 +1613,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
   {
     unsigned int num_fields= mysql_num_fields(result);
     my_ulonglong num_rows= mysql_num_rows(result);
-    fields= mysql_fetch_fields(result);
+    mysql_fetch_fields(result);
     if (num_fields==3 && num_rows==1)
     {
       if (!(cur= mysql_fetch_row(result)))
@@ -2404,6 +2402,10 @@ static int
 com_shell(String *buffer, char *line __attribute__((unused)))
 {
   char *shell_cmd;
+
+  /* Skip space from line begin */
+  while (my_isspace(charset_info, *line))
+    line++;
   if (!(shell_cmd = strchr(line, ' ')))
   {
     put_info("Usage: \\! shell-command", INFO_ERROR);

@@ -109,7 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
-static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
@@ -1097,7 +1097,7 @@ int do_sync_with_master2(const char* p)
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   char query_buf[FN_REFLEN+128];
-  int offset = 0;
+  int offset= 0, tries= 0;
   int rpl_parse;
 
   if (!master_pos.file[0])
@@ -1112,6 +1112,9 @@ int do_sync_with_master2(const char* p)
 
   sprintf(query_buf, "select master_pos_wait('%s', %ld)", master_pos.file,
 	  master_pos.pos + offset);
+
+wait_for_position:
+
   if (mysql_query(mysql, query_buf))
     die("line %u: failed in %s: %d: %s", start_lineno, query_buf,
 	mysql_errno(mysql), mysql_error(mysql));
@@ -1122,8 +1125,20 @@ int do_sync_with_master2(const char* p)
   if (!(row = mysql_fetch_row(res)))
     die("line %u: empty result in %s", start_lineno, query_buf);
   if (!row[0])
-    die("line %u: could not sync with master ('%s' returned NULL)", 
-        start_lineno, query_buf);
+  {
+    /*
+      It may be that the slave SQL thread has not started yet, though START
+      SLAVE has been issued ?
+    */
+    if (tries++ == 3)
+    {
+      die("line %u: could not sync with master ('%s' returned NULL)", 
+          start_lineno, query_buf);
+    }
+    sleep(1); /* So at most we will wait 3 seconds and make 4 tries */
+    mysql_free_result(res);
+    goto wait_for_position;
+  }
   mysql_free_result(res);
   last_result=0;
   if (rpl_parse)
