@@ -514,7 +514,7 @@ net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   ulong len=0;
-  init_sigpipe_variables;
+  init_sigpipe_variables
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -579,7 +579,7 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   my_bool result= 1;
-  init_sigpipe_variables;
+  init_sigpipe_variables
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -670,7 +670,7 @@ void end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables;
+    init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
@@ -1431,7 +1431,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  init_sigpipe_variables;
+  init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
 
