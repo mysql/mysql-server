@@ -200,25 +200,31 @@ void _ftb_init_index_search(FT_INFO *ftb)
   {
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
-    if (ftbw->flags&FTB_FLAG_TRUNC) /* special treatment :(( */
-      if (ftbw->up->ythresh > test(ftbw->flags&FTB_FLAG_YES))
+    if (ftbw->flags&FTB_FLAG_TRUNC)
+      /* special treatment for truncation operator :((
+         1. +trunc* and there're other (not +trunc*) words
+           | no need to search in the index, it can never ADD new rows
+           | to the result, and to remove half-matched rows we do scan anyway
+         2. -trunc*
+           | same as 1.
+         3. trunc*
+           | We have to index-search for this prefix.
+           | It may cause duplicates, as in the index (sorted by <word,docid>)
+           |   <aaaa,row1>
+           |   <aabb,row2>
+           |   <aacc,row1>
+           | Searching for "aa*" will find row1 twice...
+       */
+      if ( test(ftbw->flags&FTB_FLAG_NO) ||                 /* 2 */
+          (test(ftbw->flags&FTB_FLAG_YES) &&                /* 1 */
+           ftbw->up->ythresh - ftbw->up->yweaks >1))        /* 1 */
       {
-        /* no need to search for this prefix in the index -
-         * it cannot ADD new matches, and to REMOVE half-matched
-         * rows we do scan anyway */
         ftbw->docid[0]=HA_POS_ERROR;
         ftbw->up->yweaks++;
         continue;
       }
-      else
+      else /* 3 */
       {
-        /* We have to index-search for this prefix.
-         * It may cause duplicates, as in the index (sorted by <word,docid>)
-         *   <aaaa,row1>
-         *   <aabb,row2>
-         *   <aacc,row1>
-         * Searching for "aa*" will find row1 twice...
-         */
         if (!is_tree_inited(& ftb->no_dupes))
         {
           init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
