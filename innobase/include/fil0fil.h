@@ -329,7 +329,9 @@ fil_rename_tablespace(
 /*==================*/
 				/* out: TRUE if success */
 	char*	old_name,	/* in: old table name in the standard
-				databasename/tablename format of InnoDB */
+				databasename/tablename format of InnoDB, or
+				NULL if we do the rename based on the space
+				id only */
 	ulint	id,		/* in: space id */
 	char*	new_name);	/* in: new table name in the standard
 				databasename/tablename format of InnoDB */
