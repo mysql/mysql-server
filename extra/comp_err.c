@@ -35,6 +35,7 @@
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../sql/share/charsets"
 #define ER_PREFIX "ER_"
+#define WARN_PREFIX "WARN_"
 static char *OUTFILE= (char*) "errmsg.sys";
 static char *HEADERFILE= (char*) "mysqld_error.h";
 static char *NAMEFILE= (char*) "mysqld_ername.h";
@@ -453,7 +454,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 	DBUG_RETURN(0);
       continue;
     }
-    if (is_prefix(str, ER_PREFIX))
+    if (is_prefix(str, ER_PREFIX) || is_prefix(str, WARN_PREFIX))
     {
       if (!(current_error= parse_error_string(str, rcount)))
       {
