@@ -2,6 +2,8 @@
 # Test of fulltext index
 #
 
+drop table if exists t1,t2;
+
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),('Full-text indexes', 'are called collections'),('Only MyISAM tables','support collections'),('Function MATCH ... AGAINST()','is used to do a search'),('Full-text search in MySQL', 'implements vector space model');
 select * from t1 where MATCH(a,b) AGAINST ("collections");
@@ -9,3 +11,37 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 delete from t1 where a like "MySQL%";
 drop table t1;
+
+#
+# Check bug reported by Matthias Urlichs
+#
+
+CREATE TABLE t1 (
+  id int(11),
+  ticket int(11),
+  KEY ti (id),
+  KEY tit (ticket)
+)/*! type=MyISAM */;
+INSERT INTO t1 VALUES (2,3),(1,2);
+
+CREATE TABLE t2 (
+  ticket int(11),
+  inhalt text,
+  KEY tig (ticket),
+  fulltext index tix (inhalt(1)) /* this line modified by hand */
+)/*! type=MyISAM */;
+INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
+
+select t1.id FROM t2 as ttxt,t1,t1 as ticket2  WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+
+# In the following query MySQL didn't use the fulltext index
+select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+
+INSERT INTO t1 VALUES (3,3);
+select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+
+# Check that we get 'fulltext' index in SHOW CREATE
+
+show keys from t2;
+show create table t2;
+drop table t1,t2;

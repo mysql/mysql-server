@@ -200,7 +200,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.39 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.40 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -995,6 +995,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
   {
     keyseg=keyinfo->seg;
     if (keyinfo->flag & HA_NOSAME) text="unique ";
+    else if (keyinfo->flag & HA_FULLTEXT) text="fulltext ";
     else text="multip.";
 
     pos=buff;

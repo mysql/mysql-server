@@ -830,6 +830,7 @@ uint _mi_get_static_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 } /* _mi_get_static_key */
 
 
+/* Key with is packed against previous key or key with a NULL column */
 
 uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 		      register uchar **page_pos, register uchar *key)
@@ -841,7 +842,6 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   start_key=key;
   for (keyseg=keyinfo->seg ; keyseg->type ;keyseg++)
   {
-    /* First key part is always packed !*/
     if (keyseg->flag & HA_PACK_KEY)
     {
       /* key with length, packed to previous key */

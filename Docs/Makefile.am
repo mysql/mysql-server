@@ -99,7 +99,7 @@ nusphere.pdf: manual.texi
 manual_a4.ps:	manual.texi include.texi
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
 	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
-	    $(TEXI2DVI) --batch --texinfo '@afourpaper' $<
+	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
 	$(DVIPS) -t a4 manual.dvi -o $@
 	touch $@
 

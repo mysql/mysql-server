@@ -23,16 +23,37 @@
  *   Monty
  **/
 
-#define MTEST_VERSION "1.4"
+/**********************************************************************
+  TODO:
 
-#include "global.h"
-#include "my_sys.h"
-#include "m_string.h"
-#include "mysql.h"
-#include "mysql_version.h"
-#include "my_config.h"
-#include "my_dir.h"
-#include "mysqld_error.h"
+- Print also the queries that returns a result to the log file;  This makes
+  it much easier to find out what's wrong.
+
+- Do comparison line by line, instead of doing a full comparison of
+  the text file.  This will save space as we don't need to keep many
+  results in memory.  It will also make it possible to do simple
+  'comparison' fixes like accepting the result even if a float differed
+  in the last decimals.
+
+- Don't buffer lines from the test that you don't expect to need
+  again.
+
+- Change 'read_line' to be faster by using the readline.cc code;
+  We can do better than calling feof() for each character!
+
+**********************************************************************/
+
+#define MTEST_VERSION "1.5"
+
+#include <global.h>
+#include <my_sys.h>
+#include <m_string.h>
+#include <mysql.h>
+#include <mysql_version.h>
+#include <m_ctype.h>
+#include <my_config.h>
+#include <my_dir.h>
+#include <mysqld_error.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -56,6 +77,7 @@ const char* user = 0, *host = 0, *unix_sock = 0;
 int port = 0;
 static uint start_lineno, *lineno;
 
+static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
 
 FILE* file_stack[MAX_INCLUDE_DEPTH];
@@ -104,9 +126,9 @@ struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
 
 /* this should really be called command */
-struct query
+struct st_query
 {
-  char q[MAX_QUERY];
+  char *query, *first_argument;
   int first_word_len;
   my_bool abort_on_error, require_file;
   uint expected_errno;
@@ -127,60 +149,83 @@ const char *command_names[] = {
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names};
 
+DYNAMIC_STRING ds_res;
 
-#define DS_CHUNK   16384
-
-typedef struct dyn_string
-{
-  char* str;
-  int len,max_len;
-} DYN_STRING;
-
-DYN_STRING ds_res;
-
-void dyn_string_init(DYN_STRING* ds);
-void dyn_string_end(DYN_STRING* ds);
-void dyn_string_append(DYN_STRING* ds, const char* str, int len);
-int dyn_string_cmp(DYN_STRING* ds, const char* fname);
+int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname);
 void reject_dump(const char* record_file, char* buf, int size);
 
-int close_connection(struct query* q);
+int close_connection(struct st_query* q);
 VAR* var_get(char* var_name, char* var_name_end, int raw);
 
 static void close_cons()
 {
-  for(--next_con; next_con >= cons; --next_con)
-    {
-      mysql_close(&next_con->mysql);
-      my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
-    }
+  DBUG_ENTER("close_cons");
+  for (--next_con; next_con >= cons; --next_con)
+  {
+    mysql_close(&next_con->mysql);
+    my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
+  }
+  DBUG_VOID_RETURN;
+}
+
+static void close_files()
+{
+  do
+  {
+    if (*cur_file != stdin)
+      my_fclose(*cur_file,MYF(0));
+  } while (cur_file-- != file_stack);
+}
+
+static void free_used_memory()
+{
+  uint i;
+  DBUG_ENTER("free_used_memory");
+  close_cons();
+  close_files();
+  for (i=0 ; i < q_lines.elements ; i++)
+  {
+    struct st_query **q= dynamic_element(&q_lines, i, struct st_query**);
+    my_free((gptr) (*q)->query,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((gptr) (*q),MYF(0));
+  }
+  delete_dynamic(&q_lines);
+  dynstr_free(&ds_res);
+  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+  free_defaults(default_argv);
+  my_end(MY_CHECK_ERROR);
+  DBUG_VOID_RETURN;
 }
 
 static void die(const char* fmt, ...)
 {
   va_list args;
+  DBUG_ENTER("die");
   va_start(args, fmt);
-  fprintf(stderr, "%s: ", my_progname);
-  vfprintf(stderr, fmt, args);
-  fprintf(stderr, "\n");
+  if (fmt)
+  {
+    fprintf(stderr, "%s: ", my_progname);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+  }
   va_end(args);
-  close_cons();
+  free_used_memory();
   exit(1);
 }
 
 static void abort_not_supported_test()
 {
+  DBUG_ENTER("abort_not_supported_test");
   fprintf(stderr, "This test is not supported by this installation\n");
   if (!silent)
     printf("skipped\n");
-  close_cons();
+  free_used_memory();
   exit(2);
 }
 
 static void verbose_msg(const char* fmt, ...)
 {
   va_list args;
-
   if (!verbose) return;
 
   va_start(args, fmt);
@@ -208,70 +253,32 @@ int hex_val(int c)
     return -1;
 }
 
-void dyn_string_init(DYN_STRING* ds)
-{
-  if (!(ds->str = (char*)my_malloc(DS_CHUNK, MYF(0))))
-    die("Out of memory");
-  ds->len = 0;
-  ds->max_len = DS_CHUNK;
-}
-
-void dyn_string_end(DYN_STRING* ds)
-{
-  my_free(ds->str, MYF(0));
-  memset(ds, 0, sizeof(*ds)); /* safety */
-}
-
-void dyn_string_append(DYN_STRING* ds, const char* str, int len)
-{
-  int new_len;
-  if (!len)
-    len = strlen(str);
-  new_len = ds->len + len;
-  if (new_len > ds->max_len)
-    {
-      int new_alloc_len = (new_len & ~(DS_CHUNK-1)) + DS_CHUNK;
-      char* tmp = (char*) my_malloc(new_alloc_len, MYF(0));
-      if (!tmp)
-	die("Out of memory");
-      memcpy(tmp, ds->str, ds->len);
-      memcpy(tmp + ds->len, str, len);
-      my_free((gptr)ds->str, MYF(0));
-      ds->str = tmp;
-      ds->len = new_len;
-      ds->max_len = new_alloc_len;
-    }
-  else
-    {
-      memcpy(ds->str + ds->len, str, len);
-      ds->len += len;
-    }
-}
-
-
-int dyn_string_cmp(DYN_STRING* ds, const char* fname)
+int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 {
   MY_STAT stat_info;
   char *tmp;
   int res;
   int fd;
+  DBUG_ENTER("dyn_string_cmp");
+
   if (!my_stat(fname, &stat_info, MYF(MY_WME)))
-    die("Could not stat %s: errno =%d", fname, errno);
-  if (stat_info.st_size != ds->len)
-    return 2;
-  if (!(tmp = (char*) my_malloc(ds->len, MYF(0))))
-    die("Out of memory");
+    die(NullS);
+  if (stat_info.st_size != ds->length)
+    DBUG_RETURN(2);
+  if (!(tmp = (char*) my_malloc(ds->length, MYF(MY_WME))))
+    die(NullS);
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
-    die("Could not open %s: errno = %d", fname, errno);
+    die(NullS);
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
-    die("read failed");
+    die(NullS);
   res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;
-  my_free((gptr)tmp, MYF(0));
-  my_close(fd, MYF(0));
-  return res;
+  my_free((gptr) tmp, MYF(0));
+  my_close(fd, MYF(MY_WME));
+
+  DBUG_RETURN(res);
 }
 
-static int check_result(DYN_STRING* ds, const char* fname,
+static int check_result(DYNAMIC_STRING* ds, const char* fname,
 			my_bool require_option)
 {
   int error = 0;
@@ -295,7 +302,7 @@ static int check_result(DYN_STRING* ds, const char* fname,
     die("Unknown error code from dyn_string_cmp()");
   }
   if (error)
-    reject_dump(fname, ds->str, ds->len);
+    reject_dump(fname, ds->str, ds->length);
   return error;
 }
 
@@ -364,24 +371,23 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 
 int open_file(const char* name)
 {
-  if (*cur_file && ++cur_file == file_stack_end)
+  if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*cur_file = my_fopen(name, O_RDONLY, MYF(MY_WME))))
-    die("Could not read '%s': errno %d\n", name, errno);
+  if (!(*(cur_file+1) = my_fopen(name, O_RDONLY, MYF(MY_WME))))
+    die(NullS);
+  cur_file++;
   *++lineno=1;
 
   return 0;
 }
 
-int do_source(struct query* q)
+int do_source(struct st_query* q)
 {
-  char* p, *name;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
+  char* p=q->first_argument, *name;
   if (!*p)
     die("Missing file name in source\n");
   name = p;
-  while(*p && !isspace(*p))
+  while (*p && !isspace(*p))
     p++;
   *p = 0;
 
@@ -413,36 +419,30 @@ int eval_expr(VAR* v, char* p, char* p_end)
   return 1;
 }
 
-int do_inc(struct query* q)
+int do_inc(struct st_query* q)
 {
-  char* p;
+  char* p=q->first_argument;
   VAR* v;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
   v = var_get(p, 0, 1);
   v->int_val++;
   v->int_dirty = 1;
   return 0;
 }
 
-int do_dec(struct query* q)
+int do_dec(struct st_query* q)
 {
-  char* p;
+  char* p=q->first_argument;
   VAR* v;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
   v = var_get(p, 0, 1);
   v->int_val--;
   v->int_dirty = 1;
   return 0;
 }
 
-int do_system(struct query* q)
+int do_system(struct st_query* q)
 {
-  char* p;
+  char* p=q->first_argument;
   VAR v;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len > 1)
     {
@@ -457,12 +457,10 @@ int do_system(struct query* q)
   return 0;
 }
 
-int do_echo(struct query* q)
+int do_echo(struct st_query* q)
 {
-  char* p;
+  char* p=q->first_argument;
   VAR v;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len > 1)
     {
@@ -473,11 +471,10 @@ int do_echo(struct query* q)
   return 0;
 }
 
-int do_let(struct query* q)
+int do_let(struct st_query* q)
 {
-  char* p, *var_name, *var_name_end, *var_val_start;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
+  char* p=q->first_argument;
+  char *var_name, *var_name_end, *var_val_start;
   if (!*p)
     die("Missing variable name in let\n");
   var_name = p;
@@ -493,12 +490,11 @@ int do_let(struct query* q)
   return var_set(var_name, var_name_end, var_val_start, p);
 }
 
-int do_sleep(struct query* q)
+int do_sleep(struct st_query* q)
 {
-  char *p;
+  char* p=q->first_argument;
   struct timeval t;
   int dec_mul = 1000000;
-  p = (char*)q->q + q->first_word_len;
   while(*p && isspace(*p)) p++;
   if (!*p)
     die("Missing argument in sleep\n");
@@ -534,10 +530,9 @@ int do_sleep(struct query* q)
   return select(0,0,0,0, &t);
 }
 
-static void get_file_name(char *filename, struct query* q)
+static void get_file_name(char *filename, struct st_query* q)
 {
-  char *p = (char*) q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
+  char* p=q->first_argument;
   strnmov(filename, p, FN_REFLEN);
   /* Remove end space */
   while (p > filename && isspace(p[-1]))
@@ -546,12 +541,13 @@ static void get_file_name(char *filename, struct query* q)
 }
 
 
-int select_connection(struct query* q)
+int select_connection(struct st_query* q)
 {
-  char* p, *name;
+  char* p=q->first_argument, *name;
   struct connection *con;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
+  DBUG_ENTER("select_connection");
+  DBUG_PRINT("enter",("name: '%s'",p));
+
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
@@ -559,23 +555,25 @@ int select_connection(struct query* q)
     p++;
   *p = 0;
 
-  for(con = cons; con < next_con; con++)
+  for (con = cons; con < next_con; con++)
+  {
     if (!strcmp(con->name, name))
-      {
-	cur_con = con;
-	return 0;
-      }
-
+    {
+      cur_con = con;
+      DBUG_RETURN(0);
+    }
+  }
   die("connection '%s' not found in connection pool", name);
-  return 1;
+  DBUG_RETURN(1);				/* Never reached */
 }
 
-int close_connection(struct query* q)
+int close_connection(struct st_query* q)
 {
-  char* p, *name;
+  char* p=q->first_argument, *name;
   struct connection *con;
-  p = (char*)q->q + q->first_word_len;
-  while(*p && isspace(*p)) p++;
+  DBUG_ENTER("close_connection");
+  DBUG_PRINT("enter",("name: '%s'",p));
+
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
@@ -584,14 +582,15 @@ int close_connection(struct query* q)
   *p = 0;
 
   for(con = cons; con < next_con; con++)
+  {
     if (!strcmp(con->name, name))
-      {
-	mysql_close(&con->mysql);
-	return 0;
-      }
-
+    {
+      mysql_close(&con->mysql);
+      DBUG_RETURN(0);
+    }
+  }
   die("connection '%s' not found in connection pool", name);
-  return 1;
+  DBUG_RETURN(1);				/* Never reached */
 }
 
 
@@ -600,8 +599,10 @@ int close_connection(struct query* q)
    a comma, a space or ) belongs to the argument. space is a chopper, comma or
    ) are delimiters/terminators
 */
+
 char* safe_get_param(char* str, char** arg, const char* msg)
 {
+  DBUG_ENTER("safe_get_param");
   while(*str && isspace(*str)) str++;
   *arg = str;
   while(*str && *str != ',' && *str != ')')
@@ -613,21 +614,21 @@ char* safe_get_param(char* str, char** arg, const char* msg)
     die(msg);
 
   *str++ = 0;
-  return str;
+  DBUG_RETURN(str);
 }
 
-int do_connect(struct query* q)
+
+int do_connect(struct st_query* q)
 {
   char* con_name, *con_user,*con_pass, *con_host, *con_port_str,
     *con_db, *con_sock;
-  char* p;
+  char* p=q->first_argument;
   char buff[FN_REFLEN];
+  DBUG_ENTER("do_connect");
+  DBUG_PRINT("enter",("connect: %s",p));
 
-  p = q->q + q->first_word_len;
-
-  while(*p && isspace(*p)) p++;
   if (*p != '(')
-    die("Syntax error in connect - expeected '(' found '%c'", *p);
+    die("Syntax error in connect - expected '(' found '%c'", *p);
   p++;
   p = safe_get_param(p, &con_name, "missing connection name");
   p = safe_get_param(p, &con_host, "missing connection host");
@@ -648,13 +649,13 @@ int do_connect(struct query* q)
 	mysql_error(&next_con->mysql));
 
   if (!(next_con->name = my_strdup(con_name, MYF(MY_WME))))
-    die("Out of memory");
+    die(NullS);
   cur_con = next_con++;
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
-int do_done(struct query* q)
+int do_done(struct st_query* q)
 {
   q->type = Q_END_BLOCK;
   if (cur_block == block_stack)
@@ -670,9 +671,9 @@ int do_done(struct query* q)
   return 0;
 }
 
-int do_while(struct query* q)
+int do_while(struct st_query* q)
 {
-  char *p = q->q + q->first_word_len;
+  char* p=q->first_argument;
   char* expr_start, *expr_end;
   VAR v;
   if (cur_block == block_stack_end)
@@ -767,7 +768,8 @@ int read_line(char* buf, int size)
     c = fgetc(*cur_file);
     if (feof(*cur_file))
     {
-      my_fclose(*cur_file,MYF(0));
+      if ((*cur_file) != stdin)
+	my_fclose(*cur_file,MYF(0));
 
       if (cur_file == file_stack)
 	return 1;
@@ -883,19 +885,19 @@ int read_line(char* buf, int size)
 
 static char read_query_buf[MAX_QUERY];
 
-int read_query(struct query** q_ptr)
+int read_query(struct st_query** q_ptr)
 {
-  char* p = read_query_buf, * p1 ;
+  char *p = read_query_buf, * p1 ;
   int c, expected_errno;
-  struct query* q;
+  struct st_query* q;
 
   if (parser.current_line < parser.read_lines)
   {
-    get_dynamic(&q_lines, (gptr)q_ptr, parser.current_line) ;
+    get_dynamic(&q_lines, (gptr) q_ptr, parser.current_line) ;
     return 0;
   }
-  if (!(*q_ptr=q=(struct query*)my_malloc(sizeof(*q), MYF(MY_WME)))
-     || insert_dynamic(&q_lines, (gptr)&q)
+  if (!(*q_ptr=q=(struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME)))
+     || insert_dynamic(&q_lines, (gptr) &q)
      )
     die("Out of memory");
 
@@ -905,6 +907,7 @@ int read_query(struct query** q_ptr)
   q->first_word_len = 0;
   q->expected_errno = 0;
   q->type = Q_UNKNOWN;
+  q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
     return 1;
 
@@ -944,20 +947,24 @@ int read_query(struct query** q_ptr)
       *p1 = 0;
     }
   }
-  while(*p && isspace(*p)) p++;
-  /* Calculate first word */
-  p1 = q->q;
-  while(*p && !isspace(*p))
-    *p1++ = *p++;
+  while (*p && isspace(*p)) p++;
+  if (!(q->query=my_strdup(p,MYF(MY_WME))))
+    die(NullS);
 
-  q->first_word_len = p1 - q->q;
-  strmov(p1, p);
+  /* Calculate first word and first argument */
+  for (p=q->query; *p && !isspace(*p) ; p++) ;
+  q->first_word_len = (uint) (p - q->query);
+  while (*p && isspace(*p)) p++;
+  q->first_argument=p;
+
   parser.read_lines++;
   return 0;
 }
 
+
 struct option long_options[] =
 {
+  {"debug",    optional_argument, 0, '#'},
   {"database", required_argument, 0, 'D'},
   {"help", no_argument, 0, '?'},
   {"host", required_argument, 0, 'h'},
@@ -991,7 +998,12 @@ void usage()
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   printf("\n\
-  -?, --help               Display this help and exit.\n\
+  -?, --help               Display this help and exit.\n");
+#ifndef DBUG_OFF
+  puts("\
+  -#, --debug=[...]        Output debug log. Often this is 'd:t:o,filename`");
+#endif
+  printf("\
   -h, --host=...           Connect to host.\n\
   -u, --user=...           User for login.\n\
   -p[password], --password[=...]\n\
@@ -1015,65 +1027,68 @@ int parse_args(int argc, char **argv)
   my_bool tty_password=0;
 
   load_defaults("my",load_default_groups,&argc,&argv);
+  default_argv= argv;
 
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:t:T:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:t:T:#:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
-      switch(c)
+      switch(c)	{
+      case '#':
+	DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/mysqltest.trace");
+	break;
+      case 'v':
+	verbose = 1;
+	break;
+      case 'r':
+	record = 1;
+	break;
+      case 'u':
+	user = optarg;
+	break;
+      case 'R':
+	result_file = optarg;
+	break;
+      case 'p':
+	if (optarg)
 	{
-	case 'v':
-	  verbose = 1;
-	  break;
-	case 'r':
-	  record = 1;
-	  break;
-	case 'u':
-	  user = optarg;
-	  break;
-	case 'R':
-	  result_file = optarg;
-	  break;
-	case 'p':
-	  if (optarg)
-	    {
-	      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-	      pass=my_strdup(optarg,MYF(MY_FAE));
-	      while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	    }
-	  else
-	    tty_password=1;
-	  break;
-	case 'P':
-	  port = atoi(optarg);
-	  break;
-	case 'S':
-	  unix_sock = optarg;
-	  break;
-	case 'D':
-	  db = optarg;
-	  break;
-	case 'h':
-	  host = optarg;
-	  break;
-	case 'q':
-	  silent = 1;
-	  break;
-	case 't':
-	  strnmov(TMPDIR,optarg,sizeof(TMPDIR));
-	  break;
-	case 'T':
-	  opt_sleep=atoi(optarg);
-	  break;
-	case 'V':
-	  print_version();
-	  exit(0);
-	case '?':
-	  usage();
-	  exit(0);
-	default:
-	  usage();
-	  exit(1);
+	  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+	  pass=my_strdup(optarg,MYF(MY_FAE));
+	  while (*optarg) *optarg++= 'x';		/* Destroy argument */
 	}
+	else
+	  tty_password=1;
+	break;
+      case 'P':
+	port = atoi(optarg);
+	break;
+      case 'S':
+	unix_sock = optarg;
+	break;
+      case 'D':
+	db = optarg;
+	break;
+      case 'h':
+	host = optarg;
+	break;
+      case 'q':
+	silent = 1;
+	break;
+      case 't':
+	strnmov(TMPDIR,optarg,sizeof(TMPDIR));
+	break;
+      case 'T':
+	opt_sleep=atoi(optarg);
+	break;
+      case 'V':
+	print_version();
+	exit(0);
+      case '?':
+	usage();
+	exit(1);				/* Unknown option */
+      default:
+	usage();
+	exit(1);
+      }
     }
 
   argc-=optind;
@@ -1118,7 +1133,7 @@ void reject_dump(const char* record_file, char* buf, int size)
 }
 
 
-int run_query(MYSQL* mysql, struct query* q)
+int run_query(MYSQL* mysql, struct st_query* q)
 {
   MYSQL_RES* res = 0;
   MYSQL_FIELD* fields;
@@ -1127,21 +1142,24 @@ int run_query(MYSQL* mysql, struct query* q)
   unsigned long* lengths;
   char* val;
   int len;
-  DYN_STRING *ds = &ds_res;
-  DYN_STRING ds_tmp;
-  dyn_string_init(&ds_tmp);
+  DYNAMIC_STRING *ds;
+  DYNAMIC_STRING ds_tmp;
+  DBUG_ENTER("run_query");
 
   if ( q->record_file[0])
   {
+    init_dynamic_string(&ds_tmp, "", 16384, 65536);
     ds = &ds_tmp;
   }
+  else
+    ds= &ds_res;
 
-  if (mysql_query(mysql, q->q))
+  if (mysql_query(mysql, q->query))
   {
     if (q->require_file)
       abort_not_supported_test();
     if (q->abort_on_error)
-      die("At line %u: query '%s' failed: %d: %s", start_lineno, q->q,
+      die("At line %u: query '%s' failed: %d: %s", start_lineno, q->query,
 	  mysql_errno(mysql), mysql_error(mysql));
     else
     {
@@ -1150,11 +1168,11 @@ int run_query(MYSQL* mysql, struct query* q)
 	error = (q->expected_errno != mysql_errno(mysql));
 	if (error)
 	  verbose_msg("query '%s' failed with wrong errno\
- %d instead of %d", q->q, mysql_errno(mysql), q->expected_errno);
+ %d instead of %d", q->query, mysql_errno(mysql), q->expected_errno);
 	goto end;
       }
 
-      verbose_msg("query '%s' failed: %d: %s", q->q, mysql_errno(mysql),
+      verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
       /* if we do not abort on error, failure to run the query does
 	 not fail the whole test case
@@ -1167,7 +1185,7 @@ int run_query(MYSQL* mysql, struct query* q)
   {
     error = 1;
     verbose_msg("query '%s' succeeded - should have failed with errno %d",
-		q->q, q->expected_errno);
+		q->query, q->expected_errno);
     goto end;
   }
 
@@ -1178,10 +1196,10 @@ int run_query(MYSQL* mysql, struct query* q)
       abort_not_supported_test();
     if (q->abort_on_error)
       die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
-	  start_lineno, q->q, mysql_errno(mysql));
+	  start_lineno, q->query, mysql_errno(mysql));
     else
     {
-      verbose_msg("failed in mysql_store_result for query '%s' (%d)", q->q,
+      verbose_msg("failed in mysql_store_result for query '%s' (%d)", q->query,
 		  mysql_errno(mysql));
       error = 1;
       goto end;
@@ -1195,11 +1213,11 @@ int run_query(MYSQL* mysql, struct query* q)
   for( i = 0; i < num_fields; i++)
   {
     if (i)
-      dyn_string_append(ds, "\t", 1);
-    dyn_string_append(ds, fields[i].name, 0);
+      dynstr_append_mem(ds, "\t", 1);
+    dynstr_append(ds, fields[i].name);
   }
 
-  dyn_string_append(ds, "\n", 1);
+  dynstr_append_mem(ds, "\n", 1);
 
 
   while((row = mysql_fetch_row(res)))
@@ -1217,11 +1235,11 @@ int run_query(MYSQL* mysql, struct query* q)
       }
 
       if (i)
-	dyn_string_append(ds, "\t", 1);
-      dyn_string_append(ds, val, len);
+	dynstr_append_mem(ds, "\t", 1);
+      dynstr_append_mem(ds, val, len);
     }
 
-    dyn_string_append(ds, "\n", 1);
+    dynstr_append_mem(ds, "\n", 1);
   }
 
   if (record)
@@ -1229,7 +1247,7 @@ int run_query(MYSQL* mysql, struct query* q)
     if (!q->record_file[0] && !result_file)
       die("At line %u: Missing result file", start_lineno);
     if (!result_file)
-      str_to_file(q->record_file, ds->str, ds->len);
+      str_to_file(q->record_file, ds->str, ds->length);
   }
   else if (q->record_file[0])
   {
@@ -1238,15 +1256,17 @@ int run_query(MYSQL* mysql, struct query* q)
 
 end:
   if (res) mysql_free_result(res);
-  return error;
+  if (ds == &ds_tmp)
+    dynstr_free(&ds_tmp);
+  DBUG_RETURN(error);
 }
 
 
-void get_query_type(struct query* q)
+void get_query_type(struct st_query* q)
 {
   char save;
   uint type;
-  if (*q->q == '}')
+  if (*q->query == '}')
   {
     q->type = Q_END_BLOCK;
     return;
@@ -1254,26 +1274,25 @@ void get_query_type(struct query* q)
   if (q->type != Q_COMMENT_WITH_COMMAND)
     q->type = Q_QUERY;
 
-  save=q->q[q->first_word_len];
-  q->q[q->first_word_len]=0;
-  type=find_type(q->q, &command_typelib, 0);
-  q->q[q->first_word_len]=save;
+  save=q->query[q->first_word_len];
+  q->query[q->first_word_len]=0;
+  type=find_type(q->query, &command_typelib, 1);
+  q->query[q->first_word_len]=save;
   if (type > 0)
     q->type=type;				/* Found command */
 }
 
 
-
 int main(int argc, char** argv)
 {
   int error = 0;
-  struct query* q;
+  struct st_query* q;
   my_bool require_file=0;
   char save_file[FN_REFLEN];
+  MY_INIT(argv[0]);
+
   save_file[0]=0;
   TMPDIR[0]=0;
-
-  MY_INIT(argv[0]);
   memset(cons, 0, sizeof(cons));
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
@@ -1283,12 +1302,12 @@ int main(int argc, char** argv)
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
   lineno   = lineno_stack;
-  init_dynamic_array(&q_lines, sizeof(struct query*), INIT_Q_LINES,
+  init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
-  dyn_string_init(&ds_res);
+  init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
   if (!*cur_file)
     *cur_file = stdin;
@@ -1362,16 +1381,14 @@ int main(int argc, char** argv)
     parser.current_line += current_line_inc;
   }
 
-  close_cons();
-
-  if (result_file && ds_res.len)
+  if (result_file && ds_res.length)
   {
-    if(!record)
+    if (!record)
       error |= check_result(&ds_res, result_file, q->require_file);
     else
-      str_to_file(result_file, ds_res.str, ds_res.len);
+      str_to_file(result_file, ds_res.str, ds_res.length);
   }
-  dyn_string_end(&ds_res);
+  dynstr_free(&ds_res);
 
   if (!silent) {
     if(error)
@@ -1380,6 +1397,7 @@ int main(int argc, char** argv)
       printf("ok\n");
   }
 
+  free_used_memory();
   exit(error);
   return error;
 }
