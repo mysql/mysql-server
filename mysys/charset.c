@@ -314,7 +314,7 @@ static int add_collation(CHARSET_INFO *cs)
     if (!all_charsets[cs->number])
     {
       if (cs->state & MY_CS_COMPILED)
-        return MY_XML_OK;
+        goto clear;
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
@@ -343,6 +343,7 @@ static int add_collation(CHARSET_INFO *cs)
       if (cs->comment)
 	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
     }
+clear:
     cs->number= 0;
     cs->primary_number= 0;
     cs->binary_number= 0;
