@@ -92,11 +92,11 @@ set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 
 set GLOBAL character set cp1251_koi8;
-show global variables like "convert_character_set";
+show global variables like "client_collation";
 set character set cp1251_koi8;
-show variables like "convert_character_set";
+show variables like "client_collation";
 set global character set default, session character set default;
-show variables like "convert_character_set";
+show variables like "client_collation";
 select @@timestamp>0;
 
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
@@ -123,7 +123,7 @@ set SESSION query_cache_size=10000;
 --error 1230
 set GLOBAL table_type=DEFAULT;
 --error 1115
-set convert_character_set=UNKNOWN_CHARACTER_SET;
+set client_collation=UNKNOWN_CHARACTER_SET;
 --error 1115
 set character set unknown;
 --error 1232
@@ -148,8 +148,8 @@ set big_tables=1;
 select @@autocommit, @@big_tables;
 set global binlog_cache_size=100;
 set bulk_insert_buffer_size=100;
-set convert_character_set=cp1251_koi8;
-set convert_character_set=default;
+set character set cp1251_koi8;
+set character set default;
 set @@global.concurrent_insert=1;
 set global connect_timeout=100;
 select @@delay_key_write;

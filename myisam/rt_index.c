@@ -158,7 +158,10 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
+  {
+    my_errno= HA_ERR_END_OF_FILE;
     return -1;
+  }
 
   /* Save searched key */
   memcpy(info->lastkey2, key, keyinfo->keylength - info->s->base.rec_reflength);
@@ -185,6 +188,12 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
+  if (info->update & HA_STATE_DELETED)
+  {
+    return rtree_find_first(info, keynr, info->lastkey, info->lastkey_length,
+			    search_flag);
+  }
+  
   if (!info->buff_used)
   {
     uchar *key = info->int_keypos;
@@ -217,7 +226,10 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
     }
   }
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
+  {
+    my_errno= HA_ERR_END_OF_FILE;
     return -1;
+  }
   
   nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
         MBR_WITHIN : MBR_INTERSECT);
@@ -340,7 +352,10 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
+  {
+    my_errno= HA_ERR_END_OF_FILE;
     return -1;
+  }
 
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
@@ -383,7 +398,10 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
   else
   {
     if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
+    {
+      my_errno= HA_ERR_END_OF_FILE;
       return -1;
+    }
   
     return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
   }
@@ -732,7 +750,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    my_errno = HA_ERR_KEY_NOT_FOUND;
+    my_errno= HA_ERR_END_OF_FILE;
     return -1;
   }
 
@@ -802,6 +820,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           goto err1;
         info->s->state.key_root[keynr] = new_root;
       }
+      info->update= HA_STATE_DELETED;
       return 0;
 
 err1:
@@ -899,7 +918,7 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
   if (nod_flag)
   {
     if (i)
-      res = (int)(area / i * info->state->records);
+      res = (ha_rows) (area / i * info->state->records);
     else 
       res = HA_POS_ERROR;
   }

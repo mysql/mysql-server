@@ -286,6 +286,7 @@ C_MODE_END
 #define CONFIG_SMP
 #include <asm/atomic.h>
 #endif
+#include <errno.h>				/* Recommended by debian */
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
@@ -416,7 +417,7 @@ typedef unsigned short ushort;
 #define DBUG_OFF
 #endif
 
-#include <dbug.h>
+#include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
@@ -869,7 +870,13 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  ((uint32) (uchar) (A)[0])))
 #define sint4korr(A)	(*((long *) (A)))
 #define uint2korr(A)	(*((uint16 *) (A)))
+#ifdef HAVE_purify
+#define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
+				  (((uint32) ((uchar) (A)[1])) << 8) +\
+				  (((uint32) ((uchar) (A)[2])) << 16))
+#else
 #define uint3korr(A)	(long) (*((unsigned long *) (A)) & 0xFFFFFF)
+#endif
 #define uint4korr(A)	(*((unsigned long *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\

@@ -27,6 +27,10 @@
 #define EILSEQ ENOENT
 #endif
 
+#ifndef HAVE_CHARSET_utf8
+#define HAVE_CHARSET_utf8
+#endif
+
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
 #endif
@@ -1581,14 +1585,15 @@ static uchar to_upper_utf8[] = {
 };
 
 
-static int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) , 
-                 my_wc_t * pwc, const uchar *s, const uchar *e)
+static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
+		       my_wc_t * pwc, const uchar *s, const uchar *e)
 {
-  unsigned char c = s[0];
+  unsigned char c;
   
   if (s >= e)
     return MY_CS_TOOFEW(0);
 
+  c= s[0];
   if (c < 0x80) 
   {
     *pwc = c;
@@ -1620,10 +1625,8 @@ static int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) ,
             (my_wc_t) (s[2] ^ 0x80);
     
     return 3;
-    
-#ifdef UNICODE_32BIT
-    
   } 
+#ifdef UNICODE_32BIT
   else if (c < 0xf8 && sizeof(my_wc_t)*8 >= 32) 
   {
     if (s+4 > e) /* We need 4 characters */
@@ -1681,9 +1684,9 @@ static int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) ,
       | ((my_wc_t) (s[4] ^ 0x80) << 6)
       | (my_wc_t) (s[5] ^ 0x80);
     return 6;
+  }
 #endif
-  } else
-    return MY_CS_ILSEQ;
+  return MY_CS_ILSEQ;
 }
 
 static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
@@ -1977,7 +1980,7 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 
 CHARSET_INFO my_charset_utf8 =
 {
-    33,			/* number       */
+    33,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "utf8",		/* cs name      */
     "utf8",		/* name         */
@@ -1988,6 +1991,7 @@ CHARSET_INFO my_charset_utf8 =
     to_upper_utf8,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnncollsp_utf8,
@@ -3084,7 +3088,7 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_ucs2 =
 {
-    35,			/* number       */
+    35,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "ucs2",		/* cs name    */
     "ucs2",		/* name         */
@@ -3095,6 +3099,7 @@ CHARSET_INFO my_charset_ucs2 =
     to_upper_ucs2,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_ucs2,	/* strnncoll    */
     my_strnncoll_ucs2,

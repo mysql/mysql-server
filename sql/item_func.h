@@ -524,7 +524,6 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
-  int (*str_cmp_function)(const String *x,const String *y);
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
     cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg) {}
@@ -934,7 +933,8 @@ public:
   double val();
   longlong val_int();
   String *val_str(String *str);
-  void update_hash(void *ptr, uint length, enum Item_result type, CHARSET_INFO *cs);
+  void update_hash(void *ptr, uint length, enum Item_result type, 
+  		   CHARSET_INFO *cs, enum coercion coercibility);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
@@ -1112,6 +1112,17 @@ public:
 };
 
 
+class Item_func_srid: public Item_int_func
+{
+  String value;
+public:
+  Item_func_srid(Item *a): Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "srid"; }
+  void fix_length_and_dec() { max_length= 10; }
+};
+
+
 class Item_func_match_nl :public Item_func_match
 {
 public:
@@ -1149,6 +1160,16 @@ public:
   longlong val_int();
   const char *func_name() const { return "check_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+};
+
+class Item_func_is_used_lock :public Item_int_func
+{
+  String value;
+public:
+  Item_func_is_used_lock(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "is_used_lock"; }
+  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
 };
 
 /* For type casts */

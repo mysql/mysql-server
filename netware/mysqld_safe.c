@@ -36,6 +36,7 @@
 ******************************************************************************/
 char autoclose;
 char basedir[PATH_MAX];
+char checktables;
 char datadir[PATH_MAX];
 char pid_file[PATH_MAX];
 char address[PATH_MAX];
@@ -54,11 +55,12 @@ FILE *log_fd  = NULL;
 	
 ******************************************************************************/
 
+void usage(void);
 void vlog(char *, va_list);
 void log(char *, ...);
 void start_defaults(int, char*[]);
 void finish_defaults();
-void read_defaults(arg_list);
+void read_defaults(arg_list_t *);
 void parse_args(int, char*[]);
 void get_options(int, char*[]);
 void check_data_vol();
@@ -71,6 +73,42 @@ void mysql_start(int, char*[]);
 	functions
 	
 ******************************************************************************/
+
+/******************************************************************************
+
+  usage()
+  
+  Show usage.
+
+******************************************************************************/
+void usage(void)
+{
+  // keep the screen up
+  setscreenmode(SCR_NO_MODE);
+  
+  puts("\
+\n\
+usage: mysqld_safe [options]\n\
+\n\
+Program to start the MySQL daemon and restart it if it dies unexpectedly.\n\
+All options, besides those listed below, are passed on to the MySQL daemon.\n\
+\n\
+options:\n\
+\n\
+--autoclose                 Automatically close the mysqld_safe screen.\n\
+\n\
+--check-tables              Check the tables before starting the MySQL daemon.\n\
+\n\
+--err-log=<file>            Send the MySQL daemon error output to <file>.\n\
+\n\
+--help                      Show this help information.\n\
+\n\
+--mysqld=<file>             Use the <file> MySQL daemon.\n\
+\n\
+  ");
+  
+  exit(-1);
+}
 
 /******************************************************************************
 
@@ -135,6 +173,9 @@ void start_defaults(int argc, char *argv[])
   
   // basedir
   get_basedir(argv[0], basedir);
+  
+  // check-tables
+  checktables = FALSE;
   
   // hostname
   if (gethostname(hostname,PATH_MAX) < 0)
@@ -208,9 +249,9 @@ void finish_defaults()
 	Read the defaults.
 
 ******************************************************************************/
-void read_defaults(arg_list pal)
+void read_defaults(arg_list_t *pal)
 {
-  arg_list al;
+  arg_list_t al;
   char defaults_file[PATH_MAX];
   char mydefaults[PATH_MAX];
   char line[PATH_MAX];
@@ -224,17 +265,17 @@ void read_defaults(arg_list pal)
   snprintf(mydefaults, PATH_MAX, "%s/bin/my_print_defaults", basedir);
 	
   // args
-  init_args(al);
-  add_arg(al, mydefaults);
-  if (default_option[0]) add_arg(al, default_option);
-  add_arg(al, "mysqld");
-  add_arg(al, "server");
-  add_arg(al, "mysqld_safe");
-  add_arg(al, "safe_mysqld");
+  init_args(&al);
+  add_arg(&al, mydefaults);
+  if (default_option[0]) add_arg(&al, default_option);
+  add_arg(&al, "mysqld");
+  add_arg(&al, "server");
+  add_arg(&al, "mysqld_safe");
+  add_arg(&al, "safe_mysqld");
 
-	spawn(mydefaults, al, TRUE, NULL, defaults_file, NULL);
+	spawn(mydefaults, &al, TRUE, NULL, defaults_file, NULL);
 
-  free_args(al);
+  free_args(&al);
 
 	// gather defaults
 	if((fp = fopen(defaults_file, "r")) != NULL)
@@ -279,13 +320,15 @@ void parse_args(int argc, char *argv[])
     OPT_PORT,
     OPT_ERR_LOG,
     OPT_SAFE_LOG,
-    OPT_MYSQLD
+    OPT_MYSQLD,
+    OPT_HELP
   };
   
   static struct option options[] =
   {
     {"autoclose",     no_argument,        &autoclose,   TRUE},
     {"basedir",       required_argument,  0,            OPT_BASEDIR},
+    {"check-tables",  no_argument,        &checktables, TRUE},
     {"datadir",       required_argument,  0,            OPT_DATADIR},
     {"pid-file",      required_argument,  0,            OPT_PID_FILE},
     {"bind-address",  required_argument,  0,            OPT_BIND_ADDRESS},
@@ -293,6 +336,7 @@ void parse_args(int argc, char *argv[])
     {"err-log",       required_argument,  0,            OPT_ERR_LOG},
     {"safe-log",      required_argument,  0,            OPT_SAFE_LOG},
     {"mysqld",        required_argument,  0,            OPT_MYSQLD},
+    {"help",          no_argument,        0,            OPT_HELP},
     {0,               0,                  0,            0}
   };
   
@@ -341,6 +385,10 @@ void parse_args(int argc, char *argv[])
       strcpy(mysqld, optarg);
       break;
       
+    case OPT_HELP:
+      usage();
+      break;
+      
     default:
       // ignore
       break;
@@ -357,17 +405,17 @@ void parse_args(int argc, char *argv[])
 ******************************************************************************/
 void get_options(int argc, char *argv[])
 {
-  arg_list al;
+  arg_list_t al;
   
   // start defaults
   start_defaults(argc, argv);
 
   // default file arguments
-  init_args(al);
-  add_arg(al, "ignore");
-  read_defaults(al);
-  parse_args(al->argc, al->argv);
-  free_args(al);
+  init_args(&al);
+  add_arg(&al, "ignore");
+  read_defaults(&al);
+  parse_args(al.argc, al.argv);
+  free_args(&al);
   
   // command-line arguments
   parse_args(argc, argv);
@@ -456,7 +504,7 @@ void check_setup()
 ******************************************************************************/
 void check_tables()
 {
-  arg_list al;
+  arg_list_t al;
   char mycheck[PATH_MAX];
 	char table[PATH_MAX];
 	char db[PATH_MAX];
@@ -501,21 +549,21 @@ void check_tables()
           snprintf(mycheck, PATH_MAX, "%s/bin/myisamchk", basedir);
 
           // args
-          init_args(al);
-          add_arg(al, mycheck);
-          add_arg(al, "--silent");
-          add_arg(al, "--force");
-          add_arg(al, "--fast");
-          add_arg(al, "--medium-check");
-          add_arg(al, "-O");
-          add_arg(al, "key_buffer=64M");
-          add_arg(al, "-O");
-          add_arg(al, "sort_buffer=64M");
-          add_arg(al, table);
+          init_args(&al);
+          add_arg(&al, mycheck);
+          add_arg(&al, "--silent");
+          add_arg(&al, "--force");
+          add_arg(&al, "--fast");
+          add_arg(&al, "--medium-check");
+          add_arg(&al, "-O");
+          add_arg(&al, "key_buffer=64M");
+          add_arg(&al, "-O");
+          add_arg(&al, "sort_buffer=64M");
+          add_arg(&al, table);
 
-          spawn(mycheck, al, TRUE, NULL, NULL, NULL);
+          spawn(mycheck, &al, TRUE, NULL, NULL, NULL);
 
-          free_args(al);
+          free_args(&al);
         }
         else if (strindex(table, ".ism"))
         {
@@ -525,17 +573,17 @@ void check_tables()
           snprintf(mycheck, PATH_MAX, "%s/bin/isamchk", basedir);
 
           // args
-          init_args(al);
-          add_arg(al, mycheck);
-          add_arg(al, "--silent");
-          add_arg(al, "--force");
-          add_arg(al, "-O");
-          add_arg(al, "sort_buffer=64M");
-          add_arg(al, table);
+          init_args(&al);
+          add_arg(&al, mycheck);
+          add_arg(&al, "--silent");
+          add_arg(&al, "--force");
+          add_arg(&al, "-O");
+          add_arg(&al, "sort_buffer=64M");
+          add_arg(&al, table);
 
-          spawn(mycheck, al, TRUE, NULL, NULL, NULL);
+          spawn(mycheck, &al, TRUE, NULL, NULL, NULL);
 
-          free_args(al);
+          free_args(&al);
         }
       }
     }
@@ -551,7 +599,7 @@ void check_tables()
 ******************************************************************************/
 void mysql_start(int argc, char *argv[])
 {
-	arg_list al;
+	arg_list_t al;
 	int i, j, err;
 	struct stat info;
 	time_t cal;
@@ -563,14 +611,16 @@ void mysql_start(int argc, char *argv[])
   static char *private_options[] =
   {
   	"--autoclose",
+    "--check-tables",
+    "--help",
   	"--err-log=",
   	"--mysqld=",
   	NULL
   };
   
 	// args
-	init_args(al);
-	add_arg(al, "%s", mysqld);
+	init_args(&al);
+	add_arg(&al, "%s", mysqld);
 	
 	// parent args
 	for(i = 1; i < argc; i++)
@@ -587,14 +637,14 @@ void mysql_start(int argc, char *argv[])
       }
     }
 		
-    if (!skip) add_arg(al, "%s", argv[i]);
+    if (!skip) add_arg(&al, "%s", argv[i]);
 	}
 	
   // spawn
 	do
 	{
   	// check the database tables
-  	check_tables();
+  	if (checktables) check_tables();
 	
 		// status
     time(&cal);
@@ -603,7 +653,7 @@ void mysql_start(int argc, char *argv[])
     log("mysql started    : %s\n", stamp);
 		
 		// spawn mysqld
-		spawn(mysqld, al, TRUE, NULL, NULL, err_log);
+		spawn(mysqld, &al, TRUE, NULL, NULL, err_log);
 	}
 	while (!stat(pid_file, &info));
 
@@ -614,7 +664,7 @@ void mysql_start(int argc, char *argv[])
   log("mysql stopped    : %s\n\n", stamp);
 	
 	// free args
-	free_args(al);
+	free_args(&al);
 }
 
 /******************************************************************************

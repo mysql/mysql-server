@@ -105,12 +105,13 @@ sys_var_str		sys_charset("character_set",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
-sys_var_thd_client_charset sys_client_charset("client_character_set");
-sys_var_thd_conv_charset sys_convert_charset("convert_character_set");
+sys_var_client_collation sys_client_collation("client_collation");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
+sys_var_thd_bool	sys_convert_result_charset("convert_result_charset",
+						   &SV::convert_result_charset);
 sys_var_enum		sys_delay_key_write("delay_key_write",
 					    &delay_key_write_options,
 					    &delay_key_write_typelib,
@@ -121,6 +122,8 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
+sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
+					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
 sys_var_long_ptr	sys_flush_time("flush_time", &flush_time);
 sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
@@ -193,6 +196,7 @@ sys_var_thd_ulong	sys_net_write_timeout("net_write_timeout",
 sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
+sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
@@ -336,16 +340,17 @@ sys_var *sys_variables[]=
   &sys_binlog_cache_size,
   &sys_buffer_results,
   &sys_bulk_insert_buff_size,
-  &sys_client_charset,
+  &sys_client_collation,
   &sys_concurrent_insert,
   &sys_connect_timeout,
-  &sys_convert_charset,
+  &sys_convert_result_charset,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
   &sys_delayed_insert_timeout,
   &sys_delayed_queue_size,
   &sys_error_count,
+  &sys_expire_logs_days,
   &sys_flush,
   &sys_flush_time,
   &sys_foreign_key_checks,
@@ -384,6 +389,7 @@ sys_var *sys_variables[]=
   &sys_net_retry_count,
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
+  &sys_new_mode,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
@@ -444,16 +450,17 @@ struct show_var_st init_vars[]= {
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_charset.name, 	      (char*) &sys_charset,		     SHOW_SYS},
   {"character_sets",          (char*) &charsets_list,               SHOW_CHAR_PTR},
-  {sys_client_charset.name,   (char*) &sys_client_charset,	    SHOW_SYS},
+  {sys_client_collation.name, (char*) &sys_client_collation,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
-  {sys_convert_charset.name,  (char*) &sys_convert_charset,	    SHOW_SYS},
+  {sys_convert_result_charset.name, (char*) &sys_convert_result_charset, SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
+  {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
   {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
@@ -540,6 +547,7 @@ struct show_var_st init_vars[]= {
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
+  {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
@@ -1109,7 +1117,7 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
   }
   if (tmp.length())
     tmp.length(tmp.length() - 1);
-  return (byte*) thd->strdup(tmp.c_ptr());
+  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
 }
 
 
@@ -1143,57 +1151,39 @@ byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-bool sys_var_thd_conv_charset::check(THD *thd, set_var *var)
+typedef struct old_names_map_st {
+  const char *old_name;
+  const char *new_name;
+} my_old_conv;
+
+static my_old_conv old_conv[]= 
 {
-  CONVERT *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
+	{	"cp1251_koi8"		,	"cp1251"	},
+	{	"cp1250_latin2"		,	"cp1250"	},
+	{	"kam_latin2"		,	"keybcs2"	},
+	{	"mac_latin2"		,	"MacRoman"	},
+	{	"macce_latin2"		,	"MacCE"		},
+	{	"pc2_latin2"		,	"pclatin2"	},
+	{	"vga_latin2"		,	"pclatin1"	},
+	{	"koi8_cp1251"		,	"koi8r"		},
+	{	"win1251ukr_koi8_ukr"	,	"win1251ukr"	},
+	{	"koi8_ukr_win1251ukr"	,	"koi8u"		},
+	{	NULL			,	NULL		}
+};
 
-  if (!var->value)					// Default value
+static CHARSET_INFO *get_old_charset_by_name(const char *name)
+{
+  my_old_conv *c;
+ 
+  for (c= old_conv; c->old_name; c++)
   {
-    var->save_result.convert= (var->type != OPT_GLOBAL ?
-			       global_system_variables.convert_set
-			       : (CONVERT*) 0);
-    return 0;
+    if (!my_strcasecmp(&my_charset_latin1,name,c->old_name))
+      return get_charset_by_name(c->new_name,MYF(0));
   }
-  if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
-
-  if (!(tmp=get_convert_set(res->c_ptr())))
-  {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-    return 1;
-  }
-  var->save_result.convert=tmp;			// Save for update
-  return 0;
+  return NULL;
 }
 
-
-bool sys_var_thd_conv_charset::update(THD *thd, set_var *var)
-{
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.convert_set= var->save_result.convert;
-  else
-  {
-    thd->lex.convert_set= thd->variables.convert_set=
-      var->save_result.convert;
-    thd->protocol_simple.init(thd);
-    thd->protocol_prep.init(thd);
-  }
-  return 0;
-}
-
-
-byte *sys_var_thd_conv_charset::value_ptr(THD *thd, enum_var_type type)
-{
-  CONVERT *conv= ((type == OPT_GLOBAL) ?
-		  global_system_variables.convert_set :
-		  thd->variables.convert_set);
-  return conv ? (byte*) conv->name : (byte*) "";
-}
-
-
-bool sys_var_thd_client_charset::check(THD *thd, set_var *var)
+bool sys_var_client_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
   char buff[80];
@@ -1203,14 +1193,15 @@ bool sys_var_thd_client_charset::check(THD *thd, set_var *var)
   {
     var->save_result.charset= (var->type != OPT_GLOBAL ?
 			       global_system_variables.thd_charset
-			       : default_charset_info);
+			       : thd->db_charset);
     return 0;
   }
 
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
 
-  if (!(tmp=get_charset_by_csname(res->c_ptr(),MYF(0))))
+  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))) &&
+      !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
     return 1;
@@ -1219,7 +1210,7 @@ bool sys_var_thd_client_charset::check(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_thd_client_charset::update(THD *thd, set_var *var)
+bool sys_var_client_collation::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
     global_system_variables.thd_charset= var->save_result.charset;
@@ -1233,12 +1224,12 @@ bool sys_var_thd_client_charset::update(THD *thd, set_var *var)
 }
 
 
-byte *sys_var_thd_client_charset::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_client_collation::value_ptr(THD *thd, enum_var_type type)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
 		  global_system_variables.thd_charset :
 		  thd->variables.thd_charset);
-  return cs ? (byte*) cs->csname : (byte*) "";
+  return cs ? (byte*) cs->name : (byte*) "";
 }
 
 
@@ -1484,7 +1475,6 @@ void set_var_init()
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
     hash_insert(&system_variable_hash, (byte*) *var);
   }
-
   /*
     Special cases
     Needed because MySQL can't find the limits for a variable it it has

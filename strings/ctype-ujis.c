@@ -8432,7 +8432,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 
 CHARSET_INFO my_charset_ujis =
 {
-    12,			/* number       */
+    12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
     "ujis",		/* cs name    */
     "ujis",		/* name         */
@@ -8443,6 +8443,7 @@ CHARSET_INFO my_charset_ujis =
     sort_order_ujis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,

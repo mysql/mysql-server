@@ -2096,7 +2096,7 @@ err:
   Threaded repair of table using sorting
 
   SYNOPSIS
-    mi_repair_by_sort_parallel()
+    mi_repair_parallel()
     param		Repair parameters
     info		MyISAM handler to repair
     name		Name of table (for warnings)
@@ -2115,6 +2115,9 @@ err:
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
+#ifndef THREAD
+  return mi_repair_by_sort(param, info, name, rep_quick);
+#else
   int got_error;
   uint i,key, total_key_length, istep;
   ulong rec_length;
@@ -2485,6 +2488,7 @@ err:
     share->pack.header_length=0;
   }
   DBUG_RETURN(got_error);
+#endif /* THREAD */
 }
 
 	/* Read next record and return next key */
@@ -3824,8 +3828,8 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
     MI_KEYDEF *key=share->keyinfo;
     for (i=0 ; i < share->base.keys ; i++,key++)
     {
-      if (!(key->flag & HA_NOSAME) && ! mi_too_big_key_for_sort(key,rows) &&
-	  info->s->base.auto_key != i+1)
+      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) && 
+	  ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
       {
 	share->state.key_map&= ~ ((ulonglong) 1 << i);
 	info->update|= HA_STATE_CHANGED;

@@ -62,8 +62,9 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #endif
 #endif
 
-#define my_thd_charset	default_charset_info
-#define files_charset_info system_charset_info
+extern CHARSET_INFO *system_charset_info;
+extern CHARSET_INFO *files_charset_info;
+extern CHARSET_INFO *national_charset_info;
 
 /***************************************************************************
   Configuration parameters
@@ -407,8 +408,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 COND *conds, uint og_num, ORDER *order, ORDER *group,
 		 Item *having, ORDER *proc_param, ulong select_type, 
 		 select_result *result, SELECT_LEX_UNIT *unit, 
-		 SELECT_LEX *select_lex, bool fake_select_lex,
-		 bool tables_and_fields_initied);
+		 SELECT_LEX *select_lex,  bool tables_and_fields_initied);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
 void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
@@ -530,6 +530,7 @@ int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type);
 int mysqld_show_charsets(THD *thd,const char *wild);
+int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_table_types(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
@@ -566,7 +567,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
-		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
+		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
+		       uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
 void add_join_on(TABLE_LIST *b,Item *expr);
@@ -718,6 +720,7 @@ extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
+extern ulong expire_logs_days;
 
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version,dropping_tables;
@@ -784,6 +787,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
@@ -795,6 +799,9 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
 int lock_table_name(THD *thd, TABLE_LIST *table_list);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
+bool lock_table_names(THD *thd, TABLE_LIST *table_list);
+void unlock_table_names(THD *thd, TABLE_LIST *table_list,
+			TABLE_LIST *last_table= 0);
 
 
 /* old unireg functions */

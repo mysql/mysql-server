@@ -7,19 +7,19 @@
 CFG=bdb - Win32 Max
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "bdb.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "bdb.mak" CFG="bdb - Win32 Max"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "bdb - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "bdb - Win32 Max" (based on "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -75,7 +75,7 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_debug\bdb.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\bdb.lib"
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 

@@ -70,13 +70,17 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
   /* to set up stuff for my_b_get (no _) */
   info->read_end = (info->read_pos = (byte*) net->read_pos) + read_length;
   Buffer[0] = info->read_pos[0];		/* length is always 1 */
-  info->read_pos++;
 
   /*
     info->request_pos is used by log_loaded_block() to know the size
-    of the current block
+    of the current block.
+    info->pos_in_file is used by log_loaded_block() too.
   */
+  info->pos_in_file+= read_length;
   info->request_pos=info->read_pos;
+
+  info->read_pos++;
+
   DBUG_RETURN(0);
 }
 

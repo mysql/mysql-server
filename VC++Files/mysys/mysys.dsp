@@ -7,20 +7,20 @@
 CFG=mysys - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "mysys.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "mysys.mak" CFG="mysys - Win32 Debug"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "mysys - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Max" (based on "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -102,7 +102,7 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_release\mysys.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\mysys-max.lib"
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
@@ -121,7 +121,7 @@ SOURCE=.\array.c
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -500,7 +500,7 @@ SOURCE=.\thr_lock.c
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File

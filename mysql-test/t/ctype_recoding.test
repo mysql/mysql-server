@@ -1,0 +1,28 @@
+SET NAMES koi8r;
+
+--disable_warnings
+DROP TABLE IF EXISTS таблица;
+--enable_warnings
+
+CREATE TABLE таблица 
+(
+  поле CHAR(32) CHARACTER SET koi8r NOT NULL
+);
+
+SHOW TABLES;
+SHOW CREATE TABLE таблица;
+SHOW FIELDS FROM таблица;
+
+SET NAMES cp1251;
+SHOW TABLES;
+SHOW CREATE TABLE РЮАКХЖЮ;
+SHOW FIELDS FROM РЮАКХЖЮ;
+
+
+SET NAMES utf8;
+SHOW TABLES;
+SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
+SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
+
+SET NAMES koi8r;
+DROP TABLE таблица;

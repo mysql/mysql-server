@@ -39,8 +39,8 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
-  enum coercion    { COER_NOCOLL=0,   COER_COERCIBLE=1, 
-  		     COER_IMPLICIT=2, COER_EXPLICIT=3  };
+  enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2, 
+  		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
 
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
@@ -63,7 +63,7 @@ public:
   */
   Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
-  void set_name(const char *str,uint length=0);
+  void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -98,6 +98,8 @@ public:
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
+  virtual bool get_date_result(TIME *ltime,bool fuzzydate)
+  { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; };
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
@@ -110,9 +112,16 @@ public:
 
   virtual bool binary() const
   { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
-  CHARSET_INFO *thd_charset() const;
+  CHARSET_INFO *default_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  void set_charset(CHARSET_INFO *cs, enum coercion coer)
+  {
+    str_value.set_charset(cs);
+    coercibility= coer;
+  }
+  bool set_charset(CHARSET_INFO *cs1, enum coercion co1, 
+  		   CHARSET_INFO *cs2, enum coercion co2);
   virtual void set_outer_resolving() {}
 
   // Row emulation
@@ -186,8 +195,9 @@ public:
   }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,bool fuzzydate);  
-  bool get_time(TIME *ltime);  
+  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date_result(TIME *ltime,bool fuzzydate);
+  bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   friend class Item_default_value;
@@ -359,7 +369,7 @@ public:
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
-    name=(char*) str_value.ptr();
+    set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
   Item_string(const char *name_par, const char *str, uint length,
@@ -368,7 +378,7 @@ public:
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
-    name=(char*) name_par;
+    set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
   ~Item_string() {}
@@ -393,8 +403,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() 
   {
-    return new Item_string(name, str_value.ptr(), max_length,
-			   default_charset_info);
+    return new Item_string(name, str_value.ptr(), max_length, &my_charset_bin);
   }
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
@@ -406,7 +415,8 @@ public:
 class Item_datetime :public Item_string
 {
 public:
-  Item_datetime(const char *item_name): Item_string(item_name,"",0,default_charset_info)
+  Item_datetime(const char *item_name): Item_string(item_name,"",0,
+  						    &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
@@ -414,7 +424,8 @@ public:
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0,default_charset_info)
+  Item_empty_string(const char *header,uint length) :Item_string("",0,
+  							&my_charset_bin)
     { name=(char*) header; max_length=length;}
 };
 
@@ -486,7 +497,7 @@ public:
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
-  ~Item_ref() { if (ref && (*ref) != this) delete *ref; }
+  ~Item_ref() { if (ref && (*ref) && (*ref) != this) delete *ref; }
   double val()
   {
     double tmp=(*ref)->val_result();
@@ -511,8 +522,8 @@ public:
     return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,bool fuzzydate)
-  {  
-    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  {
+    return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
@@ -523,7 +534,7 @@ public:
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
-  void set_result_field(Field *field) { result_field= field; }
+  void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {
@@ -773,7 +784,7 @@ public:
   }
   double val() { return (double) value; }
   longlong val_int() { return value; }
-  String* val_str(String *str) { str->set(value, thd_charset()); return str; }
+  String* val_str(String *str) { str->set(value, default_charset()); return str; }
   enum Item_result result_type() const { return INT_RESULT; }
 };
 
@@ -792,7 +803,7 @@ public:
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
   String* val_str(String *str)
   {
-    str->set(value, decimals, thd_charset());
+    str->set(value, decimals, default_charset());
     return str;
   }
   enum Item_result result_type() const { return REAL_RESULT; }

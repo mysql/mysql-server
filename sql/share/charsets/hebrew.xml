@@ -114,6 +114,8 @@
 </map>
 </collation>
 
+<collation name="hebrew_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

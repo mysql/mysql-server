@@ -115,6 +115,8 @@
 </map>
 </collation>
 
+<collation name="hp8_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

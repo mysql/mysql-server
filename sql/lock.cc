@@ -319,6 +319,25 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 }
 
 
+/* Abort one thread / table combination */
+
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
+{
+  MYSQL_LOCK *locked;
+  TABLE *write_lock_used;
+  DBUG_ENTER("mysql_lock_abort_for_thread");
+
+  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  {
+    for (uint i=0; i < locked->lock_count; i++)
+      thr_abort_locks_for_thread(locked->locks[i]->lock,
+				 table->in_use->real_id);
+    my_free((gptr) locked,MYF(0));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 {
   MYSQL_LOCK *sql_lock;
@@ -478,11 +497,12 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
+  char *db= table_list->db ? table_list->db : (thd->db ? thd->db : (char*) "");
   uint  key_length;
   DBUG_ENTER("lock_table_name");
   safe_mutex_assert_owner(&LOCK_open);
 
-  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->real_name)
+  key_length=(uint) (strmov(strmov(key,db)+1,table_list->real_name)
 		     -key)+ 1;
 
   /* Only insert the table if we haven't insert it already */
@@ -511,7 +531,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  if (remove_table_from_cache(thd, table_list->db, table_list->real_name))
+  if (remove_table_from_cache(thd, db, table_list->real_name))
     DBUG_RETURN(1);					// Table is in use
   DBUG_RETURN(0);
 }
@@ -554,6 +574,77 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
   }
   DBUG_RETURN(result);
 }
+
+
+/*
+  Lock all tables in list with a name lock
+
+  SYNOPSIS
+    lock_table_names()
+    thd			Thread handle
+    table_list		Names of tables to lock
+
+  NOTES
+    One must have a lock on LOCK_open when calling this
+
+  RETURN
+    0	ok
+    1	Fatal error (end of memory ?)
+*/
+
+bool lock_table_names(THD *thd, TABLE_LIST *table_list)
+{
+  bool got_all_locks=1;
+  TABLE_LIST *lock_table;
+
+  for (lock_table=table_list ; lock_table ; lock_table=lock_table->next)
+  {
+    int got_lock;
+    if ((got_lock=lock_table_name(thd,lock_table)) < 0)
+      goto end;					// Fatal error
+    if (got_lock)
+      got_all_locks=0;				// Someone is using table
+  }
+
+  /* If some table was in use, wait until we got the lock */
+  if (!got_all_locks && wait_for_locked_table_names(thd, table_list))
+    goto end;
+  return 0;
+
+end:
+  unlock_table_names(thd, table_list, lock_table);
+  return 1;
+}
+
+
+/*
+  Unlock all tables in list with a name lock
+
+  SYNOPSIS
+    unlock_table_names()
+    thd			Thread handle
+    table_list		Names of tables to unlock
+    last_table		Don't unlock any tables after this one.
+			(default 0, which will unlock all tables)
+
+  NOTES
+    One must have a lock on LOCK_open when calling this
+    This function will send a COND_refresh signal to inform other threads
+    that the name locks are removed
+
+  RETURN
+    0	ok
+    1	Fatal error (end of memory ?)
+*/
+
+void unlock_table_names(THD *thd, TABLE_LIST *table_list,
+			TABLE_LIST *last_table)
+{
+  for (TABLE_LIST *table=table_list ; table != last_table ; table=table->next)
+    unlock_table_name(thd,table);
+  pthread_cond_broadcast(&COND_refresh);
+}
+
 
 static void print_lock_error(int error)
 {

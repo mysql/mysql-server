@@ -75,6 +75,21 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
   return cmp ? cmp : (int) (slen - tlen);
 }
 
+static int my_strnncollsp_binary(CHARSET_INFO * cs,
+                               const uchar *s, uint slen,
+                               const uchar *t, uint tlen)
+{
+  int len, cmp;
+
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+
+  len  = ( slen > tlen ) ? tlen : slen;
+
+  cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int) (slen - tlen);
+}
+
 static void my_caseup_str_bin(CHARSET_INFO *cs __attribute__((unused)),
 		       char *str __attribute__((unused)))
 {
@@ -200,7 +215,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 			   const char *wildstr,const char *wildend,
 			   int escape, int w_one, int w_many)
 {
-  int result= -1;				// Not found, using wildcards
+  int result= -1;				/* Not found, using wildcards */
   
   while (wildstr != wildend)
   {
@@ -214,15 +229,15 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
       }
       if (wildstr == wildend)
       {
-	return(str != str_end);			// Match if both are at end
+	return(str != str_end);			/* Match if both are at end */
       }
-      result=1;					// Found an anchor char
+      result=1;					/* Found an anchor char */
     }
     if (*wildstr == w_one)
     {
       do
       {
-	if (str == str_end)			// Skip one char if possible
+	if (str == str_end)			/* Skip one char if possible */
 	  return(result);
 	str++;
       } while (*++wildstr == w_one && wildstr != wildend);
@@ -230,7 +245,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 	break;
     }
     if (*wildstr == w_many)
-    {						// Found w_many
+    {						/* Found w_many */
       char cmp;
       
       wildstr++;
@@ -248,11 +263,11 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 	  str++;
 	  continue;
 	}
-	break;					// Not a wild character
+	break;					/* Not a wild character */
       }
       if (wildstr == wildend)
       {
-	return(0);				// Ok if w_many is last
+	return(0);				/* Ok if w_many is last */
       }
       if (str == str_end)
       {
@@ -261,7 +276,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
       
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
-      wildstr++;				// This is compared trough cmp
+      wildstr++;				/* This is compared trough cmp */
       do
       {
 	while (str != str_end && *str != cmp)
@@ -295,7 +310,7 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_bin =
 {
-    63,				/* number        */
+    63,0,0,			/* number        */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state        */
     "binary",			/* cs name    */
     "binary",			/* name          */
@@ -306,9 +321,10 @@ CHARSET_INFO my_charset_bin =
     bin_char_array,		/* sort_order    */
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
+    "","",
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
-    my_strnncoll_binary,
+    my_strnncollsp_binary,
     my_strnxfrm_bin,		/* strxnfrm      */
     my_like_range_simple,	/* like_range    */
     my_wildcmp_bin,		/* wildcmp       */

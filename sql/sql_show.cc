@@ -85,7 +85,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
 	(grant_option && !check_grant_db(thd, file_name)))
     {
       protocol->prepare_for_resend();
-      protocol->store(file_name);
+      protocol->store(file_name, system_charset_info);
       if (protocol->write())
 	DBUG_RETURN(-1);
     }
@@ -120,8 +120,8 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
   for (; open_list ; open_list=open_list->next)
   {
     protocol->prepare_for_resend();
-    protocol->store(open_list->db);
-    protocol->store(open_list->table);
+    protocol->store(open_list->db, system_charset_info);
+    protocol->store(open_list->table, system_charset_info);
     protocol->store_tiny((longlong) open_list->in_use);
     protocol->store_tiny((longlong) open_list->locked);
     if (protocol->write())
@@ -166,7 +166,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   while ((file_name=it++))
   {
     protocol->prepare_for_resend();
-    protocol->store(file_name);
+    protocol->store(file_name, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -225,14 +225,14 @@ int mysqld_show_table_types(THD *thd)
   for (types= sys_table_types; types->type; types++)
   {
     protocol->prepare_for_resend();
-    protocol->store(types->type);
+    protocol->store(types->type, system_charset_info);
     const char *option_name= show_comp_option_name[(int) *types->value];
 
     if (*types->value == SHOW_OPTION_YES &&
 	!my_strcasecmp(system_charset_info, default_type_name, types->type))
       option_name= "DEFAULT";
-    protocol->store(option_name);
-    protocol->store(types->comment);
+    protocol->store(option_name, system_charset_info);
+    protocol->store(types->comment, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -292,9 +292,9 @@ int mysqld_show_privileges(THD *thd)
   for (privilege= sys_privileges; privilege->privilege ; privilege++)
   {
     protocol->prepare_for_resend();
-    protocol->store(privilege->privilege);
-    protocol->store(privilege->context);
-    protocol->store(privilege->comment);
+    protocol->store(privilege->privilege, system_charset_info);
+    protocol->store(privilege->context, system_charset_info);
+    protocol->store(privilege->comment, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -367,20 +367,20 @@ int mysqld_show_column_types(THD *thd)
   for (uint i=0; i < sizeof(sys_column_types)/sizeof(sys_column_types[0]); i++)
   {
     protocol->prepare_for_resend();
-    protocol->store(sys_column_types[i].type);
+    protocol->store(sys_column_types[i].type, system_charset_info);
     protocol->store((ulonglong) sys_column_types[i].size);
-    protocol->store(sys_column_types[i].min_value);
-    protocol->store(sys_column_types[i].max_value);
+    protocol->store(sys_column_types[i].min_value, system_charset_info);
+    protocol->store(sys_column_types[i].max_value, system_charset_info);
     protocol->store_short((longlong) sys_column_types[i].precision);
     protocol->store_short((longlong) sys_column_types[i].scale);
-    protocol->store(sys_column_types[i].nullable);
-    protocol->store(sys_column_types[i].auto_increment);
-    protocol->store(sys_column_types[i].unsigned_attr);
-    protocol->store(sys_column_types[i].zerofill);
-    protocol->store(sys_column_types[i].searchable);
-    protocol->store(sys_column_types[i].case_sensitivity);
-    protocol->store(sys_column_types[i].default_value);
-    protocol->store(sys_column_types[i].comment);
+    protocol->store(sys_column_types[i].nullable, system_charset_info);
+    protocol->store(sys_column_types[i].auto_increment, system_charset_info);
+    protocol->store(sys_column_types[i].unsigned_attr, system_charset_info);
+    protocol->store(sys_column_types[i].zerofill, system_charset_info);
+    protocol->store(sys_column_types[i].searchable, system_charset_info);
+    protocol->store(sys_column_types[i].case_sensitivity, system_charset_info);
+    protocol->store(sys_column_types[i].default_value, system_charset_info);
+    protocol->store(sys_column_types[i].comment, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -524,7 +524,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
     protocol->prepare_for_resend();
-    protocol->store(file_name);
+    protocol->store(file_name, system_charset_info);
     table_list.db=(char*) db;
     table_list.real_name= table_list.alias= file_name;
     if (lower_case_table_names)
@@ -534,7 +534,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       for (uint i=2 ; i < field_list.elements ; i++)
         protocol->store_null();
       // Send error to Comment field
-      protocol->store(thd->net.last_error);
+      protocol->store(thd->net.last_error, system_charset_info);
       thd->net.last_error[0]=0;
     }
     else
@@ -543,12 +543,12 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       const char *str;
       handler *file=table->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
-      protocol->store(file->table_type());
+      protocol->store(file->table_type(), system_charset_info);
       str= ((table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
 	    "Compressed" :
 	    (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
 	    "Dynamic" : "Fixed");
-      protocol->store(str);
+      protocol->store(str, system_charset_info);
       protocol->store((ulonglong) file->records);
       protocol->store((ulonglong) file->mean_rec_length);
       protocol->store((ulonglong) file->data_file_length);
@@ -593,7 +593,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store(&time);
       }
       str= (table->table_charset ? table->table_charset->name : "default");
-      protocol->store(str);
+      protocol->store(str, system_charset_info);
       {
         char option_buff[350],*ptr;
         ptr=option_buff;
@@ -631,11 +631,12 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
           ptr=strmov(ptr,buff);
         }
         protocol->store(option_buff+1,
-			(ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
+			(ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1)
+			, system_charset_info);
       }
       {
 	char *comment=table->file->update_table_comment(table->comment);
-	protocol->store(comment);
+	protocol->store(comment, system_charset_info);
 	if (comment != table->comment)
 	  my_free(comment,MYF(0));
       }
@@ -710,43 +711,43 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp),current_thd->variables.thd_charset);
+        String type(tmp,sizeof(tmp), system_charset_info);
         uint col_access;
         bool null_default_value=0;
 
 	protocol->prepare_for_resend();
-        protocol->store(field->field_name);
+        protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
-        protocol->store(type.ptr(), type.length());
-	protocol->store(field->charset()->name);
+        protocol->store(type.ptr(), type.length(), system_charset_info);
+	protocol->store(field->charset()->name, system_charset_info);
 
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
-        protocol->store((const char*) pos);
+        protocol->store((const char*) pos, system_charset_info);
         pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                      (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-        protocol->store((char*) pos);
+        protocol->store((char*) pos, system_charset_info);
 
         if (field->type() == FIELD_TYPE_TIMESTAMP ||
             field->unireg_check == Field::NEXT_NUMBER)
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp),&my_charset_bin);
+          type.set(tmp,sizeof(tmp),system_charset_info);
           field->val_str(&type,&type);
-          protocol->store(type.ptr(),type.length());
+          protocol->store(type.ptr(),type.length(),type.charset());
         }
         else if (field->maybe_null() || null_default_value)
           protocol->store_null();                       // Null as default
         else
-          protocol->store("",0);			// empty string
+          protocol->store("",0, system_charset_info);	// empty string
 
         char *end=tmp;
         if (field->unireg_check == Field::NEXT_NUMBER)
           end=strmov(tmp,"auto_increment");
-        protocol->store(tmp,(uint) (end-tmp));
+        protocol->store(tmp,(uint) (end-tmp), system_charset_info);
 
 	if (verbose)
 	{
@@ -761,8 +762,10 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	      end=strmov(end,grant_types.type_names[bitnr]);
 	    }
 	  }
-	  protocol->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
-	  protocol->store(field->comment.str, field->comment.length);
+	  protocol->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1),
+			  system_charset_info);
+	  protocol->store(field->comment.str, field->comment.length,
+			  system_charset_info);
 	}
         if (protocol->write())
           DBUG_RETURN(1);
@@ -799,11 +802,11 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
-  protocol->store(table->table_name);
+  protocol->store(table->table_name, system_charset_info);
   buffer.length(0);
   if (store_create_info(thd, table, &buffer))
     DBUG_RETURN(-1);
-  protocol->store(buffer.ptr(), buffer.length());
+  protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
   if (protocol->write())
     DBUG_RETURN(1);
   send_eof(thd);
@@ -884,16 +887,16 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
       protocol->prepare_for_resend();
-      protocol->store(table->table_name);
+      protocol->store(table->table_name, system_charset_info);
       protocol->store_tiny((longlong) ((key_info->flags & HA_NOSAME) ? 0 :1));
-      protocol->store(key_info->name);
+      protocol->store(key_info->name, system_charset_info);
       protocol->store_tiny((longlong) (j+1));
       str=(key_part->field ? key_part->field->field_name :
 	   "?unknown field?");
-      protocol->store(str);
+      protocol->store(str, system_charset_info);
       if (table->file->index_flags(i) & HA_READ_ORDER)
         protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
-			 "D" : "A"), 1);
+			 "D" : "A"), 1, system_charset_info);
       else
         protocol->store_null(); /* purecov: inspected */
       KEY *key=table->key_info+i;
@@ -917,10 +920,10 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Null flag */
       uint flags= key_part->field ? key_part->field->flags : 0;
       char *pos=(char*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
-      protocol->store((const char*) pos);
-      protocol->store(table->file->index_type(i));
+      protocol->store((const char*) pos, system_charset_info);
+      protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      protocol->store("", 0);
+      protocol->store("", system_charset_info);
       if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -976,8 +979,8 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  if (protocol->convert)
-    protocol->convert->convert((char*) packet->ptr(), packet->length());
+  //if (protocol->convert)
+  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())
@@ -1011,15 +1014,16 @@ append_identifier(THD *thd, String *packet, const char *name)
   if (thd->options & OPTION_QUOTE_SHOW_CREATE)
   {
     packet->append(&qtype, 1);
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
     packet->append(&qtype, 1);
   }
   else
   {
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
   }
 }
 
+#define LIST_PROCESS_HOST_LEN 64
 
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
@@ -1074,7 +1078,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       For string types dump collation name only if 
       collation is not primary for the given charset
     */
-    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY) &&
+    if (!(field->charset()->state & MY_CS_PRIMARY) &&
 	!limited_mysql_mode && !foreign_db_mode)
     {
       packet->append(" collate ", 9);
@@ -1292,7 +1296,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int("Id",0,11));
   field_list.push_back(new Item_empty_string("User",16));
-  field_list.push_back(new Item_empty_string("Host",64));
+  field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
@@ -1326,7 +1330,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-        thd_info->host= thd->strdup(tmp->host_or_ip);
+	if (tmp->peer_port && (tmp->host || tmp->ip))
+	{
+	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
+			"%s:%u", tmp->host_or_ip, tmp->peer_port);
+	}
+	else
+	  thd_info->host= thd->strdup(tmp->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
@@ -1379,19 +1390,19 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   {
     protocol->prepare_for_resend();
     protocol->store((ulonglong) thd_info->thread_id);
-    protocol->store(thd_info->user);
-    protocol->store(thd_info->host);
-    protocol->store(thd_info->db);
+    protocol->store(thd_info->user, system_charset_info);
+    protocol->store(thd_info->host, system_charset_info);
+    protocol->store(thd_info->db, system_charset_info);
     if (thd_info->proc_info)
-      protocol->store(thd_info->proc_info);
+      protocol->store(thd_info->proc_info, system_charset_info);
     else
-      protocol->store(command_name[thd_info->command]);
+      protocol->store(command_name[thd_info->command], system_charset_info);
     if (thd_info->start_time)
       protocol->store((uint32) (now - thd_info->start_time));
     else
       protocol->store_null();
-    protocol->store(thd_info->state_info);
-    protocol->store(thd_info->query);
+    protocol->store(thd_info->state_info, system_charset_info);
+    protocol->store(thd_info->query, system_charset_info);
     if (protocol->write())
       break; /* purecov: inspected */
   }
@@ -1402,6 +1413,70 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 /*****************************************************************************
   Status functions
 *****************************************************************************/
+
+static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
+{
+  protocol->prepare_for_resend();
+  protocol->store(cs->csname, system_charset_info);
+  protocol->store(cs->name, system_charset_info);
+  protocol->store_short((longlong) cs->number);
+  protocol->store((cs->state & MY_CS_PRIMARY) ? "Y" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_COMPILED)? "Y" : "",system_charset_info);
+  protocol->store_short((longlong) cs->strxfrm_multiply);
+  return protocol->write();
+}
+
+int mysqld_show_collations(THD *thd, const char *wild)
+{
+  char buff[8192];
+  String packet2(buff,sizeof(buff),thd->charset());
+  List<Item> field_list;
+  CHARSET_INFO **cs;
+  Protocol *protocol= thd->protocol;
+  char flags[64];
+
+  DBUG_ENTER("mysqld_show_charsets");
+
+  field_list.push_back(new Item_empty_string("Charset",30));
+  field_list.push_back(new Item_empty_string("Collation",30));
+  field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
+  field_list.push_back(new Item_empty_string("D",30));
+  field_list.push_back(new Item_empty_string("C",30));
+  field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
+
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(1);
+
+  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  {
+    CHARSET_INFO **cl;
+    for ( cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    {
+      if (!cs[0] || !cl[0] || !my_charset_same(cs[0],cl[0]) || !(cs[0]->state & MY_CS_PRIMARY))
+	continue;
+      if (cs[0] && !(wild && wild[0] &&
+	  wild_case_compare(system_charset_info,cl[0]->name,wild)))
+      {
+        if (write_collation(protocol, cl[0]))
+	  goto err;
+      }
+    }
+  }
+  send_eof(thd); 
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
+static bool write_charset(Protocol *protocol, CHARSET_INFO *cs)
+{
+  protocol->prepare_for_resend();
+  protocol->store(cs->csname, system_charset_info);
+  protocol->store(cs->comment ? cs->comment : "", system_charset_info);
+  protocol->store(cs->name, system_charset_info);
+  protocol->store_short((longlong) cs->mbmaxlen);
+  return protocol->write();
+}
 
 int mysqld_show_charsets(THD *thd, const char *wild)
 {
@@ -1414,32 +1489,20 @@ int mysqld_show_charsets(THD *thd, const char *wild)
 
   DBUG_ENTER("mysqld_show_charsets");
 
-  field_list.push_back(new Item_empty_string("CS_Name",30));
-  field_list.push_back(new Item_empty_string("COL_Name",30));
-  field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("Flags",30));
-  field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_TINY));
-  field_list.push_back(new Item_return_int("mb_maxlen",3, FIELD_TYPE_TINY));
+  field_list.push_back(new Item_empty_string("Charset",30));
+  field_list.push_back(new Item_empty_string("Description",60));
+  field_list.push_back(new Item_empty_string("Default collation",60));
+  field_list.push_back(new Item_return_int("Maxlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
 
-  for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
+  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
-    if (cs[0] && !(wild && wild[0] &&
-	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
+    if (cs[0] && (cs[0]->state & MY_CS_PRIMARY) && !(wild && wild[0] &&
+       wild_case_compare(system_charset_info,cs[0]->name,wild)))
     {
-      protocol->prepare_for_resend();
-      protocol->store(cs[0]->csname);
-      protocol->store(cs[0]->name);
-      protocol->store_short((longlong) cs[0]->number);
-      flags[0]='\0';
-      if (cs[0]->state & MY_CS_PRIMARY)
-        strcat(flags,"pri");
-      protocol->store(flags);
-      protocol->store_tiny((longlong) cs[0]->strxfrm_multiply);
-      protocol->store_tiny((longlong) cs[0]->mbmaxlen);
-      if (protocol->write())
+      if (write_charset(protocol, cs[0]))
 	goto err;
     }
   }
@@ -1472,7 +1535,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 					       variables->name,wild)))
     {
       protocol->prepare_for_resend();
-      protocol->store(variables->name);
+      protocol->store(variables->name, system_charset_info);
       SHOW_TYPE show_type=variables->type;
       char *value=variables->value;
       const char *pos, *end;
@@ -1718,7 +1781,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       default:
 	break;
       }
-      if (protocol->store(pos, (uint32) (end - pos)) ||
+      if (protocol->store(pos, (uint32) (end - pos), system_charset_info) ||
 	  protocol->write())
         goto err;                               /* purecov: inspected */
     }

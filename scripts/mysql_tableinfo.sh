@@ -10,7 +10,7 @@ mysql_tableinfo - creates and populates information tables with
 the output of SHOW DATABASES, SHOW TABLES (or SHOW TABLE STATUS), 
 SHOW COLUMNS and SHOW INDEX.
 
-This is version 1.0.
+This is version 1.1.
 
 =head1 SYNOPSIS
  
@@ -62,7 +62,7 @@ GetOptions( \%opt,
     "quiet|q",
 ) or usage("Invalid option");
 
-if ($opt{help}) {usage();}
+if ($opt{'help'}) {usage();}
 
 my ($db_to_write,$db_like_wild,$tbl_like_wild);
 if (@ARGV==0)
@@ -74,6 +74,8 @@ $db_like_wild=($ARGV[0])?$ARGV[0]:"%"; shift @ARGV;
 $tbl_like_wild=($ARGV[0])?$ARGV[0]:"%"; shift @ARGV;
 if (@ARGV>0) { usage("Too many arguments"); }
 
+$0 = $1 if $0 =~ m:/([^/]+)$:;
+
 my $info_db="`".$opt{'prefix'}."db`";
 my $info_tbl="`".$opt{'prefix'}."tbl".
     (($opt{'tbl-status'})?"_status":"")."`";
@@ -84,11 +86,11 @@ my $info_idx="`".$opt{'prefix'}."idx`";
 # --- connect to the database ---
 
 my $dsn = ";host=$opt{'host'}";
-$dsn .= ";port=$opt{port}" if $opt{port};
-$dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
+$dsn .= ";port=$opt{'port'}" if $opt{'port'};
+$dsn .= ";mysql_socket=$opt{'socket'}" if $opt{'socket'};
 
 my $dbh = DBI->connect("dbi:mysql:$dsn;mysql_read_default_group=perl",
-                        $opt{user}, $opt{password},
+                        $opt{'user'}, $opt{'password'},
 {
     RaiseError => 1,
     PrintError => 0,
@@ -104,20 +106,19 @@ if (!$opt{'quiet'})
 {
     print "\n!! This program is doing to do:\n\n";
     print "**DROP** TABLE ...\n" if ($opt{'clear'} or $opt{'clear-only'});
-    print "**DELETE** FROM ... WHERE `Database LIKE $db_like_wild AND `Table` LIKE $tbl_like_wild
+    print "**DELETE** FROM ... WHERE `Database` LIKE $db_like_wild AND `Table` LIKE $tbl_like_wild
 **INSERT** INTO ...
 
 on the following tables :\n";
-    my $i;
-    foreach $i (($info_db, $info_tbl),
-		(($opt{'col'})?$info_col:()), 
-		(($opt{'idx'})?$info_idx:()))
+
+    foreach  (($info_db, $info_tbl),
+	      (($opt{'col'})?$info_col:()), 
+	      (($opt{'idx'})?$info_idx:()))
     {
-	print("  $db_to_write.$i\n");
+	print("  $db_to_write.$_\n");
     }
     print "\nContinue (you can skip this confirmation step with --quiet) ? (y|n) [n]";
-    my $answer=<STDIN>;
-    unless ($answer =~ /^\s*y\s*$/i) 
+    if (<STDIN> !~ /^\s*y\s*$/i) 
     {
 	print "Nothing done!\n";exit;
     }
@@ -126,17 +127,16 @@ on the following tables :\n";
 if ($opt{'clear'} or $opt{'clear-only'}) 
 {
 #do not drop the $db_to_write database !
-    my $i;
-    foreach $i (($info_db, $info_tbl),
-		(($opt{'col'})?$info_col:()), 
-		(($opt{'idx'})?$info_idx:()))
+    foreach  (($info_db, $info_tbl),
+	      (($opt{'col'})?$info_col:()), 
+	      (($opt{'idx'})?$info_idx:()))
     {
-	$dbh->do("DROP TABLE IF EXISTS $db_to_write.$i");
+	$dbh->do("DROP TABLE IF EXISTS $db_to_write.$_");
     }
     if ($opt{'clear-only'}) 
     {
 	print "Wrote to database $db_to_write .\n" unless ($opt{'quiet'});
-	exit(); 
+	exit; 
     }
 }
 
@@ -151,14 +151,14 @@ $dbh->do("CREATE DATABASE IF NOT EXISTS $db_to_write");
 $dbh->do("USE $db_to_write");
 
 #get databases
-$sth{db}=$dbh->prepare("SHOW DATABASES LIKE $db_like_wild");
-$sth{db}->execute;
+$sth{'db'}=$dbh->prepare("SHOW DATABASES LIKE $db_like_wild");
+$sth{'db'}->execute;
 
 #create $info_db which will receive info about databases.
 #Ensure that the first column to be called "Database" (as SHOW DATABASES LIKE
 #returns a varying
 #column name (of the form "Database (%...)") which is not suitable)
-$extra_col_desc{db}=do_create_table("db",$info_db,undef,"`Database`");
+$extra_col_desc{'db'}=do_create_table("db",$info_db,undef,"`Database`");
 #we'll remember the type of the `Database` column (as returned by
 #SHOW DATABASES), which we will need when creating the next tables. 
 
@@ -166,55 +166,56 @@ $extra_col_desc{db}=do_create_table("db",$info_db,undef,"`Database`");
 $dbh->do("DELETE FROM $info_db WHERE `Database` LIKE $db_like_wild"); 
 
 
-while (@{$row{db}}=$sth{db}->fetchrow_array) #go through all databases
+while ($row{'db'}=$sth{'db'}->fetchrow_arrayref) #go through all databases
 {
 
 #insert the database name
     $dbh->do("INSERT INTO $info_db VALUES("
-	     .join_quote(@{$row{db}}).")");
+	     .join(',' ,  ( map $dbh->quote($_), @{$row{'db'}} ) ).")" );
 
 #for each database, get tables
 
-    $sth{tbl}=$dbh->prepare("SHOW TABLE"
+    $sth{'tbl'}=$dbh->prepare("SHOW TABLE"
 			    .( ($opt{'tbl-status'}) ? 
 			       " STATUS"
 			       : "S" )
-			    ." from `${$row{db}}[0]` LIKE $tbl_like_wild");
-    $sth{tbl}->execute;
+			    ." from `$row{'db'}->[0]` LIKE $tbl_like_wild");
+    $sth{'tbl'}->execute;
     unless ($done_create_table{$info_tbl})
 
 #tables must be created only once, and out-of-date info must be
 #cleared once
     {
 	$done_create_table{$info_tbl}=1;
-	$extra_col_desc{table}=
+	$extra_col_desc{'tbl'}=
 	    do_create_table("tbl",$info_tbl,
 #add an extra column (database name) at the left
 #and ensure that the table name will be called "Table"
 #(this is unncessesary with
 #SHOW TABLE STATUS, but necessary with SHOW TABLES (which returns a column
 #named "Tables_in_..."))
-			    "`Database` ".$extra_col_desc{db},"`Table`"); 
+			    "`Database` ".$extra_col_desc{'db'},"`Table`"); 
 	$dbh->do("DELETE FROM $info_tbl WHERE `Database` LIKE $db_like_wild		                         AND `Table` LIKE $tbl_like_wild");
     }
 
-    while (@{$row{tbl}}=$sth{tbl}->fetchrow_array)
+    while ($row{'tbl'}=$sth{'tbl'}->fetchrow_arrayref)
     {
 	$dbh->do("INSERT INTO $info_tbl VALUES("
-		 .$dbh->quote(${$row{db}}[0]).",".join_quote(@{$row{tbl}}).")");
+		 .$dbh->quote($row{'db'}->[0]).","
+		 .join(',' ,  ( map $dbh->quote($_), @{$row{'tbl'}} ) ).")");
 
 #for each table, get columns...
 
 	if ($opt{'col'})
 	{
-	    $sth{col}=$dbh->prepare("SHOW COLUMNS FROM `${$row{tbl}}[0]` FROM `${$row{db}}[0]`"); 
-	    $sth{col}->execute;
+	    $sth{'col'}=$dbh->prepare("SHOW COLUMNS FROM `$row{'tbl'}->[0]` FROM `$row{'db'}->[0]`"); 
+	    $sth{'col'}->execute;
 	    unless ($done_create_table{$info_col})
 	    {
 		$done_create_table{$info_col}=1;
 		do_create_table("col",$info_col,
-				"`Database` ".$extra_col_desc{db}.","
-				."`Table` ".$extra_col_desc{table}.","
+				"`Database` ".$extra_col_desc{'db'}.","
+				."`Table` ".$extra_col_desc{'tbl'}.","
 				."`Seq_in_table` BIGINT(3)"); 
 #We need to add a sequence number (1 for the first column of the table,
 #2 for the second etc) so that users are able to retrieve columns in order
@@ -225,13 +226,13 @@ while (@{$row{db}}=$sth{db}->fetchrow_array) #go through all databases
 			    AND `Table` LIKE $tbl_like_wild");
 	    }
 	    my $col_number=0;
-	    while (@{$row{col}}=$sth{col}->fetchrow_array)
+	    while ($row{'col'}=$sth{'col'}->fetchrow_arrayref)
 	    {
 		$dbh->do("INSERT INTO $info_col VALUES("
-			 .$dbh->quote(${$row{db}}[0]).","
-			 .$dbh->quote(${$row{tbl}}[0]).","
+			 .$dbh->quote($row{'db'}->[0]).","
+			 .$dbh->quote($row{'tbl'}->[0]).","
 			 .++$col_number.","
-			 .join_quote(@{$row{col}}).")");
+			 .join(',' ,  ( map $dbh->quote($_), @{$row{'col'}} ) ).")");
 	    }
 	}
 
@@ -239,22 +240,22 @@ while (@{$row{db}}=$sth{db}->fetchrow_array) #go through all databases
 
 	if ($opt{'idx'})
 	{
-	    $sth{idx}=$dbh->prepare("SHOW INDEX FROM `${$row{tbl}}[0]` FROM `${$row{db}}[0]`"); 
-	    $sth{idx}->execute;
+	    $sth{'idx'}=$dbh->prepare("SHOW INDEX FROM `$row{'tbl'}->[0]` FROM `$row{'db'}->[0]`"); 
+	    $sth{'idx'}->execute;
 	    unless ($done_create_table{$info_idx})
 	    {
 		$done_create_table{$info_idx}=1;
 		do_create_table("idx",$info_idx,
-				"`Database` ".$extra_col_desc{db});
+				"`Database` ".$extra_col_desc{'db'});
 		$dbh->do("DELETE FROM $info_idx WHERE `Database`
 			 LIKE $db_like_wild
 			 AND `Table` LIKE $tbl_like_wild");
 	    }
-	    while (@{$row{idx}}=$sth{idx}->fetchrow_array)
+	    while ($row{'idx'}=$sth{'idx'}->fetchrow_arrayref)
 	    {
 		$dbh->do("INSERT INTO $info_idx VALUES("
-			 .$dbh->quote(${$row{db}}[0]).","
-			 .join_quote(@{$row{idx}}).")");
+			 .$dbh->quote($row{'db'}->[0]).","
+			 .join(',' ,  ( map $dbh->quote($_), @{$row{'idx'}} ) ).")");
 	    }
 	}
     }
@@ -263,37 +264,30 @@ while (@{$row{db}}=$sth{db}->fetchrow_array) #go through all databases
 print "Wrote to database $db_to_write .\n" unless ($opt{'quiet'});
 exit;
 
-sub join_quote
-{
-    my (@list)=@_; my $i;
-    foreach $i (@list) { $i=$dbh->quote($i); }
-    return (join ',',@list);
-}
 
 sub do_create_table
 {
     my ($sth_key,$target_tbl,$extra_col_desc,$first_col_name)=@_; 
     my $create_table_query=$extra_col_desc;
-    my ($i,$type,$first_col_desc,$col_desc);
+    my ($i,$first_col_desc,$col_desc);
 
     for ($i=0;$i<$sth{$sth_key}->{NUM_OF_FIELDS};$i++)
     {
 	if ($create_table_query) { $create_table_query.=", "; }	
-	$type=$sth{$sth_key}->{mysql_type_name}->[$i];
-	$col_desc=$type;
-	if ($type =~ /char|int/i)
+	$col_desc=$sth{$sth_key}->{mysql_type_name}->[$i];
+	if ($col_desc =~ /char|int/i)
 	{
 	    $col_desc.="($sth{$sth_key}->{PRECISION}->[$i])";
 	}
-	elsif ($type =~ /decimal|numeric/i) #(never seen that)
+	elsif ($col_desc =~ /decimal|numeric/i) #(never seen that)
 	{
 	    $col_desc.=
 		"($sth{$sth_key}->{PRECISION}->[$i],$sth{$sth_key}->{SCALE}->[$i])";
 	}
-	elsif ($type !~ /date/i) #date and datetime are OK,
+	elsif ($col_desc !~ /date/i) #date and datetime are OK,
 	                         #no precision or scale for them
 	{
-	    warn "unexpected column type '$type' 
+	    warn "unexpected column type '$col_desc' 
 (neither 'char','int','decimal|numeric')
 when creating $target_tbl, hope table creation will go OK\n";
 	}
@@ -392,6 +386,10 @@ SHOW commands. In fact the contents are slightly more complete :
 Caution: info tables contain certain columns (e.g.
 Database, Table, Null...) whose names, as they are MySQL reserved words,
 need to be backquoted (`...`) when used in SQL statements.
+
+Caution: as information fetching and info tables filling happen at the
+same time, info tables may contain inaccurate information about
+themselves.
 
 =head1 OPTIONS
 

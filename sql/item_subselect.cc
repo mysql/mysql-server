@@ -88,7 +88,14 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (have_to_be_excluded)
       engine->exclude();
     substitution= 0;
-    return (*ref)->fix_fields(thd, tables, ref);
+    int ret= (*ref)->fix_fields(thd, tables, ref);
+    // We can't substitute aggregate functions (like (SELECT (max(i)))
+    if ((*ref)->with_sum_func)
+    {
+      my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+      return 1;
+    }
+    return ret;
   }
 
   char const *save_where= thd->where;
@@ -372,7 +379,7 @@ String *Item_exists_subselect::val_str(String *str)
     reset();
     return 0;
   }
-  str->set(value,thd_charset());
+  str->set(value,default_charset());
   return str;
 }
 
@@ -415,7 +422,7 @@ String *Item_in_subselect::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(value,thd_charset());
+  str->set(value,default_charset());
   return str;
 }
 
@@ -487,6 +494,8 @@ void Item_in_subselect::single_value_transformer(THD *thd,
       setup_ref_array(thd, &sl->ref_pointer_array,
 		      1 + sl->with_sum_func +
 		      sl->order_list.elements + sl->group_list.elements);
+      // To prevent crash on Item_ref_null_helper destruction in case of error
+      sl->ref_pointer_array[0]= 0;
       item= (*func)(expr, new Item_ref_null_helper(this,
 						   sl->ref_pointer_array,
 						   (char *)"<ref>",
@@ -684,7 +693,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,
 		    (ORDER*) 0, select_lex, 
-		    select_lex->master_unit(), 0, 0))
+		    select_lex->master_unit(), 0))
     return 1;
   thd->lex.current_select= save_select;
   return 0;

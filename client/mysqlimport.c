@@ -43,10 +43,12 @@ static MYSQL	mysql_connection;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
-		*escaped=0, *opt_columns=0, *default_charset;
+		*escaped=0, *opt_columns=0, 
+		*default_charset= (char*) MYSQL_CHARSET;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static my_string opt_ignore_lines=0;
+static CHARSET_INFO *charset_info= &my_charset_latin1;
 #include <sslopt-vars.h>
 
 #ifdef HAVE_SMEM
@@ -237,11 +239,8 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr, "You can't use --ignore (-i) and --replace (-r) at the same time.\n");
     return(1);
   }
-  if (default_charset)
-  {
-    if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
-      exit(1);
-  }
+  if (!(charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
+    exit(1);
   if (*argc < 2)
   {
     usage();

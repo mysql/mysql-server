@@ -5691,7 +5691,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 
 CHARSET_INFO my_charset_gb2312 =
 {
-    24,			/* number */
+    24,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "gb2312",		/* cs name    */
     "gb2312",		/* name */
@@ -5702,6 +5702,7 @@ CHARSET_INFO my_charset_gb2312 =
     sort_order_gb2312,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,

@@ -301,8 +301,11 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   }
 
   if (!(new_page = (uchar*)my_alloca((uint)keyinfo->block_length)))
-    return -1;
-
+  {
+    err_code= -1;
+    goto split_err;
+  }
+  
   stop = task + (max_keys + 1);
   cur1 = rt_PAGE_FIRST_KEY(page, nod_flag);
   cur2 = rt_PAGE_FIRST_KEY(new_page, nod_flag);
@@ -330,14 +333,14 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   mi_putint(page, 2 + n1 * full_length, nod_flag);
   mi_putint(new_page, 2 + n2 * full_length, nod_flag);
 
-  *new_page_offs=_mi_new(info, keyinfo);
-  _mi_write_keypage(info, keyinfo, *new_page_offs, new_page);
+  if ((*new_page_offs= _mi_new(info, keyinfo)) == HA_OFFSET_ERROR)
+    err_code= -1;
+  else
+    err_code= _mi_write_keypage(info, keyinfo, *new_page_offs, new_page);
+
   my_afree((byte*)new_page);
 
 split_err:
   my_afree((byte*)coord_buf);
   return err_code;
 }
-
-
-

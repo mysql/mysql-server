@@ -1,6 +1,6 @@
 drop table if exists t1,t2,t3;
 CREATE TABLE t1 (
-auto int(5) unsigned DEFAULT 0 NOT NULL auto_increment,
+auto int(5) unsigned NOT NULL auto_increment,
 string char(10) default "hello",
 tiny tinyint(4) DEFAULT '0' NOT NULL ,
 short smallint(6) DEFAULT '1' NOT NULL ,
@@ -129,7 +129,7 @@ auto	new_field	new_blob_col	date_field
 15	new	4294967295	0000-00-00
 16	new	NULL	NULL
 CREATE TABLE t2 (
-auto int(5) unsigned NOT NULL DEFAULT 0 auto_increment,
+auto int(5) unsigned NOT NULL auto_increment,
 string char(20),
 mediumblob_col mediumblob not null,
 new_field char(2),
@@ -233,7 +233,7 @@ auto	bigint(17) unsigned	binary		PRI	0		select,insert,update,references
 t1	bigint(1)	binary			0		select,insert,update,references	
 t2	char(1)	latin1					select,insert,update,references	
 t3	mediumtext	latin1					select,insert,update,references	
-t4	mediumblob	binary					select,insert,update,references	
+t4	mediumtext character set latin1	latin1_bin					select,insert,update,references	
 select * from t2;
 auto	t1	t2	t3	t4
 11	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

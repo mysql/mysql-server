@@ -1301,7 +1301,8 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   }
 
   if (((clone_flag & CLONE_KEY2_MAYBE) &&
-       !(clone_flag & CLONE_KEY1_MAYBE)) ||
+       !(clone_flag & CLONE_KEY1_MAYBE) &&
+       key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
     swap(SEL_ARG *,key1,key2);
@@ -1329,7 +1330,10 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     {
       key1->maybe_smaller();
       if (key2->next_key_part)
+      {
+	key1->use_count--;			// Incremented in and_all_keys
 	return and_all_keys(key1,key2,clone_flag);
+      }
       key2->use_count--;			// Key2 doesn't have a tree
     }
     return key1;
@@ -2028,7 +2032,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
 {
   if (this == root && use_count != 1)
   {
-    sql_print_error("Use_count: Wrong count %lu for root",use_count);
+    sql_print_error("Note: Use_count: Wrong count %lu for root",use_count);
     return;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -2042,7 +2046,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-	sql_print_error("Use_count: Wrong count for key at %lx, %lu should be %lu",
+	sql_print_error("Note: Use_count: Wrong count for key at %lx, %lu should be %lu",
 			pos,pos->next_key_part->use_count,count);
 	return;
       }
@@ -2050,7 +2054,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     }
   }
   if (e_count != elements)
-    sql_print_error("Wrong use count: %u for tree at %lx", e_count,
+    sql_print_error("Warning: Wrong use count: %u for tree at %lx", e_count,
 		    (gptr) this);
 }
 

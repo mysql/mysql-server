@@ -29,10 +29,14 @@
     - Initializing charset related structures
     - Loading dynamic charsets
     - Searching for a proper CHARSET_INFO 
-      using charset name, collation name or collatio ID
+      using charset name, collation name or collation ID
     - Setting server default character set
 */
 
+my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+{
+  return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
+}
 
 static void set_max_sort_char(CHARSET_INFO *cs)
 {
@@ -54,25 +58,100 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 }
 
 
+static void init_state_maps(CHARSET_INFO *cs)
+{
+  uint i;
+  uchar *state_map= cs->state_map;
+  uchar *ident_map= cs->ident_map;
+  
+  /* Fill state_map with states to get a faster parser */
+  for (i=0; i < 256 ; i++)
+  {
+    if (my_isalpha(cs,i))
+      state_map[i]=(uchar) MY_LEX_IDENT;
+    else if (my_isdigit(cs,i))
+      state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+    else if (use_mb(cs) && my_ismbhead(cs, i))
+      state_map[i]=(uchar) MY_LEX_IDENT;
+#endif
+    else if (!my_isgraph(cs,i))
+      state_map[i]=(uchar) MY_LEX_SKIP;      
+    else
+      state_map[i]=(uchar) MY_LEX_CHAR;
+  }
+  state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) MY_LEX_IDENT;
+  state_map[(uchar)'\'']=(uchar) MY_LEX_STRING;
+  state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) MY_LEX_SIGNED_NUMBER;
+  state_map[(uchar)'.']=(uchar) MY_LEX_REAL_OR_POINT;
+  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) MY_LEX_CMP_OP;
+  state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;
+  state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) MY_LEX_BOOL;
+  state_map[(uchar)'#']=(uchar) MY_LEX_COMMENT;
+  state_map[(uchar)';']=(uchar) MY_LEX_COLON;
+  state_map[(uchar)':']=(uchar) MY_LEX_SET_VAR;
+  state_map[0]=(uchar) MY_LEX_EOL;
+  state_map[(uchar)'\\']= (uchar) MY_LEX_ESCAPE;
+  state_map[(uchar)'/']= (uchar) MY_LEX_LONG_COMMENT;
+  state_map[(uchar)'*']= (uchar) MY_LEX_END_LONG_COMMENT;
+  state_map[(uchar)'@']= (uchar) MY_LEX_USER_END;
+  state_map[(uchar) '`']= (uchar) MY_LEX_USER_VARIABLE_DELIMITER;
+  state_map[(uchar)'"']= (uchar) MY_LEX_STRING_OR_DELIMITER;
+
+  /*
+    Create a second map to make it faster to find identifiers
+  */
+  for (i=0; i < 256 ; i++)
+  {
+    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
+			   state_map[i] == MY_LEX_NUMBER_IDENT);
+  }
+
+  /* Special handling of hex and binary strings */
+  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
+  state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) MY_LEX_IDENT_OR_BIN;
+  state_map[(uchar)'n']= state_map[(uchar)'N']= (uchar) MY_LEX_IDENT_OR_NCHAR;
+
+
+}
+
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
   
-  cs->strnxfrm    = my_strnxfrm_simple;
-  cs->strnncoll   = my_strnncoll_simple;
-  cs->strnncollsp = my_strnncollsp_simple;
-  cs->like_range  = my_like_range_simple;
-  cs->wildcmp     = my_wildcmp_8bit;
-  cs->mb_wc       = my_mb_wc_8bit;
-  cs->wc_mb       = my_wc_mb_8bit;
+  if (cs->state & MY_CS_BINSORT)
+  {
+    CHARSET_INFO *b= &my_charset_bin;
+    cs->strnxfrm    = b->strnxfrm;
+    cs->like_range  = b->like_range;
+    cs->wildcmp     = b->wildcmp;
+    cs->strnncoll   = b->strnncoll;
+    cs->strnncollsp = b->strnncollsp;
+    cs->tosort      = b->tosort;
+    cs->strcasecmp  = b->strcasecmp;
+    cs->strncasecmp = b->strncasecmp;
+    cs->hash_caseup = b->hash_caseup;
+    cs->hash_sort   = b->hash_sort;
+  }
+  else
+  {
+    cs->strnxfrm    = my_strnxfrm_simple;
+    cs->like_range  = my_like_range_simple;
+    cs->wildcmp     = my_wildcmp_8bit;
+    cs->strnncoll   = my_strnncoll_simple;
+    cs->strnncollsp = my_strnncollsp_simple;
+    cs->tosort      = my_tosort_8bit;
+    cs->strcasecmp  = my_strcasecmp_8bit;
+    cs->strncasecmp = my_strncasecmp_8bit;
+    cs->hash_caseup = my_hash_caseup_simple;
+    cs->hash_sort   = my_hash_sort_simple;
+  }
+  
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
   cs->caseup      = my_caseup_8bit;
   cs->casedn      = my_casedn_8bit;
-  cs->tosort      = my_tosort_8bit;
-  cs->strcasecmp  = my_strcasecmp_8bit;
-  cs->strncasecmp = my_strncasecmp_8bit;
-  cs->hash_caseup = my_hash_caseup_simple;
-  cs->hash_sort   = my_hash_sort_simple;
+  cs->mb_wc       = my_mb_wc_8bit;
+  cs->wc_mb       = my_wc_mb_8bit;
   cs->snprintf	  = my_snprintf_8bit;
   cs->long10_to_str= my_long10_to_str_8bit;
   cs->longlong10_to_str= my_longlong10_to_str_8bit;
@@ -192,9 +271,15 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   if (from->name)
     to->name= my_once_strdup(from->name,MYF(MY_WME));
   
+  if (from->comment)
+    to->comment= my_once_strdup(from->comment,MYF(MY_WME));
+  
   if (from->ctype)
+  {
     to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
 				       MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME));
+    init_state_maps(to);
+  }
   if (from->to_lower)
     to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
 					  MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME));
@@ -223,7 +308,8 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
-	  (cs->number && cs->name && cs->sort_order));
+	  (cs->number && cs->name &&
+	  (cs->sort_order || (cs->state & MY_CS_BINSORT) )));
 }
 
 
@@ -238,7 +324,13 @@ static int add_collation(CHARSET_INFO *cs)
         return MY_XML_ERROR;
       bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
     }
+    
+    if (cs->primary_number == cs->number)
+      cs->state |= MY_CS_PRIMARY;
       
+    if (cs->binary_number == cs->number)
+      cs->state |= MY_CS_BINSORT;
+    
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
       simple_cs_copy_data(all_charsets[cs->number],cs);
@@ -248,7 +340,16 @@ static int add_collation(CHARSET_INFO *cs)
         all_charsets[cs->number]->state |= MY_CS_LOADED;
       }
     }
+    else
+    {
+      CHARSET_INFO *dst= all_charsets[cs->number];
+      dst->state |= cs->state;
+      if (cs->comment)
+	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
+    }
     cs->number= 0;
+    cs->primary_number= 0;
+    cs->binary_number= 0;
     cs->name= NULL;
     cs->state= 0;
     cs->sort_order= NULL;
@@ -320,7 +421,6 @@ char *get_charsets_dir(char *buf)
 
 CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
-CHARSET_INFO *system_charset_info  = &my_charset_latin1;
 
 #define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
 
@@ -418,7 +518,10 @@ static my_bool init_available_charsets(myf myflags)
     for (cs=all_charsets; cs < all_charsets+255 ; cs++)
     {
       if (*cs)
+      {
         set_max_sort_char(*cs);
+        init_state_maps(*cs);
+      }
     }
     
     strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
@@ -450,7 +553,10 @@ uint get_charset_number(const char *charset_name)
   
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
-    if ( cs[0] && cs[0]->name && !strcmp(cs[0]->name, charset_name))
+    if ( cs[0] && cs[0]->name && 
+         (!strcasecmp(cs[0]->name, charset_name) ||
+          (!strcasecmp(cs[0]->csname, charset_name) && 
+           (cs[0]->state & MY_CS_PRIMARY))))
       return cs[0]->number;
   }  
   return 0;   /* this mimics find_type() */
@@ -515,24 +621,6 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   return cs;
 }
 
-my_bool set_default_charset(uint cs, myf flags)
-{
-  CHARSET_INFO *new_charset;
-  DBUG_ENTER("set_default_charset");
-  DBUG_PRINT("enter",("character set: %d",(int) cs));
-
-  new_charset= get_charset(cs, flags);
-  if (!new_charset)
-  {
-    DBUG_PRINT("error",("Couldn't set default character set"));
-    DBUG_RETURN(TRUE);   /* error */
-  }
-  default_charset_info= new_charset;
-  system_charset_info= new_charset;
-
-  DBUG_RETURN(FALSE);
-}
-
 CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 {
   uint cs_number;
@@ -553,7 +641,9 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 }
 
 
-CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
+CHARSET_INFO *get_charset_by_csname(const char *cs_name,
+				    uint cs_flags,
+				    myf flags)
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
@@ -561,8 +651,8 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
   
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
-    if ( css[0] && (css[0]->state & MY_CS_PRIMARY) && 
-         css[0]->csname && !strcmp(css[0]->csname, cs_name))
+    if ( css[0] && (css[0]->state & cs_flags) && 
+         css[0]->csname && !strcasecmp(css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
@@ -577,25 +667,6 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
   }
 
   return cs;
-}
-
-
-my_bool set_default_charset_by_name(const char *cs_name, myf flags)
-{
-  CHARSET_INFO *new_charset;
-  DBUG_ENTER("set_default_charset_by_name");
-  DBUG_PRINT("enter",("character set: %s", cs_name));
-
-  new_charset= get_charset_by_name(cs_name, flags);
-  if (!new_charset)
-  {
-    DBUG_PRINT("error",("Couldn't set default character set"));
-    DBUG_RETURN(TRUE);   /* error */
-  }
-
-  default_charset_info= new_charset;
-  system_charset_info= new_charset;
-  DBUG_RETURN(FALSE);
 }
 
 

@@ -87,6 +87,49 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
+bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
+				      CHARSET_INFO *cs2, enum coercion co2)
+{
+  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  {
+    cmp_charset= &my_charset_bin;
+    return 0;
+  }
+
+  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
+    return 1;
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+    cmp_charset= cs1;
+  else if (co2 < co1)
+    cmp_charset= cs2;
+  else // co1==co2
+  {
+    if (cs1 == cs2)
+      cmp_charset= cs1;
+    else
+    {
+      if (co1 == COER_COERCIBLE)
+      {
+        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
+	if (c)
+	{
+	  cmp_charset= c;
+	  return 0;
+	}
+	else
+	  return 1;
+      }
+       else
+	return 1;
+    }
+  }
+  return 0;
+}
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -124,8 +167,13 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return;
+  }
   set_cmp_func();
-  binary_cmp= args[0]->binary() || args[1]->binary();
 }
 
 
@@ -167,7 +215,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return owner->binary_cmp ? stringcmp(res1,res2) : sortcmp(res1,res2);
+      return sortcmp(res1,res2,owner->cmp_charset);
     }
   }
   owner->null_value= 1;
@@ -181,8 +229,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return (owner->binary_cmp ? test(stringcmp(res1, res2) == 0) :
-	    test(sortcmp(res1, res2) == 0));
+  return test(sortcmp(res1, res2, owner->cmp_charset) == 0);
 }
 
 
@@ -265,8 +312,8 @@ int Arg_comparator::compare_e_row()
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= comparators[i].compare()))
-      return 1;
+    if ((res= !comparators[i].compare()))
+      return 0;
   }
   return 1;
 }
@@ -297,12 +344,22 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     return 1;
   cache->setup(args[0]);
   if (cache->cols() == 1)
-    cache->set_used_tables(RAND_TABLE_BIT);
+  {
+    if (args[0]->used_tables())
+      cache->set_used_tables(RAND_TABLE_BIT);
+    else
+      cache->set_used_tables(0);
+  }
   else
   {
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
-      ((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+    {
+      if (args[0]->el(i)->used_tables())
+	((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+      else
+	((Item_cache *)cache->el(i))->set_used_tables(0);
+    }
   }
   if (args[1]->fix_fields(thd, tables, args))
     return 1;
@@ -351,7 +408,6 @@ void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
   maybe_null=null_value=0;
-  set_cmp_func();
 }
 
 longlong Item_func_equal::val_int()
@@ -402,7 +458,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= binary_cmp ? stringcmp(a,b) : sortcmp(a,b);
+  int value= sortcmp(a,b,cmp_charset);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -482,10 +538,11 @@ void Item_func_between::fix_length_and_dec()
   cmp_type=item_cmp_type(args[0]->result_type(),
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
+  /* QQ: COERCIBILITY */
   if (args[0]->binary() | args[1]->binary() | args[2]->binary())
-    string_compare=stringcmp;
+    cmp_charset= &my_charset_bin;
   else
-    string_compare=sortcmp;
+    cmp_charset= args[0]->charset();
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -517,17 +574,17 @@ longlong Item_func_between::val_int()
     a=args[1]->val_str(&value1);
     b=args[2]->val_str(&value2);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (string_compare(value,a) >= 0 && string_compare(value,b) <= 0) ?
-	1 : 0;
+      return (sortcmp(value,a,cmp_charset) >= 0 && 
+	      sortcmp(value,b,cmp_charset) <= 0) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= string_compare(value,b) <= 0; // not null if false range.
+      null_value= sortcmp(value,b,cmp_charset) <= 0; // not null if false range.
     }
     else
     {
-      null_value= string_compare(value,a) >= 0; // not null if false range.
+      null_value= sortcmp(value,a,cmp_charset) >= 0; // not null if false range.
     }
   }
   else if (cmp_type == INT_RESULT)
@@ -593,6 +650,9 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
+  if (set_charset(args[0]->charset(),args[0]->coercibility,
+		  args[1]->charset(),args[1]->coercibility))
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
 }
 
 
@@ -633,11 +693,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
+    res->set_charset(charset());
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
+  res->set_charset(charset());
   return res;
 }
 
@@ -666,8 +728,12 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    set_charset((args[1]->binary() || args[2]->binary()) ? 
-		&my_charset_bin : args[1]->charset());
+    if (set_charset(args[1]->charset(), args[1]->coercibility,
+		args[2]->charset(), args[2]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      return;
+    }
   }
   else
   {
@@ -703,6 +769,7 @@ Item_func_if::val_str(String *str)
 {
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
+  res->set_charset(charset());
   null_value=arg->null_value;
   return res;
 }
@@ -809,12 +876,13 @@ Item *Item_func_case::find_item(String *str)
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
+	/* QQ: COERCIBILITY */
 	if (first_expr_is_binary || args[i]->binary())
 	{
-	  if (stringcmp(tmp,first_expr_str)==0)
+	  if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
 	    return args[i+1];
 	}
-	else if (sortcmp(tmp,first_expr_str)==0)
+	else if (sortcmp(tmp,first_expr_str,tmp->charset())==0)
 	  return args[i+1];
       }
       break;
@@ -873,7 +941,7 @@ String *Item_func_case::val_str(String *str)
 longlong Item_func_case::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff),thd_charset());
+  String dummy_str(buff,sizeof(buff),default_charset());
   Item *item=find_item(&dummy_str);
   longlong res;
 
@@ -890,7 +958,7 @@ longlong Item_func_case::val_int()
 double Item_func_case::val()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff),thd_charset());
+  String dummy_str(buff,sizeof(buff),default_charset());
   Item *item=find_item(&dummy_str);
   double res;
 
@@ -1111,7 +1179,7 @@ int in_vector::find(Item *item)
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
   :in_vector(elements, sizeof(String), cmp_func),
-   tmp(buff, sizeof(buff), default_charset_info)
+   tmp(buff, sizeof(buff), &my_charset_bin)
 {}
 
 in_string::~in_string()
@@ -1134,7 +1202,7 @@ void in_string::set(uint pos,Item *item)
   {
     CHARSET_INFO *cs;
     if (!(cs= item->charset()))
-      cs= default_charset_info;		// Should never happen for STR items
+      cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
   }
 }
@@ -1211,10 +1279,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 {
   switch (item->result_type()) {
   case STRING_RESULT:
-    if (item->binary())
-      return new cmp_item_binary_string;
-    else
-      return new cmp_item_sort_string;
+    return new cmp_item_sort_string(item->charset());
     break;
   case INT_RESULT:
     return new cmp_item_int;
@@ -1234,12 +1299,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 
 cmp_item* cmp_item_sort_string::make_same()
 {
-  return new cmp_item_sort_string_in_static();
-}
-
-cmp_item* cmp_item_binary_string::make_same()
-{
-  return new cmp_item_binary_string_in_static();
+  return new cmp_item_sort_string_in_static(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
@@ -1346,6 +1406,22 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
+static int srtcmp_in(const String *x,const String *y)
+{
+  CHARSET_INFO *cs= x->charset();
+  return cs->strnncollsp(cs,
+                        (unsigned char *) x->ptr(),x->length(),
+			(unsigned char *) y->ptr(),y->length());
+}
+
+static int bincmp_in(const String *x,const String *y)
+{
+  CHARSET_INFO *cs= &my_charset_bin;
+  return cs->strnncollsp(cs,
+                        (unsigned char *) x->ptr(),x->length(),
+			(unsigned char *) y->ptr(),y->length());
+}
+
 void Item_func_in::fix_length_and_dec()
 {
   /*
@@ -1357,9 +1433,9 @@ void Item_func_in::fix_length_and_dec()
     switch (item->result_type()) {
     case STRING_RESULT:
       if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) stringcmp);
+	array=new in_string(arg_count,(qsort_cmp) srtcmp_in);
       else
-	array=new in_string(arg_count,(qsort_cmp) sortcmp);
+	array=new in_string(arg_count,(qsort_cmp) bincmp_in);
       break;
     case INT_RESULT:
       array= new in_longlong(arg_count);
@@ -1728,7 +1804,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(charset(),
+  return my_wildcmp(cmp_charset,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -1739,12 +1815,16 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->type() == STRING_ITEM)
+  if (args[1]->const_item())
   {
-    if (((Item_string *) args[1])->str_value[0] != wild_many)
+    String* res2= args[1]->val_str((String *)&tmp_value2);
+
+    if (!res2)
+      return OPTIMIZE_NONE;
+
+    if (*res2->ptr() != wild_many)
     {
-      if ((args[0]->result_type() != STRING_RESULT) ||
-	  ((Item_string *) args[1])->str_value[0] != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -1757,13 +1837,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
-  /*
-    Comparision is by default done according to character set of LIKE
-  */
-  if (binary_cmp)
-    set_charset(&my_charset_bin);
-  else
-    set_charset(args[1]->charset());
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return 1;
+  }
 
   /*
     We could also do boyer-more for non-const items, but as we would have to
@@ -1828,7 +1907,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!regex_compiled && args[1]->const_item())
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info);
+    String tmp(buff,sizeof(buff),&my_charset_bin);
     String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
@@ -1858,7 +1937,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 longlong Item_func_regex::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),default_charset_info);
+  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
 
   res=args[0]->val_str(&tmp);
   if (args[0]->null_value)
@@ -1869,7 +1948,7 @@ longlong Item_func_regex::val_int()
   if (!regex_is_const)
   {
     char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),default_charset_info);
+    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
     res2= args[1]->val_str(&tmp2);
     if (args[1]->null_value)
@@ -1877,7 +1956,7 @@ longlong Item_func_regex::val_int()
       null_value=1;
       return 0;
     }
-    if (!regex_compiled || stringcmp(res2,&prev_regexp))
+    if (!regex_compiled || sortcmp(res2,&prev_regexp,&my_charset_bin))
     {
       prev_regexp.copy(*res2);
       if (regex_compiled)
@@ -1936,7 +2015,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2039,7 +2118,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2070,7 +2149,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     while (j <= tlmpl)
     {
@@ -2179,17 +2258,19 @@ longlong Item_cond_xor::val_int()
 
 longlong Item_func_spatial_rel::val_int()
 {
-  String *res1=args[0]->val_str(&tmp_value1);
-  String *res2=args[1]->val_str(&tmp_value2);
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
   Geometry g1, g2;
-  MBR mbr1,mbr2;
+  MBR mbr1, mbr2;
 
-  if ((null_value=(args[0]->null_value ||
-                   args[1]->null_value ||
-                   g1.create_from_wkb(res1->ptr(),res1->length()) || 
-                   g2.create_from_wkb(res2->ptr(),res2->length()) ||
-                   g1.get_mbr(&mbr1) || 
-                   g2.get_mbr(&mbr2))))
+  if ((null_value= (args[0]->null_value ||
+		    args[1]->null_value ||
+		    g1.create_from_wkb(res1->ptr() + SRID_SIZE,
+				       res1->length() - SRID_SIZE) || 
+		    g2.create_from_wkb(res2->ptr() + SRID_SIZE,
+				       res2->length() - SRID_SIZE) ||
+		    g1.get_mbr(&mbr1) || 
+		    g2.get_mbr(&mbr2))))
    return 0;
 
   switch (spatial_rel)
@@ -2239,15 +2320,16 @@ longlong Item_func_issimple::val_int()
 longlong Item_func_isclosed::val_int()
 {
   String tmp;
-  String *wkb=args[0]->val_str(&tmp);
+  String *swkb= args[0]->val_str(&tmp);
   Geometry geom;
   int isclosed;
 
-  null_value= (!wkb || 
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,is_closed) ||
-               geom.is_closed(&isclosed));
+  null_value= (!swkb || 
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) ||
+	       !GEOM_METHOD_PRESENT(geom,is_closed) ||
+	       geom.is_closed(&isclosed));
 
   return (longlong) isclosed;
 }

@@ -101,7 +101,7 @@ my_socket vio_fd(Vio*vio);
 /*
  * Remote peer's address and name in text form.
  */
-my_bool vio_peer_addr(Vio* vio, char *buf);
+my_bool vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 
 /* Remotes in_addr */
 
@@ -136,7 +136,7 @@ int vio_close_pipe(Vio * vio);
 #define vio_keepalive(vio, set_keep_alive)	(vio)->viokeepalive(vio, set_keep_alive)
 #define vio_should_retry(vio) 			(vio)->should_retry(vio)
 #define vio_close(vio)				((vio)->vioclose)(vio)
-#define vio_peer_addr(vio, buf)			(vio)->peer_addr(vio, buf)
+#define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
 #endif /* defined(HAVE_VIO) && !defined(DONT_MAP_VIO) */
 
@@ -242,7 +242,7 @@ struct st_vio
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);
   int     (*fastsend)(Vio*);
-  my_bool (*peer_addr)(Vio*, gptr);
+  my_bool (*peer_addr)(Vio*, gptr, uint16*);
   void    (*in_addr)(Vio*, struct in_addr*);
   my_bool (*should_retry)(Vio*);
   int     (*vioclose)(Vio*);

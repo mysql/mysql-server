@@ -151,6 +151,19 @@ innobase_release_stat_resources(
 }
 
 /************************************************************************
+Call this function when mysqld passes control to the client. That is to
+avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
+documentation, see handler.cc. */
+
+void
+innobase_release_temporary_latches(
+/*===============================*/
+        void*   innobase_tid)
+{
+        innobase_release_stat_resources((trx_t*)innobase_tid);
+}
+
+/************************************************************************
 Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
@@ -895,12 +908,13 @@ innobase_commit_low(
 	trx_t*	trx)	/* in: transaction handle */
 {
 #ifdef HAVE_REPLICATION
+        /* TODO: Guilhem should check if master_log_name, pending
+        etc. are right if the master log gets rotated! Possible bug here.
+	Comment by Heikki March 4, 2003. */
+
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
-#ifdef NEED_TO_BE_FIXED	  
-                trx->mysql_relay_log_file_name = active_mi->rli.log_file_name;
-                trx->mysql_relay_log_pos = active_mi->rli.relay_log_pos;
-#endif
+
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.master_log_name;
                 trx->mysql_master_log_pos = ((ib_longlong)
@@ -3512,6 +3526,16 @@ ha_innobase::records_in_range(
 
 	prebuilt->trx->op_info = (char*)"";
 
+	/* The MySQL optimizer seems to believe an estimate of 0 rows is
+	always accurate and may return the result 'Empty set' based on that.
+	The accuracy is not guaranteed, and even if it were, for a locking
+	read we should anyway perform the search to set the next-key lock.
+	Add 1 to the value to make sure MySQL does not make the assumption! */
+
+	if (n_rows == 0) {
+	        n_rows = 1;
+	}
+
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
@@ -4123,7 +4147,7 @@ innodb_show_status(
 	}
 
   	protocol->prepare_for_resend();
-	protocol->store(buf, strlen(buf));
+	protocol->store(buf, strlen(buf), system_charset_info);
 	ut_free(buf);
   
   	if (protocol->write())

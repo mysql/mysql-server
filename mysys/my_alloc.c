@@ -25,6 +25,8 @@
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 		     uint pre_alloc_size __attribute__((unused)))
 {
+  DBUG_ENTER("init_alloc_root");
+  DBUG_PRINT("enter",("root: %lx", mem_root));
   mem_root->free= mem_root->used= mem_root->pre_alloc= 0;
   mem_root->min_malloc= 32;
   mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
@@ -45,24 +47,27 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
     }
   }
 #endif
+  DBUG_VOID_RETURN;
 }
 
 gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 {
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)
   reg1 USED_MEM *next;
-  Size+=ALIGN_SIZE(sizeof(USED_MEM));
+  DBUG_ENTER("alloc_root");
+  DBUG_PRINT("enter",("root: %lx", mem_root));
 
+  Size+=ALIGN_SIZE(sizeof(USED_MEM));
   if (!(next = (USED_MEM*) my_malloc(Size,MYF(MY_WME))))
   {
     if (mem_root->error_handler)
       (*mem_root->error_handler)();
-    return((gptr) 0);				/* purecov: inspected */
+    DBUG_RETURN((gptr) 0);			/* purecov: inspected */
   }
   next->next= mem_root->used;
   next->size= Size;
   mem_root->used= next;
-  return (gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM)));
+  DBUG_RETURN((gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
 #else
   uint get_size, block_size;
   gptr point;
@@ -151,8 +156,9 @@ void free_root(MEM_ROOT *root, myf MyFlags)
 {
   reg1 USED_MEM *next,*old;
   DBUG_ENTER("free_root");
+  DBUG_PRINT("enter",("root: %lx  flags: %u", root, (uint) MyFlags));
 
-  if (!root)
+  if (!root)					/* QQ: Should be deleted */
     DBUG_VOID_RETURN; /* purecov: inspected */
   if (MyFlags & MY_MARK_BLOCKS_FREE)
   {

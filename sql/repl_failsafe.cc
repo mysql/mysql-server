@@ -440,7 +440,7 @@ int show_new_master(THD* thd)
     if (protocol->send_fields(&field_list, 1))
       DBUG_RETURN(-1);
     protocol->prepare_for_resend();
-    protocol->store(lex_mi->log_file_name);
+    protocol->store(lex_mi->log_file_name, &my_charset_bin);
     protocol->store((ulonglong) lex_mi->pos);
     if (protocol->write())
       DBUG_RETURN(-1);
@@ -449,8 +449,33 @@ int show_new_master(THD* thd)
   }
 }
 
+/*
+  Asks the master for the list of its other connected slaves.
+  This is for failsafe replication : 
+  in order for failsafe replication to work, the servers involved in replication
+  must know of each other. We accomplish this by having each slave report to the
+  master how to reach it, and on connection, each slave receives information
+  about where the other slaves are.
 
-int update_slave_list(MYSQL* mysql)
+  SYNOPSIS
+    update_slave_list()
+    mysql           pre-existing connection to the master
+    mi              master info
+
+  NOTES
+    mi is used only to give detailed error messages which include the
+    hostname/port of the master, the username used by the slave to connect to
+    the master.
+    If the user used by the slave to connect to the master does not have the
+    REPLICATION SLAVE privilege, it will pop in this function because SHOW SLAVE
+    HOSTS will fail on the master.
+
+  RETURN VALUES
+    1           error
+    0           success
+ */
+
+int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
 {
   MYSQL_RES* res=0;
   MYSQL_ROW row;
@@ -462,7 +487,7 @@ int update_slave_list(MYSQL* mysql)
   if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",16) ||
       !(res = mc_mysql_store_result(mysql)))
   {
-    error = "Query error";
+    error= mc_mysql_error(mysql);
     goto err;
   }
 
@@ -476,7 +501,8 @@ int update_slave_list(MYSQL* mysql)
     port_ind=4;
     break;
   default:
-    error = "Invalid number of fields in SHOW SLAVE HOSTS";
+    error= "the master returned an invalid number of fields for SHOW SLAVE \
+HOSTS";
     goto err;
   }
 
@@ -494,7 +520,7 @@ int update_slave_list(MYSQL* mysql)
     {
       if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
       {
-	error = "Out of memory";
+	error= "the slave is out of memory";
 	pthread_mutex_unlock(&LOCK_slave_list);
 	goto err;
       }
@@ -518,7 +544,9 @@ err:
     mc_mysql_free_result(res);
   if (error)
   {
-    sql_print_error("Error updating slave list: %s",error);
+    sql_print_error("While trying to obtain the list of slaves from the master \
+'%s:%d', user '%s' got the following error: '%s'", 
+                    mi->host, mi->port, mi->user, error);
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -610,11 +638,11 @@ int show_slave_hosts(THD* thd)
     SLAVE_INFO* si = (SLAVE_INFO*) hash_element(&slave_list, i);
     protocol->prepare_for_resend();
     protocol->store((uint32) si->server_id);
-    protocol->store(si->host);
+    protocol->store(si->host, &my_charset_bin);
     if (opt_show_slave_auth_info)
     {
-      protocol->store(si->user);
-      protocol->store(si->password);
+      protocol->store(si->user, &my_charset_bin);
+      protocol->store(si->password, &my_charset_bin);
     }
     protocol->store((uint32) si->port);
     protocol->store((uint32) si->rpl_recovery_rank);

@@ -1,0 +1,14 @@
+#! /bin/sh
+
+path=`dirname $0`
+. $path/compile-netware-START
+
+suffix="standard"
+
+extra_configs=" \
+	--with-innodb
+	"
+
+. $path/compile-netware-END
+
+

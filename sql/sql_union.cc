@@ -122,9 +122,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   this->result= result;
   t_and_f= tables_and_fields_initied;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *sl;
+  SELECT_LEX *select_cursor;
 
-  thd->lex.current_select= sl= first_select();
+  thd->lex.current_select= select_cursor= first_select_in_union();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
   {
@@ -136,26 +136,27 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   if (t_and_f)
   {
     // Item list and tables will be initialized by mysql_derived
-    item_list= sl->item_list;
+    item_list= select_cursor->item_list;
   }
   else
   {
     item_list.empty();
-    TABLE_LIST *first_table= (TABLE_LIST*) first_select()->table_list.first;
+    TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
 
     if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, sl->item_list, 0, sl->with_wild))
+	setup_wild(thd, first_table, select_cursor->item_list, 0, select_cursor->with_wild))
       goto err;
-    List_iterator<Item> it(sl->item_list);	
+    List_iterator<Item> it(select_cursor->item_list);	
     Item *item;
     while((item=it++))
       item->maybe_null=1;
-    item_list= sl->item_list;
-    sl->with_wild= 0;
-    if (setup_ref_array(thd, &sl->ref_pointer_array, 
-			(item_list.elements + sl->with_sum_func +
-			 sl->order_list.elements + sl->group_list.elements)) ||
-	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
+    item_list= select_cursor->item_list;
+    select_cursor->with_wild= 0;
+    if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
+			(item_list.elements + select_cursor->with_sum_func +
+			 select_cursor->order_list.elements + 
+			 select_cursor->group_list.elements)) ||
+	setup_fields(thd, select_cursor->ref_pointer_array, first_table, item_list,
 		     0, 0, 1))
       goto err;
     t_and_f= 1;
@@ -165,7 +166,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   tmp_table_param.field_count=item_list.elements;
   if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				(ORDER*) 0, !union_option,
-				1, (first_select()->options | thd->options |
+				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
 				HA_POS_ERROR)))
     goto err;
@@ -181,9 +182,16 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 
   union_result->not_describe=1;
   union_result->tmp_table_param=&tmp_table_param;
+
+/* 
+   the following piece of code is placed here solely for the purpose of 
+   getting correct results with EXPLAIN when UNION is withing a sub-select
+   or derived table ...
+*/  
+
   if (thd->lex.describe)
   {
-    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       JOIN *join= new JOIN(thd, sl->item_list, 
 			   sl->options | thd->options | SELECT_NO_UNLOCK,
@@ -206,16 +214,17 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 			 (ORDER*) sl->group_list.first,
 			 sl->having,
 			 (ORDER*) NULL,
-			 sl, this, 0, t_and_f);
+			 sl, this, t_and_f);
       t_and_f= 0;
       if (res | thd->is_fatal_error)
 	goto err;
     }
   }
+
   item_list.empty();
   thd->lex.current_select= lex_select_save;
   {
-    List_iterator<Item> it(first_select()->item_list);
+    List_iterator<Item> it(select_cursor->item_list);
     Field **field;
 
     for (field= table->field; *field; field++)
@@ -232,11 +241,14 @@ err:
   DBUG_RETURN(-1);
 }
 
+
 int st_select_lex_unit::exec()
 {
   DBUG_ENTER("st_select_lex_unit::exec");
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
-  
+  SELECT_LEX *select_cursor=first_select_in_union(), *last_select;
+  LINT_INIT(last_select);
+
   if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
   executed= 1;
@@ -249,8 +261,9 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
-    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
+      last_select=sl;
       if (optimized)
 	res= sl->join->reinit();
       else
@@ -276,7 +289,7 @@ int st_select_lex_unit::exec()
 			   (ORDER*) sl->group_list.first,
 			   sl->having,
 			   (ORDER*) NULL,
-			   sl, this, 0, t_and_f);
+			   sl, this, t_and_f);
 	t_and_f=0;
 	if (res | thd->is_fatal_error)
 	{
@@ -307,23 +320,19 @@ int st_select_lex_unit::exec()
   /* Send result to 'result' */
 
   // to correct ORDER BY reference resolving
-  thd->lex.current_select = first_select();
+  thd->lex.current_select = select_cursor;
   res =-1;
   {
-#if 0
-    List<Item_func_match> ftfunc_list;
-    ftfunc_list.empty();
-#else
     List<Item_func_match> empty_list;
     empty_list.empty();
     thd->lex.select_lex.ftfunc_list= &empty_list;
-#endif
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
-      SELECT_LEX *sl=thd->lex.current_select->master_unit()->first_select();
-      offset_limit_cnt= (sl->braces) ? global_parameters->offset_limit : 0;
-      select_limit_cnt= (sl->braces) ? global_parameters->select_limit+
+      SELECT_LEX *fake_select  = new SELECT_LEX();
+      fake_select->make_empty_select(last_select);
+      offset_limit_cnt= (select_cursor->braces) ? global_parameters->offset_limit : 0;
+      select_limit_cnt= (select_cursor->braces) ? global_parameters->select_limit+
 	global_parameters->offset_limit : HA_POS_ERROR;
       if (select_limit_cnt < global_parameters->select_limit)
 	select_limit_cnt= HA_POS_ERROR;		// no limit
@@ -334,9 +343,11 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, first_select(), 1, 0);
+			thd->options, result, this, fake_select, 0);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
+      fake_select->exclude();
+      delete fake_select;
     }
   }
   thd->lex.select_lex.ftfunc_list= &thd->lex.select_lex.ftfunc_list_alloc;
@@ -346,9 +357,8 @@ int st_select_lex_unit::exec()
 
 int st_select_lex_unit::cleanup()
 {
-  DBUG_ENTER("st_select_lex_unit::cleanup");
-
   int error= 0;
+  DBUG_ENTER("st_select_lex_unit::cleanup");
 
   if (union_result)
   {
@@ -357,7 +367,7 @@ int st_select_lex_unit::cleanup()
       free_tmp_table(thd, table);
     table= 0; // Safety
   }
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
   {
     JOIN *join;
     if ((join= sl->join))

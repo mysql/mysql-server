@@ -1,0 +1,16 @@
+#! /bin/sh                   
+
+for package in . ./innobase
+do
+	(cd $package
+	rm -rf config.cache autom4te.cache
+	aclocal
+	autoheader
+	libtoolize --force
+	aclocal
+	automake --add-missing --force-missing
+	autoconf)
+done
+
+#rm -rf ./bdb/build_unix/config.cache ./bdb/dist/autom4te.cache
+#(cd ./bdb/dist && sh s_all)

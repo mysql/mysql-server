@@ -5926,7 +5926,7 @@ static void test_field_misc()
 
 /*
   To test SET OPTION feature with prepare stmts
-  bug #85 
+  bug #85 (reported by mark@mysql.com)
 */
 static void test_set_option()
 {
@@ -5991,7 +5991,7 @@ static void test_set_option()
 
 /*
   To test a misc GRANT option
-  bug #89
+  bug #89 (reported by mark@mysql.com)
 */
 static void test_prepare_grant()
 {
@@ -6084,8 +6084,8 @@ static void test_prepare_grant()
 
 /*
   To test a crash when invalid/corrupted .frm is used in the 
-  SHOW TABLE STATUS (in debug mode)
-  bug #93 
+  SHOW TABLE STATUS
+  bug #93 (reported by serg@mysql.com).
 */
 static void test_frm_bug()
 {
@@ -6166,6 +6166,215 @@ static void test_frm_bug()
   my_fclose(test_file,MYF(0));
   mysql_query(mysql,"drop table if exists test_frm_bug");
 }
+
+/*
+  To test DECIMAL conversion 
+*/
+static void test_decimal_bug()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  double     data;
+  int        rc;
+  my_bool    is_null;
+
+  myheader("test_decimal_bug");
+
+  mysql_autocommit(mysql, TRUE);
+
+  rc= mysql_query(mysql,"drop table if exists test_decimal_bug");
+  myquery(rc);
+  
+  rc = mysql_query(mysql, "create table test_decimal_bug(c1 decimal(10,2))");
+  myquery(rc);
+  
+  rc = mysql_query(mysql, "insert into test_decimal_bug value(8),(10.22),(5.61)");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql,"select c1 from test_decimal_bug where c1= ?",50);
+  mystmt_init(stmt);
+
+  bind[0].buffer_type= MYSQL_TYPE_DOUBLE;
+  bind[0].buffer= (char *)&data;
+  bind[0].buffer_length= 0;
+  bind[0].is_null= &is_null;
+  bind[0].length= 0;
+
+  is_null= 0; 
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  data= 8.0;
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  data=0; 
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  fprintf(stdout, "\n data: %g", data);
+  myassert(data == 8.0);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  data= 5.61;
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  data=0;
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  fprintf(stdout, "\n data: %g", data);
+  myassert(data == 5.61);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  is_null= 1;
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  data= 10.22; is_null= 0;
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  data=0; 
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  fprintf(stdout, "\n data: %g", data);
+  myassert(data == 10.22);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+}
+
+
+/*
+  To test EXPLAIN bug
+  bug #115 (reported by mark@mysql.com & georg@php.net).
+*/
+
+static void test_explain_bug()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_RES  *result;
+  int        rc;
+
+  myheader("test_explain_bug");
+
+  mysql_autocommit(mysql,TRUE);
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS test_explain");
+  myquery(rc);
+  
+  rc = mysql_query(mysql, "CREATE TABLE test_explain(id int, name char(2))");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql, "explain test_explain", 30);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert( 2 == my_process_stmt_result(stmt));  
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  fprintf(stdout, "\n total fields in the result: %d", 
+          mysql_num_fields(result));
+  myassert(7 == mysql_num_fields(result));
+
+  verify_prepare_field(result,0,"Field","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN);
+
+  verify_prepare_field(result,1,"Type","",MYSQL_TYPE_STRING,
+                       "","","",40);
+
+  verify_prepare_field(result,2,"Collation","",MYSQL_TYPE_STRING,
+                       "","","",40);
+
+  verify_prepare_field(result,3,"Null","",MYSQL_TYPE_STRING,
+                       "","","",1);
+
+  verify_prepare_field(result,4,"Key","",MYSQL_TYPE_STRING,
+                       "","","",3);
+
+  verify_prepare_field(result,5,"Default","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN);
+
+  verify_prepare_field(result,6,"Extra","",MYSQL_TYPE_STRING,
+                       "","","",20);
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+  
+  stmt = mysql_prepare(mysql, "explain select id, name FROM test_explain", 50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert( 1 == my_process_stmt_result(stmt)); 
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  fprintf(stdout, "\n total fields in the result: %d", 
+          mysql_num_fields(result));
+  myassert(10 == mysql_num_fields(result));
+
+  verify_prepare_field(result,0,"id","",MYSQL_TYPE_LONGLONG,
+                       "","","",3);
+
+  verify_prepare_field(result,1,"select_type","",MYSQL_TYPE_STRING,
+                       "","","",19);
+
+  verify_prepare_field(result,2,"table","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN);
+
+  verify_prepare_field(result,3,"type","",MYSQL_TYPE_STRING,
+                       "","","",10);
+
+  verify_prepare_field(result,4,"possible_keys","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN*32);
+
+  verify_prepare_field(result,5,"key","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN);
+
+  verify_prepare_field(result,6,"key_len","",MYSQL_TYPE_LONGLONG,
+                       "","","",3);
+
+  verify_prepare_field(result,7,"ref","",MYSQL_TYPE_STRING,
+                       "","","",NAME_LEN*16);
+
+  verify_prepare_field(result,8,"rows","",MYSQL_TYPE_LONGLONG,
+                       "","","",10);
+
+  verify_prepare_field(result,9,"Extra","",MYSQL_TYPE_STRING,
+                       "","","",255);
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+}
+
 
 
 /*
@@ -6385,10 +6594,12 @@ int main(int argc, char **argv)
     test_ushort_bug();      /* test a simple conv bug from php */
     test_sshort_bug();      /* test a simple conv bug from php */
     test_stiny_bug();       /* test a simple conv bug from php */
-    test_field_misc();      /* check the field info for misc case, bug: #74 */
+    test_field_misc();      /* check the field info for misc case, bug: #74 */   
     test_set_option();      /* test the SET OPTION feature, bug #85 */
     test_prepare_grant();   /* to test the GRANT command, bug #89 */
     test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
+    test_explain_bug();     /* test for the EXPLAIN, bug #115 */
+    test_decimal_bug();     /* test for the decimal bug */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

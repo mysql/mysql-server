@@ -182,7 +182,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
-		      result, &(lex->unit), &(lex->select_lex), 0, 0);
+		      result, &(lex->unit), &(lex->select_lex), 0);
   if (res && result)
     result->abort();
 
@@ -268,7 +268,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit,
-	      bool fake_select_lex, bool tables_and_fields_initied)
+	      bool tables_and_fields_initied)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -279,8 +279,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
-  if (!fake_select_lex)
-    select_lex->join= this;
+  select_lex->join= this;
   union_part= (unit->first_select()->next_select() != 0);
 
   /* Check that all tables, fields, conds and order are ok */
@@ -450,6 +449,7 @@ JOIN::optimize()
     // quick abort
     delete procedure;
     error= thd->is_fatal_error ? -1 : 1; 
+    DBUG_PRINT("error",("Error from optimize_cond"));
     DBUG_RETURN(error);
   }
 
@@ -457,6 +457,7 @@ JOIN::optimize()
       (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {						/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
+    error= 0;
     DBUG_RETURN(0);
   }
 
@@ -469,16 +470,18 @@ JOIN::optimize()
       if (res < 0)
       {
 	zero_result_cause= "No matching min/max row";
+	error=0; 
 	DBUG_RETURN(0);
       }
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
     }
   }
-
   if (!tables_list)
+  {
+    error= 0;
     DBUG_RETURN(0);
-
+  }
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, tables_list);
 
@@ -486,18 +489,24 @@ JOIN::optimize()
   thd->proc_info= "statistics";
   if (make_join_statistics(this, tables_list, conds, &keyuse) ||
       thd->is_fatal_error)
+  {
+    DBUG_PRINT("error",("Error: make_join_statistics() failed"));
     DBUG_RETURN(1);
+  }
 
   thd->proc_info= "preparing";
   if (result->initialize_tables(this))
   {
-    DBUG_RETURN(1);				// error = -1
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
   if (const_table_map != found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
     zero_result_cause= "no matching row in const table";
+    DBUG_PRINT("error",("Error: %s", zero_result_cause));
     select_options= 0; //TODO why option in return_zero_rows was droped
+    error= 0;
     DBUG_RETURN(0);
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -536,13 +545,14 @@ JOIN::optimize()
   if (error)
   {						/* purecov: inspected */
     error= -1;					/* purecov: inspected */
+    DBUG_PRINT("error",("Error: make_select() failed"));
     DBUG_RETURN(1);
   }
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
-    DBUG_RETURN(0);
+    DBUG_RETURN(0);				// error == 0
   }
 
   error= -1;					/* if goto err */
@@ -706,8 +716,10 @@ JOIN::optimize()
   }
 
   if (select_options & SELECT_DESCRIBE)
+  {
+    error= 0;
     DBUG_RETURN(0);
-
+  }
   tmp_having= having;
   having= 0;
 
@@ -807,10 +819,12 @@ JOIN::optimize()
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
+      error= 0;				// Ensure that tmp_join.error= 0
       restore_tmp();
     }
   }
 
+  error= 0;
   DBUG_RETURN(0);
 }
 
@@ -876,9 +890,9 @@ void
 JOIN::exec()
 {
   int      tmp_error;
-
   DBUG_ENTER("JOIN::exec");
   
+  error= 0;
   if (procedure)
   {
     if (procedure->change_columns(fields_list) ||
@@ -888,7 +902,6 @@ JOIN::exec()
 
   if (!tables_list)
   {                                           // Only test of functions
-    error=0;
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, false, false, false,
 		      (zero_result_cause?zero_result_cause:"No tables used"));
@@ -915,8 +928,6 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    error=0;
-
     (void) return_zero_rows(this, result, tables_list, fields_list,
 			    tmp_table_param.sum_func_count != 0 &&
 			    !group_list,
@@ -941,7 +952,6 @@ JOIN::exec()
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
 		    select_distinct);
-    error=0;
     DBUG_VOID_RETURN;
   }
 
@@ -1253,6 +1263,7 @@ JOIN::exec()
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Clean up join. Return error that hold JOIN.
 */
@@ -1261,12 +1272,23 @@ int
 JOIN::cleanup(THD *thd)
 {
   DBUG_ENTER("JOIN::cleanup");
-
   select_lex->join= 0;
 
   if (tmp_join)
-    memcpy(this, tmp_join, sizeof(tmp_join));
-
+  {
+    if (join_tab != tmp_join->join_tab)
+    {
+      JOIN_TAB *tab, *end;
+      for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
+      {
+	delete tab->select;
+	delete tab->quick;
+	x_free(tab->cache.buff);
+      }
+    }
+    tmp_join->tmp_join= 0;
+    DBUG_RETURN(tmp_join->cleanup(thd));
+  }
 
   lock=0;                                     // It's faster to unlock later
   join_free(this, 1);
@@ -1286,21 +1308,21 @@ JOIN::cleanup(THD *thd)
   DBUG_RETURN(error);
 }
 
+
 int
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields, 
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex, bool fake_select_lex,
-	     bool tables_and_fields_initied)
+	     SELECT_LEX *select_lex,  bool tables_and_fields_initied)
 {
   int err;
   bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
   JOIN *join;
-  if (!fake_select_lex && select_lex->join != 0)
+  if (select_lex->join != 0)
   {
     //here is EXPLAIN of subselect or derived table
     join= select_lex->join;
@@ -1320,8 +1342,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit, fake_select_lex,
-		      tables_and_fields_initied))
+		      select_lex, unit, tables_and_fields_initied))
     {
       DBUG_RETURN(-1);
     }
@@ -1350,7 +1371,7 @@ err:
     thd->limit_found_rows= curr_join->send_records;
     thd->examined_row_count= curr_join->examined_rows;
     thd->proc_info="end";
-    err= (fake_select_lex ? curr_join->error : join->cleanup(thd));
+    err= join->cleanup(thd);
     if (thd->net.report_error)
       err= -1;
     delete join;
@@ -2757,19 +2778,15 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
-	store_key_item *tmp=new store_key_item(thd,
-					       keyinfo->key_part[i].field,
-					       (char*)key_buff +
-					       maybe_null,
-					       maybe_null ?
-					       (char*) key_buff : 0,
-					       keyinfo->key_part[i].length,
-					       keyuse->val);
+	store_key_item tmp(thd, keyinfo->key_part[i].field,
+                           (char*)key_buff + maybe_null,
+                           maybe_null ?  (char*) key_buff : 0,
+                           keyinfo->key_part[i].length, keyuse->val);
 	if (thd->is_fatal_error)
 	{
 	  return TRUE;
 	}
-	tmp->copy();
+	tmp.copy();
       }
       else
 	*ref_key++= get_store_key(thd,
@@ -2920,6 +2937,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     {
       JOIN_TAB *tab=join->join_tab+i;
       table_map current_map= tab->table->map;
+      /*
+	Following force including random expression in last table condition.
+	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      if (i == join->tables-1)
+	current_map|= RAND_TABLE_BIT;
       bool use_quick_range=0;
       used_tables|=current_map;
 
@@ -3753,6 +3776,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       == Item_func::COND_AND_FUNC;
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     Item::cond_result tmp_cond_value;
+    bool should_fix_fields=0;
 
     *cond_value=Item::COND_UNDEF;
     Item *item;
@@ -3772,6 +3796,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	delete item;				// This may be shared
 #endif
 	VOID(li.replace(new_item));
+	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)
 	*cond_value=tmp_cond_value;
@@ -3798,6 +3823,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	break; /* purecov: deadcode */
       }
     }
+    if (should_fix_fields)
+      cond->fix_fields(current_thd,0, &cond);
+
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)
       return (COND*) 0;
@@ -4898,6 +4926,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     error=0;
     if (!table)					// If sending data to client
     {
+      /*
+	The following will unlock all cursors if the command wasn't an
+	update command
+      */
       join_free(join, 0);				// Unlock all cursors
       if (join->result->send_eof())
 	error= 1;				// Don't send error
@@ -4909,17 +4941,25 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     int tmp;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
-      my_errno=tmp;
+      DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
+      my_errno= tmp;
       error= -1;
     }
     if ((tmp=table->file->index_end()))
     {
-      my_errno=tmp;
+      DBUG_PRINT("error",("index_end() failed"));
+      my_errno= tmp;
       error= -1;
     }
     if (error == -1)
       table->file->print_error(my_errno,MYF(0));
   }
+#ifndef DBUG_OFF
+  if (error)
+  {
+    DBUG_PRINT("error",("Error: do_select() failed"));
+  }
+#endif
   DBUG_RETURN(error || join->thd->net.report_error);
 }
 
@@ -6705,8 +6745,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 		       NullS))
     DBUG_RETURN(1);
 
-  // BAR TODO: this must be fixed to use charset from "table" argument
-  if (hash_init(&hash, default_charset_info, (uint) file->records, 0, 
+  if (hash_init(&hash, &my_charset_bin, (uint) file->records, 0, 
 		key_length,(hash_get_key) 0, 0, 0))
   {
     my_free((char*) key_buffer,MYF(0));
@@ -7086,15 +7125,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 		   TABLE_LIST *tables,ORDER *order, List<Item> &fields,
 		   List<Item> &all_fields)
 {
-  if ((*order->item)->type() == Item::INT_ITEM)
+  Item *itemptr=*order->item;
+  if (itemptr->type() == Item::INT_ITEM)
   {						/* Order by position */
     Item *item=0;
 
-    uint count= (uint) ((Item_int*) (*order->item))->value;
-    if (count > fields.elements)
+    uint count= (uint) ((Item_int*)itemptr)->value;
+    if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0),(*order->item)->full_name(),
+		      MYF(0),itemptr->full_name(),
 	       thd->where);
       return 1;
     }
@@ -7103,8 +7143,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(*order->item, fields, &counter,
-				 IGNORE_ERRORS);
+  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
   if (item)
   {
     order->item= ref_pointer_array + counter;
@@ -7683,7 +7722,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (_db_on_ && !item_field->name)
 	{
 	  char buff[256];
-	  String str(buff,sizeof(buff),default_charset_info);
+	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
 	  item->print(&str);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
@@ -8097,7 +8136,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->having,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex, 0, 0);
+			result, unit, select_lex, 0);
   DBUG_RETURN(res);
 }
 

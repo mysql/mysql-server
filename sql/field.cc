@@ -204,7 +204,7 @@ bool Field::send_binary(Protocol *protocol)
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),charset());
   val_str(&tmp,&tmp);
-  return protocol->store(tmp.ptr(), tmp.length());
+  return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
 }
 
 
@@ -248,7 +248,7 @@ void Field_str::make_field(Send_field *field)
 
 void Field_str::add_binary_or_charset(String &res) const
 {
-  if (binary())
+  if (charset() == &my_charset_bin)
     res.append(" binary");
   else  if (field_charset != table->table_charset &&
 	    !(current_thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
@@ -3875,13 +3875,18 @@ void Field_datetime::sql_type(String &res) const
 
 	/* Copy a string and fill with space */
 
+static bool use_conversion(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+{
+  return (cs1 != &my_charset_bin) && (cs2 != &my_charset_bin) && (cs1!=cs2);
+}
+
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4063,7 +4068,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4280,7 +4285,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
-   packlength(blob_pack_length), geom_flag(true)
+   geom_flag(true), packlength(blob_pack_length)
 {
   flags|= BLOB_FLAG;
   if (table)
@@ -4380,7 +4385,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
     /* Convert character set if nesessary */
-    if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+    if (use_conversion(cs, field_charset))
     { 
       tmpstr.copy(from, length, cs, field_charset);
       from= tmpstr.ptr();
@@ -4520,7 +4525,7 @@ void Field_blob::get_key_image(char *buff,uint length,
 
     MBR mbr;
     Geometry gobj;
-    gobj.create_from_wkb(blob,blob_length);
+    gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
     gobj.get_mbr(&mbr);
     float8store(buff,    mbr.xmin);
     float8store(buff+8,  mbr.xmax);
@@ -4549,35 +4554,6 @@ void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
   (void) Field_blob::store(buff+2,length,cs);
 }
 
-
-void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs,
-			       imagetype type)
-{
-  length-=HA_KEY_BLOB_LENGTH;
-  ulong blob_length=get_length(ptr);
-  char *blob;
-  get_ptr(&blob);
-
-  MBR mbr;
-  Geometry gobj;
-  gobj.create_from_wkb(blob,blob_length);
-  gobj.get_mbr(&mbr);
-  float8store(buff,    mbr.xmin);
-  float8store(buff+8,  mbr.xmax);
-  float8store(buff+16, mbr.ymin);
-  float8store(buff+24, mbr.ymax);
-  return;
-}
-
-void Field_geom::set_key_image(char *buff,uint length,CHARSET_INFO *cs)
-{
-  Field_blob::set_key_image(buff, length, cs);
-}
-
-void Field_geom::sql_type(String &res) const
-{
-  res.set("geometry", 8, &my_charset_latin1);
-}
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
@@ -4627,7 +4603,7 @@ void Field_blob::sql_type(String &res) const
   case 4:  str="long";  length=4; break;
   }
   res.set_latin1(str,length);
-  if (binary())
+  if (charset() == &my_charset_bin)
     res.append("blob");
   else
   {
@@ -4771,6 +4747,90 @@ uint Field_blob::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+
+void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+			       imagetype type)
+{
+  length-= HA_KEY_BLOB_LENGTH;
+  ulong blob_length= get_length(ptr);
+  char *blob;
+  get_ptr(&blob);
+
+  MBR mbr;
+  Geometry gobj;
+  gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
+  gobj.get_mbr(&mbr);
+  float8store(buff, mbr.xmin);
+  float8store(buff + 8, mbr.xmax);
+  float8store(buff + 16, mbr.ymin);
+  float8store(buff + 24, mbr.ymax);
+  return;
+}
+
+
+void Field_geom::set_key_image(char *buff, uint length, CHARSET_INFO *cs)
+{
+  Field_blob::set_key_image(buff, length, cs);
+}
+
+void Field_geom::sql_type(String &res) const
+{
+  CHARSET_INFO *cs= &my_charset_latin1;
+  switch (geom_type)
+  {
+    case GEOM_POINT:
+     res.set("point", 5, cs);
+     break;
+    case GEOM_LINESTRING:
+     res.set("linestring", 10, cs);
+     break;
+    case GEOM_POLYGON:
+     res.set("polygon", 7, cs);
+     break;
+    case GEOM_MULTIPOINT:
+     res.set("multipoint", 10, cs);
+     break;
+    case GEOM_MULTILINESTRING:
+     res.set("multilinestring", 15, cs);
+     break;
+    case GEOM_MULTIPOLYGON:
+     res.set("multipolygon", 12, cs);
+     break;
+    case GEOM_GEOMETRYCOLLECTION:
+     res.set("geometrycollection", 18, cs);
+     break;
+    default:
+     res.set("geometry", 8, cs);
+  }
+}
+
+
+int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
+{
+  if (!length)
+  {
+    bzero(ptr, Field_blob::pack_length());
+  }
+  else
+  {
+    // Should check given WKB
+    if (length < 4 + 1 + 4 + 8 + 8)		// SRID + WKB_HEADER + X + Y
+      return 1;
+    uint32 wkb_type= uint4korr(from + 5);
+    if (wkb_type < 1 || wkb_type > 7)
+      return 1;
+    Field_blob::store_length(length);
+    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    {						// Must make a copy
+      value.copy(from, length, cs);
+      from= value.ptr();
+    }
+    bmove(ptr + packlength, (char*) &from, sizeof(char*));
+  }
+  return 0;
+}
+
+
 /****************************************************************************
 ** enum type.
 ** This is a string which only can have a selection of different values.
@@ -4857,7 +4917,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5072,7 +5132,7 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5158,7 +5218,7 @@ void Field_set::sql_type(String &res) const
 
 bool Field::eq_def(Field *field)
 {
-  if (real_type() != field->real_type() || binary() != field->binary() ||
+  if (real_type() != field->real_type() || charset() != field->charset() ||
       pack_length() != field->pack_length())
     return 0;
   return 1;
@@ -5252,6 +5312,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  uint pack_flag,
 		  enum_field_types field_type,
 		  CHARSET_INFO *field_charset,
+		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
 		  const char *field_name,
@@ -5275,7 +5336,7 @@ Field *make_field(char *ptr, uint32 field_length,
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length);
+			    pack_length, geom_type);
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,

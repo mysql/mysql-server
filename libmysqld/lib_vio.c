@@ -33,7 +33,6 @@
 #include <violite.h>
 #include <my_net.h>
 #include <m_string.h>
-#include <dbug.h>
 #include <assert.h>
 
 #ifndef __WIN__
@@ -199,7 +198,7 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf)
+my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 {
   return(0);
 }

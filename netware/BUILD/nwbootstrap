@@ -1,0 +1,166 @@
+#! /bin/sh
+
+# debug
+#set -x
+
+path=`dirname $0`
+
+# stop on errors
+set -e
+
+# repository direcotry
+repo_dir=`pwd`
+
+# build direcotry
+build_dir="$HOME/mydev"
+wine_build_dir="F:/mydev"
+
+# doc directory
+doc_dir="$repo_dir/../mysqldoc"
+
+# init
+target_dir=""
+temp_dir=""
+revision=""
+rev=""
+build=""
+mwenv=""
+
+# show usage
+show_usage()
+{
+	cat << EOF
+
+usage: nwbootstrap [options]
+
+Exports a revision of the BitKeeper tree (nwbootstrap must be run inside a
+directory of the BitKeeper tree to be used).  Creates the ChangeLog file.
+Adds the latest manual.texi from the mysqldoc BitKeeper tree.  Builds the
+Linux tools required for cross-platform builds.  Optionally, builds the 
+binary distributions for NetWare.
+
+options:
+
+--build=<opt>               Build the binary distributions for NetWare,
+                            where <opt> is "standard", "debug", or "all"
+                            (default is to not build a binary distribution)
+                            
+--build-dir=<dir>           Export the BitKeeper tree to the <dir> directroy
+                            (default is "$build_dir")
+                            
+--doc-dir=<dir>             Use the mysqldoc BitKeeper tree located in the
+                            <dir> directory
+                            (default is parallel to current BitKeeper tree)
+                            
+--help                      Show this help information
+
+--revision=<rev>            Export the BitKeeper tree as of revision <rev>
+                            (default is the latest revision)
+                            
+--wine-build-dir=<dir>      Use the WINE directory <dir>, which should
+                            correspond to the --build-dir directory
+                            (default is "$wine_build_dir")
+
+examples:
+
+  nwbootstrap
+
+  nwbootstrap --revision=1.1594 --build=all
+  
+  nwbootstrap --build-dir=/home/jdoe/dev --wine-build-dir=F:/dev
+
+
+EOF
+	exit 0;
+}
+
+# parse arguments
+for arg do
+  case "$arg" in
+    --build-dir=*) build_dir=`echo "$arg" | sed -e "s;--build-dir=;;"` ;;
+    --wine-build-dir=*) wine_build_dir=`echo "$arg" | sed -e "s;--wine-build-dir=;;"` ;;
+    --revision=*) revision=`echo "$arg" | sed -e "s;--revision=;;"` ;;
+    --build=*) build=`echo "$arg" | sed -e "s;--build=;;"` ;;
+    --doc-dir=*) doc_dir=`echo "$arg" | sed -e "s;--doc-dir=;;"` ;;
+    *) show_usage ;;
+  esac
+done
+
+echo "starting build..."
+
+# check for bk and repo_dir
+bk help > /dev/null
+repo_dir=`bk root $repo_dir`
+cd $repo_dir
+doc_dir="$repo_dir/../mysqldoc"
+
+# build temporary directory
+temp_dir="$build_dir/mysql-$$.tmp"
+
+# export the bk tree
+command="bk export";
+if test $revision; then command="$command -r$revision"; fi
+command="$command $temp_dir"
+echo "exporting $repo_dir..."
+$command
+
+# determine version
+version=`grep -e "AM_INIT_AUTOMAKE(mysql, .*)" < $temp_dir/configure.in | sed -e "s/AM_INIT_AUTOMAKE(mysql, \(.*\))/\1/"`
+echo "version: $version"
+
+# build target directory
+target_dir="$build_dir/mysql-$version"
+
+# delete any old target
+if test -d $target_dir.old; then rm -rf $target_dir.old; fi
+
+# rename old target
+if test -d $target_dir; then mv -f $target_dir $target_dir.old; fi
+
+# rename directory to use version
+mv $temp_dir $target_dir
+
+# create ChangeLog
+if test $revision
+then
+	rev=`bk changes -r..$revision -t -d':REV:' -n | head -2 | tail -1`
+else
+	rev=`bk changes -t -d':REV:' -n | head -1`
+fi
+
+echo "creating ChangeLog..."
+bk changes -v -r$rev..$revision > $target_dir/ChangeLog
+
+# add the latest manual
+if test -d $doc_dir
+then
+	echo "adding the latest manual..."
+	install -m 644 $doc_dir/Docs/{manual,reservedwords}.texi $target_dir/Docs/
+fi
+
+# make files writeable
+cd $target_dir
+chmod -R u+rw,g+rw .
+
+# edit the mvenv file
+mwenv="./netware/BUILD/mwenv"
+mv -f $mwenv $mwenv.org
+sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
+	-e "s;BUILD_DIR;$build_dir;g" \
+  -e "s;VERSION;$version;g" $mwenv.org > $mwenv
+chmod +rwx $mwenv
+
+# build linux tools
+echo "compiling linux tools..."
+./netware/BUILD/compile-linux-tools
+
+# compile
+if test $build
+then
+	echo "compiling $build..."
+  ./netware/BUILD/compile-netware-$build
+fi
+
+echo "done"
+
+

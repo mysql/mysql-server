@@ -8641,7 +8641,7 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_euc_kr =
 {
-    19,			/* number */
+    19,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "euckr",		/* cs name    */
     "euckr",		/* name */
@@ -8652,6 +8652,7 @@ CHARSET_INFO my_charset_euc_kr =
     sort_order_euc_kr,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,

@@ -35,6 +35,8 @@
   it can be compiled with the UNSIGNED and/or LONGLONG flag set
 */
 
+#define strtoll glob_strtoll		/* Fix for True64 */
+
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"

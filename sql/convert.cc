@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#if 0
 
 /*
 ** Convert tables between different character sets
@@ -460,3 +461,5 @@ bool CONVERT::store(String *packet,const char *from,uint length)
   packet->length((uint) (store_dest(to, from, length)-packet->ptr()));
   return 0;
 }
+
+#endif

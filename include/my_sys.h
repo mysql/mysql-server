@@ -74,6 +74,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_FREE_ON_ERROR 128	/* my_realloc() ; Free old ptr on error */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
 #define MY_THREADSAFE	128	/* pread/pwrite:  Don't allow interrupts */
+#define MY_DONT_OVERWRITE_FILE 1024	/* my_copy; Don't overwrite file */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
@@ -202,26 +203,25 @@ extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 
 /* charsets */
 extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 extern uint get_charset_number(const char *cs_name);
 extern const char *get_charset_name(uint cs_number);
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
-extern my_bool set_default_charset(uint cs, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
-extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags);
-extern my_bool set_default_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, 
+					   uint cs_flags, myf my_flags);
 extern void free_charsets(void);
 extern char *list_charsets(myf want_flags); /* my_free() this string... */
 extern char *get_charsets_dir(char *buf);
+extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 
 
 /* statistics */
-extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
-		_my_cache_read;
-extern ulong	_my_blocks_used,_my_blocks_changed;
+extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
+		my_cache_read;
+extern ulong	my_blocks_used, my_blocks_changed;
 extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern my_bool	key_cache_inited, my_init_done;

@@ -101,6 +101,7 @@ typedef struct st_mi_create_info
   ulong raid_chunksize;
   uint old_options;
   uint8 language;
+  my_bool with_auto_increment;
 } MI_CREATE_INFO;
 
 struct st_myisam_info;			/* For referense */
@@ -363,8 +364,10 @@ typedef struct st_sort_info
   SORT_FT_BUF *ft_buf;
   /* sync things */
   uint got_error, threads_running;
+#ifdef THREAD
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
+#endif
 } SORT_INFO;
 
 /* functions in mi_check */

@@ -283,6 +283,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
+%token	MEMORY_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
 %token	NAMES_SYM
@@ -290,6 +291,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NATURAL
 %token	NEW_SYM
 %token	NCHAR_SYM
+%token	NCHAR_STRING
 %token	NOT
 %token	NO_SYM
 %token	NULL_SYM
@@ -458,6 +460,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FROM_UNIXTIME
 %token	GEOMCOLLFROMTEXT
 %token	GEOMFROMTEXT
+%token	GEOMFROMWKB
 %token  GEOMETRYCOLLECTION
 %token	GROUP_UNIQUE_USERS
 %token	HOUR_MINUTE_SYM
@@ -532,6 +535,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
 
+%token  HELP
+%token  BEFORE_SYM
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
 %left	AND
@@ -556,7 +561,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
-        UNDERSCORE_CHARSET
+        UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_db
+	NCHAR_STRING
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -635,6 +641,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_user> user grant_user
 
 %type <charset>
+	opt_collate
 	charset_name
 	charset_name_or_default
 	collation_name
@@ -659,9 +666,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	when_list2 expr_list2  handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
-	field_opt_list opt_binary table_lock_list table_lock varchar
+	field_opt_list opt_binary table_lock_list table_lock
 	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
-	opt_delete_options opt_delete_option
+	opt_delete_options opt_delete_option varchar nchar nvarchar
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
@@ -673,7 +680,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list union_option
-	precision subselect_start opt_and
+	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
 
@@ -769,22 +776,22 @@ master_defs:
        | master_defs ',' master_def;
 
 master_def:
-       MASTER_HOST_SYM EQ TEXT_STRING
+       MASTER_HOST_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.host = $3.str;
        }
        |
-       MASTER_USER_SYM EQ TEXT_STRING
+       MASTER_USER_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.user = $3.str;
        }
        |
-       MASTER_PASSWORD_SYM EQ TEXT_STRING
+       MASTER_PASSWORD_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.password = $3.str;
        }
        |
-       MASTER_LOG_FILE_SYM EQ TEXT_STRING
+       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.log_file_name = $3.str;
        }
@@ -804,7 +811,7 @@ master_def:
 	 Lex->mi.connect_retry = $3;
        }
        |
-       RELAY_LOG_FILE_SYM EQ TEXT_STRING
+       RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.relay_log_name = $3.str;
        }
@@ -874,14 +881,14 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type UDF_SYM IDENT
+	| CREATE udf_func_type UDF_SYM IDENT_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = $4;
 	    lex->udf.type= $2;
 	  }
-	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
+	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->udf.returns=(Item_result) $7;
@@ -926,10 +933,9 @@ create_database_options:
 create_database_option:
 	  COLLATE_SYM collation_name_or_default	
 	  { Lex->create_info.table_charset=$2; }
-	| opt_default CHAR_SYM SET charset_name_or_default
-	  { Lex->create_info.table_charset=$4; }
-	| opt_default CHARSET charset_name_or_default
-	  { Lex->create_info.table_charset=$3; };
+	| opt_default charset charset_name_or_default
+	  { Lex->create_info.table_charset=$3; }
+	;
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -964,8 +970,8 @@ create_table_option:
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD opt_equal TEXT_STRING	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM opt_equal TEXT_STRING	{ Lex->create_info.comment=$3.str; }
+	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; }
+	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
 	| PACK_KEYS_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
 	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
@@ -988,14 +994,9 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default CHARSET opt_equal charset_name_or_default
+	| opt_default charset opt_equal charset_name_or_default
 	  {
 	    Lex->create_info.table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
-	  }
-	| opt_default CHAR_SYM SET opt_equal charset_name_or_default
-	  {
-	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| COLLATE_SYM opt_equal collation_name_or_default
@@ -1004,14 +1005,16 @@ create_table_option:
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING    { Lex->create_info.index_file_name= $4.str; };
+	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
+	  { Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
 	| MYISAM_SYM	{ $$= DB_TYPE_MYISAM; }
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
+	| MEMORY_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
 	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; };
 
@@ -1111,7 +1114,8 @@ field_spec:
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
-				lex->change,lex->interval,lex->charset))
+				lex->change,lex->interval,lex->charset,
+				lex->uint_geom_type))
 	    YYABORT;
 	};
 
@@ -1129,11 +1133,20 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
+	| nchar '(' NUM ')'		{ Lex->length=$3.str;
+					  $$=FIELD_TYPE_STRING; 
+					  Lex->charset=national_charset_info; }
+	| nchar				{ Lex->length=(char*) "1";
+					  $$=FIELD_TYPE_STRING; 
+					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
+	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
+					  $$=FIELD_TYPE_VAR_STRING;
+					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
@@ -1155,20 +1168,28 @@ type:
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_GEOMETRY;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| GEOMETRYCOLLECTION		{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_GEOMETRYCOLLECTION;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| POINT_SYM			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_POINT;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTIPOINT;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| LINESTRING			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_LINESTRING;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTILINESTRING		{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTILINESTRING;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| POLYGON			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_POLYGON;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOLYGON			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTIPOLYGON;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
@@ -1210,14 +1231,24 @@ type:
 
 char:
 	CHAR_SYM {}
-	| NCHAR_SYM {}
-	| NATIONAL_SYM CHAR_SYM {};
+	;
+
+nchar:
+	NCHAR_SYM {}
+	| NATIONAL_SYM CHAR_SYM {}
+	;
 
 varchar:
 	char VARYING {}
 	| VARCHAR {}
-	| NATIONAL_SYM VARCHAR {}
-	| NCHAR_SYM VARCHAR {};
+	;
+
+nvarchar:
+	NATIONAL_SYM VARCHAR {}
+	| NCHAR_SYM VARCHAR {}
+	| NATIONAL_SYM CHAR_SYM VARYING {}
+	| NCHAR_SYM VARYING {}
+	;
 
 int_type:
 	INT_SYM		{ $$=FIELD_TYPE_LONG; }
@@ -1287,7 +1318,7 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; }
 	| COLLATE_SYM collation_name 
 	  { 
-	    if (Lex->charset && strcmp(Lex->charset->csname,$2->csname))
+	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
 	    {
 	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
 			 $2->name,Lex->charset->csname);
@@ -1300,23 +1331,29 @@ attribute:
 	  }
 	;
 
+charset:
+	CHAR_SYM SET	{}
+	| CHARSET	{}
+	;
 
 charset_name:
-	ident
+	ident_or_text
 	{
-	  if (!($$=get_charset_by_csname($1.str,MYF(0))))
+	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
-	};
+	}
+	| BINARY { $$= &my_charset_bin; }
+	;
 
 charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
 collation_name:
-	ident
+	ident_or_text
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
@@ -1324,6 +1361,11 @@ collation_name:
 	    YYABORT;
 	  }
 	};
+
+opt_collate:
+	/* empty */	{ $$=NULL; }
+	| COLLATE_SYM collation_name { $$=$2; }
+	;
 
 collation_name_or_default:
 	collation_name { $$=$1;   }
@@ -1346,7 +1388,7 @@ opt_binary:
 	    YYABORT;
 	  }
 	}
-	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
+	| charset charset_name	{ Lex->charset=$2; } ;
 
 opt_primary:
 	/* empty */
@@ -1516,7 +1558,8 @@ alter_list_item:
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
-				  $3.str, lex->interval, lex->charset))
+				  $3.str, lex->interval, lex->charset,
+				  lex->uint_geom_type))
 	       YYABORT;
           }
           opt_place
@@ -1631,7 +1674,7 @@ restore:
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
 	}
-	table_list FROM TEXT_STRING
+	table_list FROM TEXT_STRING_sys
         {
 	  Lex->backup_dir = $6.str;
         };
@@ -1641,7 +1684,7 @@ backup:
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
 	}
-	table_list TO_SYM TEXT_STRING
+	table_list TO_SYM TEXT_STRING_sys
         {
 	  Lex->backup_dir = $6.str;
         };
@@ -1891,9 +1934,9 @@ select_item:
 	    if (add_item_to_list(YYTHD, $2))
 	      YYABORT;
 	    if ($4.str)
-	      $2->set_name($4.str);
+	      $2->set_name($4.str,$4.length,system_charset_info);
 	    else if (!$2->name)
-	      $2->set_name($1,(uint) ($3 - $1));
+	      $2->set_name($1,(uint) ($3 - $1), YYTHD->charset());
 	  };
 
 remember_name:
@@ -1907,11 +1950,12 @@ select_item2:
 	| expr		{ $$=$1; };
 
 select_alias:
-	{ $$.str=0;}
-	| AS ident { $$=$2; }
-	| AS TEXT_STRING  { $$=$2; }
-	| ident { $$=$1; }
-	| TEXT_STRING  { $$=$1; };
+	/* empty */		{ $$.str=0;}
+	| AS ident		{ $$=$2; }
+	| AS TEXT_STRING_sys	{ $$=$2; }
+	| ident			{ $$=$1; }
+	| TEXT_STRING_sys	{ $$=$1; }
+	;
 
 optional_braces:
 	/* empty */ {}
@@ -1989,8 +2033,7 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$3,$4,0); }
 	| expr '-' interval_expr interval
 	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| expr COLLATE_SYM collation_name
-	  { $$= new Item_func_set_collation($1,$3); };
+	;
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
@@ -2099,6 +2142,11 @@ interval_expr:
 
 simple_expr:
 	simple_ident
+ 	| simple_expr COLLATE_SYM ident_or_text %prec NEG
+	  { 
+	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
+					    YYTHD->variables.thd_charset));
+	  }
 	| literal
 	| param_marker
 	| '@' ident_or_text SET_VAR expr
@@ -2142,7 +2190,11 @@ simple_expr:
           { Select->add_ftfunc_to_list((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
-	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,&my_charset_bin); }
+	| BINARY expr %prec NEG 
+	  {
+	    $$= new Item_func_set_collation($2,new Item_string("BINARY",6,
+					    &my_charset_latin1));
+	  }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -2205,9 +2257,9 @@ simple_expr:
 	    Lex->uncacheable();;
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
-	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
+	| DECODE_SYM '(' expr ',' TEXT_STRING_db ')'
 	  { $$= new Item_func_decode($3,$5.str); }
-	| ENCODE_SYM '(' expr ',' TEXT_STRING ')'
+	| ENCODE_SYM '(' expr ',' TEXT_STRING_db ')'
 	 { $$= new Item_func_encode($3,$5.str); }
 	| DES_DECRYPT_SYM '(' expr ')'
         { $$= new Item_func_des_decrypt($3); }
@@ -2238,7 +2290,11 @@ simple_expr:
 	| GEOMFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
+	| GEOMFROMWKB '(' expr ')'
+	  { $$= new Item_func_geometry_from_wkb($3); }
+	| GEOMFROMWKB '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_wkb($3, $5); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
@@ -2284,7 +2340,7 @@ simple_expr:
  	| GEOMCOLLFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
@@ -2296,7 +2352,7 @@ simple_expr:
  	| LINEFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| LINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MASTER_POS_WAIT '(' expr ',' expr ')'
 	  { 
 	    $$= new Item_master_pos_wait($3, $5);
@@ -2319,15 +2375,15 @@ simple_expr:
  	| MLINEFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MLINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MPOINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MPOLYFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MULTIPOINT '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
@@ -2347,11 +2403,11 @@ simple_expr:
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| POLYFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| POLYGON '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
@@ -2804,8 +2860,8 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING	{ $$= $2.str; }
-	| /* empty */		{ $$= (char*) "\\"; };
+	ESCAPE_SYM TEXT_STRING_db	{ $$= $2.str; }
+	| /* empty */			{ $$= (char*) "\\"; };
 
 
 /*
@@ -3001,7 +3057,7 @@ procedure_item:
 	    if (add_proc_to_list(lex->thd, $2))
 	      YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1));
+	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1), YYTHD->charset());
 	  }
           ;
 
@@ -3030,11 +3086,12 @@ select_var_ident:  '@' ident_or_text
            ;
 
 into:
-        INTO OUTFILE TEXT_STRING
+        INTO OUTFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
+	    lex->uncacheable();
 	    if (!(lex->exchange= new sql_exchange($3.str,0)))
 	      YYABORT;
 	    if (!(lex->result= new select_export(lex->exchange)))
@@ -3042,11 +3099,12 @@ into:
 	  }
 	}
 	opt_field_term opt_line_term
-	| INTO DUMPFILE TEXT_STRING
+	| INTO DUMPFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
+	    lex->uncacheable();
 	    if (!(lex->exchange= new sql_exchange($3.str,1)))
 	      YYABORT;
 	    if (!(lex->result= new select_dump(lex->exchange)))
@@ -3104,7 +3162,7 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP UDF_SYM IDENT
+	| DROP UDF_SYM IDENT_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
@@ -3385,7 +3443,8 @@ table_wild_one:
         }
 	| ident '.' ident opt_wild opt_table_alias
 	  {
-	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
+	    if (!Select->add_table_to_list(YYTHD,
+					   new Table_ident(YYTHD, $1, $3, 0),
 					   $5, TL_OPTION_UPDATING,
 					   Lex->lock_option))
 	      YYABORT;
@@ -3464,7 +3523,7 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
-	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num
+	  TEXT_STRING_sys AND MASTER_LOG_POS_SYM EQ ulonglong_num
 	  AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
@@ -3529,8 +3588,10 @@ show_param:
 	    thd->lex.sql_command= SQLCOM_SHOW_VARIABLES;
 	    thd->lex.option_type= (enum_var_type) $1;
 	  }
-	| CHAR_SYM SET wild
+	| charset wild
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
+	| COLLATION_SYM wild
+	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
@@ -3579,7 +3640,7 @@ from_or_in:
 
 binlog_in:
 	/* empty */ { Lex->mi.log_file_name = 0; }
-        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; };
+        | IN_SYM TEXT_STRING_sys { Lex->mi.log_file_name = $2.str; };
 
 binlog_from:
 	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
@@ -3671,13 +3732,34 @@ purge:
 	PURGE
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command = SQLCOM_PURGE;
 	  lex->type=0;
+	} purge_options
+	{}
+	;
+
+purge_options:
+	LOGS_SYM purge_option
+	| MASTER_SYM LOGS_SYM purge_option
+	;
+
+purge_option:
+        TO_SYM TEXT_STRING_sys
+        {
+	   Lex->sql_command = SQLCOM_PURGE;
+	   Lex->to_log = $2.str;
+        }
+	| BEFORE_SYM expr
+	{
+	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
+	  {
+	    net_printf(Lex->thd, ER_WRONG_ARGUMENTS, "PURGE LOGS BEFORE");
+	    YYABORT;	  
+	  }
+	  Item *tmp= new Item_func_unix_timestamp($2);
+	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
+	  Lex->purge_time= tmp->val_int();
 	}
-        MASTER_SYM LOGS_SYM TO_SYM TEXT_STRING
-         {
-	   Lex->to_log = $6.str;
-         } ;
+	;
 
 /* kill threads */
 
@@ -3705,7 +3787,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
+load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
@@ -3789,17 +3871,24 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING
-	{ $$ = new Item_string($1.str,$1.length,
-			       YYTHD->variables.thd_charset); }
+	TEXT_STRING_db
+	{
+	  THD *thd= YYTHD;
+	  CHARSET_INFO *cs= my_charset_same(thd->charset(),thd->db_charset) ?
+			    thd->charset() : thd->db_charset;
+	  $$ = new Item_string($1.str,$1.length,cs);
+	}
+	| NCHAR_STRING
+	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->charset,Item::COER_IMPLICIT); }
-	| text_literal TEXT_STRING
-	  { ((Item_string*) $1)->append($2.str,$2.length); };
+	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
+	| text_literal TEXT_STRING_db
+	  { ((Item_string*) $1)->append($2.str,$2.length); }
+	;
 
 text_string:
-	TEXT_STRING
-	{ $$=  new String($1.str,$1.length,YYTHD->variables.thd_charset); }
+	TEXT_STRING_db
+	{ $$=  new String($1.str,$1.length,YYTHD->db_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -3832,8 +3921,15 @@ literal:
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
-			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
+			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
+	| UNDERSCORE_CHARSET HEX_NUM
+	  { 
+	    Item *tmp= new Item_varbinary($2.str,$2.length);
+	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() : 0, 
+				 Lex->charset);
+	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
@@ -3918,26 +4014,81 @@ field_ident:
 
 table_ident:
 	ident			{ $$=new Table_ident($1); }
-	| ident '.' ident	{ $$=new Table_ident($1,$3,0);}
+	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
 	| '.' ident		{ $$=new Table_ident($2);}
    /* For Delphi */;
 
+IDENT_sys:
+	IDENT
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),system_charset_info))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+TEXT_STRING_sys:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),system_charset_info))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+TEXT_STRING_db:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),thd->db_charset))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),thd->db_charset);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+
 ident:
-	IDENT	    { $$=$1; }
+	IDENT_sys	    { $$=$1; }
 	| keyword
 	{
 	  LEX *lex= Lex;
 	  $$.str= lex->thd->strmake($1.str,$1.length);
 	  $$.length=$1.length;
-	  if (lex->next_state != STATE_END)
-	    lex->next_state=STATE_OPERATOR_OR_IDENT;
+	  if (lex->next_state != MY_LEX_END)
+	    lex->next_state= MY_LEX_OPERATOR_OR_IDENT;
 	}
 	;
 
 ident_or_text:
-	ident 		{ $$=$1;}
-	| TEXT_STRING	{ $$=$1;}
-	| LEX_HOSTNAME	{ $$=$1;};
+	ident 			{ $$=$1;}
+	| TEXT_STRING_sys	{ $$=$1;}
+	| LEX_HOSTNAME		{ $$=$1;};
 
 user:
 	ident_or_text
@@ -4052,6 +4203,7 @@ keyword:
 	| MAX_UPDATES_PER_HOUR	{}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
+	| MEMORY_SYM		{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}
@@ -4201,19 +4353,67 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| CHAR_SYM SET opt_equal set_expr_or_default
+	| charset set_expr_or_default
 	{
-	  LEX *lex=Lex;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  if (!$2)
+	  {
+	    CHARSET_INFO *cl= thd->db_charset;
+	    $2= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	  }
 	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("convert_character_set"),
-					      $4));
+					      find_sys_var("client_collation"),
+					      $2));
 	}
-	| NAMES_SYM opt_equal set_expr_or_default
+	| NAMES_SYM charset_name_or_default opt_collate
 	{
-	  LEX *lex=Lex;
+	  THD* thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
+	  CHARSET_INFO *cl= $3 ? $3 : cs;
+
+	  if (!my_charset_same(cs,cl))
+	  {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
+		         cl->name,cs->csname);
+	      YYABORT;
+	  }
+	  Item_string *csname= new Item_string(cl->name, 
+					       strlen(cl->name), 
+					       &my_charset_latin1);
 	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_character_set"),
-					      $3));
+					      find_sys_var("client_collation"),
+					      csname));
+	}
+	| COLLATION_SYM collation_name_or_default
+	{
+	  THD* thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  system_variables *vars= &thd->variables;
+	  CHARSET_INFO *cs= vars->thd_charset;
+	  CHARSET_INFO *cl= $2;
+
+	  if (!cl)
+	  {
+	    if (!(cl=get_charset_by_csname(cs->csname,MY_CS_PRIMARY,MYF(0))))
+	    {
+	      net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"DEFAULT");
+	      YYABORT;
+	    }
+	  }
+	  else if (!my_charset_same(cs,cl))
+	  {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
+		         cl->name,cs->csname);
+	      YYABORT;
+	  }
+	  Item_string *csname= new Item_string(cl->name, 
+					       strlen(cl->name), 
+					       &my_charset_latin1);
+	  lex->var_list.push_back(new set_var(lex->option_type,
+					      find_sys_var("client_collation"),
+					      csname));
 	}
 	| PASSWORD equal text_or_password
 	  {
@@ -4718,10 +4918,10 @@ optional_order_or_limit:
 	    LEX *lex= &thd->lex;
 	    DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
 	    SELECT_LEX *sel= lex->current_select->select_lex();
-	    sel->master_unit()->global_parameters=
-	      sel->master_unit();
-	    lex->current_select= sel->master_unit();
-	    lex->current_select->no_table_names_allowed= 1;
+	    SELECT_LEX_UNIT *unit= sel->master_unit();
+	    unit->global_parameters= unit;
+	    unit->no_table_names_allowed= 1;
+	    lex->current_select= unit;
 	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit

@@ -1,8 +1,8 @@
 select database(),user() like "%@%";
 database()	user() like "%@%"
 test	1
-select version()>="3.23.29";
-version()>="3.23.29"
+select version()>=_utf8"3.23.29";
+version()>=_utf8"3.23.29"
 1
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL

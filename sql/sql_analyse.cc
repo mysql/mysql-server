@@ -41,13 +41,13 @@
 int sortcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)
 {
-  return sortcmp(a,b);
+  return sortcmp(a,b,a->charset());
 }
 
 int stringcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)
 {
-  return stringcmp(a,b);
+  return sortcmp(a,b,&my_charset_bin);
 }
 
 int compare_double2(void* cmp_arg __attribute__((unused)),
@@ -240,14 +240,16 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
   }
   else
     return 0;
-} //test_if_number
+}
 
 
-// Stores the biggest and the smallest value from current 'info'
-// to ev_num_info
-// If info contains an ulonglong number, which is bigger than
-// biggest positive number able to be stored in a longlong variable
-// and is marked as negative, function will return 0, else 1.
+/*
+  Stores the biggest and the smallest value from current 'info'
+  to ev_num_info
+  If info contains an ulonglong number, which is bigger than
+  biggest positive number able to be stored in a longlong variable
+  and is marked as negative, function will return 0, else 1.
+*/
 
 bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
 {
@@ -275,11 +277,13 @@ void free_string(String *s)
   s->free();
 }
 
+
 void field_str::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr;
   String s(buff, sizeof(buff),&my_charset_bin), *res;
   ulong length;
+  TREE_ELEMENT *element;
 
   if (!(res = item->val_str(&s)))
   {
@@ -329,20 +333,10 @@ void field_str::add()
     if (length > max_length)
       max_length = length;
 
-    if (item->binary())
-    {
-      if (stringcmp(res, &min_arg) < 0)
-	min_arg.copy(*res);
-      if (stringcmp(res, &max_arg) > 0)
-	max_arg.copy(*res);
-    }
-    else
-    {
-      if (sortcmp(res, &min_arg) < 0)
-	min_arg.copy(*res);
-      if (sortcmp(res, &max_arg) > 0)
-	max_arg.copy(*res);
-    }
+    if (sortcmp(res, &min_arg,item->charset()) < 0)
+      min_arg.copy(*res);
+    if (sortcmp(res, &max_arg,item->charset()) > 0)
+      max_arg.copy(*res);
   }
 
   if (room_in_tree)
@@ -424,9 +418,11 @@ void field_real::add()
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);
     }
-    // if element->count == 1, this element can be found only once from tree
-    // if element->count == 2, or more, this element is already in tree
-    else if (element->count == 1 && (tree_elements++) > pc->max_tree_elements)
+    /*
+      if element->count == 1, this element can be found only once from tree
+      if element->count == 2, or more, this element is already in tree
+    */
+    else if (element->count == 1 && (tree_elements++) >= pc->max_tree_elements)
     {
       room_in_tree = 0;  // Remove tree, too many elements
       delete_tree(&tree);
@@ -455,6 +451,7 @@ void field_real::add()
   }
 } // field_real::add
 
+
 void field_longlong::add()
 {
   char buff[MAX_FIELD_WIDTH];
@@ -477,9 +474,11 @@ void field_longlong::add()
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);
     }
-    // if element->count == 1, this element can be found only once from tree
-    // if element->count == 2, or more, this element is already in tree
-    else if (element->count == 1 && (tree_elements++) > pc->max_tree_elements)
+    /*
+      if element->count == 1, this element can be found only once from tree
+      if element->count == 2, or more, this element is already in tree
+    */
+    else if (element->count == 1 && (tree_elements++) >= pc->max_tree_elements)
     {
       room_in_tree = 0;  // Remove tree, too many elements
       delete_tree(&tree);
@@ -531,9 +530,11 @@ void field_ulonglong::add()
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);
     }
-    // if element->count == 1, this element can be found only once from tree
-    // if element->count == 2, or more, this element is already in tree
-    else if (element->count == 1 && (tree_elements++) > pc->max_tree_elements)
+    /*
+      if element->count == 1, this element can be found only once from tree
+      if element->count == 2, or more, this element is already in tree
+    */
+    else if (element->count == 1 && (tree_elements++) >= pc->max_tree_elements)
     {
       room_in_tree = 0;  // Remove tree, too many elements
       delete_tree(&tree);
@@ -614,14 +615,16 @@ bool analyse::end_of_records()
       func_items[8]->null_value = 1;
     else
       func_items[8]->set(res->ptr(), res->length(), res->charset());
-    // count the dots, quotas, etc. in (ENUM("a","b","c"...))
-    // if tree has been removed, don't suggest ENUM.
-    // treemem is used to measure the size of tree for strings,
-    // tree_elements is used to count the elements in tree in case of numbers.
-    // max_treemem tells how long the string starting from ENUM("... and
-    // ending to ..") shall at maximum be. If case is about numbers,
-    // max_tree_elements will tell the length of the above, now
-    // every number is considered as length 1
+    /*
+      count the dots, quotas, etc. in (ENUM("a","b","c"...))
+      If tree has been removed, don't suggest ENUM.
+      treemem is used to measure the size of tree for strings,
+      tree_elements is used to count the elements
+      max_treemem tells how long the string starting from ENUM("... and
+      ending to ..") shall at maximum be. If case is about numbers,
+      max_tree_elements will tell the length of the above, now
+      every number is considered as length 1
+    */
     if (((*f)->treemem || (*f)->tree_elements) &&
 	(*f)->tree.elements_in_tree &&
 	(((*f)->treemem ? max_treemem : max_tree_elements) >
@@ -664,6 +667,7 @@ bool analyse::end_of_records()
 	ans.append("DATETIME", 8);
 	break;
       case FIELD_TYPE_DATE:
+      case FIELD_TYPE_NEWDATE:
 	ans.append("DATE", 4);
 	break;
       case FIELD_TYPE_SET:
@@ -674,9 +678,6 @@ bool analyse::end_of_records()
 	break;
       case FIELD_TYPE_TIME:
 	ans.append("TIME", 4);
-	break;
-      case FIELD_TYPE_NEWDATE:
-	ans.append("NEWDATE", 7);
 	break;
       case FIELD_TYPE_DECIMAL:
 	ans.append("DECIMAL", 7);
@@ -742,7 +743,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   {
     if (must_be_blob)
     {
-      if (item->binary())
+      if (item->charset() == &my_charset_bin)
 	answer->append("TINYBLOB", 8);
       else
 	answer->append("TINYTEXT", 8);
@@ -760,21 +761,21 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   }
   else if (max_length < (1L << 16))
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("BLOB", 4);
     else
       answer->append("TEXT", 4);
   }
   else if (max_length < (1L << 24))
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("MEDIUMBLOB", 10);
     else
       answer->append("MEDIUMTEXT", 10);
   }
   else
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("LONGBLOB", 8);
     else
       answer->append("LONGTEXT", 8);
