@@ -8528,6 +8528,14 @@ libc internal error: _rmutex_unlock: rmutex not held
 
 Add @code{-mt} to @code{CFLAGS} and @code{CXXFLAGS} and try again.
 
+If you are using the SFW version of gcc (which comes with Solaris 8),
+you must add @file{/opt/sfw/lib} to the environment variable
+@code{LD_LIBRARY_PATH} before running configure.
+ 
+If you are using the gcc available from @code{sunfreeware.com}, you may
+have many problems.  You should recompile gcc and GNU binutils on the
+machine you will be running them from to avoid any problems.
+
 If you get the following error when compiling MySQL with @code{gcc},
 it means that your @code{gcc} is not configured for your version of Solaris:
 
@@ -18092,6 +18100,9 @@ differ somewhat:
 | protocol_version             | 10                        |
 | record_buffer                | 131072                    |
 | query_buffer_size            | 0                         |
+| query_cache_limit            | 1048576		   |
+| query_cache_size             | 16768060                  |
+| query_cache_startup_type     | 1                         |
 | safe_show_database           | OFF                       |
 | server_id                    | 0                         |
 | skip_locking                 | ON                        |
@@ -18490,6 +18501,18 @@ buffer to avoid a disk seeks.  If not set, then it's set to the value of
 @item @code{query_buffer_size}
 The initial allocation of the query buffer. If most of your queries are
 long (like when inserting blobs), you should increase this!
+
+@item @code{query_cache_limit}
+Don't cache results that are bigger than this. (Default 1M).
+
+@item @code{query_cache_size}
+The memory allocated to store results from old queries.  If this is zero
+the query cache is disabled.
+
+@item @code{query_cache_startup_type}
+This may have be set to 0 (cache results but don't retrieve results from
+cache), 1 (cache results by defaults) or 2 (only cache @code{SELECT}'s marked
+with @code{SQL_CACHE}).
 
 @item @code{safe_show_databases}
 Don't show databases for which the user doesn't have any database or
@@ -25724,6 +25747,17 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
+@item SQL_QUERY_CACHE_TYPE = [OFF | ON | DEMAND]
+@item SQL_QUERY_CACHE_TYPE = [0   | 1  | 2]
+
+The numbers are standing for the correspoding verbose option.
+
+@multitable @columnfractions .3 .7
+@item 0 or OFF @tab Cache @code{SELECT} results, but don't retrieve results from cache.
+@item 1 or ON @tab Cache all @code{SELECT}'s that are not marked with @code{SQL_NO_CACHE}.
+@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE}) queries.
+@end multitable
+
 @item SQL_SAFE_UPDATES = 0 | 1
 If set to @code{1}, MySQL will abort if an @code{UPDATE} or
 @code{DELETE} is attempted that doesn't use a key or @code{LIMIT} in the
@@ -31079,7 +31113,7 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 @c help SELECT
 @example
 SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
-       [HIGH_PRIORITY]
+       [SQL_CACHE | SQL_NO_CACHE] [HIGH_PRIORITY]
        [DISTINCT | DISTINCTROW | ALL]
     select_expression,...
     [INTO @{OUTFILE | DUMPFILE@} 'file_name' export_options]
@@ -31207,9 +31241,8 @@ mysql> select user,max(salary) AS sum from users
 @end example
 
 @item
-@code{SQL_SMALL_RESULT}, @code{SQL_BIG_RESULT}, @code{SQL_BUFFER_RESULT},
-@code{STRAIGHT_JOIN}, and @code{HIGH_PRIORITY} are MySQL extensions
-to ANSI SQL92.
+All options beginning with @code{SQL_}, @code{STRAIGHT_JOIN}, and
+@code{HIGH_PRIORITY} are MySQL extensions to ANSI SQL.
 
 @item
 @code{HIGH_PRIORITY} will give the @code{SELECT} higher priority than
@@ -31236,6 +31269,14 @@ with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
 result set will be small.  In this case, MySQL will use fast
 temporary tables to store the resulting table instead of using sorting. In
 MySQL Version 3.23 this shouldn't normally be needed.
+
+@item
+@code{SQL_CACHE} tells MySQL to store the query result in the query cache
+even if you are using @code{SQL_QUERY_CACHE_METHOD} 2 (= @code{DEMAND}).
+
+@item
+@code{SQL_NO_CACHE} tells MySL to not store the query result in the
+query cache.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
@@ -46177,6 +46218,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+A new query cache to cache results from identical @code{SELECT} queries.
+@item
+Fixed core dump bug on 64 bit machines when it got a wrong communication
+packet.
 @item
 @code{MATCH ... AGAINST(... IN BOOLEAN MODE)} can now work
 without @code{FULLTEXT} index.

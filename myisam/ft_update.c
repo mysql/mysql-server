@@ -67,8 +67,9 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
     return 0;
 }
 
-FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
-				    const byte *record)
+FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
+			     byte *keybuf __attribute__((unused)),
+			     const byte *record)
 {
   TREE ptree;
 

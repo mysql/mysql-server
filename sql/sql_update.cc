@@ -321,6 +321,8 @@ int mysql_update(THD *thd,
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  if (updated)
+    query_cache.invalidate(table_list);
   delete select;
   if (error >= 0)
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */

@@ -133,9 +133,9 @@ FILE *in;
 	int i;
 	char erbuf[100];
 	size_t ne;
-	char *badpat = "invalid regular expression";
+	const char *badpat = "invalid regular expression";
 #	define	SHORT	10
-	char *bpname = "REG_BADPAT";
+	const char *bpname = "REG_BADPAT";
 	regex_t re;
 
 	while (fgets(inbuf, sizeof(inbuf), in) != NULL) {
@@ -152,7 +152,7 @@ FILE *in;
 		}
 		for (i = 0; i < nf; i++)
 			if (strcmp(f[i], "\"\"") == 0)
-				f[i] = "";
+				f[i] = (char*) "";
 		if (nf <= 3)
 			f[3] = NULL;
 		if (nf <= 4)
@@ -217,7 +217,7 @@ int opts;			/* may not match f1 */
 	char erbuf[100];
 	int err;
 	int len;
-	char *type = (opts & REG_EXTENDED) ? "ERE" : "BRE";
+	const char *type = (opts & REG_EXTENDED) ? "ERE" : "BRE";
 	register int i;
 	char *grump;
 	char f0copy[1000];
@@ -291,7 +291,7 @@ int opts;			/* may not match f1 */
 	nshould = split(f4, should+1, NSHOULD-1, ",");
 	if (nshould == 0) {
 		nshould = 1;
-		should[1] = "";
+		should[1] = (char*) "";
 	}
 	for (i = 1; i < NSUBS; i++) {
 		grump = check(f2, subs[i], should[i]);
@@ -317,7 +317,7 @@ char *s;
 {
 	register char *p;
 	register int o = (type == 'c') ? copts : eopts;
-	register char *legal = (type == 'c') ? "bisnmp" : "^$#tl";
+	register const char *legal = (type == 'c') ? "bisnmp" : "^$#tl";
 
 	for (p = s; *p != '\0'; p++)
 		if (strchr(legal, *p) != NULL)
@@ -417,7 +417,7 @@ char *should;
 		should = NULL;
 	if (should != NULL && should[0] == '@') {
 		at = should + 1;
-		should = "";
+		should = (char*) "";
 	}
 
 	/* check rm_so and rm_eo for consistency */
@@ -434,7 +434,7 @@ char *should;
 	if (sub.rm_so == -1 && should == NULL)
 		return(NULL);
 	if (sub.rm_so == -1)
-		return("did not match");
+		return((char*) "did not match");
 
 	/* check for in range */
 	if ((int) sub.rm_eo > (int) strlen(str)) {

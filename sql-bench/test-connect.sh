@@ -27,7 +27,7 @@
 use DBI;
 use Benchmark;
 
-$opt_loop_count=10000;	# Change this to make test harder/easier
+$opt_loop_count=100000;	# Change this to make test harder/easier
 $str_length=65000;	# This is the length of blob strings in PART:5
 $max_test=20;		# How many times to test if the server is busy
 
@@ -43,9 +43,10 @@ if ($opt_small_test)
 }
 
 $opt_loop_count=min(1000, $opt_loop_count) if ($opt_tcpip);
+$small_loop_count=$opt_loop_count/10; # For connect tests
 
 print "Testing the speed of connecting to the server and sending of data\n";
-print "All tests are done $opt_loop_count times\n\n";
+print "Connect tests are done $opt_small_loop_count and other tests $opt_loop_count times\n\n";
 
 ################################# PART:1 ###################################
 ####
@@ -59,7 +60,7 @@ print "Testing connection/disconnect\n";
 $loop_time=new Benchmark;
 $errors=0;
 
-for ($i=0 ; $i < $opt_loop_count ; $i++)
+for ($i=0 ; $i < $small_loop_count ; $i++)
 {
   print "$i " if (($opt_debug));
   for ($j=0; $j < $max_test ; $j++)
@@ -80,27 +81,27 @@ for ($i=0 ; $i < $opt_loop_count ; $i++)
 }
 $end_time=new Benchmark;
 print "Warning: $errors connections didn't work without a time delay\n" if ($errors);
-print "Time to connect ($opt_loop_count): " .
+print "Time to connect ($small_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 ################################# PART:2 ###################################
 #### Now we shall do first one connect, then simple select
 #### (select 1..) and then close connection. This will be
-#### done $opt_loop_count times.
+#### done $small_loop_count times.
 
 if ($limits->{'select_without_from'})
 {
   print "Test connect/simple select/disconnect\n";
   $loop_time=new Benchmark;
 
-  for ($i=0; $i<$opt_loop_count; $i++)
+  for ($i=0; $i < $small_loop_count; $i++)
   {
     $dbh = DBI->connect($server->{'data_source'}, $opt_user, $opt_password) || die $DBI::errstr;
-    $sth = $dbh->do("select 1") or die $DBI::errstr;
+    $sth = $dbh->do("select $i") or die $DBI::errstr;
     $dbh->disconnect;
   }
   $end_time=new Benchmark;
-  print "Time for connect+select_simple ($opt_loop_count): " .
+  print "Time for connect+select_simple ($small_loop_count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
@@ -116,16 +117,33 @@ if ($limits->{'select_without_from'})
 {
   print "Test simple select\n";
   $loop_time=new Benchmark;
-  for ($i=0 ; $i<$opt_loop_count ; $i++)
+  for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
-    $sth = $dbh->do("select 1") or die $DBI::errstr;
+    $sth = $dbh->do("select $i") or die $DBI::errstr;
   }
   $end_time=new Benchmark;
   print "Time for select_simple ($opt_loop_count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
-################################# PART:4 ###################################
+###########################################################################
+#### The same as the previous test, but always execute the same select
+#### This is done to test the query cache for real simple selects.
+
+if ($limits->{'select_without_from'})
+{
+  print "Test simple select\n";
+  $loop_time=new Benchmark;
+  for ($i=0 ; $i < $opt_loop_count ; $i++)
+  {
+    $sth = $dbh->do("select 10000") or die $DBI::errstr;
+  }
+  $end_time=new Benchmark;
+  print "Time for select_simple_query_cache ($opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
+
+##########################################################################
 #### First, we'll create a simple table 'bench1'
 #### Then we shall do $opt_loop_count selects from this table.
 #### Table will contain very simple data.
@@ -152,7 +170,7 @@ print "Testing connect/select 1 row from table/disconnect\n";
 $loop_time=new Benchmark;
 $errors=0;
 
-for ($i=0 ; $i<$opt_loop_count ; $i++)
+for ($i=0 ; $i < $small_loop_count ; $i++)
 {
   for ($j=0; $j < $max_test ; $j++)
   {
@@ -161,14 +179,14 @@ for ($i=0 ; $i<$opt_loop_count ; $i++)
   }
   die $DBI::errstr if ($j == $max_test);
 
-  $sth = $dbh->do("select * from bench1") #Select * from table with 1 record
+  $sth = $dbh->do("select a,i,s,$i from bench1") # Select * from table with 1 record
     or die $DBI::errstr;
   $dbh->disconnect;
 }
 
 $end_time=new Benchmark;
 print "Warning: $errors connections didn't work without a time delay\n" if ($errors);
-print "Time to connect+select_1_row ($opt_loop_count): " .
+print "Time to connect+select_1_row ($small_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 #
@@ -179,9 +197,9 @@ print "Testing select 1 row from table\n";
 $dbh = $server->connect();
 $loop_time=new Benchmark;
 
-for ($i=0 ; $i<$opt_loop_count ; $i++)
+for ($i=0 ; $i < $opt_loop_count ; $i++)
 {
-  $sth = $dbh->do("select * from bench1") # Select * from table with 1 record
+  $sth = $dbh->do("select a,i,s,$i from bench1") # Select * from table with 1 record
     or die $DBI::errstr;
 }
 
@@ -199,9 +217,9 @@ $sth = $dbh->do("insert into bench1 values(2,200,'BBB')")
 
 $loop_time=new Benchmark;
 
-for ($i=0 ; $i<$opt_loop_count ; $i++)
+for ($i=0 ; $i < $opt_loop_count ; $i++)
 {
-  $sth = $dbh->do("select * from bench1") # Select * from table with 2 record
+  $sth = $dbh->do("select a,i,s,$i from bench1") # Select * from table with 2 record
     or die $DBI::errstr;
 }
 
@@ -214,9 +232,9 @@ if ($limits->{'functions'})
   print "Test select with aritmetic (+)\n";
   $loop_time=new Benchmark;
 
-  for ($i=0; $i<$opt_loop_count; $i++)
+  for ($i=0; $i < $opt_loop_count; $i++)
   {
-    $sth = $dbh->do("select a+a+a+a+a+a+a+a+a+a from bench1") or die $DBI::errstr;
+    $sth = $dbh->do("select a+a+a+a+a+a+a+a+a+$i from bench1") or die $DBI::errstr;
   }
   $end_time=new Benchmark;
   print "Time for select_column+column ($opt_loop_count): " .
@@ -254,9 +272,9 @@ if ($opt_fast && defined($server->{vacuum}))
 
 $loop_time=new Benchmark;
 
-for ($i=0 ; $i < $opt_loop_count ; $i++)
+for ($i=0 ; $i < $small_loop_count ; $i++)
 {
-  $sth = $dbh->prepare("select * from bench1");
+  $sth = $dbh->prepare("select b,$i from bench1");
   if (!$sth->execute || !(@row = $sth->fetchrow_array) ||
       length($row[0]) != $str_length)
   {
@@ -266,7 +284,7 @@ for ($i=0 ; $i < $opt_loop_count ; $i++)
 }
 
 $end_time=new Benchmark;
-print "Time to select_big_str ($opt_loop_count): " .
+print "Time to select_big_str ($small_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'})

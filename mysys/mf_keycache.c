@@ -252,6 +252,9 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
 {
   reg1 SEC_LINK *next;
   int error=0;
+  DBUG_ENTER("key_cache_read");
+  DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
+		       (uint) file, (ulong) filepos, length));
 
 #ifndef THREAD
   if (block_length > key_cache_block_size)
@@ -270,14 +273,14 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
       if (!(next=find_key_block(file,filepos,&error)))
       {
 	pthread_mutex_unlock(&THR_LOCK_keycache);
-	return (byte*) 0;			/* Got a fatal error */
+	DBUG_RETURN ((byte*) 0);       		/* Got a fatal error */
       }
       if (error)
       {					/* Didn't find it in cache */
 	if (my_pread(file,next->buffer,read_length,filepos,MYF(MY_NABP)))
 	{
 	  pthread_mutex_unlock(&THR_LOCK_keycache);
-	  return((byte*) 0);
+	  DBUG_RETURN((byte*) 0);
 	}
 	_my_cache_read++;
       }
@@ -285,7 +288,7 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
       if (return_buffer)
       {
 	pthread_mutex_unlock(&THR_LOCK_keycache);
-	return (next->buffer);
+	DBUG_RETURN (next->buffer);
       }
 #endif
       if (! (read_length & 511))
@@ -296,13 +299,13 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
       filepos+=read_length;
     } while ((length-= read_length));
     pthread_mutex_unlock(&THR_LOCK_keycache);
-    return(start);
+    DBUG_RETURN(start);
   }
   _my_cache_r_requests++;
   _my_cache_read++;
   if (my_pread(file,(byte*) buff,length,filepos,MYF(MY_NABP)))
     error=1;
-  return (error ? (byte*) 0 : buff);
+  DBUG_RETURN(error ? (byte*) 0 : buff);
 } /* key_cache_read */
 
 
@@ -316,12 +319,15 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
 {
   reg1 SEC_LINK *next;
   int error=0;
+  DBUG_ENTER("key_cache_write");
+  DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
+		       (uint) file, (ulong) filepos, length));
 
   if (!dont_write)
   {						/* Forced write of buffer */
     _my_cache_write++;
     if (my_pwrite(file,buff,length,filepos,MYF(MY_NABP | MY_WAIT_IF_FULL)))
-      return(1);
+      DBUG_RETURN(1);
   }
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
@@ -367,7 +373,7 @@ end:
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache",test_key_cache("end of key_cache_write",1););
 #endif
-  return(error);
+  DBUG_RETURN(error);
 } /* key_cache_write */
 
 
@@ -377,6 +383,9 @@ end:
 static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
 {
   reg1 SEC_LINK *next,**start;
+  DBUG_ENTER("find_key_block");
+  DBUG_PRINT("enter", ("file %u, filepos %lu",
+		       (uint) file, (ulong) filepos));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",test_key_cache("start of find_key_block",0););
@@ -461,7 +470,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",test_key_cache("end of find_key_block",0););
 #endif
-  return next;
+  DBUG_RETURN(next);
 } /* find_key_block */
 
 

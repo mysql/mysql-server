@@ -209,15 +209,15 @@ static void get_options(int argc, char *argv[])
 
 static void usage(char *argv[])
 {
-  printf("
-Use: %s [-%s] <table_name> <index_no>
-
--d      dump index (incl. data offsets and word weights)
--s      report global stats
--l      report length distribution
--c      calculate per-word stats (counts and global weights)
--v      be verbose
--h      this text\n
+  printf("\n\
+Use: %s [-%s] <table_name> <index_no>\n\
+\n\
+-d      Dump index (incl. data offsets and word weights)\n\
+-s      Report global stats\n\
+-c      Calculate per-word stats (counts and global weights)\n\
+-l      Report length distribution\n\
+-v      Be verbose\n\
+-h      This text\n\
 ", *argv, options);
   exit(1);
 }

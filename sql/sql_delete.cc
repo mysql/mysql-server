@@ -183,6 +183,8 @@ cleanup:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  if (deleted)
+    query_cache.invalidate(table_list);
   delete select;
   if (error >= 0)				// Fatal error
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
@@ -539,6 +541,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     close_temporary(table,0);
     *fn_ext(path)=0;				// Remove the .frm extension
     ha_create_table(path, &create_info,1);
+    // We don't need to call invalidate() because this table is not in cache
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
@@ -570,6 +573,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bzero((char*) &create_info,sizeof(create_info));
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
+  query_cache.invalidate(table_list); 
 
   if (!dont_send_ok)
   {

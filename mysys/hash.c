@@ -583,7 +583,8 @@ byte *hash_element(HASH *hash,uint idx)
 
 void hash_replace(HASH *hash, uint idx, byte *new_row)
 {
-  dynamic_element(&hash->array,idx,HASH_LINK*)->data=new_row;
+  if (idx != NO_RECORD)				/* Safety */
+    dynamic_element(&hash->array,idx,HASH_LINK*)->data=new_row;
 }
 
 

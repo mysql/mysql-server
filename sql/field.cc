@@ -219,14 +219,15 @@ static bool test_if_real(const char *str,int length)
 ****************************************************************************/
 
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
-	     uint null_bit_arg,
+	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
-  :ptr(ptr_arg),null_ptr(null_ptr_arg),null_bit(null_bit_arg),
-   table(table_arg),query_id(0),key_start(0),part_of_key(0),part_of_sortkey(0),
-   table_name(table_arg ? table_arg->table_name : 0),
-   field_name(field_name_arg), unireg_check(unireg_check_arg),
-   field_length(length_arg)
+  :ptr(ptr_arg),null_ptr(null_ptr_arg),
+   table(table_arg),table_name(table_arg ? table_arg->table_name : 0),
+   field_name(field_name_arg),
+   query_id(0),key_start(0),part_of_key(0),part_of_sortkey(0),
+   unireg_check(unireg_check_arg),
+   field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
 }
@@ -242,8 +243,8 @@ void Field::copy_from_tmp(int row_offset)
   memcpy(ptr,ptr+row_offset,pack_length());
   if (null_ptr)
   {
-    *null_ptr= ((null_ptr[0] & (uchar) ~(uint) null_bit) |
-		null_ptr[row_offset] & (uchar) null_bit);
+    *null_ptr= (uchar) ((null_ptr[0] & (uchar) ~(uint) null_bit) |
+			null_ptr[row_offset] & (uchar) null_bit);
   }
 }
 
@@ -1049,7 +1050,7 @@ void Field_short::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[0];
     else
-      to[0] = ptr[0] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
     to[1]   = ptr[1];
   }
   else
@@ -1058,7 +1059,7 @@ void Field_short::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[1];
     else
-      to[0] = ptr[1] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[1] ^ 128);		/* Revers signbit */
     to[1]   = ptr[0];
   }
 }
@@ -1129,12 +1130,12 @@ void Field_medium::store(double nr)
     }
     else if (nr >= (double) (long) (1L << 24))
     {
-      ulong tmp=(ulong) (1L << 24)-1L;
+      uint32 tmp=(uint32) (1L << 24)-1L;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
     }
     else
-      int3store(ptr,(ulong) nr);
+      int3store(ptr,(uint32) nr);
   }
   else
   {
@@ -1171,7 +1172,7 @@ void Field_medium::store(longlong nr)
       current_thd->cuted_fields++;
     }
     else
-      int3store(ptr,(ulong) nr);
+      int3store(ptr,(uint32) nr);
   }
   else
   {
@@ -1449,7 +1450,7 @@ int Field_long::cmp(const char *a_ptr, const char *b_ptr)
     longget(b,b_ptr);
   }
   if (unsigned_flag)
-    return ((ulong) a < (ulong) b) ? -1 : ((ulong) a > (ulong) b) ? 1 : 0;
+    return ((uint32) a < (uint32) b) ? -1 : ((uint32) a > (uint32) b) ? 1 : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -1461,7 +1462,7 @@ void Field_long::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[0];
     else
-      to[0] = ptr[0] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
     to[1]   = ptr[1];
     to[2]   = ptr[2];
     to[3]   = ptr[3];
@@ -1472,7 +1473,7 @@ void Field_long::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[3];
     else
-      to[0] = ptr[3] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[3] ^ 128);		/* Revers signbit */
     to[1]   = ptr[2];
     to[2]   = ptr[1];
     to[3]   = ptr[0];
@@ -1660,7 +1661,7 @@ void Field_longlong::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[0];
     else
-      to[0] = ptr[0] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
     to[1]   = ptr[1];
     to[2]   = ptr[2];
     to[3]   = ptr[3];
@@ -1675,7 +1676,7 @@ void Field_longlong::sort_string(char *to,uint length __attribute__((unused)))
     if (unsigned_flag)
       to[0] = ptr[7];
     else
-      to[0] = ptr[7] ^ 128;			/* Revers signbit */
+      to[0] = (char) (ptr[7] ^ 128);		/* Revers signbit */
     to[1]   = ptr[6];
     to[2]   = ptr[5];
     to[3]   = ptr[4];
@@ -1910,7 +1911,7 @@ void Field_float::sort_string(char *to,uint length __attribute__((unused)))
     {						/* make complement */
       uint i;
       for (i=0 ; i < sizeof(nr); i++)
-	tmp[i]=tmp[i] ^ (uchar) 255;
+	tmp[i]= (uchar) (tmp[i] ^ (uchar) 255);
     }
     else
     {
@@ -2278,10 +2279,10 @@ void Field_timestamp::store(longlong nr)
   {
     part1=(long) (nr/LL(1000000));
     part2=(long) (nr - (longlong) part1*LL(1000000));
-    l_time.year=  part1/10000L;  part1%=10000L;
+    l_time.year=  (int) (part1/10000L);  part1%=10000L;
     l_time.month= (int) part1 / 100;
-    l_time.day=	(int) part1 % 100; 
-    l_time.hour=  part2/10000L;  part2%=10000L;
+    l_time.day=	  (int) part1 % 100; 
+    l_time.hour=  (int) (part2/10000L);  part2%=10000L;
     l_time.minute=(int) part2 / 100;
     l_time.second=(int) part2 % 100; 
     timestamp=my_gmt_sec(&l_time);
@@ -2295,7 +2296,7 @@ void Field_timestamp::store(longlong nr)
   }
   else
 #endif
-    longstore(ptr,(ulong)timestamp);
+    longstore(ptr,(uint32) timestamp);
 }
 
 
@@ -2596,7 +2597,7 @@ void Field_time::store(longlong nr)
 
 double Field_time::val_real(void)
 {
-  ulong j= (ulong) uint3korr(ptr);
+  uint32 j= (uint32) uint3korr(ptr);
   return (double) j;
 }
 
@@ -2632,19 +2633,19 @@ bool Field_time::get_time(TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
-  ltime->hour=tmp/10000;
+  ltime->hour=   (int) (tmp/10000);
   tmp-=ltime->hour*10000;
-  ltime->minute=   tmp/100;
-  ltime->second= tmp % 100;
+  ltime->minute= (int) tmp/100;
+  ltime->second= (int) tmp % 100;
   ltime->second_part=0;
   return 0;
 }
 
 int Field_time::cmp(const char *a_ptr, const char *b_ptr)
 {
-  long a,b;
-  a=(long) sint3korr(a_ptr);
-  b=(long) sint3korr(b_ptr);
+  int32 a,b;
+  a=(int32) sint3korr(a_ptr);
+  b=(int32) sint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -2755,14 +2756,14 @@ void Field_year::sql_type(String &res) const
 ** Stored as a 4 byte unsigned int
 ****************************************************************************/
 
-void Field_date::store(const char *from,uint len)
+void Field_date::store(const char *from, uint len)
 {
   TIME l_time;
-  ulong tmp;
+  uint32 tmp;
   if (str_to_TIME(from,len,&l_time,1) == TIMESTAMP_NONE)
     tmp=0;
   else
-    tmp=(ulong) l_time.year*10000L + (ulong) (l_time.month*100+l_time.day);
+    tmp=(uint32) l_time.year*10000L + (uint32) (l_time.month*100+l_time.day);
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2934,7 +2935,7 @@ void Field_newdate::store(double nr)
 
 void Field_newdate::store(longlong nr)
 {
-  long tmp;
+  int32 tmp;
   if (nr >= LL(100000000) && nr <= LL(99991231235959))
     nr=nr/LL(1000000);			// Timestamp to date
   if (nr < 0L || nr > 99991231L)
@@ -2944,16 +2945,16 @@ void Field_newdate::store(longlong nr)
   }
   else
   {
-    tmp=(long) nr;
+    tmp=(int32) nr;
     if (tmp)
     {
       if (tmp < YY_PART_YEAR*10000L)			// Fix short dates
-	tmp+=20000000L;
+	tmp+= (uint32) 20000000L;
       else if (tmp < 999999L)
-	tmp+=19000000L;
+	tmp+= (uint32) 19000000L;
     }
-    uint month=((tmp/100) % 100);
-    uint day= tmp%100;
+    uint month= (uint) ((tmp/100) % 100);
+    uint day=   (uint) (tmp%100);
     if (month > 12 || day > 31)
     {
       tmp=0L;					// Don't allow date to change
@@ -2962,7 +2963,7 @@ void Field_newdate::store(longlong nr)
     else
       tmp= day + month*32 + (tmp/10000)*16*32;
   }
-  int3store(ptr,tmp);
+  int3store(ptr,(int32) tmp);
 }
 
 void Field_newdate::store_time(TIME *ltime,timestamp_type type)
@@ -2987,7 +2988,7 @@ double Field_newdate::val_real(void)
 
 longlong Field_newdate::val_int(void)
 {
-  ulong j=uint3korr(ptr);
+  ulong j= uint3korr(ptr);
   j= (j % 32L)+(j / 32L % 16L)*100L + (j/(16L*32L))*10000L;
   return (longlong) j;
 }
@@ -2997,25 +2998,25 @@ String *Field_newdate::val_str(String *val_buffer,
 {
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
-  ulong tmp=(ulong) uint3korr(ptr);
+  uint32 tmp=(uint32) uint3korr(ptr);
   int part;
   char *pos=(char*) val_buffer->ptr()+10;
 
   /* Open coded to get more speed */
-  *pos--=0;
+  *pos--=0;					// End NULL
   part=(int) (tmp & 31);
-  *pos--='0'+part%10;
-  *pos--='0'+part/10;
-  *pos--='-';
+  *pos--= (char) ('0'+part%10);
+  *pos--= (char) ('0'+part/10);
+  *pos--= '-';
   part=(int) (tmp >> 5 & 15);
-  *pos--='0'+part%10;
-  *pos--='0'+part/10;
-  *pos--='-';
+  *pos--= (char) ('0'+part%10);
+  *pos--= (char) ('0'+part/10);
+  *pos--= '-';
   part=(int) (tmp >> 9);
-  *pos--='0'+part%10; part/=10;
-  *pos--='0'+part%10; part/=10;
-  *pos--='0'+part%10; part/=10;
-  *pos='0'+part;
+  *pos--= (char) ('0'+part%10); part/=10;
+  *pos--= (char) ('0'+part%10); part/=10;
+  *pos--= (char) ('0'+part%10); part/=10;
+  *pos=   (char) ('0'+part);
   return val_buffer;
 }
 
@@ -3023,7 +3024,7 @@ bool Field_newdate::get_date(TIME *ltime,bool fuzzydate)
 {
   if (is_null())
     return 1;
-  ulong tmp=(ulong) uint3korr(ptr);
+  uint32 tmp=(uint32) uint3korr(ptr);
   bzero((char*) ltime,sizeof(*ltime));
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
@@ -3039,9 +3040,9 @@ bool Field_newdate::get_time(TIME *ltime)
 
 int Field_newdate::cmp(const char *a_ptr, const char *b_ptr)
 {
-  ulong a,b;
-  a=(ulong) uint3korr(a_ptr);
-  b=(ulong) uint3korr(b_ptr);
+  uint32 a,b;
+  a=(uint32) uint3korr(a_ptr);
+  b=(uint32) uint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -3175,44 +3176,44 @@ String *Field_datetime::val_str(String *val_buffer,
 
   pos=(char*) val_buffer->ptr()+19;
   *pos--=0;
-  *pos--='0'+(char) (part2%10); part2/=10;
-  *pos--='0'+(char) (part2%10); part3= (int) (part2 / 10);
-  *pos--=':';
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos--=':';
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos--='0'+(char) part3;
-  *pos--=' ';
-  *pos--='0'+(char) (part1%10); part1/=10;
-  *pos--='0'+(char) (part1%10); part1/=10;
-  *pos--='-';
-  *pos--='0'+(char) (part1%10); part1/=10;
-  *pos--='0'+(char) (part1%10); part3= (int) (part1/10);
-  *pos--='-';
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos--='0'+(char) (part3%10); part3/=10;
-  *pos='0'+(char) part3;
+  *pos--= (char) ('0'+(char) (part2%10)); part2/=10;
+  *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
+  *pos--= ':';
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos--= ':';
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos--= (char) ('0'+(char) part3);
+  *pos--= ' ';
+  *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+  *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+  *pos--= '-';
+  *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+  *pos--= (char) ('0'+(char) (part1%10)); part3= (int) (part1/10);
+  *pos--= '-';
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+  *pos=(char) ('0'+(char) part3);
   return val_buffer;
 }
 
 bool Field_datetime::get_date(TIME *ltime,bool fuzzydate)
 {
   longlong tmp=Field_datetime::val_int();
-  long part1,part2;
-  part1=(long) (tmp/LL(1000000));
-  part2=(long) (tmp - (ulonglong) part1*LL(1000000));
+  uint32 part1,part2;
+  part1=(uint32) (tmp/LL(1000000));
+  part2=(uint32) (tmp - (ulonglong) part1*LL(1000000));
 
   ltime->time_type=	TIMESTAMP_FULL;
-  ltime->neg=0;
-  ltime->second_part=0;
-  ltime->second=	part2%100;
-  ltime->minute=	part2/100%100;
-  ltime->hour=		part2/10000;
-  ltime->day=		part1%100;
-  ltime->month= 	part1/100%100;
-  ltime->year= 		part1/10000;
+  ltime->neg=		0;
+  ltime->second_part=	0;
+  ltime->second=	(int) (part2%100);
+  ltime->minute=	(int) (part2/100%100);
+  ltime->hour=		(int) (part2/10000);
+  ltime->day=		(int) (part1%100);
+  ltime->month= 	(int) (part1/100%100);
+  ltime->year= 		(int) (part1/10000);
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
@@ -3331,7 +3332,7 @@ void Field_string::store(longlong nr)
 {
   char buff[22];
   char *end=longlong10_to_str(nr,buff,-10);
-  Field_string::store(buff,end-buff);
+  Field_string::store(buff,(uint) (end-buff));
 }
 
 
@@ -3522,7 +3523,7 @@ void Field_varstring::store(longlong nr)
 {
   char buff[22];
   char *end=longlong10_to_str(nr,buff,-10);
-  Field_varstring::store(buff,end-buff);
+  Field_varstring::store(buff,(uint) (end-buff));
 }
 
 
@@ -3613,9 +3614,9 @@ char *Field_varstring::pack(char *to, const char *from, uint max_length)
   uint length=uint2korr(from);
   if (length > max_length)
     length=max_length;
-  *to++= (length & 255);
+  *to++= (char) (length & 255);
   if (max_length > 255)
-    *to++= (uchar) (length >> 8);
+    *to++= (char) (length >> 8);
   if (length)
     memcpy(to, from+2, length);
   return to+length;
@@ -3704,7 +3705,7 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 ** packlength slot and may be from 1-4.
 ****************************************************************************/
 
-Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
+Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
 		       struct st_table *table_arg,uint blob_pack_length,
 		       bool binary_arg)
@@ -3721,7 +3722,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 }
 
 
-void Field_blob::store_length(ulong number)
+void Field_blob::store_length(uint32 number)
 {
   switch (packlength) {
   case 1:
@@ -3748,9 +3749,9 @@ void Field_blob::store_length(ulong number)
       shortstore(ptr,(unsigned short) number);
     break;
   case 3:
-    if (number > (ulong) (1L << 24))
+    if (number > (uint32) (1L << 24))
     {
-      number= (ulong) (1L << 24)-1L;
+      number= (uint32) (1L << 24)-1L;
       current_thd->cuted_fields++;
     }
     int3store(ptr,number);
@@ -3768,11 +3769,11 @@ void Field_blob::store_length(ulong number)
 }
 
 
-ulong Field_blob::get_length(const char *pos)
+uint32 Field_blob::get_length(const char *pos)
 {
   switch (packlength) {
   case 1:
-    return (ulong) (uchar) pos[0];
+    return (uint32) (uchar) pos[0];
   case 2:
     {
       uint16 tmp;
@@ -3782,10 +3783,10 @@ ulong Field_blob::get_length(const char *pos)
       else
 #endif
 	shortget(tmp,pos);
-      return (ulong) tmp;
+      return (uint32) tmp;
     }
   case 3:
-    return (ulong) uint3korr(pos);
+    return (uint32) uint3korr(pos);
   case 4:
     {
       uint32 tmp;
@@ -3795,7 +3796,7 @@ ulong Field_blob::get_length(const char *pos)
       else
 #endif
 	longget(tmp,pos);
-      return (ulong) tmp;
+      return (uint32) tmp;
     }
   }
   return 0;					// Impossible
@@ -3841,14 +3842,14 @@ void Field_blob::store(const char *from,uint len)
 void Field_blob::store(double nr)
 {
   value.set(nr);
-  Field_blob::store(value.ptr(),value.length());
+  Field_blob::store(value.ptr(),(uint) value.length());
 }
 
 
 void Field_blob::store(longlong nr)
 {
   value.set(nr);
-  Field_blob::store(value.ptr(),value.length());
+  Field_blob::store(value.ptr(), (uint) value.length());
 }
 
 
@@ -3859,7 +3860,7 @@ double Field_blob::val_real(void)
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
-  ulong length=get_length(ptr);
+  uint32 length=get_length(ptr);
 
   char save=blob[length];			// Ok to patch blob in NISAM
   blob[length]=0;
@@ -3875,7 +3876,7 @@ longlong Field_blob::val_int(void)
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0;
-  ulong length=get_length(ptr);
+  uint32 length=get_length(ptr);
 
   char save=blob[length];			// Ok to patch blob in NISAM
   blob[length]=0;
@@ -3898,8 +3899,8 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 }
 
 
-int Field_blob::cmp(const char *a,ulong a_length, const char *b,
-		    ulong b_length)
+int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
+		    uint32 b_length)
 {
   int diff;
   if (binary_flag)
@@ -3933,11 +3934,11 @@ int Field_blob::cmp_binary_offset(uint row_offset)
 
 
 int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
-			   ulong max_length)
+			   uint32 max_length)
 {
   char *a,*b;
   uint diff;
-  ulong a_length,b_length;
+  uint32 a_length,b_length;
   memcpy_fixed(&a,a_ptr+packlength,sizeof(char*));
   memcpy_fixed(&b,b_ptr+packlength,sizeof(char*));
   a_length=get_length(a_ptr);
@@ -3956,9 +3957,9 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 void Field_blob::get_key_image(char *buff,uint length)
 {
   length-=HA_KEY_BLOB_LENGTH;
-  ulong blob_length=get_length(ptr);
+  uint32 blob_length=get_length(ptr);
   char *blob;
-  if ((ulong) length > blob_length)
+  if ((uint32) length > blob_length)
   {
 #ifdef HAVE_purify
     bzero(buff+2+blob_length, (length-blob_length));
@@ -4052,7 +4053,7 @@ char *Field_blob::pack(char *to, const char *from, uint max_length)
 {
   char *save=ptr;
   ptr=(char*) from;
-  ulong length=get_length();			// Length of from string
+  uint32 length=get_length();			// Length of from string
   if (length > max_length)
   {
     ptr=to;
@@ -4075,7 +4076,7 @@ char *Field_blob::pack(char *to, const char *from, uint max_length)
 const char *Field_blob::unpack(char *to, const char *from)
 {
   memcpy(to,from,packlength);
-  ulong length=get_length(from);
+  uint32 length=get_length(from);
   from+=packlength;
   if (length)
     memcpy_fixed(to+packlength, &from, sizeof(from));
@@ -4140,7 +4141,7 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
 {
   char *save=ptr;
   ptr=(char*) from;
-  ulong length=get_length();			// Length of from string
+  uint32 length=get_length();			// Length of from string
   if (length > max_length)
     length=max_length;
   *to++= (uchar) length;
@@ -4163,9 +4164,9 @@ char *Field_blob::pack_key_from_key_image(char *to, const char *from,
   uint length=uint2korr(from);
   if (length > max_length)
     length=max_length;
-  *to++= (length & 255);
+  *to++= (char) (length & 255);
   if (max_length > 255)
-    *to++= (uchar) (length >> 8);
+    *to++= (char) (length >> 8);
   if (length)
     memcpy(to, from+2, length);
   return to+length;
@@ -4278,7 +4279,7 @@ void Field_enum::store(const char *from,uint length)
 	conv=buff;
       }
       my_errno=0;
-      tmp=strtoul(conv,&end,10);
+      tmp=(uint) strtoul(conv,&end,10);
       if (my_errno || end != conv+length || tmp > typelib->count)
       {
 	tmp=0;
@@ -4624,7 +4625,7 @@ uint pack_length_to_packflag(uint type)
 
 
 Field *make_field(char *ptr, uint32 field_length,
-		  uchar *null_pos, uint null_bit,
+		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,

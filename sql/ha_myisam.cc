@@ -130,7 +130,7 @@ int ha_myisam::net_read_dump(NET* net)
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
   for(;;)
   {
-    uint packet_len = my_net_read(net);
+    ulong packet_len = my_net_read(net);
     if (!packet_len)
       break ; // end of file
     if (packet_len == packet_error)
@@ -139,7 +139,7 @@ int ha_myisam::net_read_dump(NET* net)
       error= -1;
       goto err;
     }
-    if (my_write(data_fd, (byte*)net->read_pos, packet_len,
+    if (my_write(data_fd, (byte*)net->read_pos, (uint) packet_len,
 		 MYF(MY_WME|MY_FNABP)))
     {
       error = errno;

@@ -310,6 +310,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     }
   }
   thd->proc_info="end";
+  if (info.copied || info.deleted)
+    query_cache.invalidate(table_list);
   table->time_stamp=save_time_stamp;		// Restore auto timestamp ptr
   table->next_number_field=0;
   thd->count_cuted_fields=0;
@@ -737,9 +739,9 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   }
 
   client_thd->proc_info="allocating local table";
-  copy= (TABLE*) sql_alloc(sizeof(*copy)+
-			   (table->fields+1)*sizeof(Field**)+
-			   table->reclength);
+  copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
+				   (table->fields+1)*sizeof(Field**)+
+				   table->reclength);
   if (!copy)
     goto error;
   *copy= *table;
@@ -757,7 +759,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   found_next_number_field=table->found_next_number_field;
   for (org_field=table->field ; *org_field ; org_field++,field++)
   {
-    if (!(*field= (*org_field)->new_field(copy)))
+    if (!(*field= (*org_field)->new_field(&client_thd->mem_root,copy)))
       return 0;
     (*field)->move_field(adjust_ptrs);		// Point at copy->record[0]
     if (*org_field == found_next_number_field)
@@ -1335,6 +1337,8 @@ void select_insert::send_error(uint errcode,const char *err)
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
   ha_rollback(thd);
+  if (info.copied || info.deleted)
+    query_cache.invalidate(table);
 }
 
 
@@ -1346,6 +1350,8 @@ bool select_insert::send_eof()
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
+  if (info.copied || info.deleted)
+    query_cache.invalidate(table);
 
   if (error)
   {

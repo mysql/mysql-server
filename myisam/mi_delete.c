@@ -97,6 +97,12 @@ int mi_delete(MI_INFO *info,const byte *record)
   myisam_log_command(MI_LOG_DELETE,info,(byte*) lastpos,sizeof(lastpos),0);
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */
+  if (info->invalidator != 0)
+  {
+    DBUG_PRINT("info", ("invalidator... '%s' (delete)", info->filename));
+    (*info->invalidator)(info->filename);
+    info->invalidator=0;
+  }
   DBUG_RETURN(0);
 
 err:
