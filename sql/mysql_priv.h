@@ -635,8 +635,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 
 extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *charsets_list;
-extern my_string mysql_tmpdir;
+	    mysql_real_data_home[], *charsets_list, *opt_mysql_tmpdir;
+#define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
+extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
 extern const char *first_keyword, *localhost, *delayed_user;
 extern const char **errmesg;			/* Error messages */

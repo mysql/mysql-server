@@ -2227,30 +2227,32 @@ fill_record(Field **ptr,List<Item> &values)
 
 static void mysql_rm_tmp_tables(void)
 {
-  uint idx;
-  char	filePath[FN_REFLEN];
+  uint i, idx;
+  char	filePath[FN_REFLEN], *tmpdir;
   MY_DIR *dirp;
   FILEINFO *file;
   DBUG_ENTER("mysql_rm_tmp_tables");
 
+  for (i=0; i<=mysql_tmpdir_list.max; i++)
+  {
+    tmpdir=mysql_tmpdir_list.list[i];
   /* See if the directory exists */
-  if (!(dirp = my_dir(mysql_tmpdir,MYF(MY_WME | MY_DONT_SORT))))
-    DBUG_VOID_RETURN;				/* purecov: inspected */
+    if (!(dirp = my_dir(tmpdir,MYF(MY_WME | MY_DONT_SORT))))
+      continue;
 
-  /*
-  ** Remove all SQLxxx tables from directory
-  */
+    /* Remove all SQLxxx tables from directory */
 
   for (idx=2 ; idx < (uint) dirp->number_off_files ; idx++)
   {
     file=dirp->dir_entry+idx;
     if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
     {
-      sprintf(filePath,"%s%s",mysql_tmpdir,file->name); /* purecov: inspected */
-      VOID(my_delete(filePath,MYF(MY_WME)));	/* purecov: inspected */
+        sprintf(filePath,"%s%s",tmpdir,file->name);
+        VOID(my_delete(filePath,MYF(MY_WME)));
     }
   }
   my_dirend(dirp);
+  }
   DBUG_VOID_RETURN;
 }
 
