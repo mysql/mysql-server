@@ -49,8 +49,9 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
 
   -?, --help           display this helpscreen and exit
   -u, --user=#         user for database login if not current user
-  -p, --password=#     password to use when connecting to server
-  -h, --host=#	       Hostname for local server when connecting over TCP/IP
+  -p, --password=#     password to use when connecting to server (if not set
+                       in my.cnf, which is recommended)
+  -h, --host=#         Hostname for local server when connecting over TCP/IP
   -P, --port=#         port to use when connecting to local server with TCP/IP
   -S, --socket=#       socket to use when connecting to local server
 
@@ -893,7 +894,11 @@ user for database login if not current user
 
 =item -p, --password=#     
 
-password to use when connecting to server
+password to use when connecting to the server. Note that you are strongly
+encouraged *not* to use this option as every user would be able to see the
+password in the process list. Instead use the '[mysqlhotcopy]' section in
+one of the config files, normally /etc/my.cnf or your personal ~/.my.cnf.
+(See the chapter 'my.cnf Option Files' in the manual)
 
 =item -h, -h, --host=#
 
