@@ -754,6 +754,20 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->where= lex->select_lex.where;
 
       /*
+        Add subqueries units to SELECT in which we merging current view.
+
+        NOTE: we do not support UNION here, so we take only one select
+      */
+      for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
+           unit;
+           unit= unit->next_unit())
+      {
+        SELECT_LEX_NODE *save_slave= unit->slave;
+        unit->include_down(table->select_lex);
+        unit->slave= save_slave; // fix include_down initialisation
+      }
+
+      /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),
 	but it will not be included to SELECT_LEX tree, because it
@@ -923,8 +937,12 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   uint i, elements_in_view;
   DBUG_ENTER("check_key_in_view");
 
-  if (!view->view ||
-      thd->lex->unit.global_parameters->select_limit == HA_POS_ERROR)
+  /*
+    we do not support updatable UNIONs in VIW, so we can check just limit of
+    LEX::select_lex
+  */
+  if (!view->view || thd->lex->sql_command == SQLCOM_INSERT ||
+      thd->lex->select_lex.select_limit == HA_POS_ERROR)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
   trans= view->field_translation;

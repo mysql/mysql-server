@@ -1543,8 +1543,9 @@ void st_select_lex::print_limit(THD *thd, String *str)
     st_lex::can_be_merged()
 
   DESCRIPTION
-    We can apply merge algorithm if it is single SELECT view (we do not
-    count SELECTs of underlying views) and we have not grpouping, ordering,
+    We can apply merge algorithm if it is single SELECT view  with
+    subqueries only in WHERE clause (we do not count SELECTs of underlying
+    views, and second level subqueries) and we have not grpouping, ordering,
     HAVING clause, aggregate functions, DISTINCT clause, LIMIT clause and
     several underlying tables.
 
@@ -1558,14 +1559,23 @@ bool st_lex::can_be_merged()
   // TODO: do not forget implement case when select_lex.table_list.elements==0
 
   /* find non VIEW subqueries/unions */
-  uint selects= 0;
-  for (SELECT_LEX *sl= all_selects_list;
-       sl && selects <= 1;
-       sl= sl->next_select_in_list())
-    if (sl->parent_lex == this)
-      selects++;
+  bool selects_allow_merge= select_lex.next_select() == 0;
+  if (selects_allow_merge)
+  {
+    for (SELECT_LEX_UNIT *unit= select_lex.first_inner_unit();
+         unit;
+         unit= unit->next_unit())
+    {
+      if (unit->first_select()->parent_lex == this &&
+          (unit->item == 0 || unit->item->place() != IN_WHERE))
+      {
+        selects_allow_merge= 0;
+        break;
+      }
+    }
+  }
 
-  return (selects <= 1 &&
+  return (selects_allow_merge &&
 	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&

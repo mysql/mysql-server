@@ -1421,3 +1421,33 @@ alter algorithm=temptable view v1 as select * from t1;
 show create view v1;
 drop view v1;
 drop table t1;
+
+#
+# updating view with subquery in the WHERE clause
+#
+create table t1 (s1 int);
+create table t2 (s1 int);
+create view v2 as select * from t2 where s1 in (select s1 from t1);
+insert into v2 values (5);
+insert into t1 values (5);
+select * from v2;
+update v2 set s1 = 0;
+select * from v2;
+select * from t2;
+# check it with check option
+alter view v2 as select * from t2 where s1 in (select s1 from t1) with check option;
+insert into v2 values (5);
+-- error 1369
+update v2 set s1 = 1;
+insert into t1 values (1);
+update v2 set s1 = 1;
+select * from v2;
+select * from t2;
+# scheck how VIEWs with subqueries work with prepared statements
+prepare stmt1 from "select * from v2;";
+execute stmt1;
+insert into t1 values (0);
+execute stmt1;
+deallocate prepare stmt1;
+drop view v2;
+drop table t1, t2;
