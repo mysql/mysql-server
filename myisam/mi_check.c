@@ -873,15 +873,19 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	{
 	  if (b_type & BLOCK_LAST)
 	  {
-	    mi_check_print_error(param,"Record link to short for record at %s",
-			llstr(start_recpos,llbuff));
+	    mi_check_print_error(param,
+				 "Wrong record length %s of %s at %s",
+				 llstr(block_info.rec_len-left_length,llbuff),
+				 llstr(block_info.rec_len, llbuff2),
+				 llstr(start_recpos,llbuff3));
 	    got_error=1;
 	    break;
 	  }
 	  if (info->state->data_file_length < block_info.next_filepos)
 	  {
-	    mi_check_print_error(param,"Found next-recordlink that points outside datafile at %s",
-			llstr(block_info.filepos,llbuff));
+	    mi_check_print_error(param,
+				 "Found next-recordlink that points outside datafile at %s",
+				 llstr(block_info.filepos,llbuff));
 	    got_error=1;
 	    break;
 	  }

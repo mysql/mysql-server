@@ -69,4 +69,12 @@ select id, sum(qty) as sqty from t1 group by id having sqty>2;
 id	sqty
 1	5
 2	9
+select sum(qty) as sqty from t1 group by id having count(id) > 0;
+sqty
+5
+9
+select sum(qty) as sqty from t1 group by id having count(distinct id) > 0;
+sqty
+5
+9
 drop table t1;

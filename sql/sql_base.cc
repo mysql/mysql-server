@@ -1694,7 +1694,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants  && check_grant_column(thd,table,name,length))
+  if (check_grants && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1719,8 +1719,8 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
-					grant_option && 
-					tables->table->grant.want_privilege,
+					test(tables->table->grant.
+					     want_privilege),
 					1);
 	if (find)
 	{
@@ -1760,8 +1760,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   for (; tables ; tables=tables->next)
   {
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option &&
-				     tables->table->grant.want_privilege,
+				     test(tables->table->grant.want_privilege),
 				     allow_rowid);
     if (field)
     {
@@ -1985,10 +1984,10 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       /* Ensure that we have access right to all columns */
-      if (grant_option && !(table->grant.privilege &
-			    table->grant.want_privilege) &&
+      if (!(table->grant.privilege & SELECT_ACL) &&
 	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
+
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
