@@ -748,7 +748,7 @@ String *Item_func_replace::val_str(String *str)
   res->set_charset(collation.collation);
 
 #ifdef USE_MB
-  binary_cmp = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
+  binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
 #endif
 
   if (res2->length() == 0)
