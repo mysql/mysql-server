@@ -19,7 +19,6 @@ SHARED_LIB_VERSION=14:0:0
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=1
 NDB_VERSION_BUILD=0
-NDB_VERSION_STATUS="alpha"
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -38,6 +37,7 @@ sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/ha_archive.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
+sinclude(config/ac-macros/ha_blackhole.m4)
 sinclude(config/ac-macros/ha_example.m4)
 sinclude(config/ac-macros/ha_federated.m4)
 sinclude(config/ac-macros/ha_innodb.m4)
@@ -353,7 +353,8 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
+     # Statically link the language support function's found in libsupc++.a
+     LIBS="$LIBS -lsupc++"
     fi
   fi
 fi
@@ -2373,11 +2374,13 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
+MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_EXAMPLEDB
 MYSQL_CHECK_ARCHIVEDB
 MYSQL_CHECK_CSVDB
+MYSQL_CHECK_BLACKHOLEDB
 MYSQL_CHECK_NDBCLUSTER
 MYSQL_CHECK_FEDERATED
 

@@ -238,7 +238,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
 		     table->s->fields, table->field[2]->field_length));
-  
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
@@ -321,6 +321,12 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         user.access|= CREATE_PROC_ACL;
       if (table->s->fields <= 33 && (user.access & ALTER_ACL))
         user.access|= ALTER_PROC_ACL;
+
+      /*
+        pre 5.0.3 did not have CREATE_USER_ACL
+      */
+      if (table->s->fields <= 36 && (user.access & GRANT_ACL))
+        user.access|= CREATE_USER_ACL;
 
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
@@ -1090,6 +1096,9 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 
 /*
   Get privilege for a host, user and db combination
+
+  as db_is_pattern changes the semantics of comparison,
+  acl_cache is not used if db_is_pattern is set.
 */
 
 ulong acl_get(const char *host, const char *ip,
@@ -1109,7 +1118,7 @@ ulong acl_get(const char *host, const char *ip,
     db=tmp_db;
   }
   key_length=(uint) (end-key);
-  if ((entry=(acl_entry*) acl_cache->search(key,key_length)))
+  if (!db_is_pattern && (entry=(acl_entry*) acl_cache->search(key,key_length)))
   {
     db_access=entry->access;
     VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -1158,7 +1167,8 @@ ulong acl_get(const char *host, const char *ip,
   }
 exit:
   /* Save entry in cache for quick retrieval */
-  if ((entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
+  if (!db_is_pattern &&
+      (entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
@@ -1540,18 +1550,26 @@ end:
 }
 
 
-/* Return 1 if we are allowed to create new users */
+/*
+  Return 1 if we are allowed to create new users
+  the logic here is: INSERT_ACL is sufficient.
+  It's also a requirement in opt_safe_user_create,
+  otherwise CREATE_USER_ACL is enough.
+*/
 
 static bool test_if_create_new_users(THD *thd)
 {
-  bool create_new_users=1;    // Assume that we are allowed to create new users
-  if (opt_safe_user_create && !(thd->master_access & INSERT_ACL))
+  bool create_new_users= test(thd->master_access & INSERT_ACL) ||
+                         (!opt_safe_user_create &&
+                          test(thd->master_access & CREATE_USER_ACL));
+  if (!create_new_users)
   {
     TABLE_LIST tl;
     ulong db_access;
     bzero((char*) &tl,sizeof(tl));
     tl.db=	   (char*) "mysql";
     tl.table_name=  (char*) "user";
+    create_new_users= 1;
 
     db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, tl.db, 0);
@@ -1571,7 +1589,7 @@ static bool test_if_create_new_users(THD *thd)
 
 static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 			      ulong rights, bool revoke_grant,
-			      bool create_user)
+			      bool can_create_user, bool no_auto_create)
 {
   int error = -1;
   bool old_row_exists=0;
@@ -1613,8 +1631,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       goto end;
     }
     /*
-      There are four options which affect the process of creation of 
-      a new user(mysqld option --safe-create-user, 'insert' privilege
+      There are four options which affect the process of creation of
+      a new user (mysqld option --safe-create-user, 'insert' privilege
       on 'mysql.user' table, using 'GRANT' with 'IDENTIFIED BY' and
       SQL_MODE flag NO_AUTO_CREATE_USER). Below is the simplified rule
       how it should work.
@@ -1622,11 +1640,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       else if (identified_by) => create
       else if (no_auto_create_user) => reject
       else create
+
+      see also test_if_create_new_users()
     */
-    else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
-              !password_len) || !create_user)
+    else if (!password_len && no_auto_create)
     {
-      my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      goto end;
+    }
+    else if (!can_create_user)
+    {
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
                thd->user, thd->host_or_ip);
       goto end;
     }
@@ -2707,7 +2731,9 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     /* Create user if needed */
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
-			     0, revoke_grant, create_new_users);
+			     0, revoke_grant, create_new_users,
+                             test(thd->variables.sql_mode &
+                                  MODE_NO_AUTO_CREATE_USER));
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -2912,7 +2938,9 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     /* Create user if needed */
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
-			     0, revoke_grant, create_new_users);
+			     0, revoke_grant, create_new_users,
+                             test(thd->variables.sql_mode &
+                                  MODE_NO_AUTO_CREATE_USER));
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -2924,7 +2952,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     table_name= table_list->table_name;
 
     grant_name= proc_hash_search(Str->host.str, NullS, db_name,
-    				 Str->user.str, table_name, 1);
+                                 Str->user.str, table_name, 1);
     if (!grant_name)
     {
       if (revoke_grant)
@@ -2945,7 +2973,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
       }
       my_hash_insert(&proc_priv_hash,(byte*) grant_name);
     }
-    
+
     if (replace_proc_table(thd, grant_name, tables[1].table, *Str,
 			   db_name, table_name, rights, revoke_grant))
     {
@@ -3036,11 +3064,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= -1;
       continue;
     }
-    if ((replace_user_table(thd,
-			    tables[0].table,
-			    *Str,
-			    (!db ? rights : 0), revoke_grant,
-			    create_new_users)))
+    if (replace_user_table(thd, tables[0].table, *Str,
+                           (!db ? rights : 0), revoke_grant, create_new_users,
+                           test(thd->variables.sql_mode &
+                                MODE_NO_AUTO_CREATE_USER)))
       result= -1;
     else if (db)
     {
@@ -3687,11 +3714,13 @@ static const char *command_array[]=
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
+  "CREATE USER"
 };
 
 static uint command_lengths[]=
 {
-  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9, 14, 13
+  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
+  14, 13, 11
 };
 
 
@@ -4807,13 +4836,11 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     }
 
     sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode&= ~MODE_NO_AUTO_CREATE_USER;
-    if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1))
+    if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
     }
-    thd->variables.sql_mode= sql_mode;
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -4969,7 +4996,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-			   *lex_user, ~0, 1, 0))
+                           *lex_user, ~0, 1, 0, 0))
     {
       result= -1;
       continue;

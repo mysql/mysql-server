@@ -216,7 +216,7 @@ bool mysql_create_view(THD *thd,
 
   /* prepare select to resolve all fields */
   lex->view_prepare_mode= 1;
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, view->view_name.str))
   {
     /*
       some errors from prepare are reported to user, if is not then

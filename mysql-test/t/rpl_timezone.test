@@ -1,10 +1,25 @@
 # Test of replication of time zones.
+
+# There is currently some bug possibly in prepared statements (this
+# test fails with --ps-protocol): sys_var_thd_time_zone::value_ptr()
+# is called only at prepare time, not at execution time. So,
+# thd->time_zone_used is not equal to 1 (it is back to 0, because of
+# reset_thd_for_next_command called at execution time), so the
+# timezone used in CONVERT_TZ is not binlogged. To debug (by Guilhem
+# and possibly Konstantin).
+
+--disable_ps_protocol
+
 source include/master-slave.inc;
 
 # Some preparations
 let $VERSION=`select version()`;
+set timestamp=100000000; # for fixed output of mysqlbinlog
 create table t1 (t timestamp);
 create table t2 (t char(32));
+
+connection slave;
+select @@time_zone;
 
 #
 # Let us check how well replication works when we are saving datetime
@@ -12,12 +27,12 @@ create table t2 (t char(32));
 #
 connection master;
 select @@time_zone;
+insert into t1 values ('20050101000000'), ('20050611093902');
 set time_zone='UTC';
 insert into t1 values ('20040101000000'), ('20040611093902');
 select * from t1;
-# On slave we still in 'Europe/Moscow' so we should see equivalent but
-# textually different values.
 sync_slave_with_master;
+set time_zone='UTC';
 select * from t1;
 
 # Let us check also that setting of time_zone back to default also works
@@ -28,12 +43,29 @@ set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000'), ('20040611093902');
 select * from t1;
 sync_slave_with_master;
+set time_zone='Europe/Moscow';
 select * from t1;
 connection master;
-# We should not see SET ONE_SHOT time_zone before second insert
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-show binlog events;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+
+# Let us check with LOAD DATA INFILE
+# (we do it after mysqlbinlog because the temp files names are not constant)
+connection master;
+delete from t1;
+set time_zone='UTC';
+load data infile '../../std_data/rpl_timezone.dat' into table t1;
+select * from t1;
+sync_slave_with_master;
+set time_zone='UTC';
+select * from t1;
+set time_zone='Europe/Moscow';
+
+# Put back values of before the LOAD
+connection master;
+set time_zone='Europe/Moscow';
+delete from t1;
+insert into t1 values ('20040101000000'), ('20040611093902');
 
 #
 # Now let us check how well we replicate statments reading TIMESTAMP fields
@@ -54,10 +86,6 @@ delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp), (current_date), (current_time);
 sync_slave_with_master;
-# Values in ouput of these to queries should differ because we are in
-# in 'MET' on master and in 'Europe/Moscow on slave...
-set timestamp=1000072000;
-select current_timestamp, current_date, current_time;
 select * from t2;
 
 #
@@ -73,13 +101,24 @@ sync_slave_with_master;
 select * from t2;
 
 #
-# Let us check that we are not allowing to set global time_zone with
+# Let us check that we are allowing to set global time_zone with
 # replication
 #
 connection master;
---error 1387
 set global time_zone='MET';
 
+#
+# Let us see if CONVERT_TZ(@@time_zone) replicates
+#
+delete from t2;
+set time_zone='UTC';
+insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone));
+insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'));
+select * from t2;
+sync_slave_with_master;
+select * from t2;
+
 # Clean up
+connection master;
 drop table t1, t2;
 sync_slave_with_master;

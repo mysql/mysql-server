@@ -1169,8 +1169,8 @@ public:
     from table are necessary for this select, to check if it's necessary to
     update auto-updatable fields (like auto_increment and timestamp).
   */
-  ulong	     query_id;
-  ulong	     warn_id, version, options, thread_id, col_access;
+  query_id_t query_id, warn_id;
+  ulong	     version, options, thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
@@ -1798,7 +1798,8 @@ class user_var_entry
  public:
   LEX_STRING name;
   char *value;
-  ulong length, update_query_id, used_query_id;
+  ulong length;
+  query_id_t update_query_id, used_query_id;
   Item_result type;
 
   double val_real(my_bool *null_value);

@@ -875,12 +875,13 @@ err:
 
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
 {
-  char tmp_path[FN_REFLEN], tmp2_path[FN_REFLEN], *pos;
+  char tmp_path[FN_REFLEN], *pos;
   char *path= tmp_path;
   DBUG_ENTER("rm_dir_w_symlink");
   unpack_filename(tmp_path, org_path);
 #ifdef HAVE_READLINK
   int error;
+  char tmp2_path[FN_REFLEN];
 
   /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
   pos= strend(path);

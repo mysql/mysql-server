@@ -1575,14 +1575,14 @@ mysql_hex_string(char *to, const char *from, ulong length)
 ulong STDCALL
 mysql_escape_string(char *to,const char *from,ulong length)
 {
-  return escape_string_for_mysql(default_charset_info, to, from, length);
+  return escape_string_for_mysql(default_charset_info, to, 0, from, length);
 }
 
 ulong STDCALL
 mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 			 ulong length)
 {
-  return escape_string_for_mysql(mysql->charset, to, from, length);
+  return escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 
@@ -2862,6 +2862,17 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
       mysql->status= MYSQL_STATUS_READY;
       stmt->read_row_func= stmt_read_row_from_cursor;
     }
+    else if (stmt->flags & CURSOR_TYPE_READ_ONLY)
+    {
+      /*
+        This is a single-row result set, a result set with no rows, EXPLAIN,
+        SHOW VARIABLES, or some other command which either a) bypasses the
+        cursors framework in the server and writes rows directly to the
+        network or b) is more efficient if all (few) result set rows are
+        precached on client and server's resources are freed.
+      */
+      DBUG_RETURN(mysql_stmt_store_result(stmt));
+    }
     else
     {
       stmt->mysql->unbuffered_fetch_owner= &stmt->unbuffered_fetch_cancelled;
@@ -3608,7 +3619,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (is_unsigned)
       data= ulonglong2double(value);
     else
-      data= value;
+      data= (double)value;
     doublestore(buffer, data);
     *param->error= is_unsigned ?
                    ((ulonglong) value) != ((ulonglong) (*(double*) buffer)) :

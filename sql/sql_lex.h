@@ -436,7 +436,8 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool prepare(THD *thd, select_result *result, ulong additional_options,
+               const char *tmp_table_alias);
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -892,6 +893,8 @@ struct st_lex_local: public st_lex
   }
   static void operator delete(void *ptr,size_t size)
   { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  { /* Never called */ }
 };
 
 void lex_init(void);

@@ -146,6 +146,7 @@ then
   c_u="$c_u   Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
@@ -161,22 +162,22 @@ then
 
   if test "$1" = "test" 
   then
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
     INSERT INTO user (host,user) values ('localhost','');
     INSERT INTO user (host,user) values ('$hostname','');"
   else
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);"
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);"
     if test "$windows" = "0"
     then
       i_u="$i_u
-           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
            INSERT INTO user (host,user) values ('$hostname','');
            INSERT INTO user (host,user) values ('localhost','');"
     else
       i_u="$i_u
-	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     fi
   fi 
 fi
@@ -269,11 +270,11 @@ then
 
   c_ht="$c_ht CREATE TABLE help_topic ("
   c_ht="$c_ht   help_topic_id    int unsigned not null,"
-  c_ht="$c_ht   name             varchar(64) not null,"
+  c_ht="$c_ht   name             char(64) not null,"
   c_ht="$c_ht   help_category_id smallint unsigned not null,"
   c_ht="$c_ht   description      text not null,"
   c_ht="$c_ht   example          text not null,"
-  c_ht="$c_ht   url              varchar(128) not null,"
+  c_ht="$c_ht   url              char(128) not null,"
   c_ht="$c_ht   primary key      (help_topic_id),"
   c_ht="$c_ht   unique index     (name)"
   c_ht="$c_ht ) engine=MyISAM"
@@ -291,9 +292,9 @@ then
   
   c_hc="$c_hc CREATE TABLE help_category ("
   c_hc="$c_hc   help_category_id   smallint unsigned not null,"
-  c_hc="$c_hc   name               varchar(64) not null,"
+  c_hc="$c_hc   name               char(64) not null,"
   c_hc="$c_hc   parent_category_id smallint unsigned null,"
-  c_hc="$c_hc   url                varchar(128) not null,"
+  c_hc="$c_hc   url                char(128) not null,"
   c_hc="$c_hc   primary key        (help_category_id),"
   c_hc="$c_hc   unique index       (name)"
   c_hc="$c_hc ) engine=MyISAM"
@@ -309,7 +310,7 @@ then
 
   c_hk="$c_hk CREATE TABLE help_keyword ("
   c_hk="$c_hk   help_keyword_id  int unsigned not null,"
-  c_hk="$c_hk   name             varchar(64) not null,"
+  c_hk="$c_hk   name             char(64) not null,"
   c_hk="$c_hk   primary key      (help_keyword_id),"
   c_hk="$c_hk   unique index     (name)"
   c_hk="$c_hk ) engine=MyISAM"

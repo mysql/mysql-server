@@ -381,6 +381,12 @@ struct trx_struct{
 					in MySQL's binlog write, we will
 					flush the log to disk later in
 					a separate call */
+	ibool		must_flush_log_later;/* this flag is set to TRUE in
+					trx_commit_off_kernel() if
+					flush_log_later was TRUE, and there
+					were modifications by the transaction;
+					in that case we must flush the log
+					in trx_commit_complete_for_mysql() */
 	dulint		commit_lsn;	/* lsn at the time of the commit */
 	ibool		dict_operation;	/* TRUE if the trx is used to create
 					a table, create an index, or drop a
@@ -390,8 +396,9 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-	int		active_trans;	/* whether a transaction in MySQL
-					is active */
+	int		active_trans;	/* 1 - if a transaction in MySQL
+					is active. 2 - if prepare_commit_mutex
+                                        was taken */
 	void*           mysql_thd;      /* MySQL thread handle corresponding
 					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd

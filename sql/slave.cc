@@ -28,6 +28,7 @@
 #include <my_dir.h>
 #include <sql_common.h>
 
+#define MAX_SLAVE_RETRY_PAUSE 5
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 
@@ -1137,11 +1138,10 @@ be equal for replication to work";
     such check will broke everything for them. (And now everything will 
     work for them because by default both their master and slave will have 
     'SYSTEM' time zone).
-
-    TODO: when the new replication of timezones is sorted out with Dmitri,
-    change >= '4' to == '4'.
+    This check is only necessary for 4.x masters (and < 5.0.4 masters but
+    those were alpha).
   */
-  if ((*mysql->server_version >= '4') &&
+  if ((*mysql->server_version == '4') &&
       !mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
       (master_res= mysql_store_result(mysql)))
   {
@@ -2163,7 +2163,7 @@ st_relay_log_info::st_relay_log_info()
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
-   until_log_pos(0)
+   until_log_pos(0), retried_trans(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
@@ -2402,6 +2402,18 @@ void set_slave_thread_options(THD* thd)
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
   thd->variables.completion_type= 0;
+}
+
+void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli)
+{
+  thd->variables.character_set_client=
+    global_system_variables.character_set_client;
+  thd->variables.collation_connection=
+    global_system_variables.collation_connection;
+  thd->variables.collation_server=
+    global_system_variables.collation_server;
+  thd->update_charset();
+  rli->cached_charset_invalidate();
 }
 
 /*
@@ -2884,9 +2896,8 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           init_master_info()).
           b) init_relay_log_pos(), because the BEGIN may be an older relay log.
         */
-        if (rli->trans_retries--)
+        if (rli->trans_retries < slave_trans_retries)
         {
-          sql_print_information("Slave SQL thread retries transaction");
           if (init_master_info(rli->mi, 0, 0, 0, SLAVE_SQL))
             sql_print_error("Failed to initialize the master info structure");
           else if (init_relay_log_pos(rli,
@@ -2898,8 +2909,16 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           else
           {
             exec_res= 0;
-            sleep(2); // chance for concurrent connection to get more locks
-          }
+	    /* chance for concurrent connection to get more locks */
+            safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+		       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
+            pthread_mutex_lock(&rli->data_lock); // because of SHOW STATUS
+	    rli->trans_retries++;
+            rli->retried_trans++;
+            pthread_mutex_unlock(&rli->data_lock);
+            DBUG_PRINT("info", ("Slave retries transaction "
+                                "rli->trans_retries: %lu", rli->trans_retries));
+	  }
         }
         else
           sql_print_error("Slave SQL thread retried transaction %lu time(s) "
@@ -2908,8 +2927,8 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
                           slave_trans_retries);
       }
       if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
-        rli->trans_retries= slave_trans_retries; // restart from fresh
-    }
+         rli->trans_retries= 0; // restart from fresh
+     }
     return exec_res;
   }
   else
@@ -3324,7 +3343,7 @@ slave_begin:
   pthread_mutex_lock(&rli->log_space_lock);
   rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
-  rli->trans_retries= slave_trans_retries; // start from "no error"
+  rli->trans_retries= 0; // start from "no error"
 
   if (init_relay_log_pos(rli,
 			 rli->group_relay_log_name,

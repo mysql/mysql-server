@@ -767,6 +767,7 @@ struct show_var_st init_vars[]= {
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
   {"have_archive",	      (char*) &have_archive_db,	            SHOW_HAVE},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_blackhole_engine",   (char*) &have_blackhole_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
@@ -2095,27 +2096,6 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
-bool sys_var_character_set_server::check(THD *thd, set_var *var)
-{
-  /*
-    To be perfect we should fail even if we are a 5.0.3 slave, a 4.1 master,
-    and user wants to change our global character set variables. Because
-    replicating a 4.1 assumes those are not changed. But that's not easy to
-    do.
-  */
-  if ((var->type == OPT_GLOBAL) &&
-      (mysql_bin_log.is_open() ||
-       active_mi->slave_running || active_mi->rli.slave_running))
-  {
-    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
-	     "character set, collation");
-    return 1;
-  }
-  return sys_var_character_set::check(thd,var);
-}
-#endif
-
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
@@ -2208,20 +2188,6 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
-bool sys_var_collation_server::check(THD *thd, set_var *var)
-{
-  if ((var->type == OPT_GLOBAL) &&
-      (mysql_bin_log.is_open() ||
-       active_mi->slave_running || active_mi->rli.slave_running))
-  {
-    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
-	     "character set, collation");
-    return 1;
-  }
-  return sys_var_collation::check(thd,var);
-}
-#endif
 
 bool sys_var_collation_server::update(THD *thd, set_var *var)
 {
@@ -2560,16 +2526,6 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
-#if defined(HAVE_REPLICATION)
-  if ((var->type == OPT_GLOBAL) &&
-      (mysql_bin_log.is_open() ||
-       active_mi->slave_running || active_mi->rli.slave_running))
-  {
-    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
-    return 1;
-  }
-#endif
-
   if (!(var->save_result.time_zone=
         my_tz_find(res, thd->lex->time_zone_tables_used)))
   {
@@ -2605,7 +2561,18 @@ byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
   if (type == OPT_GLOBAL)
     return (byte *)(global_system_variables.time_zone->get_name()->ptr());
   else
+  {
+    /*
+      This is an ugly fix for replication: we don't replicate properly queries
+      invoking system variables' values to update tables; but
+      CONVERT_TZ(,,@@session.time_zone) is so popular that we make it
+      replicable (i.e. we tell the binlog code to store the session
+      timezone). If it's the global value which was used we can't replicate
+      (binlog code stores session value only).
+    */
+    thd->time_zone_used= 1;
     return (byte *)(thd->variables.time_zone->get_name()->ptr());
+  }
 }
 
 
@@ -2652,7 +2619,7 @@ bool sys_var_max_user_conn::update(THD *thd, set_var *var)
 {
   DBUG_ASSERT(var->type == OPT_GLOBAL);
   pthread_mutex_lock(&LOCK_global_system_variables);
-  max_user_connections= var->save_result.ulonglong_value;
+  max_user_connections= (uint)var->save_result.ulonglong_value;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }

@@ -507,8 +507,6 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   field_list->push_back(new Item_empty_string("Info", 20));
 }
 
-#endif /* !MYSQL_CLIENT */
-
 
 /*
   Log_event::write()
@@ -593,7 +591,6 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 
 */
 
-#ifndef MYSQL_CLIENT
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
 			      pthread_mutex_t* log_lock)
 {
@@ -957,6 +954,7 @@ void Query_log_event::pack_info(Protocol *protocol)
 }
 #endif
 
+#ifndef MYSQL_CLIENT
 
 /*
   Query_log_event::write()
@@ -974,7 +972,8 @@ bool Query_log_event::write(IO_CACHE* file)
             1+8+           // code of sql_mode and sql_mode
             1+1+FN_REFLEN+ // code of catalog and catalog length and catalog
             1+4+           // code of autoinc and the 2 autoinc variables
-            1+6            // code of charset and charset
+            1+6+           // code of charset and charset
+            1+1+MAX_TIME_ZONE_NAME_LENGTH // code of tz and tz length and tz name
             ], *start, *start_of_status;
   ulong event_length;
 
@@ -1031,37 +1030,40 @@ bool Query_log_event::write(IO_CACHE* file)
   start_of_status= start= buf+QUERY_HEADER_LEN;
   if (flags2_inited)
   {
-    *(start++)= Q_FLAGS2_CODE;
+    *start++= Q_FLAGS2_CODE;
     int4store(start, flags2);
     start+= 4;
   }
   if (sql_mode_inited)
   {
-    *(start++)= Q_SQL_MODE_CODE;
+    *start++= Q_SQL_MODE_CODE;
     int8store(start, (ulonglong)sql_mode);
     start+= 8;
   }
-  if (catalog_len >= 0) // i.e. "catalog inited" (false for 4.0 events)
+  if (catalog_len) // i.e. "catalog inited" (false for 4.0 events)
   {
-    *(start++)= Q_CATALOG_CODE;
-    *(start++)= (uchar) catalog_len;
+    *start++= Q_CATALOG_NZ_CODE;
+    *start++= (uchar) catalog_len;
     bmove(start, catalog, catalog_len);
     start+= catalog_len;
     /*
-      We write a \0 at the end. As we also have written the length, it's
-      apparently useless; but in fact it enables us to just do
-      catalog= a_pointer_to_the_buffer_of_the_read_event
-      later in the slave SQL thread.
-      If we didn't have the \0, we would need to memdup to build the catalog in
-      the slave SQL thread. 
-      And still the interest of having the length too is that in the slave SQL
-      thread we immediately know at which position the catalog ends (no need to
-      search for '\0'. In other words: length saves search, \0 saves mem alloc,
-      at the cost of 1 redundant byte on the disk.
-      Note that this is only a fix until we change 'catalog' to LEX_STRING
-      (then we won't need the \0).
+      In 5.0.x where x<4 masters we used to store the end zero here. This was
+      a waste of one byte so we don't do it in x>=4 masters. We change code to
+      Q_CATALOG_NZ_CODE, because re-using the old code would make x<4 slaves
+      of this x>=4 master segfault (expecting a zero when there is
+      none). Remaining compatibility problems are: the older slave will not
+      find the catalog; but it is will not crash, and it's not an issue
+      that it does not find the catalog as catalogs were not used in these
+      older MySQL versions (we store it in binlog and read it from relay log
+      but do nothing useful with it). What is an issue is that the older slave
+      will stop processing the Q_* blocks (and jumps to the db/query) as soon
+      as it sees unknown Q_CATALOG_NZ_CODE; so it will not be able to read
+      Q_AUTO_INCREMENT*, Q_CHARSET and so replication will fail silently in
+      various ways. Documented that you should not mix alpha/beta versions if
+      they are not exactly the same version, with example of 5.0.3->5.0.2 and
+      5.0.4->5.0.3. If replication is from older to new, the new will
+      recognize Q_CATALOG_CODE and have no problem.
     */
-    *(start++)= '\0';
   }
   if (auto_increment_increment != 1)
   {
@@ -1072,15 +1074,24 @@ bool Query_log_event::write(IO_CACHE* file)
   }
   if (charset_inited)
   {
-    *(start++)= Q_CHARSET_CODE;
+    *start++= Q_CHARSET_CODE;
     memcpy(start, charset, 6);
     start+= 6;
+  }
+  if (time_zone_len)
+  {
+    /* In the TZ sys table, column Name is of length 64 so this should be ok */
+    DBUG_ASSERT(time_zone_len <= MAX_TIME_ZONE_NAME_LENGTH);
+    *start++= Q_TIME_ZONE_CODE;
+    *start++= time_zone_len;
+    memcpy(start, time_zone_str, time_zone_len);
+    start+= time_zone_len;
   }
   /*
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
     {
-    *(start++)= Q_THIS_VARIABLE_CODE;
+    *start++= Q_THIS_VARIABLE_CODE;
     int4store(start, this_variable);
     start+= 4;
     }
@@ -1109,8 +1120,6 @@ bool Query_log_event::write(IO_CACHE* file)
 /*
   Query_log_event::Query_log_event()
 */
-
-#ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
 				 bool suppress_use)
@@ -1151,6 +1160,18 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   int2store(charset, thd_arg->variables.character_set_client->number);
   int2store(charset+2, thd_arg->variables.collation_connection->number);
   int2store(charset+4, thd_arg->variables.collation_server->number);
+  if (thd_arg->time_zone_used)
+  {
+    /*
+      Note that our event becomes dependent on the Time_zone object
+      representing the time zone. Fortunately such objects are never deleted
+      or changed during mysqld's lifetime.
+    */
+    time_zone_len= thd_arg->variables.time_zone->get_name()->length();
+    time_zone_str= thd_arg->variables.time_zone->get_name()->ptr();
+  }
+  else
+    time_zone_len= 0;
   DBUG_PRINT("info",("Query_log_event has flags2=%lu sql_mode=%lu",flags2,sql_mode));
 }
 #endif /* MYSQL_CLIENT */
@@ -1164,15 +1185,18 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event *description_event,
                                  Log_event_type event_type)
-  :Log_event(buf, description_event), data_buf(0), query(NullS), catalog(NullS), 
+  :Log_event(buf, description_event), data_buf(0), query(NullS),
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
-   auto_increment_increment(1), auto_increment_offset(1)
+   auto_increment_increment(1), auto_increment_offset(1),
+   time_zone_len(0)
 {
   ulong data_len;
   uint32 tmp;
   uint8 common_header_len, post_header_len;
-  const char *start, *end;
+  char *start;
+  const char *end;
+  bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
   common_header_len= description_event->common_header_len;
@@ -1192,7 +1216,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   slave_proxy_id= thread_id = uint4korr(buf + Q_THREAD_ID_OFFSET);
   exec_time = uint4korr(buf + Q_EXEC_TIME_OFFSET);
-  db_len = (uint)buf[Q_DB_LEN_OFFSET];
+  db_len = (uint)buf[Q_DB_LEN_OFFSET]; // TODO: add a check of all *_len vars
   error_code = uint2korr(buf + Q_ERR_CODE_OFFSET);
 
   /*
@@ -1218,7 +1242,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   /* variable-part: the status vars; only in MySQL 5.0  */
   
   start= (char*) (buf+post_header_len);
-  end= (char*) (start+status_vars_len);
+  end= (const char*) (start+status_vars_len);
   for (const uchar* pos= (const uchar*) start; pos < (const uchar*) end;)
   {
     switch (*pos++) {
@@ -1240,11 +1264,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= 8;
       break;
     }
-    case Q_CATALOG_CODE:
-      catalog_len= *pos;
-      if (catalog_len)
-        catalog= (char*) pos+1;                           // Will be copied later
-      pos+= catalog_len+2;
+    case Q_CATALOG_NZ_CODE:
+      if ((catalog_len= *pos))
+        catalog= (char*) pos+1;                 // Will be copied later
+      pos+= catalog_len+1;
       break;
     case Q_AUTO_INCREMENT:
       auto_increment_increment= uint2korr(pos);
@@ -1258,32 +1281,60 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= 6;
       break;
     }
+    case Q_TIME_ZONE_CODE:
+    {
+      if ((time_zone_len= *pos))
+        time_zone_str= (char *)(pos+1);
+      pos+= time_zone_len+1;
+      break;
+    }
+    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      if ((catalog_len= *pos))
+        catalog= (char*) pos+1;                           // Will be copied later
+      pos+= catalog_len+2; // leap over end 0
+      catalog_nz= 0; // catalog has end 0 in event
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
  code: %u), skipping the rest of them", (uint) *(pos-1)));
-      pos= (const uchar*) end;                         // Break look
+      pos= (const uchar*) end;                         // Break loop
     }
   }
   
-  /* A 2nd variable part; this is common to all versions */ 
-  
-  if (!(start= data_buf = (char*) my_malloc(catalog_len + data_len +2, MYF(MY_WME))))
+  if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
+                                            time_zone_len + 1 +
+                                            data_len + 1, MYF(MY_WME))))
     DBUG_VOID_RETURN;
-  if (catalog)                                  // If catalog is given
+  if (catalog_len)                                  // If catalog is given
   {
-    memcpy((char*) start, catalog, catalog_len+1);      // Copy name and end \0
-    catalog= start;
-    start+= catalog_len+1;
+    if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
+    {
+      memcpy(start, catalog, catalog_len);
+      catalog= start;
+      start+= catalog_len;
+      *start++= 0;
+    }
+    else
+    {
+      memcpy(start, catalog, catalog_len+1); // copy end 0
+      catalog= start;
+      start+= catalog_len+1;
+    }
   }
+  if (time_zone_len)
+  {
+    memcpy(start, time_zone_str, time_zone_len);
+    time_zone_str= start;
+    start+= time_zone_len;
+    *start++= 0;
+  }
+  /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
-  ((char*) start)[data_len]= '\0';              // End query with \0 (For safetly)
+  start[data_len]= '\0';              // End query with \0 (For safetly)
   db= start;
   query= start + db_len + 1;
   q_len= data_len - db_len -1;
-  /* This is used to detect wrong parsing. Could be removed in the future. */
-  DBUG_PRINT("info", ("catalog: '%s'  len: %u   db: '%s'  len:  %u  q_len: %lu",
-                      catalog, (uint) catalog_len, db, (uint) db_len,q_len));
   DBUG_VOID_RETURN;
 }
 
@@ -1391,6 +1442,8 @@ void Query_log_event::print_query_header(FILE* file, bool short_form,
     last_event_info->auto_increment_offset=    auto_increment_offset;
   }
 
+  /* TODO: print the catalog when we feature SET CATALOG */
+
   if (likely(charset_inited))
   {
     if (unlikely(!last_event_info->charset_inited)) /* first Query event */
@@ -1409,6 +1462,14 @@ void Query_log_event::print_query_header(FILE* file, bool short_form,
               uint2korr(charset+2),
               uint2korr(charset+4));
       memcpy(last_event_info->charset, charset, 6);
+    }
+  }
+  if (time_zone_len)
+  {
+    if (bcmp(last_event_info->time_zone_str, time_zone_str, time_zone_len+1))
+    {
+      fprintf(file,"SET @@session.time_zone='%s';\n", time_zone_str);
+      memcpy(last_event_info->time_zone_str, time_zone_str, time_zone_len+1);
     }
   }
 }
@@ -1444,7 +1505,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
     alloced block (see Query_log_event::exec_event()). Same for thd->db.
     Thank you.
   */
-  thd->catalog= (char*) catalog;
+  thd->catalog= catalog_len ? (char *) catalog : (char *)"";
   thd->db_length= db_len;
   thd->db= (char *) rpl_filter->get_rewrite_db(db, &thd->db_length);
   thd->variables.auto_increment_increment= auto_increment_increment;
@@ -1514,18 +1575,26 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
                 get_charset(uint2korr(charset+4), MYF(MY_WME))))
           {
             /*
-              We updated the thd->variables with nonsensical values (0), and the
-              thread is not guaranteed to terminate now (as it may be configured
-              to ignore EE_UNKNOWN_CHARSET);if we're going to execute a next
-              statement we'll have a new charset info with it, so no problem to
-              have stored 0 in thd->variables. But we invalidate cached
-              charset to force a check next time (otherwise if next time
-              charset is unknown again we won't detect it).
+              We updated the thd->variables with nonsensical values (0). Let's
+              set them to something safe (i.e. which avoids crash), and we'll
+              stop with EE_UNKNOWN_CHARSET in compare_errors (unless set to
+              ignore this error).
             */
-            rli->cached_charset_invalidate();
+            set_slave_thread_default_charset(thd, rli);
             goto compare_errors;
           }
           thd->update_charset(); // for the charset change to take effect
+        }
+      }
+      if (time_zone_len)
+      {
+        String tmp(time_zone_str, time_zone_len, &my_charset_bin);
+        if (!(thd->variables.time_zone=
+              my_tz_find_with_opening_tz_tables(thd, &tmp)))
+        {
+          my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), tmp.c_ptr());
+          thd->variables.time_zone= global_system_variables.time_zone;
+          goto compare_errors;
         }
       }
 
@@ -1752,6 +1821,7 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   Start_log_event_v3::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Start_log_event_v3::write(IO_CACHE* file)
 {
   char buff[START_V3_HEADER_LEN];
@@ -1761,6 +1831,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   return (write_header(file, sizeof(buff)) ||
           my_b_safe_write(file, (byte*) buff, sizeof(buff)));
 }
+#endif
 
 
 /*
@@ -1976,7 +2047,7 @@ Format_description_log_event(const char* buf,
   DBUG_VOID_RETURN;
 }
 
-
+#ifndef MYSQL_CLIENT
 bool Format_description_log_event::write(IO_CACHE* file)
 {
   /*
@@ -1993,6 +2064,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
   return (write_header(file, sizeof(buff)) ||
           my_b_safe_write(file, buff, sizeof(buff)));
 }
+#endif
 
 /*
   SYNOPSIS
@@ -2013,6 +2085,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   delete rli->relay_log.description_event_for_exec;
   rli->relay_log.description_event_for_exec= this;
 
+#ifdef USING_TRANSACTIONS
   /*
     As a transaction NEVER spans on 2 or more binlogs:
     if we have an active transaction at this point, the master died
@@ -2034,6 +2107,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
                       "to its binary log.");
     end_trans(thd, ROLLBACK);
   }
+#endif
   /*
     If this event comes from ourselves, there is no cleaning task to perform,
     we don't call Start_log_event_v3::exec_event() (this was just to update the
@@ -2209,6 +2283,8 @@ void Load_log_event::pack_info(Protocol *protocol)
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
+#ifndef MYSQL_CLIENT
+
 /*
   Load_log_event::write_data_header()
 */
@@ -2250,7 +2326,6 @@ bool Load_log_event::write_data_body(IO_CACHE* file)
   Load_log_event::Load_log_event()
 */
 
-#ifndef MYSQL_CLIENT
 Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       const char *db_arg, const char *table_name_arg,
 			       List<Item> &fields_arg,
@@ -2864,6 +2939,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
   Rotate_log_event::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Rotate_log_event::write(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
@@ -2872,7 +2948,7 @@ bool Rotate_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
           my_b_safe_write(file, (byte*)new_log_ident, (uint) ident_len));
 }
-
+#endif
 
 /*
   Rotate_log_event::exec_event()
@@ -2930,17 +3006,10 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
       master is 4.0 then the events are in the slave's format (conversion).
     */
     set_slave_thread_options(thd);
+    set_slave_thread_default_charset(thd, rli);
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
-    thd->variables.character_set_client=
-      global_system_variables.character_set_client;
-    thd->variables.collation_connection=
-      global_system_variables.collation_connection;
-    thd->variables.collation_server=
-      global_system_variables.collation_server;
-    thd->update_charset();
-    rli->cached_charset_invalidate();
   }
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
@@ -3002,6 +3071,7 @@ const char* Intvar_log_event::get_var_type_name()
   Intvar_log_event::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Intvar_log_event::write(IO_CACHE* file)
 {
   byte buf[9];
@@ -3010,6 +3080,7 @@ bool Intvar_log_event::write(IO_CACHE* file)
   return (write_header(file, sizeof(buf)) ||
           my_b_safe_write(file, buf, sizeof(buf)));
 }
+#endif
 
 
 /*
@@ -3094,6 +3165,7 @@ Rand_log_event::Rand_log_event(const char* buf,
 }
 
 
+#ifndef MYSQL_CLIENT
 bool Rand_log_event::write(IO_CACHE* file)
 {
   byte buf[16];
@@ -3102,6 +3174,7 @@ bool Rand_log_event::write(IO_CACHE* file)
   return (write_header(file, sizeof(buf)) ||
           my_b_safe_write(file, buf, sizeof(buf)));
 }
+#endif
 
 
 #ifdef MYSQL_CLIENT
@@ -3165,11 +3238,13 @@ Xid_log_event(const char* buf,
 }
 
 
+#ifndef MYSQL_CLIENT
 bool Xid_log_event::write(IO_CACHE* file)
 {
   return write_header(file, sizeof(xid)) ||
          my_b_safe_write(file, (byte*) &xid, sizeof(xid));
 }
+#endif
 
 
 #ifdef MYSQL_CLIENT
@@ -3303,6 +3378,7 @@ User_var_log_event(const char* buf,
 }
 
 
+#ifndef MYSQL_CLIENT
 bool User_var_log_event::write(IO_CACHE* file)
 {
   char buf[UV_NAME_LEN_SIZE];
@@ -3337,7 +3413,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       dec->fix_buffer_pointer();
       buf2[0]= (char)(dec->intg + dec->frac);
       buf2[1]= (char)dec->frac;
-      decimal2bin((decimal*)val, buf2+2, buf2[0], buf2[1]);
+      decimal2bin((decimal_t*)val, buf2+2, buf2[0], buf2[1]);
       val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
       break;
     }
@@ -3362,6 +3438,7 @@ bool User_var_log_event::write(IO_CACHE* file)
 	  my_b_safe_write(file, (byte*) buf1, buf1_length) ||
 	  my_b_safe_write(file, (byte*) pos, val_len));
 }
+#endif
 
 
 /*
@@ -3404,8 +3481,8 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       int str_len= sizeof(str_buf) - 1;
       int precision= (int)val[0];
       int scale= (int)val[1];
-      decimal_digit dec_buf[10];
-      decimal dec;
+      decimal_digit_t dec_buf[10];
+      decimal_t dec;
       dec.len= 10;
       dec.buf= dec_buf;
 
@@ -3635,6 +3712,7 @@ int Slave_log_event::get_data_size()
 }
 
 
+#ifndef MYSQL_CLIENT
 bool Slave_log_event::write(IO_CACHE* file)
 {
   ulong event_length= get_data_size();
@@ -3645,6 +3723,7 @@ bool Slave_log_event::write(IO_CACHE* file)
   return (write_header(file, event_length) ||
           my_b_safe_write(file, (byte*) mem_pool, event_length));
 }
+#endif
 
 
 void Slave_log_event::init_from_mem_pool(int data_size)
@@ -3771,7 +3850,6 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
   sql_ex.force_new_format();
   DBUG_VOID_RETURN;
 }
-#endif /* !MYSQL_CLIENT */
 
 
 /*
@@ -3816,6 +3894,7 @@ bool Create_file_log_event::write_base(IO_CACHE* file)
   return res;
 }
 
+#endif /* !MYSQL_CLIENT */
 
 /*
   Create_file_log_event ctor
@@ -3948,8 +4027,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   strmov(p, ".info");			// strmov takes less code than memcpy
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0 ||
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -3973,8 +4054,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   my_close(fd, MYF(0));
   
   // fname_buf now already has .data, not .info, because we did our trick
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0)
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
@@ -4043,6 +4126,7 @@ Append_block_log_event::Append_block_log_event(const char* buf, uint len,
   Append_block_log_event::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Append_block_log_event::write(IO_CACHE* file)
 {
   byte buf[APPEND_BLOCK_HEADER_LEN];
@@ -4051,6 +4135,7 @@ bool Append_block_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, buf, APPEND_BLOCK_HEADER_LEN) ||
 	  my_b_safe_write(file, (byte*) block, block_len));
 }
+#endif
 
 
 /*
@@ -4088,12 +4173,12 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 
 
 /*
-  Append_block_log_event::get_open_mode()
+  Append_block_log_event::get_create_or_append()
 */
 
-int Append_block_log_event::get_open_mode() const
+int Append_block_log_event::get_create_or_append() const
 {
-  return O_WRONLY | O_APPEND | O_BINARY;
+  return 0; /* append to the file, fail if not exists */
 }
 
 /*
@@ -4111,7 +4196,21 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname, get_open_mode(), MYF(MY_WME))) < 0)
+  if (get_create_or_append())
+  {
+    my_delete(fname, MYF(0)); // old copy may exist already
+    if ((fd= my_create(fname, CREATE_MODE,
+		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		       MYF(MY_WME))) < 0)
+    {
+      slave_print_error(rli, my_errno,
+			"Error in %s event: could not create file '%s'",
+			get_type_str(), fname);
+      goto err;
+    }
+  }
+  else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                         MYF(MY_WME))) < 0)
   {
     slave_print_error(rli, my_errno,
                       "Error in %s event: could not open file '%s'",
@@ -4172,6 +4271,7 @@ Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
   Delete_file_log_event::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Delete_file_log_event::write(IO_CACHE* file)
 {
  byte buf[DELETE_FILE_HEADER_LEN];
@@ -4179,6 +4279,7 @@ bool Delete_file_log_event::write(IO_CACHE* file)
  return (write_header(file, sizeof(buf)) ||
          my_b_safe_write(file, buf, sizeof(buf)));
 }
+#endif
 
 
 /*
@@ -4266,6 +4367,7 @@ Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
   Execute_load_log_event::write()
 */
 
+#ifndef MYSQL_CLIENT
 bool Execute_load_log_event::write(IO_CACHE* file)
 {
   byte buf[EXEC_LOAD_HEADER_LEN];
@@ -4273,6 +4375,7 @@ bool Execute_load_log_event::write(IO_CACHE* file)
   return (write_header(file, sizeof(buf)) || 
           my_b_safe_write(file, buf, sizeof(buf)));
 }
+#endif
 
 
 /*
@@ -4320,7 +4423,8 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   Load_log_event* lev = 0;
 
   memcpy(p, ".info", 6);
-  if ((fd = my_open(fname, O_RDONLY|O_BINARY, MYF(MY_WME))) < 0 ||
+  if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
+                    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -4419,9 +4523,9 @@ Begin_load_query_log_event(const char* buf, uint len,
 
 
 #if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Begin_load_query_log_event::get_open_mode() const
+int Begin_load_query_log_event::get_create_or_append() const
 {
-  return O_CREAT | O_WRONLY | O_BINARY | O_TRUNC;
+  return 1; /* create the file */
 }
 #endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
@@ -4476,6 +4580,7 @@ ulong Execute_load_query_log_event::get_post_header_size_for_derived()
 }
 
 
+#ifndef MYSQL_CLIENT
 bool
 Execute_load_query_log_event::write_post_header_for_derived(IO_CACHE* file)
 {
@@ -4486,6 +4591,7 @@ Execute_load_query_log_event::write_post_header_for_derived(IO_CACHE* file)
   *(buf + 4 + 4 + 4)= (char)dup_handling;
   return my_b_safe_write(file, (byte*) buf, EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN);
 }
+#endif
 
 
 #ifdef MYSQL_CLIENT
@@ -4596,7 +4702,12 @@ Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
   /* Forging file name for deletion in same buffer */
   *fname_end= 0;
 
-  (void) my_delete(fname, MYF(MY_WME));
+  /*
+    If there was an error the slave is going to stop, leave the
+    file so that we can re-execute this event at START SLAVE.
+  */
+  if (!error)
+    (void) my_delete(fname, MYF(MY_WME));
 
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   return error;
