@@ -1817,7 +1817,7 @@ alter:
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.default_table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.clear();          
+	  lex->alter_info.reset();          
 	  lex->alter_info.is_simple= 1;
 	  lex->alter_info.flags= 0;
 	}
