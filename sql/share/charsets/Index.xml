@@ -61,7 +61,7 @@ To make maintaining easier please:
   <alias>cp850</alias>
   <alias>cspc850multilingual</alias>
   <alias>ibm850</alias>
-  <collation name="dos"	id="4"	flag="primary">
+  <collation name="pclatin1"	id="4"	flag="primary">
     <order>Dutch</order>
     <order>English</order>
     <order>French</order>
