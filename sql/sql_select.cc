@@ -62,7 +62,7 @@ static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
 			   bool *simple_order);
-static int return_zero_rows(select_result *res,TABLE_LIST *tables,
+static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    List<Item> &fields, bool send_row,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc);
@@ -145,7 +145,7 @@ static void init_sum_functions(Item_sum **func);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
-static void describe_info(THD *thd, const char *info);
+static void describe_info(JOIN *join, const char *info);
 
 /*
   This handles SELECT with and without UNION
@@ -187,7 +187,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   TABLE		*tmp_table;
   int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
-  bool		simple_order,simple_group,no_order, skip_sort_order, buffer_result;
+  bool		simple_order,simple_group,no_order, skip_sort_order;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
   DYNAMIC_ARRAY keyuse;
@@ -202,7 +202,6 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   /* Check that all tables, fields, conds and order are ok */
 
   select_distinct=test(select_options & SELECT_DISTINCT);
-  buffer_result=test(select_options & OPTION_BUFFER_RESULT) && !test(select_options & OPTION_FOUND_ROWS);
   tmp_table=0;
   select=0;
   no_order=skip_sort_order=0;
@@ -353,13 +352,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (cond_value == Item::COND_FALSE || !thd->select_limit)
   {					/* Impossible cond */
-    if (select_options & SELECT_DESCRIBE && select_lex->next)
-      select_describe(&join,false,false,false,"Impossible WHERE");
-    else 
-      error=return_zero_rows(result, tables, fields,
-			     join.tmp_table_param.sum_func_count != 0 && !group,
-			     select_options,"Impossible WHERE",having,
-			     procedure);
+    error=return_zero_rows(&join, result, tables, fields,
+			   join.tmp_table_param.sum_func_count != 0 && !group,
+			   select_options,"Impossible WHERE",having,
+			   procedure);
     delete procedure;
     DBUG_RETURN(error);
   }
@@ -372,21 +368,15 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     {
       if (res < 0)
       {
-	if (select_options & SELECT_DESCRIBE && select_lex->next)
-	  select_describe(&join,false,false,false,"No matching min/max row");
-	else 
-	  error=return_zero_rows(result, tables, fields, !group,
-				 select_options,"No matching min/max row",
-				 having,procedure);
+	error=return_zero_rows(&join, result, tables, fields, !group,
+			       select_options,"No matching min/max row",
+			       having,procedure);
 	delete procedure;
 	DBUG_RETURN(error);
       }
       if (select_options & SELECT_DESCRIBE)
       {
-	if (select_lex->next)
-	  select_describe(&join,false,false,false,"Select tables optimized away");
-	else
-	  describe_info(thd,"Select tables optimized away");
+	describe_info(&join, "Select tables optimized away");
 	delete procedure;
 	DBUG_RETURN(error);
       }
@@ -397,12 +387,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {						// Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-    {
-      if (select_lex->next)
-	select_describe(&join,false,false,false,"No tables used");
-      else
-	describe_info(thd,"No tables used");
-    }
+      describe_info(&join, "No tables used");
     else
     {
       result->send_fields(fields,1);
@@ -435,7 +420,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (join.const_table_map != join.found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
-    error=return_zero_rows(result,tables,fields,
+    error=return_zero_rows(&join,result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
 			   !group,0,"",having,procedure);
     goto err;
@@ -480,14 +465,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (make_join_select(&join,select,conds))
   {
-    if (select_options & SELECT_DESCRIBE && select_lex->next)
-      select_describe(&join,false,false,false,"Impossible WHERE noticed after reading const tables");
-    else 
-      error=return_zero_rows(result,tables,fields,
-			     join.tmp_table_param.sum_func_count != 0 && !group,
-			     select_options,
-			     "Impossible WHERE noticed after reading const tables",
-			     having,procedure);
+    error=return_zero_rows(&join, result, tables, fields,
+			   join.tmp_table_param.sum_func_count != 0 && !group,
+			   select_options,
+			   "Impossible WHERE noticed after reading const tables",
+			   having,procedure);
     goto err;
   }
 
@@ -546,21 +528,33 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       simple_order=0;
   }
 
+  /*
+    Check if we need to create a temporary table.
+    This has to be done if all tables are not already read (const tables)
+    and one of the following conditions holds:
+    - We are using DISTINCT (simple distinct's are already optimized away)
+    - We are using an ORDER BY or GROUP BY on fields not in the first table
+    - We are using different ORDER BY and GROUP BY orders
+    - The user wants us to buffer the result.
+  */
   need_tmp= (join.const_tables != join.tables &&
 	     ((select_distinct || !simple_order || !simple_group) ||
-	      (group && order) || buffer_result));
+	      (group && order) || 
+	      test(select_options & OPTION_BUFFER_RESULT)));
 
   // No cache for MATCH
   make_join_readinfo(&join,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-     (cur_sel->ftfunc_list.elements ? SELECT_NO_JOIN_CACHE : 0));
-
-  /* Need to tell Innobase that to play it safe, it should fetch all
-     columns of the tables: this is because MySQL
-     may build row pointers for the rows, and for all columns of the primary
-     key the field->query_id has not necessarily been set to thd->query_id
-     by MySQL. */
+		     (cur_sel->ftfunc_list.elements ? SELECT_NO_JOIN_CACHE :
+		      0));
+  /*
+    Need to tell Innobase that to play it safe, it should fetch all
+    columns of the tables: this is because MySQL may build row
+    pointers for the rows, and for all columns of the primary key the
+    field->query_id has not necessarily been set to thd->query_id by
+    MySQL.
+  */
 
 #ifdef HAVE_INNOBASE_DB
   if (need_tmp || select_distinct || group || order)
@@ -2929,16 +2923,17 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
   DBUG_RETURN(first_order);
 }
 
+
 static int
-return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
-		 bool send_row, uint select_options,const char *info,
-		 Item *having, Procedure *procedure)
+return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
+		 List<Item> &fields, bool send_row, uint select_options,
+		 const char *info, Item *having, Procedure *procedure)
 {
   DBUG_ENTER("return_zero_rows");
 
   if (select_options & SELECT_DESCRIBE)
-  {	
-    describe_info(current_thd, info);
+  {
+    describe_info(join, info);
     DBUG_RETURN(0);
   }
   if (procedure)
@@ -7007,6 +7002,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   MYSQL_LOCK *save_lock;
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
   select_result *result=join->result;
+  Item *item_null= new Item_null();
   DBUG_ENTER("select_describe");
 
   /* Don't log this into the slow query log */
@@ -7034,13 +7030,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_empty_string("",0));
+    Item *empty= new Item_empty_string("",0);
+    for (uint i=0 ; i < 7; i++)
+      item_list.push_back(empty);
     item_list.push_back(new Item_string(message,strlen(message)));
     if (result->send_data(item_list))
       result->send_error(0,NullS);
@@ -7053,15 +7045,19 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
-      char buff1[512], buff2[512], bufff[512];
+      char buff1[512], buff2[512], buff3[512];
       String tmp1(buff1,sizeof(buff1));
       String tmp2(buff2,sizeof(buff2));
+      tmp1.length(0);
+      tmp2.length(0);
       item_list.empty();
+
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      item_list.push_back(new Item_string(table->table_name,strlen(table->table_name)));
-      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type])));
-      tmp1.length(0); tmp2.length(0);
+      item_list.push_back(new Item_string(table->table_name,
+					  strlen(table->table_name)));
+      item_list.push_back(new Item_string(join_type_str[tab->type],
+					  strlen(join_type_str[tab->type])));
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
@@ -7076,11 +7072,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       if (tmp1.length())
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length()));
       else
-	item_list.push_back(new Item_null());
+	item_list.push_back(item_null);
       if (tab->ref.key_parts)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,
-					    strlen(table->key_info[tab->ref.key].name)));
+	KEY *key_info=table->key_info+ tab->ref.key;
+	item_list.push_back(new Item_string(key_info->name,
+					    strlen(key_info->name)));
 	item_list.push_back(new Item_int((int32) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
@@ -7092,24 +7089,28 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else if (tab->type == JT_NEXT)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name)));
-	item_list.push_back(new Item_int((int32) table->key_info[tab->index].key_length));
-	item_list.push_back(new Item_null());
+	KEY *key_info=table->key_info+ tab->index;
+	item_list.push_back(new Item_string(key_info->name,
+					    strlen(key_info->name)));
+	item_list.push_back(new Item_int((int32) key_info->key_length));
+	item_list.push_back(item_null);
       }
       else if (tab->select && tab->select->quick)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name)));
+	KEY *key_info=table->key_info+ tab->select->quick->index;
+	item_list.push_back(new Item_string(key_info->name,
+					    strlen(key_info->name)));
 	item_list.push_back(new Item_int((int32) tab->select->quick->max_used_key_length));
-	item_list.push_back(new Item_null());
+	item_list.push_back(item_null);
       }
       else
       {
-	item_list.push_back(new Item_null());
-	item_list.push_back(new Item_null());
-	item_list.push_back(new Item_null());
+	item_list.push_back(item_null);
+	item_list.push_back(item_null);
+	item_list.push_back(item_null);
       }
-      sprintf(bufff,"%.0f",join->best_positions[i].records_read);
-      item_list.push_back(new Item_string(bufff,strlen(bufff)));
+      sprintf(buff3,"%.0f",join->best_positions[i].records_read);
+      item_list.push_back(new Item_string(buff3,strlen(buff3)));
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
@@ -7177,7 +7178,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	result->send_error(0,NullS);
     }
   }
-  if (!join->thd->lex.select->next)
+  if (!thd->lex.select->next)			// Not union
   {
     save_lock=thd->lock;
     thd->lock=(MYSQL_LOCK *)0;
@@ -7188,13 +7189,21 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 }
 
 
-static void describe_info(THD *thd, const char *info)
+static void describe_info(JOIN *join, const char *info)
 {
+  THD *thd= join->thd;
+
+  if (thd->lex.select_lex.next)			/* If in UNION */
+  {
+    select_describe(join,FALSE,FALSE,FALSE,info);
+    return;
+  }
   List<Item> field_list;
   String *packet= &thd->packet;
 
   /* Don't log this into the slow query log */
-  thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED |
+				  QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("Comment",80));
   if (send_fields(thd,field_list,1))
     return; /* purecov: inspected */

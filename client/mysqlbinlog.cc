@@ -552,3 +552,5 @@ int main(int argc, char** argv)
 #else
 #include "log_event.cc"
 #endif
+
+FIX_GCC_LINKING_PROBLEM

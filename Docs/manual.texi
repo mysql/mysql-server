@@ -5710,7 +5710,8 @@ FreeBSD 2.x with the included MIT-pthreads package.  @xref{FreeBSD}.
 @item
 FreeBSD 3.x and 4.x with native threads.  @xref{FreeBSD}.
 @item
-HP-UX 10.20 with the included MIT-pthreads package.  @xref{HP-UX 10.20}.
+HP-UX 10.20 with the DCE threads or the included MIT-pthreads package.
+@xref{HP-UX 10.20}.
 @item
 HP-UX 11.x with the native threads.  @xref{HP-UX 11.x}.
 @item
@@ -10396,24 +10397,14 @@ compiler, because @code{gcc} produces better code!
 We recommend using gcc 2.95 on HP-UX.  Don't use high optimisation
 flags (like -O6) as this may not be safe on HP-UX.
 
-Note that MIT-pthreads can't be compiled with the HP-UX compiler
-because it can't compile @code{.S} (assembler) files.
-
-The following configure line should work:
+The following configure line should work with gcc 2.95:
 
 @example
-CFLAGS="-DHPUX -I/opt/dce/include -fpic" \
-CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions \
+CFLAGS="-I/opt/dce/include -fpic" \
+CXXFLAGS="-I/opt/dce/include -felide-constructors -fno-exceptions \
 -fno-rtti" CXX=gcc ./configure --with-pthread \
 --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
 @end example
-
-If you are compiling @code{gcc} 2.95 yourself, you should NOT link it with
-the DCE libraries (@code{libdce.a} or @code{libcma.a}) if you want to compile
-MySQL with MIT-pthreads.  If you mix the DCE and MIT-pthreads
-packages you will get a @code{mysqld} to which you cannot connect.  Remove
-the DCE libraries while you compile @code{gcc} 2.95!
-
 
 @node HP-UX 11.x, IBM-AIX, HP-UX 10.20, Other Unix Notes
 @subsubsection HP-UX Version 11.x Notes
@@ -28290,7 +28281,7 @@ in ANSI mode. @xref{ANSI mode}.
 
 @multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
-@item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/} or @samp{.}.
+@item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/}, @samp{\} or @samp{.}.
 @item Table @tab 64 @tab Any character that is allowed in a file name, except @samp{/} or @samp{.}.
 @item Column @tab 64 @tab All characters.
 @item Alias @tab 255 @tab All characters.
@@ -30746,6 +30737,22 @@ mysql> SELECT 1 && 0;
 mysql> SELECT 1 && NULL;
         -> NULL
 @end example
+
+@findex XOR logical
+@item XOR
+Logical XOR. For non-@code{NULL} operands, evaluates to @code{1} if only one
+of the operators is non-zero.
+Produces @code{NULL} if either operand is @code{NULL}:
+@example
+mysql> SELECT 1 XOR 1;
+        -> 0
+mysql> SELECT 1 XOR 0;
+        -> 1
+mysql> SELECT 1 XOR NULL;
+        -> NULL
+@end example
+
+@code{a XOR b} is equal to @code{(a AND (NOT b)) OR ((NOT a) and b)}.
 @end table
 
 
@@ -32825,6 +32832,23 @@ mysql> SELECT 29 & 15;
 
 The result is an unsigned 64-bit integer.
 
+@findex ^ (bitwise XOR)
+@findex XOR, bitwise
+@item ^
+Bitwise XOR
+@example
+mysql> SELECT 1 ^ 1;
+        -> 0
+
+mysql> SELECT 1 ^ 0;
+        -> 1
+
+mysql> SELECT 11 ^ 3;
+        -> 8
+@end example
+
+The result is an unsigned 64-bit integer.
+
 @findex << (left shift)
 @item <<
 Shifts a longlong (@code{BIGINT}) number to the left:
@@ -33215,6 +33239,8 @@ string to perform cooperative advisory locking:
 @example
 mysql> SELECT GET_LOCK("lock1",10);
         -> 1
+mysql> SELECT IS_FREE_LOCK("lock2");
+        -> 1
 mysql> SELECT GET_LOCK("lock2",10);
         -> 1
 mysql> SELECT RELEASE_LOCK("lock2");
@@ -33238,6 +33264,12 @@ been released.
 
 The @code{DO} statement is convinient to use with @code{RELEASE_LOCK()}.
 @xref{DO}.
+
+@findex IS_FREE_LOCK()
+@item IS_FREE_LOCK(str)
+Checks if the the lock named @code{str} is free (not locked) to use.
+Returns @code{1} no one is using the lock, @code{0} if the lock is in use and
+@code{NULL} on errors (like wrong arguments).
 
 @findex BENCHMARK()
 @item BENCHMARK(count,expr)
@@ -49578,44 +49610,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added binary XOR. 
-
-The one that with a query like :
-
-@example
-SELECT 11 ^ 3;
-@end example
-
-returns 8.
-
-Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
+Execute @code{chroot()}, if requested, directly after options has ben
+parsed.
 @item
-
-Added logical XOR.
-
-The one that with a query like:
-
-@example
-SELECT 1 XOR 1;
-@end example
-
-returns 0;
-
-Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
+Don't allow database names that contains @code{\}.
 @item
-Add function @code{CHECK_LOCK("lock_name")}. 
-This function returns a value indicating whether or not the lock with the
-given name is available. 
-It does not attempt to acquire a lock.
-It is used like this:
-
-@example
-SELECT CHECK_LOCK("some_lock");
-@end example
-
-@code{CHECK_LOCK()} returns 1 if the lock is available,
-0 if the lock is held by any process (including the current process),
-and @code{NULL} if an error occurs.
+@code{lower_case_table_names} now also affects created and dropped databases.
+@item
+Added operators @code{XOR} and @code{^} (bitwise @code{XOR}).
+Added function @code{IS_FREE_LOCK("lock_name")}.
 Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
 Removed @code{mysql_ssl_clear()}, as this was not needed.
@@ -50225,7 +50228,7 @@ Added @code{@@@@VERSION} as a synonym for @code{VERSION()}.
 @item
 @code{SHOW VARIABLES LIKE 'xxx'} is now case-insensitive.
 @item
-Fixed timeout for @code{GET_LOCK()} on HPUX with DCE threads.
+Fixed timeout for @code{GET_LOCK()} on HP-UX with DCE threads.
 @item
 Fixed memory allocation bug in the glibc library used to build Linux
 binaries, which caused mysqld to die in 'free()'.
