@@ -30,6 +30,7 @@ rm -f   $client_file \
 	$header_file \
 	$rpcclnt_file \
 	$rpcsvc_file \
+	$proc_file \
 	$rpcxdr_file \
 	$sed_file \
 	$server_file \
