@@ -4615,7 +4615,7 @@ sql_olap.cc  --  ROLLUP
 @item
 sql_parse.cc  --  Parse an SQL statement; do initial checks and then jump to the function that should execute the statement
 @item
-sql_prepare.cc  --  Prepare an SQL statement
+sql_prepare.cc  --  Prepare an SQL statement, or use a prepared statement
 @item
 sql_repl.cc  --  Replication
 @item
@@ -5026,11 +5026,11 @@ variation of the famous "Lempel-Ziv" method, which is also used by
 bytes is as follows:
 @itemize @bullet
 @item
-Find a substring which occurs twice in the string. 
+Find a substring which occurs twice in the string.
 @item
 Replace the second occurrence of the substring with (a) a pointer to
 the first occurrence, plus (b) an indication of the length of the
-first occurrence. 
+first occurrence.
 @end itemize
 
 There is a full description of the library's functions in the gzip
@@ -5039,9 +5039,9 @@ manual at: @*
 There is therefore no need to list the modules in this document.
 @*@*
 
-The MySQL program that uses zlib is \mysys\my_compress.c. The use is
-for packet compression. The client sends messages to the server which
-are compressed by zlib. See also: \sql\net_serv.cc.
+The MySQL program \mysys\my_compress.c uses zlib for packet compression. 
+The client sends messages to the server which are compressed by zlib. 
+See also: \sql\net_serv.cc.
 
 @node Files in InnoDB Sources,  , Files in MySQL Sources, Top
 @chapter Annotated List Of Files in the InnoDB Source Code Distribution
