@@ -685,6 +685,7 @@ row_upd_build_sec_rec_difference_binary(
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t*		rec,	/* in: secondary index record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
 {
 	upd_field_t*	upd_field;
@@ -725,7 +726,7 @@ row_upd_build_sec_rec_difference_binary(
 
 			dfield_copy(&(upd_field->new_val), dfield);
 
-			upd_field_set_field_no(upd_field, i, index);
+			upd_field_set_field_no(upd_field, i, index, trx);
 
 			upd_field->extern_storage = FALSE;
 
@@ -754,6 +755,7 @@ row_upd_build_difference_binary(
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
 {
 	upd_field_t*	upd_field;
@@ -800,7 +802,7 @@ row_upd_build_difference_binary(
 
 			dfield_copy(&(upd_field->new_val), dfield);
 
-			upd_field_set_field_no(upd_field, i, index);
+			upd_field_set_field_no(upd_field, i, index, trx);
 
 			if (upd_ext_vec_contains(ext_vec, n_ext_vec, i)) {
 				upd_field->extern_storage = TRUE;
@@ -1220,10 +1222,11 @@ row_upd_sec_index_entry(
 	rec_t*		rec;
 	ulint		err	= DB_SUCCESS;
 	mtr_t		mtr;
-	
+	trx_t*		trx	= thr_get_trx(thr);
+
 	index = node->index;
 	
-	check_ref = row_upd_index_is_referenced(index, thr_get_trx(thr));
+	check_ref = row_upd_index_is_referenced(index, trx);
 
 	heap = mem_heap_create(1024);
 
@@ -1242,7 +1245,7 @@ row_upd_sec_index_entry(
 	if (!found) {
 		fputs("InnoDB: error in sec index entry update in\n"
 			"InnoDB: ", stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, trx, index);
 		fputs("\n"
 			"InnoDB: tuple ", stderr);
 		dtuple_print(stderr, entry);
@@ -1251,7 +1254,7 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec);
 		putc('\n', stderr);
 
-		trx_print(stderr, thr_get_trx(thr));
+		trx_print(stderr, trx);
 
 		fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);

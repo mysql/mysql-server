@@ -198,12 +198,24 @@ ut_print_buf(
 	ulint		len);	/* in: length of the buffer */
 
 /**************************************************************************
+Outputs a NUL-terminated file name, quoted with apostrophes. */
+
+void
+ut_print_filename(
+/*==============*/
+	FILE*		f,	/* in: output stream */
+	const char*	name);	/* in: name to print */
+
+/**************************************************************************
 Outputs a NUL-terminated string, quoted as an SQL identifier. */
+
+struct trx_struct;
 
 void
 ut_print_name(
 /*==========*/
 	FILE*		f,	/* in: output stream */
+	struct trx_struct*trx,	/* in: transaction */
 	const char*	name);	/* in: name to print */
 
 /**************************************************************************
@@ -213,6 +225,7 @@ void
 ut_print_namel(
 /*==========*/
 	FILE*		f,	/* in: output stream */
+	struct trx_struct*trx,	/* in: transaction (NULL=no quotes) */
 	const char*	name,	/* in: name to print */
 	ulint		namelen);/* in: length of name */
 
