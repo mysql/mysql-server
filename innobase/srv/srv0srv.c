@@ -1384,7 +1384,7 @@ srv_suspend_mysql_thread(
 	trx_t*		trx;
 	ibool		had_dict_lock			= FALSE;
 	ibool		was_declared_inside_innodb	= FALSE;
-	ib_longlong   start_time, finish_time;
+  ib_longlong   start_time, finish_time;
   ulint   diff_time;
   ulint   sec;
   ulint   ms;

@@ -90,8 +90,8 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint		cline,		/* in: file line where created */
-  const char*	cmutex_name)	/* in: mutex name */
+  ulint cline,  /* in: file line where created */
+  const char* cmutex_name)  /* in: mutex name */
 {
 	/* If this is the very first time a synchronization
 	object is created, then the following call initializes
