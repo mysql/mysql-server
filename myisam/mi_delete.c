@@ -45,6 +45,12 @@ int mi_delete(MI_INFO *info,const byte *record)
 
 	/* Test if record is in datafile */
 
+  DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
+                  mi_print_error(info, HA_ERR_CRASHED);
+                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+  DBUG_EXECUTE_IF("my_error_test_undefined_error",
+                  mi_print_error(info, INT_MAX);
+                  DBUG_RETURN(my_errno= INT_MAX););
   if (!(info->update & HA_STATE_AKTIV))
   {
     DBUG_RETURN(my_errno=HA_ERR_KEY_NOT_FOUND);	/* No database read */
@@ -109,13 +115,19 @@ err:
   mi_sizestore(lastpos,info->lastpos);
   myisam_log_command(MI_LOG_DELETE,info,(byte*) lastpos, sizeof(lastpos),0);
   if (save_errno != HA_ERR_RECORD_CHANGED)
+  {
+    mi_print_error(info, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* mark table crashed */
+  }
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
   allow_break();			/* Allow SIGHUP & SIGINT */
   my_errno=save_errno;
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
+  {
+    mi_print_error(info, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
+  }
 
   DBUG_RETURN(my_errno);
 } /* mi_delete */
@@ -142,6 +154,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if ((old_root=*root) == HA_OFFSET_ERROR)
   {
+    mi_print_error(info, HA_ERR_CRASHED);
     DBUG_RETURN(my_errno=HA_ERR_CRASHED);
   }
   if (!(root_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
@@ -253,7 +266,9 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       my_off_t root;
       uchar *kpos=keypos;
 
-      tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&kpos,lastkey);
+      if (!(tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&kpos,lastkey))
+          && (my_errno == HA_ERR_CRASHED))
+        mi_print_error(info, HA_ERR_CRASHED);
       root=_mi_dpos(info,nod_flag,kpos);
       if (subkeys == -1)
       {
@@ -302,6 +317,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (!nod_flag)
     {
       DBUG_PRINT("error",("Didn't find key"));
+      mi_print_error(info, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;		/* This should newer happend */
       goto err;
     }
@@ -317,6 +333,8 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 		   &next_block);
     if (tmp == 0)
     {
+      if (my_errno == HA_ERR_CRASHED)
+        mi_print_error(info, HA_ERR_CRASHED);
       DBUG_PRINT("exit",("Return: %d",0));
       DBUG_RETURN(0);
     }
@@ -473,6 +491,8 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
 	       (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
 		(uint) keyinfo->underflow_block_length));
 err:
+  if (my_errno == HA_ERR_CRASHED)
+    mi_print_error(info, HA_ERR_CRASHED);
   DBUG_RETURN(-1);
 } /* del */
 
@@ -562,7 +582,11 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     s_length=remove_key(keyinfo,key_reflength,keypos,anc_key,
 			anc_buff+anc_length,(my_off_t *) 0);
     if (!s_length)
+    {
+      if (my_errno == HA_ERR_CRASHED)
+        mi_print_error(info, HA_ERR_CRASHED);
       goto err;
+    }
     anc_length-=s_length;
     mi_putint(anc_buff,anc_length,key_reflength);
 
@@ -671,7 +695,11 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   s_length=remove_key(keyinfo,key_reflength,keypos,anc_key,
 		      anc_buff+anc_length,(my_off_t *) 0);
   if (!s_length)
+  {
+      if (my_errno == HA_ERR_CRASHED)
+        mi_print_error(info, HA_ERR_CRASHED);
     goto err;
+  }
   anc_length-=s_length;
   mi_putint(anc_buff,anc_length,key_reflength);
 
@@ -732,6 +760,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     goto err;
   DBUG_RETURN(anc_length <= (uint) keyinfo->block_length/2);
 err:
+  if (my_errno == HA_ERR_CRASHED)
+    mi_print_error(info, HA_ERR_CRASHED);
   DBUG_RETURN(-1);
 } /* underflow */
 
