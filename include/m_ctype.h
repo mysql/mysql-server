@@ -233,6 +233,12 @@ extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t, uint
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
+#define my_strtol(s, a, b, c)         ((s)->strtol((s),(a),(b),(c)))
+#define my_strtoul(s, a, b, c)        ((s)->strtoul((s),(a),(b),(c)))
+#define my_strtoll(s, a, b, c)        ((s)->strtoll((s),(a),(b),(c)))
+#define my_strtoull(s, a, b, c)       ((s)->strtoull((s),(a),(b),(c)))
+#define my_strtod(s, a, b)            ((s)->strtod((s),(a),(b)))
+
 
 /* XXX: still need to take care of this one */
 #ifdef MY_CHARSET_TIS620
