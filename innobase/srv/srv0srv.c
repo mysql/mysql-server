@@ -162,7 +162,7 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulint	srv_max_buf_pool_modified_pct	= 30;
+ulint	srv_max_buf_pool_modified_pct	= 100;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
