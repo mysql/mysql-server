@@ -216,6 +216,7 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -242,6 +243,7 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
 #endif /* HAVE_QUERY_CACHE */
+sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
@@ -432,6 +434,7 @@ sys_var *sys_variables[]=
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_new_mode,
+  &sys_old_passwords,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
@@ -450,6 +453,7 @@ sys_var *sys_variables[]=
 #endif
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
+  &sys_secure_auth,
   &sys_select_limit,
   &sys_server_id,
 #ifdef HAVE_REPLICATION
@@ -608,6 +612,7 @@ struct show_var_st init_vars[]= {
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
+  {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
@@ -628,6 +633,7 @@ struct show_var_st init_vars[]= {
    SHOW_SYS},
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
+  {"secure_auth",             (char*) &sys_secure_auth,             SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},

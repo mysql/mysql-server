@@ -96,7 +96,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   else
     res= check_access(thd, SELECT_ACL, any_db);
   if (res)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
     
   if (!(res=open_and_lock_tables(thd,tables)))
   {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,27 +14,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "mysys_priv.h"
 
-#include <my_global.h>
-#include "my_sys.h"
+#ifndef HAVE_COMPRESS
 
-/*
-  Calculate a long checksum for a memoryblock.
+/* minimal set of defines for using crc32() from zlib codebase */
+#define _ZLIB_H
+#define ZEXPORT
+#define Z_NULL  0
+#define OF(args)  args
+#undef DYNAMIC_CRC_TABLE
+typedef uchar  Byte;
+typedef uchar  Bytef;
+typedef uint   uInt;
+typedef ulong  uLong;
+typedef ulong  uLongf;
 
-  SYNOPSIS
-    my_checksum()
-      crc       start value for crc
-      pos       pointer to memory block
-      length    length of the block
-*/
+#include "../zlib/crc32.c"
 
-ha_checksum my_checksum(ha_checksum crc, const byte *pos, uint length)
-{
-/*  const byte *end=pos+length;
-  for ( ; pos != end ; pos++)
-    crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
-  return crc;
-*/
-  return (ha_checksum)crc32((uint)crc, (const uchar *)pos, length);
-}
+#endif
 

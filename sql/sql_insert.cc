@@ -172,7 +172,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       else
 	res= (table == 0);
     else
+    {
+      lock_type=TL_WRITE;
       res= open_and_lock_tables(thd, table_list);
+    }
   }
   else
     res= open_and_lock_tables(thd, table_list);
@@ -627,6 +630,7 @@ public:
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
+    thd.lex.current_select= 0; /* for my_message_sql */
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;

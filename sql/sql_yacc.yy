@@ -506,6 +506,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MULTIPOINT
 %token  MULTIPOLYGON
 %token	NOW_SYM
+%token	OLD_PASSWORD
 %token	PASSWORD
 %token	POINTFROMTEXT
 %token	POINT_SYM
@@ -677,7 +678,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	show describe load alter optimize preload flush
 	reset purge begin commit rollback savepoint
 	slave master_def master_defs
-	repair restore backup analyze check start
+	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	preload_list preload_keys
 	select_item_list select_item values_list no_braces
@@ -735,23 +736,26 @@ verb_clause:
 	| begin
 	| change
 	| check
+	| checksum
 	| commit
 	| create
 	| delete
 	| describe
 	| do
 	| drop
-	| grant
-	| insert
 	| flush
+	| grant
+	| handler
+	| help
+	| insert
+	| kill
 	| load
 	| lock
-	| kill
 	| optimize
 	| preload
 	| purge
 	| rename
-        | repair
+	| repair
 	| replace
 	| reset
 	| restore
@@ -760,15 +764,14 @@ verb_clause:
 	| savepoint
 	| select
 	| set
+	| show
 	| slave
 	| start
-	| show
 	| truncate
-	| handler
 	| unlock
 	| update
 	| use
-	| help;
+        ;
 
 /* help */
 
@@ -1130,7 +1133,7 @@ opt_select_from:
 	| select_from select_lock_type;
 
 udf_func_type:
-	/* empty */ 	{ $$ = UDFTYPE_FUNCTION; }
+	/* empty */	{ $$ = UDFTYPE_FUNCTION; }
 	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
 
 udf_type:
@@ -1597,7 +1600,7 @@ opt_ident:
 opt_component:
 	/* empty */	 { $$.str= 0; $$.length= 0; }
 	| '.' ident	 { $$=$2; };
-	
+
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
 	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
@@ -1803,6 +1806,22 @@ backup:
         {
 	  Lex->backup_dir = $6.str;
         };
+
+checksum:
+        CHECKSUM_SYM table_or_tables
+	{
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_CHECKSUM;
+	}
+	table_list opt_checksum_type
+        {}
+	;
+
+opt_checksum_type:
+        /* nothing */  { Lex->check_opt.flags= 0; }
+	| QUICK        { Lex->check_opt.flags= T_QUICK; }
+	| EXTENDED_SYM { Lex->check_opt.flags= T_EXTEND; }
+        ;
 
 repair:
 	REPAIR opt_no_write_to_binlog table_or_tables
@@ -2607,9 +2626,13 @@ simple_expr:
 	| NOW_SYM '(' expr ')'
 	  { $$= new Item_func_now_local($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
-	  { $$= new Item_func_password($3); }
-        | PASSWORD '(' expr ',' expr ')'
-          { $$= new Item_func_password($3,$5); }
+	  {
+	    $$= YYTHD->variables.old_passwords ?
+              (Item *) new Item_func_old_password($3) :
+	      (Item *) new Item_func_password($3);
+	  }
+	| OLD_PASSWORD '(' expr ')'
+	  { $$=  new Item_func_old_password($3); }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
@@ -3413,7 +3436,7 @@ do:	DO_SYM
 */
 
 drop:
-	DROP opt_temporary TABLE_SYM if_exists table_list opt_restrict
+	DROP opt_temporary table_or_tables if_exists table_list opt_restrict
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DROP_TABLE;
@@ -4517,6 +4540,7 @@ keyword:
 	| NO_SYM		{}
 	| NONE_SYM		{}
 	| OFFSET_SYM		{}
+	| OLD_PASSWORD		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
@@ -4741,15 +4765,15 @@ text_or_password:
 	TEXT_STRING { $$=$1.str;}
 	| PASSWORD '(' TEXT_STRING ')'
 	  {
-	    if (!$3.length)
-	      $$=$3.str;
-	    else
-	    {
-	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	      make_scrambled_password(buff,$3.str,use_old_passwords,
-				      &YYTHD->rand);
-	      $$=buff;
-	    }
+	    $$= $3.length ? YYTHD->variables.old_passwords ?
+	        Item_func_old_password::alloc(YYTHD, $3.str) :
+	        Item_func_password::alloc(YYTHD, $3.str) :
+	      $3.str;
+	  }
+	| OLD_PASSWORD '(' TEXT_STRING ')'
+	  {
+	    $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str) :
+	      $3.str;
 	  }
           ;
 
@@ -4925,7 +4949,7 @@ grant_privilege_list:
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
+	SELECT_SYM	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
 	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
 	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
@@ -5057,14 +5081,24 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	     if (buff)
-	     {
-	       make_scrambled_password(buff,$4.str,use_old_passwords,
-				       &YYTHD->rand);
-	       $1->password.str=buff;
-	       $1->password.length=HASH_PASSWORD_LENGTH;
-	     }
+             if (YYTHD->variables.old_passwords)
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+               if (buff)
+                 make_scrambled_password_323(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+             }
+             else
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+               if (buff)
+                 make_scrambled_password(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+             }
 	  }
 	}
 	| user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
@@ -5223,7 +5257,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* Empty */ {}
+	/* Empty */ {}
 	|
 	  {
 	    THD *thd= YYTHD;
@@ -5318,3 +5352,4 @@ subselect_end:
 	  LEX *lex=Lex;
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
+

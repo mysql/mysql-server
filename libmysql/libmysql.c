@@ -594,6 +594,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
+  NET *net= &mysql->net;
+  ulong pkt_length;
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -604,40 +606,53 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Store user into the buffer */
   end=strmov(end,user)+1;
 
-  /*
-    We always start with old type handshake the only difference is message sent
-    If server handles secure connection type we'll not send the real scramble
-  */
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  /* write scrambled password according to server capabilities */
+  if (passwd[0])
   {
-    if (passwd[0])
+    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      /* Prepare false scramble  */
-      bfill(end, SCRAMBLE_LENGTH, 'x');
-      end+=SCRAMBLE_LENGTH;
-      *end=0;
-
+      *end++= SCRAMBLE_LENGTH;
+      scramble(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH;
     }
-    else					/* For empty password */
-      *end=0;					/* zero length scramble */
+    else
+    {
+      scramble_323(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH_323 + 1;
+    }
   }
   else
-  {
-    /*
-      Real scramble is only sent to old servers. This can be blocked 
-      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
-    */
-    end=scramble(end, mysql->scramble_buff, passwd,
-                 (my_bool) (mysql->protocol_version == 9));
-  }
+    *end++= '\0';                               // empty password
   /* Add database if needed */
-  end=strmov(end+1,db ? db : "");
+  end= strmov(end, db ? db : "") + 1;
 
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  if (mysql_autenticate(mysql, passwd))
+  pkt_length= net_safe_read(mysql);
+
+  if (pkt_length == packet_error)
     goto error;
+
+  if (pkt_length == 1 && net->read_pos[0] == 254 &&
+      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      By sending this very specific reply server asks us to send scrambled
+      password in old format. The reply contains scramble_323.
+    */
+    scramble_323(buff, mysql->scramble, passwd);
+    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;
+    }
+    /* Read what server thinks about out new auth message report */
+    if (net_safe_read(mysql) == packet_error)
+      goto error;
+  }
 
   /* Free old connect information */
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));

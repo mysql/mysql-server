@@ -91,6 +91,11 @@ insert into t2 values (1,4), (5,4), (5,5);
 --replace_result www.help.com X www.host.com X www.google.com X
 select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
 t2.URL_ID = t1.URL_ID group by REQ_ID;
+# check min/max function
+--replace_result www.help.com X www.host.com X www.google.com X
+select REQ_ID, Group_Concat(URL) as URL, Min(t1.URL_ID) urll,
+Max(t1.URL_ID) urlg from t1, t2 where t2.URL_ID = t1.URL_ID group by REQ_ID;
+
 drop table t1;
 drop table t2;
 
@@ -99,3 +104,19 @@ insert into t1 values (1,'longername'),(1,'evenlongername');
 select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'without distinct: how it should be' from t1;
 select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
 drop table t1;
+
+# check zero rows
+create table t1(id int);
+create table t2(id int);
+insert into t1 values(0),(1);
+select group_concat(t1.id) FROM t1,t2;
+drop table t1;
+drop table t2;
+
+# check having
+create table t1 (bar varchar(32));
+insert into t1 values('test'),('test2');
+select * from t1 having group_concat(bar)='';
+drop table t1;
+
+
