@@ -452,6 +452,9 @@ static void decrease_user_connections(USER_CONN *uc)
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
 
+  if (uc->connections == 0)
+	printf("Error: trying to decrease user %s connections below zero!\n",
+				                                 uc->user);
   if ((uc->connections && !--uc->connections) && !mqh_used)
   {
     /* Last connection for user; Delete it */
