@@ -21,10 +21,11 @@
 # $opt_loop_count rows in random order
 #
 # changes made for Oracle compatibility
-# - $limits{'func_odbc_mod'} is OK from crash-me, but it fails here so set we
+# - $limits->{'func_odbc_mod'} is OK from crash-me, but it fails here so set we
 #   set it to 0 in server-cfg
-# - the default server config runs out of rollback segments, so I added a couple
-#   of disconnect/connects to reset
+# - the default server config runs out of rollback segments, so we added a
+#   couple of disconnect/connects to reset
+#
 ##################### Standard benchmark inits ##############################
 
 use DBI;

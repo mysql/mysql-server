@@ -518,7 +518,8 @@ check_connections(THD *thd)
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
       /* Cut very long hostnames to avoid possible overflows */
-      thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+      if (thd->host)
+	thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -3669,7 +3670,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 						   sizeof(*ignore_index));
 
   /* check that used name is unique */
-  if (flags != TL_IGNORE)
+  if (lock_type != TL_IGNORE)
   {
     for (TABLE_LIST *tables=(TABLE_LIST*) table_list.first ;
 	 tables ;

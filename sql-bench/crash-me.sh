@@ -39,7 +39,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.59";
+$version="1.60";
 
 use DBI;
 use Getopt::Long;
@@ -50,7 +50,7 @@ $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
 $opt_dir="limits";
 $opt_user=$opt_password="";$opt_verbose="";
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
-$opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=0;
+$opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=$opt_version=0;
 $opt_db_start_cmd="";           # the db server start command
 $opt_check_server=0;		# Check if server is alive before each query
 $opt_sleep=10;                  # time to sleep while starting the db server
@@ -68,8 +68,10 @@ GetOptions("Information","help","server=s","debug","user=s","password=s",
 "database=s","restart","force","quick","log-all-queries","comment=s",
 "host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","suffix=s",
 "batch-mode","config-file=s","log-queries-to-file=s","check-server",
+"version",
 "verbose!" => \$opt_verbose) || usage();
 usage() if ($opt_help || $opt_Information);
+version() && exit(0) if ($opt_version);
 
 $opt_suffix = '-'.$opt_suffix if (length($opt_suffix) != 0);
 $opt_config_file = "$pwd/$opt_dir/$opt_server$opt_suffix.cfg"  
@@ -1190,7 +1192,7 @@ else
 
 #  Test: NOROUND 
 {
- my $resultat = 'undefined';
+ my $result = 'undefined';
  my $error;
  print "NOROUND: ";
  save_incomplete('func_extra_noround','Function NOROUND');
@@ -1199,21 +1201,25 @@ else
  $error = safe_query_l('func_extra_noround',"select noround(22.6) $end_query");
  if ($error ne 1)         # syntax error -- noround is not supported 
  {
-   $resultat = 'no'
- } else                   # Ok, now check if it really works
- {   
+   $result = 'no'
+ }
+ else                   # Ok, now check if it really works
+ {
    $error=safe_query_l('func_extra_noround', 
      ["create table crash_me_nr (a int)",
     "insert into crash_me_nr values(noround(10.2))",
     "drop table crash_me_nr $drop_attr"]);
-  if ($error eq 1) {
-       $resultat = "syntax only";
-    } else {
-       $resultat = 'yes';
-    }
- } 
- print "$resultat\n";
- save_config_data('func_extra_noround',$resultat,"Function NOROUND");
+   if ($error == 1)
+   {
+     $result= "syntax only";
+   }
+   else
+   {
+     $result= 'yes';
+   }
+ }
+ print "$result\n";
+ save_config_data('func_extra_noround',$result,"Function NOROUND");
 }
 
 check_parenthesis("func_sql_","CURRENT_USER");
@@ -1377,7 +1383,7 @@ if ($limits{'type_sql_date'} eq 'yes')
     
 # Test: WEEK()
     {
-	my $resultat="no";
+	my $result="no";
 	my $error;
 	print "WEEK:";
 	save_incomplete('func_odbc_week','WEEK');
@@ -1388,17 +1394,17 @@ if ($limits{'type_sql_date'} eq 'yes')
 	# and 0 - EURO weeks
 	if ($error == -1) { 
 	    if ($last_result == 4) {
-		$resultat = 'USA';
+		$result = 'USA';
 	    } else {
-		$resultat='error';
+		$result='error';
 		add_log('func_odbc_week',
 		  " must return 4 or 5, but $last_result");
 	    }
 	} elsif ($error == 0) {
-	    $resultat = 'EURO';
+	    $result = 'EURO';
 	}
-	print " $resultat\n";
-	save_config_data('func_odbc_week',$resultat,"WEEK");
+	print " $result\n";
+	save_config_data('func_odbc_week',$result,"WEEK");
     }
     
     my $insert_query ='insert into crash_me_d values('.
@@ -1498,7 +1504,7 @@ if ($limits{'type_sql_date'} eq 'yes')
 # NOT id BETWEEN a and b
 if ($limits{'func_where_not_between'} eq 'yes')
 {
-   my $resultat = 'error';
+   my $result = 'error';
    my $err;
    my $key='not_id_between';
    my $prompt='NOT ID BETWEEN interprets as ID NOT BETWEEN';
@@ -1512,15 +1518,15 @@ if ($limits{'func_where_not_between'} eq 'yes')
      5,0);
    if ($err eq 1) {
       if (not defined($last_result)) {
-        $resultat='no';
+        $result='no';
       };
    };
    if ( $err eq 0) {
-      $resultat = 'yes';
+      $result = 'yes';
    };
    safe_query_l($key,["drop table crash_me_b"]);
-   save_config_data($key,$resultat,$prompt);
-   print "$resultat\n";
+   save_config_data($key,$result,$prompt);
+   print "$result\n";
 };
 
 
@@ -2018,37 +2024,44 @@ report("views","views",
 
 #  Test: foreign key
 {
- my $resultat = 'undefined';
+ my $result = 'undefined';
  my $error;
  print "foreign keys: ";
  save_incomplete('foreign_key','foreign keys');
 
 # 1) check if foreign keys are supported
- safe_query_l('foreign_key',create_table("crash_me_qf",["a integer not null"],
-         ["primary key (a)"]));
- $error = safe_query_l('foreign_key', 
-          create_table("crash_me_qf2",["a integer not null",
-	 "foreign key (a) references crash_me_qf (a)"], []));
- 			   
- if ($error eq 1)         # OK  -- syntax is supported 
+ safe_query_l('foreign_key',
+	      create_table("crash_me_qf",
+			   ["a integer not null"],
+			   ["primary key (a)"]));
+ $error= safe_query_l('foreign_key',
+		      create_table("crash_me_qf2",
+				   ["a integer not null",
+				    "foreign key (a) references crash_me_qf (a)"],
+				   []));
+
+ if ($error == 1)         # OK  -- syntax is supported 
  {
-   $resultat = 'error';
+   $result = 'error';
    # now check if foreign key really works
    safe_query_l('foreign_key', "insert into crash_me_qf values (1)");
-   if (safe_query_l('foreign_key', "insert into crash_me_qf2 values (2)") eq 1) 
+   if (safe_query_l('foreign_key', "insert into crash_me_qf2 values (2)") eq 1)
    {
-     $resultat = 'syntax only';
-   } else {
-     $resultat = 'yes';
-   }       
-   
- } else  { 
-   $resultat = "no";
- } 
- safe_query_l('foreign_key', 
-   "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
- print "$resultat\n";
- save_config_data('foreign_key',$resultat,"foreign keys");
+     $result = 'syntax only';
+   }
+   else
+   {
+     $result = 'yes';
+   }
+ }
+ else
+ {
+   $result = "no";
+ }
+ safe_query_l('foreign_key', "drop table crash_me_qf2 $drop_attr");
+ safe_query_l('foreign_key', "drop table crash_me_qf $drop_attr");
+ print "$result\n";
+ save_config_data('foreign_key',$result,"foreign keys");
 }
 
 report("Create SCHEMA","create_schema",
@@ -2607,7 +2620,7 @@ sub detect_null_position
 sub check_parenthesis {
  my $prefix=shift;
  my $fn=shift;
- my $resultat='no';
+ my $result='no';
  my $param_name=$prefix.lc($fn);
  my $r;
  
@@ -2616,18 +2629,18 @@ sub check_parenthesis {
  add_log($param_name,$safe_query_log);
  if ($r == 1)
   {
-    $resultat="yes";
+    $result="yes";
   } 
   else{
    $r = safe_query("select $fn() $end_query");
    add_log($param_name,$safe_query_log);
    if ( $r  == 1)   
     {    
-       $resultat="with_parenthesis";
+       $result="with_parenthesis";
     }
   }
 
-  save_config_data($param_name,$resultat,$fn);
+  save_config_data($param_name,$result,$fn);
 }
 
 sub check_constraint {
@@ -2699,10 +2712,16 @@ sub make_date {
 }
 
 
+sub version
+{
+  print "$0  Ver $version\n";
+}
+
+
 sub usage
 {
+  version();
     print <<EOF;
-$0  Ver $version
 
 This program tries to find all limits and capabilities for a SQL
 server.  As it will use the server in some 'unexpected' ways, one
@@ -3048,7 +3067,7 @@ sub safe_query_l {
   my $r = safe_query($q);
   add_log($key,$safe_query_log);
   return $r;
-}  
+}
 
 sub safe_query
 {
@@ -3110,7 +3129,6 @@ sub safe_query
 	  $retry = $retry_limit;
 	  $retry_ok = 1;
           $safe_query_log .= "> OK\n";
-	  
         }
         $sth->finish;
       }

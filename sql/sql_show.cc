@@ -1480,6 +1480,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_RPL_STATUS:
 	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;
@@ -1488,6 +1489,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif
       case SHOW_OPENTABLES:
 	end= int10_to_str((long) cached_tables(), buff, 10);
         break;

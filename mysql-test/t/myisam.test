@@ -2,9 +2,14 @@
 # Test bugs in the MyISAM code
 #
 
+# Initialise
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
+
+#
+# Test problem with CHECK TABLE;
+#
 
 CREATE TABLE t1 (
   STRING_DATA char(255) default NULL,
@@ -327,3 +332,21 @@ CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255));
 ALTER TABLE t1 ADD INDEX t1 (a, b, c);   
 DROP TABLE t1;
 
+#
+# Test of cardinality of keys with NULL
+#
+
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
+INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
+INSERT into t2 values (1,1,1), (2,2,2);
+optimize table t1;
+show index from t1;
+explain select * from t1,t2 where t1.a=t2.a;
+explain select * from t1,t2 force index(a) where t1.a=t2.a;
+explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
+explain select * from t1,t2 where t1.b=t2.b;
+explain select * from t1,t2 force index(c) where t1.a=t2.a;
+explain select * from t1 where a=0 or a=2;
+explain select * from t1 force index (a) where a=0 or a=2;
+drop table t1,t2;
