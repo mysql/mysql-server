@@ -111,6 +111,8 @@ public:
   Uint32 get_batch_byte_size();
   Uint32 get_batch_size();
 
+  TransporterRegistry* get_registry() { return theTransporterRegistry;};
+
 private:
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)

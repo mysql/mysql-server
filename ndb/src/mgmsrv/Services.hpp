@@ -88,6 +88,9 @@ public:
   void configChange(Parser_t::Context &ctx, const class Properties &args);
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
+  void setConnectionParameter(Parser_t::Context &ctx,
+			      const class Properties &args);
+
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
 
   void purge_stale_sessions(Parser_t::Context &ctx, const class Properties &args);
