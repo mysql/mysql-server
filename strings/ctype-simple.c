@@ -214,7 +214,8 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   const char *save, *e;
   int overflow;
 
-#if 0
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -243,12 +244,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
-#if 0
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
 #endif
 
-#if 0
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -336,7 +337,8 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   const char *save, *e;
   int overflow;
 
-#if 0
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -364,12 +366,12 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
-#if 0
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
 #endif
 
-#if 0
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -449,7 +451,8 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   const char *save;
   int overflow;
 
-#if 0
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -477,12 +480,12 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   else
     negative = 0;
 
-#if 0
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X'|| s[1]=='x'))
     s += 2;
 #endif
 
-#if 0
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -571,7 +574,8 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   const char *save;
   int overflow;
 
-#if 0
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
 #endif
@@ -599,12 +603,12 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
-#if 0
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
 #endif
 
-#if 0
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -679,7 +683,8 @@ noconv:
     cs		Character set information
     str		String to convert to double
     length	Optional length for string.
-    end		pointer to end of converted string
+    end		result pointer to end of converted string
+    err		Error number if failed conversion
     
   NOTES:
     If length is not INT_MAX32 or str[length] != 0 then the given str must
@@ -689,23 +694,28 @@ noconv:
     It's implemented this way to save a buffer allocation and a memory copy.
 
   RETURN
-    value of number in string
+    Value of number in string
 */
 
 
 double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		       char *str, uint length, 
-		       char **end, int *err __attribute__ ((unused)))
+		       char **end, int *err)
 {
   char end_char;
   double result;
 
+  errno= 0;					/* Safety */
   if (length == INT_MAX32 || str[length] == 0)
-    return strtod(str, end);
-  end_char= str[length];
-  str[length]= 0;
-  result= strtod(str, end);
-  str[length]= end_char;			/* Restore end char */
+    result= strtod(str, end);
+  else
+  {
+    end_char= str[length];
+    str[length]= 0;
+    result= strtod(str, end);
+    str[length]= end_char;			/* Restore end char */
+  }
+  *err= errno;
   return result;
 }
 

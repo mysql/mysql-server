@@ -107,7 +107,7 @@ void lex_init(void)
       state_map[i]=(uchar) STATE_CHAR;
   }
   state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) STATE_IDENT;
-  state_map[(uchar)'\'']=state_map[(uchar)'"']=(uchar) STATE_STRING;
+  state_map[(uchar)'\'']=(uchar) STATE_STRING;
   state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) STATE_SIGNED_NUMBER;
   state_map[(uchar)'.']=(uchar) STATE_REAL_OR_POINT;
   state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) STATE_CMP_OP;
@@ -122,10 +122,7 @@ void lex_init(void)
   state_map[(uchar)'*']= (uchar) STATE_END_LONG_COMMENT;
   state_map[(uchar)'@']= (uchar) STATE_USER_END;
   state_map[(uchar) '`']= (uchar) STATE_USER_VARIABLE_DELIMITER;
-  if (global_system_variables.sql_mode & MODE_ANSI_QUOTES)
-  {
-    state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
-  }
+  state_map[(uchar)'"']= (uchar) STAT_STRING_OR_DELIMITER;
 
   /*
     Create a second map to make it faster to find identifiers
@@ -652,12 +649,13 @@ int yylex(void *arg, void *yythd)
       return(IDENT);
 
     case STATE_USER_VARIABLE_DELIMITER:
+    {
+      char delim= c;				// Used char
       lex->tok_start=lex->ptr;			// Skip first `
 #ifdef USE_MB
       if (use_mb(system_charset_info))
       {
-	while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
-	       c != (uchar) NAMES_SEP_CHAR)
+	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
 	{
           if (my_ismbhead(system_charset_info, c))
           {
@@ -673,16 +671,15 @@ int yylex(void *arg, void *yythd)
       else
 #endif
       {
-	while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
-	       c != (uchar) NAMES_SEP_CHAR) ;
+	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR) ;
       }
       yylval->lex_str=get_token(lex,yyLength());
       if (lex->convert_set)
         lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
-      if (state_map[c] == STATE_USER_VARIABLE_DELIMITER)
+      if (c == delim)
 	yySkip();			// Skip end `
       return(IDENT);
-
+    }
     case STATE_SIGNED_NUMBER:		// Incomplete signed number
       if (prev_state == STATE_OPERATOR_OR_IDENT)
       {
@@ -795,6 +792,13 @@ int yylex(void *arg, void *yythd)
       lex->next_state= STATE_START;	// Allow signed numbers
       return(tokval);
 
+    case STAT_STRING_OR_DELIMITER:
+      if (((THD *) yythd)->variables.sql_mode & MODE_ANSI_QUOTES)
+      {
+	state= STATE_USER_VARIABLE_DELIMITER;
+	break;
+      }
+      /* " used for strings */
     case STATE_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lex)))
       {
@@ -889,6 +893,7 @@ int yylex(void *arg, void *yythd)
       switch (state_map[yyPeek()]) {
       case STATE_STRING:
       case STATE_USER_VARIABLE_DELIMITER:
+      case STAT_STRING_OR_DELIMITER:
 	break;
       case STATE_USER_END:
 	lex->next_state=STATE_SYSTEM_VAR;
