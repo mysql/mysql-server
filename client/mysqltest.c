@@ -1042,11 +1042,11 @@ int do_let(struct st_query* q)
   if (!*p)
     die("Missing variable name in let\n");
   var_name = p;
-  while(*p && (*p != '=' || isspace(*p)))
+  while (*p && (*p != '=' || isspace(*p)))
     p++;
   var_name_end = p;
   if (*p == '=') p++;
-  while(*p && isspace(*p))
+  while (*p && isspace(*p))
     p++;
   var_val_start = p;
   return var_set(var_name, var_name_end, var_val_start, q->end);
@@ -1054,9 +1054,10 @@ int do_let(struct st_query* q)
 
 int do_rpl_probe(struct st_query* q __attribute__((unused)))
 {
+  DBUG_ENTER("do_rpl_probe");
   if (mysql_rpl_probe(&cur_con->mysql))
-    die("Failed in mysql_rpl_probe(): %s", mysql_error(&cur_con->mysql));
-  return 0;
+    die("Failed in mysql_rpl_probe(): '%s'", mysql_error(&cur_con->mysql));
+  DBUG_RETURN(0);
 }
 
 int do_enable_rpl_parse(struct st_query* q __attribute__((unused)))
@@ -1077,7 +1078,7 @@ int do_sleep(struct st_query* q, my_bool real_sleep)
   char* p=q->first_argument;
   struct timeval t;
   int dec_mul = 1000000;
-  while(*p && isspace(*p)) p++;
+  while (*p && isspace(*p)) p++;
   if (!*p)
     die("Missing argument in sleep\n");
   t.tv_usec = 0;
@@ -1097,7 +1098,7 @@ int do_sleep(struct st_query* q, my_bool real_sleep)
   else
   {
     t.tv_sec = atoi(p);
-    while(*p && *p != '.' && !isspace(*p))
+    while (*p && *p != '.' && !isspace(*p))
       p++;
     if (*p == '.')
     {
@@ -1308,7 +1309,7 @@ int select_connection(struct st_query* q)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while(*p && !isspace(*p))
+  while (*p && !isspace(*p))
     p++;
   *p = 0;
 
@@ -1334,7 +1335,7 @@ int close_connection(struct st_query* q)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while(*p && !isspace(*p))
+  while (*p && !isspace(*p))
     p++;
   *p = 0;
 
@@ -1790,7 +1791,7 @@ int read_query(struct st_query** q_ptr)
       }
     }
 
-    while(*p && isspace(*p)) p++ ;
+    while (*p && isspace(*p)) p++ ;
     if (*p == '@')
     {
       p++;
@@ -2503,7 +2504,7 @@ int main(int argc, char** argv)
     if (!processed)
     {
       current_line_inc = 0;
-      switch(q->type) {
+      switch (q->type) {
       case Q_WHILE: do_while(q); break;
       case Q_END_BLOCK: do_done(q); break;
       default: current_line_inc = 1; break;

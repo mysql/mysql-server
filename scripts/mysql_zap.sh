@@ -12,7 +12,7 @@ $opt_f= 0;
 $opt_t= 0;
 $opt_a = "";
 
-$BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4";
+$BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4" || $^O eq 'darwin';
 $LINUX = $^O eq 'linux';
 $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
 

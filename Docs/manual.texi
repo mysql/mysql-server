@@ -50380,6 +50380,8 @@ Fixed some problems with @code{CREATE TABLE ... SELECT function()}.
 @code{mysqld} now has the option @code{--temp-pool} enabled by default as this
 gives better performance with some operating systems.
 @item
+Fixed hang in @code{CHANGE MASTER TO} if the slave thread died very quickly.
+@item
 Big cleanup in replication code (less logging, better error messages, etc..)
 @item
 If the @code{--code-file} option is specified, the server calls
