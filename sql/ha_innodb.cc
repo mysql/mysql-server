@@ -325,10 +325,18 @@ innobase_mysql_print_thd(
 {
 	const THD*	thd;
 	const char*	s;
+	char		buf[301];
 
         thd = (const THD*) input_thd;
 
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
+/* We cannot use LOCK_thread_count to protect this operation because we own
+the InnoDB kernel_mutex when we enter this function, but in freeing of a
+THD object, MySQL first reserves LOCK_thread_count and AFTER THAT InnoDB
+reserves kernel_mutex when freeing the trx object => a deadlock can occur.
+The solution is for MySQL to use a separate mutex to protect thd->query and
+thd->query_len. Someone should do that! This bug has been here for 3 years!
+
+	VOID(pthread_mutex_lock(&LOCK_thread_count)); */
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
@@ -354,15 +362,29 @@ innobase_mysql_print_thd(
 
 	if ((s = thd->query)) {
 		/* determine the length of the query string */
-		uint32 i, len = thd->query_length;
+		uint32 i, len;
+		
+		len = thd->query_length;
+
+		if (len > 300) {
+			len = 300;	/* A TEMPORARY SOLUTION: print at most
+					300 chars to reduce the probability of
+					a seg fault in a race */
+		}
+		
 		for (i = 0; i < len && s[i]; i++);
+
+		memcpy(buf, s, i);	/* use memcpy to reduce the timeframe
+					for a race, compared to fwrite() */
+		buf[300] = '\0';
+
 		putc('\n', f);
-		fwrite(s, 1, i, f);
+		fwrite(buf, 1, i, f);
 	}
 
 	putc('\n', f);
 
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+/*	VOID(pthread_mutex_unlock(&LOCK_thread_count)); */
 }
 
 /*************************************************************************
