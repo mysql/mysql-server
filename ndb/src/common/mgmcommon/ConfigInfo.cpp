@@ -1989,7 +1989,8 @@ const Properties *
 ConfigInfo::getInfo(const char * section) const {
   const Properties * p;
   if(!m_info.get(section, &p)){
-    warning("getInfo", section);
+    return 0;
+    //    warning("getInfo", section);
   }
   return p;
 }
@@ -1998,7 +1999,8 @@ const Properties *
 ConfigInfo::getDefaults(const char * section) const {
   const Properties * p;
   if(!m_systemDefaults.get(section, &p)){
-    warning("getDefaults", section);
+    return 0;
+    //warning("getDefaults", section);
   }
   return p;
 }
@@ -2072,7 +2074,7 @@ ConfigInfo::isSection(const char * section) const {
 const char*
 ConfigInfo::getAlias(const char * section) const {
   for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
-    if(!strcmp(section, m_sectionNameAliases[i].alias))
+    if(!strcasecmp(section, m_sectionNameAliases[i].alias))
       return m_sectionNameAliases[i].name;
   return 0;
 }
