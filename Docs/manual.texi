@@ -46927,17 +46927,15 @@ not yet 100% confident in this code.
 
 @node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.53
-
 @itemize @bullet
 @item
-Add multithreaded stress tests for InnoDB
+Fixed problem with @code{UNSIGNED BIGINT} on AIX (again).
+@item
+Multithreaded stress tests for InnoDB.
 @end itemize
 
 @appendixsubsec Changes in release 3.23.52
-
 @itemize @bullet
-@item
-Fixed problem with @code{UNSIGNED BIGINT} on AIX.
 @item
 Fixed security bug when having an empty databasename in the @code{user.db}
 table.
