@@ -31605,6 +31605,12 @@ mysql> select concat(last_name,', ',first_name) AS full_name
 @end example
 
 @item
+It is not allowed to use a column alias in a @code{WHERE} clause,
+because the column value may not yet be determined when the
+@code{WHERE} clause is executed.
+@xref{Problems with alias}.
+
+@item
 The @code{FROM table_references} clause indicates the tables from which to
 retrieve rows.  If you name more than one table, you are performing a
 join.  For information on join syntax, see @ref{JOIN, , @code{JOIN}}.
