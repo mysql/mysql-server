@@ -97,7 +97,7 @@
   Note: the following includes binlog and closing 0.
   so: innodb+bdb+ndb+binlog+0
 */
-#define MAX_HA 5
+#define MAX_HA 6
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
@@ -217,11 +217,13 @@ struct xid_t {
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(LEX_STRING *l) { set(l->length, 0, l->str); }
-  void set(ulonglong l)
+  void set(ulonglong xid)
   {
+    my_xid tmp;
     set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
-    *(ulong*)(data+MYSQL_XID_PREFIX_LEN)=server_id;
-    *(my_xid*)(data+MYSQL_XID_OFFSET)=l;
+    memcpy(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
+    tmp= xid;
+    memcpy(data+MYSQL_XID_OFFSET, &tmp, sizeof(tmp));
     gtrid_length=MYSQL_XID_GTRID_LEN;
   }
   void set(long g, long b, const char *d)
@@ -235,7 +237,9 @@ struct xid_t {
   void null() { formatID= -1; }
   my_xid quick_get_my_xid()
   {
-    return *(my_xid*)(data+MYSQL_XID_OFFSET);
+    my_xid tmp;
+    memcpy(&tmp, data+MYSQL_XID_OFFSET, sizeof(tmp));
+    return tmp;
   }
   my_xid get_my_xid()
   {
