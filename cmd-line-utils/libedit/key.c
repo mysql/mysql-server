@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,7 +36,14 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * key.c: This module contains the procedures for maintaining
@@ -59,7 +66,6 @@
  *      1) It is not possible to have one key that is a
  *	   substr of another.
  */
-#include "sys.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -85,8 +91,8 @@ private int		 node__try(EditLine *, key_node_t *, const char *,
 private key_node_t	*node__get(int);
 private void		 node__put(EditLine *, key_node_t *);
 private int		 node__delete(EditLine *, key_node_t **, const char *);
-private int		 node_lookup(EditLine *, const char *, 
-				     key_node_t *, int);
+private int		 node_lookup(EditLine *, const char *, key_node_t *,
+    int);
 private int		 node_enum(EditLine *, key_node_t *, int);
 private int		 key__decode_char(char *, int, int);
 
@@ -640,7 +646,7 @@ key__decode_char(char *buf, int cnt, int ch)
 protected char *
 key__decode_str(const char *str, char *buf, const char *sep)
 {
-	char *b; 
+	char *b;
 	const char *p;
 
 	b = buf;
