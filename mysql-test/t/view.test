@@ -1066,3 +1066,15 @@ CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
 select * from v1;
 drop view v1;
 drop table t1;
+
+#
+# distinct in temporary table with a VIEW
+#
+create table t1 (a int);
+insert into t1 values (1),(1),(2),(2),(3),(3);
+create view v1 as select a from t1;
+select distinct a from v1;
+select distinct a from v1 limit 2;
+select distinct a from t1 limit 2;
+drop view v1;
+drop table t1;

@@ -2156,6 +2156,14 @@ void Item_ref::print(String *str)
 }
 
 
+bool Item_ref::send(Protocol *prot, String *tmp)
+{
+  if (result_field)
+    return prot->store(result_field);
+  return (*ref)->send(prot, tmp);
+}
+
+
 void Item_ref_null_helper::print(String *str)
 {
   str->append("<ref_null_helper>(", 18);

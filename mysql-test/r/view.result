@@ -1116,3 +1116,21 @@ c1	c2
 7	almost real Beer
 drop view v1;
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(1),(2),(2),(3),(3);
+create view v1 as select a from t1;
+select distinct a from v1;
+a
+1
+2
+3
+select distinct a from v1 limit 2;
+a
+1
+2
+select distinct a from t1 limit 2;
+a
+1
+2
+drop view v1;
+drop table t1;
