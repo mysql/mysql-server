@@ -61,6 +61,11 @@ dulint		srv_start_lsn;
 /* Log sequence number at shutdown */
 dulint		srv_shutdown_lsn;
 
+#ifdef HAVE_DARWIN_THREADS
+# include <sys/utsname.h>
+ibool		srv_have_fullfsync = FALSE;
+#endif
+
 ibool		srv_start_raw_disk_in_use  = FALSE;
 
 static ibool	srv_start_has_been_called  = FALSE;
@@ -935,6 +940,28 @@ innobase_start_or_create_for_mysql(void)
 	ulint	i;
 	ibool	srv_file_per_table_original_value  = srv_file_per_table;
 	mtr_t   mtr;
+#ifdef HAVE_DARWIN_THREADS
+# ifdef F_FULLFSYNC
+	/* This executable has been compiled on Mac OS X 10.3 or later.
+	Assume that F_FULLFSYNC is available at run-time. */
+	srv_have_fullfsync = TRUE;
+# else /* F_FULLFSYNC */
+	/* This executable has been compiled on Mac OS X 10.2
+	or earlier.  Determine if the executable is running
+	on Mac OS X 10.3 or later. */
+	struct utsname utsname;
+	if (uname(&utsname)) {
+		fputs("InnoDB: cannot determine Mac OS X version!\n", stderr);
+	} else {
+		srv_have_fullfsync = strcmp(utsname.release, "7.") >= 0;
+	}
+	if (!srv_have_fullfsync) {
+		fputs(
+"InnoDB: On Mac OS X, fsync() may be broken on internal drives,\n"
+"InnoDB: making transactions unsafe!\n", stderr);
+	}
+# endif /* F_FULLFSYNC */
+#endif /* HAVE_DARWIN_THREADS */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		fprintf(stderr,
