@@ -129,7 +129,7 @@ then
     fi
     echo "WARNING: The host '$hostname' could not be looked up with resolveip."
     echo "This probably means that your libc libraries are not 100 % compatible"
-    echo "with this binary MySQL version. The MySQL deamon, mysqld, should work"
+    echo "with this binary MySQL version. The MySQL daemon, mysqld, should work"
     echo "normally with the exception that host name resolving will not work."
     echo "This means that you should use IP addresses instead of hostnames"
     echo "when specifying MySQL privileges !"
