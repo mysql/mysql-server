@@ -1983,6 +1983,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int param,
 				     unsigned value,
 				     struct ndb_mgm_reply* mgmreply){
+  DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
   
