@@ -2415,6 +2415,8 @@ mysql_execute_command(THD *thd)
 
     if (single_table_command_access(thd, privilege, tables, &res))
 	goto error;
+#else
+    my_bool update=(lex->value_list.elements ? 1 : 0);
 #endif
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
@@ -2423,12 +2425,7 @@ mysql_execute_command(THD *thd)
     }
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
                        select_lex->item_list, lex->value_list,
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-                       (update ? DUP_UPDATE : lex->duplicates)
-#else
-		       DUP_UPDATE
-#endif
-);
+                       (update ? DUP_UPDATE : lex->duplicates));
     if (thd->net.report_error)
       res= -1;
     break;
