@@ -1943,7 +1943,8 @@ void Item_func_conv_charset3::fix_length_and_dec()
 String *Item_func_set_collation::val_str(String *str)
 {
   str=args[0]->val_str(str);
-  null_value=args[0]->null_value;
+  if ((null_value=args[0]->null_value))
+    return 0;
   str->set_charset(set_collation);
   return str;
 }
@@ -1961,8 +1962,10 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
     return 1;
   maybe_null=args[0]->maybe_null;
   binary=args[0]->binary;
-  const_item_cache=args[0]->const_item();
   str_value.set_charset(set_collation);
+  with_sum_func= with_sum_func || args[0]->with_sum_func;
+  used_tables_cache=args[0]->used_tables();
+  const_item_cache=args[0]->const_item();
   fix_length_and_dec();
   return 0;
 }
@@ -1986,7 +1989,6 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
       return 0;
   return 1;
 }
-
 
 String *Item_func_charset::val_str(String *str)
 {
