@@ -305,3 +305,13 @@ select SUBSTR('abcdefg',-1,5) FROM DUAL;
 select SUBSTR('abcdefg',0,0) FROM DUAL;
 select SUBSTR('abcdefg',-1,-1) FROM DUAL;
 select SUBSTR('abcdefg',1,-1) FROM DUAL;
+
+#
+# Test that fix_fields doesn't follow to upper level (to comparison)
+# when an error on a lower level (in concat) has accured:
+#
+create table t7 (s1 char);
+--error 1265
+select * from t7
+where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
+drop table t7;

@@ -1,6 +1,6 @@
-This ALPHA build of MySQL 4.1 for the Windows platform does not come with 
-an installer. A full-featured installer is being developed for 
-the 4.1 series, and it is scheduled to be released with MySQL 4.1 BETA.
+This ALPHA build of MySQL 4.1 for the Windows platform does not come
+with an installer. A full-featured installer is being developed for the
+4.1 series, and it is scheduled to be released with MySQL 4.1 BETA.
 
 ** FRESH INSTALL **
 
@@ -14,49 +14,63 @@ in the user manual for starting/stopping MySQL:
 
 ** UPGRADE INSTALL **
 
-To install MySQL 4.1 as an upgrade to your current MySQL version, you need
+To install MySQL 4.1 as an upgrade to your current version of MySQL, you need
 to perform the following steps:
 
-* Backup your original install (always a good idea!)
-* Unzip this archive to a separate directory from your currently
-  installed MySQL database (or don't unpack the 'Data' subdirectory
-  when unzipping this archive, otherwise your databases will be over-
-  written).
+* Back up your original installation (always a good idea!)
+
+* Unzip the 4.1 archive to a directory that is different than where your
+  current MySQL installation is located. (Or, if you do unzip this
+  archive into the same location as your existing installation, do NOT
+  unpack the 'data' subdirectory. If you unpack the 'data' directory,
+  your existing databases will be overwritten.)
   
-* Shutdown all mysql server processes/services
-* Remove the Win32 Service (if appropriate for your OS):
+* Shut down all MySQL server processes/services.
+
+* Remove the Win32 MySQL service (if appropriate for your OS):
 
 	c:\mysql\bin\mysqld-nt --remove
 	
 * Exit 'WinMySQLAdmin' (if it is running).
-* If you unzipped this archive into a separate directory, copy all of the 
-  directories and their contents from the location where you unzipped this 
-  archive, excluding the 'data' directory, to the location
-  where your current MySQL server is installed.
-* Start the MySQL server with the '--skip-grant-tables' option (assuming
-  your MySQL server is installed in 'c:\mysql'):
+
+* If you unzipped this archive into a directory different than that
+  of your existing MySQL installation, copy from the archive all its
+  directories and their contents EXCEPT the 'data' directory into the
+  existing installation.
+
+* Start the MySQL server with the '--skip-grant-tables' option. Assuming
+  your MySQL installation is located at 'c:\mysql', the command looks like
+  this:
 
 	c:\mysql\bin\mysqld-opt --skip-grant-tables
+
+  If your installation is located in some other directory, adjust the
+  pathname in that command (and in the following commands).
 	
-* Execute the 'mysql_fix_privilege_tables.sql' script in the 'scripts
-  directory:
+* Execute the 'mysql_fix_privilege_tables.sql' script that is located in
+  the 'scripts' directory:
   
-  	c:\mysql\bin\mysql < c:\mysql\scripts\mysql_fix_privilege_tables.sql
+  	c:\mysql\bin\mysql -f mysql < c:\mysql\scripts\mysql_fix_privilege_tables.sql
+
+  This script performs any actions necessary to convert your grant tables
+  to the current format. You may see some "duplicate column" warnings as
+  it runs; these can be ignored.
   	
-* Stop the server
+* Stop the server:
 
 	c:\mysql\bin\mysqladmin -u root shutdown
 	
-* Re-install the Win32 service (if required):
+* Re-install the Win32 MySQL service (if required):
 
 	c:\mysql\bin\mysqld-nt --install
 	
-* Re-start the server or service as normal.
+* Re-start the server or service using your normal startup procedure.
 
 ** Further Questions **
 
 You can find further information about running MySQL on Windows in the
-manual that ships in the 'Doc' subdirectory, or at:
+manual that ships in the 'Doc' subdirectory, or online at the MySQL AB
+web site:
 
 http://www.mysql.com/doc/en/Windows.html
 

@@ -192,6 +192,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
+  if (thd && thd->net.last_errno) // An error inside fix_length_and_dec accured
+    return 1;
   fixed= 1;
   return 0;
 }
@@ -1185,8 +1187,7 @@ longlong Item_func_field::val_int()
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
-      if (tmp_value && field->length() == tmp_value->length() &&
-	  !sortcmp(field,tmp_value,cmp_collation.collation))
+      if (tmp_value && !sortcmp(field,tmp_value,cmp_collation.collation))
         return (longlong) (i);
     }
   }
