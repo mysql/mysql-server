@@ -271,7 +271,10 @@ select date_add(date,INTERVAL "1" QUARTER) from t1;
 select timestampadd(MINUTE, 1, date) from t1;
 select timestampadd(WEEK, 1, date) from t1;
 select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
+# Prepared statements doesn't support FRAC_SECOND yet
+--disable_ps_protocol
 select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
+--enable_ps_protocol
 
 select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
 select timestampdiff(YEAR, '2002-05-01', '2001-01-01') as a;

@@ -2282,6 +2282,7 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Undefined:
+    case NdbDictionary::Column::Bit:
       fprintf(DBUG_FILE, "Unknown type: %d", col->getType());
       break;
     }

@@ -298,7 +298,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->copy_blobs=1;
 
     thd->no_trans_update= 0;
-    thd->abort_on_warning= (handle_duplicates != DUP_IGNORE &&
+    thd->abort_on_warning= (!ignore &&
                             (thd->variables.sql_mode &
                              (MODE_STRICT_TRANS_TABLES |
                               MODE_STRICT_ALL_TABLES)));

@@ -45,3 +45,6 @@ dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`
 
 windoze-dsp:
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

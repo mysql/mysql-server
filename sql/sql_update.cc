@@ -118,7 +118,6 @@ int mysql_update(THD *thd,
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
-  bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   int           res;
   int		error=0;
   uint		used_index;
@@ -395,7 +394,7 @@ int mysql_update(THD *thd,
 
   transactional_table= table->file->has_transactions();
   thd->no_trans_update= 0;
-  thd->abort_on_warning= test(handle_duplicates != DUP_IGNORE &&
+  thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
@@ -415,7 +414,7 @@ int mysql_update(THD *thd,
 
       if (compare_record(table, query_id))
       {
-        if ((res= table_list->view_check_option(thd, ignore_err)) !=
+        if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
         {
           found--;
@@ -850,7 +849,8 @@ bool mysql_multi_update(THD *thd,
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg, bool ignore_arg)
+			   enum enum_duplicates handle_duplicates_arg,
+                           bool ignore_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
@@ -1143,7 +1143,6 @@ multi_update::~multi_update()
 bool multi_update::send_data(List<Item> &not_used_values)
 {
   TABLE_LIST *cur_table;
-  bool ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   DBUG_ENTER("multi_update::send_data");
 
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
@@ -1178,7 +1177,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       if (compare_record(table, thd->query_id))
       {
 	int error;
-        if ((error= cur_table->view_check_option(thd, ignore_err)) !=
+        if ((error= cur_table->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
         {
           found--;

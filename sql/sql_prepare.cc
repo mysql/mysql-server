@@ -150,13 +150,18 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
-  char buff[9];
+  char buff[12];
+  uint tmp;
   DBUG_ENTER("send_prep_stmt");
 
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
+  buff[9]= 0;                                   // Guard against a 4.1 client
+  tmp= min(stmt->thd->total_warn_count, 65535);
+  int2store(buff+10, tmp);
+
   /*
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
