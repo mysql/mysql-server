@@ -2247,7 +2247,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2395,7 +2395,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-
+  bzero((char*) &tables,sizeof(tables));
   tables[0].alias=tables[0].real_name=(char*) "user";
   tables[1].alias=tables[1].real_name=(char*) "db";
   tables[0].next=tables+1;
@@ -2421,7 +2421,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2517,7 +2517,7 @@ my_bool grant_init(THD *org_thd)
   thd->store_globals();
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length=5;				// Safety
-  bzero((char*) &tables,sizeof(tables));
+  bzero((char*) &tables, sizeof(tables));
   tables[0].alias=tables[0].real_name= (char*) "tables_priv";
   tables[1].alias=tables[1].real_name= (char*) "columns_priv";
   tables[0].next=tables+1;
@@ -3376,7 +3376,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   }
 #endif
 
-  if (open_and_lock_tables(thd, tables))
+  if (simple_open_n_lock_tables(thd, tables))
   {						// This should never happen
     close_thread_tables(thd);
     DBUG_RETURN(-1);
