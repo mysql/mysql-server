@@ -281,3 +281,35 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 
   return out;
 }
+
+Int64
+NdbRecAttr::int64_value() const 
+{
+  Int64 val;
+  memcpy(&val,theRef,8);
+  return val;
+}
+
+Uint64
+NdbRecAttr::u_64_value() const
+{
+  Uint64 val;
+  memcpy(&val,theRef,8);
+  return val;
+}
+
+float
+NdbRecAttr::float_value() const
+{
+  float val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
+}
+
+double
+NdbRecAttr::double_value() const
+{
+  double val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
+}
