@@ -1473,7 +1473,7 @@ AC_DEFUN([MYSQL_CHECK_CSVDB], [
 
   case "$csvdb" in
     yes )
-      AC_DEFINE(HAVE_CSV_DB)
+      AC_DEFINE([HAVE_CSV_DB], [1], [Builds the CSV Storage Engine])
       AC_MSG_RESULT([yes])
       [csvdb=yes]
       ;;
