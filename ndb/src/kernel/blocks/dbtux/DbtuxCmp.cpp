@@ -35,7 +35,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
   searchKey += start;
   int ret = 0;
   while (start < numAttrs) {
-    if (len2 < AttributeHeaderSize) {
+    if (len2 <= AttributeHeaderSize) {
       jam();
       ret = NdbSqlUtil::CmpUnknown;
       break;
@@ -46,7 +46,8 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
         jam();
         // current attribute
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const unsigned typeId = descAttr.m_typeId;
+        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
+        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         // full data size
         const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
@@ -55,7 +56,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
         // compare
         const Uint32* const p1 = *searchKey;
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
+        ret = (*type.m_cmp)(p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           break;
@@ -78,8 +79,6 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
     start++;
   }
-  // XXX until data format errors are handled
-  ndbrequire(ret != NdbSqlUtil::CmpError);
   return ret;
 }
 
@@ -103,13 +102,14 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Tabl
         jam();
         // current attribute
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const unsigned typeId = descAttr.m_typeId;
+        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
+        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         // full data size
         const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         // compare
         const Uint32* const p1 = *searchKey;
         const Uint32* const p2 = *entryKey;
-        ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
+        ret = (*type.m_cmp)(p1, p2, size1, size1);
         if (ret != 0) {
           jam();
           break;
@@ -132,8 +132,6 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Tabl
     entryKey += 1;
     start++;
   }
-  // XXX until data format errors are handled
-  ndbrequire(ret != NdbSqlUtil::CmpError);
   return ret;
 }
 
@@ -172,7 +170,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
    */
   unsigned type = 4;
   while (boundCount != 0) {
-    if (len2 < AttributeHeaderSize) {
+    if (len2 <= AttributeHeaderSize) {
       jam();
       return NdbSqlUtil::CmpUnknown;
     }
@@ -186,7 +184,8 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         // current attribute
         const unsigned index = boundInfo.ah().getAttributeId();
         const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const unsigned typeId = descAttr.m_typeId;
+        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
+        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
         // full data size
         const unsigned size1 = boundInfo.ah().getDataSize();
@@ -196,9 +195,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         // compare
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
-        // XXX until data format errors are handled
-        ndbrequire(ret != NdbSqlUtil::CmpError);
+        int ret = (*type.m_cmp)(p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           return ret;
@@ -269,15 +266,14 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         // current attribute
         const unsigned index = boundInfo.ah().getAttributeId();
         const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const unsigned typeId = descAttr.m_typeId;
+        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
+        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         // full data size
         const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         // compare
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = *entryKey;
-        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
-        // XXX until data format errors are handled
-        ndbrequire(ret != NdbSqlUtil::CmpError);
+        int ret = (*type.m_cmp)(p1, p2, size1, size1);
         if (ret != 0) {
           jam();
           return ret;
