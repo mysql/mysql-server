@@ -26,8 +26,7 @@ INCLUDES =		@MT_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-bin_PROGRAMS =          mysql_tzinfo_to_sql
-noinst_PROGRAMS =	gen_lex_hash test_time
+noinst_PROGRAMS =	gen_lex_hash
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -92,14 +91,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			tztime.cc examples/ha_example.cc examples/ha_archive.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
-
-mysql_tzinfo_to_sql_SOURCES =   tztime.cc tzfile.h
-mysql_tzinfo_to_sql_CPPFLAGS =  -DTZINFO2SQL $(AM_CPPFLAGS)
-mysql_tzinfo_to_sql_LDADD =	$(LDADD) $(CXXLDFLAGS)
-
-test_time_SOURCES =     tztime.cc time.cc tzfile.h
-test_time_CPPFLAGS =    -DTESTTIME $(AM_CPPFLAGS)
-test_time_LDADD   =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \

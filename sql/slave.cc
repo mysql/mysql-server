@@ -3562,7 +3562,6 @@ err:
 
 static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 {
-  int return_val= 1;
   DBUG_ENTER("process_io_rotate");
   safe_mutex_assert_owner(&mi->data_lock);
 

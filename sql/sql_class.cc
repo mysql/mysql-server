@@ -162,7 +162,8 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 {
   host= user= priv_user= db= ip=0;
   host_or_ip= "connecting host";
-  locked=killed=some_tables_deleted=no_errors=password= 0;
+  locked=some_tables_deleted=no_errors=password= 0;
+  killed=0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   db_length= col_access= 0;
