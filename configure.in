@@ -2618,6 +2618,7 @@ AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
+MYSQL_CHECK_EXAMPLEDB
 MYSQL_CHECK_NDBCLUSTER
 
 # If we have threads generate some library functions and test programs

@@ -1303,6 +1303,36 @@ dnl END OF MYSQL_CHECK_INNODB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_EXAMPLEDB
+dnl Sets HAVE_EXAMPLE_DB if --with-example-storage-engine is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_EXAMPLEDB], [
+  AC_ARG_WITH([example-storage-engine],
+              [
+  --with-example-storage-engine
+                          Enable the Example Storge Engine],
+              [exampledb="$withval"],
+              [exampledb=no])
+  AC_MSG_CHECKING([for example storage engine])
+
+  case "$exampledb" in
+    yes )
+      AC_DEFINE(HAVE_EXAMPLE_DB)
+      AC_MSG_RESULT([yes])
+      [exampledb=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [exampledb=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_EXAMPLE SECTION
+dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
@@ -1343,6 +1373,7 @@ dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
 dnl ---------------------------------------------------------------------------
 
 
+>>>>>>>
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.
 dnl For more details about this brain damage please see:
