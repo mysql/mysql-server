@@ -47,6 +47,14 @@ select * from t1 order by col1;
 insert into t1 values (2, NULL,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
 show table status;
 select * from t1 order by col1;
+delete from t1;
+insert into t1 values (0,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+SET SQL_MODE='';
+insert into t1 values (1,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
+alter table t1 drop column col4_5;
+insert into t1 values (2,0,4,3,5,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
 drop table t1;
 
 
