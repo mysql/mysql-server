@@ -365,6 +365,15 @@ lock_deadlock_recursive(
 	ulint*	cost);		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return TRUE */
+/*************************************************************************
+Gets the nth bit of a record lock. */
+UNIV_INLINE
+ibool
+lock_rec_get_nth_bit(
+/*=================*/
+			/* out: TRUE if bit set */
+	lock_t*	lock,	/* in: record lock */
+	ulint	i);	/* in: index of the bit */
 
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
 #define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
