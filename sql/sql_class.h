@@ -544,6 +544,23 @@ public:
     Points to the query associated with this statement. It's const, but
     we need to declare it char * because all table handlers are written
     in C and need to point to it.
+
+    Note that (A) if we set query = NULL, we must at the same time set
+    query_length = 0, and protect the whole operation with the
+    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
+    non-NULL value if its previous value is NULL. We do not need to protect
+    operation (B) with any mutex. To avoid crashes in races, if we do not
+    know that thd->query cannot change at the moment, one should print
+    thd->query like this:
+      (1) reserve the LOCK_thread_count mutex;
+      (2) check if thd->query is NULL;
+      (3) if not NULL, then print at most thd->query_length characters from
+      it. We will see the query_length field as either 0, or the right value
+      for it.
+    Assuming that the write and read of an n-bit memory field in an n-bit
+    computer is atomic, we can avoid races in the above way. 
+    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
+    STATUS.
   */
   char *query;
   uint32 query_length;                          // current query length
@@ -684,24 +701,6 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
-  /* 
-    Note that (A) if we set query = NULL, we must at the same time set
-    query_length = 0, and protect the whole operation with the
-    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
-    non-NULL value if its previous value is NULL. We do not need to protect
-    operation (B) with any mutex. To avoid crashes in races, if we do not
-    know that thd->query cannot change at the moment, one should print
-    thd->query like this:
-      (1) reserve the LOCK_thread_count mutex;
-      (2) check if thd->query is NULL;
-      (3) if not NULL, then print at most thd->query_length characters from
-      it. We will see the query_length field as either 0, or the right value
-      for it.
-    Assuming that the write and read of an n-bit memory field in an n-bit
-    computer is atomic, we can avoid races in the above way. 
-    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
-    STATUS.
-  */
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
   /*

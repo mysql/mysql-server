@@ -2373,7 +2373,7 @@ ConfigInfo::getAlias(const char * section) const {
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
-  Uint64 min, max; min = max + 1;
+  Uint64 min, max;
 
   min = getInfoInt(section, fname, "Min");
   max = getInfoInt(section, fname, "Max");
