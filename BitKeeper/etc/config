@@ -68,4 +68,5 @@ pager:
 # 
 hours: 
 [serg:]checkout:get
+[arjen:]checkout:get
 checkout:edit
