@@ -4266,7 +4266,8 @@ simple_expr:
 	  { $$= create_func_contains($3, $5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
-	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
+            if (Lex->add_time_zone_tables_to_query_tables(YYTHD))
+              YYABORT;
 	    $$= new Item_func_convert_tz($3, $5, $7);
 	  }
 	| CURDATE optional_braces
@@ -7276,8 +7277,9 @@ internal_variable_name:
               If this is time_zone variable we should open time zone
               describing tables 
             */
-            if (tmp == &sys_time_zone)
-	      Lex->time_zone_tables_used= &fake_time_zone_tables_list;
+            if (tmp == &sys_time_zone &&
+                lex->add_time_zone_tables_to_query_tables(YYTHD))
+              YYABORT;
 	  }
 	  else
 	  {
