@@ -273,6 +273,9 @@ handler(int sig){
   case SIGTTOU:  /* 27              */
     globalData.theRestartFlag = perform_stop;
     break;
+#ifdef SIGWINCH
+  case SIGWINCH:
+#endif
   case SIGPIPE:
     /**
      * Can happen in TCP Transporter

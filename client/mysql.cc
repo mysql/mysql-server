@@ -669,6 +669,10 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
+  /* Divert all help information on NetWare to logger screen. */
+#ifdef __NETWARE__
+#define printf	consoleprintf
+#endif
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
@@ -681,7 +685,12 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
+  NETWARE_SET_SCREEN_MODE(1);
+#ifdef __NETWARE__
+#undef printf
+#endif
 }
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -916,6 +925,7 @@ static int read_lines(bool execute_commands)
 #ifdef __NETWARE__
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
       /* Remove the '\n' */
+      if (line)
       {
         char *p = strrchr(line, '\n');
         if (p != NULL)
@@ -931,7 +941,11 @@ static int read_lines(bool execute_commands)
       line= readline(prompt);
 #endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
 
-      if (opt_outfile)
+      /*
+        When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
+        which may cause coredump.
+      */
+      if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
     if (!line)					// End of file
@@ -2384,10 +2398,8 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-#ifdef __NETWARE__
-  // let the screen auto close on a normal shutdown
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
+  /* let the screen auto close on a normal shutdown */
+  NETWARE_SET_SCREEN_MODE(SCR_AUTOCLOSE_ON_EXIT);
   status.exit_status=0;
   return 1;
 }
@@ -2993,6 +3005,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
+  NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
 #ifdef OS2
@@ -3006,6 +3019,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
+  NETWARE_YIELD;
   fputs(s, file);
 #ifdef OS2
   fflush( file);
@@ -3017,6 +3031,7 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
+  NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
 #ifdef OS2

@@ -9261,7 +9261,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name, 0, system_charset_info);
+            tmp1.append(table->key_info[j].name, 
+			strlen(table->key_info[j].name),
+			system_charset_info);
           }
         }
       }
@@ -9281,7 +9283,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name(), 0, system_charset_info);
+	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
+		      system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }

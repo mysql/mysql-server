@@ -185,7 +185,7 @@ LINK32=xilink6.exe
 # PROP Intermediate_Dir "classic"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
 # ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D LICENSE=Commercial /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "HAVE_DLOPEN" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -196,7 +196,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /machine:I386
 # SUBTRACT BASE LINK32 /debug
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_classic/mysqld.exe" /libpath:"..\lib_release"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_classic/mysqld.exe" /libpath:"..\lib_release"
 # SUBTRACT LINK32 /debug
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro"
@@ -215,7 +215,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "MYSQL_SERVER" /D LICENCE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /D MYSQL_SERVER_SUFFIX=-pro /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "MYSQL_SERVER" /D LICENSE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /D MYSQL_SERVER_SUFFIX=-pro /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -243,7 +243,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D MYSQL_SERVER_SUFFIX=-nt /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D LICENSE=Commercial /D MYSQL_SERVER_SUFFIX=-nt /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -253,7 +253,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /machine:I386
 # SUBTRACT BASE LINK32 /debug
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_classic/mysqld-nt.exe" /libpath:"..\lib_release"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib  ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_classic/mysqld-nt.exe" /libpath:"..\lib_release"
 # SUBTRACT LINK32 /debug
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
@@ -272,7 +272,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "HAVE_INNOBASE_DB" /D LICENCE=Commercial /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D MYSQL_SERVER_SUFFIX=-pro-nt" /FD
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "__NT__" /D "DBUG_OFF" /D "HAVE_INNOBASE_DB" /D LICENSE=Commercial /D "NDEBUG" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D MYSQL_SERVER_SUFFIX=-pro-nt" /FD
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
