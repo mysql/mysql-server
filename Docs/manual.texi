@@ -1081,7 +1081,7 @@ The following list describes some useful sections of the manual:
 
 @itemize @bullet
 @item
-To get information about the company behind MySQL, see @xref{What is MYSQL AB}.
+To get information about the company behind MySQL, see @xref{What is MySQL AB}.
 
 @item
 For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
