@@ -751,7 +751,7 @@ public:
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
-    return !tree_insert(&tree,ptr,0);
+    return !tree_insert(&tree, ptr, 0, tree.custom_arg);
   }
 
   bool get(TABLE *table);

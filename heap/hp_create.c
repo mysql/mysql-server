@@ -21,16 +21,15 @@
 
 #include "heapdef.h"
 
-
 int heap_create(const char *name)
 {
   reg1 HP_SHARE *share;
   DBUG_ENTER("heap_create");
   pthread_mutex_lock(&THR_LOCK_heap);
-  if ((share=_hp_find_named_heap(name)))
+  if ((share=hp_find_named_heap(name)))
   {
     if (share->open_count == 0)
-      _hp_free(share);
+      hp_free(share);
   }
   else
   {
@@ -47,10 +46,10 @@ int heap_delete_table(const char *name)
   DBUG_ENTER("heap_delete_table");
 
   pthread_mutex_lock(&THR_LOCK_heap);
-  if ((share=_hp_find_named_heap(name)))
+  if ((share = hp_find_named_heap(name)))
   {
     if (share->open_count == 0)
-      _hp_free(share);
+      hp_free(share);
     else
      share->delete_on_close=1;
     result=0;
@@ -64,10 +63,10 @@ int heap_delete_table(const char *name)
 }
 
 
-void _hp_free(HP_SHARE *share)
+void hp_free(HP_SHARE *share)
 {
   heap_share_list=list_delete(heap_share_list,&share->open_list);
-  _hp_clear(share);			/* Remove blocks from memory */
+  hp_clear(share);			/* Remove blocks from memory */
 #ifdef THREAD
   thr_lock_delete(&share->lock);
   VOID(pthread_mutex_destroy(&share->intern_lock));

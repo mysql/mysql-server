@@ -31,8 +31,11 @@ int heap_check_heap(HP_INFO *info,my_bool print_status)
   DBUG_ENTER("heap_check_keys");
 
   for (error=key=0 ; key < share->keys ; key++)
-    error|=check_one_key(share->keydef+key,key, share->records,share->blength,
-			 print_status);
+  {
+    if (!(share->keydef[key].algorithm == HA_KEY_ALG_BTREE))
+      error|=check_one_key(share->keydef+key,key, share->records,share->blength,
+  			 print_status);
+  }
 
   DBUG_RETURN(error);
 }
@@ -50,8 +53,8 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   for (i=found=max_links=seek=0 ; i < records ; i++)
   {
     hash_info=hp_find_hash(&keydef->block,i);
-    if (_hp_mask(_hp_rec_hashnr(keydef,hash_info->ptr_to_rec),
-		 blength,records) == i)
+    if (hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
+		blength,records) == i)
     {
       found++;
       seek++;
@@ -59,8 +62,8 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
       while ((hash_info=hash_info->next_key) && found < records + 1)
       {
 	seek+= ++links;
-	if ((rec_link=_hp_mask(_hp_rec_hashnr(keydef,hash_info->ptr_to_rec),
-			       blength,records))
+	if ((rec_link = hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
+			        blength, records))
 	    != i)
 	{
 	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx  Record-link %d", i,hash_info->ptr_to_rec,rec_link));

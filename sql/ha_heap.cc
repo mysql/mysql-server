@@ -36,42 +36,59 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   uint key,parts,mem_per_row=0;
   ulong max_rows;
   HP_KEYDEF *keydef;
-  HP_KEYSEG *seg;
+  MI_KEYSEG *seg;
 
   for (key=parts=0 ; key < table->keys ; key++)
+  {
     parts+=table->key_info[key].key_parts;
+    if (table->key_info[key].algorithm == HA_KEY_ALG_BTREE)
+    {
+      parts++; /* additional HA_KEYTYPE_END keyseg */
+    }
+  }
 
   if (!(keydef=(HP_KEYDEF*) my_malloc(table->keys*sizeof(HP_KEYDEF)+
-				      parts*sizeof(HP_KEYSEG),MYF(MY_WME))))
+				      parts*sizeof(MI_KEYSEG),MYF(MY_WME))))
     return my_errno;
-  seg=my_reinterpret_cast(HP_KEYSEG*) (keydef+table->keys);
+  seg=my_reinterpret_cast(MI_KEYSEG*) (keydef+table->keys);
   for (key=0 ; key < table->keys ; key++)
   {
     KEY *pos=table->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
     KEY_PART_INFO *key_part_end= key_part+pos->key_parts;
 
-    mem_per_row += (pos->key_length + (sizeof(char*) * 2));
+    mem_per_row+= (pos->key_length + (sizeof(char*) * 2));
 
-    keydef[key].keysegs=(uint) pos->key_parts;
-    keydef[key].flag = (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
-    keydef[key].seg=seg;
+    keydef[key].keysegs=   (uint) pos->key_parts;
+    keydef[key].flag=      (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
+    keydef[key].seg=       seg;
+    keydef[key].algorithm= pos->algorithm == HA_KEY_ALG_UNDEF ? 
+					HA_KEY_ALG_HASH : pos->algorithm;
 
     for (; key_part != key_part_end ; key_part++, seg++)
     {
-      uint flag=key_part->key_type;
-      Field *field=key_part->field;
-      if (!f_is_packed(flag) &&
-	  f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
-	  !(flag & FIELDFLAG_BINARY))
-	seg->type= (int) HA_KEYTYPE_TEXT;
+      uint flag= key_part->key_type;
+      Field *field= key_part->field;
+      if (pos->algorithm == HA_KEY_ALG_BTREE)
+      {
+	seg->type= field->key_type();
+      }
       else
-	seg->type= (int) HA_KEYTYPE_BINARY;
-      seg->start=(uint) key_part->offset;
-      seg->length=(uint) key_part->length;
+      {
+	if (!f_is_packed(flag) &&
+	    f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
+	    !(flag & FIELDFLAG_BINARY))
+	  seg->type= (int) HA_KEYTYPE_TEXT;
+	else
+	  seg->type= (int) HA_KEYTYPE_BINARY;
+      }
+      seg->start=   (uint) key_part->offset;
+      seg->length=  (uint) key_part->length;
+      seg->flag =   0;
+      seg->charset= default_charset_info;
       if (field->null_ptr)
       {
-	seg->null_bit=field->null_bit;
+	seg->null_bit= field->null_bit;
 	seg->null_pos= (uint) (field->null_ptr-
 			       (uchar*) table->record[0]);
       }
@@ -80,6 +97,16 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 	seg->null_bit=0;
 	seg->null_pos=0;
       }
+    }
+    if (pos->algorithm == HA_KEY_ALG_BTREE)
+    {
+      /* additional HA_KEYTYPE_END keyseg */
+      keydef[key].keysegs++;
+      seg->type=     HA_KEYTYPE_END;
+      seg->length=   sizeof(byte*);
+      seg->flag=     0;
+      seg->null_bit= 0;
+      seg++;
     }
   }
   mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));
@@ -124,25 +151,21 @@ int ha_heap::delete_row(const byte * buf)
   return heap_delete(file,buf);
 }
 
-int ha_heap::index_read(byte * buf, const byte * key,
-			uint key_len __attribute__((unused)),
-			enum ha_rkey_function find_flag
-			__attribute__((unused)))
+int ha_heap::index_read(byte * buf, const byte * key, uint key_len,
+			enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=heap_rkey(file,buf,active_index, key);
-  table->status=error ? STATUS_NOT_FOUND: 0;
+  statistic_increment(ha_read_key_count, &LOCK_status);
+  int error = heap_rkey(file,buf,active_index, key, key_len, find_flag);
+  table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
 int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
-			    uint key_len __attribute__((unused)),
-			    enum ha_rkey_function find_flag
-			    __attribute__((unused)))
+			    uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=heap_rkey(file, buf, index, key);
-  table->status=error ? STATUS_NOT_FOUND: 0;
+  statistic_increment(ha_read_key_count, &LOCK_status);
+  int error = heap_rkey(file, buf, index, key, key_len, find_flag);
+  table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
@@ -279,12 +302,20 @@ ha_rows ha_heap::records_in_range(int inx,
 				  enum ha_rkey_function end_search_flag)
 {
   KEY *pos=table->key_info+inx;
-  if (start_key_len != end_key_len ||
-      start_key_len != pos->key_length ||
-      start_search_flag != HA_READ_KEY_EXACT ||
-      end_search_flag != HA_READ_AFTER_KEY)
-    return HA_POS_ERROR;			// Can't only use exact keys
-  return 10;					// Good guess
+  if (pos->algorithm == HA_KEY_ALG_BTREE)
+  {
+    return hp_rb_records_in_range(file, inx, start_key, start_key_len,
+             start_search_flag, end_key, end_key_len, end_search_flag);
+  }
+  else
+  {
+    if (start_key_len != end_key_len ||
+        start_key_len != pos->key_length ||
+        start_search_flag != HA_READ_KEY_EXACT ||
+        end_search_flag != HA_READ_AFTER_KEY)
+      return HA_POS_ERROR;			// Can't only use exact keys
+    return 10;					// Good guess
+  }
 }
 
 

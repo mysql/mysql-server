@@ -1010,7 +1010,8 @@ int ha_myisam::create(const char *name, register TABLE *table,
   for (i=0; i < table->keys ; i++, pos++)
   {
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    keydef[i].key_alg=pos->algorithm;
+    keydef[i].key_alg=pos->algorithm == HA_KEY_ALG_UNDEF ?
+					HA_KEY_ALG_BTREE : pos->algorithm;
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)

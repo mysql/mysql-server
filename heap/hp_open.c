@@ -21,6 +21,15 @@
 #include "hp_static.c"			/* Stupid vms-linker */
 #endif
 
+#include "my_sys.h"
+
+static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
+{
+  uint not_used;
+  return hp_rb_key_cmp(param->keyseg, key1, key2, param->key_length, 
+		       param->search_flag, &not_used);
+}
+
 static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 		       ulong max_records);
 
@@ -32,49 +41,70 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   uint i,j,key_segs,max_length,length;
   HP_INFO *info;
   HP_SHARE *share;
-  HP_KEYSEG *keyseg;
+  MI_KEYSEG *keyseg;
+
   DBUG_ENTER("heap_open");
 
   pthread_mutex_lock(&THR_LOCK_heap);
-  if (!(share=_hp_find_named_heap(name)))
+  if (!(share = hp_find_named_heap(name)))
   {
     DBUG_PRINT("info",("Initializing new table"));
     for (i=key_segs=max_length=0 ; i < keys ; i++)
     {
       key_segs+= keydef[i].keysegs;
       bzero((char*) &keydef[i].block,sizeof(keydef[i].block));
+      bzero((char*) &keydef[i].rb_tree ,sizeof(keydef[i].rb_tree));
       for (j=length=0 ; j < keydef[i].keysegs; j++)
       {
 	length+=keydef[i].seg[j].length;
 	if (keydef[i].seg[j].null_bit &&
 	    !(keydef[i].flag & HA_NULL_ARE_EQUAL))
 	  keydef[i].flag |= HA_NULL_PART_KEY;
+	if (keydef[i].algorithm == HA_KEY_ALG_BTREE &&
+	    keydef[i].seg[j].null_bit)
+	  keydef[i].rb_tree.size_of_element++;
       }
-      keydef[i].length=length;
-      if (length > max_length)
-	max_length=length;
+      keydef[i].length=   length;
+      keydef[i].ref_offs= length + keydef[i].rb_tree.size_of_element - 
+			  sizeof(byte*);
+      if (length + keydef[i].rb_tree.size_of_element > max_length)
+	max_length= length + keydef[i].rb_tree.size_of_element;
     }
     if (!(share = (HP_SHARE*) my_malloc((uint) sizeof(HP_SHARE)+
 				       keys*sizeof(HP_KEYDEF)+
-				       key_segs*sizeof(HP_KEYSEG),
+				       key_segs*sizeof(MI_KEYSEG),
 				       MYF(MY_ZEROFILL))))
     {
       pthread_mutex_unlock(&THR_LOCK_heap);
       DBUG_RETURN(0);
     }
     share->keydef=(HP_KEYDEF*) (share+1);
-    keyseg=(HP_KEYSEG*) (share->keydef+keys);
+    keyseg=(MI_KEYSEG*) (share->keydef+keys);
     init_block(&share->block,reclength+1,min_records,max_records);
 	/* Fix keys */
     memcpy(share->keydef,keydef,(size_t) (sizeof(keydef[0])*keys));
     for (i=0 ; i < keys ; i++)
     {
-      share->keydef[i].seg=keyseg;
-      memcpy(keyseg,keydef[i].seg,
-	     (size_t) (sizeof(keyseg[0])*keydef[i].keysegs));
-      keyseg+=keydef[i].keysegs;
-      init_block(&share->keydef[i].block,sizeof(HASH_INFO),min_records,
-		 max_records);
+      HP_KEYDEF *keyinfo = share->keydef + i;
+      keyinfo->seg = keyseg;
+      memcpy(keyseg, keydef[i].seg,
+	     (size_t) (sizeof(keyseg[0]) * keydef[i].keysegs));
+      keyseg += keydef[i].keysegs;
+      if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
+      {
+	init_tree(&keyinfo->rb_tree, 0, 0, keydef[i].length + 
+		keydef[i].rb_tree.size_of_element, 
+          (qsort_cmp2)keys_compare, 1, NULL, NULL);
+	keyinfo->delete_key = hp_rb_delete_key;
+	keyinfo->write_key = hp_rb_write_key;
+      }
+      else
+      {
+	init_block(&keyinfo->block, sizeof(HASH_INFO), min_records, 
+		   max_records);
+	keyinfo->delete_key = hp_delete_key;
+	keyinfo->write_key = hp_write_key;
+      }
     }
 
     share->min_records=min_records;
@@ -99,7 +129,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
     heap_share_list=list_add(heap_share_list,&share->open_list);
   }
   if (!(info= (HP_INFO*) my_malloc((uint) sizeof(HP_INFO)+
-				  share->max_key_length,
+				  2 * share->max_key_length,
 				  MYF(MY_ZEROFILL))))
   {
     pthread_mutex_unlock(&THR_LOCK_heap);
@@ -115,6 +145,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
 
   info->s=share;
   info->lastkey=(byte*) (info+1);
+  info->recbuf = (byte*) (info->lastkey + share->max_key_length);
   info->mode=mode;
   info->current_record= (ulong) ~0L;		/* No current record */
   info->current_ptr=0;
@@ -132,7 +163,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
 
 	/* map name to a heap-nr. If name isn't found return 0 */
 
-HP_SHARE *_hp_find_named_heap(const char *name)
+HP_SHARE *hp_find_named_heap(const char *name)
 {
   LIST *pos;
   HP_SHARE *info;

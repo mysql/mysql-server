@@ -20,14 +20,39 @@
 
 int heap_rfirst(HP_INFO *info, byte *record)
 {
+  HP_SHARE *share = info->s;
+  HP_KEYDEF *keyinfo = share->keydef + info->lastinx;
+  
   DBUG_ENTER("heap_rfirst");
-  if (!(info->s->records))
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
-    my_errno=HA_ERR_END_OF_FILE;
-    DBUG_RETURN(my_errno);
+    byte *pos;
+
+    if ((pos = tree_search_edge(&keyinfo->rb_tree, info->parents,
+                                &info->last_pos, offsetof(TREE_ELEMENT, left))))
+    {
+      memcpy(&pos, pos + keyinfo->ref_offs, sizeof(byte*));
+      info->current_ptr = pos;
+      memcpy(record, pos, (size_t)share->reclength);
+      info->update = HA_STATE_AKTIV;
+    }
+    else
+    {
+      my_errno = HA_ERR_END_OF_FILE;
+      DBUG_RETURN(my_errno);
+    }
+    DBUG_RETURN(0);
   }
-  info->current_record=0;
-  info->current_hash_ptr=0;
-  info->update=HA_STATE_PREV_FOUND;
-  DBUG_RETURN(heap_rnext(info,record));
+  else
+  {
+    if (!(info->s->records))
+    {
+      my_errno=HA_ERR_END_OF_FILE;
+      DBUG_RETURN(my_errno);
+    }
+    info->current_record=0;
+    info->current_hash_ptr=0;
+    info->update=HA_STATE_PREV_FOUND;
+    DBUG_RETURN(heap_rnext(info,record));
+  }
 }

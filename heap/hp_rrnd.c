@@ -88,7 +88,7 @@ int heap_rrnd_old(register HP_INFO *info, byte *record, ulong pos)
   }
 
 	/* Find record number pos */
-  _hp_find_record(info,pos);
+  hp_find_record(info, pos);
 
 end:
   if (!info->current_ptr[share->reclength])

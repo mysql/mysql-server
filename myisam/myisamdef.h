@@ -329,25 +329,11 @@ struct st_myisam_info {
   { *(key)=255; mi_int2store((key)+1,(length)); } \
 }
 
-#define get_key_length(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= (uint) (uchar) *((key)++); \
-  else \
-  { length=mi_uint2korr((key)+1); (key)+=3; } \
-}
-
 #define get_key_full_length(length,key) \
 { if ((uchar) *(key) != 255) \
     length= ((uint) (uchar) *((key)++))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; (key)+=3; } \
-}
-
-#define get_key_pack_length(length,length_pack,key) \
-{ if ((uchar) *(key) != 255) \
-  { length= (uint) (uchar) *((key)++); length_pack=1; }\
-  else \
-  { length=mi_uint2korr((key)+1); (key)+=3; length_pack=3; } \
 }
 
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
@@ -484,8 +470,6 @@ extern int _mi_seq_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 extern int _mi_prefix_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 			  uchar *key,uint key_len,uint comp_flag,
 			  uchar **ret_pos,uchar *buff, my_bool *was_last_key);
-extern int _mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			    my_bool);
 extern my_off_t _mi_kpos(uint nod_flag,uchar *after_key);
 extern void _mi_kpointer(MI_INFO *info,uchar *buff,my_off_t pos);
 extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag,uchar *after_key);

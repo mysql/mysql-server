@@ -27,12 +27,12 @@
 #define HIGHUSED 8
 
 static byte *next_free_record_pos(HP_SHARE *info);
-static HASH_INFO *_hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
+static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
 				     ulong records);
 
 int heap_write(HP_INFO *info, const byte *record)
 {
-  uint key;
+  HP_KEYDEF *keydef, *end;
   byte *pos;
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_write");
@@ -47,9 +47,10 @@ int heap_write(HP_INFO *info, const byte *record)
     DBUG_RETURN(my_errno);
   share->changed=1;
 
-  for (key=0 ; key < share->keys ; key++)
+  for (keydef = share->keydef, end = keydef + share->keys; keydef < end;
+       keydef++)
   {
-    if (_hp_write_key(share,share->keydef+key,record,pos))
+    if ((*keydef->write_key)(info, keydef, record, pos))
       goto err;
   }
 
@@ -62,13 +63,19 @@ int heap_write(HP_INFO *info, const byte *record)
   info->update|=HA_STATE_AKTIV;
   DBUG_RETURN(0);
 err:
-  DBUG_PRINT("info",("Duplicate key: %d",key));
-  info->errkey= key;
-  do
+  DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
+  info->errkey= keydef - share->keydef;
+  if (keydef->algorithm == HA_KEY_ALG_BTREE)
   {
-    if (_hp_delete_key(info,share->keydef+key,record,pos,0))
+    /* we don't need to delete non-inserted key from rb-tree */
+    keydef--;
+  }
+  while (keydef >= share->keydef)
+  {
+    if ((*keydef->delete_key)(info, keydef, record, pos, 0))
       break;
-  } while (key-- > 0);
+    keydef--;
+  } 
 
   share->deleted++;
   *((byte**) pos)=share->del_link;
@@ -77,6 +84,35 @@ err:
   DBUG_RETURN(my_errno);
 } /* heap_write */
 
+/* 
+  Write a key to rb_tree-index 
+*/
+
+int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record, 
+                  byte *recpos)
+{
+  heap_rb_param custom_arg;
+
+  info->last_pos = NULL; /* For heap_rnext/heap_rprev */
+  hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
+  custom_arg.keyseg = keyinfo->seg;
+  custom_arg.key_length = keyinfo->length;
+  if ((keyinfo->flag & HA_NOSAME) &&
+      (!(keyinfo->flag & HA_NULL_PART_KEY) ||
+       !hp_if_null_in_key(keyinfo, record)))
+  {
+    custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
+    if (tree_search_key(&keyinfo->rb_tree, info->recbuf, info->parents, 
+	&info->last_pos, 0, &custom_arg))
+    {
+      my_errno = HA_ERR_FOUND_DUPP_KEY;
+      return 1;
+    }
+  }
+  custom_arg.search_flag = SEARCH_SAME;
+  return tree_insert(&keyinfo->rb_tree, (void*)info->recbuf, keyinfo->length + 
+                     sizeof(byte*), &custom_arg) ? 0 : 1;
+}
 
 	/* Find where to place new record */
 
@@ -102,7 +138,7 @@ static byte *next_free_record_pos(HP_SHARE *info)
       my_errno=HA_ERR_RECORD_FILE_FULL;
       DBUG_RETURN(NULL);
     }
-    if (_hp_get_new_block(&info->block,&length))
+    if (hp_get_new_block(&info->block,&length))
       DBUG_RETURN(NULL);
     info->data_length+=length;
   }
@@ -113,12 +149,12 @@ static byte *next_free_record_pos(HP_SHARE *info)
 	      block_pos*info->block.recbuffer);
 }
 
-
 	/* Write a hash-key to the hash-index */
 
-int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
+int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 		  const byte *record, byte *recpos)
 {
+  HP_SHARE *share = info->s;
   int flag;
   ulong halfbuff,hashnr,first_index;
   byte *ptr_to_rec,*ptr_to_rec2;
@@ -129,18 +165,18 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
   LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
 
   flag=0;
-  if (!(empty= _hp_find_free_hash(info,&keyinfo->block,info->records)))
+  if (!(empty= hp_find_free_hash(share,&keyinfo->block,share->records)))
     DBUG_RETURN(-1);				/* No more memory */
-  halfbuff= (long) info->blength >> 1;
-  pos=	 hp_find_hash(&keyinfo->block,(first_index=info->records-halfbuff));
+  halfbuff= (long) share->blength >> 1;
+  pos= hp_find_hash(&keyinfo->block,(first_index=share->records-halfbuff));
 
   if (pos != empty)				/* If some records */
   {
     do
     {
-      hashnr=_hp_rec_hashnr(keyinfo,pos->ptr_to_rec);
+      hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
       if (flag == 0)				/* First loop; Check if ok */
-	if (_hp_mask(hashnr,info->blength,info->records) != first_index)
+	if (hp_mask(hashnr, share->blength, share->records) != first_index)
 	  break;
       if (!(hashnr & halfbuff))
       {						/* Key will not move */
@@ -212,8 +248,8 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
   }
   /* Check if we are at the empty position */
 
-  pos=hp_find_hash(&keyinfo->block,_hp_mask(_hp_rec_hashnr(keyinfo,record),
-					    info->blength,info->records+1));
+  pos=hp_find_hash(&keyinfo->block, hp_mask(hp_rec_hashnr(keyinfo, record),
+					 share->blength, share->records + 1));
   if (pos == empty)
   {
     pos->ptr_to_rec=recpos;
@@ -224,8 +260,8 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
     /* Check if more records in same hash-nr family */
     empty[0]=pos[0];
     gpos=hp_find_hash(&keyinfo->block,
-		      _hp_mask(_hp_rec_hashnr(keyinfo,pos->ptr_to_rec),
-			       info->blength,info->records+1));
+		      hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
+			      share->blength, share->records + 1));
     if (pos == gpos)
     {
       pos->ptr_to_rec=recpos;
@@ -235,7 +271,7 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
     {
       pos->ptr_to_rec=recpos;
       pos->next_key=0;
-      _hp_movelink(pos,gpos,empty);
+      hp_movelink(pos, gpos, empty);
     }
 
     /* Check if duplicated keys */
@@ -246,7 +282,7 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
       pos=empty;
       do
       {
-	if (! _hp_rec_key_cmp(keyinfo,record,pos->ptr_to_rec))
+	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
 	{
 	  DBUG_RETURN(my_errno=HA_ERR_FOUND_DUPP_KEY);
 	}
@@ -258,7 +294,7 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
 
 	/* Returns ptr to block, and allocates block if neaded */
 
-static HASH_INFO *_hp_find_free_hash(HP_SHARE *info,
+static HASH_INFO *hp_find_free_hash(HP_SHARE *info,
 				     HP_BLOCK *block, ulong records)
 {
   uint block_pos;
@@ -268,7 +304,7 @@ static HASH_INFO *_hp_find_free_hash(HP_SHARE *info,
     return hp_find_hash(block,records);
   if (!(block_pos=(records % block->records_in_block)))
   {
-    if (_hp_get_new_block(block,&length))
+    if (hp_get_new_block(block,&length))
       return(NULL);
     info->index_length+=length;
   }

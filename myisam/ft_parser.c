@@ -223,7 +223,7 @@ int ft_parse(TREE *wtree, byte *doc, int doclen)
 
   while (ft_simple_get_word(&doc,end,&w))
   {
-    if (!tree_insert(wtree, &w, 0))
+    if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
   }
   return 0;

@@ -26,7 +26,7 @@
 #define SAFEMALLOC
 #endif
 
-#include "heapdef.h"		/* Because of _hp_find_block */
+#include "heapdef.h"		/* Because of hp_find_block */
 #include <signal.h>
 
 #define MAX_RECORDS 100000
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
   const char *filename,*filename2;
   HP_INFO *file,*file2;
   HP_KEYDEF keyinfo[MAX_KEYS];
-  HP_KEYSEG keyseg[MAX_KEYS*5];
+  MI_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
   LINT_INIT(position);
@@ -167,14 +167,14 @@ int main(int argc, char *argv[])
     if (j != 0)
     {
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key))
+      if (heap_rkey(file,record,0,key,6,0))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
       }
 #ifdef NOT_USED
-      if (file->current_ptr == _hp_find_block(&file->s->block,0) ||
-	  file->current_ptr == _hp_find_block(&file->s->block,1))
+      if (file->current_ptr == hp_find_block(&file->s->block,0) ||
+	  file->current_ptr == hp_find_block(&file->s->block,1))
 	continue;			/* Don't remove 2 first records */
 #endif
       if (heap_delete(file,record))
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
       if (!key1[j])
 	continue;
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key))
+      if (heap_rkey(file,record,0,key,6,0))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
       printf("- Read first key - next - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - next - delete - next -> last"));
 
-    if (heap_rkey(file,record,0,key))
+    if (heap_rkey(file,record,0,key,6,0))
       goto err;
     if (heap_rnext(file,record3)) goto err;
     if (heap_delete(file,record3)) goto err;
@@ -501,7 +501,7 @@ int main(int argc, char *argv[])
   }
   printf("- Read through all keys with first-next-last-prev\n");
   ant=0;
-  for (error=heap_rkey(file,record,0,key) ;
+  for (error=heap_rkey(file,record,0,key,6,0);
       ! error ;
        error=heap_rnext(file,record))
     ant++;
@@ -538,7 +538,7 @@ int main(int argc, char *argv[])
   {
     if (error == 0)
     {
-      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start))
+      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start,8,0))
       {
 	printf("can't find key3: \"%.8s\"\n",
 	       record+keyinfo[2].seg[0].start);

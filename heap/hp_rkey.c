@@ -16,10 +16,12 @@
 
 #include "heapdef.h"
 
-int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key)
+int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
+              uint key_len, enum ha_rkey_function find_flag)
 {
   byte *pos;
   HP_SHARE *share=info->s;
+  HP_KEYDEF *keyinfo = share->keydef+inx;
   DBUG_ENTER("heap_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d",info,inx));
 
@@ -30,15 +32,44 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key)
   info->lastinx=inx;
   info->current_record = (ulong) ~0L;		/* For heap_rrnd() */
 
-  if (!(pos=_hp_search(info,share->keydef+inx,key,0)))
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
-    info->update=0;
-    DBUG_RETURN(my_errno);
+    heap_rb_param custom_arg;
+
+    hp_rb_pack_key(info, inx, info->recbuf, key, key_len);
+
+    custom_arg.keyseg = info->s->keydef[inx].seg;
+    custom_arg.key_length = key_len;
+    custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
+    /* for next rkey() after deletion */
+    if (find_flag == HA_READ_AFTER_KEY)
+      info->last_find_flag = HA_READ_KEY_OR_NEXT;
+    else if (find_flag == HA_READ_BEFORE_KEY)
+      info->last_find_flag = HA_READ_KEY_OR_PREV;
+    else
+      info->last_find_flag = find_flag;
+    info->lastkey_len = key_len;
+    if (!(pos = tree_search_key(&keyinfo->rb_tree, info->recbuf, info->parents,
+                                &info->last_pos, find_flag, &custom_arg)))
+    {
+      info->update = 0;
+      DBUG_RETURN(my_errno = HA_ERR_KEY_NOT_FOUND);
+    }
+    memcpy(&pos, pos + keyinfo->ref_offs, sizeof(byte*));
+    info->current_ptr = pos;
+  }
+  else
+  {
+    if (!(pos=hp_search(info,share->keydef+inx,key,0)))
+    {
+      info->update=0;
+      DBUG_RETURN(my_errno);
+    }
+    if (!(keyinfo->flag & HA_NOSAME))
+      memcpy(info->lastkey,key,(size_t) keyinfo->length);
   }
   memcpy(record,pos,(size_t) share->reclength);
   info->update=HA_STATE_AKTIV;
-  if (!(share->keydef[inx].flag & HA_NOSAME))
-    memcpy(info->lastkey,key,(size_t) share->keydef[inx].length);
   DBUG_RETURN(0);
 }
 
@@ -47,5 +78,5 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key)
 
 gptr heap_find(HP_INFO *info, int inx, const byte *key)
 {
-  return _hp_search(info,info->s->keydef+inx,key,0);
+  return hp_search(info, info->s->keydef + inx, key, 0);
 }

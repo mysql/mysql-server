@@ -28,6 +28,7 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
+#include "my_handler.h"
 
 	/* defines used by myisam-funktions */
 
@@ -104,20 +105,6 @@ typedef struct st_mi_create_info
 
 struct st_myisam_info;			/* For referense */
 typedef struct st_myisam_info MI_INFO;
-
-typedef struct st_mi_keyseg		/* Key-portion */
-{
-  uint8  type;				/* Type of key (for sort) */
-  uint8  language;
-  uint8  null_bit;			/* bitmask to test for NULL */
-  uint8  bit_start,bit_end;		/* if bit field */
-  uint16 flag;
-  uint16 length;			/* Keylength */
-  uint32 start;				/* Start of key in record */
-  uint32 null_pos;			/* position to NULL indicator */
-  CHARSET_INFO *charset;
-} MI_KEYSEG;
-
 
 struct st_mi_s_param;
 

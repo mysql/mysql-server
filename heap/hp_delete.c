@@ -20,25 +20,26 @@
 
 int heap_delete(HP_INFO *info, const byte *record)
 {
-  uint key;
   byte *pos;
   HP_SHARE *share=info->s;
+  HP_KEYDEF *keydef, *end, *p_lastinx;
   DBUG_ENTER("heap_delete");
   DBUG_PRINT("enter",("info: %lx  record: %lx",info,record));
 
   test_active(info);
 
-  if (info->opt_flag & READ_CHECK_USED && _hp_rectest(info,record))
+  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,record))
     DBUG_RETURN(my_errno);			/* Record changed */
   share->changed=1;
 
   if ( --(share->records) < share->blength >> 1) share->blength>>=1;
   pos=info->current_ptr;
 
-  for (key=0 ; key < share->keys ; key++)
+  p_lastinx = share->keydef + info->lastinx;
+  for (keydef = share->keydef, end = keydef + share->keys; keydef < end; 
+       keydef++)
   {
-    if (_hp_delete_key(info,share->keydef+key,record,pos,
-		       key == (uint) info->lastinx))
+    if ((*keydef->delete_key)(info, keydef, record, pos, keydef == p_lastinx))
       goto err;
   }
 
@@ -49,22 +50,40 @@ int heap_delete(HP_INFO *info, const byte *record)
   share->deleted++;
   info->current_hash_ptr=0;
   DBUG_RETURN(0);
- err:
+err:
   if (++(share->records) == share->blength)
     share->blength+= share->blength;
   DBUG_RETURN(my_errno);
 }
 
+/*
+Remove one key from rb-tree
+*/
+int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+		   const byte *record, byte *recpos, int flag)
+{
+  heap_rb_param custom_arg;
+
+  if (flag) 
+    info->last_pos = NULL; /* For heap_rnext/heap_rprev */
+
+  hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
+  custom_arg.keyseg = keyinfo->seg;
+  custom_arg.key_length = keyinfo->length;
+  custom_arg.search_flag = SEARCH_SAME;
+  return tree_delete(&keyinfo->rb_tree, info->recbuf, &custom_arg);
+}
+
 	/* Remove one key from hash-table */
 	/* Flag is set if we want's to correct info->current_ptr */
 
-int _hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 		   const byte *record, byte *recpos, int flag)
 {
   ulong blength,pos2,pos_hashnr,lastpos_hashnr;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;
   HP_SHARE *share=info->s;
-  DBUG_ENTER("_hp_delete_key");
+  DBUG_ENTER("hp_delete_key");
 
   blength=share->blength;
   if (share->records+1 == blength)
@@ -74,13 +93,13 @@ int _hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 
   /* Search after record with key */
   pos= hp_find_hash(&keyinfo->block,
-		    _hp_mask(_hp_rec_hashnr(keyinfo,record),blength,
-			     share->records+1));
+		    hp_mask(hp_rec_hashnr(keyinfo, record), blength,
+			    share->records + 1));
   gpos = pos3 = 0;
 
   while (pos->ptr_to_rec != recpos)
   {
-    if (flag && !_hp_rec_key_cmp(keyinfo,record,pos->ptr_to_rec))
+    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
       last_ptr=pos;				/* Previous same key */
     gpos=pos;
     if (!(pos=pos->next_key))
@@ -113,33 +132,33 @@ int _hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     DBUG_RETURN (0);
 
   /* Move the last key (lastpos) */
-  lastpos_hashnr=_hp_rec_hashnr(keyinfo,lastpos->ptr_to_rec);
+  lastpos_hashnr = hp_rec_hashnr(keyinfo, lastpos->ptr_to_rec);
   /* pos is where lastpos should be */
-  pos=hp_find_hash(&keyinfo->block,_hp_mask(lastpos_hashnr,share->blength,
+  pos=hp_find_hash(&keyinfo->block, hp_mask(lastpos_hashnr, share->blength,
 					    share->records));
   if (pos == empty)			/* Move to empty position. */
   {
     empty[0]=lastpos[0];
     DBUG_RETURN(0);
   }
-  pos_hashnr=_hp_rec_hashnr(keyinfo,pos->ptr_to_rec);
+  pos_hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
   /* pos3 is where the pos should be */
   pos3= hp_find_hash(&keyinfo->block,
-		     _hp_mask(pos_hashnr,share->blength,share->records));
+		     hp_mask(pos_hashnr, share->blength, share->records));
   if (pos != pos3)
   {					/* pos is on wrong posit */
     empty[0]=pos[0];			/* Save it here */
     pos[0]=lastpos[0];			/* This shold be here */
-    _hp_movelink(pos,pos3,empty);	/* Fix link to pos */
+    hp_movelink(pos, pos3, empty);	/* Fix link to pos */
     DBUG_RETURN(0);
   }
-  pos2= _hp_mask(lastpos_hashnr,blength,share->records+1);
-  if (pos2 == _hp_mask(pos_hashnr,blength,share->records+1))
+  pos2= hp_mask(lastpos_hashnr, blength, share->records + 1);
+  if (pos2 == hp_mask(pos_hashnr, blength, share->records + 1))
   {					/* Identical key-positions */
     if (pos2 != share->records)
     {
       empty[0]=lastpos[0];
-      _hp_movelink(lastpos,pos,empty);
+      hp_movelink(lastpos, pos, empty);
       DBUG_RETURN(0);
     }
     pos3= pos;				/* Link pos->next after lastpos */
@@ -147,7 +166,7 @@ int _hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   else pos3= 0;				/* Different positions merge */
 
   empty[0]=lastpos[0];
-  _hp_movelink(pos3,empty,pos->next_key);
+  hp_movelink(pos3, empty, pos->next_key);
   pos->next_key=empty;
   DBUG_RETURN(0);
 }

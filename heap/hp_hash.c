@@ -19,30 +19,72 @@
 #include "heapdef.h"
 #include <m_ctype.h>
 
+ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
+			       uint start_key_len,
+			       enum ha_rkey_function start_search_flag,
+			       const byte *end_key, uint end_key_len,
+			       enum ha_rkey_function end_search_flag)
+{
+  ha_rows start_pos, end_pos;
+  TREE *rb_tree = &info->s->keydef[inx].rb_tree;
+  heap_rb_param custom_arg;
+
+  info->lastinx = inx;
+  custom_arg.keyseg = info->s->keydef[inx].seg;
+  custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
+  custom_arg.key_length = start_key_len;
+  if (start_key)
+  {
+    hp_rb_pack_key(info, inx, info->recbuf, start_key, start_key_len);
+    start_pos= tree_record_pos(rb_tree, info->recbuf, start_search_flag, 
+				&custom_arg);
+  }
+  else
+  {
+    start_pos= 0;
+  }
+  
+  custom_arg.key_length = end_key_len;
+  if (end_key)
+  {
+    hp_rb_pack_key(info, inx, info->recbuf, end_key, end_key_len);
+    end_pos= tree_record_pos(rb_tree, info->recbuf, end_search_flag, 
+				&custom_arg);
+  }
+  else
+  {
+    end_pos= rb_tree->elements_in_tree + (ha_rows)1;
+  }
+
+  if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
+    return HA_POS_ERROR;
+  return end_pos < start_pos ? (ha_rows) 0 :
+	      (end_pos == start_pos ? (ha_rows) 1 : end_pos - start_pos);
+}
+
 	/* Search after a record based on a key */
 	/* Sets info->current_ptr to found record */
 	/* next_flag:  Search=0, next=1, prev =2, same =3 */
 
-byte *_hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
+byte *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
 		 uint nextflag)
 {
   reg1 HASH_INFO *pos,*prev_ptr;
   int flag;
   uint old_nextflag;
   HP_SHARE *share=info->s;
-  DBUG_ENTER("_hp_search");
-
+  DBUG_ENTER("hp_search");
   old_nextflag=nextflag;
   flag=1;
   prev_ptr=0;
 
   if (share->records)
   {
-    pos=hp_find_hash(&keyinfo->block,_hp_mask(_hp_hashnr(keyinfo,key),
-					      share->blength,share->records));
+    pos=hp_find_hash(&keyinfo->block, hp_mask(hp_hashnr(keyinfo, key),
+					      share->blength, share->records));
     do
     {
-      if (!_hp_key_cmp(keyinfo,pos->ptr_to_rec,key))
+      if (!hp_key_cmp(keyinfo, pos->ptr_to_rec, key))
       {
 	switch (nextflag) {
 	case 0:					/* Search after key */
@@ -74,8 +116,8 @@ byte *_hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
       {
 	flag=0;					/* Reset flag */
 	if (hp_find_hash(&keyinfo->block,
-			 _hp_mask(_hp_rec_hashnr(keyinfo,pos->ptr_to_rec),
-				  share->blength,share->records)) != pos)
+			 hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
+				  share->blength, share->records)) != pos)
 	  break;				/* Wrong link */
       }
     }
@@ -102,14 +144,14 @@ byte *_hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
   since last read !
 */
 
-byte *_hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
+byte *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
 		      HASH_INFO *pos)
 {
-  DBUG_ENTER("_hp_search_next");
+  DBUG_ENTER("hp_search_next");
 
   while ((pos= pos->next_key))
   {
-    if (!_hp_key_cmp(keyinfo,pos->ptr_to_rec,key))
+    if (! hp_key_cmp(keyinfo, pos->ptr_to_rec, key))
     {
       info->current_hash_ptr=pos;
       DBUG_RETURN (info->current_ptr= pos->ptr_to_rec);
@@ -124,7 +166,7 @@ byte *_hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
 
 	/* Calculate pos according to keys */
 
-ulong _hp_mask(ulong hashnr, ulong buffmax, ulong maxlength)
+ulong hp_mask(ulong hashnr, ulong buffmax, ulong maxlength)
 {
   if ((hashnr & (buffmax-1)) < maxlength) return (hashnr & (buffmax-1));
   return (hashnr & ((buffmax >> 1) -1));
@@ -133,7 +175,7 @@ ulong _hp_mask(ulong hashnr, ulong buffmax, ulong maxlength)
 
 	/* Change link from pos to new_link */
 
-void _hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
+void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 {
   HASH_INFO *old_link;
   do
@@ -149,11 +191,11 @@ void _hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 
 	/* Calc hashvalue for a key */
 
-ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
+ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
   /*register*/ 
   ulong nr=1, nr2=4;
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -196,11 +238,11 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
+ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
   /*register*/
   ulong nr=1, nr2=4;
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -255,10 +297,10 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
  * far, and works well on both numbers and strings.
  */
 
-ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
+ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
   register ulong nr=0;
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -296,10 +338,10 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
+ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
   register ulong nr=0;
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -337,9 +379,9 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 
 	/* Compare keys for two records. Returns 0 if they are identical */
 
-int _hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
+int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
 {
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -351,13 +393,14 @@ int _hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
       if (rec1[seg->null_pos] & seg->null_bit)
 	continue;
     }
-    if (seg->type == HA_KEYTYPE_TEXT)
-    {
+    switch (seg->type) {
+    case HA_KEYTYPE_END:
+      return 0;
+    case HA_KEYTYPE_TEXT:
       if (my_sortcmp(default_charset_info,rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
-    }
-    else
-    {
+      break;
+    default:
       if (bcmp(rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
     }
@@ -367,9 +410,9 @@ int _hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
 
 	/* Compare a key in a record to a whole key */
 
-int _hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
+int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 {
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ;
        seg < endseg ;
@@ -405,9 +448,9 @@ int _hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 
 	/* Copy a key from a record to a keybuffer */
 
-void _hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
+void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 {
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -418,7 +461,44 @@ void _hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
   }
 }
 
+void hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
+		    const byte *rec, byte *recpos)
+{
+  MI_KEYSEG *seg, *endseg;
 
+  /* -1 means that HA_KEYTYPE_END segment will not copy */
+  for (seg= keydef->seg, endseg= seg + keydef->keysegs - 1; seg < endseg; 
+       seg++)
+  {
+    if (seg->null_bit)
+      *key++= 1 - test(rec[seg->null_pos] & seg->null_bit);
+    memcpy(key, rec + seg->start, (size_t) seg->length);
+    key+= seg->length;
+  }
+  memcpy(key, &recpos, sizeof(byte*));
+}
+
+uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
+                  uint k_length)
+{
+  MI_KEYSEG *seg, *endseg;
+  uchar *start_key= key;
+  HP_KEYDEF *keydef= info->s->keydef + inx;
+  
+  for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; 
+       old+= seg->length, seg++)
+  {
+    if (seg->null_bit)
+    {
+      if (!(*key++= (char) 1 - *old++))
+        continue;
+    }
+    memcpy((byte*) key, old, seg->length);
+    key+= seg->length;
+  }
+  return key - start_key;
+}
+                  
 /*
   Test if any of the key parts are NULL.
   Return:
@@ -428,7 +508,7 @@ void _hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 
 my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
 {
-  HP_KEYSEG *seg,*endseg;
+  MI_KEYSEG *seg,*endseg;
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
     if (seg->null_bit && (record[seg->null_pos] & seg->null_bit))
