@@ -413,3 +413,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+client/mysqlmanager-pwgen

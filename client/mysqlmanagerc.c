@@ -92,9 +92,9 @@ static void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt & Monty\n");
+  printf("MySQL AB, by Sasha\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
-  printf("Runs a test against the mysql server and compares output with a results file.\n\n");
+  printf("Command-line client for MySQL manager daemon.\n\n");
   printf("Usage: %s [OPTIONS] < command_file\n", my_progname);
   printf("\n\
   -?, --help               Display this help and exit.\n");
@@ -148,7 +148,7 @@ int parse_args(int argc, char **argv)
 	exit(0);
       case '?':
 	usage();
-	exit(1);				/* Unknown option */
+	exit(0);				
       default:
 	usage();
 	exit(1);

@@ -28,10 +28,11 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
 				/* Max number of bytes returnd */
 				/* Flags on what to do on error */
 {
-  uint readbytes;
+  uint readbytes,save_count;
   DBUG_ENTER("my_read");
   DBUG_PRINT("my",("Fd: %d  Buffer: %lx  Count: %u  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
+  save_count=Count;
 
   for (;;)
   {
@@ -54,12 +55,21 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
 	  my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(Filedes),my_errno);
       }
-      if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
+      if ((int) readbytes == -1 ||
+	  ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))
 	DBUG_RETURN(MY_FILE_ERROR);	/* Return with error */
+      if (readbytes > 0 && (MyFlags & MY_FULL_IO))
+      {
+	Buffer+=readbytes;
+	Count-=readbytes;
+	continue;
+      }
     }
 
     if (MyFlags & (MY_NABP | MY_FNABP))
       readbytes=0;			/* Ok on read */
+    else if (MyFlags & MY_FULL_IO)
+      readbytes=save_count;
     break;
   }
   DBUG_RETURN(readbytes);
