@@ -1971,7 +1971,7 @@ print_field_types(MYSQL_RES *result)
   MYSQL_FIELD	*field;  
   while ((field = mysql_fetch_field(result)))
   {
-    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %d\nMax length: %d\nIs_null:    %d\nFlags:      %d\nDecimals:   %d\n\n",
+    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %ld\nMax length: %ld\nIs_null:    %d\nFlags:      %u\nDecimals:   %u\n\n",
 		field->catalog, field->db, field->table, field->name,
 		(int) field->type,
 		field->length, field->max_length,
@@ -2017,7 +2017,8 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",min(field->max_length,MAX_COLUMN_LENGTH),
+      tee_fprintf(PAGER, " %-*s|",(int) min(field->max_length,
+                                            MAX_COLUMN_LENGTH),
 		  field->name);
       num_flag[off]= IS_NUM(field->type);
     }
