@@ -2360,7 +2360,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       if (!find_field_in_table(thd, table_list, column->column.ptr(),
                                column->column.ptr(),
                                column->column.length(), 0, 0, 0, 0,
-                               &unused_field_idx))
+                               &unused_field_idx, FALSE))
       {
 	my_error(ER_BAD_FIELD_ERROR, MYF(0),
                  column->column.c_ptr(), table_list->alias);

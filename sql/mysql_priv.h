@@ -619,8 +619,7 @@ int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
 		       COND *conds, ulong options,
 		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
-		       bool converted);
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields,
@@ -661,7 +660,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     uint length, Item **ref,
                     bool check_grants_table, bool check_grants_view,
                     bool allow_rowid,
-                    uint *cached_field_index_ptr);
+                    uint *cached_field_index_ptr,
+                    bool register_tree_change);
 Field *
 find_field_in_real_table(THD *thd, TABLE *table, const char *name,
                          uint length, bool check_grants, bool allow_rowid,

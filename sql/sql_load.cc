@@ -121,9 +121,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table_list->lock_type= lock_type;
   if ((res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
-  if (setup_tables(thd, table_list, &unused_conds))
+  if (setup_tables(thd, table_list, &unused_conds,
+		   &thd->lex->select_lex.leaf_tables, 0))
      DBUG_RETURN(-1);
-  if (!table_list->updatable || check_key_in_view(thd, table_list))
+  if (!table_list->table ||               // do not suport join view
+      !table_list->updatable ||           // and derived tables
+      check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(-1);

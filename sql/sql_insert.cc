@@ -1781,7 +1781,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     query
   */
   if (!(thd->lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(table_list, table_list->next_independent()))
+      unique_table(table_list, table_list->next_global))
   {
     /* Using same table for INSERT and SELECT */
     thd->lex->current_select->options|= OPTION_BUFFER_RESULT;

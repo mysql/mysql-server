@@ -127,6 +127,7 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
+  uint          table_count= 0;
   ulong		query_id=thd->query_id, timestamp_query_id;
   ha_rows	updated, found;
   key_map	old_used_keys;
@@ -138,17 +139,26 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((error= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(error);
+  if (open_tables(thd, table_list, &table_count))
+    DBUG_RETURN(thd->net.report_error ? -1 : 1);
 
   if (table_list->table == 0)
   {
     DBUG_ASSERT(table_list->view &&
 		table_list->ancestor && table_list->ancestor->next_local);
     DBUG_PRINT("info", ("Switch to multi-update"));
+    /* pass counter value */
+    thd->lex->table_count= table_count;
     /* convert to multiupdate */
     return 2;
   }
+
+  if (lock_tables(thd, table_list, table_count) ||
+      mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+      (thd->fill_derived_tables() &&
+       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -614,14 +624,25 @@ int mysql_multi_update_prepare(THD *thd)
   table_map tables_for_update;
   int res;
   bool update_view= 0;
-  uint  table_count;
+  /*
+    if this multi-update was converted from usual update, here is table
+    counter else junk will be assigned here, but then replaced with real
+    count in open_tables()
+  */
+  uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables != 0;
+  bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* open tables and create derived ones, but do not lock and fill them */
-  if (open_tables(thd, table_list, & table_count) ||
+  if ((original_multiupdate && open_tables(thd, table_list, & table_count)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(thd->net.report_error ? -1 : 1);
+  /*
+    setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
+    second time, but this call will do nothing (there are check for second
+    call in setup_tables()).
+  */
   if (setup_tables(thd, table_list, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, 0))
     DBUG_RETURN(-1);
@@ -644,11 +665,6 @@ int mysql_multi_update_prepare(THD *thd)
         (UPDATE_ACL & ~table->grant.privilege);
   }
 
-  /*
-    setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
-    second time, but this call will do nothing (there are check for second
-    call in setup_tables()).
-  */
   if ((lex->select_lex.no_wrap_view_item= 1,
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
        lex->select_lex.no_wrap_view_item= 0,
@@ -675,7 +691,16 @@ int mysql_multi_update_prepare(THD *thd)
     Setup timestamp handling and locking mode
   */
   for (tl= leaves; tl; tl= tl->next_leaf)
+  {
+    TABLE *table= tl->table;
+    TABLE_LIST *tlist= tl->belong_to_view?tl->belong_to_view:tl;
 
+    /* We only need SELECT privilege for columns in the values list */
+    tlist->grant.want_privilege= table->grant.want_privilege=
+      (SELECT_ACL & ~table->grant.privilege);
+    /* Only set timestamp column if this is not modified */
+    if (table->timestamp_field &&
+        table->timestamp_field->query_id == thd->query_id)
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
@@ -711,6 +736,23 @@ int mysql_multi_update_prepare(THD *thd)
       tl->table->reginfo.lock_type= tl->lock_type;
   }
 
+  /* check single table update for view compound from several tables */
+  for (tl= table_list; tl; tl= tl->next_local)
+  {
+    if (tl->table == 0)
+    {
+      DBUG_ASSERT(tl->view &&
+		  tl->ancestor && tl->ancestor->next_local);
+      TABLE_LIST *for_update= 0;
+      if (tl->check_single_table(&for_update, tables_for_update))
+      {
+	my_error(ER_VIEW_MULTIUPDATE, MYF(0),
+		 tl->view_db.str, tl->view_name.str);
+	DBUG_RETURN(-1);
+      }
+    }
+  }
+
   opened_tables= thd->status_var.opened_tables;
   /* now lock and fill tables */
   if (lock_tables(thd, table_list, table_count))
@@ -740,7 +782,8 @@ int mysql_multi_update_prepare(THD *thd)
     /* undone setup_tables() */
     table_list->setup_is_done= 0;
 
-    if (setup_tables(thd, table_list, &lex->select_lex.where) ||
+    if (setup_tables(thd, table_list, &lex->select_lex.where,
+                     &lex->select_lex.leaf_tables, 0) ||
         (lex->select_lex.no_wrap_view_item= 1,
          res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,
@@ -765,8 +808,7 @@ int mysql_multi_update(THD *thd,
 		       COND *conds,
 		       ulong options,
 		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
-		       bool converted)
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
   int res= 0;
   multi_update *result;

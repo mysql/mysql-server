@@ -2801,7 +2801,6 @@ unsent_create_error:
       break;
   case SQLCOM_UPDATE_MULTI:
   {
-    bool converted= 0;
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (res != 2)
     {
@@ -2809,17 +2808,14 @@ unsent_create_error:
         break;
     }
     else
-    {
       res= 0;
-      converted= 1;
-    }
+
     res= mysql_multi_update(thd, all_tables,
 			    &select_lex->item_list,
 			    &lex->value_list,
 			    select_lex->where,
 			    select_lex->options,
-			    lex->duplicates, unit, select_lex,
-                            converted);
+			    lex->duplicates, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
