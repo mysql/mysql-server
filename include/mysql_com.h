@@ -298,7 +298,7 @@ extern unsigned long net_buffer_length;
 
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);
-double rnd(struct rand_struct *);
+double my_rnd(struct rand_struct *);
 void make_scrambled_password(char *to,const char *password,
      my_bool force_old_scramble,struct rand_struct *rand_st);
 int get_password_length(my_bool force_old_scramble);

@@ -458,7 +458,10 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     int2store(buff+10,field->unireg_check);
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
-    buff[14]= (uchar) field->charset->number;
+    if (field->sql_type == FIELD_TYPE_GEOMETRY)
+      buff[14]= (uchar) field->geom_type;
+    else
+      buff[14]= (uchar) field->charset->number;
     int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
@@ -486,7 +489,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
 	/* Write intervals */
   if (int_count)
   {
-    String tmp((char*) buff,sizeof(buff), default_charset_info);
+    String tmp((char*) buff,sizeof(buff), &my_charset_bin);
     tmp.length(0);
     it.rewind();
     int_count=0;
@@ -573,6 +576,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
 			       field->pack_flag,
 			       field->sql_type,
 			       field->charset,
+			       field->geom_type,
 			       field->unireg_check,
 			       field->interval,
 			       field->field_name,
@@ -598,9 +602,9 @@ static bool make_empty_rec(File file,enum db_type table_type,
       regfield->store((longlong) 1);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),default_charset_info);
+      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),default_charset_info);
+      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
     delete regfield;

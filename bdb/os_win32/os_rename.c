@@ -47,8 +47,11 @@ __os_rename(dbenv, oldname, newname, flags)
 			 * There is no MoveFileEx for Win9x/Me, so we have to
 			 * do the best we can.
 			 */
-			if (!GetLongPathName(oldname, oldbuf, sizeof oldbuf) ||
-			    !GetLongPathName(newname, newbuf, sizeof newbuf)) {
+			LPTSTR FilePath;
+			if (!GetFullPathName(oldname, sizeof(oldbuf), oldbuf,
+					     &FilePath) ||
+			    !GetFullPathName(newname, sizeof(newbuf), newbuf,
+					     &FilePath)) {
 				ret = __os_win32_errno();
 				goto done;
 			}

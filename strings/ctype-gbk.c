@@ -9888,7 +9888,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_gbk =
 {
-    28,			/* number */
+    28,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "gbk",		/* cs name    */
     "gbk",		/* name */
@@ -9899,6 +9899,7 @@ CHARSET_INFO my_charset_gbk =
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_gbk,
     my_strnncollsp_gbk,

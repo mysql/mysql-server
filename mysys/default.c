@@ -38,6 +38,7 @@
 #include "mysys_priv.h"
 #include "m_string.h"
 #include "m_ctype.h"
+#include <my_dir.h>
 
 char *defaults_extra_file=0;
 
@@ -61,13 +62,13 @@ DATADIR,
 NullS,
 };
 
-#define default_ext   	".cnf"		/* extension for config file */
+#define default_ext	".cnf"		/* extension for config file */
 #ifdef __WIN__
 #include <winbase.h>
 #define windows_ext	".ini"
 #endif
 
-static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
+static my_bool search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 				   const char *dir, const char *config_file,
 				   const char *ext, TYPELIB *group);
 
@@ -242,6 +243,20 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     strmov(name,config_file);
   }
+  fn_format(name,name,"","",4);
+#if !defined(__WIN__) && !defined(OS2)
+  {
+    MY_STAT stat_info;
+    if (!my_stat(name,&stat_info,MYF(0)))
+      return 0;
+    if (stat_info.st_mode & S_IWOTH) /* ignore world-writeable files */
+    {
+      fprintf(stderr, "warning: World-writeable config file %s is ignored\n",
+              name);
+      return 0;
+    }
+  }
+#endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
     return 0;					/* Ignore wrong files */
 
@@ -249,7 +264,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     line++;
     /* Ignore comment and empty lines */
-    for (ptr=buff ; my_isspace(system_charset_info,*ptr) ; ptr++ ) ;
+    for (ptr=buff ; my_isspace(&my_charset_latin1,*ptr) ; ptr++ ) ;
     if (*ptr == '#' || *ptr == ';' || !*ptr)
       continue;
     if (*ptr == '[')				/* Group name */
@@ -262,7 +277,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 		name,line);
 	goto err;
       }
-      for ( ; my_isspace(system_charset_info,end[-1]) ; end--) ;/* Remove end space */
+      for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;/* Remove end space */
       end[0]=0;
       read_values=find_type(ptr,group,3) > 0;
       continue;
@@ -278,7 +293,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       continue;
     if (!(end=value=strchr(ptr,'=')))
       end=strend(ptr);				/* Option without argument */
-    for ( ; my_isspace(system_charset_info,end[-1]) ; end--) ;
+    for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
     if (!value)
     {
       if (!(tmp=alloc_root(alloc,(uint) (end-ptr)+3)))
@@ -291,9 +306,9 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
     {
       /* Remove pre- and end space */
       char *value_end;
-      for (value++ ; my_isspace(system_charset_info,*value); value++) ;
+      for (value++ ; my_isspace(&my_charset_latin1,*value); value++) ;
       value_end=strend(value);
-      for ( ; my_isspace(system_charset_info,value_end[-1]) ; value_end--) ;
+      for ( ; my_isspace(&my_charset_latin1,value_end[-1]) ; value_end--) ;
       if (value_end < value)			/* Empty string */
 	value_end=value;
       if (!(tmp=alloc_root(alloc,(uint) (end-ptr)+3 +

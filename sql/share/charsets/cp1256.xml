@@ -116,6 +116,7 @@
 </map>
 </collation>
 
+<collation name="cp1256_bin"	flag="binary"/>
 
 </charset>
 

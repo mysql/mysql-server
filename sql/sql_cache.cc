@@ -786,11 +786,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
        most significant bit - CLIENT_LONG_FLAG,
        other - charset number (0 no charset convertion)
     */
-    if (thd->variables.convert_set != 0)
-    {
-      flags|= (byte) thd->variables.convert_set->number();
-      DBUG_ASSERT(thd->variables.convert_set->number() < 128);
-    }
+    flags|= (byte) thd->charset()->number;
+    DBUG_ASSERT(thd->charset()->number < 128);
     tot_length=thd->query_length+thd->db_length+2;
     thd->query[tot_length-1] = (char) flags;
 
@@ -943,11 +940,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
      Other - charset number (0 no charset convertion)
   */
   flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
-  if (thd->variables.convert_set != 0)
-  {
-    flags |= (byte) thd->variables.convert_set->number();
-    DBUG_ASSERT(thd->variables.convert_set->number() < 128);
-  }
+  flags |= (byte) thd->charset()->number;
+  DBUG_ASSERT(thd->charset()->number < 128);
   sql[tot_length-1] = (char) flags;
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);

@@ -118,14 +118,14 @@ static void old_randominit(struct rand_struct *rand_st,ulong seed1)
   Generate Random number
 
   SYNOPSIS
-    rnd()
+    my_rnd()
     rand_st    INOUT  Structure used for number generation
 
   RETURN
     Generated pseudo random number
 */
 
-double rnd(struct rand_struct *rand_st)
+double my_rnd(struct rand_struct *rand_st)
 {
   rand_st->seed1=(rand_st->seed1*3+rand_st->seed2) % rand_st->max_value;
   rand_st->seed2=(rand_st->seed1+rand_st->seed2+33) % rand_st->max_value;
@@ -152,7 +152,7 @@ void create_random_string(int length,struct rand_struct *rand_st,char *target)
   char *end=target+length;
   /* Use pointer arithmetics as it is faster way to do so. */
   for (; target<end ; target++)
-    *target= (char) (rnd(rand_st)*94+33);
+    *target= (char) (my_rnd(rand_st)*94+33);
 }
 
 
@@ -293,7 +293,7 @@ void make_scrambled_password(char *to,const char *password,
   {
     to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
    /* Rnd returns number from 0 to 1 so this would be good salt generation.*/
-    salt=(unsigned short) (rnd(rand_st)*65535+1);
+    salt=(unsigned short) (my_rnd(rand_st)*65535+1);
     /* Use only 2 first bytes from it */
     sprintf(to+1,"%04x",salt);
     /* First hasing is done without salt */
@@ -435,7 +435,7 @@ char get_password_version(const char *password)
 
 
 
-inline uint char_val(char X)
+static inline unsigned int char_val(char X)
 {
   return (uint) (X >= '0' && X <= '9' ? X-'0' :
 		 X >= 'A' && X <= 'Z' ? X-'A'+10 :
@@ -652,10 +652,10 @@ char *scramble(char *to,const char *message,const char *password,
       randominit(&rand_st,hash_pass[0] ^ hash_message[0],
 		 hash_pass[1] ^ hash_message[1]);
     while (*msg++)
-      *to++= (char) (floor(rnd(&rand_st)*31)+64);
+      *to++= (char) (floor(my_rnd(&rand_st)*31)+64);
     if (!old_ver)
     {						/* Make it harder to break */
-      char extra=(char) (floor(rnd(&rand_st)*31));
+      char extra=(char) (floor(my_rnd(&rand_st)*31));
       while (to_start != to)
 	*(to_start++)^=extra;
     }
@@ -711,11 +711,11 @@ my_bool check_scramble(const char *scrambled, const char *message,
 	       hash_pass[1] ^ hash_message[1]);
   to=buff;
   for (pos=scrambled ; *pos ; pos++)
-    *to++=(char) (floor(rnd(&rand_st)*31)+64);
+    *to++=(char) (floor(my_rnd(&rand_st)*31)+64);
   if (old_ver)
     extra=0;
   else
-    extra=(char) (floor(rnd(&rand_st)*31));
+    extra=(char) (floor(my_rnd(&rand_st)*31));
   to=buff;
   while (*scrambled)
   {

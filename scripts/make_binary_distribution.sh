@@ -64,16 +64,17 @@ case $system in
 esac
 
 
-mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
+mkdir $BASE $BASE/bin \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data
 
 if [ $BASE_SYSTEM != "netware" ] ; then
-  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man $BASE/man/man1
-fi
+ mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
+  $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
 
-chmod o-rwx $BASE/data $BASE/data/*
+ chmod o-rwx $BASE/data $BASE/data/*
+fi
 
 for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
          MySQLEULA.txt Docs/manual.html Docs/manual.txt Docs/manual_toc.html \
@@ -159,6 +160,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
 fi
 
 $CP support-files/* $BASE/support-files
+$CP scripts/fill_help_tables.sql $BASE/support-files
 
 if [ $BASE_SYSTEM = "netware" ] ; then
   rm -f $BASE/support-files/magic \
@@ -182,13 +184,14 @@ do
 done
 
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
-$CP mysql-test/std_data/*.dat mysql-test/std_data/*.001 $BASE/mysql-test/std_data
+$CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 $BASE/mysql-test/std_data
+$CP mysql-test/std_data/des_key_file $BASE/mysql-test/std_data
 $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
 $CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   $CP scripts/* $BASE/bin
-  $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
+  $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ \@pkgdatadir\@ ./support-files < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
   $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
   mv $BASE/support-files/binary-configure $BASE/configure

@@ -114,6 +114,7 @@
 </map>
 </collation>
 
+<collation name="dec_bin" flag="binary"/>
 
 </charset>
 

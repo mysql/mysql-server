@@ -4475,7 +4475,7 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 
 CHARSET_INFO my_charset_sjis =
 {
-    13,			/* number */
+    13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "sjis",		/* cs name    */
     "sjis",		/* name */
@@ -4486,6 +4486,7 @@ CHARSET_INFO my_charset_sjis =
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_sjis,
     my_strnncollsp_sjis,

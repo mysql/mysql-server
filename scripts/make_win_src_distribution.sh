@@ -11,38 +11,58 @@ CP="cp -p"
 
 DEBUG=0
 SILENT=0
-TMP=/tmp
 SUFFIX=""
 OUTTAR=0
-
-SRCDIR=$SOURCE
-DSTDIR=$TMP
 
 #
 # This script must run from MySQL top directory
 #
 
-if [ ! -f scripts/make_win_src_distribution.sh ]; then
+if [ ! -f scripts/make_win_src_distribution ]; then
   echo "ERROR : You must run this script from the MySQL top-level directory"
   exit 1
 fi
-    
+
+#
+# Check for source compilation/configuration
+#
+
+if [ ! -f sql/sql_yacc.cc ]; then
+  echo "ERROR : Sorry, you must run this script after the complete build,"
+  echo "        hope you know what you are trying to do !!"
+  exit 1
+fi
+
+#
+# Debug print of the status
+#
+
+print_debug() 
+{
+  for statement 
+  do
+    if [ "$DEBUG" = "1" ] ; then
+      echo $statement
+    fi
+  done
+}
+
 #
 # Usage of the script
 #
 
-show_usage() {
-  
+show_usage() 
+{
   echo "MySQL utility script to create a Windows src package, and it takes"
   echo "the following arguments:"
   echo ""
   echo "  --debug   Debug, without creating the package"
   echo "  --tmp     Specify the temporary location"
   echo "  --silent  Do not list verbosely files processed"
-  echo "  --tar     Create a tar.gz package instead of .zip"
+  echo "  --tar     Create tar.gz package instead of .zip"
   echo "  --help    Show this help message"
 
-  exit 1
+  exit 0
 }
 
 #
@@ -69,18 +89,20 @@ parse_arguments() {
 parse_arguments "$@"
 
 #
-# Currently return an error if --tar is not used
+# Assign the tmp directory if it was set from the environment variables
 #
 
-if [ x$OUTTAR = x0 ] &&  [ x$DEBUG = x0 ] 
-then
-  echo "ERROR: The default .zip doesn't yet work on Windows, as it can't load"
-  echo "       the workspace files due to LF->CR+LF issues, instead use --tar"
-  echo "       to create a .tar.gz package                                   "
-  echo ""
-  show_usage;
-  exit 1
-fi
+for i in $TMP $TMPDIR $TEMPDIR $TEMP /tmp
+do
+  if [ "$i" ]; then 
+    print_debug "Setting TMP to '$i'"
+    TMP=$i 
+    break
+  fi
+done
+
+    
+#
 
 #
 # Create a tmp dest directory to copy files
@@ -89,25 +111,33 @@ fi
 BASE=$TMP/my_win_dist$SUFFIX
 
 if [ -d $BASE ] ; then
+  print_debug "Destination directory '$BASE' already exists, deleting it"
   rm -r -f $BASE
 fi
 
 $CP -r $SOURCE/VC++Files $BASE
-
 (
-find $BASE -name *.dsw -and -not -path \*SCCS\* -print
-find $BASE -name *.dsp -and -not -path \*SCCS\* -print
+find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
 )|(
-while read v 
-do
-    sed 's/$'"/`echo -e \\\r`/" $v > $v.tmp
+  while read v 
+  do
+    print_debug "Replacing LF -> CRLF from '$v'"
+
+    # ^M -> type CTRL V + CTRL M 
+    cat $v | sed 's///' | sed 's/$//' > $v.tmp
     rm $v
     mv $v.tmp $v
-done
+  done
 )
 
-# move all error message files to root directory
+#
+# Move all error message files to root directory
+#
+
 $CP -r $SOURCE/sql/share $BASE/
+rm -r -f "$BASE/share/Makefile"
+rm -r -f "$BASE/share/Makefile.in"
+rm -r -f "$BASE/share/Makefile.am"
 
 #
 # Clean up if we did this from a bk tree
@@ -116,11 +146,10 @@ $CP -r $SOURCE/sql/share $BASE/
 if [ -d $BASE/SCCS ]  
 then
   find $BASE/ -name SCCS -print | xargs rm -r -f
-  rm -rf "$BASE/InstallShield/Script Files/SCCS"  
+  rm -r -f "$BASE/InstallShield/Script Files/SCCS"  
 fi
-  
 
-mkdir $BASE/Docs $BASE/extra $BASE/include 
+mkdir $BASE/Docs $BASE/extra $BASE/include
 
 
 #
@@ -130,32 +159,24 @@ mkdir $BASE/Docs $BASE/extra $BASE/include
 copy_dir_files() {
   
   for arg do
-    
+    print_debug "Copying files from directory '$arg'"
     cd $SOURCE/$arg/
-    (
-      ls -A1|grep \\.[ch]$
-      ls -A1|grep \\.ih$
-      ls -A1|grep \\.i$
-      ls -A1|grep \\.ic$
-      ls -A1|grep \\.asm$ 
-      ls -A1|grep README
-      ls -A1|grep INSTALL
-      ls -A1|grep LICENSE
-    )|(
-      while read v 
-      do
-	      $CP $SOURCE/$arg/$v $BASE/$arg/$v
-      done
-    )
-
-    cd $SOURCE/$arg/
-    (
-      ls -A1|grep \\.cc$|sed 's/.cc$//g')|(
-      while read v 
-      do
-  	    $CP $SOURCE/$arg/$v.cc $BASE/$arg/$v.cpp
-      done
-    )
+    for i in *.c *.h *.ih *.i *.ic *.asm \
+             README INSTALL* LICENSE
+    do 
+      if [ -f $i ] 
+      then
+        $CP $SOURCE/$arg/$i $BASE/$arg/$i
+      fi
+    done
+    for i in *.cc
+    do
+      if [ -f $i ]
+      then
+        i=`echo $i | sed 's/.cc$//g'`
+        $CP $SOURCE/$arg/$i.cc $BASE/$arg/$i.cpp
+      fi
+    done
   done
 }
 
@@ -169,27 +190,22 @@ copy_dir_dirs() {
 
     basedir=$arg
       
-    if [ !  -d $BASE/$arg ]; then
+    if [ ! -d $BASE/$arg ]; then
       mkdir $BASE/$arg
     fi
     
     copy_dir_files $arg
     
-    cd $SOURCE/$arg/
-    (
-      ls -l |grep "^d"|awk '{print($9)}' -
-    )|(
-      while read dir_name
-      do
-        if [ x$dir_name != x"SCCS" ]
-        then
-          if [ ! -d $BASE/$basedir/$dir_name ]; then
-            mkdir $BASE/$basedir/$dir_name
-          fi
-          copy_dir_files $basedir/$dir_name
+    cd $SOURCE/$arg/    
+    for i in *
+    do
+      if [ -d $SOURCE/$basedir/$i ] && [ "$i" != "SCCS" ]; then
+        if [ ! -d $BASE/$basedir/$i ]; then
+          mkdir $BASE/$basedir/$i
         fi
-      done
-    )
+        copy_dir_files $basedir/$i
+      fi
+    done
   done
 }
 
@@ -197,48 +213,36 @@ copy_dir_dirs() {
 # Input directories to be copied
 #
 
-copy_dir_files 'bdb'
-copy_dir_files 'bdb/build_win32'
-copy_dir_files 'client'
-copy_dir_files 'dbug'
-copy_dir_files 'extra'
-copy_dir_files 'heap'
-copy_dir_files 'include'
-copy_dir_files 'innobase'
-copy_dir_files 'isam'
-copy_dir_files 'libmysql'
-copy_dir_files 'libmysqld'
-copy_dir_files 'merge'
-copy_dir_files 'myisam'
-copy_dir_files 'myisammrg'
-copy_dir_files 'mysys'
-copy_dir_files 'regex'
-copy_dir_files 'sql'
-copy_dir_files 'strings'
-copy_dir_files 'vio'
-copy_dir_files 'zlib'
+for i in client dbug extra heap include isam \
+         libmysql libmysqld merge myisam \
+         myisammrg mysys regex sql strings \
+         vio zlib
+do
+  copy_dir_files $i
+done
 
 #
 # Input directories to be copied recursively
 #
 
-copy_dir_dirs 'bdb'
-copy_dir_dirs 'innobase'
+for i in bdb innobase
+do
+  copy_dir_dirs $i
+done
 
-# create dummy innobase configure header
-if [ -f $BASE/innobase/ib_config.h ]
-then
+#
+# Create dummy innobase configure header
+#
+
+if [ -f $BASE/innobase/ib_config.h ]; then
   rm -f $BASE/innobase/ib_config.h
-  touch $BASE/innobase/ib_config.h
 fi
+touch $BASE/innobase/ib_config.h
+
 
 #
 # Copy miscellaneous files
 #
-
-$CP $SOURCE/myisam/myisampack.c $BASE/myisampack/
-$CP $SOURCE/client/mysqlbinlog.cc $BASE/mysqlbinlog/mysqlbinlog.cpp
-$CP $SOURCE/isam/pack_isam.c $BASE/pack_isam/pack_isam.c
 
 cd $SOURCE
 for i in COPYING ChangeLog README \
@@ -248,23 +252,31 @@ for i in COPYING ChangeLog README \
          Docs/mysqld_error.txt Docs/INSTALL-BINARY 
          
 do
+  print_debug "Copying file '$i'"
   if [ -f $i ] 
   then
-     $CP $i $BASE/$i
+    $CP $i $BASE/$i
   fi
 done
 
 #
-# TODO: Initialize the initial data directory
+# Initialize the initial data directory
 #
+
+if [ -f scripts/mysql_install_db ]; then 
+  print_debug "Initializing the 'data' directory"
+  scripts/mysql_install_db --windows --datadir=$BASE/data
+fi
 
 
 #
 # Specify the distribution package name and copy it
 #
 
-NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX-win-src
-BASE2=$TMP/$NEW_NAME
+NEW_DIR_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX
+NEW_NAME=$NEW_DIR_NAME-win-src
+
+BASE2=$TMP/$NEW_DIR_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2
 BASE=$BASE2
@@ -273,7 +285,7 @@ BASE=$BASE2
 # If debugging, don't create a zip/tar/gz
 #
 
-if [ x$DEBUG = x1 ] ; then
+if [ "$DEBUG" = "1" ] ; then
   echo "Please check the distribution files from $BASE"
   echo "Exiting (without creating the package).."
   exit
@@ -305,56 +317,73 @@ which_1 ()
 }
 
 #
-# Create the result zip file
+# Create the result zip/tar file
 #
 
-if [ x$OUTTAR = x1 ]; then
-  ZIPFILE1=gnutar
-  ZIPFILE2=gtar
-  OPT=cvf
-  EXT=".tar"
-  NEED_COMPRESS=1
-  if [ x$SILENT = x1 ] ; then
-    OPT=cf
-  fi
+set_tarzip_options() 
+{
+  for arg 
+  do
+    if [ "$arg" = "tar" ]; then
+      ZIPFILE1=gnutar
+      ZIPFILE2=gtar
+      OPT=cvf
+      EXT=".tar"
+      NEED_COMPRESS=1
+      if [ "$SILENT" = "1" ] ; then
+        OPT=cf
+      fi
+    else
+      ZIPFILE1=zip
+      ZIPFILE2=""
+      OPT="-vr"
+      EXT=".zip"
+      NEED_COMPRESS=0
+      if [ "$SILENT" = "1" ] ; then
+        OPT="-r"
+      fi
+    fi
+  done
+}
+
+if [ "$OUTTAR" = "1" ]; then
+  set_tarzip_options 'tar'
 else
-  ZIPFILE1=zip
-  ZIPFILE2=""
-  OPT="-lvr"
-  EXT=".zip"
-  NEED_COMPRESS=0
-  if [ x$SILENT = x1 ] ; then
-    OPT="-lr"
-  fi
+  set_tarzip_options 'zip'
 fi
 
 tar=`which_1 $ZIPFILE1 $ZIPFILE2`
 if test "$?" = "1" -o "$tar" = ""
 then
+  print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
   tar=tar
+  set_tarzip_options 'tar'
 fi
 
-echo "Using $tar to create archive"
+#
+# Create the archive
+#
+
+print_debug "Using $tar to create archive"
+
 cd $TMP
 
-$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_NAME
+$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
 cd $SOURCE
 
-if [ x$NEED_COMPRESS = x1 ]
+if [ "$NEED_COMPRESS" = "1" ]
 then
-  echo "Compressing archive"
+  print_debug "Compressing archive"
   gzip -9 $NEW_NAME$EXT
-  EXT=".tar.gz"
+  EXT="$EXT.gz"
 fi
 
-echo "Removing temporary directory"
+print_debug "Removing temporary directory"
 rm -r -f $BASE
 
 echo "$NEW_NAME$EXT created successfully !!"
 
-#
 # End of script
-#
 
 
 

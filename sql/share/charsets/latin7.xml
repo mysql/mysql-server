@@ -93,7 +93,7 @@
 </unicode>
 
 
-<collation name="estonia">
+<collation name="latin7_estonian_ci">
 <map>
  00 02 03 04 05 06 07 08 09 2E 2F 30 31 32 0A 0B
  0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B
@@ -115,7 +115,7 @@
 </collation>
 
 
-<collation name="latvian">
+<collation name="latin7_ci">
 <!-- Created for case-sensitive record search              -->
 <!-- by Andis Grasis & Rihards Grasis e-mail:andis@cata.lv -->
 <map>
@@ -139,7 +139,7 @@
 </collation>
 
 
-<collation name="latvian1">
+<collation name="latin7_cs">
 <!-- Created for case-insensitive record search -->
 <!-- Created by Andis & Rihards                 -->
 <map>
@@ -162,6 +162,7 @@
 </map>
 </collation>
 
+<collation name="latin7_bin"	flag="binary"/>
 
 </charset>
 

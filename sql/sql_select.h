@@ -174,7 +174,7 @@ class JOIN :public Sql_alloc
   Item_sum  **sum_funcs;
   Procedure *procedure;
   Item	    *having;
-  Item      *tmp_having; // To store Having when processed tenporary table
+  Item      *tmp_having; // To store Having when processed temporary table
   uint	    select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -256,8 +256,7 @@ class JOIN :public Sql_alloc
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit, bool fake_select_lex,
-	      bool tables_and_fields_initied);
+	      SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
   int optimize();
   int reinit();
   void exec();
@@ -307,7 +306,6 @@ class store_key :public Sql_alloc
 {
  protected:
   Field *to_field;				// Store data here
-  Field *key_field;				// Copy of key field
   char *null_ptr;
   char err;
  public:

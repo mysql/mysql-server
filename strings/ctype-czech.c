@@ -607,17 +607,18 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
 
 CHARSET_INFO my_charset_czech =
 {
-    2,			/* number */
+    2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
-    "latin2",		/* cs name    */
-    "czech",		/* name */
-    "",			/* comment    */
+    "latin2",				/* cs name    */
+    "latin2_czech_ci",			/* name */
+    "",					/* comment    */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    "","",
     4,			/* strxfrm_multiply */
     my_strnncoll_czech,
     my_strnncollsp_czech,

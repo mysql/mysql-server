@@ -20,7 +20,6 @@
 
 #define PACKET_BUFFET_EXTRA_ALLOC	1024
 
-class CONVERT;
 class i_string;
 class THD;
 #ifdef EMBEDDED_LIBRARY
@@ -31,28 +30,27 @@ class Protocol
 protected:
   THD	 *thd;
   String *packet;
+  String convert;
   uint field_pos;
 #ifndef DEBUG_OFF
   enum enum_field_types *field_types;
 #endif
   uint field_count;
   bool net_store_data(const char *from, uint length);
-  bool convert_str(const char *from, uint length);
 #ifdef EMBEDDED_LIBRARY
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
 public:
-  CONVERT *convert;
-
   Protocol() {}
   Protocol(THD *thd) { init(thd); }
+  virtual ~Protocol() {}
   void init(THD* thd);
   bool send_fields(List<Item> *list, uint flag);
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
-  bool store(const char *from);
+  bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
   bool write();
@@ -75,7 +73,7 @@ public:
   virtual bool store_short(longlong from)=0;
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
-  virtual bool store(const char *from, uint length)=0;
+  virtual bool store(const char *from, uint length, CHARSET_INFO *cs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
   virtual bool store(TIME *time)=0;
@@ -98,7 +96,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store(const char *from, uint length);
+  virtual bool store(const char *from, uint length, CHARSET_INFO *cs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);
@@ -122,7 +120,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store(const char *from,uint length);
+  virtual bool store(const char *from,uint length, CHARSET_INFO *cs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);

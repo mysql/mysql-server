@@ -698,7 +698,7 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 
 CHARSET_INFO my_charset_tis620 =
 {
-    18,			/* number    */
+    18,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state     */
     "tis620",		/* cs name    */
     "tis620",		/* name      */
@@ -709,6 +709,7 @@ CHARSET_INFO my_charset_tis620 =
     sort_order_tis620,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     4,			/* strxfrm_multiply */
     my_strnncoll_tis620,
     my_strnncollsp_tis620,

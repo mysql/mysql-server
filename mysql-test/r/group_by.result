@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (2,2,2,'','0000-00-00');
 INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
 INSERT INTO t1 VALUES (3,3,3,'','0000-00-00');
 CREATE TABLE t2 (
-userID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+userID int(10) unsigned NOT NULL auto_increment,
 niName char(15),
 passwd char(8),
 mail char(50),
@@ -53,7 +53,7 @@ userid	MIN(t1.score+0.0)
 2	2.0
 drop table t1,t2;
 CREATE TABLE t1 (
-PID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+PID int(10) unsigned NOT NULL auto_increment,
 payDate date DEFAULT '0000-00-00' NOT NULL,
 recDate datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 URID int(10) unsigned DEFAULT '0' NOT NULL,
@@ -76,7 +76,7 @@ SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000 
 Can't group on 'IsNew'
 drop table t1;
 CREATE TABLE t1 (
-cid mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+cid mediumint(9) NOT NULL auto_increment,
 firstname varchar(32) DEFAULT '' NOT NULL,
 surname varchar(32) DEFAULT '' NOT NULL,
 PRIMARY KEY (cid)
@@ -84,7 +84,7 @@ PRIMARY KEY (cid)
 INSERT INTO t1 VALUES (1,'That','Guy');
 INSERT INTO t1 VALUES (2,'Another','Gent');
 CREATE TABLE t2 (
-call_id mediumint(8) DEFAULT '0' NOT NULL auto_increment,
+call_id mediumint(8) NOT NULL auto_increment,
 contact_id mediumint(8) DEFAULT '0' NOT NULL,
 PRIMARY KEY (call_id),
 KEY contact_id (contact_id)
@@ -104,7 +104,7 @@ cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
 drop table t1,t2;
 unlock tables;
 CREATE TABLE t1 (
-bug_id mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+bug_id mediumint(9) NOT NULL auto_increment,
 groupset bigint(20) DEFAULT '0' NOT NULL,
 assigned_to mediumint(9) DEFAULT '0' NOT NULL,
 bug_file_loc text,
@@ -304,6 +304,11 @@ score	count(*)
 3	3
 2	1
 1	2
+drop table t1;
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+a	c	count(distinct rand())
 drop table t1;
 CREATE TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
@@ -564,4 +569,23 @@ select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from 
 a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
 1	4	c
 10	43	a,b,d,f
+drop table t1;
+create table t1 (id int not null, qty int not null);
+insert into t1 values (1,2),(1,3),(2,4),(2,5);
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty from t1 group by id having sqty>2 and count(qty)>1;
+id	sqty
+1	5
+2	9
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sqty>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and count(qty)>1;
+id	sqty	cqty
+1	5	2
+2	9	2
 drop table t1;

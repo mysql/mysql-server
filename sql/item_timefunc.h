@@ -29,7 +29,7 @@ public:
   const char *func_name() const { return "period_add"; }
   void fix_length_and_dec() 
   { 
-    max_length=6*thd_charset()->mbmaxlen;
+    max_length=6*default_charset()->mbmaxlen;
   }
 };
 
@@ -43,7 +43,7 @@ public:
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=6*thd_charset()->mbmaxlen;
+    max_length=6*default_charset()->mbmaxlen;
   }
 };
 
@@ -57,7 +57,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0; 
-    max_length=6*thd_charset()->mbmaxlen;
+    max_length=6*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -72,7 +72,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0; 
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -86,16 +86,16 @@ public:
   double val() { return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), thd_charset());
+    str->set(val_int(), default_charset());
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0;
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -110,9 +110,9 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   {
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0;
-    max_length=10*thd_charset()->mbmaxlen;
+    max_length=10*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -127,7 +127,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0;
-    max_length=3*thd_charset()->mbmaxlen;
+    max_length=3*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -142,7 +142,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -157,7 +157,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -172,7 +172,7 @@ public:
   void fix_length_and_dec()
   { 
      decimals=0;
-     max_length=1*thd_charset()->mbmaxlen;
+     max_length=1*default_charset()->mbmaxlen;
      maybe_null=1;
   }
 };
@@ -187,7 +187,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0;
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -202,7 +202,7 @@ public:
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=2*thd_charset()->mbmaxlen;
+    max_length=2*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -216,7 +216,7 @@ public:
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=6*thd_charset()->mbmaxlen;
+    max_length=6*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -231,7 +231,7 @@ public:
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=4*thd_charset()->mbmaxlen;
+    max_length=4*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -247,16 +247,16 @@ public:
   double val() { return (double) val_int(); }
   String *val_str(String *str)
   { 
-    str->set(val_int(), thd_charset());
+    str->set(val_int(), default_charset());
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "weekday"; }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   {
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0;
-    max_length=1*thd_charset()->mbmaxlen;
+    max_length=1*default_charset()->mbmaxlen;
     maybe_null=1;
   }
 };
@@ -270,9 +270,9 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0; 
-    max_length=9*thd_charset()->mbmaxlen;
+    max_length=9*default_charset()->mbmaxlen;
     maybe_null=1; 
   }
 };
@@ -289,7 +289,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=10*thd_charset()->mbmaxlen;
+    max_length=10*default_charset()->mbmaxlen;
   }
 };
 
@@ -303,7 +303,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=10*thd_charset()->mbmaxlen;
+    max_length=10*default_charset()->mbmaxlen;
   }
 };
 
@@ -322,15 +322,15 @@ public:
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0;
-    max_length=10*thd_charset()->mbmaxlen;
+    max_length=10*default_charset()->mbmaxlen;
   }
   int save_in_field(Field *to, bool no_conversions);
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_date(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_date(maybe_null, name, t_arg, default_charset()));
   }  
 };
 
@@ -345,7 +345,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return  (new Field_datetime(maybe_null, name, t_arg, thd_charset()));
+    return  (new Field_datetime(maybe_null, name, t_arg, default_charset()));
   }
 };
 
@@ -368,7 +368,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_time(maybe_null, name, t_arg, default_charset()));
   }  
 };
 
@@ -440,9 +440,9 @@ class Item_func_from_unixtime :public Item_date_func
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec()
   { 
-    set_charset(thd_charset());
+    set_charset(default_charset());
     decimals=0;
-    max_length=19*thd_charset()->mbmaxlen;
+    max_length=19*default_charset()->mbmaxlen;
   }
   bool get_date(TIME *res,bool fuzzy_date);
 };
@@ -457,16 +457,16 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   { 
-    set_charset(thd_charset());
+    set_charset(default_charset());
     maybe_null=1;
-    max_length=13*thd_charset()->mbmaxlen;
+    max_length=13*default_charset()->mbmaxlen;
   }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   const char *func_name() const { return "sec_to_time"; }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_time(maybe_null, name, t_arg, default_charset()));
   }
 };
 
@@ -532,7 +532,7 @@ public:
   }
   void fix_length_and_dec()
   {
-    set_charset(thd_charset());
+    set_charset(default_charset());
     max_length=args[0]->max_length;
   }
   void print(String *str);
@@ -545,7 +545,7 @@ public:
   Item_char_typecast(Item *a) :Item_typecast(a) {}
   void fix_length_and_dec()
   {
-    set_charset(thd_charset());
+    set_charset(default_charset());
     max_length=args[0]->max_length;
   }
 };
@@ -560,7 +560,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_date(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_date(maybe_null, name, t_arg, default_charset()));
   }  
 };
 
@@ -574,7 +574,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_time(maybe_null, name, t_arg, default_charset()));
   }
 };
 
@@ -588,6 +588,6 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_datetime(maybe_null, name, t_arg, thd_charset()));
+    return (new Field_datetime(maybe_null, name, t_arg, default_charset()));
   }
 };

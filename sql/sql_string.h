@@ -25,8 +25,7 @@
 #endif
 
 class String;
-int sortcmp(const String *a,const String *b);
-int stringcmp(const String *a,const String *b);
+int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
 
 class String
@@ -182,6 +181,7 @@ public:
 	    CHARSET_INFO *csto);
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
+  bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
   bool append(IO_CACHE* file, uint32 arg_length);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strstr_case(const String &s,uint32 offset=0);
@@ -205,8 +205,7 @@ public:
   void strip_sp();
   inline void caseup() { my_caseup(str_charset,Ptr,str_length); }
   inline void casedn() { my_casedn(str_charset,Ptr,str_length); }
-  friend int sortcmp(const String *a,const String *b);
-  friend int stringcmp(const String *a,const String *b);
+  friend int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
   uint32 numchars();
   int charpos(int i,uint32 offset=0);

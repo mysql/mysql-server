@@ -111,12 +111,12 @@ sub flush_all
   $example= prepare_example($example);
 
   if ($func_name ne "" && $text ne "" && !($func_name =~ /[abcdefghikjlmnopqrstuvwxyz]/)){
-    print "INSERT INTO help_topic (name,description,example) VALUES (";
+    print "INSERT IGNORE INTO help_topic (name,description,example) VALUES (";
     print "'$func_name',";
     print "'$text',";
     print "'$example'";
     print ");\n";
-    print "INSERT INTO help_relation (help_category_id,help_topic_id) VALUES (\@cur_category,LAST_INSERT_ID());\n";
+    print "INSERT IGNORE INTO help_relation (help_category_id,help_topic_id) VALUES (\@cur_category,LAST_INSERT_ID());\n";
   }
 
   $func_name= "";
@@ -131,11 +131,11 @@ sub new_category
 
   $category= prepare_text($category);
 
-  print "INSERT INTO help_category (name) VALUES (\'$category\');\n";
+  print "INSERT IGNORE INTO help_category (name) VALUES (\'$category\');\n";
   print "SET \@cur_category=LAST_INSERT_ID();\n";
 }
 
-#print "INSERT INTO db (Host,DB,User,Select_priv) VALUES ('%','mysql_help','','Y');\n";
+#print "INSERT IGNORE INTO db (Host,DB,User,Select_priv) VALUES ('%','mysql_help','','Y');\n";
 #print "CREATE DATABASE mysql_help;\n";
 
 print "USE mysql;\n";
@@ -236,4 +236,3 @@ print "DELETE help_category ";
 print "FROM help_category ";
 print "LEFT JOIN help_relation ON help_category.help_category_id=help_relation.help_category_id ";
 print "WHERE help_relation.help_category_id is null;"
-

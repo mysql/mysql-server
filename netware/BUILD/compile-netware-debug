@@ -1,0 +1,15 @@
+#! /bin/sh
+
+path=`dirname $0`
+. $path/compile-netware-START
+
+suffix="debug"
+
+extra_configs=" \
+	--with-innodb \
+	--with-debug=full	\
+	"
+
+. $path/compile-netware-END
+
+

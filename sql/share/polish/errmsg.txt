@@ -7,8 +7,8 @@
 
 "hashchk",
 "isamchk",
-"TAK",
 "NIE",
+"TAK",
 "Nie mo¿na stworzyæ pliku '%-.64s' (Kod b³êdu: %d)",
 "Nie mo¿na stworzyæ tabeli '%-.64s' (Kod b³êdu: %d)",
 "Nie mo¿na stworzyæ bazy danych '%-.64s'. B³?d %d",
@@ -257,3 +257,5 @@
 "Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
 "All parts of a SPATIAL KEY must be NOT NULL"
 "COLLATION '%s' is not valid for CHARACTER SET '%s'"
+"The slave was already running"
+"The slave was already stopped"

@@ -12,8 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
-*/
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
 /**********************************************************************
 This file contains the implementation of prepare and executes. 
@@ -572,34 +571,36 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
     
   if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(1);
-  
-  fix_tables_pointers(thd->lex.all_selects_list);
 
-  if (!result && !(result= new select_send()))
+  if (lex->describe)
   {
-    delete select_lex->having;
-    delete select_lex->where;
-    send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(1);
-  }
+    if (send_prep_stmt(stmt, 0) ||  send_item_params(stmt))
+      DBUG_RETURN(1);      
+  }   
+  else 
+  {
+    fix_tables_pointers(thd->lex.all_selects_list);
+    if (!result && !(result= new select_send()))
+    {
+      delete select_lex->having;
+      delete select_lex->where;
+      send_error(thd, ER_OUT_OF_RESOURCES);
+      DBUG_RETURN(1);
+    }
 
-  JOIN *join= new JOIN(thd, fields, select_options, result);
-  thd->used_tables= 0;	// Updated by setup_fields  
+    JOIN *join= new JOIN(thd, fields, select_options, result);
+    thd->used_tables= 0;	// Updated by setup_fields  
 
   if (join->prepare(&select_lex->ref_pointer_array, tables, 
 		    wild_num, conds, og_num, order, group, having, proc, 
-                    select_lex, unit, 0, 0))
+                    select_lex, unit, 0))
     DBUG_RETURN(1);
-
-  /* 
-     Currently return only column list info only, and we are not
-     sending any info on where clause.
-  */
-  if (send_prep_stmt(stmt, fields.elements) ||
-      thd->protocol_simple.send_fields(&fields, 0) ||
-      send_item_params(stmt))
-    DBUG_RETURN(1);
-  join->cleanup(thd);
+    if (send_prep_stmt(stmt, fields.elements) ||
+        thd->protocol_simple.send_fields(&fields, 0) ||
+        send_item_params(stmt))
+      DBUG_RETURN(1);
+    join->cleanup(thd);
+  }
   DBUG_RETURN(0);  
 }
 

@@ -107,7 +107,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
-    coercibility= COER_NOCOLL;
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -116,36 +115,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       if ((*arg)->maybe_null)
 	maybe_null=1;
       
-      if ((*arg)->result_type() == STRING_RESULT)
-      {
-	/*
-	  Set return character set to first argument if we are returning a
-	  string.
-	*/
-	if ((*arg)->binary())
-	{
-	  set_charset(&my_charset_bin);
-	  coercibility= COER_NOCOLL;
-	}
-	else if (coercibility== COER_NOCOLL)
-	{
-	  coercibility= (*arg)->coercibility;
-	  set_charset((*arg)->charset());
-	}
-	else if ((*arg)->coercibility > coercibility)
-	{
-	  if (strcmp(charset()->csname,(*arg)->charset()->csname))
-	  {
-	    set_charset(&my_charset_bin);
-	    coercibility= COER_NOCOLL;
-	  }
-	  else
-	  {
-	    coercibility= (*arg)->coercibility;
-	    set_charset((*arg)->charset());
-	  }
-	}
-      }
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
@@ -286,7 +255,7 @@ String *Item_real_func::val_str(String *str)
   if (null_value)
     return 0; /* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -299,9 +268,9 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
   }
   else
   {
@@ -309,7 +278,7 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
   }
   return str;
 }
@@ -336,9 +305,9 @@ String *Item_int_func::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   else
-    str->set((ulonglong) nr,thd_charset());
+    str->set((ulonglong) nr,default_charset());
   return str;
 }
 
@@ -365,9 +334,9 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
   }
   else
   {
@@ -375,7 +344,7 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
   }
   return str;
 }
@@ -497,12 +466,15 @@ longlong Item_func_int_div::val_int()
   longlong val2=args[1]->val_int();
   if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
     return 0;
-  return value/val2;
+  return (unsigned_flag ?
+	  (ulonglong) value / (ulonglong) val2 :
+	  value / val2);
 }
 
 
 void Item_func_int_div::fix_length_and_dec()
 {
+  find_num_type();
   max_length=args[0]->max_length - args[0]->decimals;
   maybe_null=1;
 }
@@ -789,20 +761,28 @@ double Item_func_round::val()
   double value=args[0]->val();
   int dec=(int) args[1]->val_int();
   uint abs_dec=abs(dec);
+  double tmp;
+  /*
+    tmp2 is here to avoid return the value with 80 bit precision
+    This will fix that the test round(0.1,1) = round(0.1,1) is true
+  */
+  volatile double tmp2;
 
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  double tmp=(abs_dec < array_elements(log_10) ?
-	      log_10[abs_dec] : pow(10.0,(double) abs_dec));
+  tmp=(abs_dec < array_elements(log_10) ?
+       log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
   if (truncate)
   {
     if (value >= 0)
-      return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+      tmp2= dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
     else
-      return dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+      tmp2= dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
   }
-  return dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+  else
+    tmp2=dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+  return tmp2;
 }
 
 
@@ -838,7 +818,7 @@ void Item_func_rand::fix_length_and_dec()
 
 double Item_func_rand::val()
 {
-  return rnd(rand);
+  return my_rnd(rand);
 }
 
 longlong Item_func_sign::val_int()
@@ -864,6 +844,7 @@ void Item_func_min_max::fix_length_and_dec()
   max_length=0;
   maybe_null=1;
   cmp_type=args[0]->result_type();
+
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (max_length < args[i]->max_length)
@@ -873,11 +854,15 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->binary())
-      set_charset(&my_charset_bin);
+    if (i==0)
+      set_charset(args[i]->charset(), args[i]->coercibility);
+    else if (set_charset(charset(), coercibility, 
+			args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      break;
+    }
   }
-  if (cmp_type == STRING_RESULT)
-    str_cmp_function= binary() ? stringcmp : sortcmp;
 }
 
 
@@ -890,9 +875,9 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0;
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
     return str;
   }
   case REAL_RESULT:
@@ -901,7 +886,7 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
     return str;
   }
   case STRING_RESULT:
@@ -922,12 +907,13 @@ String *Item_func_min_max::val_str(String *str)
 	res2= args[i]->val_str(res == str ? &tmp_value : str);
 	if (res2)
 	{
-	  int cmp= (*str_cmp_function)(res,res2);
+	  int cmp= sortcmp(res,res2,charset());
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
       }
     }
+    res->set_charset(charset());
     return res;
   }
   case ROW_RESULT:
@@ -1021,7 +1007,7 @@ longlong Item_func_char_length::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return (longlong) (!args[0]->binary()) ? res->numchars() : res->length();
+  return (longlong) res->numchars();
 }
 
 longlong Item_func_coercibility::val_int()
@@ -1153,7 +1139,7 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !args[0]->binary())
+  if (use_mb(res->charset()))
   {
     register const char *str=res->ptr();
     register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
@@ -1542,7 +1528,7 @@ String *udf_handler::val_str(String *str,String *save_str)
     str->length(res_length);
     return str;
   }
-  save_str->set(res, res_length, default_charset_info);
+  save_str->set(res, res_length, str->charset());
   return save_str;
 }
 
@@ -1563,7 +1549,7 @@ String *Item_func_udf_float::val_str(String *str)
   if (null_value)
     return 0;					/* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1584,9 +1570,9 @@ String *Item_func_udf_int::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   else
-    str->set((ulonglong) nr,thd_charset());
+    str->set((ulonglong) nr,default_charset());
   return str;
 }
 
@@ -1629,8 +1615,10 @@ public:
   bool locked;
   pthread_cond_t cond;
   pthread_t thread;
+  ulong thread_id;
 
-  ULL(const char *key_arg,uint length) :key_length(length),count(1),locked(1)
+  ULL(const char *key_arg,uint length, ulong id) 
+    :key_length(length),count(1),locked(1), thread_id(id)
   {
     key=(char*) my_memdup((byte*) key_arg,length,MYF(0));
     pthread_cond_init(&cond,NULL);
@@ -1834,7 +1822,7 @@ longlong Item_func_get_lock::val_int()
   if (!(ull= ((ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
 				 res->length()))))
   {
-    ull=new ULL(res->ptr(),res->length());
+    ull=new ULL(res->ptr(),res->length(), thd->thread_id);
     if (!ull || !ull->initialized())
     {
       delete ull;
@@ -2007,6 +1995,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
+
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
 {
@@ -2030,7 +2019,8 @@ Item_func_set_user_var::fix_length_and_dec()
 
 void Item_func_set_user_var::update_hash(void *ptr, uint length,
 					 Item_result type,
-					 CHARSET_INFO *cs)
+					 CHARSET_INFO *cs,
+					 enum coercion coercibility)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -2040,6 +2030,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->value=0;
     entry->length=0;
     entry->var_charset=cs;
+    entry->var_coercibility= coercibility;
   }
   else
   {
@@ -2071,6 +2062,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->length= length;
     entry->type=type;
     entry->var_charset=cs;
+    entry->var_coercibility= coercibility;
   }
   return;
 
@@ -2112,7 +2104,8 @@ double
 Item_func_set_user_var::val()
 {
   double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT, default_charset_info);
+  update_hash((void*) &value,sizeof(value), REAL_RESULT, 
+    &my_charset_bin, COER_NOCOLL);
   return value;
 }
 
@@ -2121,7 +2114,7 @@ Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
   update_hash((void*) &value, sizeof(longlong), INT_RESULT,
-	      default_charset_info);
+	      &my_charset_bin, COER_NOCOLL);
   return value;
 }
 
@@ -2130,10 +2123,10 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin);
+    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, COER_NOCOLL);
   else
     update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
-		res->charset());
+		res->charset(), args[0]->coercibility);
   return res;
 }
 
@@ -2633,7 +2626,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     pos=strmov(pos,"global.");
   memcpy(pos, var->name, var->name_length+1);
   // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff)+var->name_length);
+  item->set_name(buff,(uint) (pos-buff)+var->name_length, system_charset_info);
   return item;
 }
 
@@ -2648,9 +2641,9 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   var= find_sys_var(var_name, length);
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
-    return 0;					// Impossible
+    return 0;						// Impossible
   thd->lex.uncacheable();
-  item->set_name(item_name);		// Will use original name
+  item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }
 
@@ -2690,6 +2683,28 @@ longlong Item_func_is_free_lock::val_int()
   return 0;
 }
 
+longlong Item_func_is_used_lock::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  THD *thd=current_thd;
+  ULL *ull;
+
+  null_value=1;
+  if (!res || !res->length())
+    return 0;
+  
+  pthread_mutex_lock(&LOCK_user_locks);
+  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+			  res->length());
+  pthread_mutex_unlock(&LOCK_user_locks);
+  if (!ull || !ull->locked)
+    return 0;
+
+  null_value=0;
+  return ull->thread_id;
+}
+
+
 
 /**************************************************************************
   Spatial functions
@@ -2698,115 +2713,129 @@ longlong Item_func_is_free_lock::val_int()
 longlong Item_func_dimension::val_int()
 {
   uint32 dim;
-  String *wkb=args[0]->val_str(&value);
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               geom.dimension(&dim));
-
+  null_value= (!swkb || 
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       geom.dimension(&dim));
   return (longlong) dim;
 }
 
 longlong Item_func_numinteriorring::val_int()
 {
   uint32 num;
-  String *wkb=args[0]->val_str(&value);
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,num_interior_ring) || 
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, num_interior_ring) || 
 	       geom.num_interior_ring(&num));
-
   return (longlong) num;
 }
 
 longlong Item_func_numgeometries::val_int()
 {
-  uint32 num=0;
-  String *wkb=args[0]->val_str(&value);
+  uint32 num= 0;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,num_geometries) || 
-               geom.num_geometries(&num));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, num_geometries) || 
+	       geom.num_geometries(&num));
   return (longlong) num;
 }
 
 longlong Item_func_numpoints::val_int()
 {
-  uint32 num=0;
-  String *wkb=args[0]->val_str(&value);
+  uint32 num;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,num_points) ||
-               geom.num_points(&num));
-
+  null_value= (!swkb ||
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) ||
+	       !GEOM_METHOD_PRESENT(geom, num_points) ||
+	       geom.num_points(&num));
   return (longlong) num;
 }
 
 
 double Item_func_x::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,get_x) || 
-               geom.get_x(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, get_x) || 
+	       geom.get_x(&res));
   return res;
 }
 
 
 double Item_func_y::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,get_y) || 
-               geom.get_y(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, get_y) || 
+	       geom.get_y(&res));
   return res;
 }
 
 
 double Item_func_area::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,area) || 
-               geom.area(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, area) || 
+	       geom.area(&res));
   return res;
 }
 
 
 double Item_func_glength::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,length) || 
-               geom.length(&res));
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, length) || 
+	       geom.length(&res));
   return res;
+}
+
+
+longlong Item_func_srid::val_int()
+{
+  String *swkb= args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE));
+  uint32 res= uint4korr(swkb->ptr());
+  return (longlong) res;
 }

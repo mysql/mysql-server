@@ -208,6 +208,7 @@ DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 TEST_REPLICATION=0
+MYSQL_TEST_SSL_OPTS=""
 
 while test $# -gt 0; do
   case "$1" in
@@ -238,7 +239,10 @@ while test $# -gt 0; do
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
      --ssl-cert=$BASEDIR/SSL/server-cert.pem \
-     --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
+     --ssl-key=$BASEDIR/SSL/server-key.pem"
+     MYSQL_TEST_SSL_OPTS="--ssl-ca=$BASEDIR/SSL/cacert.pem \
+     --ssl-cert=$BASEDIR/SSL/client-cert.pem \
+     --ssl-key=$BASEDIR/SSL/client-key.pem" ;;
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
     --manager)
      USE_MANAGER=1
@@ -330,7 +334,7 @@ while test $# -gt 0; do
       USE_RUNNING_SERVER=""
       ;;
     --valgrind)
-      VALGRIND="valgrind --alignment=8 --leak-check=yes"
+      VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
       SLEEP_TIME_AFTER_RESTART=10
@@ -353,7 +357,8 @@ while test $# -gt 0; do
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
-      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
       ;;
     --fast)
       FAST_START=1
@@ -493,7 +498,7 @@ fi
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
- --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT"
+ --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT $MYSQL_TEST_SSL_OPTS"
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -812,8 +817,8 @@ start_master()
   fi
   # Remove stale binary logs
   $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
-  # Remove old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info
+  # Remove old master.info and relay-log.info files
+  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
   #run master initialization shell script if one exists
 
@@ -917,7 +922,7 @@ start_slave()
    slave_port=`expr $SLAVE_MYPORT + $1`
    slave_log="$SLAVE_MYLOG.$1"
    slave_err="$SLAVE_MYERR.$1"
-   slave_datadir="var/$slave_ident-data/"
+   slave_datadir="$SLAVE_MYDDIR/../$slave_ident-data/"
    slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
    slave_sock="$SLAVE_MYSOCK-$1"
   else
@@ -932,7 +937,7 @@ start_slave()
  fi
   # Remove stale binary logs and old master.info files
   $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $MYSQL_TEST_DIR/$slave_datadir/master.info
+  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
@@ -1161,7 +1166,7 @@ run_testcase ()
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
    else
-     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
      then
        EXTRA_MASTER_OPT=""
        stop_master

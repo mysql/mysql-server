@@ -92,7 +92,7 @@ z
 Ä
 ä
 ß
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_de;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
 latin1_f
 A
 a
@@ -121,7 +121,7 @@ Y
 y
 Z
 z
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_ci_as;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
 latin1_f
 A
 a
@@ -181,7 +181,7 @@ z
 ü
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r;
 COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
-SELECT latin1_f COLLATE latin1       AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1            AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 A
 a
@@ -210,7 +210,7 @@ z
 Ä
 ä
 ß
-SELECT latin1_f COLLATE latin1_de    AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 A
 a
@@ -239,7 +239,7 @@ Y
 y
 Z
 z
-SELECT latin1_f COLLATE latin1_ci_as AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 A
 a
@@ -268,7 +268,7 @@ Y
 y
 Z
 z
-SELECT latin1_f COLLATE latin1_bin   AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 A
 AD
@@ -297,7 +297,7 @@ z
 ä
 å
 ü
-SELECT latin1_f COLLATE koi8r        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE koi8r             AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
 latin1_f	count(*)
@@ -329,7 +329,7 @@ Z	2
 Å	2
 Ä	2
 ß	1
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_de;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 latin1_f	count(*)
 A	4
 AD	2
@@ -344,7 +344,7 @@ UE	2
 Ü	2
 Y	2
 Z	2
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_ci_as;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
 latin1_f	count(*)
 A	2
 AD	2
@@ -391,7 +391,7 @@ z	1
 ü	1
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r;
 COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
-SELECT DISTINCT latin1_f                      FROM t1;
+SELECT DISTINCT latin1_f                           FROM t1;
 latin1_f
 A
 AD
@@ -406,7 +406,7 @@ UE
 SS
 ß
 Z
-SELECT DISTINCT latin1_f COLLATE latin1       FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1            FROM t1;
 latin1_f COLLATE latin1
 A
 AD
@@ -421,8 +421,8 @@ UE
 SS
 ß
 Z
-SELECT DISTINCT latin1_f COLLATE latin1_de    FROM t1;
-latin1_f COLLATE latin1_de
+SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
+latin1_f COLLATE latin1_german2_ci
 A
 AD
 AE
@@ -436,8 +436,8 @@ SS
 ß
 Y
 Z
-SELECT DISTINCT latin1_f COLLATE latin1_ci_as FROM t1;
-latin1_f COLLATE latin1_ci_as
+SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
+latin1_f COLLATE latin1_general_ci
 A
 AD
 AE
@@ -452,7 +452,7 @@ SS
 ß
 Y
 Z
-SELECT DISTINCT latin1_f COLLATE latin1_bin   FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
 latin1_f COLLATE latin1_bin
 A
 a
@@ -481,6 +481,94 @@ Y
 y
 Z
 z
-SELECT DISTINCT latin1_f COLLATE koi8r        FROM t1;
+SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32)	latin1				
+ALTER TABLE t1 CHANGE latin1_f 
+latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32) character set latin1	latin1_bin	YES		NULL	
+ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) collate latin1_bin default NULL
+) TYPE=MyISAM CHARSET=latin1 COLLATE=latin1_bin
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32)	latin1_bin	YES		NULL	
+SET NAMES 'latin1';
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1
+SET NAMES latin1;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	3	1
+SET NAMES latin1 COLLATE latin1_bin;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1_bin
+SET NAMES LATIN1 COLLATE Latin1_Bin;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1_bin
+SET NAMES 'latin1' COLLATE 'latin1_bin';
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1_bin
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1_bin	3	0
+SET NAMES koi8r;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	koi8r
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	3	1
+SET COLLATION koi8r_bin;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	koi8r_bin
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	3	1
+SET COLLATION DEFAULT;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	koi8r
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	3	1
+SET NAMES DEFAULT;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	3	1
+SET NAMES latin1 COLLATE koi8r;
+COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
+SET NAMES 'DEFAULT';
+Unknown character set: 'DEFAULT'
 DROP TABLE t1;

@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_NOCOLL;
+  coercibility=COER_IMPLICIT;
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -90,18 +90,25 @@ bool Item::check_cols(uint c)
   return 0;
 }
 
-void Item::set_name(const char *str,uint length)
+void Item::set_name(const char *str,uint length, CHARSET_INFO *cs)
 {
   if (!length)
-    name= (char*) str;				// Used by AS
+    name= (char*) str;				// Empty string, used by AS
   else
   {
-    while (length && !my_isgraph(system_charset_info,*str))
+    while (length && !my_isgraph(cs,*str))
     {						// Fix problem with yacc
       length--;
       str++;
     }
-    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+    if (length && !my_charset_same(cs, system_charset_info))
+    {
+      String tmp;
+      tmp.copy(str, length, cs, system_charset_info);
+      name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
+    }
+    else
+      name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
   }
 }
 
@@ -120,8 +127,8 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   if (type() == item->type())
   {
     if (binary_cmp)
-      return !stringcmp(&str_value, &item->str_value);
-    return !sortcmp(&str_value, &item->str_value);
+      return !sortcmp(&str_value, &item->str_value, &my_charset_bin);
+    return !sortcmp(&str_value, &item->str_value, charset());
   }
   return 0;
 }
@@ -163,9 +170,51 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::thd_charset() const
+CHARSET_INFO * Item::default_charset() const
 {
-  return current_thd->variables.thd_charset;
+  return current_thd->db_charset;
+}
+
+bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
+		       CHARSET_INFO *cs2, enum coercion co2)
+{
+  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  {
+    set_charset(&my_charset_bin, COER_NOCOLL);
+    return 0;
+  }
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+  {
+    set_charset(cs1, co1);
+  }
+  else if (co2 < co1)
+  {
+    set_charset(cs2, co2);
+  }
+  else  // co2 == co1
+  {
+    if (cs1 != cs2)
+    {
+      if (co1 == COER_EXPLICIT)
+      {
+        return 1;
+      }
+      else
+      {
+        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
+        if (!bin)
+	  return 1;
+        set_charset(bin, COER_NOCOLL);
+      }
+    }
+    else
+      set_charset(cs2, co2);
+  }
+  return 0;
 }
 
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
@@ -191,8 +240,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset());
-  coercibility= COER_IMPLICIT;
+  set_charset(field_par->charset(), COER_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const
@@ -257,6 +305,17 @@ bool Item_field::get_date(TIME *ltime,bool fuzzydate)
   return 0;
 }
 
+bool Item_field::get_date_result(TIME *ltime,bool fuzzydate)
+{
+  if ((null_value=result_field->is_null()) ||
+      result_field->get_date(ltime,fuzzydate))
+  {
+    bzero((char*) ltime,sizeof(*ltime));
+    return 1;
+  }
+  return 0;
+}
+
 bool Item_field::get_time(TIME *ltime)
 {
   if ((null_value=field->is_null()) || field->get_time(ltime))
@@ -303,7 +362,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 String *Item_int::val_str(String *str)
 {
-  str->set(value, thd_charset());
+  str->set(value, default_charset());
   return str;
 }
 
@@ -311,7 +370,7 @@ void Item_int::print(String *str)
 {
   if (!name)
   {
-    str_value.set(value, thd_charset());
+    str_value.set(value, default_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -319,7 +378,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value, thd_charset());
+  str->set((ulonglong) value, default_charset());
   return str;
 }
 
@@ -327,7 +386,7 @@ void Item_uint::print(String *str)
 {
   if (!name)
   {
-    str_value.set((ulonglong) value, thd_charset());
+    str_value.set((ulonglong) value, default_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -336,7 +395,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals,thd_charset());
+  str->set(value,decimals,default_charset());
   return str;
 }
 
@@ -377,7 +436,7 @@ void Item_param::set_double(double value)
 
 void Item_param::set_value(const char *str, uint length)
 {  
-  str_value.set(str,length,thd_charset());
+  str_value.set(str,length,default_charset());
   item_type = STRING_ITEM;
 }
 
@@ -474,10 +533,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, thd_charset());
+    str->set(int_value, default_charset());
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, thd_charset());
+    str->set(real_value, 2, default_charset());
     return str;
   default:
     return (String*) &str_value;
@@ -935,6 +994,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
+  coercibility= COER_COERCIBLE;
 }
 
 longlong Item_varbinary::val_int()
@@ -1001,7 +1061,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   {
     String *res;
     if ((res=val_str(buffer)))
-      result= protocol->store(res->ptr(),res->length());
+      result= protocol->store(res->ptr(),res->length(),res->charset());
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -1208,6 +1268,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
   set_charset((*ref)->charset());
+  with_sum_func= (*ref)->with_sum_func;
   fixed= 1;
 
   if (ref && (*ref)->check_cols(1))
@@ -1355,7 +1416,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
     if (item->null_value)
       return 1;					// This must be true
     field->val_str(&field_tmp,&field_tmp);
-    return !stringcmp(&field_tmp,item_result);
+    return !sortcmp(&field_tmp,item_result,&my_charset_bin);
   }
   if (res_type == INT_RESULT)
     return 1;					// Both where of type int

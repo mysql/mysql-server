@@ -3,8 +3,11 @@ connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connection slave;
---error 0,1199
-!stop slave;
+#we expect STOP SLAVE to produce a warning as the slave is stopped
+#(the server was started with skip-slave-start)
+--disable_warnings
+stop slave;
+--enable_warnings
 @r/slave-stopped.result show status like 'Slave_running';
 connection master;
 --disable_warnings

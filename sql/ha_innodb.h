@@ -209,3 +209,4 @@ int innodb_show_status(THD* thd);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);
+void innobase_release_temporary_latches(void* innobase_tid);

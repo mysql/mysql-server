@@ -50,7 +50,12 @@ public:
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
 		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
-
+  enum geometry_type
+  {
+    GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
+    GEOM_MULTIPOINT = 4, GEOM_MULTILINESTRING = 5, GEOM_MULTIPOLYGON = 6,
+    GEOM_GEOMETRYCOLLECTION = 7
+  };
   enum imagetype { itRAW, itMBR};
   
   utype		unireg_check;
@@ -71,7 +76,7 @@ public:
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr; }
+  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -160,8 +165,6 @@ public:
     { get_image(buff,length,cs); }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }
-  inline int cmp_image(char *buff,uint length)
-    { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
     {
       ptr+=row_offset;
@@ -265,7 +268,7 @@ public:
 	   unireg_check_arg, field_name_arg, table_arg)
     { 
       field_charset=charset;
-      if (binary())
+      if (charset->state & MY_CS_BINSORT)
         flags|=BINARY_FLAG;
     }
   Item_result result_type () const { return STRING_RESULT; }
@@ -277,13 +280,6 @@ public:
 
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
-  inline int cmp_image(char *buff,uint length)
-  {
-    if (binary())
-      return memcmp(ptr,buff,length);
-    else
-      return my_strncasecmp(field_charset,ptr,buff,length);
-  }
   friend class create_field;
 };
 
@@ -852,9 +848,10 @@ public:
 
 
 class Field_blob :public Field_str {
+  bool geom_flag;
+protected:
   uint packlength;
   String value;				// For temporaries
-  bool geom_flag;
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
@@ -864,7 +861,7 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    packlength(3), geom_flag(true)
+    geom_flag(true), packlength(3)
     {
       flags|= BLOB_FLAG;
     }
@@ -939,18 +936,26 @@ public:
 
 class Field_geom :public Field_blob {
 public:
+  enum geometry_type geom_type;
+  
   Field_geom(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg,uint blob_pack_length)
+	     struct st_table *table_arg,uint blob_pack_length,
+	     enum geometry_type geom_type_arg)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg, 
-                 field_name_arg, table_arg, blob_pack_length,&my_charset_bin) {}
+                 field_name_arg, table_arg, blob_pack_length,&my_charset_bin)
+  { geom_type= geom_type_arg; }
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     struct st_table *table_arg, enum geometry_type geom_type_arg)
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
-                 table_arg, &my_charset_bin) {}
+                 table_arg, &my_charset_bin)
+  { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
-  enum_field_types type() const { return FIELD_TYPE_GEOMETRY;}
+  enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
+  int  store(const char *to, uint length, CHARSET_INFO *charset);
+  int  store(double nr) { return 1; }
+  int  store(longlong nr) { return 1; }
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
@@ -1038,6 +1043,7 @@ public:
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
   CHARSET_INFO *charset;
+  Field::geometry_type geom_type;
   Field *field;				// For alter table
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
@@ -1091,6 +1097,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag, enum_field_types field_type,
 		  CHARSET_INFO *cs,
+		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval, const char *field_name,
 		  struct st_table *table);

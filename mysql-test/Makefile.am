@@ -31,6 +31,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -47,6 +48,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
 
 SUFFIXES = .sh
 

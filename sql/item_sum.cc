@@ -124,7 +124,7 @@ Item_sum_num::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -135,7 +135,7 @@ Item_sum_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  str->set(nr,thd_charset());
+  str->set(nr,default_charset());
   return str;
 }
 
@@ -183,12 +183,17 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
-    max_length=20;
-  else if (hybrid_type == REAL_RESULT)
-    max_length=float_length(decimals);
-  else
   {
-    str_cmp_function= item->binary() ? stringcmp : sortcmp;
+    cmp_charset= &my_charset_bin;
+    max_length=20;
+  }
+  else if (hybrid_type == REAL_RESULT)
+  {
+    cmp_charset= &my_charset_bin;
+    max_length=float_length(decimals);
+  }else
+  {
+    cmp_charset= item->charset();
     max_length=item->max_length;
   }
   decimals=item->decimals;
@@ -416,13 +421,13 @@ Item_sum_hybrid::val_str(String *str)
   case STRING_RESULT:
     return &value;
   case REAL_RESULT:
-    str->set(sum,decimals,thd_charset());
+    str->set(sum,decimals,default_charset());
     break;
   case INT_RESULT:
     if (unsigned_flag)
-      str->set((ulonglong) sum_int,thd_charset());
+      str->set((ulonglong) sum_int,default_charset());
     else
-      str->set((longlong) sum_int,thd_charset());
+      str->set((longlong) sum_int,default_charset());
     break;
   case ROW_RESULT:
   default:
@@ -440,7 +445,7 @@ bool Item_sum_min::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || (*str_cmp_function)(&value,result) > 0))
+	(null_value || sortcmp(&value,result,cmp_charset) > 0))
     {
       value.copy(*result);
       null_value=0;
@@ -487,7 +492,7 @@ bool Item_sum_max::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || (*str_cmp_function)(&value,result) < 0))
+	(null_value || sortcmp(&value,result,cmp_charset) < 0))
     {
       value.copy(*result);
       null_value=0;
@@ -762,7 +767,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     result_field->ptr-=offset;
 
     if (result_field->is_null() ||
-	(cmp_sign * (*str_cmp_function)(res_str,&tmp_value)) < 0)
+	(cmp_sign * sortcmp(res_str,&tmp_value,cmp_charset)) < 0)
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else
     {						// Use old value
@@ -879,7 +884,7 @@ String *Item_avg_field::val_str(String *str)
   double nr=Item_avg_field::val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -927,7 +932,7 @@ String *Item_variance_field::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1281,7 +1286,7 @@ String *Item_sum_udf_float::val_str(String *str)
   if (null_value)
     return 0;					/* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1300,7 +1305,7 @@ String *Item_sum_udf_int::val_str(String *str)
   if (null_value)
     return 0;
   else
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   return str;
 }
 

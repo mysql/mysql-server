@@ -121,8 +121,15 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
-  case DB_TYPE_MYISAM:
   default:					// should never happen
+  {
+    enum db_type def=(enum db_type) current_thd->variables.table_type;
+    /* Try first with 'default table type' */
+    if (db_type != def)
+      return get_new_handler(table, def);
+  }
+  /* Fall back to MyISAM */
+  case DB_TYPE_MYISAM:
     return new ha_myisam(table);
   case DB_TYPE_MRG_MYISAM:
     return new ha_myisammrg(table);
@@ -238,8 +245,10 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   handler must be the same as in the binlog.
 
   arguments:
+  thd:           the thread handle of the current connection
   log_file_name: latest binlog file name
   end_offset:	 the offset in the binlog file up to which we wrote
+  return value:  0 if success, 1 if error
 */
 
 int ha_report_binlog_offset_and_commit(THD *thd,
@@ -264,6 +273,34 @@ int ha_report_binlog_offset_and_commit(THD *thd,
   }
 #endif
   return error;
+}
+
+/*
+  This function should be called when MySQL sends rows of a SELECT result set
+  or the EOF mark to the client. It releases a possible adaptive hash index
+  S-latch held by thd in InnoDB and also releases a possible InnoDB query
+  FIFO ticket to enter InnoDB. To save CPU time, InnoDB allows a thd to
+  keep them over several calls of the InnoDB handler interface when a join
+  is executed. But when we let the control to pass to the client they have
+  to be released because if the application program uses mysql_use_result(),
+  it may deadlock on the S-latch if the application on another connection
+  performs another SQL query. In MySQL-4.1 this is even more important because
+  there a connection can have several SELECT queries open at the same time.
+
+  arguments:
+  thd:           the thread handle of the current connection
+  return value:  always 0
+*/
+
+int ha_release_temporary_latches(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  THD_TRANS *trans;
+  trans = &thd->transaction.all;
+  if (trans->innobase_tid)
+    innobase_release_temporary_latches(trans->innobase_tid);
+#endif
+  return 0;
 }
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
@@ -473,7 +510,8 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   int error;
   DBUG_ENTER("handler::open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-		      name, table->db_type, table->db_stat, mode, test_if_locked));
+		      name, table->db_type, table->db_stat, mode,
+		      test_if_locked));
 
   if ((error=open(name,mode,test_if_locked)))
   {

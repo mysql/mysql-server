@@ -4,6 +4,10 @@
 
 <charset name="greek">
 
+<!-- It's ISO Greek rahter than WIN Greek  because                   -->
+<!-- 0xB6 is marked as upper letter, it's true for ISO Greek version -->
+<!-- In Windows version this character is PILCROW SIGN               -->
+
 <ctype>
 <map>
  00
@@ -113,6 +117,8 @@
  D0 D1 D3 D3 D4 D5 D6 D7 D8 D9 C9 D5 CF D5 D9 FF
 </map>
 </collation>
+
+<collation name="greek_bin"	flag="binary"/>
 
 </charset>
 

@@ -1,25 +1,25 @@
-# Microsoft Developer Studio Project File - Name="libmySQL" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="libmysql" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Dynamic-Link Library" 0x0102
 
-CFG=libmySQL - Win32 Debug
+CFG=libmysql - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
-!MESSAGE NMAKE /f "libmySQL.mak".
-!MESSAGE 
+!MESSAGE
+!MESSAGE NMAKE /f "libmysql.mak".
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
-!MESSAGE NMAKE /f "libmySQL.mak" CFG="libmySQL - Win32 Debug"
-!MESSAGE 
+!MESSAGE
+!MESSAGE NMAKE /f "libmysql.mak" CFG="libmysql - Win32 Debug"
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
-!MESSAGE "libmySQL - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE "libmySQL - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE 
+!MESSAGE
+!MESSAGE "libmysql - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "libmysql - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -29,7 +29,7 @@ CPP=cl.exe
 MTL=midl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "libmySQL - Win32 Release"
+!IF  "$(CFG)" == "libmysql - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -54,15 +54,15 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
-# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386 /def:"libmysql.def" /out:"../lib_release/libmySQL.dll" /libpath:"." /libpath:"..\lib_release"
+# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386 /def:"libmysql.def" /out:"..\lib_release\libmysql.dll" /libpath:"." /libpath:"..\lib_release"
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
-PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /y
+PostBuild_Desc=Copy .lib file
+PostBuild_Cmds=xcopy  release\libmysql.lib   ..\lib_release\
 # End Special Build Tool
 
-!ELSEIF  "$(CFG)" == "libmySQL - Win32 Debug"
+!ELSEIF  "$(CFG)" == "libmysql - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -87,20 +87,20 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 zlib.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /incremental:no /map /debug /machine:I386 /def:"libmysql.def" /out:"../lib_debug/libmySQL.dll" /pdbtype:sept /libpath:"." /libpath:"..\lib_debug"
+# ADD LINK32 zlib.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /incremental:no /map /debug /machine:I386 /def:"libmysql.def" /out:"..\lib_debug\libmysql.dll" /pdbtype:sept /libpath:"." /libpath:"..\lib_debug"
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
-PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll C:\winnt\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
+PostBuild_Desc=Copy .lib file
+PostBuild_Cmds=xcopy   ..\lib_debug\libmysql.dll   C:\winnt\system32\  	xcopy  debug\libmysql.lib   ..\lib_debug\
 # End Special Build Tool
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
-# Name "libmySQL - Win32 Release"
-# Name "libmySQL - Win32 Debug"
+# Name "libmysql - Win32 Release"
+# Name "libmysql - Win32 Debug"
 # Begin Source File
 
 SOURCE=..\mysys\array.c
@@ -303,6 +303,10 @@ SOURCE=..\mysys\my_gethostbyname.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_getopt.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_getwd.c
 # End Source File
 # Begin Source File
@@ -460,6 +464,10 @@ SOURCE=..\strings\strnlen.c
 # Begin Source File
 
 SOURCE=..\strings\strnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strtoll.c
 # End Source File
 # Begin Source File
 

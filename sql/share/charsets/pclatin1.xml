@@ -114,6 +114,8 @@
 </map>
 </collation>
 
+<collation name="pclatin1_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

@@ -114,6 +114,8 @@
 </map>
 </collation>
 
+<collation name="koi8r_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

@@ -1,0 +1,35 @@
+#! /bin/sh                   
+
+path=`dirname $0`
+
+# clean
+if test -e "Makefile"; then make -k clean; fi
+
+# remove files
+rm -f NEW-RPMS/*
+rm -f */.deps/*.P
+rm -rf Makefile.in.bk
+
+# Metrowerks enviornment
+. $path/mwenv
+
+# run auto tools
+. $path/compile-AUTOTOOLS
+
+# configure
+./configure $base_configs $extra_configs
+
+# make
+make clean bin-dist
+
+# mark the build
+for file in *.tar.gz
+do
+	if (expr "$file" : "mysql-[1-9].*" > /dev/null)
+	then
+		new_file=`echo $file | sed -e "s/mysql-/mysql-$suffix-/"`
+		if test -e "$new_file"; then mv -f $new_file $new_file.old; fi
+		mv $file $new_file
+	fi
+done
+

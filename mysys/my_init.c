@@ -52,7 +52,7 @@ my_bool my_init_done=0;
 static ulong atoi_octal(const char *str)
 {
   long int tmp;
-  while (*str && my_isspace(system_charset_info, *str))
+  while (*str && my_isspace(&my_charset_latin1, *str))
     str++;
   str2int(str,
 	  (*str == '0' ? 8 : 10),		/* Octalt or decimalt */

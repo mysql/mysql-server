@@ -116,6 +116,8 @@
 
 <collation name="cp1250_czech"/>
 
+<collation name="cp1250_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

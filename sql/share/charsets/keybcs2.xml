@@ -114,6 +114,8 @@
 </map>
 </collation>
 
+<collation name="keybcs2_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

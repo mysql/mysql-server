@@ -74,9 +74,28 @@ typedef struct my_uni_idx_st
 } MY_UNI_IDX;
 
 
+enum my_lex_states
+{
+  MY_LEX_START, MY_LEX_CHAR, MY_LEX_IDENT, 
+  MY_LEX_IDENT_SEP, MY_LEX_IDENT_START,
+  MY_LEX_FOUND_IDENT, MY_LEX_SIGNED_NUMBER, MY_LEX_REAL, MY_LEX_HEX_NUMBER,
+  MY_LEX_CMP_OP, MY_LEX_LONG_CMP_OP, MY_LEX_STRING, MY_LEX_COMMENT, MY_LEX_END,
+  MY_LEX_OPERATOR_OR_IDENT, MY_LEX_NUMBER_IDENT, MY_LEX_INT_OR_REAL,
+  MY_LEX_REAL_OR_POINT, MY_LEX_BOOL, MY_LEX_EOL, MY_LEX_ESCAPE, 
+  MY_LEX_LONG_COMMENT, MY_LEX_END_LONG_COMMENT, MY_LEX_COLON, 
+  MY_LEX_SET_VAR, MY_LEX_USER_END, MY_LEX_HOSTNAME, MY_LEX_SKIP, 
+  MY_LEX_USER_VARIABLE_DELIMITER, MY_LEX_SYSTEM_VAR,
+  MY_LEX_IDENT_OR_KEYWORD,
+  MY_LEX_IDENT_OR_HEX, MY_LEX_IDENT_OR_BIN, MY_LEX_IDENT_OR_NCHAR,
+  MY_LEX_STRING_OR_DELIMITER
+};
+
+
 typedef struct charset_info_st
 {
   uint      number;
+  uint      primary_number;
+  uint      binary_number;
   uint      state;
   const char *csname;
   const char *name;
@@ -87,6 +106,8 @@ typedef struct charset_info_st
   uchar    *sort_order;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
+  uchar state_map[256];
+  uchar ident_map[256];
   
   /* Collation routines */
   uint      strxfrm_multiply;
@@ -179,6 +200,7 @@ extern CHARSET_INFO my_charset_latin1_de;
 extern CHARSET_INFO my_charset_sjis;
 extern CHARSET_INFO my_charset_tis620;
 extern CHARSET_INFO my_charset_ucs2;
+extern CHARSET_INFO my_charset_ucse;
 extern CHARSET_INFO my_charset_ujis;
 extern CHARSET_INFO my_charset_utf8;
 extern CHARSET_INFO my_charset_win1250ch;

@@ -78,17 +78,17 @@ int Geometry::create_from_wkb(const char *data, uint32 data_len)
 {
   uint32 geom_type;
 
-  if (data_len < 1+4)
+  if (data_len < 1 + 4)
     return 1;
-  data += sizeof(char);
-
+  data++;
 //FIXME: check byte ordering
-  geom_type = uint4korr(data);
-  data += 4;
-  m_vmt = find_class(geom_type);
-  if (!m_vmt) return -1;
-  m_data = data;
-  m_data_end = data + data_len;
+  geom_type= uint4korr(data);
+  data+= 4;
+  m_vmt= find_class(geom_type);
+  if (!m_vmt) 
+    return -1;
+  m_data= data;
+  m_data_end= data + data_len;
   return 0;
 }
 
@@ -362,41 +362,47 @@ int GLineString::num_points(uint32 *n_points) const
 
 int GLineString::start_point(String *result) const
 {
-  const char *data = m_data + 4;
-  if (no_data(data, 8+8))
+  const char *data= m_data + 4;
+  if (no_data(data, 8 + 8))
     return 1;
 
   if (result->reserve(1 + 4 + sizeof(double) * 2))
     return 1;
 
-  result->q_append((char)wkbNDR);
-  result->q_append((uint32)wkbPoint);
-  result->q_append((double *)data);
-  result->q_append((double *)(data + 8));
+  result->q_append((char) wkbNDR);
+  result->q_append((uint32) wkbPoint);
+  double d;
+  float8get(d, data);
+  result->q_append(d);
+  float8get(d, data + 8);
+  result->q_append(d);
 
   return 0;
 }
 
 int GLineString::end_point(String *result) const
 {
-  const char *data = m_data;
+  const char *data= m_data;
   uint32 n_points;
 
   if (no_data(data, 4))
     return 1;
-  n_points = uint4korr(data);
+  n_points= uint4korr(data);
 
-  data += 4 + (n_points-1)*POINT_DATA_SIZE;
+  data+= 4 + (n_points - 1) * POINT_DATA_SIZE;
 
-  if (no_data(data, 8+8))
+  if (no_data(data, 8 + 8))
     return 1;
 
   if (result->reserve(1 + 4 + sizeof(double) * 2))
     return 1;
-  result->q_append((char)wkbNDR);
-  result->q_append((uint32)wkbPoint);
-  result->q_append((double *)data);
-  result->q_append((double *)(data + 8));
+  result->q_append((char) wkbNDR);
+  result->q_append((uint32) wkbPoint);
+  double d;
+  float8get(d, data);
+  result->q_append(d);
+  float8get(d, data + 8);
+  result->q_append(d);
 
   return 0;
 }
@@ -404,27 +410,30 @@ int GLineString::end_point(String *result) const
 
 int GLineString::point_n(uint32 num, String *result) const
 {
-  const char *data = m_data;
+  const char *data= m_data;
   uint32 n_points;
 
   if (no_data(data, 4))
     return 1;
-  n_points = uint4korr(data);
+  n_points= uint4korr(data);
 
-  if ((uint32)(num-1) >= n_points) // really means (num > n_points || num < 1)
+  if ((uint32) (num - 1) >= n_points) // means (num > n_points || num < 1)
     return 1;
 
-  data += 4 + (num - 1)*POINT_DATA_SIZE;
+  data+= 4 + (num - 1) * POINT_DATA_SIZE;
 
-  if (no_data(data, 8+8))
+  if (no_data(data, 8 + 8))
     return 1;
   if (result->reserve(1 + 4 + sizeof(double) * 2))
     return 1;
 
-  result->q_append((char)wkbNDR);
-  result->q_append((uint32)wkbPoint);
-  result->q_append((double *)data);
-  result->q_append((double *)(data + 8));
+  result->q_append((char) wkbNDR);
+  result->q_append((uint32) wkbPoint);
+  double d;
+  float8get(d, data);
+  result->q_append(d);
+  float8get(d, data + 8);
+  result->q_append(d);
 
   return 0;
 }
@@ -496,36 +505,39 @@ int GPolygon::init_from_text(GTextReadStream *trs, String *wkb)
 int GPolygon::get_data_as_text(String *txt) const
 {
   uint32 n_linear_rings;
-  const char *data = m_data;
+  const char *data= m_data;
 
   if (no_data(data, 4))
     return 1;
 
-  n_linear_rings = uint4korr(data);
-  data += 4;
+  n_linear_rings= uint4korr(data);
+  data+= 4;
 
-  for (; n_linear_rings>0; --n_linear_rings)
+  for (; n_linear_rings > 0; --n_linear_rings)
   {
     if (no_data(data, 4))
       return 1;
-    uint32 n_points = uint4korr(data);
-    data += 4;
-    if (no_data(data, (8+8) * n_points))
+    uint32 n_points= uint4korr(data);
+    data+= 4;
+    if (no_data(data, (8 + 8) * n_points))
       return 1;
 
-    if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points))
+    if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
     for (; n_points>0; --n_points)
     {
-      txt->qs_append((double *)data);
+      double d;
+      float8get(d, data);
+      txt->qs_append(d);
       txt->qs_append(' ');
-      txt->qs_append((double *)(data + 8));
+      float8get(d, data + 8);
+      txt->qs_append(d);
       txt->qs_append(',');
 
-      data += 8+8;
+      data+= 8 + 8;
     }
-    (*txt)[txt->length()-1] = ')';
+    (*txt) [txt->length() - 1]= ')';
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);
@@ -802,25 +814,28 @@ int GMultiPoint::init_from_text(GTextReadStream *trs, String *wkb)
 int GMultiPoint::get_data_as_text(String *txt) const
 {
   uint32 n_points;
-  const char *data = m_data;
+  const char *data= m_data;
   if (no_data(data, 4))
     return 1;
 
-  n_points = uint4korr(data);
-  data += 4;
-  if (no_data(data, n_points * (8+8+WKB_HEADER_SIZE)))
+  n_points= uint4korr(data);
+  data+= 4;
+  if (no_data(data, n_points * (8 + 8 + WKB_HEADER_SIZE)))
     return 1;
 
-  if (txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points))
+  if (txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return 1;
 
   for (; n_points>0; --n_points)
   {
-    txt->qs_append((double *)(data + WKB_HEADER_SIZE));
+    double d;
+    float8get(d, data + WKB_HEADER_SIZE);
+    txt->qs_append(d);
     txt->qs_append(' ');
-    txt->qs_append((double *)(data + (8 + WKB_HEADER_SIZE)));
+    float8get(d, data + WKB_HEADER_SIZE + 8);
+    txt->qs_append(d);
     txt->qs_append(',');
-    data += 8+8+WKB_HEADER_SIZE;
+    data+= WKB_HEADER_SIZE + 8 + 8;
   }
   txt->length(txt->length()-1);
   return 0;
@@ -934,32 +949,35 @@ int GMultiLineString::init_from_text(GTextReadStream *trs, String *wkb)
 int GMultiLineString::get_data_as_text(String *txt) const
 {
   uint32 n_line_strings;
-  const char *data = m_data;
+  const char *data= m_data;
   if (no_data(data, 4))
     return 1;
-  n_line_strings = uint4korr(data);
-  data += 4;
-  for (; n_line_strings>0; --n_line_strings)
+  n_line_strings= uint4korr(data);
+  data+= 4;
+  for (; n_line_strings > 0; --n_line_strings)
   {
     if (no_data(data, (WKB_HEADER_SIZE + 4)))
       return 1;
-    uint32 n_points = uint4korr(data + WKB_HEADER_SIZE);
-    data += WKB_HEADER_SIZE + 4;
-    if (no_data(data, n_points * (8+8)))
+    uint32 n_points= uint4korr(data + WKB_HEADER_SIZE);
+    data+= WKB_HEADER_SIZE + 4;
+    if (no_data(data, n_points * (8 + 8)))
       return 1;
 
-    if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points))
+    if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
     for (; n_points>0; --n_points)
     {
-      txt->qs_append((double *)data);
+      double d;
+      float8get(d, data);
+      txt->qs_append(d);
       txt->qs_append(' ');
-      txt->qs_append((double *)(data + 8));
+      float8get(d, data + 8);
+      txt->qs_append(d);
       txt->qs_append(',');
-      data += 8+8;
+      data+= 8 + 8;
     }
-    (*txt)[txt->length()-1] = ')';
+    (*txt) [txt->length() - 1] = ')';
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);
@@ -1144,19 +1162,19 @@ int GMultiPolygon::init_from_text(GTextReadStream *trs, String *wkb)
 int GMultiPolygon::get_data_as_text(String *txt) const
 {
   uint32 n_polygons;
-  const char *data = m_data;
+  const char *data= m_data;
   if (no_data(data, 4))
     return 1;
-  n_polygons = uint4korr(data);
-  data += 4;
+  n_polygons= uint4korr(data);
+  data+= 4;
 
   for (; n_polygons>0; --n_polygons)
   {
     if (no_data(data, 4 + WKB_HEADER_SIZE))
       return 1;
-    data += WKB_HEADER_SIZE;
-    uint32 n_linear_rings = uint4korr(data);
-    data += 4;
+    data+= WKB_HEADER_SIZE;
+    uint32 n_linear_rings= uint4korr(data);
+    data+= 4;
 
     if (txt->reserve(1, 512))
       return 1;
@@ -1165,25 +1183,28 @@ int GMultiPolygon::get_data_as_text(String *txt) const
     {
       if (no_data(data, 4))
         return 1;
-      uint32 n_points = uint4korr(data);
-      data += 4;
-      if (no_data(data, (8+8)*n_points)) return 1;
+      uint32 n_points= uint4korr(data);
+      data+= 4;
+      if (no_data(data, (8 + 8) * n_points)) return 1;
 
-      if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points, 
-              512)) return 1;
+      if (txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points, 
+		       512)) return 1;
       txt->qs_append('(');
       for (; n_points>0; --n_points)
       {
-        txt->qs_append((double *)data);
+        double d;
+        float8get(d, data);
+        txt->qs_append(d);
         txt->qs_append(' ');
-        txt->qs_append((double *)(data + 8));
+        float8get(d, data + 8);
+        txt->qs_append(d);
         txt->qs_append(',');
-        data += 8+8;
+        data+= 8 + 8;
       }
-      (*txt)[txt->length()-1] = ')';
+      (*txt) [txt->length() - 1] = ')';
       txt->qs_append(',');
     }
-    (*txt)[txt->length()-1] = ')';
+    (*txt) [txt->length() - 1] = ')';
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);
