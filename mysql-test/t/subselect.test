@@ -1358,3 +1358,31 @@ insert into t1 values (1),(null);
 select * from t1 where s1 < all (select s1 from t1);
 select s1, s1 < all (select s1 from t1) from t1;
 drop table t1;
+
+#
+# reference on changable fields from subquery
+#
+CREATE TABLE t1 (
+  Code char(3) NOT NULL default '',
+  Name char(52) NOT NULL default '',
+  Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+  Region char(26) NOT NULL default '',
+  SurfaceArea float(10,2) NOT NULL default '0.00',
+  IndepYear smallint(6) default NULL,
+  Population int(11) NOT NULL default '0',
+  LifeExpectancy float(3,1) default NULL,
+  GNP float(10,2) default NULL,
+  GNPOld float(10,2) default NULL,
+  LocalName char(45) NOT NULL default '',
+  GovernmentForm char(45) NOT NULL default '',
+  HeadOfState char(60) default NULL,
+  Capital int(11) default NULL,
+  Code2 char(2) NOT NULL default ''
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
+INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
+INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
+INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
+/*!40000 ALTER TABLE t1 ENABLE KEYS */;
+SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+drop table t1;
