@@ -187,6 +187,19 @@ void ha_myisammrg::position(const byte *record)
   ha_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
+ha_rows ha_myisammrg::records_in_range(int inx,
+				    const byte *start_key,uint start_key_len,
+				    enum ha_rkey_function start_search_flag,
+				    const byte *end_key,uint end_key_len,
+				    enum ha_rkey_function end_search_flag)
+{
+  return (ha_rows) myrg_records_in_range(file,
+				       inx,
+				       start_key,start_key_len,
+				       start_search_flag,
+				       end_key,end_key_len,
+				       end_search_flag);
+}
 
 void ha_myisammrg::info(uint flag)
 {
