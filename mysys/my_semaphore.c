@@ -23,7 +23,7 @@
 #include <my_semaphore.h>
 #include <errno.h>
 
-#if !defined(__WIN__) && !defined(HAVE_SEMAPHORE_H)
+#if !defined(__WIN__) && !defined(HAVE_SEMAPHORE_H) && defined(THREAD)
 
 int sem_init(sem_t * sem, int pshared, uint value)
 {
@@ -101,4 +101,4 @@ int sem_getvalue(sem_t * sem, uint *sval)
   return 0;
 }
 
-#endif /* !defined(__WIN__) && !defined(HAVE_SEMAPHORE_H) */
+#endif /* !defined(__WIN__) && !defined(HAVE_SEMAPHORE_H) && defined(THREAD) */
