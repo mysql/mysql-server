@@ -78,6 +78,7 @@ const char *command_name[]={
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
   "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Reset stmt", "Set option", "Fetch",
   "Error"					// Last command number
 };
 
