@@ -34,6 +34,8 @@ HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
+static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
+			  const char *table_name, List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static key_map get_key_map_from_key_list(TABLE *table,
@@ -109,71 +111,75 @@ static void check_unused(void)
 #define check_unused()
 #endif
 
-OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
+int list_open_tables(THD *thd,List<char> *tables, const char *db,
+		     const char *wild)
 {
   int result = 0;
   uint col_access=thd->col_access;
-  OPEN_TABLE_LIST **start_list, *open_list;
   TABLE_LIST table_list;
-  char name[NAME_LEN*2];
   DBUG_ENTER("list_open_tables");
-
   VOID(pthread_mutex_lock(&LOCK_open));
   bzero((char*) &table_list,sizeof(table_list));
-  start_list= &open_list;
-  open_list=0;
 
-  for (uint idx=0 ; result == 0 && idx < open_cache.records; idx++)
+  for (uint idx=0 ; idx < open_cache.records; idx++)
   {
-    OPEN_TABLE_LIST *table;
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
-
-    if ((!entry->real_name))
-      continue;					// Shouldn't happen
-    if (wild)
-    {
-      strxmov(name,entry->table_cache_key,".",entry->real_name,NullS);
-      if (wild_compare(name,wild))
-	continue;
-    }
-
-    /* Check if user has SELECT privilege for any column in the table */
-    table_list.db= (char*) entry->table_cache_key;
-    table_list.real_name= entry->real_name;
-    table_list.grant.privilege=0;
-    if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list))
+    if ((!entry->real_name) || strcmp(entry->table_cache_key,db))
       continue;
-
-    /* need to check if we haven't already listed it */
-    for (table= open_list  ; table ; table=table->next)
-    {
-      if (!strcmp(table->table,entry->real_name) &&
-	  !strcmp(table->db,entry->table_cache_key))
-      {
-	if (entry->in_use)
-	  table->in_use++;
-	if (entry->locked_by_name)
-	  table->locked++;
-	break;
-      }
-    }
-    if (table)
+    if (wild && wild[0] && wild_compare(entry->real_name,wild))
       continue;
-    if (!(*start_list = (OPEN_TABLE_LIST *)
-	  sql_alloc(sizeof(OPEN_TABLE_LIST)+entry->key_length)))
+    if (db && !(col_access & TABLE_ACLS))
     {
-      open_list=0;				// Out of memory
+      table_list.db= (char*) db;
+      table_list.real_name= entry->real_name;/*real name*/
+      table_list.grant.privilege=col_access;
+      if (check_grant(thd,TABLE_ACLS,&table_list,1))
+        continue;
+    }
+    /* need to check if he have't already listed it */
+
+    List_iterator<char> it(*tables);
+    char *table_name; 
+    int check = 0;
+    while (check == 0 && (table_name=it++))
+    {
+      if (!strcmp(table_name,entry->real_name))
+        check++;
+    }
+    if (check)
+      continue;
+    
+    if (tables->push_back(thd->strdup(entry->real_name)))
+    {
+      result = -1;
       break;
     }
-    (*start_list)->table=(strmov((*start_list)->db=(char*) ((*start_list)+1),
-				 entry->table_cache_key)+1,
-			  entry->real_name);
-    (*start_list)->in_use= entry->in_use ? 1 : 0;
-    (*start_list)->locked= entry->locked_by_name ? 1 : 0;
-    start_list= &(*start_list)->next;
   }
+  
   VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_RETURN(open_list);
+  DBUG_RETURN(result);  
+}
+
+char*
+query_table_status(THD *thd,const char *db,const char *table_name)
+{
+  int cached = 0, in_use = 0;
+  char info[256];
+
+  for (uint idx=0 ; idx < open_cache.records; idx++)
+  {
+    TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
+    if (strcmp(entry->table_cache_key,db) ||
+        strcmp(entry->real_name,table_name))
+      continue;
+
+    cached++;
+    if (entry->in_use)
+      in_use++;
+  }
+
+  sprintf(info, "cached=%d, in_use=%d", cached, in_use);
+  return thd->strdup(info);
 }
 
 
@@ -253,7 +259,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net);
+  send_eof(&thd->net,(test_flags & TEST_MIT_THREAD) ? 0: 1);
   return 0;
  err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
@@ -424,9 +430,40 @@ void close_thread_tables(THD *thd, bool locked)
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
 
-  while (thd->open_tables)
-    found_old_table|=close_thread_table(thd, &thd->open_tables);
-
+  for (table=thd->open_tables ; table ; table=next)
+  {
+    next=table->next;
+    if (table->version != refresh_version ||
+	thd->version != refresh_version || !table->db_stat)
+    {
+      VOID(hash_delete(&open_cache,(byte*) table));
+      found_old_table=1;
+    }
+    else
+    {
+      if (table->flush_version != flush_version)
+      {
+	table->flush_version=flush_version;
+	table->file->extra(HA_EXTRA_FLUSH);
+      }
+      else
+      {
+	// Free memory and reset for next loop
+	table->file->extra(HA_EXTRA_RESET);
+      }
+      table->in_use=0;
+      if (unused_tables)
+      {
+	table->next=unused_tables;		/* Link in last */
+	table->prev=unused_tables->prev;
+	unused_tables->prev=table;
+	table->prev->next=table;
+      }
+      else
+	unused_tables=table->next=table->prev=table;
+    }
+  }
+  thd->open_tables=0;
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)
     VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -440,48 +477,6 @@ void close_thread_tables(THD *thd, bool locked)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
   DBUG_VOID_RETURN;
-}
-
-/* move one table to free list */
-
-bool close_thread_table(THD *thd, TABLE **table_ptr)
-{
-  DBUG_ENTER("close_thread_table");
-
-  bool found_old_table=0;
-  TABLE *table=*table_ptr;
-
-  *table_ptr=table->next;
-  if (table->version != refresh_version ||
-      thd->version != refresh_version || !table->db_stat)
-  {
-    VOID(hash_delete(&open_cache,(byte*) table));
-    found_old_table=1;
-  }
-  else
-  {
-    if (table->flush_version != flush_version)
-    {
-      table->flush_version=flush_version;
-      table->file->extra(HA_EXTRA_FLUSH);
-    }
-    else
-    {
-      // Free memory and reset for next loop
-      table->file->extra(HA_EXTRA_RESET);
-    }
-    table->in_use=0;
-    if (unused_tables)
-    {
-      table->next=unused_tables;		/* Link in last */
-      table->prev=unused_tables->prev;
-      unused_tables->prev=table;
-      table->prev->next=table;
-    }
-    else
-      unused_tables=table->next=table->prev=table;
-  }
-  DBUG_RETURN(found_old_table);
 }
 
 	/* Close and delete temporary tables */
@@ -1837,7 +1832,7 @@ static key_map get_key_map_from_key_list(TABLE *table,
 **	Returns pointer to last inserted field if ok
 ****************************************************************************/
 
-bool
+static bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it)
 {
