@@ -880,10 +880,9 @@ bool Protocol_simple::store_date(TIME *tm)
 	      field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
 #endif
-  char buff[40];
-  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
-  make_date((DATE_TIME_FORMAT *) 0, tm, &tmp);
-  return net_store_data((char*) tmp.ptr(), tmp.length());
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  int length= my_date_to_str(tm, buff);
+  return net_store_data(buff, (uint) length);
 }
 
 

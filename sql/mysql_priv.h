@@ -284,14 +284,6 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_MONDAY_FIRST    1
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
-/*
-  Required buffer length for make_date, make_time, make_datetime
-  and TIME_to_string functions. Note, that the caller is still
-  responsible to check that given TIME structure has values
-  in valid ranges, otherwise size of the buffer could be not 
-  enough.
-*/
-#define MAX_DATE_REP_LENGTH 30
 
 enum enum_parsing_place
 {
@@ -1046,7 +1038,6 @@ void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
-void TIME_to_string(const TIME *time, String *str);
 ulonglong TIME_to_ulonglong_datetime(const TIME *time);
 ulonglong TIME_to_ulonglong_date(const TIME *time);
 ulonglong TIME_to_ulonglong_time(const TIME *time);
