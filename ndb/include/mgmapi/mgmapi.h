@@ -49,6 +49,7 @@
  *  @{
  */
 
+#include <ndb_types.h>
 #include "mgmapi_config_parameters.h"
 
 #ifdef __cplusplus
