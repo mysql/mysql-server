@@ -93,7 +93,6 @@ bool
 Transporter::connect_client() {
   if(m_connected)
     return true;
-  
   NDB_SOCKET_TYPE sockfd = m_socket_client->connect();
   
   if (sockfd < 0)
@@ -102,7 +101,6 @@ Transporter::connect_client() {
   // send info about own id 
   SocketOutputStream s_output(sockfd);
   s_output.println("%d", localNodeId);
-
   // get remote id
   int nodeId;
   SocketInputStream s_input(sockfd);
@@ -115,7 +113,6 @@ Transporter::connect_client() {
     NDB_CLOSE_SOCKET(sockfd);
     return false;
   }
-
   bool res = connect_client_impl(sockfd);
   if(res){
     m_connected  = true;

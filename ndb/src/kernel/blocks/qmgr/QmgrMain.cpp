@@ -258,7 +258,6 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 {
   const Uint32 nodeId = signal->theData[0];
   c_connectedNodes.set(nodeId);
-  
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
@@ -679,7 +678,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
   UintR TaddNodeno = signal->theData[1];
   UintR TrefuseReason = signal->theData[2];
   Uint32 candidate = signal->theData[3];
-
   DEBUG_START3(signal, TrefuseReason);
   
   if(candidate != cpresidentCandidate){
@@ -768,7 +766,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
   Uint64 now = NdbTick_CurrentMillisecond();
   if((c_regReqReqRecv == cnoOfNodes) || now > c_stopElectionTime){
     jam();
-    
     electionWon();
     sendSttorryLab(signal);
     

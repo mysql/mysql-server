@@ -554,11 +554,13 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   }
   
   if(cmasterNodeId != getOwnNodeId()){
+    jam();
     c_start.reset();
     return;
   }
 
   if(c_start.m_waiting.isclear()){
+    jam();
     c_start.reset();
     return;
   }
@@ -597,6 +599,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
     ndbrequire(false);
   case NodeState::SL_STARTING:
   case NodeState::SL_STARTED:
+    jam();
     break;
     
   case NodeState::SL_STOPPING_1:
@@ -616,9 +619,11 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
   c_start.m_waiting.set(nodeId);
   switch(st){
   case NodeState::ST_INITIAL_START:
+    jam();
     c_start.m_withoutLog.set(nodeId);
     break;
   case NodeState::ST_SYSTEM_RESTART:
+    jam();
     c_start.m_withLog.set(nodeId);
     if(starting && lastGci > c_start.m_lastGci){
       jam();
@@ -631,6 +636,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
       return;
     }
     if(starting){
+      jam();
       Uint32 i = c_start.m_logNodesCount++;
       c_start.m_logNodes[i].m_nodeId = nodeId;
       c_start.m_logNodes[i].m_lastGci = req->lastGci;
@@ -652,11 +658,12 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
   }
   
   if(starting){
+    jam();
     trySystemRestart(signal);
   } else {
+    jam();
     startWaitingNodes(signal);
   }
-  
   return;
 }
 
@@ -670,6 +677,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
 
   NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
   if(c_start.m_withoutLog.get(nodeId)){
+    jam();
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
   }
   
@@ -706,6 +714,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   
   char buf[100];
   if(!c_start.m_withLog.isclear()){
+    jam();
     ndbout_c("Starting nodes w/ log: %s", c_start.m_withLog.getText(buf));
 
     NodeReceiverGroup rg(NDBCNTR, c_start.m_withLog);
@@ -716,6 +725,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   }
 
   if(!c_start.m_withoutLog.isclear()){
+    jam();
     ndbout_c("Starting nodes wo/ log: %s", c_start.m_withoutLog.getText(buf));
     NodeReceiverGroup rg(NDBCNTR, c_start.m_withoutLog);
     conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
@@ -777,6 +787,7 @@ Ndbcntr::trySystemRestart(Signal* signal){
       jam();
       return false;
     }
+    jam();
     srType = NodeState::ST_INITIAL_START;
     c_start.m_starting = c_start.m_withoutLog; // Used for starting...
     c_start.m_withoutLog.clear();
@@ -793,13 +804,11 @@ Ndbcntr::trySystemRestart(Signal* signal){
       // If we lose with all nodes, then we're in trouble
       ndbrequire(!allNodes);
       return false;
-      break;
     case CheckNodeGroups::Partitioning:
       jam();
       bool allowPartition = (c_start.m_startPartitionedTimeout != (Uint64)~0);
       
       if(allNodes){
-	jam();
 	if(allowPartition){
 	  jam();
 	  break;
@@ -1043,8 +1052,10 @@ void Ndbcntr::ph5ALab(Signal* signal)
       return;
     case NodeState::ST_NODE_RESTART:
     case NodeState::ST_INITIAL_NODE_RESTART:
+      jam();
       break;
     case NodeState::ST_ILLEGAL_TYPE:
+      jam();
       break;
     }
     ndbrequire(false);
