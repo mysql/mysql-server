@@ -785,8 +785,9 @@ int ha_start_consistent_snapshot(THD *thd)
     Same idea as when one wants to CREATE TABLE in one engine which does not
     exist:
   */
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-               ER_NO_CONS_READ_ENGINE, ER(ER_NO_CONS_READ_ENGINE));
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "This MySQL server does not support any "
+               "consistent-read capable storage engine");
   return 0;
 }
 

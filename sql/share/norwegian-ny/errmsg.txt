@@ -321,4 +321,3 @@ character-set=latin1
 "Invalid %s character string: '%.64s'",
 "Result of %s() was larger than max_allowed_packet (%ld) - truncated"
 "Conflicting declarations: '%s%s' and '%s%s'"
-"This MySQL server does not support any consistent-read capable storage engine"
