@@ -135,7 +135,7 @@ btr_page_insert_fits(
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */
-static
+
 page_t*
 btr_root_get(
 /*=========*/
@@ -146,9 +146,6 @@ btr_root_get(
 	ulint	space;
 	ulint	root_page_no;
 	page_t*	root;
-
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree), MTR_MEMO_X_LOCK)
-	  || mtr_memo_contains(mtr, dict_tree_get_lock(tree), MTR_MEMO_S_LOCK));
 	
 	space = dict_tree_get_space(tree);
 	root_page_no = dict_tree_get_page(tree);
@@ -334,8 +331,6 @@ btr_page_alloc(
 	page_t*		new_page;
 	ulint		new_page_no;
 
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
-							MTR_MEMO_X_LOCK));
 	if (tree->type & DICT_IBUF) {
 
 		return(btr_page_alloc_for_ibuf(tree, mtr));
