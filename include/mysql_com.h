@@ -164,9 +164,6 @@ enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 extern "C" {
 #endif
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
-
 int	my_net_init(NET *net, Vio* vio);
 void	net_end(NET *net);
 void	net_clear(NET *net);
@@ -224,6 +221,9 @@ typedef struct st_udf_init
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern unsigned long max_allowed_packet;
+extern unsigned long net_buffer_length;
 
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);

@@ -75,6 +75,8 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
+  THD *thd= current_thd;
+
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
 #ifdef SKIP_DBUG_IN_FILESORT
@@ -134,7 +136,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
 #endif
 
-  memavl=sortbuff_size;
+  memavl= thd->variables.sortbuff_size;
   while (memavl >= MIN_SORT_MEMORY)
   {
     ulong old_memavl;
@@ -149,7 +151,8 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   if (memavl < MIN_SORT_MEMORY)
   {
-    my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),sortbuff_size);
+    my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),
+	     thd->variables.sortbuff_size);
     goto err;
   }
   if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
@@ -909,6 +912,7 @@ static uint
 sortlength(SORT_FIELD *sortorder, uint s_length)
 {
   reg2 uint length;
+  THD *thd= current_thd;
 
   length=0;
   for (; s_length-- ; sortorder++)
@@ -916,7 +920,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
     if (sortorder->field)
     {
       if (sortorder->field->type() == FIELD_TYPE_BLOB)
-	sortorder->length=max_item_sort_length;
+	sortorder->length= thd->variables.max_item_sort_length;
       else
       {
 	sortorder->length=sortorder->field->pack_length();
@@ -952,7 +956,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       if (sortorder->item->maybe_null)
 	length++;				// Place for NULL marker
     }
-    set_if_smaller(sortorder->length,max_item_sort_length);
+    set_if_smaller(sortorder->length, thd->variables.max_item_sort_length);
     length+=sortorder->length;
   }
   sortorder->field= (Field*) 0;			// end marker

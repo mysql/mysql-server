@@ -151,6 +151,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   lex->slave_thd_opt=0;
+  lex->sql_command=SQLCOM_END;
   bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }

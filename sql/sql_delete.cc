@@ -201,7 +201,7 @@ cleanup:
   Delete multiple tables from join 
 ***************************************************************************/
 
-#define MEM_STRIP_BUF_SIZE sortbuff_size
+#define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
 int refposcmp2(void* arg, const void *a,const void *b)
 {

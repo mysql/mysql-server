@@ -86,7 +86,7 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #define TEST_BLOCKING		8
 #define MAX_THREE_BYTES 255L*255L*255L
 
-ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
+ulong net_buffer_length=8192;   /* Default length. Enlarged if necessary */
 
 static int net_write_buff(NET *net,const char *packet,ulong len);
 
@@ -105,7 +105,7 @@ int my_net_init(NET *net, Vio* vio)
   net->vio = vio;
   net->no_send_ok = 0;
   net->error=0; net->return_errno=0; net->return_status=0;
-  net->timeout=(uint) net_read_timeout;		/* Timeout for read */
+  net->timeout=(uint) net_read_timeout; /* Timeout for read */
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;
   net->last_error[0]=0;

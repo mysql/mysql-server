@@ -559,7 +559,7 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->inactive_timeout=net_interactive_timeout;
+    thd->inactive_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     thd->net.return_status= &thd->server_status;
@@ -661,7 +661,7 @@ pthread_handler_decl(handle_one_connection,arg)
     free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0)
     {
-      if (!thd->killed && opt_warnings)
+      if (!thd->killed && thd->variables.opt_warnings)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 			thd->thread_id,(thd->db ? thd->db : "unconnected"),
 			thd->user ? thd->user : "unauthenticated",
@@ -1196,7 +1196,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     thd->proc_info="logging slow query";
 
-    if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
+    if ((ulong) (thd->start_time - thd->time_after_lock) >
+	thd->variables.long_query_time ||
 	((thd->lex.select_lex.options &
 	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
@@ -2040,11 +2041,12 @@ mysql_execute_command(void)
 			  thd->priv_user,lex->verbose);
     break;
   case SQLCOM_SHOW_STATUS:
-    res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars);
+    res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
+		     (struct system_variables*) 0);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars);
+		     init_vars, lex->variable_values);
     break;
   case SQLCOM_SHOW_LOGS:
   {
@@ -2151,7 +2153,7 @@ mysql_execute_command(void)
     else
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
-	  ! opt_local_infile)
+	  ! thd->variables.opt_local_infile)
       {
 	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
 	goto error;
