@@ -121,16 +121,14 @@
 #define CFG_SHM_KEY                   502
 #define CFG_SHM_BUFFER_MEM            503
 
-#define CFG_SCI_ID_0                  550
-#define CFG_SCI_ID_1                  551
-#define CFG_SCI_SEND_LIMIT            552
-#define CFG_SCI_BUFFER_MEM            553
-#define CFG_SCI_NODE1_ADAPTERS        554
-#define CFG_SCI_NODE1_ADAPTER0        555
-#define CFG_SCI_NODE1_ADAPTER1        556
-#define CFG_SCI_NODE2_ADAPTERS        554
-#define CFG_SCI_NODE2_ADAPTER0        555
-#define CFG_SCI_NODE2_ADAPTER1        556
+#define CFG_SCI_HOST1_ID_0            550
+#define CFG_SCI_HOST1_ID_1            551
+#define CFG_SCI_HOST2_ID_0            552
+#define CFG_SCI_HOST2_ID_1            553
+#define CFG_SCI_HOSTNAME_1            554
+#define CFG_SCI_HOSTNAME_2            555
+#define CFG_SCI_SEND_LIMIT            556
+#define CFG_SCI_BUFFER_MEM            557
 
 #define CFG_OSE_PRIO_A_SIZE           602
 #define CFG_OSE_PRIO_B_SIZE           603
