@@ -169,10 +169,10 @@ typedef struct st_ha_create_information
   SQL_LIST merge_list;
   enum db_type db_type;
   enum row_type row_type;
-  uint options;					/* OR of HA_CREATE_ options */
+  uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;
-  bool if_not_exists;
+  bool table_existed;			/* 1 in create if table existed */
 } HA_CREATE_INFO;
 
 

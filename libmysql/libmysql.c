@@ -65,8 +65,8 @@
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  NET_READ_TIMEOUT;
-ulong		net_write_timeout= NET_WRITE_TIMEOUT;
+ulong		net_read_timeout=  CLIENT_NET_READ_TIMEOUT;
+ulong		net_write_timeout= CLIENT_NET_WRITE_TIMEOUT;
 
 
 #ifdef EMBEDDED_LIBRARY

@@ -33,7 +33,7 @@
   The second is to be freeed only on thread end. mysql_ha_open should
   then do { handler_items=concat(handler_items, free_list); free_list=0; }
 
-  But !!! do_cammand calls free_root at the end of every query and frees up
+  But !!! do_command calls free_root at the end of every query and frees up
   all the sql_alloc'ed memory. It's harder to work around...
  */
 
@@ -72,7 +72,11 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   if (*ptr)
   {
     VOID(pthread_mutex_lock(&LOCK_open));
-    close_thread_table(thd, ptr);
+    if (close_thread_table(thd, ptr))
+    {
+      /* Tell threads waiting for refresh that something has happened */
+      VOID(pthread_cond_broadcast(&COND_refresh));
+    }
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   else
@@ -89,8 +93,11 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
 {
   TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
-  if (*ptr)
-    close_thread_table(thd, ptr);
+  if (*ptr && close_thread_table(thd, ptr))
+  {
+    /* Tell threads waiting for refresh that something has happened */
+    VOID(pthread_cond_broadcast(&COND_refresh));
+  }
   return 0;
 }
 
