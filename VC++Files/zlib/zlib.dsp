@@ -19,6 +19,7 @@ CFG=zlib - Win32 Debug
 !MESSAGE
 !MESSAGE "zlib - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "zlib - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "zlib - Win32 authent" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -75,12 +76,38 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\zlib.lib"
 
+!ELSEIF  "$(CFG)" == "zlib - Win32 authent"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "zlib___Win32_authent"
+# PROP BASE Intermediate_Dir "zlib___Win32_authent"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "zlib___Win32_authent"
+# PROP Intermediate_Dir "zlib___Win32_authent"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=xilink6.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\zlib.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\zlib.lib"
+
 !ENDIF
 
 # Begin Target
 
 # Name "zlib - Win32 Release"
 # Name "zlib - Win32 Debug"
+# Name "zlib - Win32 authent"
 # Begin Source File
 
 SOURCE=.\adler32.c

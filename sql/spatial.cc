@@ -398,7 +398,7 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     if (trs->skip_char(','))			// Didn't find ','
       break;
   }
-  if (n_points < 2)
+  if (n_points < 1)
   {
     trs->set_error_msg("Too few points in LINESTRING");
     return 1;
@@ -487,6 +487,11 @@ int Gis_line_string::is_closed(int *closed) const
   if (no_data(data, 4))
     return 1;
   n_points= uint4korr(data);
+  if (n_points == 1)
+  {
+    *closed=1;
+    return 0;
+  }
   data+= 4;
   if (no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
     return 1;

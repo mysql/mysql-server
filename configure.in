@@ -767,7 +767,14 @@ AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT))
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
-MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+case $SYSTEM_TYPE in
+  *netware*)
+    AC_DEFINE(HAVE_COMPRESS)
+    ;;
+  *)
+    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+    ;;
+esac
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
