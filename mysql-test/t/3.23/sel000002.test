@@ -1,0 +1,5 @@
+use test;
+drop table if exists t;
+create table t (n int);
+insert into t values (1),(2),(3);
+@r/3.23/sel000002.result select * from t;

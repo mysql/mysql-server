@@ -1,0 +1,5 @@
+use test;
+drop table if exists t;
+create table t (s char(20) primary key, id int);
+insert into t values ('cat', 1),('mouse',3),('dog',2),('snake',77);
+@r/3.23/sel000001.result select s,id from t where s = 'mouse';
