@@ -190,7 +190,8 @@ bool DTCollation::aggregate(DTCollation &dt)
     /* 
        We do allow to use binary strings (like BLOBS)
        together with character strings.
-       Binaries have more precedance
+       Binaries have more precedance than a character
+       string of the same derivation.
     */
     if (collation == &my_charset_bin)
     {
