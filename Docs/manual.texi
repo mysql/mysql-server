@@ -6184,6 +6184,9 @@ and are configured with the following compilers and options:
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
+@item Solaris 2.8 sparc with @code{gcc 2.95.3}
+@code{CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex "--with-server-suffix=" --enable-thread-safe-client --enable-local-infile --enable-assembler --disable-shared}
+
 @item Linux 2.0.33 i386 with @code{pgcc} 2.90.29 (@code{egcs} 1.0.3a)
 @code{CFLAGS="-O3 -mpentium -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 

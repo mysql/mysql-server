@@ -547,7 +547,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
     scanning the table.
   */
   if (deleted < 10 || primary_key >= MAX_KEY || 
-      !(option_flag() & HA_READ_ORDER))
+      !(index_flags(primary_key) & HA_READ_ORDER))
   {
     (void) rnd_init();
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
@@ -835,7 +835,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (update_create_info)
   {
     update_create_info_from_table(create_info, &table);
-    if (table.file->option_flag() & HA_DROP_BEFORE_CREATE)
+    if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
       table.file->delete_table(name);		// Needed for BDB tables
   }
   error=table.file->create(name,&table,create_info);

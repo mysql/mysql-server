@@ -37,18 +37,16 @@ extern ulong myisam_recover_options;
 class ha_myisam: public handler
 {
   MI_INFO *file;
-  uint    int_option_flag;
+  uint    int_table_flags;
   char    *data_file_name, *index_file_name;
   bool enable_activate_all_index;
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
-    int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
-		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
-		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-		    HA_NULL_KEY |
-                    HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
+    int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_HAVE_KEY_READ_ONLY |
+		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
 		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
     enable_activate_all_index(1)
   {}
@@ -56,7 +54,7 @@ class ha_myisam: public handler
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;
-  ulong option_flag() const { return int_option_flag; }
+  ulong table_flags() const { return int_table_flags; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }

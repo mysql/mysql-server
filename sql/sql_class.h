@@ -217,11 +217,13 @@ class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT };
   enum Keytype type;
+  enum ha_key_alg algorithm;
   List<key_part_spec> columns;
   const char *Name;
 
   Key(enum Keytype type_par,const char *name_arg,List<key_part_spec> &cols)
-    :type(type_par), columns(cols),Name(name_arg) {}
+    :type(type_par), algorithm(HA_KEY_ALG_UNDEF), columns(cols), Name(name_arg)
+  {}
   ~Key() {}
   const char *name() { return Name; }
 };
