@@ -28,30 +28,29 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
   {
     const byte *pos;
     const byte *end;
+    ulong length;
     switch (rec->type) {
     case FIELD_BLOB:
     {
-      ulong length=_mi_calc_blob_length(rec->length-
+      length=_mi_calc_blob_length(rec->length-
 					mi_portable_sizeof_char_ptr,
 					buf);
       memcpy((char*) &pos, buf+rec->length- mi_portable_sizeof_char_ptr,
 	     sizeof(char*));
-      end=pos+length;
       break;
     }
     case FIELD_VARCHAR:
     {
-      uint length;
       length=uint2korr(buf);
-      pos=buf+2; end=pos+length;
+      pos=buf+2;
       break;
     }
     default:
-      pos=buf; end=buf+rec->length;
+      length=rec->length;
+      pos=buf;
       break;
     }
-    for ( ; pos != end ; pos++)
-      crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
+    crc=my_checksum(crc, pos ? pos : "", length);
   }
   return crc;
 }
@@ -59,9 +58,5 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
 
 ha_checksum mi_static_checksum(MI_INFO *info, const byte *pos)
 {
-  ha_checksum crc;
-  const byte *end=pos+info->s->base.reclength;
-  for (crc=0; pos != end; pos++)
-      crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
-  return crc;
+  return my_checksum(0, pos, info->s->base.reclength);
 }

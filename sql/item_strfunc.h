@@ -254,28 +254,43 @@ public:
 };
 
 
+/*
+  Item_func_password -- new (4.1.1) PASSWORD() function implementation.
+  Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new
+  password format, sha1(sha1(password) is so-called hash_stage2 value.
+  Length of returned string is always 41 byte. To find out how entire
+  authentification procedure works, see comments in password.c.
+*/
+
 class Item_func_password :public Item_str_func
 {
-  char tmp_value[64]; /* This should be enough for new password format */
+  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH+1]; 
 public:
   Item_func_password(Item *a) :Item_str_func(a) {}
-  Item_func_password(Item *a, Item *b) :Item_str_func(a,b) {}
-  String *val_str(String *);
-  void fix_length_and_dec();
+  String *val_str(String *str);
+  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH; }
   const char *func_name() const { return "password"; }
+  static char *alloc(THD *thd, const char *password);
 };
 
+
+/*
+  Item_func_old_password -- PASSWORD() implementation used in MySQL 3.21 - 4.0
+  compatibility mode. This item is created in sql_yacc.yy when
+  'old_passwords' session variable is set, and to handle OLD_PASSWORD()
+  function.
+*/
 
 class Item_func_old_password :public Item_str_func
 {
-  char tmp_value[17]; /* old password length +1 */
+  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
 public:
   Item_func_old_password(Item *a) :Item_str_func(a) {}
-  String *val_str(String *);
-  void fix_length_and_dec() { max_length = get_password_length(1); }
+  String *val_str(String *str);
+  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323; } 
   const char *func_name() const { return "old_password"; }
+  static char *alloc(THD *thd, const char *password);
 };
-
 
 
 class Item_func_des_encrypt :public Item_str_func
@@ -624,9 +639,56 @@ public:
   Item_func_collation(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
   const char *func_name() const { return "collation"; }
-  void fix_length_and_dec() 
+  void fix_length_and_dec()
   {
      max_length=40; // should be enough
      collation.set(system_charset_info);
   };
 };
+
+class Item_func_crc32 :public Item_int_func
+{
+  String value;
+public:
+  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  const char *func_name() const { return "crc32"; }
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int();
+};
+
+class Item_func_uncompressed_length : public Item_int_func
+{
+  String value;
+public:
+  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
+  const char *func_name() const{return "uncompressed_length";}
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int();
+};
+
+#ifdef HAVE_COMPRESS
+#define ZLIB_DEPENDED_FUNCTION ;
+#else
+#define ZLIB_DEPENDED_FUNCTION { null_value=1; return 0; }
+#endif
+
+class Item_func_compress: public Item_str_func
+{
+  String buffer;
+public:
+  Item_func_compress(Item *a):Item_str_func(a){}
+  void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
+  const char *func_name() const{return "compress";}
+  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+
+class Item_func_uncompress: public Item_str_func
+{
+  String buffer;
+public:
+  Item_func_uncompress(Item *a): Item_str_func(a){}
+  void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
+  const char *func_name() const{return "uncompress";}
+  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+

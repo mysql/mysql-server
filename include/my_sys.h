@@ -213,7 +213,7 @@ extern uint get_charset_number(const char *cs_name);
 extern const char *get_charset_name(uint cs_number);
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
-extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, 
+extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
@@ -507,6 +507,8 @@ typedef struct st_keycache
   ulonglong size;
 } KEY_CACHE;
 
+typedef uint32 ha_checksum;
+
 #include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
@@ -749,10 +751,11 @@ extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
 extern my_bool my_uncompress(byte *, ulong *, ulong *);
 extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
-extern ulong checksum(const byte *mem, uint count);
+extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
-uint my_count_bits(ulonglong v);
+extern uint my_count_bits(ulonglong v);
 extern void my_sleep(ulong m_seconds);
+extern ulong crc32(ulong crc, const uchar *buf, uint len);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
