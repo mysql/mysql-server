@@ -36,7 +36,7 @@
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
-#define DUMP_VERSION "10.0"
+#define DUMP_VERSION "10.1"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -1362,7 +1362,9 @@ static int init_dumping(char *database)
           }
 	}
       }
-      fprintf(md_result_file,"\nUSE %s;\n", database);
+      fprintf(md_result_file,"\nUSE %s%s%s;\n", (opt_quoted ? "`" : ""),
+	                                         database,
+	                                        (opt_quoted ? "`" : ""));
     }
   }
   if (extended_insert)
