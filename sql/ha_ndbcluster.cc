@@ -35,21 +35,16 @@
 
 #define USE_DISCOVER_ON_STARTUP
 //#define USE_NDB_POOL
-#define USE_EXTRA_ORDERED_INDEX
 
 // Default value for parallelism
 static const int parallelism= 240;
 
+// Default value for max number of transactions
+// createable against NDB from this handler
+static const int max_transactions = 256;
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
-/*
-  All error messages returned from ha_ndbcluster that are 
-  not mapped to the corresponding handler(HA_ERR_*) error code
-  have NDB_ERR_CODE_OFFSET added to it so that it does not clash with 
-  the handler error codes. The error number is then "restored"
-  to the original error number when get_error_message is called.
-*/
-#define NDB_ERR_CODE_OFFSET 30000
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("Error: %d  message: %s", err.code, err.message))
@@ -67,10 +62,6 @@ typedef NdbDictionary::Index  NDBINDEX;
 typedef NdbDictionary::Dictionary  NDBDICT;
 
 bool ndbcluster_inited= false;
-
-#ifdef USE_EXTRA_ORDERED_INDEX
-static const char* unique_suffix= "$unique";
-#endif
 
 static Ndb* g_ndb= NULL;
 
@@ -131,7 +122,7 @@ static int ndb_to_mysql_error(const NdbError *err)
   for (i=0 ; err_map[i].ndb_err != err->code ; i++)
   {
     if (err_map[i].my_err == -1)
-      return err->code+NDB_ERR_CODE_OFFSET;
+      return err->code;
   }
   return err_map[i].my_err;
 }
@@ -173,24 +164,20 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   error message of NDB 
  */
 
-const char* ha_ndbcluster::get_error_message(int *org_error, 
-						     bool *temporary)
+bool ha_ndbcluster::get_error_message(int error, 
+				      String *buf)
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
-  DBUG_PRINT("enter", ("error: %d", *org_error));
+  DBUG_PRINT("enter", ("error: %d", error));
 
-  int error= *org_error;
-  if (error < NDB_ERR_CODE_OFFSET)
-    DBUG_RETURN(NULL);
+  if (!m_ndb)
+    DBUG_RETURN(false);
 
-  error-= NDB_ERR_CODE_OFFSET;
-  DBUG_ASSERT(m_ndb); // What should be done if not m_ndb is available?
   const NdbError err= m_ndb->getNdbError(error);
-  *temporary= (err.status==NdbError::TemporaryError);
-
-  *org_error= error;
-  DBUG_PRINT("exit", ("error: %d, msg: %s", error, err.message));
-  DBUG_RETURN(err.message);
+  bool temporary= err.status==NdbError::TemporaryError;
+  buf->set(err.message, strlen(err.message), &my_charset_bin);
+  DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
+  DBUG_RETURN(temporary);
 }
 
 
@@ -348,7 +335,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   const NDBTAB *tab;
   const void *data, *pack_data;
   const char **key_name;
-  uint ndb_columns, mysql_columns, length, pack_length, i;
+  uint ndb_columns, mysql_columns, length, pack_length;
   int error;
   DBUG_ENTER("get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
@@ -404,24 +391,28 @@ int ha_ndbcluster::get_metadata(const char *path)
   // All checks OK, lets use the table
   m_table= (void*)tab;
 
-  for (i= 0; i < MAX_KEY; i++)
-  {
-    m_indextype[i]= UNDEFINED_INDEX;
-    m_unique_index_name[i]= NULL;
-  }
+  DBUG_RETURN(build_index_list());  
+}
 
+int ha_ndbcluster::build_index_list()
+{
+  char *name;
+  const char *index_name;
+  static const char* unique_suffix= "$unique";
+  uint i, name_len;
+  DBUG_ENTER("build_index_list");
+  
   // Save information about all known indexes
-  for (i= 0; i < table->keys; i++)
+  for (uint i= 0; i < table->keys; i++)
   {
-    m_indextype[i]= get_index_type_from_table(i);
-
-#ifdef USE_EXTRA_ORDERED_INDEX
-    if (m_indextype[i] == UNIQUE_INDEX)
+    NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
+    m_indextype[i]= idx_type;
+    
+    if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      char *name;
-      const char *index_name= get_index_name(i);
-      int name_len= strlen(index_name)+strlen(unique_suffix)+1;
-
+      index_name= get_index_name(i);
+      name_len= strlen(index_name)+strlen(unique_suffix)+1;
+      // Create name for unique index by appending "$unique";     
       if (!(name= my_malloc(name_len, MYF(MY_WME))))
 	DBUG_RETURN(2);
       strxnmov(name, name_len, index_name, unique_suffix, NullS);
@@ -429,40 +420,42 @@ int ha_ndbcluster::get_metadata(const char *path)
       DBUG_PRINT("info", ("Created unique index name: %s for index %d",
 			  name, i));
     }
-#endif
   }
-
-  DBUG_RETURN(0);  
+  DBUG_RETURN(0);
 }
+
 
 
 /*
   Decode the type of an index from information 
   provided in table object
 */
-NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint index_no) const
+NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
-  if (index_no == table->primary_key)
-    return PRIMARY_KEY_INDEX;  
+  bool is_hash_index=  (table->key_info[inx].algorithm == HA_KEY_ALG_HASH);
+  if (inx == table->primary_key)
+    return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
   else
-    return ((table->key_info[index_no].flags & HA_NOSAME) ? 
-	    UNIQUE_INDEX : 
+    return ((table->key_info[inx].flags & HA_NOSAME) ? 
+	    (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX) :
 	    ORDERED_INDEX);
 } 
-  
+
 
 void ha_ndbcluster::release_metadata()
 {
-  int i;
+  uint i;
 
   DBUG_ENTER("release_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
   m_table= NULL;
 
+  // Release index list 
   for (i= 0; i < MAX_KEY; i++)
   {
-    my_free((char*)m_unique_index_name[i], MYF(MY_ALLOW_ZERO_PTR));
+    if (m_unique_index_name[i])
+      my_free((char*)m_unique_index_name[i], MYF(0));
     m_unique_index_name[i]= NULL;
   }
 
@@ -481,6 +474,9 @@ static const ulong index_type_flags[]=
   0,                         
 
   /* PRIMARY_KEY_INDEX */
+  HA_NOT_READ_PREFIX_LAST,
+
+  /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
      Enable HA_KEY_READ_ONLY when "sorted" indexes are supported, 
      thus ORDERD BY clauses can be optimized by reading directly 
@@ -489,6 +485,9 @@ static const ulong index_type_flags[]=
   HA_NOT_READ_PREFIX_LAST,
 
   /* UNIQUE_INDEX */
+  HA_NOT_READ_PREFIX_LAST,
+
+  /* UNIQUE_ORDERED_INDEX */
   HA_NOT_READ_PREFIX_LAST,
 
   /* ORDERED_INDEX */
@@ -506,15 +505,8 @@ inline const char* ha_ndbcluster::get_index_name(uint idx_no) const
 
 inline const char* ha_ndbcluster::get_unique_index_name(uint idx_no) const
 {
-#ifdef USE_EXTRA_ORDERED_INDEX
-  DBUG_ASSERT(idx_no < MAX_KEY);
-  DBUG_ASSERT(m_unique_index_name[idx_no]);
   return m_unique_index_name[idx_no];
-#else
-  return get_index_name(idx_no);
-#endif
-
- }
+}
 
 inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
@@ -1521,7 +1513,7 @@ int ha_ndbcluster::index_read(byte *buf,
   start_key.key=    key;
   start_key.length= key_len;
   start_key.flag=   find_flag;
-  DBUG_RETURN(read_range_first(&start_key, NULL, true));
+  DBUG_RETURN(read_range_first(&start_key, NULL, false, true));
 }
 
 
@@ -1573,18 +1565,19 @@ int ha_ndbcluster::index_last(byte *buf)
 
 int ha_ndbcluster::read_range_first(const key_range *start_key,
 				    const key_range *end_key,
-				    bool sorted)
+				    bool eq_range, bool sorted)
 {
   KEY* key_info;
   int error= 1; 
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
-  DBUG_PRINT("info", ("sorted: %d", sorted));
+  DBUG_PRINT("info", ("eq_range: %d, sorted: %d", eq_range, sorted));
 
   if (m_active_cursor)
     close_scan();
 
   switch (get_index_type(active_index)){
+  case PRIMARY_KEY_ORDERED_INDEX:
   case PRIMARY_KEY_INDEX:
     key_info= table->key_info + active_index;
     if (start_key && 
@@ -1595,6 +1588,7 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     break;
+  case UNIQUE_ORDERED_INDEX:
   case UNIQUE_INDEX:
     key_info= table->key_info + active_index;
     if (start_key && 
@@ -1618,7 +1612,7 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
 }
 
 
-int ha_ndbcluster::read_range_next(bool eq_range)
+int ha_ndbcluster::read_range_next()
 {
   DBUG_ENTER("ha_ndbcluster::read_range_next");
   DBUG_RETURN(next_result(table->record[0]));
@@ -2042,6 +2036,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
  
   if (lock_type != F_UNLCK)
   {
+    DBUG_PRINT("info", ("lock_type != F_UNLCK"));
     if (!thd->transaction.ndb_lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
@@ -2114,6 +2109,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   } 
   else 
   {
+    DBUG_PRINT("info", ("lock_type == F_UNLCK"));
     if (!--thd->transaction.ndb_lock_count)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
@@ -2390,15 +2386,8 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
   
-  // Fetch table from NDB, check that it exists
-  const NDBTAB *tab2= dict->getTable(m_tabname);
-  if (tab2 == NULL)
-  {
-    const NdbError err= dict->getNdbError();
-    ERR_PRINT(err);
-    my_errno= ndb_to_mysql_error(&err);
+  if ((my_errno= build_index_list()))
     DBUG_RETURN(my_errno);
-  }
   
   // Create secondary indexes
   KEY* key_info= form->key_info;
@@ -2407,18 +2396,30 @@ int ha_ndbcluster::create(const char *name,
   {
     int error= 0;
     DBUG_PRINT("info", ("Index %u: %s", i, *key_name));
-    if (i == form->primary_key)
-    {    
-#ifdef USE_EXTRA_ORDERED_INDEX
-	error= create_ordered_index(*key_name, key_info);
-#endif
-    }
-    else if (key_info->flags & HA_NOSAME)
-      error= create_unique_index(*key_name, key_info);
-    else
-      error= create_ordered_index(*key_name, key_info);
 
-    
+    switch (get_index_type_from_table(i)){
+
+    case PRIMARY_KEY_INDEX:
+      // Do nothing, already created
+      break;
+    case PRIMARY_KEY_ORDERED_INDEX:
+      error= create_ordered_index(*key_name, key_info);
+      break;
+    case UNIQUE_ORDERED_INDEX:
+      if (!(error= create_ordered_index(*key_name, key_info)))
+	error= create_unique_index(get_unique_index_name(i), key_info);
+      break;
+    case UNIQUE_INDEX:
+	error= create_unique_index(get_unique_index_name(i), key_info);
+      break;
+    case ORDERED_INDEX:
+      error= create_ordered_index(*key_name, key_info);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+
     if (error)
     {
       DBUG_PRINT("error", ("Failed to create index %u", i));
@@ -2442,29 +2443,9 @@ int ha_ndbcluster::create_ordered_index(const char *name,
 int ha_ndbcluster::create_unique_index(const char *name, 
 				       KEY *key_info)
 {
-  int error;
-  const char* unique_name= name;
+
   DBUG_ENTER("create_unique_index");
-
-#ifdef USE_EXTRA_ORDERED_INDEX
-  char buf[FN_HEADLEN];
-  strxnmov(buf, FN_HEADLEN, name, unique_suffix, NullS);
-  unique_name= buf;
-#endif
-
-  error= create_index(unique_name, key_info, true);
-  if (error)
-    DBUG_RETURN(error);
-
-#ifdef USE_EXTRA_ORDERED_INDEX
-  /*
-    If unique index contains more then one attribute 
-    an ordered index should be created to support 
-    partial key search 
-  */
-  error= create_ordered_index(name, key_info);
-#endif
-  DBUG_RETURN(error);
+  DBUG_RETURN(create_index(name, key_info, true));
 }
 
 
@@ -2751,7 +2732,7 @@ Ndb* ha_ndbcluster::seize_ndb()
 #else
   ndb= new Ndb("");  
 #endif
-  if (ndb->init(NDB_MAX_TRANSACTIONS) != 0)
+  if (ndb->init(max_transactions) != 0)
   {
     ERR_PRINT(ndb->getNdbError());
     /*
@@ -3051,49 +3032,27 @@ ha_rows
 ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
                                 key_range *max_key)
 {
-  ha_rows records= 10;		/* Good guess when you don't know anything */
   KEY *key_info= table->key_info + inx;
   uint key_length= key_info->key_length;
+  NDB_INDEX_TYPE idx_type= get_index_type(inx);  
 
   DBUG_ENTER("records_in_range");
   DBUG_PRINT("enter", ("inx: %u", inx));
-  DBUG_DUMP("start_key", min_key->key, min_key->length);
-  DBUG_DUMP("end_key", max_key->key, max_key->length);
-  DBUG_PRINT("enter", ("start_search_flag: %u  end_search_flag: %u",
-                       min_key->flag, max_key->flag));
 
-#ifndef USE_EXTRA_ORDERED_INDEX
-  /*
-    Check that start_key_len is equal to 
-    the length of the used index and
-    prevent partial scan/read of hash indexes by returning HA_POS_ERROR
-  */
-  NDB_INDEX_TYPE idx_type= get_index_type(inx);  
-  if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) && 
-      min_key->length < key_length)
-  {
-    DBUG_PRINT("warning", ("Tried to use index which required"
-			   "full key length: %d, HA_POS_ERROR", 
-			   key_length));
-    records= HA_POS_ERROR;
-  }
-#else
-  /*
-    Extra ordered indexes are created primarily 
-    to support partial key scan/read and range scans of hash indexes.
-    I.e. the ordered index are used instead of the hash indexes for 
-    these queries.
-   */
-  NDB_INDEX_TYPE idx_type= get_index_type(inx);  
-  if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) && 
-      start_key_len == key_length)
-  {
-    // this is a "const" table which returns only one record!
-    records= 1;
-  }
-#endif
-  DBUG_PRINT("exit", ("records: %d", records));
-  DBUG_RETURN(records);
+  // Prevent partial read of hash indexes by returning HA_POS_ERROR
+  if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) &&
+      ((min_key && min_key->length < key_length) ||
+       (max_key && max_key->length < key_length)))
+    DBUG_RETURN(HA_POS_ERROR);
+  
+  // Read from hash index with full key
+  // This is a "const" table which returns only one record!      
+  if ((idx_type != ORDERED_INDEX) &&
+      ((min_key && min_key->length == key_length) || 
+       (max_key && max_key->length == key_length)))
+    DBUG_RETURN(1);
+  
+  DBUG_RETURN(10); /* Good guess when you don't know anything */
 }
 
 

@@ -1123,14 +1123,15 @@ void handler::print_error(int error, myf errflag)
       /* The error was "unknown" to this function.
 	 Ask handler if it has got a message for this error */
       bool temporary= FALSE;
-      const char* msg= get_error_message(&error, &temporary);
-      if (msg)
+      String str;
+      temporary= get_error_message(error, &str);
+      if (!str.is_empty())
       {
 	const char* engine= ha_get_storage_engine(table->db_type);
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,msg,engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,str.ptr(),engine);
 	else
-	  my_error(ER_GET_ERRMSG,MYF(0),error,msg,engine);
+	  my_error(ER_GET_ERRMSG,MYF(0),error,str.ptr(),engine);
       }
       else       
 	my_error(ER_GET_ERRNO,errflag,error);
@@ -1146,15 +1147,15 @@ void handler::print_error(int error, myf errflag)
    Return an error message specific to this handler
    
    SYNOPSIS
-   error        [in/out] error code previously returned by handler
-   temporary    [out] temporary error, transaction should be retried if true
+   error        error code previously returned by handler
+   buf          Pointer to String where to add error message
    
-   The returned pointer to error message should not be freed.
+   Returns true if this is a temporary error
  */
 
-const char* handler::get_error_message(int *error, bool *temporary)
+bool handler::get_error_message(int error, String* buf)
 {
-  return NULL;
+  return false;
 }
 
 
