@@ -54,22 +54,6 @@ private:
   friend class NdbImpl;
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   friend class Ndb_cluster_connection;
-
-  /**
-   * Structure containing values for guessing primary node
-   */
-  struct FragmentToNodeMap {
-    FragmentToNodeMap():
-      fragment2PrimaryNodeMap(0) {};
-    Uint32 kValue;
-    Uint32 hashValueMask;
-    Uint32 hashpointerValue;
-    Uint32 noOfFragments;
-    Uint32 *fragment2PrimaryNodeMap;
-    
-    void init(Uint32 noOfNodes, Uint8 nodeIds[]);
-    void release();
-  } fragmentToNodeMap;
   
   struct Node
   {
@@ -85,8 +69,6 @@ private:
 
   Vector<Node> m_all_nodes;
   void init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
-  Uint32 guess_primary_node(const char * keyData, Uint32 keyLen);
-
   void connect_thread();
   
   TransporterFacade *m_transporter_facade;

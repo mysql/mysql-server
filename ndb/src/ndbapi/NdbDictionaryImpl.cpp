@@ -482,6 +482,26 @@ NdbTableImpl::buildColumnHash(){
   }
 #endif
 }
+
+Uint32
+NdbTableImpl::get_nodes(Uint32 hashValue, const Uint16 ** nodes) const
+{
+  if(m_replicaCount > 0)
+  {
+    Uint32 fragmentId = hashValue & m_hashValueMask;
+    if(fragmentId < m_hashpointerValue) 
+    {
+      fragmentId = hashValue & ((m_hashValueMask << 1) + 1);
+    }
+    Uint32 pos = fragmentId * m_replicaCount;
+    if(pos + m_replicaCount <= m_fragments.size())
+    {
+      * nodes = m_fragments.getBase()+pos;
+      return m_replicaCount;
+    }
+  }
+  return 0;
+}
   
 /**
  * NdbIndexImpl
@@ -527,6 +547,12 @@ const char *
 NdbIndexImpl::getTable() const
 {
   return m_tableName.c_str();
+}
+
+const NdbTableImpl *
+NdbIndexImpl::getBaseTable() const
+{
+  return m_table;
 }
 
 const NdbTableImpl *
@@ -1226,7 +1252,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_kvalue = tableDesc.TableKValue;
   impl->m_minLoadFactor = tableDesc.MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc.MaxLoadFactor;
-  impl->m_fragmentCount = tableDesc.FragmentCount;
 
   impl->m_indexType = (NdbDictionary::Index::Type)
     getApiConstant(tableDesc.TableType,
@@ -1326,7 +1351,42 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_keyLenInWords = keyInfoPos;
   impl->m_noOfBlobs = blobCount;
   impl->m_noOfDistributionKeys = distKeys;
+
+  if(tableDesc.FragmentDataLen > 0)
+  {
+    int i;
+    Uint32 fragCount = tableDesc.FragmentData[0];
+    Uint32 replicaCount = tableDesc.FragmentData[1];
+    impl->m_replicaCount = replicaCount;
+    impl->m_fragmentCount = fragCount;
+
+    for(i = 0; i<(fragCount*replicaCount); i++)
+    {
+      impl->m_fragments.push_back(tableDesc.FragmentData[i+2]);
+    }
+
+    impl->m_replicaCount = replicaCount;
+    impl->m_fragmentCount = fragCount;
+    
+    Uint32 topBit = (1 << 31);
+    for(int i = 31; i>=0; i--){
+      if((fragCount & topBit) != 0)
+	  break;
+      topBit >>= 1;
+    }
+    impl->m_hashValueMask = topBit - 1;
+    impl->m_hashpointerValue = fragCount - (impl->m_hashValueMask + 1);
+  }
+  else
+  {
+    impl->m_fragmentCount = tableDesc.FragmentCount;
+    impl->m_replicaCount = 0;
+    impl->m_hashValueMask = 0;
+    impl->m_hashpointerValue = 0;
+  }
+
   * ret = impl;
+
   DBUG_RETURN(0);
 }
 
@@ -3041,6 +3101,7 @@ NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
 }
 
 template class Vector<int>;
+template class Vector<Uint16>;
 template class Vector<Uint32>;
 template class Vector<Vector<Uint32> >;
 template class Vector<NdbTableImpl*>;

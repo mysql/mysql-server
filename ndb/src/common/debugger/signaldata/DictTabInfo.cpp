@@ -46,6 +46,8 @@ DictTabInfo::TableMapping[] = {
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
   DTIMAP(Table, FragmentCount, FragmentCount),
+  DTIMAP2(Table, FragmentDataLen, FragmentDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
+  DTIMAPB(Table, FragmentData, FragmentData, 0, MAX_FRAGMENT_DATA_BYTES, FragmentDataLen),
   DTIBREAK(AttributeName)
 };
 
@@ -120,6 +122,8 @@ DictTabInfo::Table::init(){
   FrmLen = 0;
   memset(FrmData, 0, sizeof(FrmData));
   FragmentCount = 0;
+  FragmentDataLen = 0;
+  memset(FragmentData, 0, sizeof(FragmentData));
 }
 
 void

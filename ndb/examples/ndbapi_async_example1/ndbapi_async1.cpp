@@ -86,12 +86,15 @@ int main()
   /******************************************************
    * Insert (we do two insert transactions in parallel) *
    ******************************************************/
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  if (myTable == NULL)
+    APIERROR(myDict->getNdbError());
   for (int i = 0; i < 2; i++) {
     myNdbTransaction[i] = myNdb->startTransaction();
     if (myNdbTransaction[i] == NULL) APIERROR(myNdb->getNdbError());
     
-    myNdbOperation = myNdbTransaction[i]->getNdbOperation("MYTABLENAME");
-    // Error check. If error, then maybe table MYTABLENAME is not in database
+    myNdbOperation = myNdbTransaction[i]->getNdbOperation(myTable);
     if (myNdbOperation == NULL) APIERROR(myNdbTransaction[i]->getNdbError());
     
     myNdbOperation->insertTuple();
