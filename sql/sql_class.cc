@@ -343,7 +343,9 @@ void THD::change_user(void)
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
-  ha_rollback(this);
+  /* TODO uncomment the line below when binlog will be able to prepare */
+  // if (transaction.xa_state != XA_PREPARED)
+    ha_rollback(this);
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -385,17 +387,17 @@ THD::~THD()
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
-#ifndef EMBEDDED_LIBRARY  
+#ifndef EMBEDDED_LIBRARY
   if (net.vio)
   {
     vio_delete(net.vio);
-    net_end(&net); 
+    net_end(&net);
   }
 #endif
   if (!cleanup_done)
     cleanup();
 
-    ha_close_connection(this);
+  ha_close_connection(this);
 
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);

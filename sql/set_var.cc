@@ -954,9 +954,11 @@ struct show_var_st init_vars[]= {
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+#ifdef DOES_NOTHING_YET
   {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
   {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
   {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
+#endif
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
@@ -2495,14 +2497,6 @@ bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
   pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
   sync_binlog_period= (ulong) var->save_result.ulonglong_value;
-  /*
-    Must reset the counter otherwise it may already be beyond the new period
-    and so the new period will not be taken into account. Need mutex otherwise
-    might be cancelled by a simultanate ++ in MYSQL_LOG::write().
-  */
-  pthread_mutex_lock(lock_log);
-  sync_binlog_counter= 0;
-  pthread_mutex_unlock(lock_log);
   return 0;
 }
 #endif /* HAVE_REPLICATION */
@@ -2522,7 +2516,7 @@ bool sys_var_rand_seed2::update(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 {
-  char buff[MAX_TIME_ZONE_NAME_LENGTH]; 
+  char buff[MAX_TIME_ZONE_NAME_LENGTH];
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
