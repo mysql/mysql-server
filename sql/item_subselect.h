@@ -197,19 +197,15 @@ public:
   virtual void select_transformer(st_select_lex_unit *unit);
 };
 
-class subselect_engine
+class subselect_engine: public Sql_alloc
 {
 protected:
   select_subselect *result; /* results storage class */
   THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
+  bool maybe_null; /* may be null (first item in select) */
 public:
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-  static void operator delete(void *ptr, size_t size) {}
 
   subselect_engine(THD *thd, Item_subselect *si, select_subselect *res) 
   {
@@ -217,7 +213,9 @@ public:
     item= si;
     this->thd= thd;
     res_type= STRING_RESULT;
+    maybe_null= 0;
   }
+  virtual ~subselect_engine() {}; // to satisfy compiler
 
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
@@ -227,6 +225,7 @@ public:
   enum Item_result type() { return res_type; }
   virtual bool check_loop(uint id)= 0;
   virtual void exclude()= 0;
+  bool may_be_null() { return maybe_null; };
 };
 
 class subselect_single_select_engine: public subselect_engine
