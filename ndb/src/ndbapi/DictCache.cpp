@@ -24,12 +24,11 @@
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
 {
-  if (sz % 8 != 0) // round to Uint64
-    sz += 8 - sz % 8;
-  void *data= malloc(sizeof(NdbTableImpl)+sz-8);
+  Uint32 tot_size= sizeof(NdbTableImpl *) + ((sz+7)>>3)<<3; // round to Uint64
+  void *data= malloc(tot_size);
   if (data == 0)
     return 0;
-  memset(data,0,sizeof(NdbTableImpl)+sz-8);
+  memset(data, 0, tot_size);
   new (data) Ndb_local_table_info(table_impl);
   return (Ndb_local_table_info *) data;
 }
