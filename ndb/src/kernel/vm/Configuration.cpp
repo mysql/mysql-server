@@ -203,7 +203,7 @@ Configuration::fetch_configuration(LocalConfig &local_config){
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
     */
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
   
   m_mgmd_port= m_config_retriever->get_mgmd_port();
