@@ -805,6 +805,7 @@ case $SYSTEM_TYPE in
     echo "Adding flag -Dunix"
     CFLAGS="$CFLAGS -Dunix"
     CXXFLAGS="$CXXFLAGS -Dunix"
+    OVERRIDE_MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
     ;;
   *bsdi*)
     echo "Adding fix for BSDI"
@@ -2051,7 +2052,12 @@ EOF
     AC_DEFINE(HAVE_mit_thread)
     MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
     AC_SUBST(MT_INCLUDES)
-    MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
+    if test -n "$OVERRIDE_MT_LD_ADD"
+    then 
+      MT_LD_ADD="$OVERRIDE_MT_LD_ADD"
+    else
+      MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread.a"
+    fi
     AC_SUBST(MT_LD_ADD)
     echo ""
     echo "Configuring MIT Pthreads"
