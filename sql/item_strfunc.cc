@@ -1792,6 +1792,7 @@ String *Item_func_conv_charset::val_str(String *str)
     null_value=1;
     return 0;
   }
+  null_value=0;
   
   from=arg->charset();
   to=conv_charset;
