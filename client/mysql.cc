@@ -128,7 +128,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-               tty_password= 0, opt_nobeep=0;
+               tty_password= 0, opt_nobeep=0, opt_reconnect=1;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -556,6 +556,8 @@ static struct my_option my_long_options[] =
   {"raw", 'r', "Write fields without conversion. Used with --batch",
    (gptr*) &opt_raw_data, (gptr*) &opt_raw_data, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"reconnect", OPT_RECONNECT, "Reconnect if the connection is lost. Disable with --disable-reconnect. This option is enabled by default.", 
+   (gptr*) &opt_reconnect, (gptr*) &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_SMEM
@@ -783,6 +785,7 @@ static int get_options(int argc, char **argv)
     strmov(pager, "stdout");
     opt_nopager= 1;
     opt_outfile= 0;
+    opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
   if (default_charset)
@@ -1374,7 +1377,7 @@ char *rindex(const char *s,int c)
 
 static int reconnect(void)
 {
-  if (!status.batch)
+  if (opt_reconnect)
   {
     put_info("No connection. Trying to reconnect...",INFO_INFO);
     (void) com_connect((String *) 0, 0);
@@ -1399,7 +1402,7 @@ int mysql_real_query_for_lazy(const char *buf, int length)
       return 0;    
     uint error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
-	status.batch)
+      !opt_reconnect)
       return error;
     if (reconnect())
       return error;
@@ -1584,7 +1587,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (!connected && reconnect())
   {
     buffer->length(0);				// Remove query on error
-    return status.batch ? 1 : -1;		// Fatal error
+    return opt_reconnect ? -1 : 1;          // Fatal error
   }
   if (verbose)
     (void) com_print(buffer,0);
@@ -2393,14 +2396,14 @@ com_use(String *buffer __attribute__((unused)), char *line)
 	be down during query
       */
       if (!connected && reconnect())
-	return status.batch ? 1 : -1;			// Fatal error
+      return opt_reconnect ? -1 : 1;                        // Fatal error
       if (mysql_select_db(&mysql,tmp))
       {
 	if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR)
 	  return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
 
 	if (reconnect())
-	  return status.batch ? 1 : -1;			// Fatal error
+        return opt_reconnect ? -1 : 1;                      // Fatal error
 	if (mysql_select_db(&mysql,tmp))
 	  return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
       }
