@@ -19,7 +19,7 @@
 
 #ifndef THREAD
 
-int main(int argc, char **argv)
+int main(void)
 {
   printf("This test must be compiled with multithread support to work\n");
   exit(1);
