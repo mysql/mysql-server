@@ -6347,7 +6347,7 @@ CHARSET_INFO my_charset_big5_bin=
     ctype_big5,
     to_lower_big5,
     to_upper_big5,
-    sort_order_big5,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

@@ -2125,7 +2125,7 @@ CHARSET_INFO my_charset_utf8_bin=
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
-    to_upper_utf8,	/* sort_order   */
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

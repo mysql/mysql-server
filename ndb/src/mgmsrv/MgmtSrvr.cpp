@@ -2883,3 +2883,6 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   msg.assign("Success");
   return 0;
 }
+
+template class Vector<SigMatch>;
+template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);

@@ -237,10 +237,10 @@ bool opt_help= 0;
 bool opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
-{{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
- {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
- {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
+{{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
+ {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
+ {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
 
 
 /* Global variables */

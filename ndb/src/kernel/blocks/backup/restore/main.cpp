@@ -353,3 +353,4 @@ main(int argc, const char** argv)
   return 1;
 } // main
 
+template class Vector<BackupConsumer*>;
