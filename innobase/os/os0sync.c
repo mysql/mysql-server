@@ -495,10 +495,7 @@ os_fast_mutex_free(
 	ut_a(fast_mutex);
 
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
-#elif defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-	pthread_mutex_destroy(fast_mutex);
 #else
-	UT_NOT_USED(fast_mutex);
-
+	pthread_mutex_destroy(fast_mutex);
 #endif
 }
