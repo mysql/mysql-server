@@ -4866,6 +4866,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       recinfo->type=FIELD_NORMAL;
     if (!--hidden_field_count)
       null_count=(null_count+7) & ~7;		// move to next byte
+
+    // fix table name in field entry
+    field->table_name= table->table_name;
   }
 
   param->copy_field_end=copy;
