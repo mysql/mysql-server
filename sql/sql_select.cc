@@ -974,11 +974,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			  thd->select_limit))
     {
       if (!join.join_tab[join.const_tables].select->quick)
-	error= return_zero_rows(&join, result, tables, fields,
-				0, select_options,
-				"Impossible WHERE noticed after reading const tables",
-				having,procedure);
-      goto err;
+	goto err;
     }
   }
   join.having=having;				// Actually a parameter
