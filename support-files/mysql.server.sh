@@ -24,17 +24,27 @@
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
  
+# If you install MySQL on some other places than @prefix@, then you
+# have to do one of the following thing for this script to work:
+#
+# - Run this script from the MySQL installation directory
+# - Create a /etc/my.cnf file with the following information:
+#   [mysqld]
+#   basedir=path-to-mysql-installation-directory
+# - Add the above to any other configuration file (for example ~/.my.ini)
+#   and copy my_print_defaults to /usr/bin
+# - Add the path to the mysql-installation-directory to the basedir variable
+#   below.
+#
+# If you want to affect other MySQL variables, you should make your changes
+# in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
+
+basedir=
 
 # The following variables are only set for letting mysql.server find things.
-# If you want to affect other MySQL variables, you should make your changes
-# in the /etc/my.cnf or other configuration files.
-
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
-export PATH
 
 # Set some defaults
 datadir=@localstatedir@
-basedir=
 pid_file=
 if test -z "$basedir"
 then
@@ -43,6 +53,10 @@ then
 else
   bindir="$basedir/bin"
 fi
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
+export PATH
+
 if test -z "$pid_file"
 then
   pid_file=$datadir/`@HOSTNAME@`.pid
@@ -123,7 +137,7 @@ case "$mode" in
         touch /var/lock/subsys/mysql
       fi
     else
-      echo "Can't execute $bindir/mysqld_safe"
+      echo "Can't execute $bindir/mysqld_safe from dir $basedir"
     fi
     ;;
 
